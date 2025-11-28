@@ -1,0 +1,29 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+backend/dist/
+backend/build/
+frontend/dist/
+frontend/build/
+
+# Env files
+.env
+backend/.env
+frontend/.env
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+logs/
+*.log
+
+# Docs (không đẩy lên GitHub theo yêu cầu)
+docs/
