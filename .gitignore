@@ -10,7 +10,6 @@ backend/build/
 frontend/dist/
 frontend/build/
 
-# Env files
 .env
 backend/.env
 frontend/.env
@@ -25,5 +24,4 @@ Thumbs.db
 logs/
 *.log
 
-# Docs (không đẩy lên GitHub theo yêu cầu)
 docs/
