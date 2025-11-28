@@ -1,0 +1,74 @@
+import { supabase } from '../lib/db.js';
+
+/**
+ * Middleware xác thực - kiểm tra JWT token từ Supabase Auth
+ * Sử dụng cho các API cần đăng nhập mới được gọi
+ */
+export const requireAuth = async (req, res, next) => {
+  try {
+    // 1. Lấy token từ header "Authorization: Bearer <token>"
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Thiếu token xác thực. Vui lòng đăng nhập.' 
+      });
+    }
+
+    const token = authHeader.split(' ')[1];
+
+    // 2. Verify token với Supabase - hỏi xem token này có hợp lệ không
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+
+    if (error || !user) {
+      console.error('Auth error:', error?.message);
+      return res.status(401).json({ 
+        success: false, 
+        message: 'Token không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.' 
+      });
+    }
+
+    // 3. Gán thông tin user vào request để các handler sau dùng được
+    req.user = user;
+    
+    // Log để debug (có thể bỏ sau)
+    console.log(`✅ Authenticated: ${user.email}`);
+    
+    next();
+  } catch (err) {
+    console.error('🔥 Auth Middleware Error:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Lỗi hệ thống khi xác thực' 
+    });
+  }
+};
+
+/**
+ * Middleware kiểm tra role (dùng sau khi đã qua requireAuth)
+ * @param {string[]} allowedRoles - Danh sách role được phép truy cập
+ */
+export const requireRole = (allowedRoles) => {
+  return async (req, res, next) => {
+    try {
+      // Lấy role từ user metadata hoặc từ bảng users
+      const userRole = req.user?.app_metadata?.role || 'student';
+      
+      if (!allowedRoles.includes(userRole)) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Bạn không có quyền truy cập tài nguyên này' 
+        });
+      }
+      
+      next();
+    } catch (err) {
+      console.error('🔥 Role Middleware Error:', err);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Lỗi hệ thống khi kiểm tra quyền' 
+      });
+    }
+  };
+};

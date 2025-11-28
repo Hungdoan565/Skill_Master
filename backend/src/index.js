@@ -2,12 +2,15 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { supabase, getDbStatus } from './lib/db.js';
+import { requireAuth, requireRole } from './middleware/auth.js';
 
 dotenv.config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// ============ PUBLIC APIs (Không cần đăng nhập) ============
 
 app.get('/api/health', async (_req, res) => {
   const status = await getDbStatus();
@@ -23,6 +26,7 @@ app.get('/api/status', async (_req, res, next) => {
   }
 });
 
+// Xem danh sách khóa học (public - ai cũng xem được)
 app.get('/api/courses', async (_req, res, next) => {
   try {
     const { data, error } = await supabase
@@ -39,6 +43,86 @@ app.get('/api/courses', async (_req, res, next) => {
   }
 });
 
+// ============ PROTECTED APIs (Phải đăng nhập) ============
+
+// Tạo khóa học mới (chỉ admin mới được tạo)
+app.post('/api/courses', requireAuth, async (req, res, next) => {
+  try {
+    const { name, description, category, base_price, status } = req.body;
+    
+    // Log user đang tạo (từ middleware)
+    console.log(`📝 User ${req.user.email} đang tạo khóa học: ${name}`);
+
+    // Validate dữ liệu đầu vào
+    if (!name || !category) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Tên khóa học và danh mục là bắt buộc' 
+      });
+    }
+
+    const { data, error } = await supabase
+      .from('courses')
+      .insert([{
+        name,
+        description: description || '',
+        category,
+        base_price: base_price || 0,
+        status: status || 'active',
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json({ 
+      success: true, 
+      message: 'Tạo khóa học thành công',
+      data 
+    });
+  } catch (error) {
+    console.error('Error creating course:', error);
+    next(error);
+  }
+});
+
+// Xóa khóa học (chỉ admin)
+app.delete('/api/courses/:id', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    
+    console.log(`🗑️ User ${req.user.email} đang xóa khóa học: ${id}`);
+
+    const { error } = await supabase
+      .from('courses')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    res.json({ 
+      success: true, 
+      message: 'Xóa khóa học thành công' 
+    });
+  } catch (error) {
+    console.error('Error deleting course:', error);
+    next(error);
+  }
+});
+
+// API kiểm tra user hiện tại (debug/profile)
+app.get('/api/me', requireAuth, async (req, res) => {
+  res.json({ 
+    success: true, 
+    user: {
+      id: req.user.id,
+      email: req.user.email,
+      role: req.user.app_metadata?.role || 'user',
+      created_at: req.user.created_at,
+    }
+  });
+});
+
 app.use((err, _req, res, _next) => {
   console.error('🔥 Lỗi hệ thống:', err); // Log ra terminal để em xem
   
@@ -50,7 +134,7 @@ app.use((err, _req, res, _next) => {
   });
 });
 
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Backend running on port ${PORT}`);
 });
