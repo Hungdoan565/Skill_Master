@@ -11,6 +11,7 @@ import {
   Building2,
   UserCog,
   Home,
+  DoorOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -52,6 +53,7 @@ const menuGroups = [
     title: 'HỆ THỐNG',
     items: [
       { label: 'Trung tâm', icon: Building2, path: '/admin/centers' },
+      { label: 'Phòng học', icon: DoorOpen, path: '/admin/rooms' },
     ],
   },
 ];

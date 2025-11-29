@@ -12,10 +12,14 @@ import { ChevronDown, LogOut, User, Settings, HelpCircle, LayoutDashboard } from
 import { AdminLayout } from '@/layouts/admin-layout';
 import { DashboardPage } from '@/pages/admin/dashboard-page';
 import { CoursesPage } from '@/pages/admin/courses-page';
+import { ClassesPage } from '@/pages/admin/classes-page';
+import { RoomsPage } from '@/pages/admin/rooms-page';
 import { StaffPage } from '@/pages/admin/staff-page';
 import { StudentsPage } from '@/pages/admin/students-page';
 import { LoginPage } from '@/pages/auth/login-page';
 import { AuthPage } from '@/pages/auth/auth-page';
+import { LandingPage } from '@/pages/landing/landing-page';
+import { CoursesPage as PublicCoursesPage } from '@/pages/public/courses-page';
 import { ProtectedRoute, GuestRoute, TeacherRoute, StudentRoute, AdminRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/contexts/auth-context';
 
@@ -294,62 +298,16 @@ const StudentLayout = () => (
   </div>
 );
 
-const LandingPage = () => {
-  const [health, setHealth] = React.useState(null);
-
-  React.useEffect(() => {
-    axios.get('/api/health').then((res) => setHealth(res.data));
-  }, []);
-
-  return (
-    <div className="bg-slate-50">
-      {/* Hero Section */}
-      <section className="bg-gradient-to-r from-indigo-600 to-indigo-800 py-20 text-white">
-        <div className="mx-auto max-w-5xl px-6 text-center">
-          <h1 className="text-4xl font-bold md:text-5xl">
-            Nâng cao kỹ năng của bạn cùng Skill Master
-          </h1>
-          <p className="mt-4 text-lg text-indigo-100">
-            Hệ thống đào tạo Anh ngữ và Tin học hàng đầu
-          </p>
-          <div className="mt-8 flex justify-center gap-4">
-            <Link
-              to="/courses"
-              className="rounded-md bg-white px-6 py-3 font-semibold text-indigo-600 hover:bg-indigo-50"
-            >
-              Xem khóa học
-            </Link>
-            <Link
-              to="/login"
-              className="rounded-md border border-white px-6 py-3 font-semibold text-white hover:bg-white/10"
-            >
-              Đăng nhập
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Backend status (for dev) */}
-      <section className="mx-auto max-w-5xl px-6 py-12">
-        <h2 className="text-xl font-semibold">Trạng thái hệ thống</h2>
-        <pre className="mt-4 rounded-md bg-slate-800 p-4 text-sm text-slate-100">
-          {JSON.stringify(health, null, 2)}
-        </pre>
-      </section>
-    </div>
-  );
-};
-
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public Routes */}
-        <Route element={<PublicLayout />}>
-          <Route index element={<LandingPage />} />
-          <Route path="courses" element={<PlaceholderPage title="Course Catalog" />} />
-          <Route path="courses/:id" element={<PlaceholderPage title="Course Detail" />} />
-        </Route>
+        {/* Landing Page - Standalone with its own header/footer */}
+        <Route index element={<LandingPage />} />
+
+        {/* Public Courses Page - Standalone with its own header/footer */}
+        <Route path="courses" element={<PublicCoursesPage />} />
+        <Route path="courses/:id" element={<PublicCoursesPage />} />
 
         {/* Auth Pages - Chỉ cho phép khi CHƯA đăng nhập */}
         <Route path="login" element={
@@ -372,7 +330,7 @@ function App() {
           <Route index element={<DashboardPage />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="courses" element={<CoursesPage />} />
-          <Route path="classes" element={<PlaceholderPage title="Quản lý Lớp học" description="Danh sách các lớp học" />} />
+          <Route path="classes" element={<ClassesPage />} />
           <Route path="classes/:id" element={<PlaceholderPage title="Chi tiết Lớp học" />} />
           <Route path="scheduler" element={<PlaceholderPage title="Lịch học" description="Xếp lịch và quản lý phòng học" />} />
           <Route path="students" element={<StudentsPage />} />
@@ -382,6 +340,7 @@ function App() {
           <Route path="payrolls" element={<PlaceholderPage title="Bảng lương" description="Tính lương giáo viên" />} />
           <Route path="staff" element={<StaffPage />} />
           <Route path="centers" element={<PlaceholderPage title="Quản lý Trung tâm" description="Thông tin các chi nhánh" />} />
+          <Route path="rooms" element={<RoomsPage />} />
         </Route>
 
         {/* Teacher Routes - Chỉ TEACHER (và Admin cũng vào được) */}
