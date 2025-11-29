@@ -177,7 +177,7 @@ const PasswordStrengthBar = ({ password }) => {
 const LoginForm = ({ onSwitchToRegister, isAnimating }) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user, signInWithEmail } = useAuth();
+  const { isAuthenticated, getRedirectPath } = useAuth();
 
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -192,39 +192,52 @@ const LoginForm = ({ onSwitchToRegister, isAnimating }) => {
     defaultValues: { email: '', password: '' },
   });
 
+  // Redirect nếu đã đăng nhập VÀ đã có profile
   useEffect(() => {
-    if (user) {
-      const redirectTo = searchParams.get('redirectTo') || '/admin/dashboard';
+    if (isAuthenticated) {
+      const redirectTo = searchParams.get('redirectTo') || getRedirectPath();
+      console.log('[LoginForm] Already authenticated, redirecting to:', redirectTo);
       navigate(redirectTo, { replace: true });
     }
-  }, [user, navigate, searchParams]);
+  }, [isAuthenticated, navigate, searchParams, getRedirectPath]);
 
   const onSubmit = async (data) => {
     setIsLoading(true);
     setErrorMessage('');
 
     try {
-      const { error } = await signInWithEmail(data.email, data.password);
+      // Chỉ cần gọi signIn - AuthContext sẽ tự động:
+      // 1. Nhận event SIGNED_IN từ onAuthStateChange
+      // 2. Fetch profile từ bảng users
+      // 3. Cập nhật isAuthenticated = true
+      // 4. useEffect ở trên sẽ tự redirect khi isAuthenticated thay đổi
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
 
-      if (error) {
-        if (error.message.includes('Invalid login credentials')) {
+      if (authError) {
+        if (authError.message.includes('Invalid login credentials')) {
           setErrorMessage('Email hoặc mật khẩu không đúng');
-        } else if (error.message.includes('Email not confirmed')) {
+        } else if (authError.message.includes('Email not confirmed')) {
           setErrorMessage('Tài khoản chưa được xác thực email');
         } else {
-          setErrorMessage(error.message);
+          setErrorMessage(authError.message);
         }
+        setIsLoading(false);
         return;
       }
 
-      const redirectTo = searchParams.get('redirectTo') || '/admin/dashboard';
-      navigate(redirectTo, { replace: true });
+      // Đăng nhập thành công - AuthContext sẽ xử lý redirect
+      // Giữ loading state để user thấy đang xử lý
+      console.log('[LoginForm] Login successful, waiting for AuthContext to update...');
+
     } catch (err) {
       setErrorMessage('Đã xảy ra lỗi không mong muốn. Vui lòng thử lại.');
       console.error('Login error:', err);
-    } finally {
       setIsLoading(false);
     }
+    // Không setIsLoading(false) ở đây vì AuthContext sẽ redirect
   };
 
   return (
@@ -408,7 +421,7 @@ const LoginForm = ({ onSwitchToRegister, isAnimating }) => {
 // ============ REGISTER FORM ============
 const RegisterForm = ({ onSwitchToLogin, isAnimating }) => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { isAuthenticated, getRedirectPath } = useAuth();
 
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -429,11 +442,14 @@ const RegisterForm = ({ onSwitchToLogin, isAnimating }) => {
 
   const watchedPassword = useWatch({ control, name: 'password', defaultValue: '' });
 
+  // Redirect nếu đã đăng nhập
   useEffect(() => {
-    if (user) {
-      navigate('/admin/dashboard', { replace: true });
+    if (isAuthenticated) {
+      const redirectTo = getRedirectPath();
+      console.log('[RegisterForm] Already authenticated, redirecting to:', redirectTo);
+      navigate(redirectTo, { replace: true });
     }
-  }, [user, navigate]);
+  }, [isAuthenticated, navigate, getRedirectPath]);
 
   const onSubmit = async (data) => {
     setIsLoading(true);
@@ -441,11 +457,15 @@ const RegisterForm = ({ onSwitchToLogin, isAnimating }) => {
     setSuccessMessage('');
 
     try {
+      // Gọi Supabase tạo User với metadata đầy đủ
       const { error } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
         options: {
-          data: { full_name: data.fullName },
+          data: { 
+            full_name: data.fullName,  // Quan trọng: Gửi tên để Trigger SQL lưu vào bảng users
+            role: 'STUDENT'            // Mặc định là học viên (Trigger sẽ xử lý)
+          },
         },
       });
 

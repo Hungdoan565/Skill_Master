@@ -11,8 +11,12 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    strictPort: false, // Tự động chuyển port nếu 5173 bận
     proxy: {
       '/api': 'http://localhost:3000',
     },
+  },
+  optimizeDeps: {
+    force: true, // Force re-optimize dependencies
   },
 });

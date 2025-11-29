@@ -12,6 +12,52 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 
+// Config màu cho từng danh mục
+const CATEGORY_CONFIG = {
+  english: { 
+    label: 'Tiếng Anh', 
+    color: 'bg-blue-100 text-blue-700 border-blue-200' 
+  },
+  it: { 
+    label: 'Tin học', 
+    color: 'bg-purple-100 text-purple-700 border-purple-200' 
+  },
+  programming: { 
+    label: 'Lập trình', 
+    color: 'bg-violet-100 text-violet-700 border-violet-200' 
+  },
+  ielts: { 
+    label: 'IELTS', 
+    color: 'bg-amber-100 text-amber-700 border-amber-200' 
+  },
+  toeic: { 
+    label: 'TOEIC', 
+    color: 'bg-emerald-100 text-emerald-700 border-emerald-200' 
+  },
+  communication: { 
+    label: 'Giao tiếp', 
+    color: 'bg-cyan-100 text-cyan-700 border-cyan-200' 
+  },
+  office: { 
+    label: 'Tin học VP', 
+    color: 'bg-orange-100 text-orange-700 border-orange-200' 
+  },
+  default: { 
+    label: 'Khác', 
+    color: 'bg-slate-100 text-slate-700 border-slate-200' 
+  },
+};
+
+// Component Badge danh mục
+const CategoryBadge = ({ category }) => {
+  const config = CATEGORY_CONFIG[category?.toLowerCase()] || CATEGORY_CONFIG.default;
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${config.color}`}>
+      {config.label}
+    </span>
+  );
+};
+
 export function CoursesPage() {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -103,7 +149,7 @@ export function CoursesPage() {
                     <th className="pb-3 pr-4">Mã</th>
                     <th className="pb-3 pr-4">Tên khóa học</th>
                     <th className="pb-3 pr-4">Danh mục</th>
-                    <th className="pb-3 pr-4">Học phí</th>
+                    <th className="pb-3 pr-4 text-right">Học phí</th>
                     <th className="pb-3 pr-4">Số buổi</th>
                     <th className="pb-3 pr-4">Trạng thái</th>
                     <th className="pb-3 text-right">Hành động</th>
@@ -131,15 +177,9 @@ export function CoursesPage() {
                         </div>
                       </td>
                       <td className="py-4 pr-4">
-                        <Badge variant="secondary">
-                          {course.category === 'english'
-                            ? 'Tiếng Anh'
-                            : course.category === 'it'
-                            ? 'Tin học'
-                            : course.category}
-                        </Badge>
+                        <CategoryBadge category={course.category} />
                       </td>
-                      <td className="py-4 pr-4 font-medium text-emerald-600">
+                      <td className="py-4 pr-4 text-right font-mono font-medium text-emerald-600 tabular-nums">
                         {formatPrice(course.price)}
                       </td>
                       <td className="py-4 pr-4">
