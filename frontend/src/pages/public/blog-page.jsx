@@ -5,6 +5,7 @@ import {
   BookOpen, Lightbulb, Target, TrendingUp, ChevronRight,
   Calendar, Eye, Heart, MessageCircle, Phone
 } from 'lucide-react';
+import PublicHeader from '../../components/layout/public-header';
 
 // ============================================
 // BLOG PAGE - Swiss Minimalist Design
@@ -167,64 +168,6 @@ const categories = [
   { name: 'TOEIC', icon: TrendingUp, count: 12 },
   { name: 'Tin học', icon: Lightbulb, count: 15 },
 ];
-
-// ============================================
-// HEADER COMPONENT
-// ============================================
-const Header = () => {
-  const [isScrolled, setIsScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  return (
-    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500
-                      ${isScrolled ? 'bg-white/90 backdrop-blur-xl shadow-sm' : 'bg-transparent'}`}>
-      <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
-        <nav className="flex items-center justify-between h-20">
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 bg-zinc-900 rounded-lg flex items-center justify-center
-                         group-hover:scale-105 transition-transform">
-              <span className="font-display text-lg font-bold text-stone-50">S</span>
-            </div>
-            <span className="font-display text-xl font-semibold text-zinc-900">Skill Master</span>
-          </Link>
-
-          <div className="hidden lg:flex items-center gap-8">
-            <Link to="/courses" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors">
-              Khóa học
-            </Link>
-            <Link to="/roadmap" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors">
-              Lộ trình
-            </Link>
-            <Link to="/about" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors">
-              Về chúng tôi
-            </Link>
-            <Link to="/resources" className="text-sm font-medium text-zinc-900 border-b-2 border-red-600">
-              Tài nguyên
-            </Link>
-            <Link to="/contact" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors">
-              Liên hệ
-            </Link>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <Link to="/login" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors">
-              Đăng nhập
-            </Link>
-            <Link to="/register" className="px-5 py-2.5 bg-zinc-900 text-white text-sm font-medium rounded-full
-                                          hover:bg-zinc-800 transition-colors">
-              Đăng ký học
-            </Link>
-          </div>
-        </nav>
-      </div>
-    </header>
-  );
-};
 
 // ============================================
 // HERO SECTION
@@ -659,7 +602,7 @@ const Footer = () => {
 export const BlogPage = () => {
   return (
     <div className="min-h-screen bg-stone-50 font-sans antialiased">
-      <Header />
+      <PublicHeader />
       <main>
         <HeroSection />
         <FeaturedSection />

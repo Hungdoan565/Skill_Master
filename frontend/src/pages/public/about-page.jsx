@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { 
   ArrowRight, MapPin, Phone, Award
 } from 'lucide-react';
+import PublicHeader from '../../components/layout/public-header';
 
 // ============================================
 // ABOUT PAGE - SWISS MINIMALISM
@@ -60,86 +61,13 @@ const Counter = ({ end, suffix = '', duration = 2000 }) => {
 };
 
 // ============================================
-// HEADER COMPONENT
-// ============================================
-const Header = () => {
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  return (
-    <header className={`fixed top-0 left-0 right-0 z-50 bg-white border-b border-neutral-900 transition-all duration-200 ${
-      scrolled ? 'bg-white/95 backdrop-blur-sm' : ''
-    }`}>
-      <div className="max-w-[1600px] mx-auto">
-        <nav className="flex items-center justify-between h-16 px-6 lg:px-8">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-8 h-8 bg-neutral-900 flex items-center justify-center">
-              <span className="text-sm font-bold text-white tracking-tighter">SM</span>
-            </div>
-            <span className="text-base font-semibold tracking-tight text-neutral-900">
-              Skill Master
-            </span>
-          </Link>
-
-          {/* Navigation Links */}
-          <div className="hidden md:flex items-center gap-8">
-            <NavLink to="/courses">Khóa học</NavLink>
-            <NavLink to="/roadmap">Lộ trình</NavLink>
-            <NavLink to="/about" active>Về chúng tôi</NavLink>
-            <NavLink to="/contact">Liên hệ</NavLink>
-          </div>
-
-          {/* CTA Buttons */}
-          <div className="flex items-center gap-6">
-            <Link 
-              to="/login"
-              className="text-sm font-medium text-neutral-900 hover:opacity-60 transition-opacity duration-150"
-            >
-              Đăng nhập
-            </Link>
-            <Link
-              to="/register"
-              className="px-5 py-2 bg-neutral-900 text-white text-sm font-medium
-                       hover:bg-neutral-800 active:bg-neutral-700 transition-colors duration-150"
-            >
-              Bắt đầu ngay
-            </Link>
-          </div>
-        </nav>
-      </div>
-    </header>
-  );
-};
-
-const NavLink = ({ to, children, active }) => {
-  const baseClasses = `text-sm font-medium transition-opacity duration-150 relative group ${
-    active ? 'text-neutral-900' : 'text-neutral-900 hover:opacity-60'
-  }`;
-  
-  return (
-    <Link to={to} className={baseClasses}>
-      {children}
-      <span className={`absolute -bottom-1 left-0 h-px bg-neutral-900 transition-all duration-200 ${
-        active ? 'w-full' : 'w-0 group-hover:w-full'
-      }`} />
-    </Link>
-  );
-};
-
-// ============================================
 // PAGE HEADER SECTION - RHYTHM VARIATION
 // ============================================
 const PageHeader = () => {
   const [ref, isInView] = useInView();
 
   return (
-    <section ref={ref} className="pt-16 border-b border-neutral-900">
+    <section ref={ref} className="pt-20 border-b border-neutral-900">
       <div className="max-w-[1600px] mx-auto">
         <div className="grid lg:grid-cols-12">
           {/* Left - Title */}
@@ -1170,7 +1098,7 @@ const Footer = () => {
 export const AboutPage = () => {
   return (
     <div className="min-h-screen bg-white antialiased">
-      <Header />
+      <PublicHeader />
       <main>
         <PageHeader />
         <StorySection />

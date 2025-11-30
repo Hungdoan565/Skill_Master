@@ -5,6 +5,7 @@ import {
   MessageCircle, CheckCircle, ChevronDown, Sparkles,
   Clock, Users, Building2, Star
 } from 'lucide-react';
+import PublicHeader from '../../components/layout/public-header';
 
 // ============================================
 // CONTACT PAGE - "BOLD HOSPITALITY" DESIGN
@@ -44,64 +45,6 @@ const useInView = (options = {}) => {
 };
 
 // ============================================
-// HEADER - MINIMAL
-// ============================================
-const Header = () => {
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  return (
-    <header className={`fixed top-0 left-0 right-0 z-50 bg-white border-b border-neutral-900 transition-all duration-200 ${
-      scrolled ? 'bg-white/95 backdrop-blur-sm' : ''
-    }`}>
-      <div className="max-w-[1600px] mx-auto">
-        <nav className="flex items-center justify-between h-14 px-6 lg:px-8">
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-7 h-7 bg-neutral-900 flex items-center justify-center">
-              <span className="text-xs font-bold text-white tracking-tighter">SM</span>
-            </div>
-            <span className="text-sm font-semibold tracking-tight text-neutral-900">
-              Skill Master
-            </span>
-          </Link>
-
-          <div className="hidden md:flex items-center gap-8">
-            <NavLink to="/courses">Khóa học</NavLink>
-            <NavLink to="/about">Về chúng tôi</NavLink>
-            <NavLink to="/contact" active>Liên hệ</NavLink>
-          </div>
-
-          <Link
-            to="/register"
-            className="px-4 py-1.5 bg-neutral-900 text-white text-sm font-medium
-                     hover:bg-neutral-800 transition-colors"
-          >
-            Bắt đầu
-          </Link>
-        </nav>
-      </div>
-    </header>
-  );
-};
-
-const NavLink = ({ to, children, active }) => (
-  <Link 
-    to={to} 
-    className={`text-sm font-medium relative group ${active ? 'text-neutral-900' : 'text-neutral-500 hover:text-neutral-900'}`}
-  >
-    {children}
-    <span className={`absolute -bottom-1 left-0 h-px bg-neutral-900 transition-all duration-200 ${
-      active ? 'w-full' : 'w-0 group-hover:w-full'
-    }`} />
-  </Link>
-);
-
-// ============================================
 // HERO - "LEAD CONVERSION" ARCHITECTURE
 // Left: Clean Input Form (The Action Zone)
 // Right: Trust + Contact Info (The Validation Zone)
@@ -127,14 +70,14 @@ const HeroSection = () => {
   };
 
   return (
-    <section ref={ref} className="pt-14 min-h-screen relative overflow-hidden">
+    <section ref={ref} className="pt-20 min-h-screen relative overflow-hidden">
       {/* Background: Asymmetric split */}
       <div className="absolute inset-0">
         <div className="absolute top-0 right-0 w-full lg:w-[45%] h-full bg-neutral-900" />
       </div>
       
       <div className="max-w-[1600px] mx-auto relative">
-        <div className="grid lg:grid-cols-12 min-h-[calc(100vh-56px)]">
+        <div className="grid lg:grid-cols-12 min-h-[calc(100vh-80px)]">
           
           {/* ========================================
               LEFT PANEL: "THE INPUT ZONE"
@@ -1350,7 +1293,7 @@ const Footer = () => {
 export const ContactPage = () => {
   return (
     <div className="min-h-screen bg-white antialiased">
-      <Header />
+      <PublicHeader />
       <main>
         <HeroSection />
         <LocationsSection />
