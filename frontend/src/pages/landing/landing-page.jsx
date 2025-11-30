@@ -1,6 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, ArrowUpRight, Play, CheckCircle2, Users, BookOpen, Award, Clock, ChevronDown, LogOut, User, Settings, LayoutDashboard } from 'lucide-react';
+import { 
+  ArrowRight, ArrowUpRight, Play, CheckCircle2, Users, BookOpen, Award, Clock, 
+  ChevronDown, LogOut, User, Settings, LayoutDashboard, Building2, GraduationCap,
+  CalendarDays, BarChart3, Shield, Headphones, FileText, MessageCircle, Mail,
+  Phone, MapPin, Zap, Globe, CreditCard, PieChart, UserCheck, School, Layers,
+  BookMarked, Video, HelpCircle, Newspaper, Calendar, Heart, Star, Target
+} from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 
 // ============================================
@@ -230,10 +236,99 @@ const UserDropdown = () => {
 };
 
 // ============================================
-// HEADER COMPONENT
+// NAVBAR DROPDOWN COMPONENT
+// ============================================
+const NavDropdown = ({ label, children, isOpen, onToggle, onClose }) => {
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen, onClose]);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={onToggle}
+        className={`flex items-center gap-1.5 text-sm font-medium transition-colors duration-200 group
+                  ${isOpen ? 'text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'}`}
+      >
+        {label}
+        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {/* Dropdown Panel */}
+      <div
+        className={`absolute top-full left-0 mt-4 min-w-[280px] origin-top-left
+                  bg-white rounded-2xl border border-stone-200/80 shadow-xl shadow-stone-200/50
+                  transition-all duration-200 ease-out z-50
+                  ${isOpen 
+                    ? 'opacity-100 scale-100 translate-y-0 visible' 
+                    : 'opacity-0 scale-95 -translate-y-2 invisible pointer-events-none'
+                  }`}
+      >
+        {children}
+      </div>
+    </div>
+  );
+};
+
+// Dropdown Menu Item
+const DropdownItem = ({ icon: Icon, title, description, href = '#', onClick }) => {
+  const content = (
+    <div className="flex items-start gap-3 p-3 rounded-xl hover:bg-stone-50 transition-colors cursor-pointer group">
+      <div className="flex-shrink-0 w-10 h-10 bg-stone-100 rounded-xl flex items-center justify-center
+                    group-hover:bg-red-50 group-hover:text-red-600 transition-colors">
+        <Icon className="w-5 h-5 text-zinc-500 group-hover:text-red-600 transition-colors" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-zinc-900 group-hover:text-red-600 transition-colors">
+          {title}
+        </p>
+        {description && (
+          <p className="text-xs text-zinc-500 mt-0.5 line-clamp-2">{description}</p>
+        )}
+      </div>
+    </div>
+  );
+
+  if (onClick) {
+    return <button onClick={onClick} className="w-full text-left">{content}</button>;
+  }
+
+  return (
+    <Link to={href} className="block">
+      {content}
+    </Link>
+  );
+};
+
+// Dropdown Section Header
+const DropdownSection = ({ title, children }) => (
+  <div className="py-2">
+    {title && (
+      <p className="px-4 py-2 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
+        {title}
+      </p>
+    )}
+    <div className="px-2">{children}</div>
+  </div>
+);
+
+// ============================================
+// HEADER COMPONENT - With Dropdowns for Students
 // ============================================
 const Header = () => {
   const [scrolled, setScrolled] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isAuthenticated } = useAuth();
 
   useEffect(() => {
@@ -241,6 +336,12 @@ const Header = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const handleDropdownToggle = (name) => {
+    setOpenDropdown(openDropdown === name ? null : name);
+  };
+
+  const closeDropdown = () => setOpenDropdown(null);
 
   return (
     <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
@@ -265,21 +366,279 @@ const Header = () => {
             </span>
           </Link>
 
-          {/* Navigation Links */}
-          <div className="hidden md:flex items-center gap-8">
-            <NavLink href="#programs">Chương trình</NavLink>
-            <NavLink href="#method">Phương pháp</NavLink>
-            <NavLink href="#results">Kết quả</NavLink>
-            <NavLink href="#testimonials">Đánh giá</NavLink>
+          {/* Navigation Links with Dropdowns */}
+          <div className="hidden lg:flex items-center gap-8">
+            {/* Khóa học Dropdown */}
+            <NavDropdown 
+              label="Khóa học" 
+              isOpen={openDropdown === 'courses'}
+              onToggle={() => handleDropdownToggle('courses')}
+              onClose={closeDropdown}
+            >
+              <div className="w-[520px] p-2">
+                <div className="grid grid-cols-2 gap-1">
+                  <DropdownSection title="Tiếng Anh">
+                    <DropdownItem 
+                      icon={Globe} 
+                      title="IELTS Academic" 
+                      description="Luyện thi IELTS từ 5.0 - 8.0+"
+                      href="/courses"
+                    />
+                    <DropdownItem 
+                      icon={Award} 
+                      title="TOEIC 4 kỹ năng" 
+                      description="Đạt 650+ với giáo trình ETS"
+                      href="/courses"
+                    />
+                    <DropdownItem 
+                      icon={MessageCircle} 
+                      title="Giao tiếp thực chiến" 
+                      description="Tự tin nói tiếng Anh trong 3 tháng"
+                      href="/courses"
+                    />
+                    <DropdownItem 
+                      icon={Users} 
+                      title="Tiếng Anh cho trẻ em" 
+                      description="Chương trình Cambridge Kids"
+                      href="/courses"
+                    />
+                  </DropdownSection>
+                  <DropdownSection title="Tin học">
+                    <DropdownItem 
+                      icon={FileText} 
+                      title="Tin học văn phòng" 
+                      description="Word, Excel, PowerPoint chuẩn MOS"
+                      href="/courses"
+                    />
+                    <DropdownItem 
+                      icon={Layers} 
+                      title="IC3 Digital Literacy" 
+                      description="Chứng chỉ quốc tế về CNTT"
+                      href="/courses"
+                    />
+                    <DropdownItem 
+                      icon={Target} 
+                      title="Excel nâng cao" 
+                      description="Pivot, VBA, Dashboard chuyên sâu"
+                      href="/courses"
+                    />
+                    <DropdownItem 
+                      icon={BarChart3} 
+                      title="Phân tích dữ liệu" 
+                      description="Power BI, SQL cơ bản"
+                      href="/courses"
+                    />
+                  </DropdownSection>
+                </div>
+                {/* View All CTA */}
+                <Link to="/courses" className="block mt-2 mx-2 p-4 bg-gradient-to-r from-red-50 to-orange-50 rounded-xl border border-red-100 hover:border-red-200 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-zinc-900">Xem tất cả khóa học</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">20+ khóa học đa dạng trình độ</p>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-red-600" />
+                  </div>
+                </Link>
+              </div>
+            </NavDropdown>
+
+            {/* Lộ trình Dropdown */}
+            <NavDropdown 
+              label="Lộ trình" 
+              isOpen={openDropdown === 'roadmap'}
+              onToggle={() => handleDropdownToggle('roadmap')}
+              onClose={closeDropdown}
+            >
+              <div className="w-[320px] p-2">
+                <DropdownSection title="Theo mục tiêu">
+                  <DropdownItem 
+                    icon={GraduationCap} 
+                    title="Du học & Định cư" 
+                    description="IELTS 6.5+ trong 6 tháng"
+                    href="/roadmap#du-hoc"
+                  />
+                  <DropdownItem 
+                    icon={Building2} 
+                    title="Thăng tiến công việc" 
+                    description="TOEIC 700+ & Excel Expert"
+                    href="/roadmap#cong-viec"
+                  />
+                  <DropdownItem 
+                    icon={BookOpen} 
+                    title="Học sinh - Sinh viên" 
+                    description="Nền tảng vững, điểm cao"
+                    href="/roadmap#hoc-sinh"
+                  />
+                </DropdownSection>
+                <div className="border-t border-stone-100 my-1" />
+                <DropdownSection title="Theo trình độ">
+                  <DropdownItem 
+                    icon={Zap} 
+                    title="Người mới bắt đầu" 
+                    description="Từ zero đến hero"
+                    href="/roadmap#beginner"
+                  />
+                  <DropdownItem 
+                    icon={Target} 
+                    title="Trình độ trung cấp" 
+                    description="Bứt phá giới hạn"
+                    href="/roadmap#intermediate"
+                  />
+                  <DropdownItem 
+                    icon={Award} 
+                    title="Nâng cao & Chuyên sâu" 
+                    description="Chinh phục đỉnh cao"
+                    href="/roadmap#advanced"
+                  />
+                </DropdownSection>
+              </div>
+            </NavDropdown>
+
+            {/* Về chúng tôi Dropdown */}
+            <NavDropdown 
+              label="Về chúng tôi" 
+              isOpen={openDropdown === 'about'}
+              onToggle={() => handleDropdownToggle('about')}
+              onClose={closeDropdown}
+            >
+              <div className="w-[280px] p-2">
+                <DropdownSection title="Giới thiệu">
+                  <DropdownItem 
+                    icon={Heart} 
+                    title="Câu chuyện Skill Master" 
+                    description="Sứ mệnh & giá trị cốt lõi"
+                    href="/about#story"
+                  />
+                  <DropdownItem 
+                    icon={GraduationCap} 
+                    title="Đội ngũ giảng viên" 
+                    description="100% có chứng chỉ quốc tế"
+                    href="/about#team"
+                  />
+                  <DropdownItem 
+                    icon={School} 
+                    title="Cơ sở vật chất" 
+                    description="Phòng học hiện đại, tiện nghi"
+                    href="/about#facilities"
+                  />
+                </DropdownSection>
+                <div className="border-t border-stone-100 my-1" />
+                <DropdownSection title="Thành tựu">
+                  <DropdownItem 
+                    icon={Star} 
+                    title="Học viên tiêu biểu" 
+                    description="Câu chuyện thành công"
+                    href="/about#success"
+                  />
+                  <DropdownItem 
+                    icon={Award} 
+                    title="Chứng nhận & Giải thưởng" 
+                    description="Đối tác Cambridge, ETS"
+                    href="/about#achievements"
+                  />
+                </DropdownSection>
+              </div>
+            </NavDropdown>
+
+            {/* Tài nguyên Dropdown */}
+            <NavDropdown 
+              label="Tài nguyên" 
+              isOpen={openDropdown === 'resources'}
+              onToggle={() => handleDropdownToggle('resources')}
+              onClose={closeDropdown}
+            >
+              <div className="w-[280px] p-2">
+                <DropdownSection title="Học miễn phí">
+                  <DropdownItem 
+                    icon={Newspaper} 
+                    title="Blog chia sẻ" 
+                    description="Tips học hiệu quả mỗi ngày"
+                    href="/blog"
+                  />
+                  <DropdownItem 
+                    icon={Video} 
+                    title="Video bài giảng" 
+                    description="Kho video 500+ bài học"
+                    href="/resources#videos"
+                  />
+                  <DropdownItem 
+                    icon={BookMarked} 
+                    title="Tài liệu miễn phí" 
+                    description="Đề thi, flashcard, ebook"
+                    href="/resources#materials"
+                  />
+                </DropdownSection>
+                <div className="border-t border-stone-100 my-1" />
+                <DropdownSection title="Kiểm tra">
+                  <DropdownItem 
+                    icon={Target} 
+                    title="Test trình độ" 
+                    description="Đánh giá năng lực miễn phí"
+                    href="/resources#test"
+                  />
+                  <DropdownItem 
+                    icon={HelpCircle} 
+                    title="Tư vấn lộ trình" 
+                    description="1-1 với chuyên gia"
+                    href="/contact"
+                  />
+                </DropdownSection>
+              </div>
+            </NavDropdown>
+
+            {/* Liên hệ Dropdown */}
+            <NavDropdown 
+              label="Liên hệ" 
+              isOpen={openDropdown === 'contact'}
+              onToggle={() => handleDropdownToggle('contact')}
+              onClose={closeDropdown}
+            >
+              <div className="w-[280px] p-2">
+                <DropdownSection>
+                  <DropdownItem 
+                    icon={MessageCircle} 
+                    title="Chat tư vấn" 
+                    description="Hỗ trợ 8:00 - 21:00 hàng ngày"
+                    href="/contact"
+                  />
+                  <DropdownItem 
+                    icon={Phone} 
+                    title="Hotline: 1900 xxxx" 
+                    description="Gọi ngay để được tư vấn"
+                    href="tel:1900xxxx"
+                  />
+                  <DropdownItem 
+                    icon={Mail} 
+                    title="Email" 
+                    description="info@skillmaster.edu.vn"
+                    href="mailto:info@skillmaster.edu.vn"
+                  />
+                  <DropdownItem 
+                    icon={Calendar} 
+                    title="Đặt lịch học thử" 
+                    description="Trải nghiệm miễn phí 1 buổi"
+                    href="/contact#booking"
+                  />
+                </DropdownSection>
+                {/* Address */}
+                <div className="mx-2 mt-2 p-3 bg-stone-50 rounded-xl">
+                  <div className="flex items-start gap-2">
+                    <MapPin className="w-4 h-4 text-zinc-400 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-zinc-500">
+                      Tầng 5, Tòa nhà ABC, 123 Nguyễn Văn Linh, Quận 7, TP.HCM
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </NavDropdown>
           </div>
 
-          {/* Auth Section - Thay đổi dựa trên trạng thái đăng nhập */}
+          {/* Auth Section */}
           <div className="flex items-center gap-4">
             {isAuthenticated ? (
-              // Đã đăng nhập -> Hiển thị Avatar + Dropdown
               <UserDropdown />
             ) : (
-              // Chưa đăng nhập -> Hiển thị nút Đăng nhập + Bắt đầu ngay
               <>
                 <Link 
                   to="/login"
@@ -295,18 +654,61 @@ const Header = () => {
                            hover:bg-zinc-800 active:scale-95"
                 >
                   <span className="relative z-10 flex items-center gap-2">
-                    Bắt đầu ngay
+                    Đăng ký học thử
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                   </span>
                 </Link>
               </>
             )}
+
+            {/* Mobile Menu Button */}
+            <button 
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden p-2 text-zinc-600 hover:text-zinc-900"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {mobileMenuOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
           </div>
         </nav>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden border-t border-stone-200 bg-white/95 backdrop-blur-xl">
+            <div className="py-4 space-y-2">
+              <MobileNavItem label="Khóa học" href="/courses" />
+              <MobileNavItem label="Lộ trình" href="/roadmap" />
+              <MobileNavItem label="Về chúng tôi" href="/about" />
+              <MobileNavItem label="Tài nguyên" href="/blog" />
+              <MobileNavItem label="Liên hệ" href="/contact" />
+              <div className="pt-4 px-4 space-y-2">
+                <Link to="/login" className="block w-full py-3 text-center text-sm font-medium text-zinc-700 
+                                           border border-stone-200 rounded-full hover:bg-stone-50">
+                  Đăng nhập
+                </Link>
+                <Link to="/register" className="block w-full py-3 text-center text-sm font-medium text-white 
+                                              bg-zinc-900 rounded-full hover:bg-zinc-800">
+                  Đăng ký học thử
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </header>
   );
 };
+
+const MobileNavItem = ({ label, href }) => (
+  <Link to={href} className="block px-4 py-3 text-sm font-medium text-zinc-700 hover:bg-stone-50">
+    {label}
+  </Link>
+);
 
 const NavLink = ({ href, children }) => (
   <a 
@@ -321,7 +723,7 @@ const NavLink = ({ href, children }) => (
 );
 
 // ============================================
-// HERO SECTION
+// HERO SECTION - For Students
 // ============================================
 const HeroSection = () => {
   const [ref, isInView] = useInView();
@@ -434,7 +836,7 @@ const HeroSection = () => {
             </div>
           </div>
 
-          {/* Right Visual */}
+          {/* Right Visual - Course Preview Card */}
           <div className={`lg:col-span-5 transform transition-all duration-1000 delay-300
                         ${isInView ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-12'}`}>
             <div className="relative">
@@ -543,7 +945,7 @@ const HeroSection = () => {
 };
 
 // ============================================
-// STATS SECTION
+// STATS SECTION - Student Achievements
 // ============================================
 const StatsSection = () => {
   const [ref, isInView] = useInView();
@@ -587,12 +989,12 @@ const StatsSection = () => {
 };
 
 // ============================================
-// PROGRAMS SECTION
+// COURSES SECTION - Training Programs
 // ============================================
-const ProgramsSection = () => {
+const CoursesSection = () => {
   const [ref, isInView] = useInView();
 
-  const programs = [
+  const courses = [
     {
       category: 'Tiếng Anh',
       title: 'IELTS Academic',
@@ -632,7 +1034,7 @@ const ProgramsSection = () => {
   ];
 
   return (
-    <section id="programs" ref={ref} className="py-32 bg-stone-50">
+    <section id="courses" ref={ref} className="py-32 bg-stone-50">
       <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
         {/* Section Header */}
         <div className={`max-w-2xl transform transition-all duration-700
@@ -652,9 +1054,9 @@ const ProgramsSection = () => {
           </p>
         </div>
 
-        {/* Programs Grid */}
+        {/* Courses Grid */}
         <div className="mt-16 grid md:grid-cols-2 gap-6">
-          {programs.map((program, index) => (
+          {courses.map((course, index) => (
             <div
               key={index}
               className={`group relative p-8 bg-white rounded-3xl border border-stone-200
@@ -664,23 +1066,23 @@ const ProgramsSection = () => {
               style={{ transitionDelay: `${200 + index * 100}ms` }}
             >
               {/* Category Badge */}
-              <span className={`inline-block px-3 py-1 ${program.bgColor} text-xs font-medium 
+              <span className={`inline-block px-3 py-1 ${course.bgColor} text-xs font-medium 
                             rounded-full mb-4`}>
-                {program.category}
+                {course.category}
               </span>
 
               {/* Content */}
               <h3 className="font-display text-2xl font-bold text-zinc-900 
                           group-hover:text-zinc-700 transition-colors">
-                {program.title}
+                {course.title}
               </h3>
               <p className="mt-3 text-zinc-500 leading-relaxed">
-                {program.description}
+                {course.description}
               </p>
 
               {/* Features */}
               <div className="mt-6 flex flex-wrap gap-2">
-                {program.features.map((feature, i) => (
+                {course.features.map((feature, i) => (
                   <span key={i} className="px-3 py-1.5 bg-stone-100 text-zinc-600 
                                         text-sm rounded-lg">
                     {feature}
@@ -692,17 +1094,17 @@ const ProgramsSection = () => {
               <div className="mt-8 pt-6 border-t border-stone-100 flex items-center justify-between">
                 <div>
                   <p className="text-sm text-zinc-400">Thời lượng</p>
-                  <p className="font-semibold text-zinc-900">{program.duration}</p>
+                  <p className="font-semibold text-zinc-900">{course.duration}</p>
                 </div>
                 <button className={`flex items-center justify-center w-12 h-12 rounded-full
-                                bg-gradient-to-br ${program.color} text-white
+                                bg-gradient-to-br ${course.color} text-white
                                 group-hover:scale-110 transition-transform duration-300`}>
                   <ArrowUpRight className="w-5 h-5" />
                 </button>
               </div>
 
               {/* Hover Gradient */}
-              <div className={`absolute inset-0 bg-gradient-to-br ${program.color} opacity-0 
+              <div className={`absolute inset-0 bg-gradient-to-br ${course.color} opacity-0 
                            group-hover:opacity-[0.03] rounded-3xl transition-opacity duration-500`} />
             </div>
           ))}
@@ -726,7 +1128,7 @@ const ProgramsSection = () => {
 };
 
 // ============================================
-// METHOD SECTION
+// METHOD SECTION - Learning Approach
 // ============================================
 const MethodSection = () => {
   const [ref, isInView] = useInView();
@@ -851,7 +1253,103 @@ const MethodSection = () => {
 };
 
 // ============================================
-// TESTIMONIALS SECTION
+// TEACHERS SECTION - Our Instructors
+// ============================================
+const TeachersSection = () => {
+  const [ref, isInView] = useInView();
+
+  const teachers = [
+    {
+      name: 'Ms. Ngọc Anh',
+      role: 'IELTS Instructor',
+      badge: 'IELTS 8.5',
+      experience: '8 năm kinh nghiệm',
+      specialty: 'Writing & Speaking',
+    },
+    {
+      name: 'Mr. Hoàng Nam',
+      role: 'TOEIC Expert',
+      badge: 'TOEIC 990',
+      experience: '6 năm kinh nghiệm',
+      specialty: 'Listening & Reading',
+    },
+    {
+      name: 'Ms. Thùy Linh',
+      role: 'IT Instructor',
+      badge: 'MOS Master',
+      experience: '5 năm kinh nghiệm',
+      specialty: 'Excel & Data Analysis',
+    },
+    {
+      name: 'Mr. Minh Đức',
+      role: 'Communication Coach',
+      badge: 'TESOL Certified',
+      experience: '7 năm kinh nghiệm',
+      specialty: 'Business English',
+    },
+  ];
+
+  return (
+    <section id="teachers" ref={ref} className="py-32 bg-stone-50">
+      <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
+        {/* Section Header */}
+        <div className={`text-center max-w-2xl mx-auto transform transition-all duration-700
+                      ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+          <span className="inline-block px-4 py-1.5 bg-zinc-900 text-white text-xs font-medium 
+                        rounded-full uppercase tracking-wider mb-6">
+            Đội ngũ giảng viên
+          </span>
+          <h2 className="font-display text-4xl lg:text-5xl font-bold text-zinc-900 tracking-tight">
+            Học từ những người
+            <br />
+            <span className="text-zinc-400">giỏi nhất trong ngành</span>
+          </h2>
+          <p className="mt-6 text-lg text-zinc-500">
+            100% giảng viên có chứng chỉ quốc tế và kinh nghiệm giảng dạy chuyên sâu.
+          </p>
+        </div>
+
+        {/* Teachers Grid */}
+        <div className="mt-16 grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {teachers.map((teacher, index) => (
+            <div
+              key={index}
+              className={`group p-6 bg-white rounded-3xl border border-stone-200
+                       hover:border-stone-300 hover:shadow-xl hover:shadow-stone-200/50
+                       transition-all duration-500 text-center
+                       transform ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+              style={{ transitionDelay: `${200 + index * 100}ms` }}
+            >
+              {/* Avatar */}
+              <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-zinc-200 to-zinc-300
+                           flex items-center justify-center group-hover:scale-105 transition-transform">
+                <GraduationCap className="w-10 h-10 text-zinc-500" />
+              </div>
+
+              {/* Badge */}
+              <span className="inline-block mt-4 px-3 py-1 bg-red-50 text-red-700 
+                            text-xs font-semibold rounded-full">
+                {teacher.badge}
+              </span>
+
+              {/* Info */}
+              <h3 className="mt-4 font-semibold text-lg text-zinc-900">{teacher.name}</h3>
+              <p className="text-sm text-zinc-500">{teacher.role}</p>
+              
+              <div className="mt-4 pt-4 border-t border-stone-100">
+                <p className="text-xs text-zinc-400">{teacher.experience}</p>
+                <p className="text-sm font-medium text-zinc-700 mt-1">{teacher.specialty}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+// ============================================
+// TESTIMONIALS SECTION - Student Reviews
 // ============================================
 const TestimonialsSection = () => {
   const [ref, isInView] = useInView();
@@ -862,26 +1360,23 @@ const TestimonialsSection = () => {
       author: 'Nguyễn Minh Anh',
       role: 'Sinh viên ĐH Bách Khoa',
       result: 'IELTS 5.5 → 7.5',
-      avatar: null,
     },
     {
       content: 'Khóa tin học văn phòng giúp mình tự tin hơn rất nhiều trong công việc. Đã đạt chứng chỉ MOS Excel Expert.',
       author: 'Trần Văn Hùng',
       role: 'Nhân viên văn phòng',
       result: 'MOS Expert',
-      avatar: null,
     },
     {
       content: 'Lớp học ít người nên được quan tâm sát sao. Giáo viên chỉnh sửa từng lỗi nhỏ trong bài viết.',
       author: 'Lê Thị Hương',
       role: 'Giáo viên cấp 3',
       result: 'IELTS 6.0 → 7.0',
-      avatar: null,
     },
   ];
 
   return (
-    <section id="testimonials" ref={ref} className="py-32 bg-stone-50">
+    <section id="testimonials" ref={ref} className="py-32 bg-white">
       <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
         {/* Section Header */}
         <div className={`text-center max-w-2xl mx-auto transform transition-all duration-700
@@ -902,7 +1397,7 @@ const TestimonialsSection = () => {
           {testimonials.map((testimonial, index) => (
             <div
               key={index}
-              className={`group p-8 bg-white rounded-3xl border border-stone-200
+              className={`group p-8 bg-stone-50 rounded-3xl border border-stone-200
                        hover:border-stone-300 hover:shadow-xl hover:shadow-stone-200/50
                        transition-all duration-500
                        transform ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
@@ -910,7 +1405,7 @@ const TestimonialsSection = () => {
             >
               {/* Quote */}
               <div className="relative">
-                <span className="absolute -top-4 -left-2 font-display text-6xl text-stone-200 
+                <span className="absolute -top-4 -left-2 font-display text-6xl text-stone-300 
                               select-none">"</span>
                 <p className="relative text-zinc-600 leading-relaxed">
                   {testimonial.content}
@@ -919,15 +1414,18 @@ const TestimonialsSection = () => {
 
               {/* Result Badge */}
               <div className="mt-6">
-                <span className="inline-block px-3 py-1.5 bg-green-50 text-green-700 
+                <span className="inline-block px-3 py-1.5 bg-green-100 text-green-700 
                               text-sm font-medium rounded-full">
                   {testimonial.result}
                 </span>
               </div>
 
               {/* Author */}
-              <div className="mt-6 pt-6 border-t border-stone-100 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-zinc-200 to-zinc-300" />
+              <div className="mt-6 pt-6 border-t border-stone-200 flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-zinc-300 to-zinc-400 
+                             flex items-center justify-center">
+                  <User className="w-5 h-5 text-white" />
+                </div>
                 <div>
                   <p className="font-semibold text-zinc-900">{testimonial.author}</p>
                   <p className="text-sm text-zinc-500">{testimonial.role}</p>
@@ -942,7 +1440,7 @@ const TestimonialsSection = () => {
 };
 
 // ============================================
-// CTA SECTION
+// CTA SECTION - Student Registration
 // ============================================
 const CTASection = () => {
   const [ref, isInView] = useInView();
@@ -964,30 +1462,37 @@ const CTASection = () => {
             hành trình của bạn?
           </h2>
           <p className="mt-6 text-lg text-stone-400 leading-relaxed">
-            Đăng ký ngay để nhận buổi học thử miễn phí và tư vấn lộ trình học tập phù hợp.
+            Đăng ký học thử miễn phí ngay hôm nay. 
+            Trải nghiệm phương pháp học tập hiệu quả cùng giáo viên chuyên nghiệp.
           </p>
 
-          {/* CTA Form */}
-          <div className={`mt-12 flex flex-col sm:flex-row gap-4 max-w-lg mx-auto
+          {/* CTA Buttons */}
+          <div className={`mt-12 flex flex-col sm:flex-row gap-4 justify-center
                         transform transition-all duration-700 delay-200
                         ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-            <input
-              type="email"
-              placeholder="Nhập email của bạn"
-              className="flex-1 px-6 py-4 bg-white/10 border border-white/20 rounded-full
-                       text-white placeholder:text-stone-500 focus:outline-none focus:border-white/40
-                       transition-colors"
-            />
-            <button className="px-8 py-4 bg-red-600 hover:bg-red-700 text-white font-semibold
-                            rounded-full shadow-lg shadow-red-600/30 hover:shadow-xl 
-                            hover:shadow-red-600/40 active:scale-[0.98] transition-all">
-              Đăng ký ngay
-            </button>
+            <Link
+              to="/register"
+              className="inline-flex items-center justify-center gap-2 px-8 py-4 
+                      bg-white text-zinc-900 rounded-full font-semibold
+                      hover:bg-zinc-100 transition-colors shadow-lg shadow-white/20"
+            >
+              Đăng ký học thử miễn phí
+              <ArrowRight className="w-5 h-5" />
+            </Link>
+            <Link
+              to="/contact"
+              className="inline-flex items-center justify-center gap-2 px-8 py-4 
+                      border border-white/30 text-white rounded-full font-semibold
+                      hover:bg-white/10 transition-colors"
+            >
+              <Phone className="w-5 h-5" />
+              Tư vấn lộ trình
+            </Link>
           </div>
 
           {/* Trust Note */}
-          <p className="mt-6 text-sm text-stone-500">
-            Miễn phí hoàn toàn • Không cần thẻ tín dụng • Bắt đầu trong 2 phút
+          <p className="mt-8 text-sm text-stone-500">
+            ✓ Cam kết đầu ra  •  ✓ Lớp học 8-12 học viên  •  ✓ Học lại miễn phí
           </p>
         </div>
       </div>
@@ -1000,15 +1505,16 @@ const CTASection = () => {
 // ============================================
 const Footer = () => {
   const footerLinks = {
-    'Khóa học': ['IELTS', 'TOEIC', 'Tin học VP', 'IC3'],
-    'Hỗ trợ': ['Liên hệ', 'FAQ', 'Chính sách', 'Điều khoản'],
-    'Về chúng tôi': ['Giới thiệu', 'Đội ngũ', 'Tuyển dụng', 'Blog'],
+    'Khóa học': ['IELTS', 'TOEIC', 'Giao tiếp', 'Tin học VP', 'IC3'],
+    'Lộ trình': ['Từ 0 lên 6.5', 'TOEIC 700+', 'IELTS 7.0+', 'Excel Pro'],
+    'Hỗ trợ': ['Tư vấn miễn phí', 'Lịch khai giảng', 'Chính sách', 'FAQ'],
+    'Liên hệ': ['Hotline: 1900 xxxx', 'Email: info@skillmaster.vn', 'Fanpage', 'Zalo OA'],
   };
 
   return (
     <footer className="bg-stone-100 border-t border-stone-200">
       <div className="max-w-[1400px] mx-auto px-6 lg:px-12 py-16">
-        <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-12">
+        <div className="grid md:grid-cols-2 lg:grid-cols-6 gap-12">
           {/* Brand */}
           <div className="lg:col-span-2">
             <Link to="/" className="flex items-center gap-3">
@@ -1020,11 +1526,11 @@ const Footer = () => {
               </span>
             </Link>
             <p className="mt-4 text-zinc-500 max-w-sm leading-relaxed">
-              Hệ thống đào tạo Anh ngữ và Tin học hàng đầu, cam kết đồng hành cùng bạn 
-              trên con đường chinh phục mục tiêu.
+              Trung tâm đào tạo Anh ngữ & Tin học uy tín. 
+              Cam kết đầu ra - Lộ trình cá nhân - Giáo viên chuyên nghiệp.
             </p>
             <div className="mt-6 flex gap-4">
-              {['Facebook', 'YouTube', 'TikTok'].map(social => (
+              {['Facebook', 'YouTube', 'Zalo'].map(social => (
                 <a key={social} href="#" className="w-10 h-10 bg-white rounded-full border border-stone-200
                                                   flex items-center justify-center text-zinc-600
                                                   hover:bg-zinc-900 hover:text-white hover:border-zinc-900
@@ -1082,8 +1588,9 @@ export const LandingPage = () => {
       <main>
         <HeroSection />
         <StatsSection />
-        <ProgramsSection />
+        <CoursesSection />
         <MethodSection />
+        <TeachersSection />
         <TestimonialsSection />
         <CTASection />
       </main>

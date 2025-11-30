@@ -20,6 +20,10 @@ import { LoginPage } from '@/pages/auth/login-page';
 import { AuthPage } from '@/pages/auth/auth-page';
 import { LandingPage } from '@/pages/landing/landing-page';
 import { CoursesPage as PublicCoursesPage } from '@/pages/public/courses-page';
+import { AboutPage } from '@/pages/public/about-page';
+import { BlogPage } from '@/pages/public/blog-page';
+import { ContactPage } from '@/pages/public/contact-page-new';
+import { RoadmapPage } from '@/pages/public/roadmap-page';
 import { ProtectedRoute, GuestRoute, TeacherRoute, StudentRoute, AdminRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/contexts/auth-context';
 
@@ -304,6 +308,13 @@ function App() {
       <Routes>
         {/* Landing Page - Standalone with its own header/footer */}
         <Route index element={<LandingPage />} />
+
+        {/* Public Pages - Standalone with their own header/footer */}
+        <Route path="about" element={<AboutPage />} />
+        <Route path="resources" element={<BlogPage />} />
+        <Route path="blog" element={<BlogPage />} />
+        <Route path="contact" element={<ContactPage />} />
+        <Route path="roadmap" element={<RoadmapPage />} />
 
         {/* Public Courses Page - Standalone with its own header/footer */}
         <Route path="courses" element={<PublicCoursesPage />} />
