@@ -12,6 +12,7 @@ import {
   UserCog,
   Home,
   DoorOpen,
+  Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -62,38 +63,53 @@ export function AdminSidebar() {
   const location = useLocation();
 
   return (
-    <aside className="flex h-screen w-64 flex-col border-r bg-slate-900 text-white">
-      {/* Logo - Click để về trang chủ */}
+    <aside className="flex h-screen w-72 flex-col bg-zinc-950 text-white">
+      {/* Logo - Premium feel with glow effect */}
       <Link 
         to="/"
-        className="flex h-16 items-center gap-2 border-b border-slate-700 px-6 transition-all hover:bg-slate-800 group"
+        className="relative flex h-20 items-center gap-3 px-6 transition-all group overflow-hidden"
       >
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 transition-transform group-hover:scale-105">
-          <GraduationCap className="h-5 w-5 text-white" />
+        {/* Subtle gradient glow on hover */}
+        <div className="absolute inset-0 bg-gradient-to-r from-red-600/0 via-red-600/5 to-orange-500/0 
+                        opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        
+        <div className="relative flex h-11 w-11 items-center justify-center rounded-xl 
+                        bg-gradient-to-br from-red-500 to-orange-600 
+                        shadow-lg shadow-red-500/25 
+                        transition-transform group-hover:scale-105">
+          <span className="font-display text-xl font-bold text-white">S</span>
+          {/* Decorative dot */}
+          <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-white rounded-full 
+                          shadow-sm opacity-90" />
         </div>
-        <div className="flex flex-col">
-          <span className="text-lg font-bold leading-tight">Skill Master</span>
-          <span className="text-[10px] text-slate-400 flex items-center gap-1">
-            <Home className="h-2.5 w-2.5" />
-            Về trang chủ
+        
+        <div className="relative flex flex-col">
+          <span className="font-display text-xl font-bold tracking-tight text-white">
+            Skill Master
+          </span>
+          <span className="text-[11px] text-zinc-500 flex items-center gap-1.5 mt-0.5">
+            <Home className="h-3 w-3" />
+            <span>Về trang chủ</span>
           </span>
         </div>
       </Link>
 
-      {/* Navigation - Gom nhóm */}
-      <nav className="flex-1 overflow-y-auto p-4">
+      {/* Divider with gradient */}
+      <div className="mx-4 h-px bg-gradient-to-r from-transparent via-zinc-700/50 to-transparent" />
+
+      {/* Navigation - Refined spacing and styling */}
+      <nav className="flex-1 overflow-y-auto scrollbar-none px-4 py-6">
         {menuGroups.map((group, index) => (
           <div key={group.id} className={cn(
-            // Tăng khoảng cách giữa các nhóm (trừ nhóm đầu)
-            index > 0 && group.title ? 'mt-6' : 'mb-1'
+            index > 0 && group.title ? 'mt-8' : 'mb-2'
           )}>
-            {/* Group Title - Tăng độ sáng, tracking-wider */}
+            {/* Group Title - More refined */}
             {group.title && (
-              <h3 className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+              <h3 className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-500">
                 {group.title}
               </h3>
             )}
-            {/* Group Items */}
+            {/* Group Items - Enhanced hover states */}
             <div className="space-y-1">
               {group.items.map((item) => {
                 const isActive = location.pathname === item.path;
@@ -102,14 +118,26 @@ export function AdminSidebar() {
                     key={item.path}
                     to={item.path}
                     className={cn(
-                      'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                      'group/item flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
                       isActive
-                        ? 'bg-indigo-600 text-white'
-                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                        ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-lg shadow-red-600/25'
+                        : 'text-zinc-400 hover:bg-zinc-800/80 hover:text-white'
                     )}
                   >
-                    <item.icon className="h-5 w-5" />
-                    {item.label}
+                    <div className={cn(
+                      'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
+                      isActive 
+                        ? 'bg-white/20' 
+                        : 'bg-zinc-800 group-hover/item:bg-zinc-700'
+                    )}>
+                      <item.icon className="h-4 w-4" />
+                    </div>
+                    <span>{item.label}</span>
+                    
+                    {/* Active indicator dot */}
+                    {isActive && (
+                      <div className="ml-auto h-1.5 w-1.5 rounded-full bg-white/80" />
+                    )}
                   </Link>
                 );
               })}
@@ -118,19 +146,29 @@ export function AdminSidebar() {
         ))}
       </nav>
 
-      {/* Footer - Thêm border-t để tách biệt khu vực System */}
-      <div className="border-t border-slate-700/50 p-4">
+      {/* Footer - Settings with premium feel */}
+      <div className="p-4">
+        {/* Divider */}
+        <div className="mb-4 h-px bg-gradient-to-r from-transparent via-zinc-800 to-transparent" />
+        
         <Link
           to="/admin/settings"
           className={cn(
-            'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+            'group/settings flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
             location.pathname === '/admin/settings'
-              ? 'bg-indigo-600 text-white'
-              : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+              ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-lg shadow-red-600/25'
+              : 'text-zinc-400 hover:bg-zinc-800/80 hover:text-white'
           )}
         >
-          <Settings className="h-5 w-5" />
-          Cài đặt
+          <div className={cn(
+            'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
+            location.pathname === '/admin/settings'
+              ? 'bg-white/20' 
+              : 'bg-zinc-800 group-hover/settings:bg-zinc-700'
+          )}>
+            <Settings className="h-4 w-4" />
+          </div>
+          <span>Cài đặt</span>
         </Link>
       </div>
     </aside>
