@@ -357,16 +357,57 @@ const ValuesSection = () => {
 };
 
 // ============================================
-// TEAM SECTION
+// TEAM SECTION - IMPRESSIVE CARD DESIGN
 // ============================================
 const TeamSection = () => {
   const [ref, isInView] = useInView();
+  const [hoveredIndex, setHoveredIndex] = useState(null);
 
   const team = [
-    { name: 'Nguyễn Văn Minh', role: 'Founder & CEO', exp: 'IELTS 8.5 • Thạc sĩ TESOL' },
-    { name: 'Trần Thị Hương', role: 'Academic Director', exp: 'DELTA Cambridge' },
-    { name: 'Lê Hoàng Nam', role: 'IT Lead', exp: 'MOS Master • MCT' },
-    { name: 'Phạm Thị Lan', role: 'Head of Training', exp: 'CELTA • 10 năm kinh nghiệm' },
+    { 
+      name: 'Nguyễn Văn Minh', 
+      role: 'Founder & CEO',
+      department: 'Leadership',
+      years: 12,
+      image: null, // Placeholder - will use initials
+      certifications: ['IELTS 8.5', 'Thạc sĩ TESOL', 'Cambridge CELTA'],
+      specialties: ['IELTS Writing', 'Academic English'],
+      students: '3,000+',
+      quote: 'Giáo dục là con đường ngắn nhất đến thành công.'
+    },
+    { 
+      name: 'Trần Thị Hương', 
+      role: 'Academic Director',
+      department: 'English',
+      years: 10,
+      image: null,
+      certifications: ['DELTA Cambridge', 'IELTS 8.0', 'MA in Education'],
+      specialties: ['Curriculum Design', 'Teacher Training'],
+      students: '2,500+',
+      quote: 'Mỗi học viên đều có tiềm năng riêng cần được khơi dậy.'
+    },
+    { 
+      name: 'Lê Hoàng Nam', 
+      role: 'IT Program Lead',
+      department: 'IT',
+      years: 8,
+      image: null,
+      certifications: ['MOS Master', 'MCT', 'IC3 Certified'],
+      specialties: ['Microsoft Office', 'Data Analysis'],
+      students: '2,000+',
+      quote: 'Tin học là kỹ năng sống còn trong thời đại số.'
+    },
+    { 
+      name: 'Phạm Thị Lan', 
+      role: 'Head of Training',
+      department: 'English',
+      years: 10,
+      image: null,
+      certifications: ['CELTA', 'TKT Modules 1-3', 'IELTS 7.5'],
+      specialties: ['TOEIC', 'Business English'],
+      students: '2,800+',
+      quote: 'Học ngôn ngữ là mở ra cánh cửa đến thế giới.'
+    },
   ];
 
   return (
@@ -377,7 +418,7 @@ const TeamSection = () => {
         <div className="grid lg:grid-cols-12 border-b border-neutral-200">
           <div className="lg:col-span-4 p-6 lg:p-12 lg:border-r border-neutral-200">
             <span className="text-xs font-medium tracking-widest uppercase text-neutral-500">
-              Đội ngũ
+              Đội ngũ giảng viên
             </span>
           </div>
           <div className={`lg:col-span-8 p-6 lg:p-12
@@ -386,59 +427,172 @@ const TeamSection = () => {
             <h2 className="text-3xl lg:text-4xl font-bold text-neutral-900 tracking-tight">
               Những người dẫn dắt
             </h2>
-            <p className="mt-4 text-neutral-500">
-              100% giảng viên có chứng chỉ quốc tế và trung bình 5+ năm kinh nghiệm
+            <p className="mt-4 text-neutral-500 max-w-xl">
+              Đội ngũ giảng viên được tuyển chọn khắt khe với 100% có chứng chỉ quốc tế 
+              và trung bình 8+ năm kinh nghiệm giảng dạy.
             </p>
           </div>
         </div>
 
-        {/* Team Grid */}
-        <div className="grid lg:grid-cols-4">
+        {/* Team Cards - Editorial Grid */}
+        <div className="grid lg:grid-cols-2">
           {team.map((member, i) => (
             <div 
               key={i}
-              className={`p-6 lg:p-8 border-b lg:border-b-0 lg:border-r border-neutral-200 last:border-r-0
-                       hover:bg-neutral-50 transition-colors duration-150
+              className={`group border-b lg:border-b border-neutral-200 
+                       ${i % 2 === 0 ? 'lg:border-r' : ''} 
+                       last:border-b-0 lg:last:border-b
                        transform transition-all duration-500
                        ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
               style={{ transitionDelay: `${100 + i * 100}ms` }}
+              onMouseEnter={() => setHoveredIndex(i)}
+              onMouseLeave={() => setHoveredIndex(null)}
             >
-              {/* Avatar placeholder */}
-              <div className="w-16 h-16 bg-neutral-900 flex items-center justify-center mb-6">
-                <span className="text-lg font-bold text-white">
-                  {member.name.split(' ').slice(-2).map(n => n[0]).join('')}
-                </span>
+              <div className="grid lg:grid-cols-12">
+                {/* Image Section */}
+                <div className="lg:col-span-5 relative overflow-hidden bg-neutral-100">
+                  <div className="aspect-[4/5] lg:aspect-auto lg:h-full flex items-center justify-center relative">
+                    {/* Placeholder with stylized initials */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      {/* Background Pattern */}
+                      <div className="absolute inset-0 opacity-[0.03]"
+                           style={{
+                             backgroundImage: `linear-gradient(45deg, #000 25%, transparent 25%),
+                                              linear-gradient(-45deg, #000 25%, transparent 25%),
+                                              linear-gradient(45deg, transparent 75%, #000 75%),
+                                              linear-gradient(-45deg, transparent 75%, #000 75%)`,
+                             backgroundSize: '20px 20px',
+                             backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0px'
+                           }} />
+                      
+                      {/* Large Initials */}
+                      <span className="text-[120px] lg:text-[160px] font-black text-neutral-200 select-none
+                                     group-hover:text-neutral-300 transition-colors duration-300">
+                        {member.name.split(' ').slice(-1)[0][0]}
+                      </span>
+                      
+                      {/* Years Badge */}
+                      <div className="absolute bottom-6 left-6">
+                        <div className="bg-neutral-900 text-white px-4 py-2">
+                          <span className="text-2xl font-bold">{member.years}</span>
+                          <span className="text-xs uppercase tracking-wider ml-1">năm</span>
+                        </div>
+                      </div>
+
+                      {/* Department Tag */}
+                      <div className="absolute top-6 right-6">
+                        <span className="bg-[#FF4D00] text-white text-xs font-bold uppercase tracking-wider px-3 py-1">
+                          {member.department}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Info Section */}
+                <div className="lg:col-span-7 p-6 lg:p-8 flex flex-col">
+                  {/* Header */}
+                  <div className="mb-6">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="text-2xl font-bold text-neutral-900 tracking-tight">
+                          {member.name}
+                        </h3>
+                        <p className="text-[#FF4D00] font-semibold mt-1">{member.role}</p>
+                      </div>
+                      <span className="text-xs text-neutral-400">
+                        {String(i + 1).padStart(2, '0')}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Certifications */}
+                  <div className="mb-6">
+                    <p className="text-xs font-medium tracking-widest uppercase text-neutral-500 mb-3">
+                      Chứng chỉ
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {member.certifications.map((cert, j) => (
+                        <span 
+                          key={j} 
+                          className="px-3 py-1.5 bg-neutral-100 text-xs font-medium text-neutral-700
+                                   group-hover:bg-neutral-900 group-hover:text-white
+                                   transition-colors duration-200"
+                        >
+                          {cert}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Specialties */}
+                  <div className="mb-6">
+                    <p className="text-xs font-medium tracking-widest uppercase text-neutral-500 mb-3">
+                      Chuyên môn
+                    </p>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      {member.specialties.map((spec, j) => (
+                        <span key={j} className="text-sm text-neutral-600">
+                          {spec}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="flex-1" />
+
+                  {/* Stats & Quote */}
+                  <div className="pt-6 border-t border-neutral-200">
+                    <div className="flex items-end justify-between">
+                      <div>
+                        <p className="text-xs text-neutral-500 uppercase tracking-wider">Học viên đã đào tạo</p>
+                        <p className="text-3xl font-bold text-neutral-900 mt-1">{member.students}</p>
+                      </div>
+                      
+                      {/* Quote on hover */}
+                      <div className={`max-w-[200px] text-right transition-all duration-300
+                                    ${hoveredIndex === i ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4'}`}>
+                        <p className="text-xs text-neutral-500 italic leading-relaxed">
+                          "{member.quote}"
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              
-              <h3 className="text-lg font-bold text-neutral-900">{member.name}</h3>
-              <p className="text-sm text-[#FF4D00] font-medium mt-1">{member.role}</p>
-              <p className="text-sm text-neutral-500 mt-3">{member.exp}</p>
             </div>
           ))}
         </div>
 
-        {/* Stats Row */}
-        <div className="grid lg:grid-cols-3 border-t border-neutral-200">
-          <div className={`p-6 lg:p-8 lg:border-r border-neutral-200
+        {/* Summary Stats Row */}
+        <div className="grid lg:grid-cols-4 border-t border-neutral-900 bg-neutral-900">
+          <div className={`p-6 lg:p-8 lg:border-r border-neutral-800
                         transform transition-all duration-500 delay-500
                         ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            <p className="text-4xl font-bold text-neutral-900"><Counter end={50} />+</p>
-            <p className="text-sm text-neutral-500 mt-2">Giảng viên toàn hệ thống</p>
+            <p className="text-4xl font-bold text-white"><Counter end={50} />+</p>
+            <p className="text-sm text-neutral-400 mt-2">Giảng viên toàn hệ thống</p>
           </div>
-          <div className={`p-6 lg:p-8 lg:border-r border-neutral-200
+          <div className={`p-6 lg:p-8 lg:border-r border-neutral-800
                         transform transition-all duration-500 delay-600
                         ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            <p className="text-4xl font-bold text-neutral-900"><Counter end={100} />%</p>
-            <p className="text-sm text-neutral-500 mt-2">Có chứng chỉ quốc tế</p>
+            <p className="text-4xl font-bold text-white"><Counter end={100} />%</p>
+            <p className="text-sm text-neutral-400 mt-2">Có chứng chỉ quốc tế</p>
+          </div>
+          <div className={`p-6 lg:p-8 lg:border-r border-neutral-800
+                        transform transition-all duration-500 delay-700
+                        ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+            <p className="text-4xl font-bold text-white"><Counter end={8} />+</p>
+            <p className="text-sm text-neutral-400 mt-2">Năm kinh nghiệm TB</p>
           </div>
           <div className={`p-6 lg:p-8
-                        transform transition-all duration-500 delay-700
+                        transform transition-all duration-500 delay-800
                         ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             <div className="flex items-center gap-2">
               <Award className="w-5 h-5 text-[#FF4D00]" />
-              <span className="text-sm font-medium text-neutral-900">Đối tác Cambridge</span>
+              <span className="text-sm font-medium text-white">Đối tác Cambridge</span>
             </div>
-            <p className="text-sm text-neutral-500 mt-2">Trung tâm ủy quyền chính thức</p>
+            <p className="text-sm text-neutral-400 mt-2">Trung tâm ủy quyền chính thức</p>
           </div>
         </div>
       </div>
