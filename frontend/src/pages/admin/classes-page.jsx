@@ -179,14 +179,20 @@ const parseSchedule = (schedule) => {
 
 // Helper: Auto-generate class name based on course code
 // Format: [MÃ KHÓA]-[MM][YY]-01  (VD: IELTS-BASIC-1125-01)
-const generateClassName = (courseCode) => {
+const generateClassName = (courseCode, startDate) => {
   if (!courseCode) return '';
   
-  const date = new Date();
+  // Dùng start_date nếu có, không thì dùng ngày hiện tại
+  const date = startDate ? new Date(startDate) : new Date();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const year = String(date.getFullYear()).slice(-2); // Lấy 2 số cuối năm
   
   return `${courseCode}-${month}${year}-01`;
+};
+
+// Helper: Auto-generate class code (mã lớp) - giống tên lớp
+const generateClassCode = (courseCode, startDate) => {
+  return generateClassName(courseCode, startDate);
 };
 
 // ============ MAIN COMPONENT ============
@@ -347,13 +353,14 @@ export function ClassesPage() {
   const openModal = (classItem = null) => {
     if (classItem) {
       setEditingClass(classItem);
-      const schedule = classItem.schedule || [];
+      // Parse schedule an toàn (có thể là string hoặc array)
+      const schedule = parseSchedule(classItem.schedule);
       const days = schedule.map(s => s.day);
       const time = schedule[0] || { start: '18:00', end: '20:00' };
       
       setSelectedDays(days);
-      setStartTime(time.start);
-      setEndTime(time.end);
+      setStartTime(time.start || '18:00');
+      setEndTime(time.end || '20:00');
       
       setFormData({
         code: classItem.code || '',
@@ -396,6 +403,12 @@ export function ClassesPage() {
   // Handle form submit
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Validate sĩ số không vượt sức chứa phòng
+    if (selectedRoom && formData.max_students > selectedRoom.capacity) {
+      alert(`Sĩ số tối đa (${formData.max_students}) không được vượt quá sức chứa phòng (${selectedRoom.capacity} chỗ)`);
+      return;
+    }
 
     if (conflictStatus === 'conflict') {
       const confirm = window.confirm(`Phát hiện xung đột lịch học. Bạn vẫn muốn tiếp tục?`);
@@ -649,11 +662,10 @@ export function ClassesPage() {
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Mã lớp</Label>
                   <Input
-                    placeholder="Tự động tạo"
+                    placeholder="Tự động tạo khi chọn khóa học..."
                     value={formData.code}
-                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                    disabled={!!editingClass}
-                    className="h-9 text-sm"
+                    readOnly
+                    className="h-9 text-sm bg-slate-50 text-slate-600 cursor-not-allowed"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -671,7 +683,7 @@ export function ClassesPage() {
                       onClick={() => {
                         const course = courses.find(c => c.id === formData.course_id);
                         if (course) {
-                          const autoName = generateClassName(course.code);
+                          const autoName = generateClassName(course.code, formData.start_date);
                           setFormData(prev => ({ ...prev, name: autoName }));
                         }
                       }}
@@ -692,13 +704,17 @@ export function ClassesPage() {
                     // Tìm khóa học được chọn
                     const selectedCourse = courses.find(c => c.id === v);
                     
-                    // Nếu chưa edit và chưa có tên -> tự động sinh tên
+                    // Nếu chưa edit -> tự động sinh mã + tên
+                    let newCode = formData.code;
                     let newName = formData.name;
-                    if (!editingClass && selectedCourse && !formData.name) {
-                      newName = generateClassName(selectedCourse.code);
+                    if (!editingClass && selectedCourse) {
+                      newCode = generateClassCode(selectedCourse.code, formData.start_date);
+                      if (!formData.name) {
+                        newName = generateClassName(selectedCourse.code, formData.start_date);
+                      }
                     }
                     
-                    setFormData({ ...formData, course_id: v, name: newName });
+                    setFormData({ ...formData, course_id: v, code: newCode, name: newName });
                   }}
                   placeholder="Chọn khóa học"
                   options={courses.map(c => ({ value: c.id, label: `${c.code} - ${c.title}` }))}
@@ -752,7 +768,16 @@ export function ClassesPage() {
                   <Input
                     type="date"
                     value={formData.start_date}
-                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                    onChange={(e) => {
+                      const newStartDate = e.target.value;
+                      // Cập nhật mã lớp khi thay đổi ngày khai giảng
+                      const course = courses.find(c => c.id === formData.course_id);
+                      let newCode = formData.code;
+                      if (!editingClass && course && newStartDate) {
+                        newCode = generateClassCode(course.code, newStartDate);
+                      }
+                      setFormData({ ...formData, start_date: newStartDate, code: newCode });
+                    }}
                     className="h-9 text-sm"
                   />
                 </div>
@@ -815,11 +840,28 @@ export function ClassesPage() {
                   <Input
                     type="number"
                     min="1"
-                    max="100"
+                    max={selectedRoom?.capacity || 100}
                     value={formData.max_students}
                     onChange={(e) => setFormData({ ...formData, max_students: parseInt(e.target.value) || 20 })}
-                    className="h-9 text-sm"
+                    className={`h-9 text-sm ${
+                      selectedRoom && formData.max_students > selectedRoom.capacity 
+                        ? 'border-red-300 focus:ring-red-500' 
+                        : ''
+                    }`}
                   />
+                  {/* Warning nếu sĩ số vượt sức chứa phòng */}
+                  {selectedRoom && formData.max_students > selectedRoom.capacity && (
+                    <p className="text-xs text-red-500 flex items-center gap-1 mt-1">
+                      <AlertTriangle className="h-3 w-3" />
+                      Vượt quá sức chứa phòng ({selectedRoom.capacity} chỗ)
+                    </p>
+                  )}
+                  {/* Gợi ý sức chứa phòng */}
+                  {selectedRoom && formData.max_students <= selectedRoom.capacity && (
+                    <p className="text-xs text-slate-500 mt-1">
+                      Sức chứa phòng: <span className="font-medium">{selectedRoom.capacity} chỗ</span>
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Trạng thái</Label>
