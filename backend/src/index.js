@@ -1086,6 +1086,690 @@ app.get('/api/rooms/:id/schedule', requireAuth, async (req, res, next) => {
   }
 });
 
+// ============================================================
+// CLASS DETAIL APIs - Quản lý chi tiết lớp học
+// ============================================================
+
+// API: Lấy thông tin chi tiết 1 lớp học
+app.get('/api/classes/:id', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const { data, error } = await supabase
+      .from('classes')
+      .select(`
+        *,
+        courses(id, code, title, price, total_sessions, duration_weeks),
+        centers(id, name),
+        users!classes_teacher_id_fkey(id, full_name, email, phone),
+        rooms(id, name, capacity)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+      }
+      throw error;
+    }
+
+    // Đếm số học viên hiện tại
+    const { count: studentCount } = await supabase
+      .from('enrollments')
+      .select('*', { count: 'exact', head: true })
+      .eq('class_id', id)
+      .eq('status', 'active');
+
+    res.json({ 
+      success: true, 
+      data: {
+        ...data,
+        current_students: studentCount || 0
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching class detail:', error);
+    next(error);
+  }
+});
+
+// API: Lấy danh sách học viên trong lớp
+app.get('/api/classes/:id/students', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { 
+      page = 1, 
+      limit = 10, 
+      payment_status = 'all',  // all | paid | unpaid
+      search = ''
+    } = req.query;
+
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const from = (pageNum - 1) * limitNum;
+    const to = from + limitNum - 1;
+
+    // 1. Query cơ bản với count để phân trang
+    let query = supabase
+      .from('enrollments')
+      .select(`
+        id,
+        enrolled_at,
+        status,
+        tuition_fee,
+        discount_amount,
+        paid_amount,
+        notes,
+        student_id,
+        users!enrollments_student_id_fkey(
+          id, 
+          full_name, 
+          email, 
+          phone, 
+          avatar_url
+        )
+      `, { count: 'exact' })
+      .eq('class_id', id)
+      .eq('status', 'active');
+
+    // 2. Thực hiện query để lấy data
+    const { data: allData, error: countError, count: totalCount } = await query
+      .order('enrolled_at', { ascending: false });
+
+    if (countError) throw countError;
+
+    // 3. Transform và filter
+    let students = (allData || []).map(enrollment => {
+      const tuition = enrollment.tuition_fee || 0;
+      const discount = enrollment.discount_amount || 0;
+      const paid = enrollment.paid_amount || 0;
+      const amountDue = tuition - discount;
+      const remaining = amountDue - paid;
+      
+      // Tính payment status
+      let paymentStatusCalc = 'unpaid';
+      if (remaining <= 0 && amountDue > 0) paymentStatusCalc = 'paid';
+      else if (paid > 0) paymentStatusCalc = 'partial';
+
+      return {
+        enrollment_id: enrollment.id,
+        enrolled_at: enrollment.enrolled_at,
+        enrollment_status: enrollment.status,
+        tuition_fee: tuition,
+        discount_amount: discount,
+        paid_amount: paid,
+        notes: enrollment.notes,
+        // Thông tin học viên
+        student_id: enrollment.users?.id,
+        full_name: enrollment.users?.full_name,
+        email: enrollment.users?.email,
+        phone: enrollment.users?.phone,
+        avatar_url: enrollment.users?.avatar_url,
+        // Tính toán
+        amount_due: amountDue,
+        remaining: remaining,
+        payment_status: paymentStatusCalc
+      };
+    });
+
+    // 4. Filter theo payment_status
+    if (payment_status === 'paid') {
+      students = students.filter(s => s.payment_status === 'paid');
+    } else if (payment_status === 'unpaid') {
+      students = students.filter(s => s.payment_status !== 'paid');
+    }
+
+    // 5. Filter theo search (tìm theo tên, email, phone)
+    if (search && search.trim()) {
+      const searchLower = search.toLowerCase().trim();
+      students = students.filter(s => 
+        (s.full_name && s.full_name.toLowerCase().includes(searchLower)) ||
+        (s.email && s.email.toLowerCase().includes(searchLower)) ||
+        (s.phone && s.phone.includes(searchLower))
+      );
+    }
+
+    // 6. Tính pagination sau khi filter
+    const filteredTotal = students.length;
+    const totalPages = Math.ceil(filteredTotal / limitNum);
+    
+    // 7. Slice để lấy đúng trang
+    const paginatedStudents = students.slice(from, from + limitNum);
+
+    res.json({ 
+      success: true, 
+      data: paginatedStudents,
+      pagination: {
+        total: filteredTotal,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: totalPages,
+        hasNextPage: pageNum < totalPages,
+        hasPrevPage: pageNum > 1
+      },
+      // Summary cho UI
+      summary: {
+        totalInClass: totalCount || 0,
+        paid: students.filter(s => s.payment_status === 'paid').length,
+        unpaid: students.filter(s => s.payment_status !== 'paid').length
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching class students:', error);
+    next(error);
+  }
+});
+
+// API: Tìm kiếm học viên để thêm vào lớp (chỉ lấy users có role STUDENT)
+app.get('/api/students/search', requireAuth, async (req, res, next) => {
+  try {
+    const { q, exclude_class_id } = req.query;
+
+    // Lấy role_id của STUDENT
+    const { data: studentRole } = await supabase
+      .from('roles')
+      .select('id')
+      .eq('code', 'STUDENT')
+      .single();
+
+    if (!studentRole) {
+      return res.status(500).json({ success: false, message: 'Không tìm thấy role STUDENT' });
+    }
+
+    // Base query
+    let query = supabase
+      .from('users')
+      .select('id, full_name, email, phone, avatar_url, created_at')
+      .eq('role_id', studentRole.id)
+      .eq('status', 'active');
+
+    if (q && q.trim().length > 0) {
+      // Có từ khóa -> Tìm kiếm theo tên/email/phone
+      query = query.or(`full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`);
+      query = query.limit(20);
+    } else {
+      // Không có từ khóa -> Trả về học viên mới đăng ký gần đây nhất
+      query = query.order('created_at', { ascending: false }).limit(10);
+    }
+
+    const { data: students, error } = await query;
+    if (error) throw error;
+
+    // Nếu có exclude_class_id, loại bỏ những học viên đã trong lớp đó
+    if (exclude_class_id && students?.length > 0) {
+      const { data: enrolled } = await supabase
+        .from('enrollments')
+        .select('student_id')
+        .eq('class_id', exclude_class_id)
+        .in('status', ['active', 'completed']);
+
+      const enrolledIds = new Set((enrolled || []).map(e => e.student_id));
+      const filtered = students.filter(s => !enrolledIds.has(s.id));
+      
+      return res.json({ 
+        success: true, 
+        data: filtered,
+        type: q ? 'search' : 'recent' // Cho FE biết đây là kết quả tìm kiếm hay gợi ý
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      data: students || [],
+      type: q ? 'search' : 'recent'
+    });
+  } catch (error) {
+    console.error('Error searching students:', error);
+    next(error);
+  }
+});
+
+// API: Thêm học viên vào lớp (Ghi danh / Enroll)
+app.post('/api/classes/:id/enroll', requireAuth, async (req, res, next) => {
+  try {
+    const { id: class_id } = req.params;
+    const { student_id, tuition_fee, discount_amount, paid_amount, notes } = req.body;
+
+    if (!student_id) {
+      return res.status(400).json({ success: false, message: 'Thiếu student_id' });
+    }
+
+    // Kiểm tra lớp có tồn tại không
+    const { data: classData, error: classError } = await supabase
+      .from('classes')
+      .select('id, name, max_students, courses(price)')
+      .eq('id', class_id)
+      .single();
+
+    if (classError || !classData) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+    }
+
+    // Kiểm tra sĩ số
+    const { count: currentCount } = await supabase
+      .from('enrollments')
+      .select('*', { count: 'exact', head: true })
+      .eq('class_id', class_id)
+      .eq('status', 'active');
+
+    if (currentCount >= classData.max_students) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Lớp đã đầy (${currentCount}/${classData.max_students} học viên)` 
+      });
+    }
+
+    // Kiểm tra học viên đã ghi danh chưa
+    const { data: existing } = await supabase
+      .from('enrollments')
+      .select('id, status')
+      .eq('class_id', class_id)
+      .eq('student_id', student_id)
+      .single();
+
+    if (existing) {
+      if (existing.status === 'active') {
+        return res.status(400).json({ success: false, message: 'Học viên đã có trong lớp này' });
+      }
+      
+      // Nếu đã dropped, có thể re-activate
+      const reactiveTuition = tuition_fee ?? classData.courses?.price ?? 0;
+      const reactiveDiscount = discount_amount ?? 0;
+      const reactivePaid = paid_amount ?? 0;
+
+      const { data: updated, error: updateError } = await supabase
+        .from('enrollments')
+        .update({ 
+          status: 'active', 
+          enrolled_at: new Date().toISOString(),
+          tuition_fee: reactiveTuition,
+          discount_amount: reactiveDiscount,
+          paid_amount: reactivePaid,
+          notes
+        })
+        .eq('id', existing.id)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+
+      // Tạo hóa đơn mới cho enrollment được kích hoạt lại
+      const reactiveAmount = reactiveTuition - reactiveDiscount;
+      let reactiveStatus = 'unpaid';
+      if (reactivePaid >= reactiveAmount) reactiveStatus = 'paid';
+      else if (reactivePaid > 0) reactiveStatus = 'partial';
+
+      const { data: newInvoice } = await supabase
+        .from('invoices')
+        .insert([{
+          student_id,
+          enrollment_id: existing.id,
+          class_id,
+          amount: reactiveTuition,
+          discount_amount: reactiveDiscount,
+          final_amount: reactiveAmount,
+          paid_amount: reactivePaid,
+          status: reactiveStatus,
+          description: `Học phí lớp ${classData.name} (Ghi danh lại)`,
+          due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          created_by: req.user?.id
+        }])
+        .select()
+        .single();
+
+      return res.json({ 
+        success: true, 
+        message: 'Đã ghi danh lại học viên', 
+        data: updated,
+        invoice: newInvoice || null
+      });
+    }
+
+    // Tạo enrollment mới
+    const finalTuitionFee = tuition_fee ?? classData.courses?.price ?? 0;
+    const finalDiscount = discount_amount ?? 0;
+    const finalPaid = paid_amount ?? 0;
+
+    const { data: enrollment, error } = await supabase
+      .from('enrollments')
+      .insert([{
+        class_id,
+        student_id,
+        tuition_fee: finalTuitionFee,
+        discount_amount: finalDiscount,
+        paid_amount: finalPaid,
+        notes,
+        status: 'active'
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // ========== TẠO HÓA ĐƠN TỰ ĐỘNG ==========
+    const finalAmount = finalTuitionFee - finalDiscount;
+    let invoiceStatus = 'unpaid';
+    if (finalPaid >= finalAmount) invoiceStatus = 'paid';
+    else if (finalPaid > 0) invoiceStatus = 'partial';
+
+    const { data: invoice, error: invoiceError } = await supabase
+      .from('invoices')
+      .insert([{
+        student_id,
+        enrollment_id: enrollment.id,
+        class_id,
+        amount: finalTuitionFee,
+        discount_amount: finalDiscount,
+        final_amount: finalAmount,
+        paid_amount: finalPaid,
+        status: invoiceStatus,
+        description: `Học phí lớp ${classData.name}`,
+        due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 ngày sau
+        created_by: req.user?.id
+      }])
+      .select()
+      .single();
+
+    if (invoiceError) {
+      console.warn('⚠️ Không thể tạo hóa đơn:', invoiceError.message);
+      // Không throw error - enrollment vẫn thành công
+    } else {
+      console.log(`📄 Tạo hóa đơn ${invoice.invoice_code} cho học viên ${student_id}`);
+    }
+
+    console.log(`✅ Ghi danh học viên ${student_id} vào lớp ${classData.name}`);
+    res.status(201).json({ 
+      success: true, 
+      message: 'Ghi danh thành công', 
+      data: enrollment,
+      invoice: invoice || null
+    });
+  } catch (error) {
+    console.error('Error enrolling student:', error);
+    next(error);
+  }
+});
+
+// API: Xóa học viên khỏi lớp (hoặc đổi trạng thái thành dropped)
+app.delete('/api/classes/:classId/students/:studentId', requireAuth, async (req, res, next) => {
+  try {
+    const { classId, studentId } = req.params;
+    const { permanent } = req.query; // ?permanent=true để xóa hẳn
+
+    if (permanent === 'true') {
+      // Xóa hẳn enrollment
+      const { error } = await supabase
+        .from('enrollments')
+        .delete()
+        .eq('class_id', classId)
+        .eq('student_id', studentId);
+
+      if (error) throw error;
+      return res.json({ success: true, message: 'Đã xóa học viên khỏi lớp' });
+    }
+
+    // Soft delete - đổi status thành dropped
+    const { data, error } = await supabase
+      .from('enrollments')
+      .update({ status: 'dropped', updated_at: new Date().toISOString() })
+      .eq('class_id', classId)
+      .eq('student_id', studentId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ success: true, message: 'Học viên đã rời lớp', data });
+  } catch (error) {
+    console.error('Error removing student:', error);
+    next(error);
+  }
+});
+
+// API: Cập nhật thông tin ghi danh (học phí, giảm giá, đã đóng)
+app.patch('/api/enrollments/:id', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { tuition_fee, discount_amount, paid_amount, notes, status } = req.body;
+
+    const updates = { updated_at: new Date().toISOString() };
+    if (tuition_fee !== undefined) updates.tuition_fee = tuition_fee;
+    if (discount_amount !== undefined) updates.discount_amount = discount_amount;
+    if (paid_amount !== undefined) updates.paid_amount = paid_amount;
+    if (notes !== undefined) updates.notes = notes;
+    if (status !== undefined) updates.status = status;
+
+    const { data, error } = await supabase
+      .from('enrollments')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ success: true, message: 'Cập nhật thành công', data });
+  } catch (error) {
+    console.error('Error updating enrollment:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// PAYMENT APIs - Thu học phí
+// ============================================================
+
+// API: Tạo thanh toán mới (Thu tiền học viên)
+app.post('/api/payments', requireAuth, async (req, res, next) => {
+  try {
+    const { enrollment_id, student_id, class_id, amount, payment_method, notes } = req.body;
+
+    if (!enrollment_id || !amount) {
+      return res.status(400).json({ success: false, message: 'Thiếu thông tin enrollment_id hoặc amount' });
+    }
+
+    // 1. Lấy thông tin enrollment hiện tại
+    const { data: enrollment, error: enrollmentError } = await supabase
+      .from('enrollments')
+      .select('id, tuition_fee, discount_amount, paid_amount')
+      .eq('id', enrollment_id)
+      .single();
+
+    if (enrollmentError || !enrollment) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy enrollment' });
+    }
+
+    const currentPaid = enrollment.paid_amount || 0;
+    const amountDue = (enrollment.tuition_fee || 0) - (enrollment.discount_amount || 0);
+    const remaining = amountDue - currentPaid;
+
+    // Kiểm tra số tiền thanh toán có vượt quá số nợ không
+    if (amount > remaining) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Số tiền thanh toán (${amount.toLocaleString()}đ) vượt quá số nợ (${remaining.toLocaleString()}đ)` 
+      });
+    }
+
+    // 2. Tìm hoặc tạo invoice cho enrollment này
+    let { data: invoice } = await supabase
+      .from('invoices')
+      .select('id, invoice_code')
+      .eq('enrollment_id', enrollment_id)
+      .eq('status', 'unpaid')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    // Nếu chưa có invoice unpaid, tìm invoice partial
+    if (!invoice) {
+      const { data: partialInvoice } = await supabase
+        .from('invoices')
+        .select('id, invoice_code')
+        .eq('enrollment_id', enrollment_id)
+        .eq('status', 'partial')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      invoice = partialInvoice;
+    }
+
+    // Nếu vẫn không có invoice nào, tạo mới
+    if (!invoice) {
+      const { data: classInfo } = await supabase
+        .from('classes')
+        .select('name')
+        .eq('id', class_id)
+        .single();
+
+      const { data: newInvoice, error: invoiceError } = await supabase
+        .from('invoices')
+        .insert([{
+          student_id,
+          enrollment_id,
+          class_id,
+          amount: enrollment.tuition_fee || 0,
+          discount_amount: enrollment.discount_amount || 0,
+          final_amount: amountDue,
+          paid_amount: currentPaid,
+          status: currentPaid > 0 ? 'partial' : 'unpaid',
+          description: `Học phí lớp ${classInfo?.name || 'N/A'}`,
+          due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          created_by: req.user?.id
+        }])
+        .select()
+        .single();
+
+      if (invoiceError) {
+        console.warn('⚠️ Không thể tạo invoice:', invoiceError.message);
+      } else {
+        invoice = newInvoice;
+      }
+    }
+
+    // 3. Tạo payment record (nếu có bảng payments)
+    let paymentRecord = null;
+    if (invoice) {
+      const { data: payment, error: paymentError } = await supabase
+        .from('payments')
+        .insert([{
+          invoice_id: invoice.id,
+          amount: amount,
+          payment_method: payment_method || 'cash',
+          notes: notes,
+          received_by: req.user?.id,
+          payment_date: new Date().toISOString()
+        }])
+        .select()
+        .single();
+
+      if (paymentError) {
+        console.warn('⚠️ Không thể tạo payment record:', paymentError.message);
+        // Không throw - vẫn tiếp tục cập nhật enrollment
+      } else {
+        paymentRecord = payment;
+        console.log(`💰 Payment #${payment.id} created: ${amount.toLocaleString()}đ`);
+      }
+    }
+
+    // 4. Cập nhật paid_amount trong enrollment
+    const newPaidAmount = currentPaid + amount;
+    const { data: updatedEnrollment, error: updateError } = await supabase
+      .from('enrollments')
+      .update({ 
+        paid_amount: newPaidAmount,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', enrollment_id)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    // 5. Cập nhật invoice status (trigger trong DB sẽ tự động làm, nhưng backup ở đây)
+    if (invoice) {
+      const newInvoicePaid = (invoice.paid_amount || 0) + amount;
+      const invoiceFinal = invoice.final_amount || amountDue;
+      let newStatus = 'partial';
+      if (newInvoicePaid >= invoiceFinal) newStatus = 'paid';
+      else if (newInvoicePaid === 0) newStatus = 'unpaid';
+
+      await supabase
+        .from('invoices')
+        .update({ 
+          paid_amount: newInvoicePaid,
+          status: newStatus,
+          paid_at: newStatus === 'paid' ? new Date().toISOString() : null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', invoice.id);
+    }
+
+    console.log(`✅ Payment processed: ${amount.toLocaleString()}đ for enrollment ${enrollment_id}`);
+
+    res.status(201).json({ 
+      success: true, 
+      message: `Đã thu ${amount.toLocaleString()}đ thành công`,
+      data: {
+        payment: paymentRecord,
+        enrollment: updatedEnrollment,
+        invoice_code: invoice?.invoice_code
+      }
+    });
+
+  } catch (error) {
+    console.error('Error processing payment:', error);
+    next(error);
+  }
+});
+
+// API: Lấy lịch sử thanh toán của một enrollment
+app.get('/api/enrollments/:id/payments', requireAuth, async (req, res, next) => {
+  try {
+    const { id: enrollment_id } = req.params;
+
+    // Lấy invoice(s) của enrollment
+    const { data: invoices, error: invoiceError } = await supabase
+      .from('invoices')
+      .select('id')
+      .eq('enrollment_id', enrollment_id);
+
+    if (invoiceError) throw invoiceError;
+
+    if (!invoices || invoices.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    // Lấy payments của các invoices
+    const invoiceIds = invoices.map(inv => inv.id);
+    const { data: payments, error: paymentsError } = await supabase
+      .from('payments')
+      .select(`
+        id,
+        amount,
+        payment_method,
+        notes,
+        payment_date,
+        received_by,
+        users:received_by(full_name)
+      `)
+      .in('invoice_id', invoiceIds)
+      .order('payment_date', { ascending: false });
+
+    if (paymentsError) throw paymentsError;
+
+    res.json({ success: true, data: payments || [] });
+  } catch (error) {
+    console.error('Error fetching payment history:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// END CLASS DETAIL APIs
+// ============================================================
+
 app.use((err, _req, res, _next) => {
   console.error('🔥 Lỗi hệ thống:', err); // Log ra terminal để em xem
   

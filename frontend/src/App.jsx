@@ -13,6 +13,7 @@ import { AdminLayout } from '@/layouts/admin-layout';
 import { DashboardPage } from '@/pages/admin/dashboard-page';
 import { CoursesPage } from '@/pages/admin/courses-page';
 import { ClassesPage } from '@/pages/admin/classes-page';
+import { ClassDetailPage } from '@/pages/admin/class-detail-page';
 import { RoomsPage } from '@/pages/admin/rooms-page';
 import { StaffPage } from '@/pages/admin/staff-page';
 import { StudentsPage } from '@/pages/admin/students-page';
@@ -342,7 +343,7 @@ function App() {
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="courses" element={<CoursesPage />} />
           <Route path="classes" element={<ClassesPage />} />
-          <Route path="classes/:id" element={<PlaceholderPage title="Chi tiết Lớp học" />} />
+          <Route path="classes/:id" element={<ClassDetailPage />} />
           <Route path="scheduler" element={<PlaceholderPage title="Lịch học" description="Xếp lịch và quản lý phòng học" />} />
           <Route path="students" element={<StudentsPage />} />
           <Route path="students/:id" element={<PlaceholderPage title="Hồ sơ Học viên" />} />

@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { format } from 'date-fns';
 import { 
@@ -19,7 +20,8 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
-  RefreshCw
+  RefreshCw,
+  Eye
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -197,6 +199,7 @@ const generateClassCode = (courseCode, startDate) => {
 
 // ============ MAIN COMPONENT ============
 export function ClassesPage() {
+  const navigate = useNavigate();
   const [classes, setClasses] = useState([]);
   const [courses, setCourses] = useState([]);
   const [teachers, setTeachers] = useState([]);
@@ -238,6 +241,11 @@ export function ClassesPage() {
   // Delete confirmation
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, classItem: null });
   const [deleting, setDeleting] = useState(false);
+
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkDeleteModal, setBulkDeleteModal] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   // Fetch all data
   const fetchData = async () => {
@@ -459,6 +467,7 @@ export function ClassesPage() {
       const headers = await getAuthHeaders();
       await axios.delete(`${API_URL}/api/admin/classes/${deleteModal.classItem.id}`, { headers });
       setDeleteModal({ isOpen: false, classItem: null });
+      setSelectedIds(prev => prev.filter(id => id !== deleteModal.classItem.id)); // Remove from selection
       fetchData();
     } catch (error) {
       console.error('Error deleting class:', error);
@@ -467,6 +476,53 @@ export function ClassesPage() {
       setDeleting(false);
     }
   };
+
+  // Handle bulk delete
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    setBulkDeleting(true);
+
+    try {
+      const headers = await getAuthHeaders();
+      // Xóa từng lớp một (có thể tối ưu bằng API batch delete sau)
+      await Promise.all(
+        selectedIds.map(id => 
+          axios.delete(`${API_URL}/api/admin/classes/${id}`, { headers })
+        )
+      );
+      
+      setBulkDeleteModal(false);
+      setSelectedIds([]);
+      fetchData();
+    } catch (error) {
+      console.error('Error bulk deleting classes:', error);
+      alert(error.response?.data?.message || 'Có lỗi xảy ra khi xóa');
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  // Toggle select single item
+  const toggleSelectItem = (id) => {
+    setSelectedIds(prev => 
+      prev.includes(id) 
+        ? prev.filter(x => x !== id) 
+        : [...prev, id]
+    );
+  };
+
+  // Toggle select all (filtered)
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredClasses.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredClasses.map(c => c.id));
+    }
+  };
+
+  // Check if all filtered items are selected
+  const isAllSelected = filteredClasses.length > 0 && selectedIds.length === filteredClasses.length;
+  const isSomeSelected = selectedIds.length > 0 && selectedIds.length < filteredClasses.length;
 
   // Format date
   const formatDate = (dateString) => {
@@ -543,30 +599,91 @@ export function ClassesPage() {
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b text-left text-sm font-medium text-muted-foreground">
-                    <th className="pb-3 pr-4">Lớp học</th>
-                    <th className="pb-3 pr-4">Khóa học</th>
-                    <th className="pb-3 pr-4">Giáo viên</th>
-                    <th className="pb-3 pr-4">Lịch học</th>
-                    <th className="pb-3 pr-4">Sĩ số</th>
-                    <th className="pb-3 pr-4">Trạng thái</th>
-                    <th className="pb-3 text-right">Hành động</th>
-                  </tr>
-                </thead>
-                <tbody>
+            <>
+              {/* Bulk Action Bar - hiện khi có selection */}
+              {selectedIds.length > 0 && (
+                <div className="mb-4 flex items-center justify-between rounded-lg bg-indigo-50 border border-indigo-200 px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-white text-sm font-medium">
+                      {selectedIds.length}
+                    </div>
+                    <span className="text-sm font-medium text-indigo-900">
+                      Đã chọn {selectedIds.length} lớp học
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedIds([])}
+                      className="text-slate-600"
+                    >
+                      Bỏ chọn
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setBulkDeleteModal(true)}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Xóa {selectedIds.length} lớp
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b text-left text-sm font-medium text-muted-foreground">
+                      <th className="pb-3 pr-2 w-10">
+                        <input
+                          type="checkbox"
+                          checked={isAllSelected}
+                          ref={el => {
+                            if (el) el.indeterminate = isSomeSelected;
+                          }}
+                          onChange={toggleSelectAll}
+                          className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        />
+                      </th>
+                      <th className="pb-3 pr-4">Lớp học</th>
+                      <th className="pb-3 pr-4">Khóa học</th>
+                      <th className="pb-3 pr-4">Giáo viên</th>
+                      <th className="pb-3 pr-4">Lịch học</th>
+                      <th className="pb-3 pr-4">Sĩ số</th>
+                      <th className="pb-3 pr-4">Trạng thái</th>
+                      <th className="pb-3 text-right">Hành động</th>
+                    </tr>
+                  </thead>
+                  <tbody>
                   {filteredClasses.map((cls) => {
                     const statusCfg = STATUS_CONFIG[cls.status] || STATUS_CONFIG.upcoming;
                     const categoryCfg = CATEGORY_COLORS[cls.courses?.category] || CATEGORY_COLORS.default;
                     const roomName = cls.rooms?.name || cls.room || '';
+                    const isSelected = selectedIds.includes(cls.id);
                     
                     return (
-                      <tr key={cls.id} className="border-b last:border-0 hover:bg-slate-50 transition-colors">
+                      <tr 
+                        key={cls.id} 
+                        className={`border-b last:border-0 transition-colors ${
+                          isSelected ? 'bg-indigo-50 hover:bg-indigo-100' : 'hover:bg-slate-50'
+                        }`}
+                      >
+                        <td className="py-4 pr-2 w-10">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelectItem(cls.id)}
+                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                          />
+                        </td>
                         <td className="py-4 pr-4">
-                          <div>
-                            <p className="font-medium text-slate-900">{cls.name}</p>
+                          <div 
+                            className="cursor-pointer group"
+                            onClick={() => navigate(`/admin/classes/${cls.id}`)}
+                          >
+                            <p className="font-medium text-slate-900 group-hover:text-indigo-600 transition-colors">{cls.name}</p>
                             <p className="text-xs text-muted-foreground">
                               <code className="bg-slate-100 px-1 rounded">{cls.code}</code>
                               {roomName && <span className="ml-2">• {roomName}</span>}
@@ -623,6 +740,15 @@ export function ClassesPage() {
                         
                         <td className="py-4 text-right">
                           <div className="flex items-center justify-end gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => navigate(`/admin/classes/${cls.id}`)} 
+                              title="Xem chi tiết"
+                              className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
                             <Button variant="ghost" size="icon" onClick={() => openModal(cls)} title="Chỉnh sửa">
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -643,9 +769,74 @@ export function ClassesPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>
+
+      {/* ============ MODAL XÓA HÀNG LOẠT ============ */}
+      {bulkDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => !bulkDeleting && setBulkDeleteModal(false)} />
+          <div className="relative bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+                <AlertTriangle className="h-6 w-6 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-slate-900">Xác nhận xóa hàng loạt</h3>
+                <p className="mt-2 text-sm text-slate-500">
+                  Bạn có chắc chắn muốn xóa <strong className="text-red-600">{selectedIds.length} lớp học</strong> đã chọn? 
+                  Hành động này không thể hoàn tác.
+                </p>
+                
+                {/* Preview danh sách sẽ xóa */}
+                <div className="mt-3 max-h-32 overflow-y-auto rounded-lg bg-slate-50 p-3">
+                  <p className="text-xs font-medium text-slate-500 mb-2">Danh sách lớp sẽ bị xóa:</p>
+                  <div className="space-y-1">
+                    {selectedIds.slice(0, 5).map(id => {
+                      const cls = classes.find(c => c.id === id);
+                      return cls ? (
+                        <p key={id} className="text-xs text-slate-700">• {cls.name} ({cls.code})</p>
+                      ) : null;
+                    })}
+                    {selectedIds.length > 5 && (
+                      <p className="text-xs text-slate-400 italic">... và {selectedIds.length - 5} lớp khác</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-6 flex justify-end gap-3">
+              <Button 
+                variant="outline" 
+                onClick={() => setBulkDeleteModal(false)}
+                disabled={bulkDeleting}
+              >
+                Hủy
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+              >
+                {bulkDeleting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Đang xóa...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Xóa {selectedIds.length} lớp
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ============ MODAL MỞ LỚP MỚI - 2 CỘT ============ */}
       <SimpleModal
@@ -704,14 +895,12 @@ export function ClassesPage() {
                     // Tìm khóa học được chọn
                     const selectedCourse = courses.find(c => c.id === v);
                     
-                    // Nếu chưa edit -> tự động sinh mã + tên
+                    // LUÔN tự động sinh mã + tên khi đổi khóa học (cả tạo mới và edit)
                     let newCode = formData.code;
                     let newName = formData.name;
-                    if (!editingClass && selectedCourse) {
+                    if (selectedCourse) {
                       newCode = generateClassCode(selectedCourse.code, formData.start_date);
-                      if (!formData.name) {
-                        newName = generateClassName(selectedCourse.code, formData.start_date);
-                      }
+                      newName = generateClassName(selectedCourse.code, formData.start_date);
                     }
                     
                     setFormData({ ...formData, course_id: v, code: newCode, name: newName });
@@ -770,13 +959,15 @@ export function ClassesPage() {
                     value={formData.start_date}
                     onChange={(e) => {
                       const newStartDate = e.target.value;
-                      // Cập nhật mã lớp khi thay đổi ngày khai giảng
+                      // LUÔN cập nhật mã lớp VÀ tên lớp khi thay đổi ngày khai giảng
                       const course = courses.find(c => c.id === formData.course_id);
                       let newCode = formData.code;
-                      if (!editingClass && course && newStartDate) {
+                      let newName = formData.name;
+                      if (course && newStartDate) {
                         newCode = generateClassCode(course.code, newStartDate);
+                        newName = generateClassName(course.code, newStartDate);
                       }
-                      setFormData({ ...formData, start_date: newStartDate, code: newCode });
+                      setFormData({ ...formData, start_date: newStartDate, code: newCode, name: newName });
                     }}
                     className="h-9 text-sm"
                   />
