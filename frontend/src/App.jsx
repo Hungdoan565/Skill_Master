@@ -17,6 +17,7 @@ import { ClassDetailPage } from '@/pages/admin/class-detail-page';
 import { RoomsPage } from '@/pages/admin/rooms-page';
 import { StaffPage } from '@/pages/admin/staff-page';
 import { StudentsPage } from '@/pages/admin/students-page';
+import InvoicesPage from '@/pages/admin/invoices-page';
 import { LoginPage } from '@/pages/auth/login-page';
 import { AuthPage } from '@/pages/auth/auth-page';
 import { LandingPage } from '@/pages/landing/landing-page';
@@ -348,7 +349,7 @@ function App() {
           <Route path="students" element={<StudentsPage />} />
           <Route path="students/:id" element={<PlaceholderPage title="Hồ sơ Học viên" />} />
           <Route path="enrollments/new" element={<PlaceholderPage title="Ghi danh" description="Đăng ký học viên vào lớp" />} />
-          <Route path="invoices" element={<PlaceholderPage title="Quản lý Hóa đơn" description="Danh sách hóa đơn học phí" />} />
+          <Route path="invoices" element={<InvoicesPage />} />
           <Route path="payrolls" element={<PlaceholderPage title="Bảng lương" description="Tính lương giáo viên" />} />
           <Route path="staff" element={<StaffPage />} />
           <Route path="centers" element={<PlaceholderPage title="Quản lý Trung tâm" description="Thông tin các chi nhánh" />} />

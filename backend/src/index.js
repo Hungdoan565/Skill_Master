@@ -3090,6 +3090,388 @@ app.get('/api/dashboard/course-distribution', requireAuth, async (req, res, next
 // END DASHBOARD APIs
 // ============================================================
 
+// ============================================================
+// INVOICES APIs - Quản lý hóa đơn
+// ============================================================
+
+// GET /api/invoices - Danh sách hóa đơn (với filters, pagination)
+app.get('/api/invoices', requireAuth, async (req, res, next) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 20, 
+      status,
+      search,
+      startDate,
+      endDate,
+      sortBy = 'created_at',
+      sortOrder = 'desc'
+    } = req.query;
+
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const offset = (pageNum - 1) * limitNum;
+
+    // Build query
+    let query = supabase
+      .from('invoices')
+      .select(`
+        id,
+        invoice_code,
+        student_id,
+        class_id,
+        enrollment_id,
+        amount,
+        discount_amount,
+        final_amount,
+        paid_amount,
+        status,
+        description,
+        due_date,
+        paid_at,
+        created_at,
+        student:users!invoices_student_id_fkey (
+          id,
+          full_name,
+          email,
+          phone
+        ),
+        class:classes (
+          id,
+          code,
+          name,
+          course:courses (
+            id,
+            title,
+            category
+          )
+        )
+      `, { count: 'exact' });
+
+    // Filter by status
+    if (status && status !== 'all') {
+      query = query.eq('status', status);
+    }
+
+    // Filter by date range
+    if (startDate) {
+      query = query.gte('created_at', startDate);
+    }
+    if (endDate) {
+      // Thêm 1 ngày để bao gồm cả ngày end
+      query = query.lte('created_at', `${endDate}T23:59:59`);
+    }
+
+    // Search by invoice_code hoặc student name
+    if (search && search.trim()) {
+      const searchTerm = `%${search.trim()}%`;
+      query = query.or(`invoice_code.ilike.${searchTerm}`);
+    }
+
+    // Sorting
+    const validSortFields = ['created_at', 'final_amount', 'paid_amount', 'due_date', 'invoice_code'];
+    const sortField = validSortFields.includes(sortBy) ? sortBy : 'created_at';
+    const ascending = sortOrder === 'asc';
+    query = query.order(sortField, { ascending });
+
+    // Pagination
+    query = query.range(offset, offset + limitNum - 1);
+
+    const { data, error, count } = await query;
+
+    if (error) throw error;
+
+    // Nếu có search term, cần filter thêm theo tên học viên (do Supabase không hỗ trợ search nested)
+    let filteredData = data;
+    if (search && search.trim()) {
+      const searchLower = search.trim().toLowerCase();
+      filteredData = data?.filter(inv => 
+        inv.invoice_code?.toLowerCase().includes(searchLower) ||
+        inv.student?.full_name?.toLowerCase().includes(searchLower) ||
+        inv.student?.email?.toLowerCase().includes(searchLower) ||
+        inv.student?.phone?.includes(searchLower)
+      );
+    }
+
+    res.json({
+      success: true,
+      data: filteredData || [],
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limitNum)
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching invoices:', error);
+    next(error);
+  }
+});
+
+// GET /api/invoices/statistics - Thống kê hóa đơn
+app.get('/api/invoices/statistics', requireAuth, async (req, res, next) => {
+  try {
+    // Lấy tất cả invoices để tính toán
+    const { data: invoices, error } = await supabase
+      .from('invoices')
+      .select('status, final_amount, paid_amount, paid_at, created_at')
+      .not('status', 'eq', 'cancelled');
+
+    if (error) throw error;
+
+    // Lấy ngày đầu tháng và cuối tháng hiện tại
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+    // Tính toán thống kê
+    let totalRevenue = 0;          // Tổng đã thu (tất cả)
+    let monthlyRevenue = 0;        // Thu tháng này
+    let totalDebt = 0;             // Tổng còn nợ
+    let countUnpaid = 0;           // Số hóa đơn chưa thanh toán
+    let countPartial = 0;          // Số hóa đơn đang đợi
+    let countPaid = 0;             // Số hóa đơn đã thanh toán
+
+    invoices?.forEach(inv => {
+      const paidAmount = parseFloat(inv.paid_amount) || 0;
+      const finalAmount = parseFloat(inv.final_amount) || 0;
+      const debt = finalAmount - paidAmount;
+
+      // Tổng đã thu
+      totalRevenue += paidAmount;
+
+      // Tổng nợ
+      if (debt > 0) {
+        totalDebt += debt;
+      }
+
+      // Đếm theo status
+      if (inv.status === 'unpaid') countUnpaid++;
+      else if (inv.status === 'partial') countPartial++;
+      else if (inv.status === 'paid') countPaid++;
+
+      // Thu tháng này (dựa vào paid_at hoặc created_at nếu đã paid)
+      if (paidAmount > 0) {
+        const paidDate = inv.paid_at ? new Date(inv.paid_at) : new Date(inv.created_at);
+        if (paidDate >= firstDayOfMonth && paidDate <= lastDayOfMonth) {
+          monthlyRevenue += paidAmount;
+        }
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        totalRevenue,
+        monthlyRevenue,
+        totalDebt,
+        counts: {
+          unpaid: countUnpaid,
+          partial: countPartial,
+          paid: countPaid,
+          total: invoices?.length || 0
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching invoice statistics:', error);
+    next(error);
+  }
+});
+
+// GET /api/invoices/:id - Chi tiết hóa đơn
+app.get('/api/invoices/:id', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Lấy invoice với thông tin liên quan
+    const { data: invoice, error: invoiceError } = await supabase
+      .from('invoices')
+      .select(`
+        *,
+        student:users!invoices_student_id_fkey (
+          id,
+          full_name,
+          email,
+          phone,
+          avatar_url
+        ),
+        class:classes (
+          id,
+          code,
+          name,
+          course:courses (
+            id,
+            title,
+            category
+          )
+        )
+      `)
+      .eq('id', id)
+      .single();
+
+    if (invoiceError) throw invoiceError;
+    if (!invoice) {
+      return res.status(404).json({ success: false, message: 'Invoice not found' });
+    }
+
+    // Lấy lịch sử thanh toán
+    const { data: payments, error: paymentsError } = await supabase
+      .from('payments')
+      .select(`
+        id,
+        amount,
+        payment_method,
+        reference_code,
+        notes,
+        payment_date,
+        received_by,
+        receiver:users!payments_received_by_fkey (
+          full_name
+        )
+      `)
+      .eq('invoice_id', id)
+      .order('payment_date', { ascending: false });
+
+    if (paymentsError) {
+      console.warn('Error fetching payments:', paymentsError.message);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        ...invoice,
+        payments: payments || []
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching invoice detail:', error);
+    next(error);
+  }
+});
+
+// POST /api/invoices/:id/payments - Thêm thanh toán cho hóa đơn
+app.post('/api/invoices/:id/payments', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { amount, payment_method = 'cash', reference_code, notes } = req.body;
+    const userId = req.user?.id;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Số tiền thanh toán phải lớn hơn 0' 
+      });
+    }
+
+    // Kiểm tra invoice tồn tại
+    const { data: invoice, error: invoiceError } = await supabase
+      .from('invoices')
+      .select('id, final_amount, paid_amount, status')
+      .eq('id', id)
+      .single();
+
+    if (invoiceError || !invoice) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Không tìm thấy hóa đơn' 
+      });
+    }
+
+    if (invoice.status === 'paid') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Hóa đơn đã thanh toán đủ' 
+      });
+    }
+
+    if (invoice.status === 'cancelled') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Hóa đơn đã bị hủy' 
+      });
+    }
+
+    // Thêm payment (trigger sẽ tự cập nhật invoice)
+    const { data: payment, error: paymentError } = await supabase
+      .from('payments')
+      .insert({
+        invoice_id: id,
+        amount: parseFloat(amount),
+        payment_method,
+        reference_code,
+        notes,
+        received_by: userId
+      })
+      .select()
+      .single();
+
+    if (paymentError) throw paymentError;
+
+    // Lấy lại invoice đã cập nhật
+    const { data: updatedInvoice } = await supabase
+      .from('invoices')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    res.json({
+      success: true,
+      message: 'Thanh toán thành công',
+      data: {
+        payment,
+        invoice: updatedInvoice
+      }
+    });
+
+  } catch (error) {
+    console.error('Error adding payment:', error);
+    next(error);
+  }
+});
+
+// PUT /api/invoices/:id - Cập nhật hóa đơn
+app.put('/api/invoices/:id', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { due_date, description, status } = req.body;
+
+    const updateData = { updated_at: new Date().toISOString() };
+    if (due_date !== undefined) updateData.due_date = due_date;
+    if (description !== undefined) updateData.description = description;
+    if (status && ['unpaid', 'partial', 'paid', 'cancelled', 'refunded'].includes(status)) {
+      updateData.status = status;
+    }
+
+    const { data, error } = await supabase
+      .from('invoices')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: 'Cập nhật hóa đơn thành công',
+      data
+    });
+
+  } catch (error) {
+    console.error('Error updating invoice:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// END INVOICES APIs
+// ============================================================
+
 app.use((err, _req, res, _next) => {
   console.error('🔥 Lỗi hệ thống:', err); // Log ra terminal để em xem
   
