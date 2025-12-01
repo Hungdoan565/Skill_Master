@@ -1238,7 +1238,7 @@ export function ClassDetailPage() {
           
           {/* Modal - Compact version */}
           <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
-            {/* Header - Compact */}
+            {/* Header - Compact with Student Name */}
             <div className="bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-3 text-white flex-shrink-0">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -1246,8 +1246,8 @@ export function ClassDetailPage() {
                     <Receipt className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold">Thu học phí</h3>
-                    <p className="text-xs text-emerald-100">{classData?.name}</p>
+                    <h3 className="text-sm font-semibold">Thu học phí - {studentToPay?.full_name}</h3>
+                    <p className="text-xs text-emerald-100">Lớp {classData?.code}</p>
                   </div>
                 </div>
                 <button 
@@ -1479,8 +1479,8 @@ export function ClassDetailPage() {
                   </>
                 ) : (
                   <>
-                    <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
-                    Xác nhận thu tiền
+                    <CheckCircle2 className="w-3.5 h-3.5 mr-1.5 " />
+                    Xác nhận thu <span className="font-bold ml-1">{parseInt(paymentData.amount?.replace(/[^0-9]/g, '') || 0).toLocaleString('vi-VN')}đ</span>
                   </>
                 )}
               </Button>
