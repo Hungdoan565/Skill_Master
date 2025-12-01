@@ -38,7 +38,12 @@ import {
   QrCode,
   Smartphone,
   Copy,
-  Check
+  Check,
+  CalendarDays,
+  ClipboardCheck,
+  UserCheck,
+  UserX,
+  ClockIcon
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -193,6 +198,28 @@ export function ClassDetailPage() {
   // Toast notification
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
+  // ============ ATTENDANCE STATES ============
+  const [sessions, setSessions] = useState([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+  const [sessionsInfo, setSessionsInfo] = useState({ total: 0, completed: 0 });
+  
+  // Modal điểm danh
+  const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+  const [selectedSession, setSelectedSession] = useState(null);
+  const [attendanceList, setAttendanceList] = useState([]);
+  const [loadingAttendance, setLoadingAttendance] = useState(false);
+  const [savingAttendance, setSavingAttendance] = useState(false);
+  const [attendanceSearch, setAttendanceSearch] = useState('');
+
+  // ============ GRADES STATES ============
+  const [gradeStructures, setGradeStructures] = useState([]); // Cấu trúc điểm của khóa học
+  const [gradeMatrix, setGradeMatrix] = useState([]);         // Ma trận điểm của học viên
+  const [loadingGrades, setLoadingGrades] = useState(false);
+  const [savingGrades, setSavingGrades] = useState(false);
+  const [editingCell, setEditingCell] = useState(null);       // {enrollment_id, structure_id}
+  const [pendingGrades, setPendingGrades] = useState({});     // Điểm đang chỉnh sửa chưa save
+  const [gradesSummary, setGradesSummary] = useState({ total_students: 0, graded_count: 0 });
+
   // Show toast helper
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -275,6 +302,238 @@ export function ClassDetailPage() {
     }, 300);
     return () => clearTimeout(timer);
   }, [searchInputValue]);
+
+  // ============ ATTENDANCE FUNCTIONS ============
+  // Fetch sessions khi chuyển sang tab schedule
+  const fetchSessions = useCallback(async () => {
+    setLoadingSessions(true);
+    try {
+      const res = await fetch(`${API_URL}/api/classes/${id}/sessions`, { headers: getHeaders() });
+      const json = await res.json();
+      if (json.success) {
+        setSessions(json.data.sessions || []);
+        setSessionsInfo({
+          total: json.data.total_sessions || 0,
+          completed: json.data.completed_sessions || 0
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching sessions:', error);
+    } finally {
+      setLoadingSessions(false);
+    }
+  }, [id, getHeaders]);
+
+  // Fetch attendance cho một buổi học
+  const fetchAttendance = async (date) => {
+    setLoadingAttendance(true);
+    try {
+      const res = await fetch(`${API_URL}/api/classes/${id}/attendance?date=${date}`, { headers: getHeaders() });
+      const json = await res.json();
+      if (json.success) {
+        // Mặc định tất cả là "present" nếu chưa điểm danh
+        const listWithDefaults = json.data.students.map(s => ({
+          ...s,
+          status: s.attendance?.status || 'present',
+          notes: s.attendance?.notes || ''
+        }));
+        setAttendanceList(listWithDefaults);
+      }
+    } catch (error) {
+      console.error('Error fetching attendance:', error);
+    } finally {
+      setLoadingAttendance(false);
+    }
+  };
+
+  // Mở modal điểm danh
+  const openAttendanceModal = (session) => {
+    setSelectedSession(session);
+    setShowAttendanceModal(true);
+    setAttendanceSearch('');
+    fetchAttendance(session.date);
+  };
+
+  // Đóng modal điểm danh
+  const closeAttendanceModal = () => {
+    setShowAttendanceModal(false);
+    setSelectedSession(null);
+    setAttendanceList([]);
+    setAttendanceSearch('');
+  };
+
+  // Thay đổi trạng thái điểm danh của 1 học viên
+  const updateAttendanceStatus = (enrollmentId, status) => {
+    setAttendanceList(prev => prev.map(s => 
+      s.enrollment_id === enrollmentId ? { ...s, status } : s
+    ));
+  };
+
+  // Thay đổi ghi chú điểm danh
+  const updateAttendanceNotes = (enrollmentId, notes) => {
+    setAttendanceList(prev => prev.map(s => 
+      s.enrollment_id === enrollmentId ? { ...s, notes } : s
+    ));
+  };
+
+  // Lưu điểm danh
+  const saveAttendance = async () => {
+    if (!selectedSession) return;
+    
+    setSavingAttendance(true);
+    try {
+      const res = await fetch(`${API_URL}/api/attendance/mark`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({
+          class_id: id,
+          date: selectedSession.date,
+          session_id: selectedSession.id || null, // Gửi session_id để backend cập nhật status
+          attendances: attendanceList.map(s => ({
+            enrollment_id: s.enrollment_id,
+            status: s.status,
+            notes: s.notes || null
+          }))
+        })
+      });
+      
+      const json = await res.json();
+      if (json.success) {
+        showToast(`Đã lưu điểm danh: ${json.data.summary.present} có mặt, ${json.data.summary.absent} vắng, ${json.data.summary.late} trễ`);
+        closeAttendanceModal();
+        // Refresh sessions list
+        fetchSessions();
+      } else {
+        showToast(json.message || 'Lỗi khi lưu điểm danh', 'error');
+      }
+    } catch (error) {
+      console.error('Error saving attendance:', error);
+      showToast('Lỗi khi lưu điểm danh', 'error');
+    } finally {
+      setSavingAttendance(false);
+    }
+  };
+
+  // Load sessions khi chuyển sang tab schedule
+  useEffect(() => {
+    if (activeTab === 'schedule' && session?.access_token && id) {
+      fetchSessions();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  // ============ GRADES FUNCTIONS ============
+  
+  // Fetch bảng điểm
+  const fetchGrades = useCallback(async () => {
+    setLoadingGrades(true);
+    try {
+      const res = await fetch(`${API_URL}/api/classes/${id}/grades`, { headers: getHeaders() });
+      const json = await res.json();
+      if (json.success) {
+        setGradeStructures(json.data.grade_structures || []);
+        setGradeMatrix(json.data.students || []);
+        setGradesSummary({
+          total_students: json.data.summary?.total_students || 0,
+          graded_count: json.data.summary?.graded_count || 0
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching grades:', error);
+    } finally {
+      setLoadingGrades(false);
+    }
+  }, [id, getHeaders]);
+
+  // Load grades khi chuyển sang tab grades
+  useEffect(() => {
+    if (activeTab === 'grades' && session?.access_token && id) {
+      fetchGrades();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  // Cập nhật điểm trong pending (chưa save)
+  const updatePendingGrade = (enrollmentId, structureId, score) => {
+    const key = `${enrollmentId}_${structureId}`;
+    setPendingGrades(prev => ({
+      ...prev,
+      [key]: { enrollment_id: enrollmentId, grade_structure_id: structureId, score }
+    }));
+  };
+
+  // Lấy điểm hiển thị (ưu tiên pending > saved)
+  const getDisplayScore = (enrollmentId, structureId) => {
+    const key = `${enrollmentId}_${structureId}`;
+    if (pendingGrades[key] !== undefined) {
+      return pendingGrades[key].score;
+    }
+    const student = gradeMatrix.find(s => s.enrollment_id === enrollmentId);
+    return student?.grades?.[structureId]?.score ?? '';
+  };
+
+  // Lưu tất cả điểm pending
+  const saveAllGrades = async () => {
+    const gradesToSave = Object.values(pendingGrades).filter(g => g.score !== '');
+    if (gradesToSave.length === 0) {
+      showToast('Không có điểm nào để lưu', 'error');
+      return;
+    }
+
+    setSavingGrades(true);
+    try {
+      const res = await fetch(`${API_URL}/api/grades/bulk-update`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ grades: gradesToSave })
+      });
+
+      const json = await res.json();
+      if (json.success) {
+        showToast(`Đã lưu ${json.data?.length || gradesToSave.length} điểm`);
+        setPendingGrades({});
+        setEditingCell(null);
+        fetchGrades(); // Refresh
+      } else {
+        showToast(json.message || 'Lỗi khi lưu điểm', 'error');
+      }
+    } catch (error) {
+      console.error('Error saving grades:', error);
+      showToast('Lỗi khi lưu điểm', 'error');
+    } finally {
+      setSavingGrades(false);
+    }
+  };
+
+  // Tính điểm tổng kết có trọng số (real-time khi edit)
+  const calculateWeightedAverage = (enrollmentId) => {
+    const student = gradeMatrix.find(s => s.enrollment_id === enrollmentId);
+    if (!student) return null;
+
+    let totalWeightedScore = 0;
+    let totalWeight = 0;
+
+    gradeStructures.forEach(structure => {
+      const score = getDisplayScore(enrollmentId, structure.id);
+      if (score !== '' && score !== null && !isNaN(score)) {
+        totalWeightedScore += parseFloat(score) * structure.weight;
+        totalWeight += structure.weight;
+      }
+    });
+
+    return totalWeight > 0 
+      ? Math.round((totalWeightedScore / totalWeight) * 100) / 100 
+      : null;
+  };
+
+  // Check xem có pending changes không
+  const hasPendingChanges = Object.keys(pendingGrades).length > 0;
+
+  // Filter attendance list by search
+  const filteredAttendanceList = attendanceList.filter(s => 
+    s.full_name?.toLowerCase().includes(attendanceSearch.toLowerCase()) ||
+    s.email?.toLowerCase().includes(attendanceSearch.toLowerCase())
+  );
 
   // Helper functions for pagination
   const handlePageChange = (newPage) => {
@@ -1058,25 +1317,642 @@ export function ClassDetailPage() {
             </div>
           )}
 
-          {/* ============ TAB 2: SCHEDULE ============ */}
+          {/* ============ TAB 2: SCHEDULE & ATTENDANCE ============ */}
           {activeTab === 'schedule' && (
-            <div className="text-center py-12">
-              <Calendar className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-              <p className="text-slate-500">Tính năng Lịch trình & Điểm danh đang phát triển</p>
-              <p className="text-sm text-slate-400 mt-1">Sẽ sớm cập nhật trong phiên bản tiếp theo</p>
+            <div className="space-y-4">
+              {/* Header với thông tin tổng quan */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">Lịch trình & Điểm danh</h3>
+                  <p className="text-sm text-slate-500">
+                    {formatScheduleDisplay(classData?.schedule)} • Tổng {sessionsInfo.total} buổi
+                  </p>
+                </div>
+                
+                {/* Progress bar */}
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-slate-900">{sessionsInfo.completed}/{sessionsInfo.total} buổi</p>
+                    <p className="text-xs text-slate-500">đã hoàn thành</p>
+                  </div>
+                  <div className="w-32 h-2 bg-slate-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-indigo-500 rounded-full transition-all"
+                      style={{ width: `${sessionsInfo.total ? (sessionsInfo.completed / sessionsInfo.total * 100) : 0}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Loading */}
+              {loadingSessions && (
+                <div className="text-center py-12">
+                  <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mx-auto mb-3" />
+                  <p className="text-slate-500">Đang tải lịch trình...</p>
+                </div>
+              )}
+
+              {/* Sessions List */}
+              {!loadingSessions && sessions.length === 0 && (
+                <div className="text-center py-12">
+                  <Calendar className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                  <p className="text-slate-500">Chưa có lịch trình nào</p>
+                  <p className="text-sm text-slate-400 mt-1">Hãy cập nhật ngày bắt đầu/kết thúc và lịch học cho lớp</p>
+                </div>
+              )}
+
+              {!loadingSessions && sessions.length > 0 && (
+                <div className="space-y-2">
+                  {sessions.map((session, index) => {
+                    const isToday = session.status === 'today';
+                    const isCompleted = session.status === 'completed';
+                    const isUpcoming = session.status === 'upcoming';
+                    const hasAttendance = session.is_marked;
+
+                    return (
+                      <div 
+                        key={index}
+                        className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${
+                          isToday 
+                            ? 'bg-indigo-50 border-indigo-200 ring-2 ring-indigo-500/20' 
+                            : isCompleted 
+                              ? 'bg-slate-50 border-slate-200' 
+                              : 'bg-white border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        {/* Session Number */}
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg ${
+                          isToday 
+                            ? 'bg-indigo-500 text-white' 
+                            : isCompleted 
+                              ? 'bg-slate-300 text-slate-600' 
+                              : 'bg-slate-100 text-slate-700'
+                        }`}>
+                          {session.session_number}
+                        </div>
+
+                        {/* Session Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className={`font-semibold ${isToday ? 'text-indigo-900' : 'text-slate-900'}`}>
+                              {session.day_name}, {new Date(session.date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                            </p>
+                            {isToday && (
+                              <Badge className="bg-indigo-500 text-white text-xs">Hôm nay</Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 mt-1 text-sm text-slate-500">
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5" />
+                              {session.start_time} - {session.end_time}
+                            </span>
+                            {session.teacher && (
+                              <span className="flex items-center gap-1">
+                                <User className="w-3.5 h-3.5" />
+                                {session.teacher.full_name}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Attendance Status & Action */}
+                        <div className="flex items-center gap-3">
+                          {/* Attendance Summary */}
+                          {hasAttendance && session.attendance_summary && (
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-100 rounded-lg">
+                              <UserCheck className="w-4 h-4 text-emerald-600" />
+                              <span className="text-sm font-medium text-emerald-700">
+                                {session.attendance_summary.present + session.attendance_summary.late}/{session.total_students}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Status Badge or Action Button */}
+                          {isUpcoming && !isToday ? (
+                            <Badge className="bg-blue-50 text-blue-600 border border-blue-200">Sắp tới</Badge>
+                          ) : (
+                            <Button
+                              size="sm"
+                              className={`${
+                                hasAttendance 
+                                  ? 'bg-slate-600 hover:bg-slate-700' 
+                                  : 'bg-indigo-600 hover:bg-indigo-700'
+                              } text-white`}
+                              onClick={() => openAttendanceModal(session)}
+                            >
+                              <ClipboardCheck className="w-4 h-4 mr-1.5" />
+                              {hasAttendance ? 'Xem/Sửa' : 'Điểm danh'}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Legend */}
+              {!loadingSessions && sessions.length > 0 && (
+                <div className="flex flex-wrap items-center gap-4 pt-4 border-t border-slate-200 text-sm text-slate-500">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded bg-indigo-500" />
+                    <span>Hôm nay</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded bg-slate-300" />
+                    <span>Đã học</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded bg-blue-100 border border-blue-300" />
+                    <span>Sắp tới</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <UserCheck className="w-4 h-4 text-emerald-600" />
+                    <span>Đã điểm danh</span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* ============ TAB 3: GRADES ============ */}
+          {/* ============ TAB 3: GRADES (Excel-like Table) ============ */}
           {activeTab === 'grades' && (
-            <div className="text-center py-12">
-              <GraduationCap className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-              <p className="text-slate-500">Tính năng Bảng điểm đang phát triển</p>
-              <p className="text-sm text-slate-400 mt-1">Sẽ sớm cập nhật trong phiên bản tiếp theo</p>
+            <div className="space-y-4">
+              {/* Header với nút Save */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">Bảng điểm</h3>
+                  <p className="text-sm text-slate-500">
+                    {gradesSummary.graded_count}/{gradesSummary.total_students} học viên đã có điểm
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {hasPendingChanges && (
+                    <span className="text-sm text-amber-600">
+                      {Object.keys(pendingGrades).length} thay đổi chưa lưu
+                    </span>
+                  )}
+                  <Button
+                    onClick={saveAllGrades}
+                    disabled={!hasPendingChanges || savingGrades}
+                    className="gap-2"
+                  >
+                    {savingGrades ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Đang lưu...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" />
+                        Lưu bảng điểm
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Loading state */}
+              {loadingGrades && (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+                </div>
+              )}
+
+              {/* No grade structure */}
+              {!loadingGrades && gradeStructures.length === 0 && (
+                <div className="text-center py-12 bg-slate-50 rounded-lg border border-dashed border-slate-300">
+                  <GraduationCap className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                  <p className="text-slate-600 font-medium">Chưa có cấu trúc điểm</p>
+                  <p className="text-sm text-slate-400 mt-1">
+                    Khóa học này chưa được thiết lập cột điểm.<br />
+                    Vui lòng liên hệ Admin để cấu hình.
+                  </p>
+                </div>
+              )}
+
+              {/* No students */}
+              {!loadingGrades && gradeStructures.length > 0 && gradeMatrix.length === 0 && (
+                <div className="text-center py-12 bg-slate-50 rounded-lg border border-dashed border-slate-300">
+                  <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                  <p className="text-slate-600 font-medium">Chưa có học viên</p>
+                  <p className="text-sm text-slate-400 mt-1">
+                    Lớp này chưa có học viên ghi danh.
+                  </p>
+                </div>
+              )}
+
+              {/* Grade Table */}
+              {!loadingGrades && gradeStructures.length > 0 && gradeMatrix.length > 0 && (
+                <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                          {/* Cột STT */}
+                          <th className="px-3 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide w-12">
+                            #
+                          </th>
+                          {/* Cột Học viên - Fixed */}
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide min-w-[200px]">
+                            Học viên
+                          </th>
+                          {/* Các cột điểm - Dynamic */}
+                          {gradeStructures.map(structure => (
+                            <th 
+                              key={structure.id}
+                              className="px-3 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wide min-w-[100px]"
+                            >
+                              <div>{structure.name}</div>
+                              <div className="text-[10px] font-normal text-slate-400 mt-0.5">
+                                {Math.round(structure.weight * 100)}% • Max {structure.max_score}
+                              </div>
+                            </th>
+                          ))}
+                          {/* Cột Tổng kết */}
+                          <th className="px-3 py-3 text-center text-xs font-semibold text-indigo-700 uppercase tracking-wide min-w-[90px] bg-indigo-50">
+                            Tổng kết
+                          </th>
+                          {/* Cột Kết quả (Đậu/Trượt) */}
+                          <th className="px-3 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wide min-w-[80px]">
+                            Kết quả
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {gradeMatrix.map((student, index) => {
+                          const weightedAvg = calculateWeightedAverage(student.enrollment_id);
+                          return (
+                            <tr 
+                              key={student.enrollment_id}
+                              className="hover:bg-slate-50 transition-colors"
+                            >
+                              {/* STT */}
+                              <td className="px-3 py-3 text-sm text-slate-500">
+                                {index + 1}
+                              </td>
+                              {/* Học viên */}
+                              <td className="px-4 py-3">
+                                <div className="flex items-center gap-3">
+                                  <Avatar name={student.student_name} size="sm" url={student.avatar_url} />
+                                  <div>
+                                    <p className="text-sm font-medium text-slate-900">
+                                      {student.student_name}
+                                    </p>
+                                    <p className="text-xs text-slate-500">
+                                      {student.student_email}
+                                    </p>
+                                  </div>
+                                </div>
+                              </td>
+                              {/* Các ô điểm - Editable */}
+                              {gradeStructures.map(structure => {
+                                const isEditing = editingCell?.enrollment_id === student.enrollment_id 
+                                  && editingCell?.structure_id === structure.id;
+                                const currentScore = getDisplayScore(student.enrollment_id, structure.id);
+                                const key = `${student.enrollment_id}_${structure.id}`;
+                                const isPending = pendingGrades[key] !== undefined;
+                                
+                                return (
+                                  <td 
+                                    key={structure.id}
+                                    className="px-2 py-2 text-center"
+                                  >
+                                    {isEditing ? (
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        max={structure.max_score}
+                                        step="0.25"
+                                        autoFocus
+                                        className="w-16 px-2 py-1 text-center text-sm border border-indigo-400 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        defaultValue={currentScore}
+                                        onKeyDown={(e) => {
+                                          // Block chữ cái, chỉ cho số và dấu chấm
+                                          if (!/[\d.]/.test(e.key) && 
+                                              !['Backspace', 'Delete', 'Tab', 'Enter', 'Escape', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                                            e.preventDefault();
+                                          }
+                                          if (e.key === 'Enter') {
+                                            e.target.blur();
+                                          }
+                                          if (e.key === 'Escape') {
+                                            setEditingCell(null);
+                                          }
+                                        }}
+                                        onBlur={(e) => {
+                                          let val = e.target.value.trim();
+                                          
+                                          // Nếu rỗng thì giữ nguyên (xóa điểm)
+                                          if (val === '') {
+                                            updatePendingGrade(student.enrollment_id, structure.id, '');
+                                            setEditingCell(null);
+                                            return;
+                                          }
+                                          
+                                          let numVal = parseFloat(val);
+                                          
+                                          // Validate và auto-correct
+                                          if (isNaN(numVal)) {
+                                            showToast('Vui lòng nhập số hợp lệ', 'error');
+                                            setEditingCell(null);
+                                            return;
+                                          }
+                                          
+                                          // Auto-correct nếu vượt giới hạn
+                                          if (numVal < 0) {
+                                            numVal = 0;
+                                            showToast('Đã sửa thành 0 (không được âm)', 'error');
+                                          } else if (numVal > structure.max_score) {
+                                            numVal = structure.max_score;
+                                            showToast(`Đã sửa thành ${structure.max_score} (điểm tối đa)`, 'error');
+                                          }
+                                          
+                                          // Làm tròn 2 chữ số thập phân
+                                          numVal = Math.round(numVal * 100) / 100;
+                                          
+                                          updatePendingGrade(student.enrollment_id, structure.id, numVal);
+                                          setEditingCell(null);
+                                        }}
+                                      />
+                                    ) : (
+                                      <button
+                                        onClick={() => setEditingCell({ 
+                                          enrollment_id: student.enrollment_id, 
+                                          structure_id: structure.id 
+                                        })}
+                                        className={`w-16 px-2 py-1.5 text-sm rounded transition-colors ${
+                                          currentScore !== '' && currentScore !== null
+                                            ? isPending 
+                                              ? 'bg-amber-100 text-amber-700 font-medium' 
+                                              : 'bg-slate-100 text-slate-700 font-medium'
+                                            : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+                                        }`}
+                                      >
+                                        {currentScore !== '' && currentScore !== null ? currentScore : '—'}
+                                      </button>
+                                    )}
+                                  </td>
+                                );
+                              })}
+                              {/* Điểm tổng kết */}
+                              <td className="px-3 py-3 text-center bg-indigo-50">
+                                <span className={`text-sm font-semibold ${
+                                  weightedAvg !== null
+                                    ? weightedAvg >= 8 
+                                      ? 'text-emerald-600' 
+                                      : weightedAvg >= 5 
+                                        ? 'text-indigo-600' 
+                                        : 'text-red-600'
+                                    : 'text-slate-400'
+                                }`}>
+                                  {weightedAvg !== null ? weightedAvg.toFixed(2) : '—'}
+                                </span>
+                              </td>
+                              {/* Kết quả Đậu/Trượt */}
+                              <td className="px-3 py-3 text-center">
+                                {weightedAvg !== null ? (
+                                  weightedAvg >= 5 ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                                      <CheckCircle2 className="w-3 h-3" />
+                                      Đậu
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                                      <X className="w-3 h-3" />
+                                      Trượt
+                                    </span>
+                                  )
+                                ) : (
+                                  <span className="text-xs text-slate-400">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Legend */}
+              {!loadingGrades && gradeStructures.length > 0 && gradeMatrix.length > 0 && (
+                <div className="flex flex-wrap items-center gap-4 pt-2 text-sm text-slate-500">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-4 h-4 rounded bg-slate-100 border" />
+                    <span>Đã lưu</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-4 h-4 rounded bg-amber-100 border border-amber-300" />
+                    <span>Chưa lưu</span>
+                  </div>
+                  <div className="border-l border-slate-300 h-4 mx-1" />
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-700">Đậu</span>
+                    <span>≥ 5.0</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-red-100 text-red-700">Trượt</span>
+                    <span>&lt; 5.0</span>
+                  </div>
+                  <span className="text-slate-400 ml-auto">
+                    💡 Click vào ô điểm để chỉnh sửa
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
+
+      {/* ============ MODAL: ĐIỂM DANH (Minimalist Style) ============ */}
+      {showAttendanceModal && selectedSession && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/50" 
+            onClick={() => !savingAttendance && closeAttendanceModal()}
+          />
+          
+          {/* Modal - Clean minimalist design */}
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-xl max-h-[85vh] overflow-hidden flex flex-col">
+            {/* Header - Simple white with border */}
+            <div className="px-5 py-4 border-b border-slate-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">
+                    Điểm danh buổi {selectedSession.session_number}
+                  </h3>
+                  <p className="text-sm text-slate-500 mt-0.5">
+                    {selectedSession.day_name}, {new Date(selectedSession.date).toLocaleDateString('vi-VN')} • {selectedSession.start_time} - {selectedSession.end_time}
+                  </p>
+                </div>
+                <button 
+                  onClick={closeAttendanceModal}
+                  disabled={savingAttendance}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-slate-500" />
+                </button>
+              </div>
+              
+              {/* Quick Stats */}
+              <div className="flex items-center gap-4 mt-3 text-sm">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span className="text-slate-600">Có mặt:</span>
+                  <span className="font-semibold text-emerald-600">
+                    {attendanceList.filter(s => s.status === 'present').length}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span className="text-slate-600">Trễ:</span>
+                  <span className="font-semibold text-amber-600">
+                    {attendanceList.filter(s => s.status === 'late').length}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-red-500" />
+                  <span className="text-slate-600">Vắng:</span>
+                  <span className="font-semibold text-red-600">
+                    {attendanceList.filter(s => s.status === 'absent').length}
+                  </span>
+                </div>
+                <span className="ml-auto text-slate-400">
+                  {attendanceList.length} học viên
+                </span>
+              </div>
+            </div>
+
+            {/* Search - Optional, show if > 10 students */}
+            {attendanceList.length > 10 && (
+              <div className="px-5 py-2 border-b border-slate-100">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={attendanceSearch}
+                    onChange={(e) => setAttendanceSearch(e.target.value)}
+                    placeholder="Tìm học viên..."
+                    className="w-full h-9 pl-9 pr-4 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-slate-50"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Attendance List */}
+            <div className="flex-1 overflow-y-auto">
+              {loadingAttendance ? (
+                <div className="text-center py-12">
+                  <Loader2 className="w-6 h-6 text-indigo-600 animate-spin mx-auto mb-2" />
+                  <p className="text-sm text-slate-500">Đang tải...</p>
+                </div>
+              ) : filteredAttendanceList.length === 0 ? (
+                <div className="text-center py-12">
+                  <Users className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                  <p className="text-sm text-slate-500">Không tìm thấy học viên</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {filteredAttendanceList.map((student, index) => (
+                    <div key={student.enrollment_id} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors">
+                      {/* STT */}
+                      <span className="w-5 text-center text-xs font-medium text-slate-400 flex-shrink-0">{index + 1}</span>
+
+                      {/* Avatar & Name - Flex row centered */}
+                      <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                        <Avatar name={student.full_name} url={student.avatar_url} size="sm" />
+                        <span className="text-sm font-medium text-slate-900 truncate">{student.full_name}</span>
+                      </div>
+
+                      {/* Status Toggle Buttons - Compact */}
+                      <div className="flex items-center gap-1">
+                        {/* Present */}
+                        <button
+                          onClick={() => updateAttendanceStatus(student.enrollment_id, 'present')}
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+                            student.status === 'present'
+                              ? 'bg-emerald-500 text-white'
+                              : 'bg-slate-100 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600'
+                          }`}
+                          title="Có mặt"
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+
+                        {/* Late */}
+                        <button
+                          onClick={() => updateAttendanceStatus(student.enrollment_id, 'late')}
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+                            student.status === 'late'
+                              ? 'bg-amber-500 text-white'
+                              : 'bg-slate-100 text-slate-400 hover:bg-amber-50 hover:text-amber-600'
+                          }`}
+                          title="Đi trễ"
+                        >
+                          <Clock className="w-4 h-4" />
+                        </button>
+
+                        {/* Absent */}
+                        <button
+                          onClick={() => updateAttendanceStatus(student.enrollment_id, 'absent')}
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+                            student.status === 'absent'
+                              ? 'bg-red-500 text-white'
+                              : 'bg-slate-100 text-slate-400 hover:bg-red-50 hover:text-red-600'
+                          }`}
+                          title="Vắng mặt"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Notes input - Show when absent */}
+                      {student.status === 'absent' && (
+                        <input
+                          type="text"
+                          value={student.notes || ''}
+                          onChange={(e) => updateAttendanceNotes(student.enrollment_id, e.target.value)}
+                          placeholder="Lý do..."
+                          className="w-28 h-7 px-2 text-xs rounded border border-slate-200 focus:outline-none focus:ring-1 focus:ring-red-400 focus:border-red-400"
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer - Simple */}
+            <div className="px-5 py-3 border-t border-slate-200 flex items-center gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={closeAttendanceModal}
+                disabled={savingAttendance}
+              >
+                Hủy
+              </Button>
+              <Button
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white"
+                onClick={saveAttendance}
+                disabled={savingAttendance || attendanceList.length === 0}
+              >
+                {savingAttendance ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Đang lưu...
+                  </>
+                ) : (
+                  'Lưu điểm danh'
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ============ MODAL: THÊM HỌC VIÊN ============ */}
       {showAddModal && (

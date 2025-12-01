@@ -8,7 +8,129 @@ dotenv.config();
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+// Tăng limit để cho phép upload ảnh base64 (max 10MB)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+// ============ UTILITY FUNCTIONS ============
+
+/**
+ * Sinh danh sách buổi học từ lịch của lớp và lưu vào bảng sessions
+ * @param {string} classId - ID lớp học
+ * @param {string} startDate - Ngày bắt đầu (YYYY-MM-DD)
+ * @param {string} endDate - Ngày kết thúc (YYYY-MM-DD)
+ * @param {Array|string} schedule - Lịch học [{day: 2, start: "18:00", end: "20:00"}, ...]
+ * @param {string} teacherId - ID giáo viên
+ */
+async function generateSessionsForClass(classId, startDate, endDate, schedule, teacherId = null) {
+  if (!classId || !startDate || !endDate || !schedule) {
+    console.log('⚠️ Không đủ thông tin để sinh sessions');
+    return { success: false, count: 0 };
+  }
+
+  try {
+    // Parse schedule nếu là string
+    let scheduleData = schedule;
+    if (typeof schedule === 'string') {
+      try {
+        scheduleData = JSON.parse(schedule);
+      } catch (e) {
+        console.log('⚠️ Không parse được schedule:', schedule);
+        return { success: false, count: 0 };
+      }
+    }
+
+    if (!Array.isArray(scheduleData) || scheduleData.length === 0) {
+      console.log('⚠️ Schedule rỗng hoặc không hợp lệ');
+      return { success: false, count: 0 };
+    }
+
+    // Xóa sessions cũ của class này
+    await supabase.from('sessions').delete().eq('class_id', classId);
+
+    // Map day: 2=T2(Monday), 3=T3(Tuesday), ..., 7=T7(Saturday), 8=CN(Sunday)
+    // JS getDay(): 0=Sunday, 1=Monday, ..., 6=Saturday
+    const dayMapping = {
+      2: 1, // T2 -> Monday (1)
+      3: 2, // T3 -> Tuesday (2)
+      4: 3, // T4 -> Wednesday (3)
+      5: 4, // T5 -> Thursday (4)
+      6: 5, // T6 -> Friday (5)
+      7: 6, // T7 -> Saturday (6)
+      8: 0  // CN -> Sunday (0)
+    };
+
+    // Tạo Set các ngày trong tuần có học
+    const scheduleDays = new Set();
+    const timeByDay = {};
+    scheduleData.forEach(s => {
+      const jsDay = dayMapping[s.day];
+      if (jsDay !== undefined) {
+        scheduleDays.add(jsDay);
+        timeByDay[jsDay] = { start: s.start || '18:00', end: s.end || '20:00' };
+      }
+    });
+
+    // Danh sách ngày nghỉ lễ Việt Nam
+    const holidays = new Set([
+      '2025-01-01', '2025-01-28', '2025-01-29', '2025-01-30', '2025-01-31',
+      '2025-02-01', '2025-02-02', '2025-02-03', '2025-04-30', '2025-05-01', '2025-09-02',
+      '2026-01-01', '2026-02-16', '2026-02-17', '2026-02-18', '2026-02-19', '2026-02-20'
+    ]);
+
+    const sessions = [];
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    let sessionNumber = 1;
+
+    // Duyệt từng ngày từ start đến end
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const dayOfWeek = d.getDay(); // 0=Sunday, 1=Monday, ...
+      const dateStr = d.toISOString().split('T')[0];
+
+      // Kiểm tra ngày này có trong lịch học không và không phải ngày lễ
+      if (scheduleDays.has(dayOfWeek) && !holidays.has(dateStr)) {
+        const time = timeByDay[dayOfWeek] || { start: '18:00', end: '20:00' };
+        
+        // Xác định status
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const sessionDate = new Date(d);
+        sessionDate.setHours(0, 0, 0, 0);
+        
+        let status = 'upcoming';
+        if (sessionDate < today) status = 'completed';
+
+        sessions.push({
+          class_id: classId,
+          teacher_id: teacherId,
+          session_number: sessionNumber,
+          session_date: dateStr,
+          start_time: time.start,
+          end_time: time.end,
+          status: status
+        });
+        sessionNumber++;
+      }
+    }
+
+    // Insert sessions vào DB
+    if (sessions.length > 0) {
+      const { error } = await supabase.from('sessions').insert(sessions);
+      if (error) {
+        console.error('❌ Lỗi insert sessions:', error);
+        return { success: false, count: 0, error };
+      }
+    }
+
+    console.log(`✅ Đã sinh ${sessions.length} buổi học cho lớp ${classId}`);
+    return { success: true, count: sessions.length };
+
+  } catch (error) {
+    console.error('❌ Lỗi generateSessionsForClass:', error);
+    return { success: false, count: 0, error };
+  }
+}
 
 // ============ PUBLIC APIs (Không cần đăng nhập) ============
 
@@ -48,27 +170,58 @@ app.get('/api/courses', async (_req, res, next) => {
 // Tạo khóa học mới (chỉ admin mới được tạo)
 app.post('/api/courses', requireAuth, async (req, res, next) => {
   try {
-    const { name, description, category, base_price, status } = req.body;
+    const { 
+      code, 
+      title, 
+      description, 
+      category, 
+      level,
+      total_sessions,
+      duration_weeks,
+      price, 
+      cover_image,
+      status
+    } = req.body;
     
     // Log user đang tạo (từ middleware)
-    console.log(`📝 User ${req.user.email} đang tạo khóa học: ${name}`);
+    console.log(`📝 User ${req.user.email} đang tạo khóa học: ${title}`);
 
     // Validate dữ liệu đầu vào
-    if (!name || !category) {
+    if (!code || !title || !category) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Tên khóa học và danh mục là bắt buộc' 
+        message: 'Mã khóa học, tên và danh mục là bắt buộc' 
+      });
+    }
+
+    // Check trùng code
+    const { data: existing } = await supabase
+      .from('courses')
+      .select('id')
+      .eq('code', code.toUpperCase())
+      .single();
+
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: `Mã khóa học "${code}" đã tồn tại`
       });
     }
 
     const { data, error } = await supabase
       .from('courses')
       .insert([{
-        name,
+        code: code.toUpperCase(),
+        title,
         description: description || '',
         category,
-        base_price: base_price || 0,
+        level: level || 'Beginner',
+        total_sessions: total_sessions || 24,
+        duration_weeks: duration_weeks || 12,
+        price: price || 0,
+        cover_image: cover_image || null,
         status: status || 'active',
+        created_by: req.user.id
       }])
       .select()
       .single();
@@ -106,6 +259,146 @@ app.delete('/api/courses/:id', requireAuth, async (req, res, next) => {
     });
   } catch (error) {
     console.error('Error deleting course:', error);
+    next(error);
+  }
+});
+
+// ============ GRADE STRUCTURES APIs (Cấu hình cột điểm) ============
+
+// Lấy cấu trúc điểm của một khóa học (bao gồm cả cấu hình tính điểm)
+app.get('/api/courses/:courseId/grade-structures', requireAuth, async (req, res, next) => {
+  try {
+    const { courseId } = req.params;
+    
+    // Lấy thông tin cấu hình từ course
+    const { data: courseData, error: courseError } = await supabase
+      .from('courses')
+      .select('calculation_type, pass_score, max_total_score')
+      .eq('id', courseId)
+      .single();
+
+    if (courseError) throw courseError;
+
+    // Lấy danh sách cột điểm
+    const { data, error } = await supabase
+      .from('grade_structures')
+      .select('*')
+      .eq('course_id', courseId)
+      .order('order_index', { ascending: true });
+
+    if (error) throw error;
+
+    // Tính tổng trọng số
+    const totalWeight = data.reduce((sum, col) => sum + parseFloat(col.weight || 0), 0);
+
+    res.json({ 
+      success: true, 
+      data,
+      config: {
+        calculationType: courseData?.calculation_type || 'weighted',
+        passScore: parseFloat(courseData?.pass_score) || 5.0,
+        maxTotalScore: parseFloat(courseData?.max_total_score) || 10.0
+      },
+      totalWeight: Math.round(totalWeight * 100)
+    });
+  } catch (error) {
+    console.error('Error fetching grade structures:', error);
+    next(error);
+  }
+});
+
+// Lưu toàn bộ cấu trúc điểm + cấu hình của một khóa học
+app.put('/api/courses/:courseId/grade-structures', requireAuth, async (req, res, next) => {
+  try {
+    const { courseId } = req.params;
+    const { structures, config } = req.body;
+    // structures: Array of { name, weight, max_score, order_index }
+    // config: { calculationType, passScore, maxTotalScore }
+
+    console.log(`📊 User ${req.user.email} đang cập nhật cấu trúc điểm cho khóa học: ${courseId}`);
+
+    const calculationType = config?.calculationType || 'weighted';
+
+    // Validate tổng trọng số = 100% (chỉ khi dùng weighted)
+    if (calculationType === 'weighted' && structures.length > 0) {
+      const totalWeight = structures.reduce((sum, s) => sum + parseFloat(s.weight || 0), 0);
+      if (Math.abs(totalWeight - 1) > 0.01) {
+        return res.status(400).json({
+          success: false,
+          message: `Tổng trọng số phải bằng 100%. Hiện tại: ${Math.round(totalWeight * 100)}%`
+        });
+      }
+    }
+
+    // Validate không có tên trùng
+    const names = structures.map(s => s.name.trim().toLowerCase());
+    const uniqueNames = [...new Set(names)];
+    if (names.length !== uniqueNames.length) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không được có 2 cột điểm cùng tên'
+      });
+    }
+
+    // Cập nhật cấu hình vào bảng courses
+    const { error: configError } = await supabase
+      .from('courses')
+      .update({
+        calculation_type: config?.calculationType || 'weighted',
+        pass_score: parseFloat(config?.passScore) || 5.0,
+        max_total_score: parseFloat(config?.maxTotalScore) || 10.0
+      })
+      .eq('id', courseId);
+
+    if (configError) throw configError;
+
+    // Xóa cấu trúc cũ
+    const { error: deleteError } = await supabase
+      .from('grade_structures')
+      .delete()
+      .eq('course_id', courseId);
+
+    if (deleteError) throw deleteError;
+
+    // Thêm cấu trúc mới
+    if (structures.length > 0) {
+      const newStructures = structures.map((s, index) => ({
+        course_id: courseId,
+        name: s.name.trim(),
+        weight: calculationType === 'sum' ? 0 : (parseFloat(s.weight) || 0),
+        max_score: parseFloat(s.max_score) || 10,
+        order_index: index + 1,
+        description: s.description || null
+      }));
+
+      const { error: insertError } = await supabase
+        .from('grade_structures')
+        .insert(newStructures);
+
+      if (insertError) throw insertError;
+    }
+
+    // Lấy lại data mới
+    const { data, error } = await supabase
+      .from('grade_structures')
+      .select('*')
+      .eq('course_id', courseId)
+      .order('order_index', { ascending: true });
+
+    if (error) throw error;
+
+    res.json({ 
+      success: true, 
+      message: 'Cập nhật cấu trúc điểm thành công',
+      data,
+      config: {
+        calculationType: config?.calculationType || 'weighted',
+        passScore: parseFloat(config?.passScore) || 5.0,
+        maxTotalScore: parseFloat(config?.maxTotalScore) || 10.0
+      }
+    });
+  } catch (error) {
+    console.error('Error updating grade structures:', error);
     next(error);
   }
 });
@@ -683,6 +976,18 @@ app.post('/api/admin/classes', requireAuth, async (req, res, next) => {
 
     if (error) throw error;
 
+    // 🔥 Tự động sinh sessions cho lớp mới
+    if (data && start_date && end_date && schedule) {
+      const sessionResult = await generateSessionsForClass(
+        data.id, 
+        start_date, 
+        end_date, 
+        schedule, 
+        teacher_id
+      );
+      console.log(`📅 Sessions generated: ${sessionResult.count} buổi`);
+    }
+
     res.status(201).json({
       success: true,
       message: 'Tạo lớp học thành công',
@@ -699,6 +1004,7 @@ app.put('/api/admin/classes/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
     const updates = req.body;
+    const { regenerate_sessions } = req.query; // ?regenerate_sessions=true
 
     console.log(`✏️ Admin ${req.user.email} cập nhật lớp: ${id}`);
 
@@ -719,7 +1025,38 @@ app.put('/api/admin/classes/:id', requireAuth, async (req, res, next) => {
 
     if (error) throw error;
 
-    res.json({ success: true, message: 'Cập nhật lớp học thành công', data });
+    // 🔥 Regenerate sessions nếu được yêu cầu và có đủ thông tin
+    let sessionsUpdated = 0;
+    if (regenerate_sessions === 'true' && data.start_date && data.end_date && data.schedule) {
+      // Xóa sessions cũ chưa hoàn thành (giữ lại sessions đã điểm danh)
+      const { error: deleteError } = await supabase
+        .from('sessions')
+        .delete()
+        .eq('class_id', id)
+        .in('status', ['scheduled', 'cancelled']); // Chỉ xóa sessions chưa học
+
+      if (deleteError) {
+        console.warn('Warning deleting old sessions:', deleteError);
+      }
+
+      // Sinh sessions mới
+      const sessionResult = await generateSessionsForClass(
+        id,
+        data.start_date,
+        data.end_date,
+        data.schedule,
+        data.teacher_id
+      );
+      sessionsUpdated = sessionResult.count;
+      console.log(`📅 Sessions regenerated: ${sessionsUpdated} buổi`);
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Cập nhật lớp học thành công', 
+      data,
+      sessionsUpdated 
+    });
   } catch (error) {
     console.error('Error updating class:', error);
     next(error);
@@ -1768,6 +2105,989 @@ app.get('/api/enrollments/:id/payments', requireAuth, async (req, res, next) => 
 
 // ============================================================
 // END CLASS DETAIL APIs
+// ============================================================
+
+// ============================================================
+// ATTENDANCE APIs - Module Điểm danh
+// ============================================================
+
+// Utility: Parse schedule từ nhiều format khác nhau
+function parseScheduleData(schedule) {
+  if (!schedule) return { days: [], startTime: '18:00', endTime: '20:00' };
+  
+  // Format 1: JSON array [{"day":2,"start":"18:00","end":"20:00"},...]
+  if (typeof schedule === 'string' && schedule.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(schedule);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // day: 2=T2, 3=T3, ..., 7=T7, 8=CN (theo format của frontend)
+        // Cần convert sang dayOfWeek: 0=CN, 1=T2, 2=T3, ...
+        const dayMapping = { 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 0 };
+        const days = parsed.map(s => dayMapping[s.day]).filter(d => d !== undefined);
+        return {
+          days,
+          startTime: parsed[0]?.start || '18:00',
+          endTime: parsed[0]?.end || '20:00'
+        };
+      }
+    } catch (e) {
+      console.log('Error parsing JSON schedule:', e);
+    }
+  }
+  
+  // Format 2: Array object (already parsed)
+  if (Array.isArray(schedule) && schedule.length > 0) {
+    const dayMapping = { 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 0 };
+    const days = schedule.map(s => dayMapping[s.day]).filter(d => d !== undefined);
+    return {
+      days,
+      startTime: schedule[0]?.start || '18:00',
+      endTime: schedule[0]?.end || '20:00'
+    };
+  }
+  
+  // Format 3: String "T2-T4-T6"
+  if (typeof schedule === 'string') {
+    const dayMap = { 'T2': 1, 'T3': 2, 'T4': 3, 'T5': 4, 'T6': 5, 'T7': 6, 'CN': 0 };
+    const days = schedule.split('-').map(d => dayMap[d.trim()]).filter(d => d !== undefined);
+    return { days, startTime: '18:00', endTime: '20:00' };
+  }
+  
+  return { days: [], startTime: '18:00', endTime: '20:00' };
+}
+
+// Utility: Sinh danh sách các buổi học từ lịch lớp
+function generateSessions(startDate, endDate, schedule) {
+  const sessions = [];
+  if (!startDate || !endDate || !schedule) return sessions;
+
+  const { days: scheduleDays, startTime, endTime } = parseScheduleData(schedule);
+  if (scheduleDays.length === 0) return sessions;
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  let sessionNumber = 1;
+  
+  // Danh sách ngày nghỉ lễ Việt Nam 2025-2026
+  const holidays = [
+    '2025-01-01', // Tết Dương lịch
+    '2025-01-28', '2025-01-29', '2025-01-30', '2025-01-31', '2025-02-01', '2025-02-02', '2025-02-03', // Tết Nguyên đán
+    '2025-04-30', // Giải phóng miền Nam
+    '2025-05-01', // Quốc tế Lao động
+    '2025-09-02', // Quốc khánh
+  ];
+
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const dayOfWeek = d.getDay(); // 0=CN, 1=T2, 2=T3, ...
+    const dateStr = d.toISOString().split('T')[0];
+    
+    if (scheduleDays.includes(dayOfWeek) && !holidays.includes(dateStr)) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const sessionDate = new Date(d);
+      sessionDate.setHours(0, 0, 0, 0);
+      
+      let status = 'upcoming';
+      if (sessionDate < today) {
+        status = 'completed';
+      } else if (sessionDate.getTime() === today.getTime()) {
+        status = 'today';
+      }
+
+      sessions.push({
+        session_number: sessionNumber,
+        date: dateStr,
+        day_of_week: dayOfWeek,
+        start_time: startTime,
+        end_time: endTime,
+        status: status
+      });
+      sessionNumber++;
+    }
+  }
+
+  return sessions;
+}
+
+// Utility: Tên thứ tiếng Việt
+function getDayName(dayOfWeek) {
+  const days = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+  return days[dayOfWeek];
+}
+
+// API: Lấy danh sách buổi học của một lớp
+app.get('/api/classes/:id/sessions', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Lấy thông tin lớp học
+    const { data: classData, error: classError } = await supabase
+      .from('classes')
+      .select(`
+        id, code, name, schedule, start_date, end_date,
+        teacher_id,
+        teacher:users!classes_teacher_id_fkey(id, full_name, avatar_url)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (classError) throw classError;
+    if (!classData) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+    }
+
+    // Sinh danh sách buổi học
+    const sessions = generateSessions(
+      classData.start_date,
+      classData.end_date,
+      classData.schedule
+    );
+
+    // Lấy thông tin điểm danh đã có
+    const { data: attendanceData, error: attendanceError } = await supabase
+      .from('attendance')
+      .select(`
+        session_date,
+        status,
+        enrollment_id
+      `)
+      .eq('enrollment_id', supabase.rpc('get_enrollment_ids_by_class', { class_id: id }));
+
+    // Đếm số học viên đã điểm danh cho mỗi buổi
+    const sessionDates = sessions.map(s => s.date);
+    
+    const { data: attendanceSummary, error: summaryError } = await supabase
+      .from('attendance')
+      .select(`
+        session_date,
+        status,
+        enrollments!inner(class_id)
+      `)
+      .eq('enrollments.class_id', id)
+      .in('session_date', sessionDates);
+
+    // Tính tổng số học viên trong lớp
+    const { count: totalStudents } = await supabase
+      .from('enrollments')
+      .select('id', { count: 'exact' })
+      .eq('class_id', id)
+      .eq('status', 'active');
+
+    // Group attendance by date
+    const attendanceByDate = {};
+    if (attendanceSummary) {
+      attendanceSummary.forEach(att => {
+        if (!attendanceByDate[att.session_date]) {
+          attendanceByDate[att.session_date] = { present: 0, absent: 0, late: 0, total: 0 };
+        }
+        attendanceByDate[att.session_date].total++;
+        if (att.status === 'present') attendanceByDate[att.session_date].present++;
+        else if (att.status === 'absent') attendanceByDate[att.session_date].absent++;
+        else if (att.status === 'late') attendanceByDate[att.session_date].late++;
+      });
+    }
+
+    // Enrich sessions with attendance summary
+    const enrichedSessions = sessions.map(session => ({
+      ...session,
+      day_name: getDayName(session.day_of_week),
+      teacher: classData.teacher,
+      attendance_summary: attendanceByDate[session.date] || null,
+      total_students: totalStudents || 0,
+      is_marked: !!attendanceByDate[session.date]
+    }));
+
+    res.json({ 
+      success: true, 
+      data: {
+        class_info: {
+          id: classData.id,
+          code: classData.code,
+          name: classData.name,
+          schedule: classData.schedule,
+          teacher: classData.teacher
+        },
+        sessions: enrichedSessions,
+        total_sessions: sessions.length,
+        completed_sessions: sessions.filter(s => s.status === 'completed').length
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching sessions:', error);
+    next(error);
+  }
+});
+
+// API: Lấy bảng điểm danh của một buổi học cụ thể
+app.get('/api/classes/:id/attendance', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { date } = req.query;
+
+    if (!date) {
+      return res.status(400).json({ success: false, message: 'Thiếu tham số date' });
+    }
+
+    // Lấy danh sách học viên trong lớp
+    const { data: enrollments, error: enrollError } = await supabase
+      .from('enrollments')
+      .select(`
+        id,
+        student_id,
+        student:users!enrollments_student_id_fkey(
+          id, full_name, email, phone, avatar_url
+        )
+      `)
+      .eq('class_id', id)
+      .eq('status', 'active')
+      .order('created_at', { ascending: true });
+
+    if (enrollError) throw enrollError;
+
+    // Lấy điểm danh đã có cho ngày này
+    const enrollmentIds = enrollments.map(e => e.id);
+    const { data: attendanceRecords, error: attError } = await supabase
+      .from('attendance')
+      .select('*')
+      .eq('session_date', date)
+      .in('enrollment_id', enrollmentIds);
+
+    if (attError) throw attError;
+
+    // Map attendance theo enrollment_id
+    const attendanceMap = {};
+    if (attendanceRecords) {
+      attendanceRecords.forEach(att => {
+        attendanceMap[att.enrollment_id] = att;
+      });
+    }
+
+    // Merge data
+    const students = enrollments.map(e => ({
+      enrollment_id: e.id,
+      student_id: e.student_id,
+      full_name: e.student?.full_name || 'N/A',
+      email: e.student?.email,
+      phone: e.student?.phone,
+      avatar_url: e.student?.avatar_url,
+      attendance: attendanceMap[e.id] || null
+    }));
+
+    res.json({ 
+      success: true, 
+      data: {
+        date,
+        students,
+        total: students.length,
+        marked: Object.keys(attendanceMap).length
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching attendance:', error);
+    next(error);
+  }
+});
+
+// API: Lưu/Cập nhật điểm danh hàng loạt
+app.post('/api/attendance/mark', requireAuth, async (req, res, next) => {
+  try {
+    const { class_id, date, attendances, session_id } = req.body;
+    const markedBy = req.user.id;
+
+    if (!class_id || !date || !attendances || !Array.isArray(attendances)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Thiếu thông tin: class_id, date, attendances' 
+      });
+    }
+
+    console.log(`📝 Điểm danh lớp ${class_id} ngày ${date} bởi user ${req.user.email}`);
+
+    // Validate class exists
+    const { data: classData, error: classError } = await supabase
+      .from('classes')
+      .select('id, code')
+      .eq('id', class_id)
+      .single();
+
+    if (classError || !classData) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+    }
+
+    // Tính session_number
+    const { data: sessionData } = await supabase
+      .from('classes')
+      .select('start_date, end_date, schedule')
+      .eq('id', class_id)
+      .single();
+
+    const sessions = generateSessions(
+      sessionData.start_date,
+      sessionData.end_date,
+      sessionData.schedule
+    );
+    const sessionInfo = sessions.find(s => s.date === date);
+    const sessionNumber = sessionInfo?.session_number || null;
+
+    // Upsert attendance records
+    const upsertData = attendances.map(att => ({
+      enrollment_id: att.enrollment_id,
+      session_date: date,
+      session_number: sessionNumber,
+      status: att.status || 'present',
+      notes: att.notes || null,
+      marked_by: markedBy,
+      marked_at: new Date().toISOString()
+    }));
+
+    const { data: result, error: upsertError } = await supabase
+      .from('attendance')
+      .upsert(upsertData, { 
+        onConflict: 'enrollment_id,session_date',
+        ignoreDuplicates: false 
+      })
+      .select();
+
+    if (upsertError) throw upsertError;
+
+    // 🔥 Cập nhật session status thành 'completed' nếu có session_id
+    if (session_id) {
+      const { error: sessionUpdateError } = await supabase
+        .from('sessions')
+        .update({ 
+          status: 'completed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', session_id);
+      
+      if (sessionUpdateError) {
+        console.warn('Warning updating session status:', sessionUpdateError);
+      } else {
+        console.log(`✅ Session ${session_id} marked as completed`);
+      }
+    } else {
+      // Fallback: tìm session theo class_id và date
+      const { error: sessionUpdateError } = await supabase
+        .from('sessions')
+        .update({ 
+          status: 'completed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('class_id', class_id)
+        .eq('session_date', date);
+      
+      if (!sessionUpdateError) {
+        console.log(`✅ Session for class ${class_id} on ${date} marked as completed`);
+      }
+    }
+
+    // Tính summary
+    const summary = {
+      present: attendances.filter(a => a.status === 'present').length,
+      absent: attendances.filter(a => a.status === 'absent').length,
+      late: attendances.filter(a => a.status === 'late').length,
+      total: attendances.length
+    };
+
+    console.log(`✅ Điểm danh thành công: ${summary.present} có mặt, ${summary.absent} vắng, ${summary.late} trễ`);
+
+    res.json({ 
+      success: true, 
+      message: `Đã lưu điểm danh ${summary.total} học viên`,
+      data: {
+        date,
+        session_number: sessionNumber,
+        summary,
+        records: result
+      }
+    });
+
+  } catch (error) {
+    console.error('Error marking attendance:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// END ATTENDANCE APIs
+// ============================================================
+
+// ============================================================
+// GRADING SYSTEM APIs
+// ============================================================
+
+// GET /api/classes/:id/grades - Lấy bảng điểm tổng hợp cho cả lớp
+app.get('/api/classes/:id/grades', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    console.log(`📊 Lấy bảng điểm lớp ${id}`);
+
+    // 1. Lấy thông tin lớp và course_id
+    const { data: classData, error: classError } = await supabase
+      .from('classes')
+      .select('id, code, course_id, courses(id, title)')
+      .eq('id', id)
+      .single();
+
+    if (classError || !classData) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+    }
+
+    // 2. Lấy cấu trúc điểm của khóa học (grade_structures)
+    const { data: gradeStructures, error: structureError } = await supabase
+      .from('grade_structures')
+      .select('*')
+      .eq('course_id', classData.course_id)
+      .order('order_index', { ascending: true });
+
+    if (structureError) throw structureError;
+
+    // 3. Lấy danh sách học viên của lớp (enrollments)
+    const { data: enrollments, error: enrollmentError } = await supabase
+      .from('enrollments')
+      .select(`
+        id,
+        student_id,
+        status,
+        users!enrollments_student_id_fkey (
+          id, full_name, email, avatar_url
+        )
+      `)
+      .eq('class_id', id)
+      .in('status', ['active', 'completed'])
+      .order('created_at', { ascending: true });
+
+    if (enrollmentError) throw enrollmentError;
+
+    // 4. Lấy tất cả điểm đã nhập cho lớp này
+    const enrollmentIds = enrollments.map(e => e.id);
+    
+    let grades = [];
+    if (enrollmentIds.length > 0) {
+      const { data: gradesData, error: gradesError } = await supabase
+        .from('grades')
+        .select('*')
+        .in('enrollment_id', enrollmentIds);
+
+      if (gradesError) throw gradesError;
+      grades = gradesData || [];
+    }
+
+    // 5. Ghép data thành ma trận để Frontend dễ render
+    const gradeMatrix = enrollments.map(enrollment => {
+      const studentGrades = {};
+      let totalWeightedScore = 0;
+      let totalWeight = 0;
+
+      gradeStructures.forEach(structure => {
+        const grade = grades.find(
+          g => g.enrollment_id === enrollment.id && g.grade_structure_id === structure.id
+        );
+        studentGrades[structure.id] = {
+          score: grade?.score ?? null,
+          notes: grade?.notes || null,
+          graded_at: grade?.graded_at || null
+        };
+
+        // Tính điểm tổng kết có trọng số
+        if (grade?.score !== null && grade?.score !== undefined) {
+          totalWeightedScore += grade.score * structure.weight;
+          totalWeight += structure.weight;
+        }
+      });
+
+      return {
+        enrollment_id: enrollment.id,
+        student_id: enrollment.student_id,
+        student_name: enrollment.users?.full_name || 'N/A',
+        student_email: enrollment.users?.email || '',
+        avatar_url: enrollment.users?.avatar_url || null,
+        status: enrollment.status,
+        grades: studentGrades,
+        // Điểm tổng kết (weighted average)
+        weighted_average: totalWeight > 0 
+          ? Math.round((totalWeightedScore / totalWeight) * 100) / 100 
+          : null
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        class_id: id,
+        class_code: classData.code,
+        course_id: classData.course_id,
+        course_title: classData.courses?.title || 'N/A',
+        grade_structures: gradeStructures,
+        students: gradeMatrix,
+        summary: {
+          total_students: gradeMatrix.length,
+          total_columns: gradeStructures.length,
+          graded_count: gradeMatrix.filter(s => s.weighted_average !== null).length
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching grades:', error);
+    next(error);
+  }
+});
+
+// POST /api/grades/bulk-update - Lưu điểm hàng loạt
+app.post('/api/grades/bulk-update', requireAuth, async (req, res, next) => {
+  try {
+    const { grades } = req.body;
+    const gradedBy = req.user.id;
+
+    if (!grades || !Array.isArray(grades) || grades.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Thiếu thông tin: grades array' 
+      });
+    }
+
+    console.log(`📝 Cập nhật ${grades.length} điểm bởi user ${req.user.email}`);
+
+    // Validate và chuẩn bị data
+    const upsertData = grades.map(g => ({
+      enrollment_id: g.enrollment_id,
+      grade_structure_id: g.grade_structure_id,
+      score: g.score !== '' && g.score !== null ? parseFloat(g.score) : null,
+      notes: g.notes || null,
+      graded_by: gradedBy,
+      graded_at: new Date().toISOString()
+    }));
+
+    // Upsert (có rồi thì update, chưa có thì insert)
+    const { data, error } = await supabase
+      .from('grades')
+      .upsert(upsertData, { 
+        onConflict: 'enrollment_id,grade_structure_id',
+        ignoreDuplicates: false 
+      })
+      .select();
+
+    if (error) throw error;
+
+    console.log(`✅ Đã lưu ${data?.length || 0} điểm`);
+
+    res.json({
+      success: true,
+      message: `Đã lưu ${data?.length || 0} điểm`,
+      data
+    });
+
+  } catch (error) {
+    console.error('Error updating grades:', error);
+    next(error);
+  }
+});
+
+// GET /api/courses/:id/grade-structures - Lấy cấu trúc điểm của khóa học
+app.get('/api/courses/:id/grade-structures', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const { data, error } = await supabase
+      .from('grade_structures')
+      .select('*')
+      .eq('course_id', id)
+      .order('order_index', { ascending: true });
+
+    if (error) throw error;
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error fetching grade structures:', error);
+    next(error);
+  }
+});
+
+// POST /api/courses/:id/grade-structures - Tạo/Cập nhật cấu trúc điểm cho khóa học
+app.post('/api/courses/:id/grade-structures', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { structures } = req.body;
+
+    if (!structures || !Array.isArray(structures)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Thiếu thông tin: structures array' 
+      });
+    }
+
+    console.log(`📊 Cập nhật cấu trúc điểm cho khóa ${id}`);
+
+    // Validate tổng weight = 1 (100%)
+    const totalWeight = structures.reduce((sum, s) => sum + (parseFloat(s.weight) || 0), 0);
+    if (Math.abs(totalWeight - 1) > 0.01) {
+      return res.status(400).json({
+        success: false,
+        message: `Tổng trọng số phải = 100% (hiện tại: ${Math.round(totalWeight * 100)}%)`
+      });
+    }
+
+    // Xóa cấu trúc cũ
+    await supabase.from('grade_structures').delete().eq('course_id', id);
+
+    // Insert cấu trúc mới
+    const insertData = structures.map((s, index) => ({
+      course_id: id,
+      name: s.name,
+      weight: parseFloat(s.weight),
+      max_score: parseFloat(s.max_score) || 10,
+      order_index: index + 1,
+      description: s.description || null
+    }));
+
+    const { data, error } = await supabase
+      .from('grade_structures')
+      .insert(insertData)
+      .select();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: `Đã lưu ${data.length} cột điểm`,
+      data
+    });
+
+  } catch (error) {
+    console.error('Error updating grade structures:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// END GRADING APIs
+// ============================================================
+
+// ============================================================
+// DASHBOARD APIs - Command Center
+// ============================================================
+
+// GET /api/dashboard/stats - Lấy thống kê tổng quan
+app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
+  try {
+    console.log(`📊 Dashboard stats requested by ${req.user.email}`);
+
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+    const firstDayOfMonth = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+    const lastMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+    const lastMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+    const firstDayOfLastMonth = `${lastMonthYear}-${String(lastMonth).padStart(2, '0')}-01`;
+    const lastDayOfLastMonth = new Date(currentYear, currentMonth - 1, 0).toISOString().split('T')[0];
+
+    // 1. Tổng doanh thu = Tổng paid_amount từ enrollments (thực thu)
+    // Cách 1: Từ bảng payments (nếu có)
+    const { data: paymentsThisMonth } = await supabase
+      .from('payments')
+      .select('amount')
+      .gte('payment_date', firstDayOfMonth)
+      .eq('status', 'completed');
+
+    const revenueFromPayments = paymentsThisMonth?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
+
+    // Cách 2: Từ bảng enrollments (paid_amount) - TỔNG DOANH THU THỰC TẾ
+    const { data: enrollmentsData } = await supabase
+      .from('enrollments')
+      .select('paid_amount');
+
+    const revenueFromEnrollments = enrollmentsData?.reduce((sum, e) => sum + (e.paid_amount || 0), 0) || 0;
+
+    // Lấy số lớn hơn (hoặc cộng cả 2 nếu payments là chi tiết từng lần đóng)
+    const totalRevenueThisMonth = Math.max(revenueFromPayments, revenueFromEnrollments);
+
+    // 2. Doanh thu tháng trước (để tính trend) - dùng payments nếu có
+    const { data: paymentsLastMonth } = await supabase
+      .from('payments')
+      .select('amount')
+      .gte('payment_date', firstDayOfLastMonth)
+      .lte('payment_date', lastDayOfLastMonth)
+      .eq('status', 'completed');
+
+    const totalRevenueLastMonth = paymentsLastMonth?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
+
+    // Tính % thay đổi doanh thu
+    const revenueTrend = totalRevenueLastMonth > 0 
+      ? Math.round(((totalRevenueThisMonth - totalRevenueLastMonth) / totalRevenueLastMonth) * 100)
+      : (totalRevenueThisMonth > 0 ? 100 : 0);
+
+    // 3. Số học viên mới trong tháng (enrollments mới)
+    const { count: newStudentsThisMonth } = await supabase
+      .from('enrollments')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', firstDayOfMonth);
+
+    const { count: newStudentsLastMonth } = await supabase
+      .from('enrollments')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', firstDayOfLastMonth)
+      .lte('created_at', lastDayOfLastMonth);
+
+    const studentsTrend = newStudentsLastMonth > 0
+      ? Math.round(((newStudentsThisMonth - newStudentsLastMonth) / newStudentsLastMonth) * 100)
+      : (newStudentsThisMonth > 0 ? 100 : 0);
+
+    // 4. Số lớp đang hoạt động (ongoing HOẶC upcoming)
+    const { count: ongoingClasses } = await supabase
+      .from('classes')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'ongoing');
+
+    const { count: upcomingClasses } = await supabase
+      .from('classes')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'upcoming');
+
+    const activeClasses = (ongoingClasses || 0) + (upcomingClasses || 0);
+
+    // 5. Công nợ (Tổng tiền còn nợ từ enrollments)
+    const { data: debtData } = await supabase
+      .from('enrollments')
+      .select('tuition_fee, paid_amount')
+      .gt('tuition_fee', 0);
+
+    const totalDebt = debtData?.reduce((sum, e) => {
+      const remaining = (e.tuition_fee || 0) - (e.paid_amount || 0);
+      return sum + (remaining > 0 ? remaining : 0);
+    }, 0) || 0;
+
+    // 6. Tổng số khóa học active
+    const { count: totalCourses } = await supabase
+      .from('courses')
+      .select('*', { count: 'exact', head: true });
+
+    // 7. Tổng số học viên (unique students có enrollment)
+    const { data: uniqueStudents } = await supabase
+      .from('enrollments')
+      .select('student_id')
+      .not('student_id', 'is', null);
+
+    const totalStudents = new Set(uniqueStudents?.map(e => e.student_id)).size;
+
+    res.json({
+      success: true,
+      data: {
+        revenue: {
+          value: totalRevenueThisMonth,
+          formatted: formatCurrency(totalRevenueThisMonth),
+          trend: revenueTrend,
+          trendUp: revenueTrend >= 0,
+          description: `Doanh thu tháng ${currentMonth}/${currentYear}`
+        },
+        newStudents: {
+          value: newStudentsThisMonth || 0,
+          trend: studentsTrend,
+          trendUp: studentsTrend >= 0,
+          description: 'Ghi danh trong tháng'
+        },
+        activeClasses: {
+          value: activeClasses || 0,
+          description: 'Lớp đang diễn ra'
+        },
+        debt: {
+          value: totalDebt,
+          formatted: formatCurrency(totalDebt),
+          description: 'Cần thu hồi'
+        },
+        summary: {
+          totalCourses: totalCourses || 0,
+          totalStudents: totalStudents || 0
+        },
+        period: {
+          month: currentMonth,
+          year: currentYear
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching dashboard stats:', error);
+    next(error);
+  }
+});
+
+// Helper: Format currency
+function formatCurrency(amount) {
+  if (amount >= 1000000000) {
+    return `${(amount / 1000000000).toFixed(1)}B đ`;
+  }
+  if (amount >= 1000000) {
+    return `${(amount / 1000000).toFixed(1)}M đ`;
+  }
+  if (amount >= 1000) {
+    return `${(amount / 1000).toFixed(0)}K đ`;
+  }
+  return `${amount.toLocaleString('vi-VN')} đ`;
+}
+
+// GET /api/dashboard/revenue-chart - Biểu đồ doanh thu theo tháng
+app.get('/api/dashboard/revenue-chart', requireAuth, async (req, res, next) => {
+  try {
+    const months = [];
+
+    // Query doanh thu 12 tháng gần nhất từ enrollments.paid_amount
+    for (let i = 0; i < 12; i++) {
+      const date = new Date();
+      date.setMonth(date.getMonth() - i);
+      const month = date.getMonth() + 1;
+      const year = date.getFullYear();
+      const firstDay = `${year}-${String(month).padStart(2, '0')}-01`;
+      const lastDay = new Date(year, month, 0).toISOString().split('T')[0];
+
+      // Query từ enrollments - doanh thu là paid_amount, lọc theo created_at
+      const { data } = await supabase
+        .from('enrollments')
+        .select('paid_amount, created_at')
+        .gte('created_at', `${firstDay}T00:00:00`)
+        .lte('created_at', `${lastDay}T23:59:59`);
+
+      const total = data?.reduce((sum, e) => sum + (parseFloat(e.paid_amount) || 0), 0) || 0;
+
+      months.unshift({
+        month: `T${month}`,
+        monthNum: month,
+        year,
+        revenue: total,
+        formatted: formatCurrency(total)
+      });
+    }
+
+    res.json({
+      success: true,
+      data: months
+    });
+
+  } catch (error) {
+    console.error('Error fetching revenue chart:', error);
+    next(error);
+  }
+});
+
+// GET /api/dashboard/recent-students - Học viên ghi danh gần đây
+app.get('/api/dashboard/recent-students', requireAuth, async (req, res, next) => {
+  try {
+    const { limit = 5 } = req.query;
+
+    const { data, error } = await supabase
+      .from('enrollments')
+      .select(`
+        id,
+        created_at,
+        users!enrollments_student_id_fkey (
+          id, full_name, email, avatar_url
+        ),
+        classes (
+          id, code, name,
+          courses (id, title)
+        )
+      `)
+      .order('created_at', { ascending: false })
+      .limit(parseInt(limit));
+
+    if (error) throw error;
+
+    // Format data
+    const students = data?.map(enrollment => {
+      const createdAt = new Date(enrollment.created_at);
+      const now = new Date();
+      const timeDiff = now.getTime() - createdAt.getTime();
+      
+      // Handle negative time diff (future dates or timezone issues)
+      let timeAgo;
+      if (timeDiff < 0) {
+        // Nếu thời gian âm (tương lai), hiển thị "Vừa xong"
+        timeAgo = 'Vừa xong';
+      } else {
+        const minutes = Math.floor(timeDiff / (1000 * 60));
+        const hours = Math.floor(minutes / 60);
+        const days = Math.floor(hours / 24);
+        const months = Math.floor(days / 30);
+
+        if (months > 0) {
+          timeAgo = `${months} tháng trước`;
+        } else if (days > 0) {
+          timeAgo = `${days} ngày trước`;
+        } else if (hours > 0) {
+          timeAgo = `${hours} giờ trước`;
+        } else if (minutes > 0) {
+          timeAgo = `${minutes} phút trước`;
+        } else {
+          timeAgo = 'Vừa xong';
+        }
+      }
+
+      return {
+        id: enrollment.id,
+        name: enrollment.users?.full_name || 'N/A',
+        email: enrollment.users?.email || '',
+        avatar_url: enrollment.users?.avatar_url,
+        course: enrollment.classes?.courses?.title || enrollment.classes?.name || 'N/A',
+        class_code: enrollment.classes?.code,
+        time: timeAgo,
+        created_at: enrollment.created_at
+      };
+    }) || [];
+
+    res.json({
+      success: true,
+      data: students
+    });
+
+  } catch (error) {
+    console.error('Error fetching recent students:', error);
+    next(error);
+  }
+});
+
+// GET /api/dashboard/course-distribution - Phân bố học viên theo khóa học
+app.get('/api/dashboard/course-distribution', requireAuth, async (req, res, next) => {
+  try {
+    const { data, error } = await supabase
+      .from('enrollments')
+      .select(`
+        classes (
+          courses (id, title)
+        )
+      `)
+      .in('status', ['active', 'completed']);
+
+    if (error) throw error;
+
+    // Count by course
+    const courseCount = {};
+    data?.forEach(e => {
+      const courseTitle = e.classes?.courses?.title || 'Khác';
+      courseCount[courseTitle] = (courseCount[courseTitle] || 0) + 1;
+    });
+
+    // Convert to array for chart
+    const distribution = Object.entries(courseCount)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 6); // Top 6 courses
+
+    res.json({
+      success: true,
+      data: distribution
+    });
+
+  } catch (error) {
+    console.error('Error fetching course distribution:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// END DASHBOARD APIs
 // ============================================================
 
 app.use((err, _req, res, _next) => {
