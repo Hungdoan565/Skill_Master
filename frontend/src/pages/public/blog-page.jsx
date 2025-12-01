@@ -7,6 +7,9 @@ import {
 } from 'lucide-react';
 import PublicHeader from '../../components/layout/public-header';
 
+// Import logo
+import logoImage from '@/assets/logo.png';
+
 // ============================================
 // BLOG PAGE - Swiss Minimalist Design
 // ============================================
@@ -583,11 +586,12 @@ const Footer = () => {
     <footer className="bg-stone-100 border-t border-stone-200 py-12">
       <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
         <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-          <Link to="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-zinc-900 rounded-lg flex items-center justify-center">
-              <span className="font-display text-lg font-bold text-stone-50">S</span>
-            </div>
-            <span className="font-display text-xl font-semibold text-zinc-900">Skill Master</span>
+          <Link to="/" className="flex items-center gap-2">
+            <img 
+              src={logoImage} 
+              alt="Skill Master" 
+              className="h-12 w-auto object-contain"
+            />
           </Link>
           <p className="text-sm text-zinc-500">© 2025 Skill Master. All rights reserved.</p>
         </div>

@@ -16,6 +16,9 @@ import {
 } from 'lucide-react';
 import PublicHeader from '../../components/layout/public-header';
 
+// Import logo
+import logoImage from '@/assets/logo.png';
+
 // ============================================
 // SWISS MINIMALISM COURSES PAGE
 // ============================================
@@ -575,13 +578,12 @@ const Footer = () => {
         <div className="grid md:grid-cols-2 lg:grid-cols-4 border-b border-neutral-200">
           {/* Brand */}
           <div className="p-6 lg:p-8 md:border-r border-neutral-200">
-            <Link to="/" className="flex items-center gap-3 mb-4">
-              <div className="w-8 h-8 bg-neutral-900 flex items-center justify-center">
-                <span className="text-sm font-bold text-white tracking-tighter">SM</span>
-              </div>
-              <span className="text-base font-semibold tracking-tight text-neutral-900">
-                Skill Master
-              </span>
+            <Link to="/" className="flex items-center gap-2 mb-4">
+              <img 
+                src={logoImage} 
+                alt="Skill Master" 
+                className="h-11 w-auto object-contain"
+              />
             </Link>
             <p className="text-sm text-neutral-600 leading-relaxed">
               Hệ thống đào tạo Anh ngữ và Tin học hàng đầu.

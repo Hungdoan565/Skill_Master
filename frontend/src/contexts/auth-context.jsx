@@ -1,17 +1,8 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { SplashLoader } from '@/components/ui/splash-loader';
 
 const AuthContext = createContext(undefined);
-
-// Loading component đơn giản
-const LoadingScreen = () => (
-  <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
-    <div className="text-center">
-      <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mb-4"></div>
-      <p className="text-gray-600 font-medium">Đang tải...</p>
-    </div>
-  </div>
-);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -306,7 +297,7 @@ export function AuthProvider({ children }) {
 
   // Chờ init xong mới render children
   if (!initialized) {
-    return <LoadingScreen />;
+    return <SplashLoader />;
   }
 
   return (

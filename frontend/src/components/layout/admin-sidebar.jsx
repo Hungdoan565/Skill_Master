@@ -16,6 +16,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+// Import logo
+import logoImage from '@/assets/logo.png';
+
 // Menu được gom nhóm theo chức năng
 const menuGroups = [
   {
@@ -67,27 +70,24 @@ export function AdminSidebar() {
       {/* Logo - Premium feel with glow effect */}
       <Link 
         to="/"
-        className="relative flex h-20 items-center gap-3 px-6 transition-all group overflow-hidden"
+        className="relative flex h-20 items-center gap-3 px-5 transition-all group overflow-hidden"
       >
         {/* Subtle gradient glow on hover */}
         <div className="absolute inset-0 bg-gradient-to-r from-red-600/0 via-red-600/5 to-orange-500/0 
                         opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         
-        <div className="relative flex h-11 w-11 items-center justify-center rounded-xl 
-                        bg-gradient-to-br from-red-500 to-orange-600 
-                        shadow-lg shadow-red-500/25 
-                        transition-transform group-hover:scale-105">
-          <span className="font-display text-xl font-bold text-white">S</span>
-          {/* Decorative dot */}
-          <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-white rounded-full 
-                          shadow-sm opacity-90" />
+        {/* Logo Image */}
+        <div className="relative flex items-center">
+          <img 
+            src={logoImage} 
+            alt="Skill Master" 
+            className="h-14 w-auto object-contain brightness-0 invert
+                       group-hover:scale-105 transition-transform duration-300"
+          />
         </div>
         
-        <div className="relative flex flex-col">
-          <span className="font-display text-xl font-bold tracking-tight text-white">
-            Skill Master
-          </span>
-          <span className="text-[11px] text-zinc-500 flex items-center gap-1.5 mt-0.5">
+        <div className="relative flex flex-col ml-1">
+          <span className="text-[11px] text-zinc-500 flex items-center gap-1.5">
             <Home className="h-3 w-3" />
             <span>Về trang chủ</span>
           </span>

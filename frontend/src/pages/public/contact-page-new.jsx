@@ -7,6 +7,9 @@ import {
 } from 'lucide-react';
 import PublicHeader from '../../components/layout/public-header';
 
+// Import logo
+import logoImage from '@/assets/logo.png';
+
 // ============================================
 // CONTACT PAGE - "BOLD HOSPITALITY" DESIGN
 // ============================================
@@ -1213,11 +1216,12 @@ const Footer = () => {
           
           {/* Brand */}
           <div className="lg:col-span-4">
-            <Link to="/" className="inline-flex items-center gap-3 mb-6">
-              <div className="w-8 h-8 bg-white flex items-center justify-center">
-                <span className="text-sm font-bold text-neutral-900 tracking-tighter">SM</span>
-              </div>
-              <span className="text-lg font-semibold">Skill Master</span>
+            <Link to="/" className="inline-flex items-center gap-2 mb-6">
+              <img 
+                src={logoImage} 
+                alt="Skill Master" 
+                className="h-11 w-auto object-contain brightness-0 invert"
+              />
             </Link>
             <p className="text-neutral-400 text-sm leading-relaxed max-w-xs">
               Hệ thống đào tạo Anh ngữ và Tin học hàng đầu tại TP.HCM.

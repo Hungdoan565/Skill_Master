@@ -9,6 +9,9 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 
+// Import logo
+import logoImage from '@/assets/logo.png';
+
 // ============================================
 // SWISS MINIMALISM LANDING PAGE
 // ============================================
@@ -350,20 +353,15 @@ const Header = () => {
         : 'bg-transparent'
     }`}>
       <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
-        <nav className="flex items-center justify-between h-20">
+        <nav className="flex items-center justify-between h-24">
           {/* Logo */}
-          <Link to="/" className="group flex items-center gap-3">
-            <div className="relative">
-              <div className="w-10 h-10 bg-zinc-900 rounded-lg flex items-center justify-center
-                           group-hover:scale-105 transition-transform duration-300">
-                <span className="font-display text-lg font-bold text-stone-50">S</span>
-              </div>
-              <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-red-600 rounded-full
-                           group-hover:scale-125 transition-transform duration-300" />
-            </div>
-            <span className="font-display text-xl font-semibold tracking-tight text-zinc-900">
-              Skill Master
-            </span>
+          <Link to="/" className="group flex items-center gap-2">
+            <img 
+              src={logoImage} 
+              alt="Skill Master" 
+              className="h-24 w-auto object-contain
+                       group-hover:scale-105 transition-transform duration-300"
+            />
           </Link>
 
           {/* Navigation Links with Dropdowns */}
@@ -1168,11 +1166,15 @@ const MethodSection = () => {
               <div className="absolute inset-0 bg-gradient-to-br from-stone-100 to-stone-50 
                            rounded-full" />
               
-              {/* Center Icon */}
+              {/* Center Icon - Logo */}
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-32 h-32 bg-zinc-900 rounded-3xl flex items-center justify-center
-                             shadow-2xl shadow-zinc-900/30">
-                  <span className="font-display text-5xl font-bold text-white">SM</span>
+                <div className="w-32 h-32 bg-white rounded-3xl flex items-center justify-center
+                             shadow-2xl shadow-zinc-900/20 border border-stone-100">
+                  <img 
+                    src={logoImage} 
+                    alt="Skill Master" 
+                    className="h-20 w-auto object-contain"
+                  />
                 </div>
               </div>
 
@@ -1517,13 +1519,12 @@ const Footer = () => {
         <div className="grid md:grid-cols-2 lg:grid-cols-6 gap-12">
           {/* Brand */}
           <div className="lg:col-span-2">
-            <Link to="/" className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-zinc-900 rounded-lg flex items-center justify-center">
-                <span className="font-display text-lg font-bold text-stone-50">S</span>
-              </div>
-              <span className="font-display text-xl font-semibold tracking-tight text-zinc-900">
-                Skill Master
-              </span>
+            <Link to="/" className="flex items-center gap-2">
+              <img 
+                src={logoImage} 
+                alt="Skill Master" 
+                className="h-12 w-auto object-contain"
+              />
             </Link>
             <p className="mt-4 text-zinc-500 max-w-sm leading-relaxed">
               Trung tâm đào tạo Anh ngữ & Tin học uy tín. 
