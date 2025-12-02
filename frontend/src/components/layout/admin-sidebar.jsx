@@ -5,6 +5,7 @@ import {
   Users,
   GraduationCap,
   Calendar,
+  CalendarCheck,
   Receipt,
   Wallet,
   Settings,
@@ -33,7 +34,8 @@ const menuGroups = [
     items: [
       { label: 'Khóa học', icon: BookOpen, path: '/admin/courses' },
       { label: 'Lớp học', icon: GraduationCap, path: '/admin/classes' },
-      { label: 'Lịch học', icon: Calendar, path: '/admin/scheduler' },
+      { label: 'Lịch dạy', icon: CalendarCheck, path: '/admin/schedule' },
+      { label: 'Xếp lịch', icon: Calendar, path: '/admin/scheduler' },
     ],
   },
   {

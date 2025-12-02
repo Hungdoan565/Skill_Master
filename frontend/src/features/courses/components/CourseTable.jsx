@@ -92,7 +92,7 @@ function CourseRow({ course, deletingId, onDelete, onEdit, onConfigGrade }) {
               className="w-10 h-10 rounded-lg object-cover"
             />
           ) : (
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-red-100 to-orange-100 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-lg bg-linear-to-br from-red-100 to-orange-100 flex items-center justify-center">
               <BookOpen className="w-5 h-5 text-red-500" />
             </div>
           )}
@@ -148,8 +148,9 @@ function CourseRow({ course, deletingId, onDelete, onEdit, onConfigGrade }) {
           <Button 
             variant="ghost" 
             size="icon" 
-            className="h-8 w-8"
+            className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
             onClick={() => onEdit?.(course)}
+            title="Chỉnh sửa khóa học"
           >
             <Pencil className="h-4 w-4" />
           </Button>
@@ -159,8 +160,9 @@ function CourseRow({ course, deletingId, onDelete, onEdit, onConfigGrade }) {
             variant="ghost"
             size="icon"
             className="h-8 w-8 text-destructive hover:text-destructive hover:bg-red-50"
-            onClick={() => onDelete(course.id, course.title)}
+            onClick={() => onDelete(course)}
             disabled={deletingId === course.id}
+            title="Xóa khóa học"
           >
             {deletingId === course.id ? (
               <Loader2 className="h-4 w-4 animate-spin" />

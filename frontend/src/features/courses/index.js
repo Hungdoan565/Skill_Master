@@ -26,6 +26,8 @@ export {
   CourseFilters,
   CourseTable,
   CreateCourseModal,
+  EditCourseModal,
+  DeleteConfirmModal,
   GradeStructureModal
 } from './components';
 

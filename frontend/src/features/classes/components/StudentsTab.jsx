@@ -15,7 +15,10 @@ import {
   Loader2,
   Trash2,
   Banknote,
-  CreditCard
+  CreditCard,
+  CheckSquare,
+  Square,
+  MinusSquare
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,8 +40,18 @@ export function StudentsTab({
   onClearFilters,
   onAddClick,
   onPaymentClick,
-  onDeleteClick
+  onDeleteClick,
+  // Bulk selection props
+  selectedStudentIds = [],
+  onToggleSelect,
+  onToggleSelectAll,
+  onClearSelection,
+  onBulkDelete
 }) {
+  const hasSelection = selectedStudentIds.length > 0;
+  const allSelected = students.length > 0 && students.every(s => selectedStudentIds.includes(s.student_id));
+  const someSelected = hasSelection && !allSelected;
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -48,6 +61,15 @@ export function StudentsTab({
           <Plus className="w-4 h-4 mr-2" /> Thêm học viên
         </Button>
       </div>
+
+      {/* Bulk Action Bar */}
+      {hasSelection && (
+        <BulkActionBar
+          selectedCount={selectedStudentIds.length}
+          onClearSelection={onClearSelection}
+          onBulkDelete={onBulkDelete}
+        />
+      )}
 
       {/* Filter Bar */}
       <FilterBar
@@ -82,6 +104,11 @@ export function StudentsTab({
       ) : (
         <StudentsTable
           students={students}
+          selectedStudentIds={selectedStudentIds}
+          allSelected={allSelected}
+          someSelected={someSelected}
+          onToggleSelect={onToggleSelect}
+          onToggleSelectAll={() => onToggleSelectAll(students)}
           onPaymentClick={onPaymentClick}
           onDeleteClick={onDeleteClick}
         />
@@ -249,12 +276,65 @@ function EmptyState({ hasFilters, onClearFilters, onAddClick }) {
   );
 }
 
-function StudentsTable({ students, onPaymentClick, onDeleteClick }) {
+function BulkActionBar({ selectedCount, onClearSelection, onBulkDelete }) {
+  return (
+    <div className="flex items-center justify-between p-3 bg-indigo-50 border border-indigo-200 rounded-xl animate-in fade-in slide-in-from-top-2 duration-200">
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <CheckSquare className="w-5 h-5 text-indigo-600" />
+          <span className="font-medium text-indigo-900">
+            Đã chọn {selectedCount} học viên
+          </span>
+        </div>
+        <button
+          onClick={onClearSelection}
+          className="text-sm text-indigo-600 hover:text-indigo-800 hover:underline"
+        >
+          Bỏ chọn tất cả
+        </button>
+      </div>
+      <Button 
+        variant="destructive" 
+        size="sm"
+        onClick={onBulkDelete}
+        className="bg-red-600 hover:bg-red-700"
+      >
+        <Trash2 className="w-4 h-4 mr-2" />
+        Xóa {selectedCount} học viên
+      </Button>
+    </div>
+  );
+}
+
+function StudentsTable({ 
+  students, 
+  selectedStudentIds,
+  allSelected,
+  someSelected,
+  onToggleSelect,
+  onToggleSelectAll,
+  onPaymentClick, 
+  onDeleteClick 
+}) {
   return (
     <div className="overflow-x-auto border border-slate-200 rounded-xl">
       <table className="w-full">
         <thead className="bg-slate-50">
           <tr className="border-b border-slate-200">
+            <th className="w-12 py-3 px-4">
+              <button 
+                onClick={onToggleSelectAll}
+                className="flex items-center justify-center text-slate-500 hover:text-indigo-600 transition-colors"
+              >
+                {allSelected ? (
+                  <CheckSquare className="w-5 h-5 text-indigo-600" />
+                ) : someSelected ? (
+                  <MinusSquare className="w-5 h-5 text-indigo-600" />
+                ) : (
+                  <Square className="w-5 h-5" />
+                )}
+              </button>
+            </th>
             <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Học viên</th>
             <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Liên hệ</th>
             <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Ngày vào lớp</th>
@@ -268,6 +348,8 @@ function StudentsTable({ students, onPaymentClick, onDeleteClick }) {
             <StudentRow
               key={student.enrollment_id}
               student={student}
+              isSelected={selectedStudentIds.includes(student.student_id)}
+              onToggleSelect={() => onToggleSelect(student.student_id)}
               onPaymentClick={onPaymentClick}
               onDeleteClick={onDeleteClick}
             />
@@ -278,11 +360,23 @@ function StudentsTable({ students, onPaymentClick, onDeleteClick }) {
   );
 }
 
-function StudentRow({ student, onPaymentClick, onDeleteClick }) {
+function StudentRow({ student, isSelected, onToggleSelect, onPaymentClick, onDeleteClick }) {
   const paymentStatus = getPaymentStatus(student);
   
   return (
-    <tr className="hover:bg-slate-50 transition-colors">
+    <tr className={`hover:bg-slate-50 transition-colors ${isSelected ? 'bg-indigo-50/50' : ''}`}>
+      <td className="py-3 px-4">
+        <button 
+          onClick={onToggleSelect}
+          className="flex items-center justify-center text-slate-500 hover:text-indigo-600 transition-colors"
+        >
+          {isSelected ? (
+            <CheckSquare className="w-5 h-5 text-indigo-600" />
+          ) : (
+            <Square className="w-5 h-5" />
+          )}
+        </button>
+      </td>
       <td className="py-3 px-4">
         <div className="flex items-center gap-3">
           <Avatar name={student.full_name} url={student.avatar_url} />

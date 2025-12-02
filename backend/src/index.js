@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { supabase, getDbStatus } from './lib/db.js';
 import { requireAuth, requireRole } from './middleware/auth.js';
 import { checkScheduleConflict } from './lib/schedule-conflict.js';
+import { generateClassSessions, regenerateClassSessions } from './lib/session-generator.js';
 
 dotenv.config();
 
@@ -240,6 +241,80 @@ app.post('/api/courses', requireAuth, async (req, res, next) => {
   }
 });
 
+// Cập nhật khóa học (chỉ admin)
+app.put('/api/courses/:id', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { 
+      code, 
+      title, 
+      description, 
+      category, 
+      level,
+      total_sessions,
+      duration_weeks,
+      price, 
+      cover_image,
+      status
+    } = req.body;
+    
+    console.log(`✏️ User ${req.user.email} đang cập nhật khóa học: ${id}`);
+
+    // Validate dữ liệu đầu vào
+    if (!code || !title || !category) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Mã khóa học, tên và danh mục là bắt buộc' 
+      });
+    }
+
+    // Check trùng code (ngoại trừ chính nó)
+    const { data: existing } = await supabase
+      .from('courses')
+      .select('id')
+      .eq('code', code.toUpperCase())
+      .neq('id', id)
+      .single();
+
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: `Mã khóa học "${code}" đã được sử dụng bởi khóa học khác`
+      });
+    }
+
+    const { data, error } = await supabase
+      .from('courses')
+      .update({
+        code: code.toUpperCase(),
+        title,
+        description: description || '',
+        category,
+        level: level || 'Beginner',
+        total_sessions: total_sessions || 24,
+        duration_weeks: duration_weeks || 12,
+        price: price || 0,
+        cover_image: cover_image || null,
+        status: status || 'active',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ 
+      success: true, 
+      message: 'Cập nhật khóa học thành công',
+      data 
+    });
+  } catch (error) {
+    console.error('Error updating course:', error);
+    next(error);
+  }
+});
+
 // Xóa khóa học (chỉ admin)
 app.delete('/api/courses/:id', requireAuth, async (req, res, next) => {
   try {
@@ -247,6 +322,35 @@ app.delete('/api/courses/:id', requireAuth, async (req, res, next) => {
     
     console.log(`🗑️ User ${req.user.email} đang xóa khóa học: ${id}`);
 
+    // Kiểm tra xem có lớp học nào đang sử dụng khóa học này không
+    const { count: classCount, error: countError } = await supabase
+      .from('classes')
+      .select('*', { count: 'exact', head: true })
+      .eq('course_id', id);
+
+    if (countError) {
+      console.error('Error checking classes:', countError);
+    }
+
+    if (classCount && classCount > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Không thể xóa khóa học này vì đang có ${classCount} lớp học đang sử dụng. Vui lòng xóa hoặc chuyển các lớp học sang khóa học khác trước.`
+      });
+    }
+
+    // Xóa grade_structures liên quan trước (nếu có)
+    const { error: gradeError } = await supabase
+      .from('grade_structures')
+      .delete()
+      .eq('course_id', id);
+
+    if (gradeError) {
+      console.error('Error deleting grade structures:', gradeError);
+      // Không throw, tiếp tục xóa course
+    }
+
+    // Xóa khóa học
     const { error } = await supabase
       .from('courses')
       .delete()
@@ -915,6 +1019,54 @@ app.get('/api/classes/:id', requireAuth, async (req, res, next) => {
   }
 });
 
+// ========================================
+// 🔥 API KIỂM TRA XUNG ĐỘT LỊCH HỌC (Real-time check từ Frontend)
+// ========================================
+app.post('/api/classes/check-conflict', requireAuth, async (req, res, next) => {
+  try {
+    const { teacher_id, room_id, start_date, end_date, schedule, exclude_class_id } = req.body;
+
+    // Validate input
+    if (!schedule || !Array.isArray(schedule) || schedule.length === 0) {
+      return res.json({ success: true, hasConflict: false, conflicts: [] });
+    }
+
+    if (!start_date || !end_date) {
+      return res.json({ success: true, hasConflict: false, conflicts: [] });
+    }
+
+    if (!room_id && !teacher_id) {
+      return res.json({ success: true, hasConflict: false, conflicts: [] });
+    }
+
+    // Check conflict
+    const conflictCheck = await checkScheduleConflict(supabase, {
+      room_id,
+      teacher_id,
+      start_date,
+      end_date,
+      schedule
+    }, exclude_class_id);
+
+    // Format messages cho từng conflict
+    const conflictsWithMessages = (conflictCheck.conflicts || []).map(c => ({
+      ...c,
+      message: `${c.conflict_type.includes('room') ? `Phòng ${c.room_name || 'đã chọn'}` : `GV ${c.teacher_name || 'đã chọn'}`} trùng lịch với lớp "${c.class_name}" vào ${c.conflict_day} (${c.conflict_time?.existing})`
+    }));
+
+    res.json({
+      success: true,
+      hasConflict: conflictCheck.hasConflict,
+      conflicts: conflictsWithMessages,
+      summary: conflictCheck.summary
+    });
+
+  } catch (error) {
+    console.error('Error checking schedule conflict:', error);
+    next(error);
+  }
+});
+
 // Tạo lớp học mới
 app.post('/api/admin/classes', requireAuth, async (req, res, next) => {
   try {
@@ -1000,21 +1152,26 @@ app.post('/api/admin/classes', requireAuth, async (req, res, next) => {
     if (error) throw error;
 
     // 🔥 Tự động sinh sessions cho lớp mới
-    if (data && start_date && end_date && schedule) {
-      const sessionResult = await generateSessionsForClass(
-        data.id, 
-        start_date, 
-        end_date, 
-        schedule, 
-        teacher_id
-      );
+    let sessionResult = null;
+    if (data && start_date && end_date && schedule && schedule.length > 0) {
+      sessionResult = await generateClassSessions(supabase, {
+        id: data.id,
+        start_date,
+        end_date,
+        schedule,
+        teacher_id: teacher_id || null
+      });
       console.log(`📅 Sessions generated: ${sessionResult.count} buổi`);
     }
 
     res.status(201).json({
       success: true,
       message: 'Tạo lớp học thành công',
-      data
+      data,
+      sessions: sessionResult ? {
+        count: sessionResult.count,
+        summary: sessionResult.summary
+      } : null
     });
   } catch (error) {
     console.error('Error creating class:', error);
@@ -1075,25 +1232,15 @@ app.put('/api/admin/classes/:id', requireAuth, async (req, res, next) => {
     // 🔥 Regenerate sessions nếu được yêu cầu và có đủ thông tin
     let sessionsUpdated = 0;
     if (regenerate_sessions === 'true' && data.start_date && data.end_date && data.schedule) {
-      // Xóa sessions cũ chưa hoàn thành (giữ lại sessions đã điểm danh)
-      const { error: deleteError } = await supabase
-        .from('sessions')
-        .delete()
-        .eq('class_id', id)
-        .in('status', ['scheduled', 'cancelled']); // Chỉ xóa sessions chưa học
-
-      if (deleteError) {
-        console.warn('Warning deleting old sessions:', deleteError);
-      }
-
-      // Sinh sessions mới
-      const sessionResult = await generateSessionsForClass(
-        id,
-        data.start_date,
-        data.end_date,
-        data.schedule,
-        data.teacher_id
-      );
+      // Dùng generateClassSessions với option deleteExisting = true
+      const sessionResult = await generateClassSessions(supabase, {
+        id: id,
+        start_date: data.start_date,
+        end_date: data.end_date,
+        schedule: data.schedule,
+        teacher_id: data.teacher_id
+      }, { deleteExisting: true, skipLocked: true });
+      
       sessionsUpdated = sessionResult.count;
       console.log(`📅 Sessions regenerated: ${sessionsUpdated} buổi`);
     }
@@ -1117,24 +1264,537 @@ app.delete('/api/admin/classes/:id', requireAuth, async (req, res, next) => {
 
     console.log(`🗑️ Admin ${req.user.email} xóa lớp: ${id}`);
 
-    const { count } = await supabase
+    // Kiểm tra số học viên đã ghi danh (chỉ đếm active enrollments)
+    const { count, error: countError } = await supabase
       .from('enrollments')
       .select('*', { count: 'exact', head: true })
-      .eq('class_id', id);
+      .eq('class_id', id)
+      .eq('status', 'active');
 
-    if (count > 0) {
+    if (countError) {
+      console.error('Error counting enrollments:', countError);
+    }
+
+    if (count && count > 0) {
       return res.status(400).json({
         success: false,
-        message: `Không thể xóa lớp đã có ${count} học viên ghi danh`
+        message: `Không thể xóa lớp học vì có ${count} học viên đang ghi danh. Vui lòng hủy ghi danh tất cả học viên trước.`
       });
     }
 
+    // Hủy các hóa đơn chưa thanh toán của lớp này (vì không còn học viên)
+    const { error: cancelInvoicesError } = await supabase
+      .from('invoices')
+      .update({ status: 'cancelled', class_id: null })
+      .eq('class_id', id)
+      .in('status', ['unpaid', 'partial']);
+
+    if (cancelInvoicesError) {
+      console.error('Error cancelling unpaid invoices:', cancelInvoicesError);
+    }
+
+    // Hủy liên kết các hóa đơn đã thanh toán (giữ lại lịch sử)
+    const { error: unlinkInvoicesError } = await supabase
+      .from('invoices')
+      .update({ class_id: null })
+      .eq('class_id', id);
+
+    if (unlinkInvoicesError) {
+      console.error('Error unlinking invoices:', unlinkInvoicesError);
+    }
+
+    // Xóa các sessions liên quan trước
+    const { error: sessionsError } = await supabase
+      .from('sessions')
+      .delete()
+      .eq('class_id', id);
+
+    if (sessionsError) {
+      console.error('Error deleting sessions:', sessionsError);
+    }
+
+    // Lấy danh sách TẤT CẢ enrollment IDs của lớp này (vì không còn active)
+    const { data: enrollments } = await supabase
+      .from('enrollments')
+      .select('id')
+      .eq('class_id', id);
+
+    // Xóa attendance records liên quan đến các enrollments
+    if (enrollments && enrollments.length > 0) {
+      const ids = enrollments.map(e => e.id);
+      const { error: attendanceError } = await supabase
+        .from('attendance')
+        .delete()
+        .in('enrollment_id', ids);
+
+      if (attendanceError) {
+        console.error('Error deleting attendance:', attendanceError);
+      }
+
+      // Xóa student_grades nếu có
+      const { error: gradesError } = await supabase
+        .from('student_grades')
+        .delete()
+        .in('enrollment_id', ids);
+
+      if (gradesError) {
+        console.error('Error deleting student_grades:', gradesError);
+      }
+    }
+
+    // Xóa TẤT CẢ enrollments của lớp (vì đã kiểm tra không còn active)
+    const { error: enrollmentsError } = await supabase
+      .from('enrollments')
+      .delete()
+      .eq('class_id', id);
+
+    if (enrollmentsError) {
+      console.error('Error deleting inactive enrollments:', enrollmentsError);
+    }
+
+    // Xóa lớp học
     const { error } = await supabase.from('classes').delete().eq('id', id);
     if (error) throw error;
 
     res.json({ success: true, message: 'Xóa lớp học thành công' });
   } catch (error) {
     console.error('Error deleting class:', error);
+    next(error);
+  }
+});
+
+// ============ SESSION MANAGEMENT APIs ============
+
+// ========================================
+// 🔥 GLOBAL SESSIONS - Tổng quan lịch dạy toàn trung tâm
+// ========================================
+app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
+  try {
+    const { 
+      startDate,      // YYYY-MM-DD
+      endDate,        // YYYY-MM-DD  
+      status,         // scheduled | completed | cancelled
+      teacherId,      // UUID
+      centerId,       // UUID
+      roomId          // UUID
+    } = req.query;
+
+    console.log(`📅 Admin ${req.user.email} xem lịch dạy: ${startDate} - ${endDate}`);
+
+    let query = supabase
+      .from('sessions')
+      .select(`
+        id,
+        session_number,
+        session_date,
+        start_time,
+        end_time,
+        duration_hours,
+        status,
+        topic,
+        is_locked,
+        teacher_id,
+        class_id,
+        classes (
+          id, 
+          name, 
+          code,
+          room_id,
+          center_id,
+          rooms (id, name),
+          centers (id, name)
+        ),
+        users!sessions_teacher_id_fkey (id, full_name, email, avatar_url)
+      `)
+      .order('session_date', { ascending: true })
+      .order('start_time', { ascending: true });
+
+    // Filter theo date range (BẮT BUỘC để tránh load quá nhiều)
+    if (startDate) {
+      query = query.gte('session_date', startDate);
+    } else {
+      // Default: từ đầu tháng hiện tại
+      const today = new Date();
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      query = query.gte('session_date', firstDay.toISOString().split('T')[0]);
+    }
+
+    if (endDate) {
+      query = query.lte('session_date', endDate);
+    } else {
+      // Default: đến cuối tháng hiện tại
+      const today = new Date();
+      const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      query = query.lte('session_date', lastDay.toISOString().split('T')[0]);
+    }
+
+    // Filter theo status
+    if (status) {
+      if (status.includes(',')) {
+        query = query.in('status', status.split(','));
+      } else {
+        query = query.eq('status', status);
+      }
+    }
+
+    // Filter theo giáo viên
+    if (teacherId) {
+      query = query.eq('teacher_id', teacherId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    // Post-filter theo center và room (vì nested filter không được support trực tiếp)
+    let filteredData = data || [];
+    
+    if (centerId) {
+      filteredData = filteredData.filter(s => s.classes?.center_id === centerId);
+    }
+    
+    if (roomId) {
+      filteredData = filteredData.filter(s => s.classes?.room_id === roomId);
+    }
+
+    // Thống kê nhanh
+    const stats = {
+      total: filteredData.length,
+      scheduled: filteredData.filter(s => s.status === 'scheduled').length,
+      completed: filteredData.filter(s => s.status === 'completed').length,
+      cancelled: filteredData.filter(s => s.status === 'cancelled').length,
+      // Buổi học đã quá giờ mà chưa điểm danh
+      overdue: filteredData.filter(s => {
+        if (s.status !== 'scheduled') return false;
+        const sessionDateTime = new Date(`${s.session_date}T${s.end_time}`);
+        return sessionDateTime < new Date();
+      }).length
+    };
+
+    res.json({ 
+      success: true, 
+      data: filteredData,
+      stats
+    });
+  } catch (error) {
+    console.error('Error fetching global sessions:', error);
+    next(error);
+  }
+});
+
+// Lấy danh sách sessions của một lớp
+app.get('/api/admin/classes/:classId/sessions', requireAuth, async (req, res, next) => {
+  try {
+    const { classId } = req.params;
+    const { status, month, year } = req.query;
+
+    let query = supabase
+      .from('sessions')
+      .select(`
+        *,
+        classes (id, name, code),
+        users!sessions_teacher_id_fkey (id, full_name, email)
+      `)
+      .eq('class_id', classId)
+      .order('session_date', { ascending: true });
+
+    if (status) query = query.eq('status', status);
+    
+    // Filter theo tháng/năm (cho payroll)
+    if (month && year) {
+      const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+      const endDate = `${year}-${String(month).padStart(2, '0')}-31`;
+      query = query.gte('session_date', startDate).lte('session_date', endDate);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json({ success: true, data: data || [] });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Regenerate sessions cho một lớp
+app.post('/api/admin/classes/:classId/regenerate-sessions', requireAuth, async (req, res, next) => {
+  try {
+    const { classId } = req.params;
+
+    console.log(`🔄 Admin ${req.user.email} regenerate sessions cho lớp: ${classId}`);
+
+    const result = await regenerateClassSessions(supabase, classId);
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        message: result.error || 'Không thể tạo sessions'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Đã tạo ${result.count} buổi học`,
+      count: result.count,
+      summary: result.summary
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Cập nhật một session (đổi GV, đổi status, etc.)
+app.put('/api/admin/sessions/:id', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    // Kiểm tra session có bị lock không
+    const { data: session } = await supabase
+      .from('sessions')
+      .select('is_locked')
+      .eq('id', id)
+      .single();
+
+    if (session?.is_locked) {
+      return res.status(400).json({
+        success: false,
+        message: 'Buổi học đã được khóa sổ, không thể sửa'
+      });
+    }
+
+    // Không cho sửa các trường quan trọng nếu đã lock
+    delete updates.is_locked;
+    delete updates.payroll_id;
+
+    const { data, error } = await supabase
+      .from('sessions')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Lấy danh sách GV rảnh vào một khung giờ cụ thể
+app.get('/api/admin/sessions/:sessionId/available-teachers', requireAuth, async (req, res, next) => {
+  try {
+    const { sessionId } = req.params;
+
+    // Lấy thông tin session hiện tại
+    const { data: session, error: sessionError } = await supabase
+      .from('sessions')
+      .select('session_date, start_time, end_time, teacher_id, classes(center_id)')
+      .eq('id', sessionId)
+      .single();
+
+    if (sessionError) throw sessionError;
+    if (!session) return res.status(404).json({ success: false, message: 'Không tìm thấy buổi học' });
+
+    // Lấy tất cả giáo viên
+    const { data: teachers, error: teachersError } = await supabase
+      .from('users')
+      .select('id, full_name, email, avatar_url')
+      .eq('role_id', (await supabase.from('roles').select('id').eq('code', 'TEACHER').single()).data?.id);
+
+    if (teachersError) throw teachersError;
+
+    // Lấy các sessions trùng giờ
+    const { data: busySessions } = await supabase
+      .from('sessions')
+      .select('teacher_id')
+      .eq('session_date', session.session_date)
+      .neq('id', sessionId)
+      .neq('status', 'cancelled')
+      .or(`and(start_time.lt.${session.end_time},end_time.gt.${session.start_time})`);
+
+    const busyTeacherIds = new Set((busySessions || []).map(s => s.teacher_id).filter(Boolean));
+
+    // Đánh dấu GV nào đang bận
+    const result = (teachers || []).map(t => ({
+      ...t,
+      isBusy: busyTeacherIds.has(t.id),
+      isCurrent: t.id === session.teacher_id
+    }));
+
+    res.json({ 
+      success: true, 
+      data: result,
+      sessionInfo: {
+        date: session.session_date,
+        startTime: session.start_time,
+        endTime: session.end_time
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching available teachers:', error);
+    next(error);
+  }
+});
+
+// Lấy danh sách phòng trống vào một khung giờ cụ thể
+app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, async (req, res, next) => {
+  try {
+    const { sessionId } = req.params;
+
+    // Lấy thông tin session hiện tại
+    const { data: session, error: sessionError } = await supabase
+      .from('sessions')
+      .select('session_date, start_time, end_time, room_id, classes(center_id, room_id)')
+      .eq('id', sessionId)
+      .single();
+
+    if (sessionError) throw sessionError;
+    if (!session) return res.status(404).json({ success: false, message: 'Không tìm thấy buổi học' });
+
+    // Lấy tất cả phòng học (cùng center nếu cần)
+    let roomQuery = supabase.from('rooms').select('id, name, code, capacity, center_id, centers(name)');
+    if (session.classes?.center_id) {
+      roomQuery = roomQuery.eq('center_id', session.classes.center_id);
+    }
+    const { data: rooms, error: roomsError } = await roomQuery;
+
+    if (roomsError) throw roomsError;
+
+    // Lấy các sessions trùng giờ trong cùng ngày
+    const { data: busySessions } = await supabase
+      .from('sessions')
+      .select('room_id, classes!inner(room_id)')
+      .eq('session_date', session.session_date)
+      .neq('id', sessionId)
+      .neq('status', 'cancelled')
+      .or(`and(start_time.lt.${session.end_time},end_time.gt.${session.start_time})`);
+
+    // Tập hợp các room_id đang bận
+    const busyRoomIds = new Set();
+    (busySessions || []).forEach(s => {
+      if (s.room_id) busyRoomIds.add(s.room_id);
+      if (s.classes?.room_id) busyRoomIds.add(s.classes.room_id);
+    });
+
+    const currentRoomId = session.room_id || session.classes?.room_id;
+
+    // Đánh dấu phòng nào đang bận
+    const result = (rooms || []).map(r => ({
+      ...r,
+      isBusy: busyRoomIds.has(r.id),
+      isCurrent: r.id === currentRoomId
+    }));
+
+    res.json({ 
+      success: true, 
+      data: result,
+      sessionInfo: {
+        date: session.session_date,
+        startTime: session.start_time,
+        endTime: session.end_time
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching available rooms:', error);
+    next(error);
+  }
+});
+
+// ============ ATTENDANCE MANAGEMENT APIs ============
+
+// Lấy danh sách điểm danh của một session
+app.get('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, res, next) => {
+  try {
+    const { sessionId } = req.params;
+
+    const { data, error } = await supabase
+      .from('attendance')
+      .select(`
+        *,
+        users!attendance_student_id_fkey (id, full_name, email, avatar_url)
+      `)
+      .eq('session_id', sessionId);
+
+    if (error) throw error;
+
+    res.json({ success: true, data: data || [] });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Điểm danh hàng loạt (Batch attendance)
+app.post('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, res, next) => {
+  try {
+    const { sessionId } = req.params;
+    const { attendances } = req.body; // Array: [{student_id, status, notes}]
+
+    if (!attendances || !Array.isArray(attendances)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cần truyền mảng attendances'
+      });
+    }
+
+    console.log(`📋 Admin ${req.user.email} điểm danh ${attendances.length} học viên`);
+
+    // Kiểm tra session có tồn tại không
+    const { data: session } = await supabase
+      .from('sessions')
+      .select('id, is_locked')
+      .eq('id', sessionId)
+      .single();
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy buổi học'
+      });
+    }
+
+    if (session.is_locked) {
+      return res.status(400).json({
+        success: false,
+        message: 'Buổi học đã khóa sổ, không thể điểm danh'
+      });
+    }
+
+    // Upsert từng attendance
+    const results = [];
+    for (const att of attendances) {
+      const { data, error } = await supabase
+        .from('attendance')
+        .upsert({
+          session_id: sessionId,
+          student_id: att.student_id,
+          status: att.status || 'present',
+          check_in_time: att.status === 'present' ? new Date().toISOString() : null,
+          notes: att.notes || null,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'session_id,student_id'
+        })
+        .select()
+        .single();
+
+      if (!error && data) {
+        results.push(data);
+      }
+    }
+
+    // Cập nhật status của session thành completed nếu đã điểm danh
+    await supabase
+      .from('sessions')
+      .update({ status: 'completed', updated_at: new Date().toISOString() })
+      .eq('id', sessionId);
+
+    res.json({
+      success: true,
+      message: `Đã điểm danh ${results.length} học viên`,
+      data: results
+    });
+  } catch (error) {
     next(error);
   }
 });
@@ -1641,6 +2301,50 @@ app.get('/api/classes/:id/students', requireAuth, async (req, res, next) => {
     });
   } catch (error) {
     console.error('Error fetching class students:', error);
+    next(error);
+  }
+});
+
+// Alias cho admin - Lấy danh sách học viên trong lớp (dùng cho điểm danh)
+app.get('/api/admin/classes/:classId/students', requireAuth, async (req, res, next) => {
+  try {
+    const { classId } = req.params;
+
+    // Query đơn giản - chỉ lấy học viên active
+    const { data, error } = await supabase
+      .from('enrollments')
+      .select(`
+        id,
+        student_id,
+        users!enrollments_student_id_fkey(
+          id, 
+          full_name, 
+          email, 
+          avatar_url
+        )
+      `)
+      .eq('class_id', classId)
+      .eq('status', 'active');
+
+    if (error) throw error;
+
+    // Transform data
+    const students = (data || []).map(e => ({
+      id: e.id,
+      student_id: e.student_id || e.users?.id,
+      full_name: e.users?.full_name,
+      email: e.users?.email,
+      avatar_url: e.users?.avatar_url,
+      users: e.users // Giữ nguyên để compatible với modal
+    }));
+
+    res.json({ 
+      success: true, 
+      data: students,
+      count: students.length
+    });
+  } catch (error) {
+    console.error('Error fetching class students for attendance:', error);
     next(error);
   }
 });

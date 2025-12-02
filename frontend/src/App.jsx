@@ -19,6 +19,7 @@ import { DashboardPage } from '@/features/dashboard';
 import { StaffPage } from '@/features/staff';
 import { RoomsPage } from '@/features/rooms';
 import { StudentsPage } from '@/features/students';
+import { SchedulePage } from '@/features/schedule';
 import { LoginPage } from '@/pages/auth/login-page';
 import { AuthPage } from '@/pages/auth/auth-page';
 import { LandingPage } from '@/pages/landing/landing-page';
@@ -346,6 +347,7 @@ function App() {
           <Route path="courses" element={<CoursesPage />} />
           <Route path="classes" element={<ClassesPage />} />
           <Route path="classes/:id" element={<ClassDetailPage />} />
+          <Route path="schedule" element={<SchedulePage />} />
           <Route path="scheduler" element={<PlaceholderPage title="Lịch học" description="Xếp lịch và quản lý phòng học" />} />
           <Route path="students" element={<StudentsPage />} />
           <Route path="students/:id" element={<PlaceholderPage title="Hồ sơ Học viên" />} />

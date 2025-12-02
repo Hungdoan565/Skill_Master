@@ -37,7 +37,7 @@ export function ConflictCard({ status, messages }) {
     return (
       <div className="bg-green-50 border border-green-200 rounded-lg p-5 shadow-sm">
         <div className="flex items-start gap-3">
-          <CheckCircle2 className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" />
+          <CheckCircle2 className="w-6 h-6 text-green-600 shrink-0 mt-0.5" />
           <div>
             <h4 className="text-green-800 font-bold text-lg">Lịch học Hợp lệ!</h4>
             <p className="text-green-700 text-sm mt-1">
@@ -60,7 +60,7 @@ export function ConflictCard({ status, messages }) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-5 shadow-sm">
         <div className="flex items-start gap-3">
-          <XCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+          <XCircle className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
           <div className="w-full">
             <h4 className="text-red-800 font-bold text-lg">Phát hiện xung đột!</h4>
             <p className="text-red-700 text-sm mt-1 mb-3">
@@ -71,7 +71,7 @@ export function ConflictCard({ status, messages }) {
             <div className="bg-white border border-red-100 rounded p-3 max-h-60 overflow-y-auto">
               {messages.map((msg, index) => (
                 <div key={index} className="flex items-start gap-2 text-sm text-red-600 mb-2 last:mb-0">
-                  <span className="mt-1.5 w-1.5 h-1.5 bg-red-500 rounded-full flex-shrink-0"></span>
+                  <span className="mt-1.5 w-1.5 h-1.5 bg-red-500 rounded-full shrink-0"></span>
                   <span>{msg}</span>
                 </div>
               ))}

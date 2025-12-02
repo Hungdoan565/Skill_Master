@@ -61,11 +61,12 @@ export function useConflictCheck({
         exclude_class_id: excludeClassId || null
       }, { headers });
 
-      const conflicts = res.data.conflicts || [];
+      const { hasConflict, conflicts = [] } = res.data;
       
-      if (conflicts.length > 0) {
+      if (hasConflict && conflicts.length > 0) {
         setStatus('conflict');
-        setMessages(conflicts.map(c => c.message));
+        // Lấy message từ mỗi conflict object
+        setMessages(conflicts.map(c => c.message || `Trùng lịch với lớp ${c.class_name}`));
       } else {
         setStatus('ok');
         setMessages([]);

@@ -41,12 +41,8 @@ export function useCourses(accessToken) {
     }
   }, [accessToken]);
 
-  // Xóa khóa học
-  const deleteCourse = useCallback(async (courseId, courseName) => {
-    if (!window.confirm(`Bạn có chắc muốn xóa khóa học "${courseName}"?`)) {
-      return false;
-    }
-
+  // Xóa khóa học - không còn dùng window.confirm
+  const deleteCourse = useCallback(async (courseId) => {
     setDeletingId(courseId);
     try {
       const response = await axios.delete(`${API_URL}/api/courses/${courseId}`, {
@@ -63,8 +59,7 @@ export function useCourses(accessToken) {
       return false;
     } catch (err) {
       console.error('Error deleting course:', err);
-      alert(err.response?.data?.message || 'Không thể xóa khóa học');
-      return false;
+      throw err; // Re-throw để component xử lý
     } finally {
       setDeletingId(null);
     }

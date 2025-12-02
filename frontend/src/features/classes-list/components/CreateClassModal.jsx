@@ -3,7 +3,7 @@
  */
 
 import { 
-  Calendar as CalendarIcon, RefreshCw, Check, AlertTriangle 
+  Calendar as CalendarIcon, RefreshCw, Check, AlertTriangle, AlertCircle 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +25,7 @@ export function CreateClassModal({
   submitting,
   isEditing,
   editingClass,
+  formError,
   // Options
   courses,
   teachers,
@@ -82,6 +83,14 @@ export function CreateClassModal({
       size="2xl"
     >
       <form onSubmit={handleSubmit}>
+        {/* Form Error */}
+        {formError && (
+          <div className="mx-5 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-red-700">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span className="text-sm">{formError}</span>
+          </div>
+        )}
+
         <div className="flex flex-col lg:flex-row">
           {/* CỘT TRÁI - FORM */}
           <div className="w-full lg:w-2/5 p-5 space-y-4 border-r">
@@ -300,6 +309,97 @@ export function CreateClassModal({
             <h3 className="text-lg font-semibold text-slate-800 mb-4">Kiểm tra tình trạng</h3>
 
             <ConflictCard status={conflictStatus} messages={conflictMessages} />
+
+            {/* Thông tin tổng quan lớp học */}
+            {formData.course_id && (
+              <div className="mt-4 bg-white rounded-lg border border-slate-200 p-4">
+                <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                  <CalendarIcon className="w-4 h-4 text-indigo-500" />
+                  Thông tin lớp học
+                </h4>
+                <div className="space-y-2 text-sm">
+                  {/* Khóa học */}
+                  {formData.course_id && (
+                    <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
+                      <span className="text-slate-500">Khóa học:</span>
+                      <span className="font-medium text-slate-800 text-right max-w-[60%] truncate">
+                        {courses.find(c => c.id === formData.course_id)?.title || 'N/A'}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Giáo viên */}
+                  <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
+                    <span className="text-slate-500">Giáo viên:</span>
+                    <span className={`font-medium ${formData.teacher_id ? 'text-slate-800' : 'text-amber-600'}`}>
+                      {formData.teacher_id 
+                        ? teachers.find(t => t.id === formData.teacher_id)?.full_name || 'N/A'
+                        : 'Chưa phân công'
+                      }
+                    </span>
+                  </div>
+
+                  {/* Phòng học */}
+                  <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
+                    <span className="text-slate-500">Phòng học:</span>
+                    <span className={`font-medium ${selectedRoom ? 'text-slate-800' : 'text-amber-600'}`}>
+                      {selectedRoom 
+                        ? `${selectedRoom.name} (${selectedRoom.capacity} chỗ)`
+                        : 'Chưa chọn'
+                      }
+                    </span>
+                  </div>
+
+                  {/* Thời gian */}
+                  {formData.start_date && formData.end_date && (
+                    <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
+                      <span className="text-slate-500">Thời gian:</span>
+                      <span className="font-medium text-slate-800">
+                        {new Date(formData.start_date).toLocaleDateString('vi-VN')} - {new Date(formData.end_date).toLocaleDateString('vi-VN')}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Sĩ số */}
+                  <div className="flex items-center justify-between py-1.5">
+                    <span className="text-slate-500">Sĩ số tối đa:</span>
+                    <span className={`font-medium ${
+                      selectedRoom && formData.max_students > selectedRoom.capacity 
+                        ? 'text-red-600' 
+                        : 'text-slate-800'
+                    }`}>
+                      {formData.max_students} học viên
+                      {selectedRoom && formData.max_students > selectedRoom.capacity && (
+                        <span className="text-red-500 text-xs ml-1">(vượt quá!)</span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Lịch học preview khi chưa có conflict check */}
+            {formData.schedule.length > 0 && (
+              <div className="mt-4 bg-indigo-50 rounded-lg border border-indigo-200 p-4">
+                <h4 className="text-sm font-semibold text-indigo-700 mb-2 flex items-center gap-2">
+                  <CalendarIcon className="w-4 h-4" />
+                  Lịch học chi tiết
+                </h4>
+                <div className="space-y-1">
+                  {formData.schedule.map((s, idx) => (
+                    <div key={idx} className="flex items-center justify-between text-sm">
+                      <span className="text-indigo-800 font-medium">{DAY_NAMES[s.day]}</span>
+                      <span className="text-indigo-600">{s.start} - {s.end}</span>
+                    </div>
+                  ))}
+                </div>
+                {formData.start_date && formData.end_date && (
+                  <div className="mt-3 pt-3 border-t border-indigo-200 text-xs text-indigo-600">
+                    📅 Từ {new Date(formData.start_date).toLocaleDateString('vi-VN')} đến {new Date(formData.end_date).toLocaleDateString('vi-VN')}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Thông tin bổ sung */}
             <div className="mt-auto pt-4">

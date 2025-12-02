@@ -19,6 +19,7 @@ import {
   GradesTab,
   AddStudentModal,
   DeleteConfirmModal,
+  BulkRemoveStudentsModal,
   PaymentModal,
   AttendanceModal
 } from '../components';
@@ -131,7 +132,18 @@ export function ClassDetailPage() {
     deleting,
     openDeleteModal,
     closeDeleteModal,
-    removeStudent
+    removeStudent,
+    // Bulk delete
+    selectedStudentIds,
+    toggleSelectStudent,
+    toggleSelectAll,
+    clearSelection,
+    showBulkDeleteModal,
+    bulkDeleting,
+    bulkDeleteError,
+    openBulkDeleteModal,
+    closeBulkDeleteModal,
+    bulkRemoveStudents
   } = useStudentEnrollment(id, getHeaders);
 
   const {
@@ -208,6 +220,20 @@ export function ClassDetailPage() {
       fetchClassDetail();
     } else {
       showToast(result.message, 'error');
+    }
+  };
+
+  const handleBulkRemoveStudents = async (studentsToRemove) => {
+    const result = await bulkRemoveStudents(studentsToRemove);
+    if (result.success) {
+      showToast(`Đã xóa ${result.count} học viên khỏi lớp`, 'success');
+      fetchStudents(filters);
+      fetchClassDetail();
+    } else if (result.message) {
+      showToast(result.message, 'error');
+      // Refresh to show updated list
+      fetchStudents(filters);
+      fetchClassDetail();
     }
   };
 
@@ -312,6 +338,12 @@ export function ClassDetailPage() {
               onAddClick={() => setShowAddModal(true)}
               onPaymentClick={openPaymentModal}
               onDeleteClick={openDeleteModal}
+              // Bulk selection props
+              selectedStudentIds={selectedStudentIds}
+              onToggleSelect={toggleSelectStudent}
+              onToggleSelectAll={toggleSelectAll}
+              onClearSelection={clearSelection}
+              onBulkDelete={openBulkDeleteModal}
             />
           )}
 
@@ -367,6 +399,15 @@ export function ClassDetailPage() {
         deleting={deleting}
         onConfirm={handleRemoveStudent}
         onCancel={closeDeleteModal}
+      />
+
+      <BulkRemoveStudentsModal
+        show={showBulkDeleteModal}
+        students={students.filter(s => selectedStudentIds.includes(s.student_id))}
+        deleting={bulkDeleting}
+        error={bulkDeleteError}
+        onConfirm={handleBulkRemoveStudents}
+        onCancel={closeBulkDeleteModal}
       />
 
       <PaymentModal

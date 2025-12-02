@@ -10,6 +10,10 @@ export function useStudentEnrollment(classId, getHeaders) {
   // Modal state
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  
+  // Selection state
+  const [selectedStudentIds, setSelectedStudentIds] = useState([]);
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -21,6 +25,8 @@ export function useStudentEnrollment(classId, getHeaders) {
   const [enrolling, setEnrolling] = useState(null); // student.id being enrolled
   const [studentToDelete, setStudentToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkDeleteError, setBulkDeleteError] = useState(null);
 
   // Fetch recent students (when modal opens)
   const fetchRecentStudents = useCallback(async () => {
@@ -167,6 +173,77 @@ export function useStudentEnrollment(classId, getHeaders) {
     setSearchResults([]);
   }, []);
 
+  // Selection handlers
+  const toggleSelectStudent = useCallback((studentId) => {
+    setSelectedStudentIds(prev => 
+      prev.includes(studentId)
+        ? prev.filter(id => id !== studentId)
+        : [...prev, studentId]
+    );
+  }, []);
+
+  const toggleSelectAll = useCallback((students) => {
+    const allIds = students.map(s => s.student_id);
+    const allSelected = allIds.every(id => selectedStudentIds.includes(id));
+    setSelectedStudentIds(allSelected ? [] : allIds);
+  }, [selectedStudentIds]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedStudentIds([]);
+  }, []);
+
+  // Bulk delete handlers
+  const openBulkDeleteModal = useCallback(() => {
+    setBulkDeleteError(null);
+    setShowBulkDeleteModal(true);
+  }, []);
+
+  const closeBulkDeleteModal = useCallback(() => {
+    setShowBulkDeleteModal(false);
+    setBulkDeleteError(null);
+  }, []);
+
+  // Bulk remove students from class
+  const bulkRemoveStudents = useCallback(async (studentsToRemove) => {
+    if (!classId || studentsToRemove.length === 0) return { success: false };
+    
+    setBulkDeleting(true);
+    setBulkDeleteError(null);
+    
+    try {
+      // Remove students one by one (could be optimized with bulk API)
+      const results = await Promise.allSettled(
+        studentsToRemove.map(student => 
+          fetch(
+            `${API_URL}/api/classes/${classId}/students/${student.student_id}`, 
+            {
+              method: 'DELETE',
+              headers: getHeaders()
+            }
+          ).then(res => res.json())
+        )
+      );
+      
+      const successful = results.filter(r => r.status === 'fulfilled' && r.value?.success).length;
+      const failed = studentsToRemove.length - successful;
+      
+      if (failed > 0) {
+        setBulkDeleteError(`Đã xóa ${successful}/${studentsToRemove.length} học viên. ${failed} học viên không thể xóa.`);
+        return { success: false, message: `${failed} học viên không thể xóa` };
+      }
+      
+      closeBulkDeleteModal();
+      clearSelection();
+      return { success: true, count: successful };
+    } catch (error) {
+      console.error('Error bulk removing students:', error);
+      setBulkDeleteError('Có lỗi xảy ra khi xóa học viên');
+      return { success: false, message: 'Có lỗi xảy ra khi xóa học viên' };
+    } finally {
+      setBulkDeleting(false);
+    }
+  }, [classId, getHeaders, closeBulkDeleteModal, clearSelection]);
+
   return {
     // Add Student Modal
     showAddModal,
@@ -186,6 +263,18 @@ export function useStudentEnrollment(classId, getHeaders) {
     deleting,
     openDeleteModal,
     closeDeleteModal,
-    removeStudent
+    removeStudent,
+    
+    // Bulk Delete
+    selectedStudentIds,
+    toggleSelectStudent,
+    toggleSelectAll,
+    clearSelection,
+    showBulkDeleteModal,
+    bulkDeleting,
+    bulkDeleteError,
+    openBulkDeleteModal,
+    closeBulkDeleteModal,
+    bulkRemoveStudents
   };
 }

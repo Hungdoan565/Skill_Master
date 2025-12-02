@@ -42,7 +42,7 @@ export function ColorAvatar({ name, avatarUrl, size = 'sm' }) {
   }
 
   return (
-    <div className={`${sizeClass} flex items-center justify-center rounded-full bg-gradient-to-br ${gradient} font-semibold text-white`}>
+    <div className={`${sizeClass} flex items-center justify-center rounded-full bg-linear-to-br ${gradient} font-semibold text-white`}>
       {getInitials(name)}
     </div>
   );

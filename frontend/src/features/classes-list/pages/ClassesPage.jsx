@@ -23,8 +23,15 @@ export function ClassesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
-  const [deleteModal, setDeleteModal] = useState({ isOpen: false, classItem: null });
-  const [bulkDeleteModal, setBulkDeleteModal] = useState(false);
+  const [deleteModal, setDeleteModal] = useState({ 
+    isOpen: false, 
+    classItem: null,
+    error: null 
+  });
+  const [bulkDeleteModal, setBulkDeleteModal] = useState({ 
+    isOpen: false, 
+    error: null 
+  });
   const [deleting, setDeleting] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
@@ -50,6 +57,7 @@ export function ClassesPage() {
     submitting,
     isEditing,
     editingClass,
+    formError,
     resetForm,
     loadClassData,
     toggleDay,
@@ -59,7 +67,8 @@ export function ClassesPage() {
     regenerateName,
     submitForm,
     setStartTime,
-    setEndTime
+    setEndTime,
+    clearFormError
   } = useClassForm();
 
   const {
@@ -94,6 +103,7 @@ export function ClassesPage() {
   const closeModal = () => {
     setModalOpen(false);
     resetForm();
+    clearFormError();
   };
 
   // Form submit
@@ -104,7 +114,8 @@ export function ClassesPage() {
       closeModal();
       fetchClasses();
     } catch (error) {
-      alert(error.response?.data?.message || 'Có lỗi xảy ra');
+      // Error đã được set trong hook, không cần làm gì thêm
+      console.error('Form submit error:', error);
     }
   };
 
@@ -112,12 +123,14 @@ export function ClassesPage() {
   const handleDelete = async () => {
     if (!deleteModal.classItem) return;
     setDeleting(true);
+    setDeleteModal(prev => ({ ...prev, error: null }));
 
     try {
       await deleteClass(deleteModal.classItem.id);
-      setDeleteModal({ isOpen: false, classItem: null });
+      setDeleteModal({ isOpen: false, classItem: null, error: null });
     } catch (error) {
-      alert(error.response?.data?.message || 'Có lỗi xảy ra');
+      const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra khi xóa lớp học';
+      setDeleteModal(prev => ({ ...prev, error: errorMessage }));
     } finally {
       setDeleting(false);
     }
@@ -127,12 +140,14 @@ export function ClassesPage() {
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return;
     setBulkDeleting(true);
+    setBulkDeleteModal(prev => ({ ...prev, error: null }));
 
     try {
       await deleteMultipleClasses(selectedIds);
-      setBulkDeleteModal(false);
+      setBulkDeleteModal({ isOpen: false, error: null });
     } catch (error) {
-      alert(error.response?.data?.message || 'Có lỗi xảy ra khi xóa');
+      const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra khi xóa. Một số lớp có thể có học viên đang ghi danh.';
+      setBulkDeleteModal(prev => ({ ...prev, error: errorMessage }));
     } finally {
       setBulkDeleting(false);
     }
@@ -169,7 +184,7 @@ export function ClassesPage() {
           <BulkActionBar
             selectedCount={selectedIds.length}
             onClearSelection={clearSelection}
-            onBulkDelete={() => setBulkDeleteModal(true)}
+            onBulkDelete={() => setBulkDeleteModal({ isOpen: true, error: null })}
           />
 
           {/* Classes Table */}
@@ -182,7 +197,7 @@ export function ClassesPage() {
             onToggleSelect={toggleSelectItem}
             onToggleSelectAll={() => toggleSelectAll(filteredClasses)}
             onEdit={openModal}
-            onDelete={(cls) => setDeleteModal({ isOpen: true, classItem: cls })}
+            onDelete={(cls) => setDeleteModal({ isOpen: true, classItem: cls, error: null })}
             onOpenModal={() => openModal()}
           />
         </CardContent>
@@ -199,6 +214,7 @@ export function ClassesPage() {
         submitting={submitting}
         isEditing={isEditing}
         editingClass={editingClass}
+        formError={formError}
         courses={courses}
         teachers={teachers}
         centers={centers}
@@ -220,17 +236,19 @@ export function ClassesPage() {
         isOpen={deleteModal.isOpen}
         classItem={deleteModal.classItem}
         deleting={deleting}
-        onClose={() => setDeleteModal({ isOpen: false, classItem: null })}
+        error={deleteModal.error}
+        onClose={() => setDeleteModal({ isOpen: false, classItem: null, error: null })}
         onConfirm={handleDelete}
       />
 
       {/* Bulk Delete Modal */}
       <BulkDeleteModal
-        isOpen={bulkDeleteModal}
+        isOpen={bulkDeleteModal.isOpen}
         selectedIds={selectedIds}
         classes={classes}
         deleting={bulkDeleting}
-        onClose={() => setBulkDeleteModal(false)}
+        error={bulkDeleteModal.error}
+        onClose={() => setBulkDeleteModal({ isOpen: false, error: null })}
         onConfirm={handleBulkDelete}
       />
     </div>

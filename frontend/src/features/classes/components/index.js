@@ -11,5 +11,6 @@ export { ScheduleTab } from './ScheduleTab';
 export { GradesTab } from './GradesTab';
 export { AddStudentModal } from './AddStudentModal';
 export { DeleteConfirmModal } from './DeleteConfirmModal';
+export { BulkRemoveStudentsModal } from './BulkRemoveStudentsModal';
 export { PaymentModal } from './PaymentModal';
 export { AttendanceModal } from './AttendanceModal';

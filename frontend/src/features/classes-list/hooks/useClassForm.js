@@ -31,6 +31,7 @@ export function useClassForm() {
   const [endTime, setEndTime] = useState('20:00');
   const [submitting, setSubmitting] = useState(false);
   const [editingClass, setEditingClass] = useState(null);
+  const [formError, setFormError] = useState(null);
 
   // Build schedule array khi thay đổi ngày/giờ
   useEffect(() => {
@@ -44,6 +45,7 @@ export function useClassForm() {
     setSelectedDays([]);
     setStartTime('18:00');
     setEndTime('20:00');
+    setFormError(null);
     setFormData({
       ...DEFAULT_CLASS_FORM,
       center_id: defaultCenterId
@@ -149,6 +151,7 @@ export function useClassForm() {
   // Submit form
   const submitForm = useCallback(async () => {
     setSubmitting(true);
+    setFormError(null);
 
     try {
       const headers = await getAuthHeaders();
@@ -167,11 +170,18 @@ export function useClassForm() {
       return true;
     } catch (error) {
       console.error('Error saving class:', error);
+      const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra khi lưu lớp học';
+      setFormError(errorMessage);
       throw error;
     } finally {
       setSubmitting(false);
     }
   }, [formData, editingClass]);
+
+  // Clear error
+  const clearFormError = useCallback(() => {
+    setFormError(null);
+  }, []);
 
   return {
     // Form state
@@ -182,6 +192,7 @@ export function useClassForm() {
     submitting,
     editingClass,
     isEditing: !!editingClass,
+    formError,
 
     // Actions
     resetForm,
@@ -194,7 +205,8 @@ export function useClassForm() {
     regenerateName,
     submitForm,
     setStartTime,
-    setEndTime
+    setEndTime,
+    clearFormError
   };
 }
 

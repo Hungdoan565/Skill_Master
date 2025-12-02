@@ -90,7 +90,7 @@ export function GradeStructureModal({ isOpen, onClose, course, accessToken }) {
               {/* Error */}
               {error && (
                 <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 flex items-center gap-2 text-red-700">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <AlertCircle className="w-4 h-4 shrink-0" />
                   <span className="text-sm">{error}</span>
                 </div>
               )}
@@ -142,7 +142,7 @@ export function GradeStructureModal({ isOpen, onClose, course, accessToken }) {
           <Button
             onClick={handleSave}
             disabled={saving || loading || !isWeightValid || structures.length === 0}
-            className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white min-w-[120px] disabled:opacity-50"
+            className="bg-linear-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white min-w-[120px] disabled:opacity-50"
           >
             {saving ? (
               <>

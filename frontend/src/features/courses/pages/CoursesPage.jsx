@@ -17,7 +17,9 @@ import { useCourses } from '../hooks';
 import { 
   CourseFilters, 
   CourseTable, 
-  CreateCourseModal, 
+  CreateCourseModal,
+  EditCourseModal,
+  DeleteConfirmModal,
   GradeStructureModal 
 } from '../components';
 
@@ -28,6 +30,22 @@ export function CoursesPage() {
   // State
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  
+  // Edit modal state
+  const [editModal, setEditModal] = useState({ 
+    open: false, 
+    course: null 
+  });
+  
+  // Delete modal state
+  const [deleteModal, setDeleteModal] = useState({ 
+    open: false, 
+    course: null,
+    loading: false,
+    error: null
+  });
+  
+  // Grade structure modal state
   const [gradeStructureModal, setGradeStructureModal] = useState({ 
     open: false, 
     course: null 
@@ -52,6 +70,39 @@ export function CoursesPage() {
   const filteredCourses = filterCourses(searchTerm);
 
   // Handlers
+  const handleOpenEdit = (course) => {
+    setEditModal({ open: true, course });
+  };
+
+  const handleCloseEdit = () => {
+    setEditModal({ open: false, course: null });
+  };
+
+  const handleOpenDelete = (course) => {
+    setDeleteModal({ open: true, course, loading: false, error: null });
+  };
+
+  const handleCloseDelete = () => {
+    setDeleteModal({ open: false, course: null, loading: false, error: null });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.course) return;
+    
+    setDeleteModal(prev => ({ ...prev, loading: true, error: null }));
+    
+    try {
+      await deleteCourse(deleteModal.course.id);
+      handleCloseDelete();
+    } catch (err) {
+      setDeleteModal(prev => ({ 
+        ...prev, 
+        loading: false, 
+        error: err.response?.data?.message || 'Không thể xóa khóa học' 
+      }));
+    }
+  };
+
   const handleOpenGradeConfig = (course) => {
     setGradeStructureModal({ open: true, course });
   };
@@ -61,6 +112,10 @@ export function CoursesPage() {
   };
 
   const handleCreateSuccess = () => {
+    fetchCourses();
+  };
+
+  const handleEditSuccess = () => {
     fetchCourses();
   };
 
@@ -76,7 +131,7 @@ export function CoursesPage() {
         </div>
         <Button 
           onClick={() => setShowCreateModal(true)}
-          className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white"
+          className="bg-linear-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white"
         >
           <Plus className="mr-2 h-4 w-4" />
           Tạo khóa học
@@ -98,14 +153,14 @@ export function CoursesPage() {
             loading={loading}
             searchTerm={searchTerm}
             deletingId={deletingId}
-            onDelete={deleteCourse}
-            onEdit={() => {}} // TODO: Implement edit
+            onDelete={handleOpenDelete}
+            onEdit={handleOpenEdit}
             onConfigGrade={handleOpenGradeConfig}
           />
         </CardContent>
       </Card>
 
-      {/* Modals */}
+      {/* Create Modal */}
       <CreateCourseModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
@@ -113,6 +168,26 @@ export function CoursesPage() {
         accessToken={accessToken}
       />
 
+      {/* Edit Modal */}
+      <EditCourseModal
+        isOpen={editModal.open}
+        onClose={handleCloseEdit}
+        onSuccess={handleEditSuccess}
+        course={editModal.course}
+        accessToken={accessToken}
+      />
+
+      {/* Delete Confirm Modal */}
+      <DeleteConfirmModal
+        isOpen={deleteModal.open}
+        onClose={handleCloseDelete}
+        onConfirm={handleConfirmDelete}
+        course={deleteModal.course}
+        loading={deleteModal.loading}
+        error={deleteModal.error}
+      />
+
+      {/* Grade Structure Modal */}
       <GradeStructureModal
         isOpen={gradeStructureModal.open}
         onClose={handleCloseGradeConfig}
