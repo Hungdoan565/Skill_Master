@@ -169,7 +169,7 @@ export function QuickAttendanceModal({
       {/* Modal */}
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 text-white">
+        <div className="bg-linear-to-r from-red-500 to-orange-500 px-6 py-4 text-white">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold">Điểm danh buổi #{session?.session_number}</h2>
@@ -251,7 +251,7 @@ export function QuickAttendanceModal({
                     className="flex items-center gap-4 p-3 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors"
                   >
                     {/* Avatar */}
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold">
+                    <div className="w-10 h-10 rounded-full bg-linear-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold">
                       {(studentData.full_name || studentData.email || '?')[0].toUpperCase()}
                     </div>
 

@@ -8,32 +8,108 @@ import {
   MapPin, 
   User, 
   BookOpen,
-  AlertTriangle
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  PlayCircle,
+  Calendar
 } from 'lucide-react';
 import { SessionActionMenu } from './SessionActionMenu';
 
-// Status badge config
+// Status badge config với icon và mô tả chi tiết
 const STATUS_CONFIG = {
   scheduled: {
-    label: 'Sắp diễn ra',
+    label: 'Chưa học',
+    description: 'Buổi học chưa đến giờ',
     color: 'bg-blue-100 text-blue-700 border-blue-200',
-    icon: Clock
+    badgeColor: 'bg-blue-500',
+    icon: Calendar
+  },
+  in_progress: {
+    label: 'Đang học',
+    description: 'Buổi học đang diễn ra',
+    color: 'bg-amber-100 text-amber-700 border-amber-200',
+    badgeColor: 'bg-amber-500 animate-pulse',
+    icon: PlayCircle
+  },
+  overdue: {
+    label: 'Quá hạn',
+    description: 'Đã qua giờ, chưa điểm danh',
+    color: 'bg-red-100 text-red-700 border-red-200',
+    badgeColor: 'bg-red-500',
+    icon: AlertTriangle
   },
   completed: {
-    label: 'Đã hoàn thành',
-    color: 'bg-green-100 text-green-700 border-green-200'
+    label: 'Hoàn thành',
+    description: 'Đã điểm danh xong',
+    color: 'bg-green-100 text-green-700 border-green-200',
+    badgeColor: 'bg-green-500',
+    icon: CheckCircle
   },
   cancelled: {
     label: 'Đã hủy',
-    color: 'bg-slate-100 text-slate-500 border-slate-200 line-through'
+    description: 'Buổi học bị hủy',
+    color: 'bg-slate-100 text-slate-500 border-slate-200',
+    badgeColor: 'bg-slate-400',
+    icon: XCircle
   }
 };
 
-// Check if session is overdue (quá giờ mà chưa điểm danh)
-const isOverdue = (session) => {
-  if (session.status !== 'scheduled') return false;
-  const sessionEnd = new Date(`${session.session_date}T${session.end_time}`);
-  return sessionEnd < new Date();
+// Get actual status based on current time
+const getDisplayStatus = (session) => {
+  // If already completed or cancelled, use that
+  if (session.status === 'completed') return 'completed';
+  if (session.status === 'cancelled') return 'cancelled';
+  
+  // For scheduled sessions, check time
+  const now = new Date();
+  const sessionDate = session.session_date;
+  
+  const sessionStart = new Date(`${sessionDate}T${session.start_time}`);
+  const sessionEnd = new Date(`${sessionDate}T${session.end_time}`);
+  
+  if (now >= sessionStart && now <= sessionEnd) {
+    return 'in_progress'; // Đang trong giờ học
+  }
+  
+  if (now > sessionEnd) {
+    return 'overdue'; // Đã qua giờ nhưng chưa điểm danh
+  }
+  
+  return 'scheduled'; // Chưa đến giờ
+};
+
+// Calculate time difference for display
+const getTimeInfo = (session) => {
+  const now = new Date();
+  const sessionDate = session.session_date;
+  const sessionStart = new Date(`${sessionDate}T${session.start_time}`);
+  const sessionEnd = new Date(`${sessionDate}T${session.end_time}`);
+  
+  const diffMs = sessionStart - now;
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  
+  if (now >= sessionStart && now <= sessionEnd) {
+    const remaining = Math.ceil((sessionEnd - now) / (1000 * 60));
+    return { text: `Còn ${remaining} phút`, type: 'warning' };
+  }
+  
+  if (now > sessionEnd) {
+    const overdueMins = Math.floor((now - sessionEnd) / (1000 * 60));
+    if (overdueMins < 60) return { text: `Quá ${overdueMins} phút`, type: 'danger' };
+    const overdueHours = Math.floor(overdueMins / 60);
+    if (overdueHours < 24) return { text: `Quá ${overdueHours}h`, type: 'danger' };
+    const overdueDays = Math.floor(overdueHours / 24);
+    return { text: `Quá ${overdueDays} ngày`, type: 'danger' };
+  }
+  
+  // Future
+  if (diffDays > 0) return { text: `Còn ${diffDays} ngày`, type: 'info' };
+  if (diffHours > 0) return { text: `Còn ${diffHours}h`, type: 'info' };
+  if (diffMins > 0) return { text: `Còn ${diffMins} phút`, type: 'success' };
+  return { text: 'Sắp bắt đầu', type: 'success' };
 };
 
 // Format time
@@ -42,12 +118,31 @@ const formatTime = (time) => {
   return time.substring(0, 5); // HH:MM
 };
 
-// Format date
+// Format date with more detail
 const formatDate = (dateStr) => {
   if (!dateStr) return '';
   const date = new Date(dateStr);
-  const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  const days = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
   const dayName = days[date.getDay()];
+  
+  const dateOnly = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  
+  if (dateOnly(date) === dateOnly(today)) {
+    return `📍 Hôm nay, ${date.getDate()}/${date.getMonth() + 1}`;
+  }
+  if (dateOnly(date) === dateOnly(tomorrow)) {
+    return `⏰ Ngày mai, ${date.getDate()}/${date.getMonth() + 1}`;
+  }
+  if (dateOnly(date) === dateOnly(yesterday)) {
+    return `⚠️ Hôm qua, ${date.getDate()}/${date.getMonth() + 1}`;
+  }
+  
   return `${dayName}, ${date.getDate()}/${date.getMonth() + 1}`;
 };
 
@@ -87,8 +182,28 @@ export function SessionsTable({
     return acc;
   }, {});
 
+  // Sort dates
+  const sortedDates = Object.keys(groupedSessions).sort();
+
   return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div className="bg-white rounded-xl border border-slate-200 overflow-visible">
+      {/* Legend - Chú thích trạng thái */}
+      <div className="bg-slate-50 border-b border-slate-200 px-4 py-2 rounded-t-xl">
+        <div className="flex flex-wrap items-center gap-4 text-xs">
+          <span className="font-medium text-slate-600">Chú thích:</span>
+          {Object.entries(STATUS_CONFIG).map(([key, config]) => {
+            const Icon = config.icon;
+            return (
+              <div key={key} className="flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${config.badgeColor}`}></span>
+                <Icon className="w-3 h-3 text-slate-500" />
+                <span className="text-slate-600">{config.label}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Table Header */}
       <div className="bg-slate-50 border-b border-slate-200 px-4 py-3">
         <div className="grid grid-cols-12 gap-4 text-xs font-medium text-slate-500 uppercase tracking-wider">
@@ -103,136 +218,162 @@ export function SessionsTable({
 
       {/* Table Body - Grouped by Date */}
       <div className="divide-y divide-slate-100">
-        {Object.entries(groupedSessions).map(([date, dateSessions]) => (
-          <div key={date}>
-            {/* Date Header */}
-            <div className="bg-slate-50/50 px-4 py-2 border-b border-slate-100">
-              <span className="text-sm font-semibold text-slate-700">
-                📅 {formatDate(date)}
-              </span>
-              <span className="text-xs text-slate-500 ml-2">
-                ({dateSessions.length} buổi)
-              </span>
-            </div>
+        {sortedDates.map((date) => {
+          const dateSessions = groupedSessions[date];
+          const today = new Date().toISOString().split('T')[0];
+          const isToday = date === today;
+          const isPast = date < today;
+          
+          return (
+            <div key={date}>
+              {/* Date Header */}
+              <div className={`px-4 py-2.5 border-b border-slate-100 ${
+                isToday ? 'bg-indigo-50' : isPast ? 'bg-red-50/30' : 'bg-slate-50/50'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-sm font-semibold ${
+                    isToday ? 'text-indigo-700' : isPast ? 'text-red-700' : 'text-slate-700'
+                  }`}>
+                    {formatDate(date)}
+                  </span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                    isToday ? 'bg-indigo-100 text-indigo-700' : 
+                    isPast ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {dateSessions.length} buổi
+                  </span>
+                </div>
+              </div>
 
-            {/* Sessions for this date */}
-            {dateSessions.map((session) => {
-              const overdue = isOverdue(session);
-              const statusConfig = STATUS_CONFIG[session.status] || STATUS_CONFIG.scheduled;
-              
-              return (
-                <div 
-                  key={session.id}
-                  className={`
-                    px-4 py-3 hover:bg-slate-50 transition-colors
-                    ${overdue ? 'bg-red-50/50' : ''}
-                  `}
-                >
-                  <div className="grid grid-cols-12 gap-4 items-center">
-                    {/* Class Info */}
-                    <div className="col-span-3">
-                      <div className="flex items-start gap-3">
-                        <div className={`
-                          w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm
-                          ${overdue ? 'bg-red-500' : 'bg-indigo-500'}
-                        `}>
-                          #{session.session_number}
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-slate-900 line-clamp-1">
-                            {session.classes?.name}
-                          </h4>
-                          <p className="text-xs text-slate-500">
-                            {session.classes?.code}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Time */}
-                    <div className="col-span-2">
-                      <div className="flex items-center gap-1.5 text-sm">
-                        <Clock className="w-4 h-4 text-slate-400" />
-                        <span className="text-slate-700">
-                          {formatTime(session.start_time)} - {formatTime(session.end_time)}
-                        </span>
-                      </div>
-                      {session.duration_hours && (
-                        <p className="text-xs text-slate-500 ml-5.5">
-                          ({session.duration_hours}h)
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Teacher */}
-                    <div className="col-span-2">
-                      <div className="flex items-center gap-2">
-                        {session.users?.avatar_url ? (
-                          <img 
-                            src={session.users.avatar_url} 
-                            alt="" 
-                            className="w-7 h-7 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center">
-                            <User className="w-4 h-4 text-slate-500" />
+              {/* Sessions for this date */}
+              {dateSessions.map((session) => {
+                const displayStatus = getDisplayStatus(session);
+                const statusConfig = STATUS_CONFIG[displayStatus] || STATUS_CONFIG.scheduled;
+                const timeInfo = getTimeInfo(session);
+                const StatusIcon = statusConfig.icon;
+                
+                return (
+                  <div 
+                    key={session.id}
+                    className={`
+                      px-4 py-3 hover:bg-slate-50 transition-colors border-l-4
+                      ${displayStatus === 'overdue' ? 'bg-red-50/30 border-l-red-500' : 
+                        displayStatus === 'in_progress' ? 'bg-amber-50/30 border-l-amber-500' :
+                        displayStatus === 'completed' ? 'border-l-green-500' :
+                        displayStatus === 'cancelled' ? 'border-l-slate-300 opacity-60' : 'border-l-blue-500'}
+                    `}
+                  >
+                    <div className="grid grid-cols-12 gap-4 items-center">
+                      {/* Class Info */}
+                      <div className="col-span-3">
+                        <div className="flex items-start gap-3">
+                          <div className={`
+                            w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm shrink-0
+                            ${statusConfig.badgeColor}
+                          `}>
+                            #{session.session_number}
                           </div>
-                        )}
-                        <span className="text-sm text-slate-700 line-clamp-1">
-                          {session.users?.full_name || 'Chưa phân công'}
-                        </span>
+                          <div className="min-w-0">
+                            <h4 className={`font-medium text-slate-900 line-clamp-1 ${
+                              displayStatus === 'cancelled' ? 'line-through' : ''
+                            }`}>
+                              {session.classes?.name}
+                            </h4>
+                            <p className="text-xs text-slate-500">
+                              {session.classes?.code}
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Room */}
-                    <div className="col-span-2">
-                      <div className="flex items-center gap-1.5 text-sm text-slate-600">
-                        <MapPin className="w-4 h-4 text-slate-400" />
-                        <span className="line-clamp-1">
-                          {session.classes?.rooms?.name || 'Chưa xếp phòng'}
-                        </span>
-                      </div>
-                      {session.classes?.centers?.name && (
-                        <p className="text-xs text-slate-500 ml-5.5 line-clamp-1">
-                          {session.classes.centers.name}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Status */}
-                    <div className="col-span-2">
-                      <div className="flex items-center gap-2">
-                        {overdue ? (
-                          <span className="px-2.5 py-1 rounded-full text-xs font-bold border bg-red-600 text-white border-red-600 animate-pulse">
-                            <AlertTriangle className="w-3 h-3 inline mr-1" />
-                            QUÁ HẠN
+                      {/* Time */}
+                      <div className="col-span-2">
+                        <div className="flex items-center gap-1.5 text-sm">
+                          <Clock className="w-4 h-4 text-slate-400 shrink-0" />
+                          <span className="text-slate-700">
+                            {formatTime(session.start_time)} - {formatTime(session.end_time)}
                           </span>
-                        ) : (
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${statusConfig.color}`}>
+                        </div>
+                        {/* Time info badge */}
+                        <div className={`mt-1 text-xs font-medium px-1.5 py-0.5 rounded inline-block ${
+                          timeInfo.type === 'danger' ? 'bg-red-100 text-red-700' :
+                          timeInfo.type === 'warning' ? 'bg-amber-100 text-amber-700' :
+                          timeInfo.type === 'success' ? 'bg-green-100 text-green-700' :
+                          'bg-slate-100 text-slate-600'
+                        }`}>
+                          {timeInfo.text}
+                        </div>
+                      </div>
+
+                      {/* Teacher */}
+                      <div className="col-span-2">
+                        <div className="flex items-center gap-2">
+                          {session.users?.avatar_url ? (
+                            <img 
+                              src={session.users.avatar_url} 
+                              alt="" 
+                              className="w-7 h-7 rounded-full object-cover shrink-0"
+                            />
+                          ) : (
+                            <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
+                              <User className="w-4 h-4 text-slate-500" />
+                            </div>
+                          )}
+                          <span className="text-sm text-slate-700 line-clamp-1">
+                            {session.users?.full_name || 'Chưa phân công'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Room */}
+                      <div className="col-span-2">
+                        <div className="flex items-center gap-1.5 text-sm text-slate-600">
+                          <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
+                          <span className="line-clamp-1">
+                            {session.classes?.rooms?.name || (
+                              <span className="text-amber-600">Chưa xếp phòng</span>
+                            )}
+                          </span>
+                        </div>
+                        {session.classes?.centers?.name && (
+                          <p className="text-xs text-slate-500 ml-5.5 line-clamp-1">
+                            {session.classes.centers.name}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Status */}
+                      <div className="col-span-2">
+                        <div className="flex flex-col gap-1">
+                          <span 
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border w-fit ${statusConfig.color}`}
+                            title={statusConfig.description}
+                          >
+                            <StatusIcon className="w-3.5 h-3.5" />
                             {statusConfig.label}
                           </span>
-                        )}
-                        {session.is_locked && (
-                          <span className="text-xs text-slate-400" title="Đã khóa sổ">
-                            🔒
-                          </span>
-                        )}
+                          {session.is_locked && (
+                            <span className="text-xs text-slate-500 flex items-center gap-1">
+                              🔒 Đã khóa sổ
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Actions - Dropdown Menu */}
+                      <div className="col-span-1 flex justify-end">
+                        <SessionActionMenu 
+                          session={{...session, displayStatus}}
+                          onAction={onAction}
+                        />
                       </div>
                     </div>
-
-                    {/* Actions - Dropdown Menu */}
-                    <div className="col-span-1 flex justify-end">
-                      <SessionActionMenu 
-                        session={session}
-                        onAction={onAction}
-                      />
-                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        ))}
+                );
+              })}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

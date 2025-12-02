@@ -35,6 +35,7 @@ const menuGroups = [
       { label: 'Khóa học', icon: BookOpen, path: '/admin/courses' },
       { label: 'Lớp học', icon: GraduationCap, path: '/admin/classes' },
       { label: 'Lịch dạy', icon: CalendarCheck, path: '/admin/schedule' },
+      { label: 'Phòng học', icon: DoorOpen, path: '/admin/rooms' },
       { label: 'Xếp lịch', icon: Calendar, path: '/admin/scheduler' },
     ],
   },
@@ -59,7 +60,6 @@ const menuGroups = [
     title: 'HỆ THỐNG',
     items: [
       { label: 'Trung tâm', icon: Building2, path: '/admin/centers' },
-      { label: 'Phòng học', icon: DoorOpen, path: '/admin/rooms' },
     ],
   },
 ];

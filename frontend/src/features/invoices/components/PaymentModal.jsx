@@ -59,7 +59,7 @@ export function PaymentModal({
       <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
         
         {/* Header */}
-        <div className="bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-3 text-white flex-shrink-0">
+        <div className="bg-linear-to-r from-emerald-500 to-teal-600 px-4 py-3 text-white shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="p-1.5 bg-white/20 rounded-lg">

@@ -25,7 +25,8 @@ import {
   QuickAttendanceModal,
   ChangeTeacherModal,
   ChangeRoomModal,
-  CancelSessionModal
+  CancelSessionModal,
+  SessionDetailModal
 } from '../components';
 
 export function SchedulePage() {
@@ -49,7 +50,8 @@ export function SchedulePage() {
     attendance: false,
     changeTeacher: false,
     changeRoom: false,
-    cancel: false
+    cancel: false,
+    detail: false
   });
 
   // Open a modal
@@ -85,8 +87,7 @@ export function SchedulePage() {
         openModal('cancel', session);
         break;
       case 'view':
-        console.log('View session:', session);
-        // TODO: Navigate or open detail modal
+        openModal('detail', session);
         break;
       default:
         console.log('Unknown action:', actionId);
@@ -139,8 +140,8 @@ export function SchedulePage() {
         {/* Filters */}
         <SessionFilters
           filters={filters}
-          onFiltersChange={updateFilters}
-          onPresetSelect={applyPreset}
+          onFilterChange={updateFilters}
+          onPresetClick={applyPreset}
           options={filterOptions}
         />
 
@@ -187,6 +188,12 @@ export function SchedulePage() {
         onClose={() => closeModal('cancel')}
         session={selectedSession}
         onSuccess={handleSuccess}
+      />
+
+      <SessionDetailModal
+        isOpen={modals.detail}
+        onClose={() => closeModal('detail')}
+        session={selectedSession}
       />
     </div>
   );

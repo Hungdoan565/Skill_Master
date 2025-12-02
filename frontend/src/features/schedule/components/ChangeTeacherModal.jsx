@@ -129,7 +129,7 @@ export function ChangeTeacherModal({
       {/* Modal */}
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 text-white">
+        <div className="bg-linear-to-r from-red-500 to-orange-500 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/20 rounded-lg">
@@ -208,7 +208,7 @@ export function ChangeTeacherModal({
                     {/* Avatar */}
                     <div className={`
                       w-12 h-12 rounded-full flex items-center justify-center text-white font-bold
-                      ${isDisabled ? 'bg-slate-400' : 'bg-gradient-to-br from-blue-500 to-indigo-500'}
+                      ${isDisabled ? 'bg-slate-400' : 'bg-linear-to-br from-blue-500 to-indigo-500'}
                     `}>
                       {teacher.avatar_url ? (
                         <img src={teacher.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />

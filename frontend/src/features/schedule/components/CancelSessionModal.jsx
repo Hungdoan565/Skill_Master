@@ -96,7 +96,7 @@ export function CancelSessionModal({
       {/* Modal */}
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-600 to-rose-600 px-6 py-4 text-white">
+        <div className="bg-linear-to-r from-red-500 to-orange-500 px-6 py-4 text-white">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/20 rounded-lg">
@@ -117,7 +117,7 @@ export function CancelSessionModal({
 
         {/* Warning */}
         <div className="mx-6 mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           <div className="text-sm">
             <p className="font-medium text-amber-800">Lưu ý quan trọng</p>
             <p className="text-amber-700 mt-1">

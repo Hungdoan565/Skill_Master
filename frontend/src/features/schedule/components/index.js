@@ -10,3 +10,4 @@ export { QuickAttendanceModal } from './QuickAttendanceModal';
 export { ChangeTeacherModal } from './ChangeTeacherModal';
 export { ChangeRoomModal } from './ChangeRoomModal';
 export { CancelSessionModal } from './CancelSessionModal';
+export { SessionDetailModal } from './SessionDetailModal';

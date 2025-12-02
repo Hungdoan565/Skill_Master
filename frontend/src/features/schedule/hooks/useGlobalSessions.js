@@ -102,6 +102,35 @@ export function useGlobalSessions(initialFilters = {}) {
   }, []);
 
   // Quick filter presets
+  const applyPreset = useCallback((preset) => {
+    const today = new Date();
+    
+    switch (preset) {
+      case 'today': {
+        const todayStr = formatDate(today);
+        updateFilters({ startDate: todayStr, endDate: todayStr });
+        break;
+      }
+      case 'week': {
+        const dayOfWeek = today.getDay();
+        const monday = new Date(today);
+        monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        updateFilters({ startDate: formatDate(monday), endDate: formatDate(sunday) });
+        break;
+      }
+      case 'month': {
+        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+        const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        updateFilters({ startDate: formatDate(firstDay), endDate: formatDate(lastDay) });
+        break;
+      }
+      default:
+        break;
+    }
+  }, [updateFilters]);
+
   const setToday = useCallback(() => {
     const today = getToday();
     updateFilters({ startDate: today, endDate: today });
@@ -173,14 +202,19 @@ export function useGlobalSessions(initialFilters = {}) {
     error,
     filters,
     updateFilters,
+    fetchSessions,
     refetch: fetchSessions,
     // Quick filters
+    applyPreset,
     setToday,
     setThisWeek,
     setThisMonth,
     // Actions
+    markSessionStatus: markCompleted,
     markCompleted,
-    cancelSession
+    cancelSession,
+    // Filter options placeholder
+    filterOptions: {}
   };
 }
 
