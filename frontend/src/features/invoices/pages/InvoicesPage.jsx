@@ -1,0 +1,264 @@
+/**
+ * InvoicesPage - Main Page Component
+ * 
+ * ============================================
+ * REFACTORED VERSION - ~150 LINES
+ * ============================================
+ * 
+ * Đây là "Orchestrator" - chỉ làm nhiệm vụ:
+ * 1. Gọi các hooks để lấy data
+ * 2. Ghép các component con lại với nhau
+ * 3. Truyền props xuống các component
+ * 
+ * KHÔNG CHỨA:
+ * - Business logic
+ * - API calls trực tiếp
+ * - Complex state management
+ * - Inline component definitions
+ */
+
+import { useState, useCallback } from 'react';
+import { useAuth } from '@/contexts/auth-context';
+import { Download, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+// Feature imports - Clean và dễ đọc
+import { 
+  InvoiceStats,
+  InvoiceFilters,
+  InvoiceTable,
+  PaymentModal,
+  InvoiceDetailModal,
+  Toast
+} from '../components';
+
+import { 
+  useInvoices, 
+  useInvoiceStats, 
+  usePayment 
+} from '../hooks';
+
+import { API_URL } from '../utils/constants';
+import { exportInvoicesToExcel } from '../utils/exportExcel';
+
+export function InvoicesPage() {
+  const { session } = useAuth();
+  
+  // ============================================
+  // HOOKS - Data & Logic
+  // ============================================
+  const {
+    invoices,
+    loading,
+    pagination,
+    filters,
+    handlePageChange,
+    handleFilterChange,
+    resetFilters,
+    hasActiveFilters,
+    refresh: refreshInvoices
+  } = useInvoices();
+
+  const {
+    statistics,
+    loading: loadingStats,
+    refresh: refreshStats
+  } = useInvoiceStats();
+
+  // ============================================
+  // LOCAL STATE - UI only
+  // ============================================
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  
+  // Invoice Detail Modal
+  const [detailModal, setDetailModal] = useState({
+    isOpen: false,
+    invoice: null,
+    loading: false
+  });
+
+  // ============================================
+  // TOAST HELPERS
+  // ============================================
+  const showToast = useCallback((message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
+  }, []);
+
+  const closeToast = useCallback(() => {
+    setToast({ show: false, message: '', type: 'success' });
+  }, []);
+
+  // ============================================
+  // PAYMENT HOOK - With callbacks
+  // ============================================
+  const payment = usePayment({
+    onSuccess: (message) => {
+      showToast(message, 'success');
+      refreshInvoices();
+      refreshStats();
+    },
+    onError: (message) => {
+      showToast(message, 'error');
+    }
+  });
+
+  // ============================================
+  // HANDLERS
+  // ============================================
+  const handleRefresh = useCallback(() => {
+    refreshInvoices();
+    refreshStats();
+  }, [refreshInvoices, refreshStats]);
+
+  const handleStatusClick = useCallback((status) => {
+    handleFilterChange('status', status);
+  }, [handleFilterChange]);
+
+  const handleViewDetail = useCallback(async (invoice) => {
+    setDetailModal({ isOpen: true, invoice: null, loading: true });
+    
+    try {
+      const res = await fetch(`${API_URL}/api/invoices/${invoice.id}`, {
+        headers: { Authorization: `Bearer ${session?.access_token}` }
+      });
+      const result = await res.json();
+      
+      if (result.success) {
+        setDetailModal({ isOpen: true, invoice: result.data, loading: false });
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error) {
+      console.error('Error fetching invoice detail:', error);
+      showToast('Lỗi khi tải chi tiết hóa đơn', 'error');
+      setDetailModal({ isOpen: false, invoice: null, loading: false });
+    }
+  }, [session?.access_token, showToast]);
+
+  const handleCloseDetail = useCallback(() => {
+    setDetailModal({ isOpen: false, invoice: null, loading: false });
+  }, []);
+
+  const handleExport = useCallback(async () => {
+    try {
+      await exportInvoicesToExcel(invoices);
+      showToast(`Đã xuất ${invoices.length} hóa đơn ra file Excel`, 'success');
+    } catch (error) {
+      console.error('Export error:', error);
+      showToast('Lỗi khi xuất Excel. Vui lòng thử lại.', 'error');
+    }
+  }, [invoices, showToast]);
+
+  // ============================================
+  // RENDER - Clean JSX
+  // ============================================
+  return (
+    <div className="min-h-screen bg-stone-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        {/* Header */}
+        <PageHeader 
+          onRefresh={handleRefresh}
+          onExport={handleExport}
+          loading={loading}
+          canExport={invoices.length > 0}
+        />
+
+        {/* KPI Stats */}
+        <InvoiceStats
+          statistics={statistics}
+          loading={loadingStats}
+          onStatusClick={handleStatusClick}
+        />
+
+        {/* Filters */}
+        <InvoiceFilters
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          onReset={resetFilters}
+          hasActiveFilters={hasActiveFilters}
+        />
+
+        {/* Data Table */}
+        <InvoiceTable
+          invoices={invoices}
+          loading={loading}
+          pagination={pagination}
+          onPageChange={handlePageChange}
+          onViewDetail={handleViewDetail}
+          onPayment={payment.openPayment}
+        />
+
+        {/* Payment Modal */}
+        <PaymentModal
+          isOpen={payment.isOpen}
+          invoice={payment.selectedInvoice}
+          formData={payment.formData}
+          processing={payment.processing}
+          onClose={payment.closePayment}
+          onFormChange={payment.updateFormData}
+          onSubmit={payment.submitPayment}
+        />
+
+        {/* Detail Modal */}
+        <InvoiceDetailModal
+          isOpen={detailModal.isOpen}
+          invoice={detailModal.invoice}
+          loading={detailModal.loading}
+          onClose={handleCloseDetail}
+        />
+
+        {/* Toast Notification */}
+        <Toast
+          show={toast.show}
+          message={toast.message}
+          type={toast.type}
+          onClose={closeToast}
+        />
+
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// PAGE HEADER - Simple sub-component
+// ============================================
+function PageHeader({ onRefresh, onExport, loading, canExport }) {
+  return (
+    <div className="mb-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-zinc-900">Quản lý Hóa đơn</h1>
+          <p className="text-sm text-zinc-500 mt-1">
+            Theo dõi công nợ và thanh toán học phí
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRefresh}
+            disabled={loading}
+            className="gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Làm mới
+          </Button>
+          <Button
+            size="sm"
+            onClick={onExport}
+            disabled={!canExport}
+            className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+          >
+            <Download className="w-4 h-4" />
+            Xuất Excel
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default InvoicesPage;

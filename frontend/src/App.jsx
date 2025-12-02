@@ -10,14 +10,15 @@ import {
 } from 'react-router-dom';
 import { ChevronDown, LogOut, User, Settings, HelpCircle, LayoutDashboard } from 'lucide-react';
 import { AdminLayout } from '@/layouts/admin-layout';
-import { DashboardPage } from '@/pages/admin/dashboard-page';
-import { CoursesPage } from '@/pages/admin/courses-page';
-import { ClassesPage } from '@/pages/admin/classes-page';
-import { ClassDetailPage } from '@/pages/admin/class-detail-page';
-import { RoomsPage } from '@/pages/admin/rooms-page';
-import { StaffPage } from '@/pages/admin/staff-page';
-import { StudentsPage } from '@/pages/admin/students-page';
-import InvoicesPage from '@/pages/admin/invoices-page';
+// REFACTORED: Import từ feature modules thay vì file monolithic
+import { InvoicesPage } from '@/features/invoices';
+import { ClassDetailPage } from '@/features/classes';
+import { CoursesPage } from '@/features/courses';
+import { ClassesPage } from '@/features/classes-list';
+import { DashboardPage } from '@/features/dashboard';
+import { StaffPage } from '@/features/staff';
+import { RoomsPage } from '@/features/rooms';
+import { StudentsPage } from '@/features/students';
 import { LoginPage } from '@/pages/auth/login-page';
 import { AuthPage } from '@/pages/auth/auth-page';
 import { LandingPage } from '@/pages/landing/landing-page';

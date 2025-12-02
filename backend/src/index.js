@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { supabase, getDbStatus } from './lib/db.js';
 import { requireAuth, requireRole } from './middleware/auth.js';
+import { checkScheduleConflict } from './lib/schedule-conflict.js';
 
 dotenv.config();
 
@@ -929,6 +930,28 @@ app.post('/api/admin/classes', requireAuth, async (req, res, next) => {
       });
     }
 
+    // ========================================
+    // 🔥 KIỂM TRA XUNG ĐỘT LỊCH HỌC
+    // ========================================
+    if ((room_id || teacher_id) && start_date && end_date && schedule && schedule.length > 0) {
+      const conflictCheck = await checkScheduleConflict(supabase, {
+        room_id,
+        teacher_id,
+        start_date,
+        end_date,
+        schedule
+      });
+
+      if (conflictCheck.hasConflict) {
+        console.log(`⚠️ Phát hiện xung đột lịch:`, conflictCheck.conflicts);
+        return res.status(409).json({
+          success: false,
+          message: conflictCheck.summary || 'Phát hiện xung đột lịch học',
+          conflicts: conflictCheck.conflicts
+        });
+      }
+    }
+
     // Tự động tạo mã lớp nếu không truyền
     if (!code) {
       const randomNum = Math.floor(100000 + Math.random() * 900000);
@@ -1010,6 +1033,30 @@ app.put('/api/admin/classes/:id', requireAuth, async (req, res, next) => {
 
     delete updates.id;
     delete updates.created_at;
+
+    // ========================================
+    // 🔥 KIỂM TRA XUNG ĐỘT LỊCH HỌC KHI UPDATE
+    // ========================================
+    const { room_id, teacher_id, start_date, end_date, schedule } = updates;
+    
+    if ((room_id || teacher_id) && start_date && end_date && schedule && schedule.length > 0) {
+      const conflictCheck = await checkScheduleConflict(supabase, {
+        room_id,
+        teacher_id,
+        start_date,
+        end_date,
+        schedule
+      }, id); // Loại trừ chính lớp đang update
+
+      if (conflictCheck.hasConflict) {
+        console.log(`⚠️ Phát hiện xung đột lịch khi update:`, conflictCheck.conflicts);
+        return res.status(409).json({
+          success: false,
+          message: conflictCheck.summary || 'Phát hiện xung đột lịch học',
+          conflicts: conflictCheck.conflicts
+        });
+      }
+    }
 
     const { data, error } = await supabase
       .from('classes')
