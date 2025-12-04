@@ -90,6 +90,15 @@ export function HolidayManagementModal({
     fetchHolidays();
   }, [isOpen]);
 
+  // ESC key handler
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen) onClose?.();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   // Handle save
   const handleSave = async () => {
     if (!formData.date || !formData.name) {
@@ -212,16 +221,24 @@ export function HolidayManagementModal({
       />
       
       {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl m-4 max-h-[90vh] overflow-hidden flex flex-col">
+      <div 
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl m-4 max-h-[90vh] overflow-hidden flex flex-col"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="holiday-dialog-title"
+      >
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-600 to-orange-600 px-6 py-4 flex-shrink-0">
+        <div className="bg-linear-to-r from-red-600 to-orange-600 px-6 py-4 shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/20 rounded-lg">
                 <CalendarOff className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-white">Quản lý Ngày Nghỉ Lễ</h2>
+                <h2 
+                  className="text-lg font-semibold text-white"
+                  id="holiday-dialog-title"
+                >Quản Lý Ngày Lễ</h2>
                 <p className="text-red-100 text-sm">
                   Các buổi học rơi vào ngày nghỉ sẽ được bỏ qua
                 </p>
@@ -401,7 +418,7 @@ export function HolidayManagementModal({
         </div>
         
         {/* Footer */}
-        <div className="px-6 py-4 bg-slate-50 border-t flex-shrink-0">
+        <div className="px-6 py-4 bg-slate-50 border-t shrink-0">
           <Button
             variant="outline"
             className="w-full"

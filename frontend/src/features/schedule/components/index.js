@@ -22,3 +22,4 @@ export { ScheduleExceptionModal } from './ScheduleExceptionModal';
 
 // UI Components
 export { ConfirmModal } from './ConfirmModal';
+export { CalendarSkeleton } from './CalendarSkeleton';

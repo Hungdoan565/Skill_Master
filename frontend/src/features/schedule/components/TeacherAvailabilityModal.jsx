@@ -116,6 +116,15 @@ export function TeacherAvailabilityModal({
     fetchTeachers();
   }, [isOpen, teacher?.id]);
 
+  // ESC key handler
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen) onClose?.();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   // Fetch availability when teacher is selected
   useEffect(() => {
     if (!isOpen || !selectedTeacher?.id) return;
@@ -263,16 +272,24 @@ export function TeacherAvailabilityModal({
       />
       
       {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl m-4 max-h-[90vh] overflow-hidden flex flex-col">
+      <div 
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl m-4 max-h-[90vh] overflow-hidden flex flex-col"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="teacher-avail-dialog-title"
+      >
         {/* Header */}
-        <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-4 flex-shrink-0">
+        <div className="bg-linear-to-r from-indigo-600 to-violet-600 px-6 py-4 shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/20 rounded-lg">
                 <UserCog className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-white">Lịch Rảnh/Bận Giáo Viên</h2>
+                <h2 
+                  className="text-lg font-semibold text-white"
+                  id="teacher-avail-dialog-title"
+                >Lịch Rảnh/Bận Giáo Viên</h2>
                 <p className="text-indigo-100 text-sm">
                   {selectedTeacher?.full_name || 'Chọn giáo viên để quản lý lịch'}
                 </p>
@@ -571,7 +588,7 @@ export function TeacherAvailabilityModal({
         </div>
         
         {/* Footer */}
-        <div className="px-6 py-4 bg-slate-50 border-t flex-shrink-0">
+        <div className="px-6 py-4 bg-slate-50 border-t shrink-0">
           <Button
             variant="outline"
             className="w-full"

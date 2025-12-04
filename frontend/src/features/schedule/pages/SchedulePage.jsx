@@ -40,7 +40,8 @@ import {
   HolidayManagementModal,
   MakeupClassModal,
   TeacherAvailabilityModal,
-  ScheduleExceptionModal
+  ScheduleExceptionModal,
+  ConfirmModal
 } from '../components';
 
 export function SchedulePage() {
@@ -73,7 +74,8 @@ export function SchedulePage() {
     holiday: false,
     makeup: false,
     teacherAvailability: false,
-    scheduleException: false
+    scheduleException: false,
+    confirmComplete: false
   });
 
   // Open a modal
@@ -94,10 +96,7 @@ export function SchedulePage() {
         openModal('attendance', session);
         break;
       case 'complete':
-        if (confirm(`Xác nhận hoàn thành buổi học #${session.session_number}?`)) {
-          const success = await markSessionStatus(session.id, 'completed');
-          if (!success) alert('Không thể cập nhật trạng thái');
-        }
+        openModal('confirmComplete', session);
         break;
       case 'changeTeacher':
         openModal('changeTeacher', session);
@@ -311,6 +310,23 @@ export function SchedulePage() {
         onClose={() => closeModal('scheduleException')}
         session={selectedSession}
         onSuccess={handleSuccess}
+      />
+
+      {/* Confirm Complete Modal */}
+      <ConfirmModal
+        isOpen={modals.confirmComplete}
+        onClose={() => closeModal('confirmComplete')}
+        onConfirm={async () => {
+          const success = await markSessionStatus(selectedSession?.id, 'completed');
+          if (success) {
+            handleSuccess();
+            closeModal('confirmComplete');
+          }
+        }}
+        type="success"
+        title="Xác nhận hoàn thành"
+        message={`Bạn muốn đánh dấu buổi học #${selectedSession?.session_number} là hoàn thành?`}
+        confirmText="Xác nhận"
       />
     </div>
   );

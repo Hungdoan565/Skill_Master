@@ -2,7 +2,7 @@
  * ExportScheduleModal - Modal xuất lịch dạy ra PDF/Excel
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   X, 
   Download,
@@ -240,6 +240,15 @@ export function ExportScheduleModal({
   const [exporting, setExporting] = useState(null); // 'csv' | 'pdf' | null
   const [success, setSuccess] = useState(null);
 
+  // ESC key handler
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen) onClose?.();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleExportCSV = async () => {
@@ -308,16 +317,24 @@ export function ExportScheduleModal({
       />
       
       {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md m-4 overflow-hidden">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4">
-          <div className="flex items-center justify-between">
+      <div 
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md m-4 overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="export-dialog-title"
+      >
+      {/* Header */}
+      <div className="bg-linear-to-r from-indigo-600 to-purple-600 px-6 py-4">
+        <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/20 rounded-lg">
                 <Download className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-white">Xuất Lịch Dạy</h2>
+                <h2 
+                  className="text-lg font-semibold text-white"
+                  id="export-dialog-title"
+                >Xuất Lịch Dạy</h2>
                 <p className="text-indigo-100 text-sm">{sessions.length} buổi học</p>
               </div>
             </div>

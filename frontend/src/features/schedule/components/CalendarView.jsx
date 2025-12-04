@@ -19,6 +19,7 @@ import {
   PlayCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { CalendarSkeleton } from './CalendarSkeleton';
 
 // ============================================
 // CONSTANTS
@@ -171,7 +172,7 @@ function SessionCard({ session, onClick, compact = false }) {
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${config.dot}`} />
+            <span className={`w-2 h-2 rounded-full shrink-0 ${config.dot}`} />
             <span className={`font-medium text-sm truncate ${config.text}`}>
               {session.classes?.name || 'N/A'}
             </span>
@@ -252,7 +253,7 @@ function WeekView({ sessions, currentDate, onSessionClick }) {
       {/* Time Grid */}
       <div className="max-h-[600px] overflow-y-auto">
         {WORK_HOURS.map(hour => (
-          <div key={hour} className="grid grid-cols-8 border-b border-slate-100 min-h-[80px]">
+          <div key={hour} className="grid grid-cols-8 border-b border-slate-100 min-h-20">
             {/* Hour label */}
             <div className="p-2 border-r border-slate-200 bg-slate-50">
               <span className="text-xs font-medium text-slate-500">
@@ -353,7 +354,7 @@ function MonthView({ sessions, currentDate, onSessionClick }) {
               </div>
               
               {/* Sessions */}
-              <div className="space-y-0.5 max-h-[80px] overflow-y-auto">
+              <div className="space-y-0.5 max-h-20 overflow-y-auto">
                 {daySessions.slice(0, 3).map(session => (
                   <SessionCard 
                     key={session.id} 
@@ -381,6 +382,7 @@ function MonthView({ sessions, currentDate, onSessionClick }) {
 // ============================================
 export function CalendarView({ 
   sessions = [], 
+  loading = false,
   onSessionClick,
   onDateChange,
   initialView = 'week'
@@ -480,6 +482,11 @@ export function CalendarView({
 
   return (
     <div className="space-y-4">
+      {/* Show loading skeleton */}
+      {loading ? (
+        <CalendarSkeleton />
+      ) : (
+      <>
       {/* Calendar Header */}
       <div className="flex items-center justify-between">
         {/* Navigation */}
@@ -574,6 +581,8 @@ export function CalendarView({
           currentDate={currentDate}
           onSessionClick={onSessionClick}
         />
+      )}
+      </>
       )}
     </div>
   );

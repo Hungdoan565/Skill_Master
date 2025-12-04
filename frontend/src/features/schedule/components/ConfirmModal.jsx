@@ -3,6 +3,7 @@
  * Thiết kế đẹp, đồng bộ với UI hệ thống
  */
 
+import { useEffect } from 'react';
 import { 
   AlertTriangle, 
   Trash2,
@@ -59,12 +60,21 @@ export function ConfirmModal({
   const config = MODAL_TYPES[type] || MODAL_TYPES.info;
   const Icon = config.icon;
 
+  // ESC key handler
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose?.();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   const handleConfirm = () => {
     onConfirm?.();
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center">
+    <div className="fixed inset-0 z-60 flex items-center justify-center">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -72,7 +82,12 @@ export function ConfirmModal({
       />
       
       {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md m-4 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div 
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md m-4 overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-dialog-title"
+      >
         {/* Close button */}
         <button
           onClick={onClose}
@@ -89,7 +104,10 @@ export function ConfirmModal({
           </div>
           
           {/* Title */}
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">
+          <h3 
+            className="text-lg font-semibold text-slate-900 mb-2"
+            id="confirm-dialog-title"
+          >
             {title || config.title}
           </h3>
           

@@ -98,6 +98,15 @@ export function ScheduleExceptionModal({
     }
   }, [isOpen]);
 
+  // ESC key handler
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen) onClose?.();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   // Get week dates from a date
   const getWeekRange = (dateStr) => {
     if (!dateStr) return '';
@@ -181,16 +190,24 @@ export function ScheduleExceptionModal({
       />
       
       {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg m-4 overflow-hidden">
+      <div 
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg m-4 overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="exception-dialog-title"
+      >
         {/* Header */}
-        <div className="bg-gradient-to-r from-orange-600 to-red-600 px-6 py-4">
+        <div className="bg-linear-to-r from-orange-600 to-red-600 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/20 rounded-lg">
                 <CalendarX2 className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-white">Ngoại Lệ Lịch Học</h2>
+                <h2 
+                  className="text-lg font-semibold text-white"
+                  id="exception-dialog-title"
+                >Ngoại Lệ Lịch Học</h2>
                 <p className="text-orange-100 text-sm">
                   {classData?.name || 'Lớp học'}
                 </p>

@@ -53,6 +53,15 @@ export function MakeupClassModal({
     }
   }, [isOpen]);
 
+  // ESC key handler
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && isOpen) onClose?.();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   // Fetch available slots when date is selected
   useEffect(() => {
     if (!selectedDate || !originalSession) return;
@@ -151,16 +160,24 @@ export function MakeupClassModal({
       />
       
       {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg m-4 overflow-hidden">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-cyan-600 px-6 py-4">
-          <div className="flex items-center justify-between">
+      <div 
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg m-4 overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="makeup-dialog-title"
+      >
+      {/* Header */}
+      <div className="bg-linear-to-r from-blue-600 to-cyan-600 px-6 py-4">
+        <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/20 rounded-lg">
                 <CalendarPlus className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-white">Tạo Buổi Học Bù</h2>
+                <h2 
+                  className="text-lg font-semibold text-white"
+                  id="makeup-dialog-title"
+                >Tạo Buổi Học Bù</h2>
                 <p className="text-blue-100 text-sm">
                   {student?.full_name || 'Học viên'}
                 </p>
