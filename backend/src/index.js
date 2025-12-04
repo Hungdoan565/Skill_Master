@@ -4316,6 +4316,338 @@ app.put('/api/invoices/:id', requireAuth, async (req, res, next) => {
 // END INVOICES APIs
 // ============================================================
 
+// ============================================================
+// HOLIDAYS APIs - Quản lý ngày lễ/nghỉ
+// ============================================================
+
+/**
+ * GET /api/admin/holidays - Lấy danh sách ngày lễ
+ */
+app.get('/api/admin/holidays', requireAuth, async (req, res, next) => {
+  try {
+    const { year } = req.query;
+    
+    let query = supabase
+      .from('holidays')
+      .select('*')
+      .order('date', { ascending: true });
+    
+    if (year) {
+      query = query
+        .gte('date', `${year}-01-01`)
+        .lte('date', `${year}-12-31`);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: data || []
+    });
+  } catch (error) {
+    console.error('Error fetching holidays:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/holidays - Thêm ngày lễ mới
+ */
+app.post('/api/admin/holidays', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { name, date, description, is_recurring } = req.body;
+
+    if (!name || !date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tên và ngày là bắt buộc'
+      });
+    }
+
+    const { data, error } = await supabase
+      .from('holidays')
+      .insert({
+        name,
+        date,
+        description,
+        is_recurring: is_recurring || false,
+        created_by: req.user.id
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json({
+      success: true,
+      message: 'Thêm ngày lễ thành công',
+      data
+    });
+  } catch (error) {
+    console.error('Error creating holiday:', error);
+    next(error);
+  }
+});
+
+/**
+ * PUT /api/admin/holidays/:id - Cập nhật ngày lễ
+ */
+app.put('/api/admin/holidays/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { name, date, description, is_recurring } = req.body;
+
+    const { data, error } = await supabase
+      .from('holidays')
+      .update({
+        name,
+        date,
+        description,
+        is_recurring,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: 'Cập nhật ngày lễ thành công',
+      data
+    });
+  } catch (error) {
+    console.error('Error updating holiday:', error);
+    next(error);
+  }
+});
+
+/**
+ * DELETE /api/admin/holidays/:id - Xóa ngày lễ
+ */
+app.delete('/api/admin/holidays/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const { error } = await supabase
+      .from('holidays')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: 'Xóa ngày lễ thành công'
+    });
+  } catch (error) {
+    console.error('Error deleting holiday:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// TEACHER AVAILABILITY APIs - Quản lý lịch trống của GV
+// ============================================================
+
+/**
+ * GET /api/admin/teacher-availability/:teacherId - Lấy lịch trống của GV
+ */
+app.get('/api/admin/teacher-availability/:teacherId', requireAuth, async (req, res, next) => {
+  try {
+    const { teacherId } = req.params;
+
+    const { data, error } = await supabase
+      .from('teacher_availability')
+      .select('*')
+      .eq('teacher_id', teacherId)
+      .order('day_of_week', { ascending: true });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: data || []
+    });
+  } catch (error) {
+    console.error('Error fetching teacher availability:', error);
+    next(error);
+  }
+});
+
+/**
+ * PUT /api/admin/teacher-availability/:teacherId - Cập nhật lịch trống của GV
+ */
+app.put('/api/admin/teacher-availability/:teacherId', requireAuth, async (req, res, next) => {
+  try {
+    const { teacherId } = req.params;
+    const { slots } = req.body; // Array of { day_of_week, start_time, end_time }
+
+    // Xóa slots cũ
+    await supabase
+      .from('teacher_availability')
+      .delete()
+      .eq('teacher_id', teacherId);
+
+    // Thêm slots mới
+    if (slots && slots.length > 0) {
+      const slotsWithTeacher = slots.map(slot => ({
+        ...slot,
+        teacher_id: teacherId
+      }));
+
+      const { error: insertError } = await supabase
+        .from('teacher_availability')
+        .insert(slotsWithTeacher);
+
+      if (insertError) throw insertError;
+    }
+
+    res.json({
+      success: true,
+      message: 'Cập nhật lịch trống thành công'
+    });
+  } catch (error) {
+    console.error('Error updating teacher availability:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// MAKEUP SESSIONS APIs - Tạo buổi học bù
+// ============================================================
+
+/**
+ * POST /api/admin/sessions/makeup - Tạo buổi học bù
+ */
+app.post('/api/admin/sessions/makeup', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const { 
+      class_id, 
+      original_session_id,
+      student_ids, 
+      date, 
+      start_time, 
+      end_time, 
+      teacher_id, 
+      room_id,
+      notes 
+    } = req.body;
+
+    if (!class_id || !date || !start_time || !end_time) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu thông tin bắt buộc'
+      });
+    }
+
+    // Tạo session bù
+    const { data: sessionData, error: sessionError } = await supabase
+      .from('sessions')
+      .insert({
+        class_id,
+        session_number: 0, // Buổi bù đánh số 0
+        session_date: date,
+        start_time,
+        end_time,
+        teacher_id,
+        room_id,
+        status: 'upcoming',
+        is_makeup: true,
+        original_session_id,
+        notes
+      })
+      .select()
+      .single();
+
+    if (sessionError) throw sessionError;
+
+    // Nếu có danh sách học viên cần học bù, lưu vào bảng makeup_students
+    if (student_ids && student_ids.length > 0) {
+      const makeupRecords = student_ids.map(userId => ({
+        session_id: sessionData.id,
+        user_id: userId,
+        original_session_id
+      }));
+
+      const { error: makeupError } = await supabase
+        .from('makeup_students')
+        .insert(makeupRecords);
+
+      if (makeupError) {
+        console.error('Error adding makeup students:', makeupError);
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Tạo buổi học bù thành công',
+      data: sessionData
+    });
+  } catch (error) {
+    console.error('Error creating makeup session:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// SCHEDULE EXCEPTIONS APIs - Quản lý ngoại lệ lịch học
+// ============================================================
+
+/**
+ * POST /api/admin/sessions/:id/exception - Tạo ngoại lệ cho buổi học
+ */
+app.post('/api/admin/sessions/:id/exception', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { type, new_date, new_start_time, new_end_time, reason } = req.body;
+
+    // type: 'skip' | 'reschedule'
+    if (type === 'skip') {
+      // Hủy buổi học
+      const { error } = await supabase
+        .from('sessions')
+        .update({
+          status: 'cancelled',
+          notes: `Bỏ qua: ${reason}`,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+    } else if (type === 'reschedule') {
+      // Dời lịch học
+      const { error } = await supabase
+        .from('sessions')
+        .update({
+          session_date: new_date,
+          start_time: new_start_time,
+          end_time: new_end_time,
+          notes: `Dời lịch: ${reason}`,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+    }
+
+    res.json({
+      success: true,
+      message: type === 'skip' ? 'Đã bỏ qua buổi học' : 'Đã dời lịch thành công'
+    });
+  } catch (error) {
+    console.error('Error creating schedule exception:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// END NEW SCHEDULE FEATURES
+// ============================================================
+
 app.use((err, _req, res, _next) => {
   console.error('🔥 Lỗi hệ thống:', err); // Log ra terminal để em xem
   

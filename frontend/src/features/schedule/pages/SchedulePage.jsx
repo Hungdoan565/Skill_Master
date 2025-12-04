@@ -2,17 +2,25 @@
  * SchedulePage - Trang quản lý lịch học toàn hệ thống (Admin Macro-Management)
  * 
  * Tính năng:
- * - Xem tất cả buổi học theo ngày/tuần/tháng
+ * - Xem lịch dạng Table / Calendar (Week/Month)
  * - Filter theo trạng thái, giáo viên, cơ sở
  * - Điểm danh nhanh từ danh sách
  * - Xử lý sự cố: Đổi GV, Đổi phòng, Hủy buổi
  * - Highlight các buổi chưa điểm danh (overdue)
+ * - Export PDF/Excel
+ * - Quản lý ngày lễ
+ * - Tạo buổi học bù
  */
 
 import { useState } from 'react';
 import { 
   Calendar,
-  RefreshCw
+  RefreshCw,
+  Download,
+  CalendarOff,
+  LayoutGrid,
+  List,
+  Settings2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -26,7 +34,13 @@ import {
   ChangeTeacherModal,
   ChangeRoomModal,
   CancelSessionModal,
-  SessionDetailModal
+  SessionDetailModal,
+  CalendarView,
+  ExportScheduleModal,
+  HolidayManagementModal,
+  MakeupClassModal,
+  TeacherAvailabilityModal,
+  ScheduleExceptionModal
 } from '../components';
 
 export function SchedulePage() {
@@ -44,6 +58,9 @@ export function SchedulePage() {
     markSessionStatus
   } = useGlobalSessions();
 
+  // View mode: 'table' | 'calendar'
+  const [viewMode, setViewMode] = useState('table');
+
   // Modal states
   const [selectedSession, setSelectedSession] = useState(null);
   const [modals, setModals] = useState({
@@ -51,7 +68,12 @@ export function SchedulePage() {
     changeTeacher: false,
     changeRoom: false,
     cancel: false,
-    detail: false
+    detail: false,
+    export: false,
+    holiday: false,
+    makeup: false,
+    teacherAvailability: false,
+    scheduleException: false
   });
 
   // Open a modal
@@ -119,15 +141,70 @@ export function SchedulePage() {
               </div>
             </div>
             
-            <Button
-              variant="outline"
-              onClick={fetchSessions}
-              disabled={loading}
-              className="gap-2"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Làm mới
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* View Toggle */}
+              <div className="flex items-center bg-slate-100 rounded-lg p-1">
+                <Button
+                  variant={viewMode === 'table' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('table')}
+                  className="gap-1.5"
+                >
+                  <List className="w-4 h-4" />
+                  Bảng
+                </Button>
+                <Button
+                  variant={viewMode === 'calendar' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('calendar')}
+                  className="gap-1.5"
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                  Lịch
+                </Button>
+              </div>
+
+              {/* Action Buttons */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => openModal('export', null)}
+                className="gap-1.5"
+              >
+                <Download className="w-4 h-4" />
+                Xuất
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => openModal('holiday', null)}
+                className="gap-1.5"
+              >
+                <CalendarOff className="w-4 h-4" />
+                Ngày lễ
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => openModal('teacherAvailability', null)}
+                className="gap-1.5"
+              >
+                <Settings2 className="w-4 h-4" />
+                Lịch GV
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={fetchSessions}
+                disabled={loading}
+                className="gap-2"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                Làm mới
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -153,12 +230,21 @@ export function SchedulePage() {
           </div>
         )}
 
-        {/* Sessions Table with Action Menu */}
-        <SessionsTable
-          sessions={sessions}
-          loading={loading}
-          onAction={handleAction}
-        />
+        {/* Sessions View - Table or Calendar */}
+        {viewMode === 'table' ? (
+          <SessionsTable
+            sessions={sessions}
+            loading={loading}
+            onAction={handleAction}
+          />
+        ) : (
+          <CalendarView
+            sessions={sessions}
+            loading={loading}
+            onSessionClick={(session) => openModal('detail', session)}
+            onMakeupClick={() => openModal('makeup', null)}
+          />
+        )}
       </div>
 
       {/* Modals */}
@@ -194,6 +280,37 @@ export function SchedulePage() {
         isOpen={modals.detail}
         onClose={() => closeModal('detail')}
         session={selectedSession}
+      />
+
+      {/* New Feature Modals */}
+      <ExportScheduleModal
+        isOpen={modals.export}
+        onClose={() => closeModal('export')}
+        filters={filters}
+      />
+
+      <HolidayManagementModal
+        isOpen={modals.holiday}
+        onClose={() => closeModal('holiday')}
+        onSuccess={handleSuccess}
+      />
+
+      <MakeupClassModal
+        isOpen={modals.makeup}
+        onClose={() => closeModal('makeup')}
+        onSuccess={handleSuccess}
+      />
+
+      <TeacherAvailabilityModal
+        isOpen={modals.teacherAvailability}
+        onClose={() => closeModal('teacherAvailability')}
+      />
+
+      <ScheduleExceptionModal
+        isOpen={modals.scheduleException}
+        onClose={() => closeModal('scheduleException')}
+        session={selectedSession}
+        onSuccess={handleSuccess}
       />
     </div>
   );

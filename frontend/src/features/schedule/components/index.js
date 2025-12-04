@@ -11,3 +11,14 @@ export { ChangeTeacherModal } from './ChangeTeacherModal';
 export { ChangeRoomModal } from './ChangeRoomModal';
 export { CancelSessionModal } from './CancelSessionModal';
 export { SessionDetailModal } from './SessionDetailModal';
+
+// New components - Phase 2
+export { CalendarView } from './CalendarView';
+export { ExportScheduleModal } from './ExportScheduleModal';
+export { MakeupClassModal } from './MakeupClassModal';
+export { HolidayManagementModal } from './HolidayManagementModal';
+export { TeacherAvailabilityModal } from './TeacherAvailabilityModal';
+export { ScheduleExceptionModal } from './ScheduleExceptionModal';
+
+// UI Components
+export { ConfirmModal } from './ConfirmModal';
