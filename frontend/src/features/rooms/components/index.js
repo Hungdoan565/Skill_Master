@@ -11,3 +11,4 @@ export { RoomCard } from './RoomCard';
 export { RoomsGrid } from './RoomsGrid';
 export { RoomFilters } from './RoomFilters';
 export { RoomFormModal } from './RoomFormModal';
+export { DeleteRoomModal } from './DeleteRoomModal';

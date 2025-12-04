@@ -2,6 +2,7 @@
  * BulkDeleteModal Component - Modal xác nhận xóa hàng loạt
  */
 
+import { useEffect } from 'react';
 import { AlertTriangle, Trash2, Loader2, AlertCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -14,10 +15,25 @@ export function BulkDeleteModal({
   onClose, 
   onConfirm 
 }) {
+  // ESC key handler
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && !deleting) onClose?.();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, deleting, onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="bulk-delete-modal-title"
+    >
       <div 
         className="absolute inset-0 bg-black/50" 
         onClick={() => !deleting && onClose()} 
@@ -31,7 +47,7 @@ export function BulkDeleteModal({
                 <AlertTriangle className="h-5 w-5 text-white" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white">
+                <h3 id="bulk-delete-modal-title" className="text-lg font-semibold text-white">
                   Xác nhận xóa hàng loạt
                 </h3>
                 <p className="text-sm text-red-100">

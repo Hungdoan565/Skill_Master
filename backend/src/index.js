@@ -1078,7 +1078,7 @@ app.post('/api/classes/check-conflict', requireAuth, async (req, res, next) => {
 });
 
 // Tạo lớp học mới
-app.post('/api/admin/classes', requireAuth, async (req, res, next) => {
+app.post('/api/admin/classes', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     let { code, name, course_id, teacher_id, center_id, room_id, start_date, end_date, schedule, room, max_students, status } = req.body;
 
@@ -1190,7 +1190,7 @@ app.post('/api/admin/classes', requireAuth, async (req, res, next) => {
 });
 
 // Cập nhật lớp học
-app.put('/api/admin/classes/:id', requireAuth, async (req, res, next) => {
+app.put('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const updates = req.body;
@@ -1268,7 +1268,7 @@ app.put('/api/admin/classes/:id', requireAuth, async (req, res, next) => {
 });
 
 // Xóa lớp học
-app.delete('/api/admin/classes/:id', requireAuth, async (req, res, next) => {
+app.delete('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -1526,7 +1526,7 @@ app.get('/api/admin/classes/:classId/sessions', requireAuth, async (req, res, ne
 });
 
 // Regenerate sessions cho một lớp
-app.post('/api/admin/classes/:classId/regenerate-sessions', requireAuth, async (req, res, next) => {
+app.post('/api/admin/classes/:classId/regenerate-sessions', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { classId } = req.params;
 
@@ -1905,7 +1905,7 @@ app.get('/api/rooms/:id', async (req, res, next) => {
 });
 
 // Tạo phòng học mới
-app.post('/api/admin/rooms', requireAuth, async (req, res, next) => {
+app.post('/api/admin/rooms', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { name, code, capacity, room_type, equipment, center_id, notes } = req.body;
 
@@ -1947,7 +1947,7 @@ app.post('/api/admin/rooms', requireAuth, async (req, res, next) => {
 });
 
 // Cập nhật phòng học
-app.put('/api/admin/rooms/:id', requireAuth, async (req, res, next) => {
+app.put('/api/admin/rooms/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const updates = req.body;
@@ -1973,7 +1973,7 @@ app.put('/api/admin/rooms/:id', requireAuth, async (req, res, next) => {
 });
 
 // Xóa phòng học
-app.delete('/api/admin/rooms/:id', requireAuth, async (req, res, next) => {
+app.delete('/api/admin/rooms/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
 

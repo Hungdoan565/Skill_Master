@@ -60,6 +60,8 @@ export function RoomFormModal({
   editingRoom,
   saving,
   onSave,
+  formError,
+  onClearError,
 }) {
   const [autoCode, setAutoCode] = useState(!editingRoom); // Auto-generate code by default for new rooms
   const [showCapacityHint, setShowCapacityHint] = useState(false);
@@ -71,6 +73,20 @@ export function RoomFormModal({
       setShowCapacityHint(false);
     }
   }, [isOpen, editingRoom]);
+
+  // ESC key handler
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && !saving) {
+        onClose();
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, saving, onClose]);
 
   // Auto-generate code when name changes (only if autoCode is enabled)
   useEffect(() => {
@@ -101,7 +117,12 @@ export function RoomFormModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="room-form-modal-title"
+    >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       
@@ -116,7 +137,7 @@ export function RoomFormModal({
                 <DoorOpen className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-white">
+                <h2 id="room-form-modal-title" className="text-lg font-semibold text-white">
                   {editingRoom ? 'Chỉnh sửa phòng' : 'Thêm phòng mới'}
                 </h2>
                 <p className="text-sm text-white/80">
@@ -136,6 +157,23 @@ export function RoomFormModal({
         {/* Body - Scrollable */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
           
+          {/* Form Error Display */}
+          {formError && (
+            <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm text-red-700">{formError}</p>
+              </div>
+              <button
+                onClick={onClearError}
+                className="p-1 hover:bg-red-100 rounded transition-colors"
+                aria-label="Đóng thông báo lỗi"
+              >
+                <X className="w-4 h-4 text-red-500" />
+              </button>
+            </div>
+          )}
+
           {/* Row 1: Tên phòng + Mã phòng */}
           <div className="grid grid-cols-5 gap-4">
             <div className="col-span-3">

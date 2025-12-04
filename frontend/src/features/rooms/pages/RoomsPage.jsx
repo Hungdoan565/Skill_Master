@@ -12,11 +12,18 @@ import {
   RoomFilters,
   RoomsGrid,
   RoomFormModal,
+  DeleteRoomModal,
 } from '../components';
 
 export function RoomsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCenter, setFilterCenter] = useState('');
+  const [deleteModal, setDeleteModal] = useState({
+    isOpen: false,
+    room: null,
+    error: null
+  });
+  const [deleting, setDeleting] = useState(false);
 
   const { rooms, loading, fetchRooms, createRoom, updateRoom, deleteRoom, filterRooms, getStats } = useRooms();
   const { centers, fetchCenters } = useCenters();
@@ -27,10 +34,12 @@ export function RoomsPage() {
     editingRoom,
     isModalOpen,
     saving,
+    formError,
     openCreateModal,
     openEditModal,
     closeModal,
     handleSave,
+    clearFormError,
   } = useRoomForm();
 
   // Fetch data on mount
@@ -43,16 +52,27 @@ export function RoomsPage() {
   const filteredRooms = filterRooms(searchTerm, filterCenter);
   const stats = getStats();
 
-  // Handle delete
-  const handleDelete = async (room) => {
-    if (!confirm(`Xóa phòng "${room.name}"?`)) return;
+  // Handle delete - open modal
+  const handleDeleteClick = (room) => {
+    setDeleteModal({ isOpen: true, room, error: null });
+  };
+
+  // Handle delete - confirm
+  const handleDeleteConfirm = async () => {
+    if (!deleteModal.room) return;
+    setDeleting(true);
+    setDeleteModal(prev => ({ ...prev, error: null }));
 
     try {
-      await deleteRoom(room.id);
+      await deleteRoom(deleteModal.room.id);
+      setDeleteModal({ isOpen: false, room: null, error: null });
       await fetchRooms();
     } catch (err) {
       console.error('Error deleting room:', err);
-      alert(err.response?.data?.message || 'Không thể xóa phòng');
+      const errorMessage = err.response?.data?.message || 'Không thể xóa phòng';
+      setDeleteModal(prev => ({ ...prev, error: errorMessage }));
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -82,7 +102,7 @@ export function RoomsPage() {
           </div>
           <Button 
             onClick={handleAddClick} 
-            className="gap-2 bg-orange-500 hover:bg-orange-600 shadow-lg shadow-orange-500/25"
+            className="gap-2 bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/25"
           >
             <Plus className="h-4 w-4" /> Thêm phòng
           </Button>
@@ -106,11 +126,11 @@ export function RoomsPage() {
         rooms={filteredRooms}
         loading={loading}
         onEdit={openEditModal}
-        onDelete={handleDelete}
+        onDelete={handleDeleteClick}
         onAddClick={handleAddClick}
       />
 
-      {/* Modal */}
+      {/* Form Modal */}
       <RoomFormModal
         isOpen={isModalOpen}
         onClose={closeModal}
@@ -121,6 +141,18 @@ export function RoomsPage() {
         editingRoom={editingRoom}
         saving={saving}
         onSave={onSave}
+        formError={formError}
+        onClearError={clearFormError}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteRoomModal
+        isOpen={deleteModal.isOpen}
+        room={deleteModal.room}
+        deleting={deleting}
+        error={deleteModal.error}
+        onClose={() => setDeleteModal({ isOpen: false, room: null, error: null })}
+        onConfirm={handleDeleteConfirm}
       />
     </div>
   );

@@ -10,10 +10,12 @@ export function useRoomForm() {
   const [editingRoom, setEditingRoom] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState(null);
 
   // Update form field
   const updateField = useCallback((field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    setFormError(null); // Clear error when user types
   }, []);
 
   // Toggle equipment
@@ -29,6 +31,7 @@ export function useRoomForm() {
   // Open create modal
   const openCreateModal = useCallback((defaultCenterId = '') => {
     setEditingRoom(null);
+    setFormError(null);
     setFormData({
       ...DEFAULT_ROOM_FORM,
       center_id: defaultCenterId,
@@ -39,6 +42,7 @@ export function useRoomForm() {
   // Open edit modal
   const openEditModal = useCallback((room) => {
     setEditingRoom(room);
+    setFormError(null);
     setFormData({
       name: room.name,
       code: room.code || '',
@@ -56,6 +60,7 @@ export function useRoomForm() {
   const closeModal = useCallback(() => {
     setIsModalOpen(false);
     setEditingRoom(null);
+    setFormError(null);
   }, []);
 
   // Validate form
@@ -70,12 +75,13 @@ export function useRoomForm() {
   const handleSave = useCallback(async (createFn, updateFn, onSuccess) => {
     const validation = validateForm();
     if (!validation.valid) {
-      alert(validation.error);
+      setFormError(validation.error);
       return;
     }
 
     try {
       setSaving(true);
+      setFormError(null);
       
       if (editingRoom) {
         await updateFn(editingRoom.id, formData);
@@ -87,11 +93,16 @@ export function useRoomForm() {
       if (onSuccess) onSuccess();
     } catch (err) {
       console.error('Error saving room:', err);
-      alert(err.response?.data?.message || 'Có lỗi xảy ra');
+      setFormError(err.response?.data?.message || 'Có lỗi xảy ra khi lưu phòng học');
     } finally {
       setSaving(false);
     }
   }, [formData, editingRoom, validateForm, closeModal]);
+
+  // Clear error
+  const clearFormError = useCallback(() => {
+    setFormError(null);
+  }, []);
 
   return {
     formData,
@@ -100,10 +111,12 @@ export function useRoomForm() {
     editingRoom,
     isModalOpen,
     saving,
+    formError,
     openCreateModal,
     openEditModal,
     closeModal,
     handleSave,
+    clearFormError,
   };
 }
 

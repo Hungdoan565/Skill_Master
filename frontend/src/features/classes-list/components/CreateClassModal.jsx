@@ -2,8 +2,9 @@
  * CreateClassModal Component - Modal tạo/sửa lớp học
  */
 
+import { useState, useEffect } from 'react';
 import { 
-  Calendar as CalendarIcon, RefreshCw, Check, AlertTriangle, AlertCircle 
+  Calendar as CalendarIcon, RefreshCw, Check, AlertTriangle, AlertCircle, X 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +14,87 @@ import { Select } from './Select';
 import { ConflictCard } from './ConflictCard';
 import { DAYS_OF_WEEK, DAY_NAMES, STATUS_CONFIG } from '../utils';
 import { useConflictCheck } from '../hooks';
+
+// ConfirmModal Component - Xác nhận xung đột lịch học
+function ConflictConfirmModal({ isOpen, onClose, onConfirm, messages }) {
+  // ESC key handler
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose?.();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div 
+      className="fixed inset-0 z-60 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="conflict-confirm-title"
+    >
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        {/* Header */}
+        <div className="bg-linear-to-r from-amber-500 to-amber-600 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white/20 rounded-lg">
+                <AlertTriangle className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 id="conflict-confirm-title" className="text-lg font-semibold text-white">
+                  Phát hiện xung đột lịch học
+                </h2>
+                <p className="text-sm text-white/80">Vui lòng xác nhận để tiếp tục</p>
+              </div>
+            </div>
+            <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-lg transition-colors">
+              <X className="w-5 h-5 text-white" />
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="p-6">
+          <p className="text-slate-600 mb-4">
+            Hệ thống phát hiện xung đột lịch học sau:
+          </p>
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 max-h-40 overflow-y-auto">
+            <ul className="space-y-1 text-sm text-amber-800">
+              {messages.map((msg, idx) => (
+                <li key={idx} className="flex items-start gap-2">
+                  <span className="text-amber-500 mt-0.5">•</span>
+                  <span>{msg}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <p className="text-slate-500 text-sm">
+            Bạn vẫn muốn tiếp tục tạo lớp học với xung đột này?
+          </p>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 bg-slate-50 border-t flex justify-end gap-3">
+          <Button variant="outline" onClick={onClose}>
+            Hủy bỏ
+          </Button>
+          <Button 
+            onClick={onConfirm}
+            className="bg-amber-600 hover:bg-amber-700 text-white"
+          >
+            <Check className="w-4 h-4 mr-2" />
+            Tiếp tục tạo lớp
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function CreateClassModal({
   isOpen,
@@ -44,8 +126,18 @@ export function CreateClassModal({
   getRoomsByCenter,
   getRoomById
 }) {
+  // Local state for validation
+  const [capacityError, setCapacityError] = useState(null);
+  const [showConflictConfirm, setShowConflictConfirm] = useState(false);
+  const [pendingSubmitEvent, setPendingSubmitEvent] = useState(null);
+
   // Get selected room
   const selectedRoom = getRoomById(formData.room_id);
+
+  // Clear capacity error when room or max_students change
+  useEffect(() => {
+    setCapacityError(null);
+  }, [formData.room_id, formData.max_students]);
 
   // Conflict check
   const { status: conflictStatus, messages: conflictMessages, isConflict } = useConflictCheck({
@@ -63,19 +155,30 @@ export function CreateClassModal({
 
     // Validate sĩ số không vượt sức chứa phòng
     if (selectedRoom && formData.max_students > selectedRoom.capacity) {
-      alert(`Sĩ số tối đa (${formData.max_students}) không được vượt quá sức chứa phòng (${selectedRoom.capacity} chỗ)`);
+      setCapacityError(`Sĩ số tối đa (${formData.max_students}) không được vượt quá sức chứa phòng (${selectedRoom.capacity} chỗ)`);
       return;
     }
 
     if (isConflict) {
-      const confirm = window.confirm(`Phát hiện xung đột lịch học. Bạn vẫn muốn tiếp tục?`);
-      if (!confirm) return;
+      setPendingSubmitEvent(e);
+      setShowConflictConfirm(true);
+      return;
     }
 
     onSubmit(e);
   };
 
+  // Handle conflict confirm
+  const handleConflictConfirm = () => {
+    setShowConflictConfirm(false);
+    if (pendingSubmitEvent) {
+      onSubmit(pendingSubmitEvent);
+      setPendingSubmitEvent(null);
+    }
+  };
+
   return (
+    <>
     <SimpleModal
       isOpen={isOpen}
       onClose={onClose}
@@ -88,6 +191,14 @@ export function CreateClassModal({
           <div className="mx-5 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-red-700">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
             <span className="text-sm">{formError}</span>
+          </div>
+        )}
+
+        {/* Capacity Error */}
+        {capacityError && (
+          <div className="mx-5 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-red-700">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span className="text-sm">{capacityError}</span>
           </div>
         )}
 
@@ -436,6 +547,18 @@ export function CreateClassModal({
         </div>
       </form>
     </SimpleModal>
+
+    {/* Conflict Confirm Modal */}
+    <ConflictConfirmModal
+      isOpen={showConflictConfirm}
+      onClose={() => {
+        setShowConflictConfirm(false);
+        setPendingSubmitEvent(null);
+      }}
+      onConfirm={handleConflictConfirm}
+      messages={conflictMessages}
+    />
+    </>
   );
 }
 
