@@ -34,6 +34,19 @@ export function CreateCourseModal({ isOpen, onClose, onSuccess, accessToken }) {
     }
   }, [isOpen, resetForm]);
 
+  // ESC key handler
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape' && !loading) {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleEsc);
+    }
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [isOpen, onClose, loading]);
+
   // Submit form
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -47,7 +60,12 @@ export function CreateCourseModal({ isOpen, onClose, onSuccess, accessToken }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="create-course-modal-title"
+    >
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -64,13 +82,14 @@ export function CreateCourseModal({ isOpen, onClose, onSuccess, accessToken }) {
                 <BookOpen className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-white">Tạo khóa học mới</h2>
+                <h2 id="create-course-modal-title" className="text-lg font-semibold text-white">Tạo khóa học mới</h2>
                 <p className="text-sm text-white/80">Điền thông tin để tạo khóa học</p>
               </div>
             </div>
             <button
               onClick={onClose}
               className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+              aria-label="Đóng modal"
             >
               <X className="w-5 h-5 text-white" />
             </button>

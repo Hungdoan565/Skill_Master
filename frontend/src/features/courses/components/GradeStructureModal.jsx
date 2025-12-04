@@ -44,6 +44,19 @@ export function GradeStructureModal({ isOpen, onClose, course, accessToken }) {
     }
   }, [isOpen, course?.id, course?.category, fetchStructures, reset]);
 
+  // ESC key handler
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape' && !saving) {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleEsc);
+    }
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [isOpen, onClose, saving]);
+
   // Handle save
   const handleSave = async () => {
     const success = await saveStructures(course.id);
@@ -55,7 +68,12 @@ export function GradeStructureModal({ isOpen, onClose, course, accessToken }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="grade-structure-modal-title"
+    >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       
@@ -65,7 +83,7 @@ export function GradeStructureModal({ isOpen, onClose, course, accessToken }) {
         <div className="px-6 py-4 border-b border-zinc-200">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-bold text-zinc-900">Cấu hình đánh giá</h2>
+              <h2 id="grade-structure-modal-title" className="text-lg font-bold text-zinc-900">Cấu hình đánh giá</h2>
               <p className="text-sm text-zinc-500 mt-0.5">
                 {course?.code} • {course?.title}
               </p>
@@ -73,6 +91,7 @@ export function GradeStructureModal({ isOpen, onClose, course, accessToken }) {
             <button
               onClick={onClose}
               className="p-2 hover:bg-zinc-100 rounded-full transition-colors"
+              aria-label="Đóng modal"
             >
               <X className="w-5 h-5 text-zinc-500" />
             </button>

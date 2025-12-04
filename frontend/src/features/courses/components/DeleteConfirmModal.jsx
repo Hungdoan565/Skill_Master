@@ -8,6 +8,7 @@
  * - Hiển thị lỗi nếu không xóa được
  */
 
+import { useEffect } from 'react';
 import { AlertTriangle, X, Trash2, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -19,6 +20,19 @@ export function DeleteConfirmModal({
   loading = false,
   error = null
 }) {
+  // ESC key handler
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape' && !loading) {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleEsc);
+    }
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [isOpen, onClose, loading]);
+
   if (!isOpen || !course) return null;
 
   const handleConfirm = async () => {
@@ -26,7 +40,12 @@ export function DeleteConfirmModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-course-modal-title"
+    >
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -43,7 +62,7 @@ export function DeleteConfirmModal({
                 <AlertTriangle className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-white">Xác nhận xóa</h2>
+                <h2 id="delete-course-modal-title" className="text-lg font-semibold text-white">Xác nhận xóa</h2>
                 <p className="text-sm text-white/80">Hành động này không thể hoàn tác</p>
               </div>
             </div>
@@ -51,6 +70,7 @@ export function DeleteConfirmModal({
               onClick={onClose}
               disabled={loading}
               className="p-2 hover:bg-white/20 rounded-lg transition-colors disabled:opacity-50"
+              aria-label="Đóng modal"
             >
               <X className="w-5 h-5 text-white" />
             </button>

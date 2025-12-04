@@ -65,16 +65,20 @@ export function useCourses(accessToken) {
     }
   }, [accessToken]);
 
-  // Filter courses theo search term
-  const filterCourses = useCallback((searchTerm) => {
-    if (!searchTerm) return courses;
-    
-    const term = searchTerm.toLowerCase();
-    return courses.filter(
-      (course) =>
+  // Filter courses theo search term và status
+  const filterCourses = useCallback((searchTerm, statusFilter = '') => {
+    return courses.filter((course) => {
+      // Filter by status
+      const matchStatus = !statusFilter || course.status === statusFilter;
+      
+      // Filter by search term
+      const term = searchTerm?.toLowerCase() || '';
+      const matchSearch = !term || 
         course.title?.toLowerCase().includes(term) ||
-        course.code?.toLowerCase().includes(term)
-    );
+        course.code?.toLowerCase().includes(term);
+      
+      return matchStatus && matchSearch;
+    });
   }, [courses]);
 
   return {

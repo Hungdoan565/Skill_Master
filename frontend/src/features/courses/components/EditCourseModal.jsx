@@ -73,6 +73,19 @@ export function EditCourseModal({ isOpen, onClose, onSuccess, course, accessToke
     }
   }, [isOpen]);
 
+  // ESC key handler
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key === 'Escape' && !loading) {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleEsc);
+    }
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [isOpen, onClose, loading]);
+
   // Handle input change
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -163,7 +176,12 @@ export function EditCourseModal({ isOpen, onClose, onSuccess, course, accessToke
   if (!isOpen || !course) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="edit-course-modal-title"
+    >
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -180,7 +198,7 @@ export function EditCourseModal({ isOpen, onClose, onSuccess, course, accessToke
                 <BookOpen className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-white">Chỉnh sửa khóa học</h2>
+                <h2 id="edit-course-modal-title" className="text-lg font-semibold text-white">Chỉnh sửa khóa học</h2>
                 <p className="text-sm text-white/80">
                   <span className="font-mono bg-white/20 px-1.5 py-0.5 rounded text-xs mr-2">
                     {course.code}
@@ -193,6 +211,7 @@ export function EditCourseModal({ isOpen, onClose, onSuccess, course, accessToke
               onClick={onClose}
               disabled={loading}
               className="p-2 hover:bg-white/20 rounded-lg transition-colors disabled:opacity-50"
+              aria-label="Đóng modal"
             >
               <X className="w-5 h-5 text-white" />
             </button>

@@ -151,12 +151,22 @@ app.get('/api/status', async (_req, res, next) => {
 });
 
 // Xem danh sách khóa học (public - ai cũng xem được)
-app.get('/api/courses', async (_req, res, next) => {
+// Query params: ?status=active để lọc theo trạng thái
+app.get('/api/courses', async (req, res, next) => {
   try {
-    const { data, error } = await supabase
+    const { status } = req.query;
+    
+    let query = supabase
       .from('courses')
       .select('*')
       .order('created_at', { ascending: false });
+    
+    // Nếu có filter status
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw error;
 
@@ -170,7 +180,7 @@ app.get('/api/courses', async (_req, res, next) => {
 // ============ PROTECTED APIs (Phải đăng nhập) ============
 
 // Tạo khóa học mới (chỉ admin mới được tạo)
-app.post('/api/courses', requireAuth, async (req, res, next) => {
+app.post('/api/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { 
       code, 
@@ -242,7 +252,7 @@ app.post('/api/courses', requireAuth, async (req, res, next) => {
 });
 
 // Cập nhật khóa học (chỉ admin)
-app.put('/api/courses/:id', requireAuth, async (req, res, next) => {
+app.put('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { 
@@ -316,7 +326,7 @@ app.put('/api/courses/:id', requireAuth, async (req, res, next) => {
 });
 
 // Xóa khóa học (chỉ admin)
-app.delete('/api/courses/:id', requireAuth, async (req, res, next) => {
+app.delete('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
     

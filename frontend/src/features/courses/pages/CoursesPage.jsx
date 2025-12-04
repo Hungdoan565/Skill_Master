@@ -29,6 +29,7 @@ export function CoursesPage() {
 
   // State
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   
   // Edit modal state
@@ -67,7 +68,7 @@ export function CoursesPage() {
   }, [fetchCourses]);
 
   // Filtered courses
-  const filteredCourses = filterCourses(searchTerm);
+  const filteredCourses = filterCourses(searchTerm, statusFilter);
 
   // Handlers
   const handleOpenEdit = (course) => {
@@ -144,6 +145,8 @@ export function CoursesPage() {
           <CourseFilters
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
+            statusFilter={statusFilter}
+            onStatusChange={setStatusFilter}
             totalCount={filteredCourses.length}
           />
         </CardHeader>
