@@ -348,7 +348,6 @@ function App() {
           <Route path="classes" element={<ClassesPage />} />
           <Route path="classes/:id" element={<ClassDetailPage />} />
           <Route path="schedule" element={<SchedulePage />} />
-          <Route path="scheduler" element={<PlaceholderPage title="Lịch học" description="Xếp lịch và quản lý phòng học" />} />
           <Route path="students" element={<StudentsPage />} />
           <Route path="students/:id" element={<PlaceholderPage title="Hồ sơ Học viên" />} />
           <Route path="enrollments/new" element={<PlaceholderPage title="Ghi danh" description="Đăng ký học viên vào lớp" />} />

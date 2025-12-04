@@ -1389,7 +1389,37 @@ app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
       roomId          // UUID
     } = req.query;
 
-    console.log(`📅 Admin ${req.user.email} xem lịch dạy: ${startDate} - ${endDate}`);
+    // ====== PERMISSION CHECK ======
+    // SUPER_ADMIN: xem tất cả centers
+    // CENTER_MANAGER: chỉ xem center của mình
+    const userRole = req.user.roleCode;
+    const userCenterId = req.user.centerId;
+    
+    let effectiveCenterId = centerId; // centerId từ query param
+    
+    if (userRole !== 'SUPER_ADMIN') {
+      // Không phải SUPER_ADMIN => bắt buộc dùng center của user
+      if (!userCenterId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn chưa được gán vào trung tâm nào. Vui lòng liên hệ admin.'
+        });
+      }
+      
+      // Nếu client request centerId khác với center của user => reject
+      if (centerId && centerId !== userCenterId) {
+        console.warn(`⚠️ User ${req.user.email} (${userRole}) tried to access center ${centerId} but belongs to ${userCenterId}`);
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn không có quyền xem dữ liệu của trung tâm khác.'
+        });
+      }
+      
+      // Force sử dụng center của user
+      effectiveCenterId = userCenterId;
+    }
+
+    console.log(`📅 Admin ${req.user.email} (${userRole}) xem lịch dạy: ${startDate} - ${endDate} | Center: ${effectiveCenterId || 'ALL'}`);
 
     let query = supabase
       .from('sessions')
@@ -1458,8 +1488,9 @@ app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
     // Post-filter theo center và room (vì nested filter không được support trực tiếp)
     let filteredData = data || [];
     
-    if (centerId) {
-      filteredData = filteredData.filter(s => s.classes?.center_id === centerId);
+    // Dùng effectiveCenterId (đã được permission check ở trên)
+    if (effectiveCenterId) {
+      filteredData = filteredData.filter(s => s.classes?.center_id === effectiveCenterId);
     }
     
     if (roomId) {

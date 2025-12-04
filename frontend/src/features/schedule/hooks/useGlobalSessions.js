@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { useAuth } from '@/contexts/auth-context';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -38,6 +39,7 @@ const getAuthHeaders = async () => {
 };
 
 export function useGlobalSessions(initialFilters = {}) {
+  const { profile } = useAuth();
   const [sessions, setSessions] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
@@ -49,6 +51,10 @@ export function useGlobalSessions(initialFilters = {}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
+  // Kiểm tra quyền: SUPER_ADMIN có thể xem tất cả centers
+  const isSuperAdmin = profile?.roles?.code === 'SUPER_ADMIN';
+  const userCenterId = profile?.center_id;
+
   // Default filter = Tuần này (thay vì 1 năm để tránh query chậm)
   const weekRange = getWeekRange();
   const [filters, setFilters] = useState({
@@ -57,6 +63,7 @@ export function useGlobalSessions(initialFilters = {}) {
     status: initialFilters.status || '',
     teacherId: initialFilters.teacherId || '',
     centerId: initialFilters.centerId || '',
+    roomId: initialFilters.roomId || '',
     ...initialFilters
   });
 
@@ -74,7 +81,13 @@ export function useGlobalSessions(initialFilters = {}) {
       if (filters.endDate) params.append('endDate', filters.endDate);
       if (filters.status) params.append('status', filters.status);
       if (filters.teacherId) params.append('teacherId', filters.teacherId);
-      if (filters.centerId) params.append('centerId', filters.centerId);
+      
+      // Auto-inject centerId cho non-SUPER_ADMIN users
+      // Backend cũng validate nhưng inject ở frontend giúp UX tốt hơn
+      const effectiveCenterId = isSuperAdmin ? filters.centerId : userCenterId;
+      if (effectiveCenterId) params.append('centerId', effectiveCenterId);
+      
+      if (filters.roomId) params.append('roomId', filters.roomId);
 
       const res = await fetch(`${API_URL}/api/admin/sessions?${params}`, { headers });
       const json = await res.json();
@@ -89,7 +102,7 @@ export function useGlobalSessions(initialFilters = {}) {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, isSuperAdmin, userCenterId]);
 
   // Fetch on mount and when filters change
   useEffect(() => {
@@ -214,7 +227,10 @@ export function useGlobalSessions(initialFilters = {}) {
     markCompleted,
     cancelSession,
     // Filter options placeholder
-    filterOptions: {}
+    filterOptions: {},
+    // Permission info
+    isSuperAdmin,
+    userCenterId
   };
 }
 

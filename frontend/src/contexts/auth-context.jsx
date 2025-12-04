@@ -28,9 +28,14 @@ export function AuthProvider({ children }) {
           phone,
           avatar_url,
           role_id,
+          center_id,
           roles (
             id,
             code,
+            name
+          ),
+          centers (
+            id,
             name
           )
         `)
@@ -85,9 +90,14 @@ export function AuthProvider({ children }) {
                 phone,
                 avatar_url,
                 role_id,
+                center_id,
                 roles (
                   id,
                   code,
+                  name
+                ),
+                centers (
+                  id,
                   name
                 )
               `)
@@ -165,9 +175,14 @@ export function AuthProvider({ children }) {
                 phone,
                 avatar_url,
                 role_id,
+                center_id,
                 roles (
                   id,
                   code,
+                  name
+                ),
+                centers (
+                  id,
                   name
                 )
               `)

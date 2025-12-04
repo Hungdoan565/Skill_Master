@@ -8,12 +8,14 @@ import {
   Filter, 
   User, 
   Building2,
+  DoorOpen,
   ChevronDown,
   X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/lib/supabaseClient';
+import { useAuth } from '@/contexts/auth-context';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -38,9 +40,16 @@ export function SessionFilters({
   onPresetClick,
   activePreset = 'today'
 }) {
+  const { profile } = useAuth();
   const [teachers, setTeachers] = useState([]);
   const [centers, setCenters] = useState([]);
+  const [rooms, setRooms] = useState([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Kiểm tra quyền: SUPER_ADMIN có thể xem tất cả centers
+  const isSuperAdmin = profile?.roles?.code === 'SUPER_ADMIN';
+  const userCenterId = profile?.center_id;
+  const userCenterName = profile?.centers?.name;
 
   // Fetch filter options
   useEffect(() => {
@@ -64,6 +73,13 @@ export function SessionFilters({
           const centersData = await centersRes.json();
           setCenters(centersData.data || []);
         }
+
+        // Fetch rooms
+        const roomsRes = await fetch(`${API_URL}/api/admin/rooms`, { headers });
+        if (roomsRes.ok) {
+          const roomsData = await roomsRes.json();
+          setRooms(roomsData.data || []);
+        }
       } catch (err) {
         console.error('Error fetching filter options:', err);
       }
@@ -72,13 +88,19 @@ export function SessionFilters({
     fetchOptions();
   }, []);
 
-  const hasActiveFilters = filters.status || filters.teacherId || filters.centerId;
+  const hasActiveFilters = filters.status || filters.teacherId || filters.centerId || filters.roomId;
+
+  // Lọc rooms theo center nếu đã chọn
+  const filteredRooms = filters.centerId 
+    ? rooms.filter(r => r.center_id === filters.centerId)
+    : rooms;
 
   const clearFilters = () => {
     onFilterChange({
       status: '',
       teacherId: '',
-      centerId: ''
+      centerId: '',
+      roomId: ''
     });
   };
 
@@ -160,19 +182,49 @@ export function SessionFilters({
           <ChevronDown className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
         </div>
 
-        {/* Center Filter */}
+        {/* Center Filter - Chỉ SUPER_ADMIN mới thấy dropdown */}
+        {isSuperAdmin ? (
+          <div className="relative">
+            <Building2 className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <select
+              value={filters.centerId}
+              onChange={(e) => onFilterChange({ centerId: e.target.value, roomId: '' })}
+              className="h-9 pl-9 pr-8 rounded-lg border border-slate-200 text-sm 
+                         bg-white appearance-none cursor-pointer min-w-[180px]
+                         focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="">Tất cả trung tâm</option>
+              {centers.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            <ChevronDown className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          </div>
+        ) : (
+          // CENTER_MANAGER: Hiển thị tên trung tâm dạng badge
+          <div className="flex items-center gap-2 h-9 px-3 rounded-lg bg-indigo-50 border border-indigo-200">
+            <Building2 className="w-4 h-4 text-indigo-600" />
+            <span className="text-sm font-medium text-indigo-700">
+              {userCenterName || 'Trung tâm của bạn'}
+            </span>
+          </div>
+        )}
+
+        {/* Room Filter */}
         <div className="relative">
-          <Building2 className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <DoorOpen className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <select
-            value={filters.centerId}
-            onChange={(e) => onFilterChange({ centerId: e.target.value })}
+            value={filters.roomId || ''}
+            onChange={(e) => onFilterChange({ roomId: e.target.value })}
             className="h-9 pl-9 pr-8 rounded-lg border border-slate-200 text-sm 
-                       bg-white appearance-none cursor-pointer min-w-[180px]
+                       bg-white appearance-none cursor-pointer min-w-[160px]
                        focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            <option value="">Tất cả trung tâm</option>
-            {centers.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+            <option value="">Tất cả phòng</option>
+            {filteredRooms.map(r => (
+              <option key={r.id} value={r.id}>
+                {r.name} {r.centers?.name ? `(${r.centers.name})` : ''}
+              </option>
             ))}
           </select>
           <ChevronDown className="w-4 h-4 absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />

@@ -29,11 +29,38 @@ export const requireAuth = async (req, res, next) => {
       });
     }
 
-    // 3. Gán thông tin user vào request để các handler sau dùng được
-    req.user = user;
+    // 3. Lấy thêm profile từ bảng users (role, center_id)
+    const { data: profile, error: profileError } = await supabase
+      .from('users')
+      .select(`
+        id,
+        full_name,
+        email,
+        center_id,
+        role_id,
+        roles (
+          id,
+          code,
+          name
+        )
+      `)
+      .eq('id', user.id)
+      .single();
+
+    if (profileError) {
+      console.warn('⚠️ Cannot fetch user profile:', profileError.message);
+    }
+
+    // 4. Gán thông tin user vào request để các handler sau dùng được
+    req.user = {
+      ...user,
+      profile: profile || null,
+      roleCode: profile?.roles?.code || null,
+      centerId: profile?.center_id || null
+    };
     
     // Log để debug (có thể bỏ sau)
-    console.log(`✅ Authenticated: ${user.email}`);
+    console.log(`✅ Authenticated: ${user.email} | Role: ${req.user.roleCode} | Center: ${req.user.centerId}`);
     
     next();
   } catch (err) {
