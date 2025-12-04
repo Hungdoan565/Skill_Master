@@ -13,11 +13,16 @@
  * @param {function} onPageChange - Handler thay đổi trang
  * @param {function} onViewDetail - Handler xem chi tiết
  * @param {function} onPayment - Handler thanh toán
+ * @param {function} onEdit - Handler sửa hóa đơn
+ * @param {function} onCancel - Handler hủy hóa đơn  
+ * @param {function} onRefund - Handler hoàn tiền
  */
 
+import { useState, useRef, useEffect } from 'react';
 import { 
   FileText, Eye, CreditCard, ChevronLeft, ChevronRight, 
-  Loader2, Receipt 
+  Loader2, Receipt, MoreVertical, Edit3, XCircle, RefreshCcw,
+  AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from './StatusBadge';
@@ -29,7 +34,10 @@ export function InvoiceTable({
   pagination, 
   onPageChange, 
   onViewDetail, 
-  onPayment 
+  onPayment,
+  onEdit,
+  onCancel,
+  onRefund
 }) {
   
   // ============================================
@@ -106,6 +114,9 @@ export function InvoiceTable({
                 invoice={invoice}
                 onViewDetail={onViewDetail}
                 onPayment={onPayment}
+                onEdit={onEdit}
+                onCancel={onCancel}
+                onRefund={onRefund}
               />
             ))}
           </tbody>
@@ -129,12 +140,22 @@ export function InvoiceTable({
  * Table Row Component
  * Tách riêng để dễ maintain và tối ưu re-render
  */
-function InvoiceTableRow({ invoice, onViewDetail, onPayment }) {
+function InvoiceTableRow({ invoice, onViewDetail, onPayment, onEdit, onCancel, onRefund }) {
   const remaining = (invoice.final_amount || 0) - (invoice.paid_amount || 0);
-  const canPay = invoice.status !== 'paid' && invoice.status !== 'cancelled';
+  const canPay = invoice.status !== 'paid' && invoice.status !== 'cancelled' && invoice.status !== 'refunded';
+  const canEdit = invoice.status !== 'paid' && invoice.status !== 'cancelled' && invoice.status !== 'refunded';
+  const canCancel = invoice.status !== 'cancelled' && invoice.status !== 'refunded';
+  const canRefund = invoice.status !== 'cancelled' && invoice.status !== 'refunded' && invoice.paid_amount > 0;
+  
+  // Check if overdue
+  const isOverdue = invoice.due_date && 
+                    new Date(invoice.due_date) < new Date() && 
+                    invoice.status !== 'paid' && 
+                    invoice.status !== 'cancelled' &&
+                    invoice.status !== 'refunded';
 
   return (
-    <tr className="hover:bg-zinc-50/50 transition-colors">
+    <tr className={`hover:bg-zinc-50/50 transition-colors ${isOverdue ? 'bg-red-50/50' : ''}`}>
       {/* Mã hóa đơn */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
@@ -142,9 +163,20 @@ function InvoiceTableRow({ invoice, onViewDetail, onPayment }) {
           <span className="font-mono text-sm font-medium text-zinc-900">
             {invoice.invoice_code}
           </span>
+          {isOverdue && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium bg-red-100 text-red-700 rounded">
+              <AlertTriangle className="w-3 h-3" />
+              Quá hạn
+            </span>
+          )}
         </div>
         <p className="text-xs text-zinc-400 mt-0.5 ml-6">
           {formatDate(invoice.created_at)}
+          {invoice.due_date && (
+            <span className={isOverdue ? 'text-red-500 ml-2' : 'ml-2'}>
+              • Hạn: {formatDate(invoice.due_date)}
+            </span>
+          )}
         </p>
       </td>
 
@@ -219,6 +251,17 @@ function InvoiceTableRow({ invoice, onViewDetail, onPayment }) {
               <CreditCard className="w-4 h-4" />
             </button>
           )}
+
+          {/* Actions Dropdown */}
+          <ActionsDropdown 
+            invoice={invoice}
+            canEdit={canEdit}
+            canCancel={canCancel}
+            canRefund={canRefund}
+            onEdit={onEdit}
+            onCancel={onCancel}
+            onRefund={onRefund}
+          />
         </div>
       </td>
     </tr>
@@ -234,6 +277,83 @@ function StudentAvatar({ name }) {
   return (
     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-white text-xs font-semibold">
       {initial}
+    </div>
+  );
+}
+
+/**
+ * Actions Dropdown Component
+ */
+function ActionsDropdown({ invoice, canEdit, canCancel, canRefund, onEdit, onCancel, onRefund }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const hasAnyAction = canEdit || canCancel || canRefund;
+  if (!hasAnyAction) return null;
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="p-2 text-zinc-500 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors"
+        title="Thêm thao tác"
+      >
+        <MoreVertical className="w-4 h-4" />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-1 w-40 bg-white rounded-lg shadow-lg border border-zinc-200 py-1 z-50">
+          {canEdit && (
+            <button
+              onClick={() => {
+                onEdit(invoice);
+                setIsOpen(false);
+              }}
+              className="w-full px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50 flex items-center gap-2"
+            >
+              <Edit3 className="w-4 h-4 text-amber-500" />
+              Sửa hóa đơn
+            </button>
+          )}
+          
+          {canRefund && (
+            <button
+              onClick={() => {
+                onRefund(invoice);
+                setIsOpen(false);
+              }}
+              className="w-full px-3 py-2 text-left text-sm text-zinc-700 hover:bg-zinc-50 flex items-center gap-2"
+            >
+              <RefreshCcw className="w-4 h-4 text-purple-500" />
+              Hoàn tiền
+            </button>
+          )}
+          
+          {canCancel && (
+            <button
+              onClick={() => {
+                onCancel(invoice);
+                setIsOpen(false);
+              }}
+              className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+            >
+              <XCircle className="w-4 h-4" />
+              Hủy hóa đơn
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

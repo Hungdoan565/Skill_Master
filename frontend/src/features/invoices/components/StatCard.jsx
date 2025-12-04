@@ -2,23 +2,25 @@
  * StatCard Component
  * 
  * Pure UI component hiển thị thẻ thống kê KPI.
- * Dùng chung cho nhiều module (Invoices, Dashboard, etc.)
+ * Redesigned: Icon ở trên, số liệu ở dưới - không bị xung đột khi số lớn
  * 
  * @param {string} title - Tiêu đề thẻ
  * @param {string|number} value - Giá trị hiển thị
  * @param {React.ComponentType} icon - Lucide icon component
  * @param {string} description - Mô tả phụ (optional)
- * @param {string} accentColor - Màu accent: red | emerald | amber | blue
+ * @param {string} accentColor - Màu accent: red | emerald | amber | blue | orange
  * @param {function} onClick - Handler khi click (optional)
+ * @param {boolean} highlight - Highlight card (pulse animation)
  */
 
 import { ArrowUpRight } from 'lucide-react';
 
-const ACCENT_CLASSES = {
-  red: 'from-red-500 to-orange-500 shadow-red-500/25',
-  emerald: 'from-emerald-500 to-teal-500 shadow-emerald-500/25',
-  amber: 'from-amber-500 to-orange-500 shadow-amber-500/25',
-  blue: 'from-blue-500 to-indigo-500 shadow-blue-500/25',
+const ACCENT_COLORS = {
+  red: { bg: 'bg-red-50', icon: 'bg-red-500', text: 'text-red-600' },
+  emerald: { bg: 'bg-emerald-50', icon: 'bg-emerald-500', text: 'text-emerald-600' },
+  amber: { bg: 'bg-amber-50', icon: 'bg-amber-500', text: 'text-amber-600' },
+  blue: { bg: 'bg-blue-50', icon: 'bg-blue-500', text: 'text-blue-600' },
+  orange: { bg: 'bg-orange-50', icon: 'bg-orange-500', text: 'text-orange-600' },
 };
 
 export function StatCard({ 
@@ -27,48 +29,45 @@ export function StatCard({
   icon: Icon, 
   description, 
   accentColor = 'red', 
-  onClick 
+  onClick,
+  highlight = false
 }) {
-  const accentClass = ACCENT_CLASSES[accentColor] || ACCENT_CLASSES.red;
+  const colors = ACCENT_COLORS[accentColor] || ACCENT_COLORS.red;
 
   return (
     <div 
       className={`
-        group relative bg-white rounded-2xl p-5 
+        group relative bg-white rounded-2xl overflow-hidden
         shadow-sm shadow-stone-900/5 border border-stone-200/60
         hover:shadow-lg hover:shadow-stone-900/10 hover:border-stone-300/60
         transition-all duration-300 
         ${onClick ? 'cursor-pointer' : ''}
+        ${highlight ? 'ring-2 ring-orange-400 ring-offset-2 animate-pulse' : ''}
       `}
       onClick={onClick}
     >
-      <div className="flex items-start gap-4">
-        {/* Icon Container */}
-        <div 
-          className={`
-            flex h-12 w-12 items-center justify-center rounded-xl 
-            bg-gradient-to-br ${accentClass} shadow-lg
-          `}
-        >
-          <Icon className="h-6 w-6 text-white" />
-        </div>
-
-        {/* Content */}
-        <div className="flex-1">
-          <p className="text-sm font-medium text-zinc-500">{title}</p>
-          <p className="font-display text-2xl font-bold text-zinc-900 tracking-tight mt-0.5">
-            {value}
-          </p>
-          {description && (
-            <p className="text-xs text-zinc-400 mt-1">{description}</p>
+      {/* Header with icon */}
+      <div className={`px-4 pt-4 pb-3 ${colors.bg}`}>
+        <div className="flex items-center justify-between">
+          <div className={`p-2 rounded-lg ${colors.icon}`}>
+            <Icon className="h-5 w-5 text-white" />
+          </div>
+          {onClick && (
+            <ArrowUpRight 
+              className="w-4 h-4 text-zinc-400 group-hover:text-zinc-600 transition-colors" 
+            />
           )}
         </div>
-
-        {/* Click indicator */}
-        {onClick && (
-          <ArrowUpRight 
-            className="w-4 h-4 text-zinc-300 group-hover:text-zinc-500 transition-colors" 
-          />
+        <p className="text-sm font-medium text-zinc-600 mt-2">{title}</p>
+      </div>
+      
+      {/* Value section */}
+      <div className="px-4 py-3">
+        <p className={`text-2xl font-bold tracking-tight ${colors.text}`}>
+          {value}
+        </p>
+        {description && (
+          <p className="text-xs text-zinc-400 mt-1 truncate">{description}</p>
         )}
       </div>
     </div>

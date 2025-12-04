@@ -1,19 +1,22 @@
 /**
  * InvoiceStats Component
  * 
- * Hiển thị 4 card thống kê KPI cho trang Invoices.
+ * Hiển thị 5 card thống kê KPI cho trang Invoices.
  * 
  * @param {Object} statistics - Data thống kê từ API
  * @param {boolean} loading - Trạng thái loading
  * @param {function} onStatusClick - Handler khi click vào card để filter
+ * @param {function} onOverdueClick - Handler khi click vào card quá hạn
  */
 
-import { TrendingUp, AlertCircle, Clock, CheckCircle2 } from 'lucide-react';
+import { TrendingUp, AlertCircle, Clock, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { StatCard } from './StatCard';
 
-export function InvoiceStats({ statistics, loading, onStatusClick }) {
+export function InvoiceStats({ statistics, loading, onStatusClick, onOverdueClick }) {
+  const overdueCount = statistics?.counts?.overdue || 0;
+  
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
       {/* Tổng thu tháng này */}
       <StatCard
         title="Tổng thu tháng này"
@@ -33,9 +36,20 @@ export function InvoiceStats({ statistics, loading, onStatusClick }) {
         onClick={() => onStatusClick?.('unpaid')}
       />
 
+      {/* Quá hạn thanh toán */}
+      <StatCard
+        title="Quá hạn thanh toán"
+        value={loading ? '...' : overdueCount}
+        icon={AlertTriangle}
+        description="Hóa đơn cần nhắc nhở"
+        accentColor="orange"
+        onClick={onOverdueClick}
+        highlight={overdueCount > 0}
+      />
+
       {/* Đang đợi thanh toán */}
       <StatCard
-        title="Đang đợi thanh toán"
+        title="Thanh toán 1 phần"
         value={loading ? '...' : (statistics?.counts?.partial || 0)}
         icon={Clock}
         description="Hóa đơn thanh toán một phần"

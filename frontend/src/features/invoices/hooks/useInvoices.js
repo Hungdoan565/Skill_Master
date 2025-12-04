@@ -31,7 +31,8 @@ export function useInvoices() {
     search: '',
     status: 'all',
     dateStart: '',
-    dateEnd: ''
+    dateEnd: '',
+    overdueOnly: false
   });
   
   // Debounced search (để không gọi API mỗi keystroke)
@@ -93,6 +94,9 @@ export function useInvoices() {
       if (filters.dateEnd) {
         params.append('endDate', filters.dateEnd);
       }
+      if (filters.overdueOnly) {
+        params.append('overdue', 'true');
+      }
 
       const res = await fetch(`${API_URL}/api/invoices?${params}`, {
         headers: { 
@@ -124,7 +128,7 @@ export function useInvoices() {
     } finally {
       setLoading(false);
     }
-  }, [session?.access_token, pagination.page, pagination.limit, filters.status, debouncedSearch, filters.dateStart, filters.dateEnd]);
+  }, [session?.access_token, pagination.page, pagination.limit, filters.status, debouncedSearch, filters.dateStart, filters.dateEnd, filters.overdueOnly]);
 
   // ============================================
   // HANDLERS
@@ -158,7 +162,8 @@ export function useInvoices() {
       search: '',
       status: 'all',
       dateStart: '',
-      dateEnd: ''
+      dateEnd: '',
+      overdueOnly: false
     });
     setPagination(prev => ({ ...prev, page: 1 }));
   }, []);
@@ -178,7 +183,8 @@ export function useInvoices() {
       filters.status !== 'all' ||
       filters.dateStart !== '' ||
       filters.dateEnd !== '' ||
-      filters.search !== ''
+      filters.search !== '' ||
+      filters.overdueOnly === true
     );
   }, [filters]);
 

@@ -2,7 +2,7 @@
  * InvoicesPage - Main Page Component
  * 
  * ============================================
- * REFACTORED VERSION - ~150 LINES
+ * REFACTORED VERSION - Invoice Reform
  * ============================================
  * 
  * Đây là "Orchestrator" - chỉ làm nhiệm vụ:
@@ -10,16 +10,16 @@
  * 2. Ghép các component con lại với nhau
  * 3. Truyền props xuống các component
  * 
- * KHÔNG CHỨA:
- * - Business logic
- * - API calls trực tiếp
- * - Complex state management
- * - Inline component definitions
+ * NEW FEATURES:
+ * - Tạo hóa đơn thủ công
+ * - Sửa hóa đơn
+ * - Hủy hóa đơn
+ * - Hoàn tiền
  */
 
 import { useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { Download, RefreshCw } from 'lucide-react';
+import { Download, RefreshCw, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 // Feature imports - Clean và dễ đọc
@@ -29,7 +29,12 @@ import {
   InvoiceTable,
   PaymentModal,
   InvoiceDetailModal,
-  Toast
+  Toast,
+  // New modals
+  CreateInvoiceModal,
+  EditInvoiceModal,
+  CancelInvoiceModal,
+  RefundInvoiceModal
 } from '../components';
 
 import { 
@@ -77,6 +82,12 @@ export function InvoicesPage() {
     loading: false
   });
 
+  // New modals state
+  const [createModal, setCreateModal] = useState(false);
+  const [editModal, setEditModal] = useState({ isOpen: false, invoice: null });
+  const [cancelModal, setCancelModal] = useState({ isOpen: false, invoice: null });
+  const [refundModal, setRefundModal] = useState({ isOpen: false, invoice: null });
+
   // ============================================
   // TOAST HELPERS
   // ============================================
@@ -114,6 +125,30 @@ export function InvoicesPage() {
   const handleStatusClick = useCallback((status) => {
     handleFilterChange('status', status);
   }, [handleFilterChange]);
+
+  const handleOverdueClick = useCallback(() => {
+    handleFilterChange('overdueOnly', true);
+  }, [handleFilterChange]);
+
+  // Modal success callback with refresh
+  const handleModalSuccess = useCallback((message) => {
+    showToast(message, 'success');
+    refreshInvoices();
+    refreshStats();
+  }, [showToast, refreshInvoices, refreshStats]);
+
+  // Open action modals
+  const handleEdit = useCallback((invoice) => {
+    setEditModal({ isOpen: true, invoice });
+  }, []);
+
+  const handleCancel = useCallback((invoice) => {
+    setCancelModal({ isOpen: true, invoice });
+  }, []);
+
+  const handleRefund = useCallback((invoice) => {
+    setRefundModal({ isOpen: true, invoice });
+  }, []);
 
   const handleViewDetail = useCallback(async (invoice) => {
     setDetailModal({ isOpen: true, invoice: null, loading: true });
@@ -161,6 +196,7 @@ export function InvoicesPage() {
         <PageHeader 
           onRefresh={handleRefresh}
           onExport={handleExport}
+          onCreate={() => setCreateModal(true)}
           loading={loading}
           canExport={invoices.length > 0}
         />
@@ -170,6 +206,7 @@ export function InvoicesPage() {
           statistics={statistics}
           loading={loadingStats}
           onStatusClick={handleStatusClick}
+          onOverdueClick={handleOverdueClick}
         />
 
         {/* Filters */}
@@ -188,6 +225,9 @@ export function InvoicesPage() {
           onPageChange={handlePageChange}
           onViewDetail={handleViewDetail}
           onPayment={payment.openPayment}
+          onEdit={handleEdit}
+          onCancel={handleCancel}
+          onRefund={handleRefund}
         />
 
         {/* Payment Modal */}
@@ -209,6 +249,37 @@ export function InvoicesPage() {
           onClose={handleCloseDetail}
         />
 
+        {/* Create Invoice Modal */}
+        <CreateInvoiceModal
+          isOpen={createModal}
+          onClose={() => setCreateModal(false)}
+          onSuccess={handleModalSuccess}
+        />
+
+        {/* Edit Invoice Modal */}
+        <EditInvoiceModal
+          isOpen={editModal.isOpen}
+          invoice={editModal.invoice}
+          onClose={() => setEditModal({ isOpen: false, invoice: null })}
+          onSuccess={handleModalSuccess}
+        />
+
+        {/* Cancel Invoice Modal */}
+        <CancelInvoiceModal
+          isOpen={cancelModal.isOpen}
+          invoice={cancelModal.invoice}
+          onClose={() => setCancelModal({ isOpen: false, invoice: null })}
+          onSuccess={handleModalSuccess}
+        />
+
+        {/* Refund Invoice Modal */}
+        <RefundInvoiceModal
+          isOpen={refundModal.isOpen}
+          invoice={refundModal.invoice}
+          onClose={() => setRefundModal({ isOpen: false, invoice: null })}
+          onSuccess={handleModalSuccess}
+        />
+
         {/* Toast Notification */}
         <Toast
           show={toast.show}
@@ -225,7 +296,7 @@ export function InvoicesPage() {
 // ============================================
 // PAGE HEADER - Simple sub-component
 // ============================================
-function PageHeader({ onRefresh, onExport, loading, canExport }) {
+function PageHeader({ onRefresh, onExport, onCreate, loading, canExport }) {
   return (
     <div className="mb-8">
       <div className="flex items-center justify-between">
@@ -254,6 +325,14 @@ function PageHeader({ onRefresh, onExport, loading, canExport }) {
           >
             <Download className="w-4 h-4" />
             Xuất Excel
+          </Button>
+          <Button
+            size="sm"
+            onClick={onCreate}
+            className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <Plus className="w-4 h-4" />
+            Tạo hóa đơn
           </Button>
         </div>
       </div>

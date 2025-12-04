@@ -2,15 +2,15 @@
  * InvoiceFilters Component
  * 
  * Pure Component cho thanh lọc hóa đơn.
- * Bao gồm: Search, Status filter, Date range, Clear button
+ * Bao gồm: Search, Status filter, Overdue filter, Date range, Clear button
  * 
- * @param {Object} filters - { search, status, dateStart, dateEnd }
+ * @param {Object} filters - { search, status, dateStart, dateEnd, overdueOnly }
  * @param {function} onFilterChange - Handler thay đổi filter
  * @param {function} onReset - Handler reset filters
  * @param {boolean} hasActiveFilters - Có filter đang active không
  */
 
-import { Search, Calendar, X } from 'lucide-react';
+import { Search, Calendar, X, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { STATUS_OPTIONS } from '../utils/constants';
 
@@ -60,6 +60,22 @@ export function InvoiceFilters({
             </option>
           ))}
         </select>
+
+        {/* Overdue Filter */}
+        <button
+          onClick={() => onFilterChange('overdueOnly', !filters.overdueOnly)}
+          className={`
+            h-10 px-3 rounded-lg border text-sm font-medium 
+            flex items-center gap-2 transition-colors
+            ${filters.overdueOnly 
+              ? 'bg-red-50 border-red-300 text-red-700' 
+              : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50'
+            }
+          `}
+        >
+          <AlertTriangle className="w-4 h-4" />
+          Quá hạn
+        </button>
 
         {/* Date Range */}
         <div className="flex items-center gap-2">

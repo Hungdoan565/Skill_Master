@@ -3989,15 +3989,39 @@ app.get('/api/invoices', requireAuth, async (req, res, next) => {
       search,
       startDate,
       endDate,
+      centerId,
+      overdue,  // 'true' để lọc HD quá hạn
       sortBy = 'created_at',
       sortOrder = 'desc'
     } = req.query;
+
+    // ====== PERMISSION CHECK ======
+    const userRole = req.user.roleCode;
+    const userCenterId = req.user.centerId;
+    
+    let effectiveCenterId = centerId;
+    
+    if (userRole !== 'SUPER_ADMIN') {
+      if (!userCenterId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn chưa được gán vào trung tâm nào.'
+        });
+      }
+      if (centerId && centerId !== userCenterId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn không có quyền xem hóa đơn của trung tâm khác.'
+        });
+      }
+      effectiveCenterId = userCenterId;
+    }
 
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const offset = (pageNum - 1) * limitNum;
 
-    // Build query
+    // Build query - thêm center_id từ class
     let query = supabase
       .from('invoices')
       .select(`
@@ -4025,6 +4049,7 @@ app.get('/api/invoices', requireAuth, async (req, res, next) => {
           id,
           code,
           name,
+          center_id,
           course:courses (
             id,
             title,
@@ -4043,7 +4068,6 @@ app.get('/api/invoices', requireAuth, async (req, res, next) => {
       query = query.gte('created_at', startDate);
     }
     if (endDate) {
-      // Thêm 1 ngày để bao gồm cả ngày end
       query = query.lte('created_at', `${endDate}T23:59:59`);
     }
 
@@ -4066,11 +4090,31 @@ app.get('/api/invoices', requireAuth, async (req, res, next) => {
 
     if (error) throw error;
 
-    // Nếu có search term, cần filter thêm theo tên học viên (do Supabase không hỗ trợ search nested)
-    let filteredData = data;
+    // Post-filter theo center (vì nested filter không support)
+    let filteredData = data || [];
+    
+    if (effectiveCenterId) {
+      filteredData = filteredData.filter(inv => 
+        inv.class?.center_id === effectiveCenterId || 
+        !inv.class_id // Hóa đơn không gắn class (phí khác) vẫn hiển thị
+      );
+    }
+    
+    // Filter overdue (quá hạn)
+    if (overdue === 'true') {
+      const today = new Date().toISOString().split('T')[0];
+      filteredData = filteredData.filter(inv => 
+        inv.due_date && 
+        inv.due_date < today && 
+        inv.status !== 'paid' && 
+        inv.status !== 'cancelled'
+      );
+    }
+
+    // Search filter (nested fields)
     if (search && search.trim()) {
       const searchLower = search.trim().toLowerCase();
-      filteredData = data?.filter(inv => 
+      filteredData = filteredData.filter(inv => 
         inv.invoice_code?.toLowerCase().includes(searchLower) ||
         inv.student?.full_name?.toLowerCase().includes(searchLower) ||
         inv.student?.email?.toLowerCase().includes(searchLower) ||
@@ -4080,7 +4124,7 @@ app.get('/api/invoices', requireAuth, async (req, res, next) => {
 
     res.json({
       success: true,
-      data: filteredData || [],
+      data: filteredData,
       pagination: {
         page: pageNum,
         limit: limitNum,
@@ -4098,46 +4142,83 @@ app.get('/api/invoices', requireAuth, async (req, res, next) => {
 // GET /api/invoices/statistics - Thống kê hóa đơn
 app.get('/api/invoices/statistics', requireAuth, async (req, res, next) => {
   try {
-    // Lấy tất cả invoices để tính toán
-    const { data: invoices, error } = await supabase
+    const { centerId } = req.query;
+    
+    // ====== PERMISSION CHECK ======
+    const userRole = req.user.roleCode;
+    const userCenterId = req.user.centerId;
+    
+    let effectiveCenterId = centerId;
+    
+    if (userRole !== 'SUPER_ADMIN') {
+      if (!userCenterId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn chưa được gán vào trung tâm nào.'
+        });
+      }
+      effectiveCenterId = userCenterId;
+    }
+
+    // Lấy invoices với class info để filter theo center
+    const { data: rawInvoices, error } = await supabase
       .from('invoices')
-      .select('status, final_amount, paid_amount, paid_at, created_at')
+      .select(`
+        status, 
+        final_amount, 
+        paid_amount, 
+        paid_at, 
+        created_at,
+        due_date,
+        class:classes (center_id)
+      `)
       .not('status', 'eq', 'cancelled');
 
     if (error) throw error;
 
+    // Filter theo center
+    let invoices = rawInvoices || [];
+    if (effectiveCenterId) {
+      invoices = invoices.filter(inv => 
+        inv.class?.center_id === effectiveCenterId || !inv.class
+      );
+    }
+
     // Lấy ngày đầu tháng và cuối tháng hiện tại
     const now = new Date();
+    const today = now.toISOString().split('T')[0];
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
     // Tính toán thống kê
-    let totalRevenue = 0;          // Tổng đã thu (tất cả)
-    let monthlyRevenue = 0;        // Thu tháng này
-    let totalDebt = 0;             // Tổng còn nợ
-    let countUnpaid = 0;           // Số hóa đơn chưa thanh toán
-    let countPartial = 0;          // Số hóa đơn đang đợi
-    let countPaid = 0;             // Số hóa đơn đã thanh toán
+    let totalRevenue = 0;
+    let monthlyRevenue = 0;
+    let totalDebt = 0;
+    let countUnpaid = 0;
+    let countPartial = 0;
+    let countPaid = 0;
+    let countOverdue = 0;  // Thêm đếm HD quá hạn
 
-    invoices?.forEach(inv => {
+    invoices.forEach(inv => {
       const paidAmount = parseFloat(inv.paid_amount) || 0;
       const finalAmount = parseFloat(inv.final_amount) || 0;
       const debt = finalAmount - paidAmount;
 
-      // Tổng đã thu
       totalRevenue += paidAmount;
 
-      // Tổng nợ
       if (debt > 0) {
         totalDebt += debt;
       }
 
-      // Đếm theo status
       if (inv.status === 'unpaid') countUnpaid++;
       else if (inv.status === 'partial') countPartial++;
       else if (inv.status === 'paid') countPaid++;
 
-      // Thu tháng này (dựa vào paid_at hoặc created_at nếu đã paid)
+      // Đếm quá hạn
+      if (inv.due_date && inv.due_date < today && inv.status !== 'paid') {
+        countOverdue++;
+      }
+
       if (paidAmount > 0) {
         const paidDate = inv.paid_at ? new Date(inv.paid_at) : new Date(inv.created_at);
         if (paidDate >= firstDayOfMonth && paidDate <= lastDayOfMonth) {
@@ -4156,7 +4237,8 @@ app.get('/api/invoices/statistics', requireAuth, async (req, res, next) => {
           unpaid: countUnpaid,
           partial: countPartial,
           paid: countPaid,
-          total: invoices?.length || 0
+          overdue: countOverdue,
+          total: invoices.length
         }
       }
     });
@@ -4235,6 +4317,92 @@ app.get('/api/invoices/:id', requireAuth, async (req, res, next) => {
 
   } catch (error) {
     console.error('Error fetching invoice detail:', error);
+    next(error);
+  }
+});
+
+// POST /api/invoices - Tạo hóa đơn thủ công (phí ngoài học phí)
+app.post('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const {
+      student_id,
+      class_id,         // Optional - nếu liên quan đến lớp
+      invoice_type,     // tuition | book | uniform | exam | other
+      amount,
+      discount_amount = 0,
+      description,
+      due_date,
+      notes
+    } = req.body;
+
+    // Validation
+    if (!student_id) {
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn học viên' });
+    }
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ success: false, message: 'Số tiền phải lớn hơn 0' });
+    }
+    if (!invoice_type) {
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn loại hóa đơn' });
+    }
+
+    // Kiểm tra học viên tồn tại
+    const { data: student, error: studentError } = await supabase
+      .from('users')
+      .select('id, full_name')
+      .eq('id', student_id)
+      .single();
+
+    if (studentError || !student) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy học viên' });
+    }
+
+    const finalAmount = parseFloat(amount) - parseFloat(discount_amount || 0);
+    
+    // Tạo description mặc định nếu không có
+    const typeLabels = {
+      tuition: 'Học phí',
+      book: 'Giáo trình/Sách',
+      uniform: 'Đồng phục',
+      exam: 'Phí thi',
+      other: 'Phí khác'
+    };
+    const defaultDesc = description || `${typeLabels[invoice_type] || 'Phí khác'} - ${student.full_name}`;
+
+    // Insert invoice
+    const { data: invoice, error } = await supabase
+      .from('invoices')
+      .insert({
+        student_id,
+        class_id: class_id || null,
+        invoice_type: invoice_type || 'other',
+        amount: parseFloat(amount),
+        discount_amount: parseFloat(discount_amount || 0),
+        final_amount: finalAmount,
+        paid_amount: 0,
+        status: 'unpaid',
+        description: defaultDesc,
+        due_date: due_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        created_by: req.user?.id
+      })
+      .select(`
+        *,
+        student:users!invoices_student_id_fkey (id, full_name, email, phone)
+      `)
+      .single();
+
+    if (error) throw error;
+
+    console.log(`📄 Tạo hóa đơn ${invoice.invoice_code} - ${invoice_type} cho ${student.full_name}`);
+
+    res.status(201).json({
+      success: true,
+      message: `Đã tạo hóa đơn ${invoice.invoice_code}`,
+      data: invoice
+    });
+
+  } catch (error) {
+    console.error('Error creating invoice:', error);
     next(error);
   }
 });
@@ -4320,17 +4488,65 @@ app.post('/api/invoices/:id/payments', requireAuth, async (req, res, next) => {
 });
 
 // PUT /api/invoices/:id - Cập nhật hóa đơn
-app.put('/api/invoices/:id', requireAuth, async (req, res, next) => {
+app.put('/api/invoices/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { due_date, description, status } = req.body;
+    const { amount, discount_amount, due_date, description, invoice_type } = req.body;
+
+    // Lấy invoice hiện tại
+    const { data: currentInvoice, error: fetchError } = await supabase
+      .from('invoices')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !currentInvoice) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy hóa đơn' });
+    }
+
+    // Không cho sửa nếu đã paid hoặc cancelled
+    if (currentInvoice.status === 'paid') {
+      return res.status(400).json({ success: false, message: 'Không thể sửa hóa đơn đã thanh toán đủ' });
+    }
+    if (currentInvoice.status === 'cancelled') {
+      return res.status(400).json({ success: false, message: 'Không thể sửa hóa đơn đã hủy' });
+    }
 
     const updateData = { updated_at: new Date().toISOString() };
+    
+    // Cập nhật số tiền
+    let newAmount = currentInvoice.amount;
+    let newDiscount = currentInvoice.discount_amount;
+    
+    if (amount !== undefined) {
+      newAmount = parseFloat(amount);
+      updateData.amount = newAmount;
+    }
+    if (discount_amount !== undefined) {
+      newDiscount = parseFloat(discount_amount);
+      updateData.discount_amount = newDiscount;
+    }
+    
+    // Tính lại final_amount
+    if (amount !== undefined || discount_amount !== undefined) {
+      const newFinal = newAmount - newDiscount;
+      updateData.final_amount = newFinal;
+      
+      // Cập nhật status nếu cần
+      const paidAmount = currentInvoice.paid_amount || 0;
+      if (paidAmount >= newFinal) {
+        updateData.status = 'paid';
+        updateData.paid_at = new Date().toISOString();
+      } else if (paidAmount > 0) {
+        updateData.status = 'partial';
+      } else {
+        updateData.status = 'unpaid';
+      }
+    }
+
     if (due_date !== undefined) updateData.due_date = due_date;
     if (description !== undefined) updateData.description = description;
-    if (status && ['unpaid', 'partial', 'paid', 'cancelled', 'refunded'].includes(status)) {
-      updateData.status = status;
-    }
+    if (invoice_type !== undefined) updateData.invoice_type = invoice_type;
 
     const { data, error } = await supabase
       .from('invoices')
@@ -4349,6 +4565,163 @@ app.put('/api/invoices/:id', requireAuth, async (req, res, next) => {
 
   } catch (error) {
     console.error('Error updating invoice:', error);
+    next(error);
+  }
+});
+
+// PUT /api/invoices/:id/cancel - Hủy hóa đơn
+app.put('/api/invoices/:id/cancel', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    // Lấy invoice hiện tại
+    const { data: invoice, error: fetchError } = await supabase
+      .from('invoices')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !invoice) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy hóa đơn' });
+    }
+
+    if (invoice.status === 'cancelled') {
+      return res.status(400).json({ success: false, message: 'Hóa đơn đã được hủy trước đó' });
+    }
+
+    if (invoice.status === 'paid') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Không thể hủy hóa đơn đã thanh toán đủ. Hãy sử dụng chức năng hoàn tiền.' 
+      });
+    }
+
+    // Nếu đã có thanh toán một phần, cảnh báo
+    if (invoice.paid_amount > 0) {
+      console.warn(`⚠️ Hủy hóa đơn ${invoice.invoice_code} có ${invoice.paid_amount.toLocaleString()}đ đã thanh toán`);
+    }
+
+    const { data, error } = await supabase
+      .from('invoices')
+      .update({
+        status: 'cancelled',
+        description: reason 
+          ? `${invoice.description || ''} [HỦY: ${reason}]` 
+          : invoice.description,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log(`🚫 Hủy hóa đơn ${invoice.invoice_code} bởi ${req.user.email}`);
+
+    res.json({
+      success: true,
+      message: `Đã hủy hóa đơn ${invoice.invoice_code}`,
+      data
+    });
+
+  } catch (error) {
+    console.error('Error cancelling invoice:', error);
+    next(error);
+  }
+});
+
+// POST /api/invoices/:id/refund - Hoàn tiền
+app.post('/api/invoices/:id/refund', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { refund_amount, reason, refund_method = 'cash' } = req.body;
+
+    // Lấy invoice hiện tại
+    const { data: invoice, error: fetchError } = await supabase
+      .from('invoices')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !invoice) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy hóa đơn' });
+    }
+
+    if (invoice.status === 'cancelled') {
+      return res.status(400).json({ success: false, message: 'Không thể hoàn tiền hóa đơn đã hủy' });
+    }
+
+    if (invoice.status === 'refunded') {
+      return res.status(400).json({ success: false, message: 'Hóa đơn đã được hoàn tiền trước đó' });
+    }
+
+    const paidAmount = invoice.paid_amount || 0;
+    if (paidAmount <= 0) {
+      return res.status(400).json({ success: false, message: 'Hóa đơn chưa có thanh toán để hoàn tiền' });
+    }
+
+    const refundValue = refund_amount ? parseFloat(refund_amount) : paidAmount;
+    if (refundValue > paidAmount) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Số tiền hoàn không thể lớn hơn đã thanh toán (${paidAmount.toLocaleString()}đ)` 
+      });
+    }
+
+    // Tạo payment record âm để ghi nhận hoàn tiền
+    const { error: paymentError } = await supabase
+      .from('payments')
+      .insert({
+        invoice_id: id,
+        amount: -refundValue,  // Số âm = hoàn tiền
+        payment_method: refund_method,
+        notes: `HOÀN TIỀN: ${reason || 'Theo yêu cầu'}`,
+        received_by: req.user?.id
+      });
+
+    if (paymentError) {
+      console.warn('Error creating refund payment record:', paymentError.message);
+    }
+
+    // Cập nhật invoice
+    const newPaidAmount = paidAmount - refundValue;
+    let newStatus = 'refunded';
+    if (newPaidAmount > 0 && newPaidAmount < invoice.final_amount) {
+      newStatus = 'partial';
+    } else if (newPaidAmount <= 0) {
+      newStatus = 'refunded';
+    }
+
+    const { data, error } = await supabase
+      .from('invoices')
+      .update({
+        paid_amount: newPaidAmount,
+        status: newStatus,
+        description: `${invoice.description || ''} [HOÀN TIỀN: ${refundValue.toLocaleString()}đ - ${reason || ''}]`,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log(`💸 Hoàn tiền ${refundValue.toLocaleString()}đ cho ${invoice.invoice_code} bởi ${req.user.email}`);
+
+    res.json({
+      success: true,
+      message: `Đã hoàn ${refundValue.toLocaleString()}đ cho hóa đơn ${invoice.invoice_code}`,
+      data,
+      refund: {
+        amount: refundValue,
+        method: refund_method,
+        reason
+      }
+    });
+
+  } catch (error) {
+    console.error('Error refunding invoice:', error);
     next(error);
   }
 });
