@@ -93,13 +93,13 @@ async function generateSessionsForClass(classId, startDate, endDate, schedule, t
       // Kiểm tra ngày này có trong lịch học không và không phải ngày lễ
       if (scheduleDays.has(dayOfWeek) && !holidays.has(dateStr)) {
         const time = timeByDay[dayOfWeek] || { start: '18:00', end: '20:00' };
-        
+
         // Xác định status
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const sessionDate = new Date(d);
         sessionDate.setHours(0, 0, 0, 0);
-        
+
         let status = 'upcoming';
         if (sessionDate < today) status = 'completed';
 
@@ -155,12 +155,12 @@ app.get('/api/status', async (_req, res, next) => {
 app.get('/api/courses', async (req, res, next) => {
   try {
     const { status } = req.query;
-    
+
     let query = supabase
       .from('courses')
       .select('*')
       .order('created_at', { ascending: false });
-    
+
     // Nếu có filter status
     if (status) {
       query = query.eq('status', status);
@@ -182,27 +182,27 @@ app.get('/api/courses', async (req, res, next) => {
 // Tạo khóa học mới (chỉ admin mới được tạo)
 app.post('/api/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
-    const { 
-      code, 
-      title, 
-      description, 
-      category, 
+    const {
+      code,
+      title,
+      description,
+      category,
       level,
       total_sessions,
       duration_weeks,
-      price, 
+      price,
       cover_image,
       status
     } = req.body;
-    
+
     // Log user đang tạo (từ middleware)
     console.log(`📝 User ${req.user.email} đang tạo khóa học: ${title}`);
 
     // Validate dữ liệu đầu vào
     if (!code || !title || !category) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Mã khóa học, tên và danh mục là bắt buộc' 
+      return res.status(400).json({
+        success: false,
+        message: 'Mã khóa học, tên và danh mục là bắt buộc'
       });
     }
 
@@ -240,10 +240,10 @@ app.post('/api/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGE
 
     if (error) throw error;
 
-    res.status(201).json({ 
-      success: true, 
+    res.status(201).json({
+      success: true,
       message: 'Tạo khóa học thành công',
-      data 
+      data
     });
   } catch (error) {
     console.error('Error creating course:', error);
@@ -255,26 +255,26 @@ app.post('/api/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGE
 app.put('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { 
-      code, 
-      title, 
-      description, 
-      category, 
+    const {
+      code,
+      title,
+      description,
+      category,
       level,
       total_sessions,
       duration_weeks,
-      price, 
+      price,
       cover_image,
       status
     } = req.body;
-    
+
     console.log(`✏️ User ${req.user.email} đang cập nhật khóa học: ${id}`);
 
     // Validate dữ liệu đầu vào
     if (!code || !title || !category) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Mã khóa học, tên và danh mục là bắt buộc' 
+      return res.status(400).json({
+        success: false,
+        message: 'Mã khóa học, tên và danh mục là bắt buộc'
       });
     }
 
@@ -314,10 +314,10 @@ app.put('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MAN
 
     if (error) throw error;
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Cập nhật khóa học thành công',
-      data 
+      data
     });
   } catch (error) {
     console.error('Error updating course:', error);
@@ -329,7 +329,7 @@ app.put('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MAN
 app.delete('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
-    
+
     console.log(`🗑️ User ${req.user.email} đang xóa khóa học: ${id}`);
 
     // Kiểm tra xem có lớp học nào đang sử dụng khóa học này không
@@ -368,9 +368,9 @@ app.delete('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
 
     if (error) throw error;
 
-    res.json({ 
-      success: true, 
-      message: 'Xóa khóa học thành công' 
+    res.json({
+      success: true,
+      message: 'Xóa khóa học thành công'
     });
   } catch (error) {
     console.error('Error deleting course:', error);
@@ -384,7 +384,7 @@ app.delete('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
 app.get('/api/courses/:courseId/grade-structures', requireAuth, async (req, res, next) => {
   try {
     const { courseId } = req.params;
-    
+
     // Lấy thông tin cấu hình từ course
     const { data: courseData, error: courseError } = await supabase
       .from('courses')
@@ -406,8 +406,8 @@ app.get('/api/courses/:courseId/grade-structures', requireAuth, async (req, res,
     // Tính tổng trọng số
     const totalWeight = data.reduce((sum, col) => sum + parseFloat(col.weight || 0), 0);
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data,
       config: {
         calculationType: courseData?.calculation_type || 'weighted',
@@ -502,8 +502,8 @@ app.put('/api/courses/:courseId/grade-structures', requireAuth, async (req, res,
 
     if (error) throw error;
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Cập nhật cấu trúc điểm thành công',
       data,
       config: {
@@ -520,8 +520,8 @@ app.put('/api/courses/:courseId/grade-structures', requireAuth, async (req, res,
 
 // API kiểm tra user hiện tại (debug/profile)
 app.get('/api/me', requireAuth, async (req, res) => {
-  res.json({ 
-    success: true, 
+  res.json({
+    success: true,
     user: {
       id: req.user.id,
       email: req.user.email,
@@ -537,7 +537,7 @@ app.get('/api/me', requireAuth, async (req, res) => {
 app.get('/api/admin/staff', requireAuth, async (req, res, next) => {
   try {
     const { role } = req.query; // Filter theo role: TEACHER, CENTER_MANAGER
-    
+
     let query = supabase
       .from('users')
       .select(`
@@ -554,11 +554,11 @@ app.get('/api/admin/staff', requireAuth, async (req, res, next) => {
           name
         )
       `)
-      .in('role_id', role 
-        ? [role] 
-        : ['TEACHER', 'CENTER_MANAGER'].map(r => 
-            supabase.from('roles').select('id').eq('code', r)
-          )
+      .in('role_id', role
+        ? [role]
+        : ['TEACHER', 'CENTER_MANAGER'].map(r =>
+          supabase.from('roles').select('id').eq('code', r)
+        )
       )
       .order('created_at', { ascending: false });
 
@@ -570,7 +570,7 @@ app.get('/api/admin/staff', requireAuth, async (req, res, next) => {
         .select('id')
         .eq('code', role)
         .single();
-      
+
       if (roleData) {
         query = supabase
           .from('users')
@@ -598,7 +598,7 @@ app.get('/api/admin/staff', requireAuth, async (req, res, next) => {
         .select('id')
         .eq('code', 'STUDENT')
         .single();
-      
+
       query = supabase
         .from('users')
         .select(`
@@ -633,7 +633,7 @@ app.get('/api/admin/staff', requireAuth, async (req, res, next) => {
 app.post('/api/admin/users', requireAuth, async (req, res, next) => {
   try {
     const { email, full_name, phone, role_code } = req.body;
-    
+
     console.log(`👤 Admin ${req.user.email} đang tạo user: ${email} với role ${role_code}`);
 
     // Validate input
@@ -669,7 +669,7 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
     // Tạo user trong Supabase Auth với password mặc định
     // Note: Trong production nên dùng inviteUserByEmail thay vì createUser
     const defaultPassword = 'SkillMaster@123'; // Password mặc định, nhân viên đổi sau
-    
+
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password: defaultPassword,
@@ -693,7 +693,7 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
 
     // Insert vào public.users với role được chỉ định
     const userId = authData?.user?.id;
-    
+
     if (userId) {
       // Update role trong public.users (trigger đã tạo với role STUDENT)
       const { error: updateError } = await supabase
@@ -718,7 +718,7 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
             role_id: roleData.id,
             status: 'active',
           });
-        
+
         if (insertError) {
           console.error('Insert user error:', insertError);
         }
@@ -806,7 +806,7 @@ app.get('/api/admin/students', requireAuth, async (req, res, next) => {
     let result = data || [];
     if (search) {
       const searchLower = search.toLowerCase();
-      result = result.filter(u => 
+      result = result.filter(u =>
         u.full_name?.toLowerCase().includes(searchLower) ||
         u.email?.toLowerCase().includes(searchLower) ||
         u.phone?.includes(search)
@@ -974,7 +974,7 @@ app.get('/api/classes', requireAuth, async (req, res, next) => {
           .select('*', { count: 'exact', head: true })
           .eq('class_id', cls.id)
           .eq('status', 'active');
-        
+
         return {
           ...cls,
           enrolled_count: count || 0,
@@ -1020,8 +1020,8 @@ app.get('/api/classes/:id', requireAuth, async (req, res, next) => {
       `)
       .eq('class_id', id);
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: { ...data, teacher: data.users, enrollments: enrollments || [] }
     });
   } catch (error) {
@@ -1205,7 +1205,7 @@ app.put('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
     // 🔥 KIỂM TRA XUNG ĐỘT LỊCH HỌC KHI UPDATE
     // ========================================
     const { room_id, teacher_id, start_date, end_date, schedule } = updates;
-    
+
     if ((room_id || teacher_id) && start_date && end_date && schedule && schedule.length > 0) {
       const conflictCheck = await checkScheduleConflict(supabase, {
         room_id,
@@ -1250,16 +1250,16 @@ app.put('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
         schedule: data.schedule,
         teacher_id: data.teacher_id
       }, { deleteExisting: true, skipLocked: true });
-      
+
       sessionsUpdated = sessionResult.count;
       console.log(`📅 Sessions regenerated: ${sessionsUpdated} buổi`);
     }
 
-    res.json({ 
-      success: true, 
-      message: 'Cập nhật lớp học thành công', 
+    res.json({
+      success: true,
+      message: 'Cập nhật lớp học thành công',
       data,
-      sessionsUpdated 
+      sessionsUpdated
     });
   } catch (error) {
     console.error('Error updating class:', error);
@@ -1380,7 +1380,7 @@ app.delete('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'C
 // ========================================
 app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
   try {
-    const { 
+    const {
       startDate,      // YYYY-MM-DD
       endDate,        // YYYY-MM-DD  
       status,         // scheduled | completed | cancelled
@@ -1394,9 +1394,9 @@ app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
     // CENTER_MANAGER: chỉ xem center của mình
     const userRole = req.user.roleCode;
     const userCenterId = req.user.centerId;
-    
+
     let effectiveCenterId = centerId; // centerId từ query param
-    
+
     if (userRole !== 'SUPER_ADMIN') {
       // Không phải SUPER_ADMIN => bắt buộc dùng center của user
       if (!userCenterId) {
@@ -1405,7 +1405,7 @@ app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
           message: 'Bạn chưa được gán vào trung tâm nào. Vui lòng liên hệ admin.'
         });
       }
-      
+
       // Nếu client request centerId khác với center của user => reject
       if (centerId && centerId !== userCenterId) {
         console.warn(`⚠️ User ${req.user.email} (${userRole}) tried to access center ${centerId} but belongs to ${userCenterId}`);
@@ -1414,7 +1414,7 @@ app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
           message: 'Bạn không có quyền xem dữ liệu của trung tâm khác.'
         });
       }
-      
+
       // Force sử dụng center của user
       effectiveCenterId = userCenterId;
     }
@@ -1487,12 +1487,12 @@ app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
 
     // Post-filter theo center và room (vì nested filter không được support trực tiếp)
     let filteredData = data || [];
-    
+
     // Dùng effectiveCenterId (đã được permission check ở trên)
     if (effectiveCenterId) {
       filteredData = filteredData.filter(s => s.classes?.center_id === effectiveCenterId);
     }
-    
+
     if (roomId) {
       filteredData = filteredData.filter(s => s.classes?.room_id === roomId);
     }
@@ -1511,8 +1511,8 @@ app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
       }).length
     };
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: filteredData,
       stats
     });
@@ -1539,7 +1539,7 @@ app.get('/api/admin/classes/:classId/sessions', requireAuth, async (req, res, ne
       .order('session_date', { ascending: true });
 
     if (status) query = query.eq('status', status);
-    
+
     // Filter theo tháng/năm (cho payroll)
     if (month && year) {
       const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
@@ -1619,7 +1619,7 @@ app.put('/api/admin/sessions/:id', requireAuth, async (req, res, next) => {
 
     // Update các trường thông thường
     const safeUpdates = { ...updates, updated_at: new Date().toISOString() };
-    
+
     // Chỉ thêm room_id nếu có yêu cầu đổi phòng
     if (roomIdUpdate !== undefined) {
       safeUpdates.room_id = roomIdUpdate;
@@ -1691,8 +1691,8 @@ app.get('/api/admin/sessions/:sessionId/available-teachers', requireAuth, async 
       isCurrent: t.id === session.teacher_id
     }));
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: result,
       sessionInfo: {
         date: session.session_date,
@@ -1757,7 +1757,7 @@ app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, async (re
           .from('classes')
           .select('id, room_id')
           .in('id', classIds);
-        
+
         (busyClasses || []).forEach(c => {
           if (c.room_id) busyRoomIds.add(c.room_id);
         });
@@ -1773,8 +1773,8 @@ app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, async (re
       isCurrent: r.id === currentRoomId
     }));
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: result,
       sessionInfo: {
         date: session.session_date,
@@ -1893,7 +1893,7 @@ app.post('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, r
 app.get('/api/rooms', async (req, res, next) => {
   try {
     const { center_id, status } = req.query;
-    
+
     let query = supabase
       .from('rooms')
       .select(`
@@ -2072,7 +2072,7 @@ function parseScheduleSafe(schedule) {
 app.post('/api/classes/check-conflict', requireAuth, async (req, res, next) => {
   try {
     const { teacher_id, room_id, start_date, end_date, schedule, exclude_class_id } = req.body;
-    
+
     // schedule là mảng: [{ day: 2, start: "18:00", end: "20:00" }, ...]
     if (!schedule || !Array.isArray(schedule) || schedule.length === 0) {
       return res.json({ conflict: false, message: 'Không có lịch để kiểm tra' });
@@ -2102,7 +2102,7 @@ app.post('/api/classes/check-conflict', requireAuth, async (req, res, next) => {
           }
 
           const oldSchedule = parseScheduleSafe(oldClass.schedule);
-          const clash = oldSchedule.find(oldSession => 
+          const clash = oldSchedule.find(oldSession =>
             oldSession.day === newSession.day &&
             isTimeOverlap(newSession.start, newSession.end, oldSession.start, oldSession.end)
           );
@@ -2158,8 +2158,8 @@ app.post('/api/classes/check-conflict', requireAuth, async (req, res, next) => {
     res.json({
       conflict: conflicts.length > 0,
       conflicts,
-      message: conflicts.length > 0 
-        ? `Phát hiện ${conflicts.length} xung đột lịch` 
+      message: conflicts.length > 0
+        ? `Phát hiện ${conflicts.length} xung đột lịch`
         : 'Lịch hợp lệ, không có xung đột'
     });
   } catch (error) {
@@ -2253,8 +2253,8 @@ app.get('/api/classes/:id', requireAuth, async (req, res, next) => {
       .eq('class_id', id)
       .eq('status', 'active');
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: {
         ...data,
         current_students: studentCount || 0
@@ -2270,9 +2270,9 @@ app.get('/api/classes/:id', requireAuth, async (req, res, next) => {
 app.get('/api/classes/:id/students', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { 
-      page = 1, 
-      limit = 10, 
+    const {
+      page = 1,
+      limit = 10,
       payment_status = 'all',  // all | paid | unpaid
       search = ''
     } = req.query;
@@ -2318,7 +2318,7 @@ app.get('/api/classes/:id/students', requireAuth, async (req, res, next) => {
       const paid = enrollment.paid_amount || 0;
       const amountDue = tuition - discount;
       const remaining = amountDue - paid;
-      
+
       // Tính payment status
       let paymentStatusCalc = 'unpaid';
       if (remaining <= 0 && amountDue > 0) paymentStatusCalc = 'paid';
@@ -2355,7 +2355,7 @@ app.get('/api/classes/:id/students', requireAuth, async (req, res, next) => {
     // 5. Filter theo search (tìm theo tên, email, phone)
     if (search && search.trim()) {
       const searchLower = search.toLowerCase().trim();
-      students = students.filter(s => 
+      students = students.filter(s =>
         (s.full_name && s.full_name.toLowerCase().includes(searchLower)) ||
         (s.email && s.email.toLowerCase().includes(searchLower)) ||
         (s.phone && s.phone.includes(searchLower))
@@ -2365,12 +2365,12 @@ app.get('/api/classes/:id/students', requireAuth, async (req, res, next) => {
     // 6. Tính pagination sau khi filter
     const filteredTotal = students.length;
     const totalPages = Math.ceil(filteredTotal / limitNum);
-    
+
     // 7. Slice để lấy đúng trang
     const paginatedStudents = students.slice(from, from + limitNum);
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: paginatedStudents,
       pagination: {
         total: filteredTotal,
@@ -2426,8 +2426,8 @@ app.get('/api/admin/classes/:classId/students', requireAuth, async (req, res, ne
       users: e.users // Giữ nguyên để compatible với modal
     }));
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: students,
       count: students.length
     });
@@ -2482,16 +2482,16 @@ app.get('/api/students/search', requireAuth, async (req, res, next) => {
 
       const enrolledIds = new Set((enrolled || []).map(e => e.student_id));
       const filtered = students.filter(s => !enrolledIds.has(s.id));
-      
-      return res.json({ 
-        success: true, 
+
+      return res.json({
+        success: true,
         data: filtered,
         type: q ? 'search' : 'recent' // Cho FE biết đây là kết quả tìm kiếm hay gợi ý
       });
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: students || [],
       type: q ? 'search' : 'recent'
     });
@@ -2530,9 +2530,9 @@ app.post('/api/classes/:id/enroll', requireAuth, async (req, res, next) => {
       .eq('status', 'active');
 
     if (currentCount >= classData.max_students) {
-      return res.status(400).json({ 
-        success: false, 
-        message: `Lớp đã đầy (${currentCount}/${classData.max_students} học viên)` 
+      return res.status(400).json({
+        success: false,
+        message: `Lớp đã đầy (${currentCount}/${classData.max_students} học viên)`
       });
     }
 
@@ -2548,7 +2548,7 @@ app.post('/api/classes/:id/enroll', requireAuth, async (req, res, next) => {
       if (existing.status === 'active') {
         return res.status(400).json({ success: false, message: 'Học viên đã có trong lớp này' });
       }
-      
+
       // Nếu đã dropped, có thể re-activate
       const reactiveTuition = tuition_fee ?? classData.courses?.price ?? 0;
       const reactiveDiscount = discount_amount ?? 0;
@@ -2556,8 +2556,8 @@ app.post('/api/classes/:id/enroll', requireAuth, async (req, res, next) => {
 
       const { data: updated, error: updateError } = await supabase
         .from('enrollments')
-        .update({ 
-          status: 'active', 
+        .update({
+          status: 'active',
           enrolled_at: new Date().toISOString(),
           tuition_fee: reactiveTuition,
           discount_amount: reactiveDiscount,
@@ -2594,9 +2594,9 @@ app.post('/api/classes/:id/enroll', requireAuth, async (req, res, next) => {
         .select()
         .single();
 
-      return res.json({ 
-        success: true, 
-        message: 'Đã ghi danh lại học viên', 
+      return res.json({
+        success: true,
+        message: 'Đã ghi danh lại học viên',
         data: updated,
         invoice: newInvoice || null
       });
@@ -2655,9 +2655,9 @@ app.post('/api/classes/:id/enroll', requireAuth, async (req, res, next) => {
     }
 
     console.log(`✅ Ghi danh học viên ${student_id} vào lớp ${classData.name}`);
-    res.status(201).json({ 
-      success: true, 
-      message: 'Ghi danh thành công', 
+    res.status(201).json({
+      success: true,
+      message: 'Ghi danh thành công',
       data: enrollment,
       invoice: invoice || null
     });
@@ -2703,7 +2703,7 @@ app.delete('/api/classes/:classId/students/:studentId', requireAuth, async (req,
 
       if (invoices && invoices.length > 0) {
         const invoiceIds = invoices.map(inv => inv.id);
-        
+
         // Xóa payments liên quan
         await supabase
           .from('payments')
@@ -2808,9 +2808,9 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
 
     // Kiểm tra số tiền thanh toán có vượt quá số nợ không
     if (amount > remaining) {
-      return res.status(400).json({ 
-        success: false, 
-        message: `Số tiền thanh toán (${amount.toLocaleString()}đ) vượt quá số nợ (${remaining.toLocaleString()}đ)` 
+      return res.status(400).json({
+        success: false,
+        message: `Số tiền thanh toán (${amount.toLocaleString()}đ) vượt quá số nợ (${remaining.toLocaleString()}đ)`
       });
     }
 
@@ -2899,7 +2899,7 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
     const newPaidAmount = currentPaid + amount;
     const { data: updatedEnrollment, error: updateError } = await supabase
       .from('enrollments')
-      .update({ 
+      .update({
         paid_amount: newPaidAmount,
         updated_at: new Date().toISOString()
       })
@@ -2919,7 +2919,7 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
 
       await supabase
         .from('invoices')
-        .update({ 
+        .update({
           paid_amount: newInvoicePaid,
           status: newStatus,
           paid_at: newStatus === 'paid' ? new Date().toISOString() : null,
@@ -2930,8 +2930,8 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
 
     console.log(`✅ Payment processed: ${amount.toLocaleString()}đ for enrollment ${enrollment_id}`);
 
-    res.status(201).json({ 
-      success: true, 
+    res.status(201).json({
+      success: true,
       message: `Đã thu ${amount.toLocaleString()}đ thành công`,
       data: {
         payment: paymentRecord,
@@ -2999,7 +2999,7 @@ app.get('/api/enrollments/:id/payments', requireAuth, async (req, res, next) => 
 // Utility: Parse schedule từ nhiều format khác nhau
 function parseScheduleData(schedule) {
   if (!schedule) return { days: [], startTime: '18:00', endTime: '20:00' };
-  
+
   // Format 1: JSON array [{"day":2,"start":"18:00","end":"20:00"},...]
   if (typeof schedule === 'string' && schedule.startsWith('[')) {
     try {
@@ -3019,7 +3019,7 @@ function parseScheduleData(schedule) {
       console.log('Error parsing JSON schedule:', e);
     }
   }
-  
+
   // Format 2: Array object (already parsed)
   if (Array.isArray(schedule) && schedule.length > 0) {
     const dayMapping = { 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 0 };
@@ -3030,14 +3030,14 @@ function parseScheduleData(schedule) {
       endTime: schedule[0]?.end || '20:00'
     };
   }
-  
+
   // Format 3: String "T2-T4-T6"
   if (typeof schedule === 'string') {
     const dayMap = { 'T2': 1, 'T3': 2, 'T4': 3, 'T5': 4, 'T6': 5, 'T7': 6, 'CN': 0 };
     const days = schedule.split('-').map(d => dayMap[d.trim()]).filter(d => d !== undefined);
     return { days, startTime: '18:00', endTime: '20:00' };
   }
-  
+
   return { days: [], startTime: '18:00', endTime: '20:00' };
 }
 
@@ -3052,7 +3052,7 @@ function generateSessions(startDate, endDate, schedule) {
   const start = new Date(startDate);
   const end = new Date(endDate);
   let sessionNumber = 1;
-  
+
   // Danh sách ngày nghỉ lễ Việt Nam 2025-2026
   const holidays = [
     '2025-01-01', // Tết Dương lịch
@@ -3065,13 +3065,13 @@ function generateSessions(startDate, endDate, schedule) {
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     const dayOfWeek = d.getDay(); // 0=CN, 1=T2, 2=T3, ...
     const dateStr = d.toISOString().split('T')[0];
-    
+
     if (scheduleDays.includes(dayOfWeek) && !holidays.includes(dateStr)) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const sessionDate = new Date(d);
       sessionDate.setHours(0, 0, 0, 0);
-      
+
       let status = 'upcoming';
       if (sessionDate < today) {
         status = 'completed';
@@ -3140,7 +3140,7 @@ app.get('/api/classes/:id/sessions', requireAuth, async (req, res, next) => {
 
     // Đếm số học viên đã điểm danh cho mỗi buổi
     const sessionDates = sessions.map(s => s.date);
-    
+
     const { data: attendanceSummary, error: summaryError } = await supabase
       .from('attendance')
       .select(`
@@ -3182,8 +3182,8 @@ app.get('/api/classes/:id/sessions', requireAuth, async (req, res, next) => {
       is_marked: !!attendanceByDate[session.date]
     }));
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: {
         class_info: {
           id: classData.id,
@@ -3259,8 +3259,8 @@ app.get('/api/classes/:id/attendance', requireAuth, async (req, res, next) => {
       attendance: attendanceMap[e.id] || null
     }));
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: {
         date,
         students,
@@ -3282,9 +3282,9 @@ app.post('/api/attendance/mark', requireAuth, async (req, res, next) => {
     const markedBy = req.user.id;
 
     if (!class_id || !date || !attendances || !Array.isArray(attendances)) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Thiếu thông tin: class_id, date, attendances' 
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu thông tin: class_id, date, attendances'
       });
     }
 
@@ -3329,9 +3329,9 @@ app.post('/api/attendance/mark', requireAuth, async (req, res, next) => {
 
     const { data: result, error: upsertError } = await supabase
       .from('attendance')
-      .upsert(upsertData, { 
+      .upsert(upsertData, {
         onConflict: 'enrollment_id,session_date',
-        ignoreDuplicates: false 
+        ignoreDuplicates: false
       })
       .select();
 
@@ -3341,12 +3341,12 @@ app.post('/api/attendance/mark', requireAuth, async (req, res, next) => {
     if (session_id) {
       const { error: sessionUpdateError } = await supabase
         .from('sessions')
-        .update({ 
+        .update({
           status: 'completed',
           updated_at: new Date().toISOString()
         })
         .eq('id', session_id);
-      
+
       if (sessionUpdateError) {
         console.warn('Warning updating session status:', sessionUpdateError);
       } else {
@@ -3356,13 +3356,13 @@ app.post('/api/attendance/mark', requireAuth, async (req, res, next) => {
       // Fallback: tìm session theo class_id và date
       const { error: sessionUpdateError } = await supabase
         .from('sessions')
-        .update({ 
+        .update({
           status: 'completed',
           updated_at: new Date().toISOString()
         })
         .eq('class_id', class_id)
         .eq('session_date', date);
-      
+
       if (!sessionUpdateError) {
         console.log(`✅ Session for class ${class_id} on ${date} marked as completed`);
       }
@@ -3378,8 +3378,8 @@ app.post('/api/attendance/mark', requireAuth, async (req, res, next) => {
 
     console.log(`✅ Điểm danh thành công: ${summary.present} có mặt, ${summary.absent} vắng, ${summary.late} trễ`);
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: `Đã lưu điểm danh ${summary.total} học viên`,
       data: {
         date,
@@ -3449,7 +3449,7 @@ app.get('/api/classes/:id/grades', requireAuth, async (req, res, next) => {
 
     // 4. Lấy tất cả điểm đã nhập cho lớp này
     const enrollmentIds = enrollments.map(e => e.id);
-    
+
     let grades = [];
     if (enrollmentIds.length > 0) {
       const { data: gradesData, error: gradesError } = await supabase
@@ -3493,8 +3493,8 @@ app.get('/api/classes/:id/grades', requireAuth, async (req, res, next) => {
         status: enrollment.status,
         grades: studentGrades,
         // Điểm tổng kết (weighted average)
-        weighted_average: totalWeight > 0 
-          ? Math.round((totalWeightedScore / totalWeight) * 100) / 100 
+        weighted_average: totalWeight > 0
+          ? Math.round((totalWeightedScore / totalWeight) * 100) / 100
           : null
       };
     });
@@ -3529,9 +3529,9 @@ app.post('/api/grades/bulk-update', requireAuth, async (req, res, next) => {
     const gradedBy = req.user.id;
 
     if (!grades || !Array.isArray(grades) || grades.length === 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Thiếu thông tin: grades array' 
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu thông tin: grades array'
       });
     }
 
@@ -3550,9 +3550,9 @@ app.post('/api/grades/bulk-update', requireAuth, async (req, res, next) => {
     // Upsert (có rồi thì update, chưa có thì insert)
     const { data, error } = await supabase
       .from('grades')
-      .upsert(upsertData, { 
+      .upsert(upsertData, {
         onConflict: 'enrollment_id,grade_structure_id',
-        ignoreDuplicates: false 
+        ignoreDuplicates: false
       })
       .select();
 
@@ -3599,9 +3599,9 @@ app.post('/api/courses/:id/grade-structures', requireAuth, async (req, res, next
     const { structures } = req.body;
 
     if (!structures || !Array.isArray(structures)) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Thiếu thông tin: structures array' 
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu thông tin: structures array'
       });
     }
 
@@ -3701,7 +3701,7 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
     const totalRevenueLastMonth = paymentsLastMonth?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
 
     // Tính % thay đổi doanh thu
-    const revenueTrend = totalRevenueLastMonth > 0 
+    const revenueTrend = totalRevenueLastMonth > 0
       ? Math.round(((totalRevenueThisMonth - totalRevenueLastMonth) / totalRevenueLastMonth) * 100)
       : (totalRevenueThisMonth > 0 ? 100 : 0);
 
@@ -3885,7 +3885,7 @@ app.get('/api/dashboard/recent-students', requireAuth, async (req, res, next) =>
       const createdAt = new Date(enrollment.created_at);
       const now = new Date();
       const timeDiff = now.getTime() - createdAt.getTime();
-      
+
       // Handle negative time diff (future dates or timezone issues)
       let timeAgo;
       if (timeDiff < 0) {
@@ -3982,9 +3982,9 @@ app.get('/api/dashboard/course-distribution', requireAuth, async (req, res, next
 // GET /api/invoices - Danh sách hóa đơn (với filters, pagination)
 app.get('/api/invoices', requireAuth, async (req, res, next) => {
   try {
-    const { 
-      page = 1, 
-      limit = 20, 
+    const {
+      page = 1,
+      limit = 20,
       status,
       search,
       startDate,
@@ -3998,9 +3998,9 @@ app.get('/api/invoices', requireAuth, async (req, res, next) => {
     // ====== PERMISSION CHECK ======
     const userRole = req.user.roleCode;
     const userCenterId = req.user.centerId;
-    
+
     let effectiveCenterId = centerId;
-    
+
     if (userRole !== 'SUPER_ADMIN') {
       if (!userCenterId) {
         return res.status(403).json({
@@ -4083,8 +4083,16 @@ app.get('/api/invoices', requireAuth, async (req, res, next) => {
     const ascending = sortOrder === 'asc';
     query = query.order(sortField, { ascending });
 
-    // Pagination
-    query = query.range(offset, offset + limitNum - 1);
+    // ⚠️ IMPORTANT: Khi cần filter theo center_id (nested field),
+    // phải load ALL rồi filter/paginate trên JS
+    // vì Supabase không support filter trên nested relation
+    const needsJSFilter = effectiveCenterId || overdue === 'true' || (search && search.trim());
+
+    if (!needsJSFilter) {
+      // Case 1: Không cần JS filter → paginate trên DB (hiệu năng tốt)
+      query = query.range(offset, offset + limitNum - 1);
+    }
+    // Case 2: Cần JS filter → load ALL, paginate sau
 
     const { data, error, count } = await query;
 
@@ -4092,21 +4100,21 @@ app.get('/api/invoices', requireAuth, async (req, res, next) => {
 
     // Post-filter theo center (vì nested filter không support)
     let filteredData = data || [];
-    
+
     if (effectiveCenterId) {
-      filteredData = filteredData.filter(inv => 
-        inv.class?.center_id === effectiveCenterId || 
+      filteredData = filteredData.filter(inv =>
+        inv.class?.center_id === effectiveCenterId ||
         !inv.class_id // Hóa đơn không gắn class (phí khác) vẫn hiển thị
       );
     }
-    
+
     // Filter overdue (quá hạn)
     if (overdue === 'true') {
       const today = new Date().toISOString().split('T')[0];
-      filteredData = filteredData.filter(inv => 
-        inv.due_date && 
-        inv.due_date < today && 
-        inv.status !== 'paid' && 
+      filteredData = filteredData.filter(inv =>
+        inv.due_date &&
+        inv.due_date < today &&
+        inv.status !== 'paid' &&
         inv.status !== 'cancelled'
       );
     }
@@ -4114,12 +4122,18 @@ app.get('/api/invoices', requireAuth, async (req, res, next) => {
     // Search filter (nested fields)
     if (search && search.trim()) {
       const searchLower = search.trim().toLowerCase();
-      filteredData = filteredData.filter(inv => 
+      filteredData = filteredData.filter(inv =>
         inv.invoice_code?.toLowerCase().includes(searchLower) ||
         inv.student?.full_name?.toLowerCase().includes(searchLower) ||
         inv.student?.email?.toLowerCase().includes(searchLower) ||
         inv.student?.phone?.includes(searchLower)
       );
+    }
+
+    // JS Pagination (khi đã filter trên JS)
+    const totalFiltered = filteredData.length;
+    if (needsJSFilter) {
+      filteredData = filteredData.slice(offset, offset + limitNum);
     }
 
     res.json({
@@ -4128,8 +4142,8 @@ app.get('/api/invoices', requireAuth, async (req, res, next) => {
       pagination: {
         page: pageNum,
         limit: limitNum,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / limitNum)
+        total: needsJSFilter ? totalFiltered : (count || 0),
+        totalPages: Math.ceil((needsJSFilter ? totalFiltered : (count || 0)) / limitNum)
       }
     });
 
@@ -4143,13 +4157,13 @@ app.get('/api/invoices', requireAuth, async (req, res, next) => {
 app.get('/api/invoices/statistics', requireAuth, async (req, res, next) => {
   try {
     const { centerId } = req.query;
-    
+
     // ====== PERMISSION CHECK ======
     const userRole = req.user.roleCode;
     const userCenterId = req.user.centerId;
-    
+
     let effectiveCenterId = centerId;
-    
+
     if (userRole !== 'SUPER_ADMIN') {
       if (!userCenterId) {
         return res.status(403).json({
@@ -4179,7 +4193,7 @@ app.get('/api/invoices/statistics', requireAuth, async (req, res, next) => {
     // Filter theo center
     let invoices = rawInvoices || [];
     if (effectiveCenterId) {
-      invoices = invoices.filter(inv => 
+      invoices = invoices.filter(inv =>
         inv.class?.center_id === effectiveCenterId || !inv.class
       );
     }
@@ -4358,7 +4372,7 @@ app.post('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAG
     }
 
     const finalAmount = parseFloat(amount) - parseFloat(discount_amount || 0);
-    
+
     // Tạo description mặc định nếu không có
     const typeLabels = {
       tuition: 'Học phí',
@@ -4415,9 +4429,9 @@ app.post('/api/invoices/:id/payments', requireAuth, async (req, res, next) => {
     const userId = req.user?.id;
 
     if (!amount || amount <= 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Số tiền thanh toán phải lớn hơn 0' 
+      return res.status(400).json({
+        success: false,
+        message: 'Số tiền thanh toán phải lớn hơn 0'
       });
     }
 
@@ -4429,23 +4443,23 @@ app.post('/api/invoices/:id/payments', requireAuth, async (req, res, next) => {
       .single();
 
     if (invoiceError || !invoice) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Không tìm thấy hóa đơn' 
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy hóa đơn'
       });
     }
 
     if (invoice.status === 'paid') {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Hóa đơn đã thanh toán đủ' 
+      return res.status(400).json({
+        success: false,
+        message: 'Hóa đơn đã thanh toán đủ'
       });
     }
 
     if (invoice.status === 'cancelled') {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Hóa đơn đã bị hủy' 
+      return res.status(400).json({
+        success: false,
+        message: 'Hóa đơn đã bị hủy'
       });
     }
 
@@ -4513,11 +4527,11 @@ app.put('/api/invoices/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MA
     }
 
     const updateData = { updated_at: new Date().toISOString() };
-    
+
     // Cập nhật số tiền
     let newAmount = currentInvoice.amount;
     let newDiscount = currentInvoice.discount_amount;
-    
+
     if (amount !== undefined) {
       newAmount = parseFloat(amount);
       updateData.amount = newAmount;
@@ -4526,12 +4540,12 @@ app.put('/api/invoices/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MA
       newDiscount = parseFloat(discount_amount);
       updateData.discount_amount = newDiscount;
     }
-    
+
     // Tính lại final_amount
     if (amount !== undefined || discount_amount !== undefined) {
       const newFinal = newAmount - newDiscount;
       updateData.final_amount = newFinal;
-      
+
       // Cập nhật status nếu cần
       const paidAmount = currentInvoice.paid_amount || 0;
       if (paidAmount >= newFinal) {
@@ -4591,9 +4605,9 @@ app.put('/api/invoices/:id/cancel', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     }
 
     if (invoice.status === 'paid') {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Không thể hủy hóa đơn đã thanh toán đủ. Hãy sử dụng chức năng hoàn tiền.' 
+      return res.status(400).json({
+        success: false,
+        message: 'Không thể hủy hóa đơn đã thanh toán đủ. Hãy sử dụng chức năng hoàn tiền.'
       });
     }
 
@@ -4606,8 +4620,8 @@ app.put('/api/invoices/:id/cancel', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       .from('invoices')
       .update({
         status: 'cancelled',
-        description: reason 
-          ? `${invoice.description || ''} [HỦY: ${reason}]` 
+        description: reason
+          ? `${invoice.description || ''} [HỦY: ${reason}]`
           : invoice.description,
         updated_at: new Date().toISOString()
       })
@@ -4663,9 +4677,9 @@ app.post('/api/invoices/:id/refund', requireAuth, requireRole(['SUPER_ADMIN', 'C
 
     const refundValue = refund_amount ? parseFloat(refund_amount) : paidAmount;
     if (refundValue > paidAmount) {
-      return res.status(400).json({ 
-        success: false, 
-        message: `Số tiền hoàn không thể lớn hơn đã thanh toán (${paidAmount.toLocaleString()}đ)` 
+      return res.status(400).json({
+        success: false,
+        message: `Số tiền hoàn không thể lớn hơn đã thanh toán (${paidAmount.toLocaleString()}đ)`
       });
     }
 
@@ -4740,12 +4754,12 @@ app.post('/api/invoices/:id/refund', requireAuth, requireRole(['SUPER_ADMIN', 'C
 app.get('/api/admin/holidays', requireAuth, async (req, res, next) => {
   try {
     const { year } = req.query;
-    
+
     let query = supabase
       .from('holidays')
       .select('*')
       .order('date', { ascending: true });
-    
+
     if (year) {
       query = query
         .gte('date', `${year}-01-01`)
@@ -4939,16 +4953,16 @@ app.put('/api/admin/teacher-availability/:teacherId', requireAuth, async (req, r
  */
 app.post('/api/admin/sessions/makeup', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
-    const { 
-      class_id, 
+    const {
+      class_id,
       original_session_id,
-      student_ids, 
-      date, 
-      start_time, 
-      end_time, 
-      teacher_id, 
+      student_ids,
+      date,
+      start_time,
+      end_time,
+      teacher_id,
       room_id,
-      notes 
+      notes
     } = req.body;
 
     if (!class_id || !date || !start_time || !end_time) {
@@ -5064,11 +5078,11 @@ app.post('/api/admin/sessions/:id/exception', requireAuth, requireRole(['SUPER_A
 
 app.use((err, _req, res, _next) => {
   console.error('🔥 Lỗi hệ thống:', err); // Log ra terminal để em xem
-  
+
   // Trả về lỗi chi tiết cho Frontend thấy (chỉ nên làm vậy ở môi trường Dev)
-  res.status(500).json({ 
-    success: false, 
-    message: 'Internal server error', 
+  res.status(500).json({
+    success: false,
+    message: 'Internal server error',
     error: err.message // Thêm dòng này để FE biết lỗi gì
   });
 });

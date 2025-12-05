@@ -23,7 +23,7 @@ import { Download, RefreshCw, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 // Feature imports - Clean và dễ đọc
-import { 
+import {
   InvoiceStats,
   InvoiceFilters,
   InvoiceTable,
@@ -37,10 +37,10 @@ import {
   RefundInvoiceModal
 } from '../components';
 
-import { 
-  useInvoices, 
-  useInvoiceStats, 
-  usePayment 
+import {
+  useInvoices,
+  useInvoiceStats,
+  usePayment
 } from '../hooks';
 
 import { API_URL } from '../utils/constants';
@@ -48,7 +48,7 @@ import { exportInvoicesToExcel } from '../utils/exportExcel';
 
 export function InvoicesPage() {
   const { session } = useAuth();
-  
+
   // ============================================
   // HOOKS - Data & Logic
   // ============================================
@@ -74,7 +74,7 @@ export function InvoicesPage() {
   // LOCAL STATE - UI only
   // ============================================
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-  
+
   // Invoice Detail Modal
   const [detailModal, setDetailModal] = useState({
     isOpen: false,
@@ -122,13 +122,51 @@ export function InvoicesPage() {
     refreshStats();
   }, [refreshInvoices, refreshStats]);
 
+  // Toggle status filter: click lần 1 = filter, click lần 2 = reset
   const handleStatusClick = useCallback((status) => {
-    handleFilterChange('status', status);
-  }, [handleFilterChange]);
+    if (filters.status === status) {
+      // Đang filter status này rồi → reset về all
+      handleFilterChange('status', 'all');
+    } else {
+      handleFilterChange('status', status);
+    }
+  }, [filters.status, handleFilterChange]);
 
+  // Toggle overdue filter
   const handleOverdueClick = useCallback(() => {
-    handleFilterChange('overdueOnly', true);
-  }, [handleFilterChange]);
+    if (filters.overdueOnly) {
+      // Đang filter overdue rồi → reset
+      handleFilterChange('overdueOnly', false);
+    } else {
+      handleFilterChange('overdueOnly', true);
+    }
+  }, [filters.overdueOnly, handleFilterChange]);
+
+  // Handler khi click vào "Tổng thu tháng này" 
+  // → Toggle filter các hóa đơn đã thanh toán trong tháng hiện tại
+  const handleMonthlyRevenueClick = useCallback(() => {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const dateStart = firstDay.toISOString().split('T')[0];
+    const dateEnd = lastDay.toISOString().split('T')[0];
+
+    // Check nếu đang filter monthly revenue → reset
+    const isCurrentlyFiltered =
+      filters.status === 'paid' &&
+      filters.dateStart === dateStart &&
+      filters.dateEnd === dateEnd;
+
+    if (isCurrentlyFiltered) {
+      // Reset tất cả filters
+      resetFilters();
+    } else {
+      // Set multiple filters: paid status + current month
+      handleFilterChange('status', 'paid');
+      handleFilterChange('dateStart', dateStart);
+      handleFilterChange('dateEnd', dateEnd);
+    }
+  }, [filters.status, filters.dateStart, filters.dateEnd, handleFilterChange, resetFilters]);
 
   // Modal success callback with refresh
   const handleModalSuccess = useCallback((message) => {
@@ -152,13 +190,13 @@ export function InvoicesPage() {
 
   const handleViewDetail = useCallback(async (invoice) => {
     setDetailModal({ isOpen: true, invoice: null, loading: true });
-    
+
     try {
       const res = await fetch(`${API_URL}/api/invoices/${invoice.id}`, {
         headers: { Authorization: `Bearer ${session?.access_token}` }
       });
       const result = await res.json();
-      
+
       if (result.success) {
         setDetailModal({ isOpen: true, invoice: result.data, loading: false });
       } else {
@@ -191,9 +229,9 @@ export function InvoicesPage() {
   return (
     <div className="min-h-screen bg-stone-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
+
         {/* Header */}
-        <PageHeader 
+        <PageHeader
           onRefresh={handleRefresh}
           onExport={handleExport}
           onCreate={() => setCreateModal(true)}
@@ -207,6 +245,7 @@ export function InvoicesPage() {
           loading={loadingStats}
           onStatusClick={handleStatusClick}
           onOverdueClick={handleOverdueClick}
+          onMonthlyRevenueClick={handleMonthlyRevenueClick}
         />
 
         {/* Filters */}

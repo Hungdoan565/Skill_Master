@@ -7,14 +7,15 @@
  * @param {boolean} loading - Trạng thái loading
  * @param {function} onStatusClick - Handler khi click vào card để filter
  * @param {function} onOverdueClick - Handler khi click vào card quá hạn
+ * @param {function} onMonthlyRevenueClick - Handler khi click vào tổng thu tháng
  */
 
 import { TrendingUp, AlertCircle, Clock, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { StatCard } from './StatCard';
 
-export function InvoiceStats({ statistics, loading, onStatusClick, onOverdueClick }) {
+export function InvoiceStats({ statistics, loading, onStatusClick, onOverdueClick, onMonthlyRevenueClick }) {
   const overdueCount = statistics?.counts?.overdue || 0;
-  
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
       {/* Tổng thu tháng này */}
@@ -24,6 +25,7 @@ export function InvoiceStats({ statistics, loading, onStatusClick, onOverdueClic
         icon={TrendingUp}
         description={`Tổng đã thu: ${(statistics?.totalRevenue || 0).toLocaleString()}đ`}
         accentColor="emerald"
+        onClick={onMonthlyRevenueClick}
       />
 
       {/* Tổng còn nợ */}
