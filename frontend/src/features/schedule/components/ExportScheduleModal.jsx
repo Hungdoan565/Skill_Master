@@ -3,8 +3,8 @@
  */
 
 import { useState, useEffect } from 'react';
-import { 
-  X, 
+import {
+  X,
   Download,
   FileSpreadsheet,
   FileText,
@@ -13,6 +13,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/toast';
 import { supabase } from '@/lib/supabaseClient';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -35,14 +36,14 @@ const generateCSV = (sessions, dateRange) => {
     'Trạng thái',
     'Buổi số'
   ];
-  
+
   const dayNames = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
   const statusLabels = {
     scheduled: 'Chưa học',
     completed: 'Hoàn thành',
     cancelled: 'Đã hủy'
   };
-  
+
   const rows = sessions.map(s => {
     const date = new Date(s.session_date);
     return [
@@ -58,11 +59,11 @@ const generateCSV = (sessions, dateRange) => {
       s.session_number
     ];
   });
-  
+
   // BOM for UTF-8
   const BOM = '\uFEFF';
   const csvContent = BOM + [headers, ...rows].map(row => row.join(',')).join('\n');
-  
+
   return csvContent;
 };
 
@@ -79,16 +80,16 @@ const generatePDFHTML = (sessions, dateRange, title) => {
     completed: '#10b981',
     cancelled: '#6b7280'
   };
-  
+
   // Group by date
   const grouped = sessions.reduce((acc, s) => {
     if (!acc[s.session_date]) acc[s.session_date] = [];
     acc[s.session_date].push(s);
     return acc;
   }, {});
-  
+
   const sortedDates = Object.keys(grouped).sort();
-  
+
   return `
     <!DOCTYPE html>
     <html>
@@ -175,9 +176,9 @@ const generatePDFHTML = (sessions, dateRange, title) => {
       </div>
       
       ${sortedDates.map(date => {
-        const daySessions = grouped[date];
-        const d = new Date(date);
-        return `
+    const daySessions = grouped[date];
+    const d = new Date(date);
+    return `
           <div class="date-section">
             <div class="date-header">
               ${dayNames[d.getDay()]}, ${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}
@@ -218,7 +219,7 @@ const generatePDFHTML = (sessions, dateRange, title) => {
             </table>
           </div>
         `;
-      }).join('')}
+  }).join('')}
       
       <div class="footer">
         <p>Xuất từ Skill Master - ${new Date().toLocaleString('vi-VN')}</p>
@@ -231,12 +232,13 @@ const generatePDFHTML = (sessions, dateRange, title) => {
 // ============================================
 // MAIN COMPONENT
 // ============================================
-export function ExportScheduleModal({ 
-  isOpen, 
-  onClose, 
+export function ExportScheduleModal({
+  isOpen,
+  onClose,
   sessions = [],
   dateRange = {}
 }) {
+  const { toast } = useToast();
   const [exporting, setExporting] = useState(null); // 'csv' | 'pdf' | null
   const [success, setSuccess] = useState(null);
 
@@ -254,7 +256,7 @@ export function ExportScheduleModal({
   const handleExportCSV = async () => {
     setExporting('csv');
     setSuccess(null);
-    
+
     try {
       const csv = generateCSV(sessions, dateRange);
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -266,11 +268,11 @@ export function ExportScheduleModal({
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      
+
       setSuccess('csv');
     } catch (error) {
       console.error('Export CSV error:', error);
-      alert('Có lỗi khi xuất file CSV');
+      toast.error('Có lỗi khi xuất file CSV');
     } finally {
       setExporting(null);
     }
@@ -279,30 +281,30 @@ export function ExportScheduleModal({
   const handleExportPDF = async () => {
     setExporting('pdf');
     setSuccess(null);
-    
+
     try {
-      const title = dateRange.startDate && dateRange.endDate 
+      const title = dateRange.startDate && dateRange.endDate
         ? `Từ ${dateRange.startDate} đến ${dateRange.endDate}`
         : 'Tất cả buổi học';
-      
+
       const html = generatePDFHTML(sessions, dateRange, title);
-      
+
       // Open print dialog
       const printWindow = window.open('', '_blank');
       printWindow.document.write(html);
       printWindow.document.close();
       printWindow.focus();
-      
+
       // Wait for content to load then print
       setTimeout(() => {
         printWindow.print();
         // printWindow.close();
       }, 500);
-      
+
       setSuccess('pdf');
     } catch (error) {
       console.error('Export PDF error:', error);
-      alert('Có lỗi khi xuất file PDF');
+      toast.error('Có lỗi khi xuất file PDF');
     } finally {
       setExporting(null);
     }
@@ -311,27 +313,27 @@ export function ExportScheduleModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
-      
+
       {/* Modal */}
-      <div 
+      <div
         className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md m-4 overflow-hidden"
         role="dialog"
         aria-modal="true"
         aria-labelledby="export-dialog-title"
       >
-      {/* Header */}
-      <div className="bg-linear-to-r from-indigo-600 to-purple-600 px-6 py-4">
-        <div className="flex items-center justify-between">
+        {/* Header */}
+        <div className="bg-linear-to-r from-indigo-600 to-purple-600 px-6 py-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/20 rounded-lg">
                 <Download className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 
+                <h2
                   className="text-lg font-semibold text-white"
                   id="export-dialog-title"
                 >Xuất Lịch Dạy</h2>
@@ -346,7 +348,7 @@ export function ExportScheduleModal({
             </button>
           </div>
         </div>
-        
+
         {/* Content */}
         <div className="p-6 space-y-4">
           {/* Date range info */}
@@ -358,7 +360,7 @@ export function ExportScheduleModal({
               </span>
             </div>
           )}
-          
+
           {/* Export options */}
           <div className="space-y-3">
             {/* Excel/CSV */}
@@ -382,7 +384,7 @@ export function ExportScheduleModal({
                 <Download className="w-5 h-5 text-slate-400 group-hover:text-green-600" />
               )}
             </button>
-            
+
             {/* PDF */}
             <button
               onClick={handleExportPDF}
@@ -406,7 +408,7 @@ export function ExportScheduleModal({
             </button>
           </div>
         </div>
-        
+
         {/* Footer */}
         <div className="px-6 py-4 bg-slate-50 border-t">
           <Button

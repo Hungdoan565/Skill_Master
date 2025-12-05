@@ -3,27 +3,43 @@
  * Trang quản lý học viên - refactored version
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { GraduationCap } from 'lucide-react';
 import {
   Card,
   CardContent,
   CardHeader,
 } from '@/components/ui/card';
+import { useToast } from '@/components/ui/toast';
 import { useStudents } from '../hooks';
 import {
   StudentFilters,
   StudentsTable,
   PromoteModal,
   LoadingState,
+  StudentDetailModal,
+  EditStudentModal,
 } from '../components';
 
 export function StudentsPage() {
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [promoteModal, setPromoteModal] = useState({ isOpen: false, student: null });
 
-  const { students, loading, fetchStudents, promoteStudent, filterStudents } = useStudents();
+  // Modal states
+  const [promoteModal, setPromoteModal] = useState({ isOpen: false, student: null });
+  const [detailModal, setDetailModal] = useState({ isOpen: false, student: null, data: null, loading: false });
+  const [editModal, setEditModal] = useState({ isOpen: false, student: null, submitting: false });
+
+  const {
+    students,
+    loading,
+    fetchStudents,
+    fetchStudentDetail,
+    updateStudent,
+    promoteStudent,
+    filterStudents
+  } = useStudents();
 
   // Fetch students on mount and when filter changes
   useEffect(() => {
@@ -34,8 +50,46 @@ export function StudentsPage() {
   const filteredStudents = filterStudents(searchTerm);
 
   // Handle view details
-  const handleViewDetails = (student) => {
-    alert(`Chi tiết: ${student.full_name}\nEmail: ${student.email}`);
+  const handleViewDetails = useCallback(async (student) => {
+    setDetailModal({ isOpen: true, student, data: null, loading: true });
+
+    try {
+      const data = await fetchStudentDetail(student.id);
+      setDetailModal(prev => ({ ...prev, data, loading: false }));
+    } catch (error) {
+      console.error('Error fetching student detail:', error);
+      setDetailModal(prev => ({ ...prev, loading: false }));
+    }
+  }, [fetchStudentDetail]);
+
+  // Close detail modal
+  const closeDetailModal = () => {
+    setDetailModal({ isOpen: false, student: null, data: null, loading: false });
+  };
+
+  // Handle edit click
+  const handleEditClick = (student) => {
+    setEditModal({ isOpen: true, student, submitting: false });
+  };
+
+  // Handle edit submit
+  const handleEditSubmit = async (studentId, data) => {
+    setEditModal(prev => ({ ...prev, submitting: true }));
+
+    try {
+      await updateStudent(studentId, data);
+      setEditModal({ isOpen: false, student: null, submitting: false });
+      toast.success('Cập nhật thông tin học viên thành công!');
+    } catch (error) {
+      console.error('Error updating student:', error);
+      toast.error(error.message || 'Có lỗi xảy ra khi cập nhật');
+      setEditModal(prev => ({ ...prev, submitting: false }));
+    }
+  };
+
+  // Close edit modal
+  const closeEditModal = () => {
+    setEditModal({ isOpen: false, student: null, submitting: false });
   };
 
   // Handle promote click
@@ -84,7 +138,7 @@ export function StudentsPage() {
             totalCount={students.length}
           />
         </CardHeader>
-        
+
         <CardContent>
           {loading ? (
             <LoadingState />
@@ -92,11 +146,30 @@ export function StudentsPage() {
             <StudentsTable
               students={filteredStudents}
               onViewDetails={handleViewDetails}
+              onEdit={handleEditClick}
               onPromote={handlePromoteClick}
             />
           )}
         </CardContent>
       </Card>
+
+      {/* Student Detail Modal */}
+      <StudentDetailModal
+        isOpen={detailModal.isOpen}
+        onClose={closeDetailModal}
+        student={detailModal.student}
+        detailData={detailModal.data}
+        loading={detailModal.loading}
+      />
+
+      {/* Edit Student Modal */}
+      <EditStudentModal
+        isOpen={editModal.isOpen}
+        onClose={closeEditModal}
+        student={editModal.student}
+        onSubmit={handleEditSubmit}
+        submitting={editModal.submitting}
+      />
 
       {/* Promote Modal */}
       <PromoteModal

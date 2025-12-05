@@ -9,7 +9,7 @@ import { ColorAvatar } from './ColorAvatar';
 import { ActionMenu } from './ActionMenu';
 import { formatDate } from '../utils';
 
-export function StudentsTable({ students = [], onViewDetails, onPromote }) {
+export function StudentsTable({ students = [], onViewDetails, onEdit, onPromote }) {
   if (students.length === 0) {
     return (
       <div className="flex h-40 flex-col items-center justify-center gap-2">
@@ -42,8 +42,8 @@ export function StudentsTable({ students = [], onViewDetails, onPromote }) {
               {/* Avatar + Name */}
               <td className="py-4 pr-4">
                 <div className="flex items-center gap-3">
-                  <ColorAvatar 
-                    name={student.full_name} 
+                  <ColorAvatar
+                    name={student.full_name}
                     avatarUrl={student.avatar_url}
                   />
                   <div>
@@ -56,7 +56,7 @@ export function StudentsTable({ students = [], onViewDetails, onPromote }) {
                   </div>
                 </div>
               </td>
-              
+
               {/* Contact */}
               <td className="py-4 pr-4">
                 <div className="space-y-1">
@@ -72,14 +72,14 @@ export function StudentsTable({ students = [], onViewDetails, onPromote }) {
                   )}
                 </div>
               </td>
-              
+
               {/* Status */}
               <td className="py-4 pr-4">
                 <Badge variant={student.status === 'active' ? 'success' : 'secondary'}>
                   {student.status === 'active' ? 'Hoạt động' : 'Ngừng'}
                 </Badge>
               </td>
-              
+
               {/* Created Date */}
               <td className="py-4 pr-4">
                 <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -87,12 +87,13 @@ export function StudentsTable({ students = [], onViewDetails, onPromote }) {
                   {formatDate(student.created_at)}
                 </div>
               </td>
-              
+
               {/* Actions */}
               <td className="py-4 text-right">
-                <ActionMenu 
+                <ActionMenu
                   student={student}
                   onViewDetails={onViewDetails}
+                  onEdit={onEdit}
                   onPromote={onPromote}
                 />
               </td>

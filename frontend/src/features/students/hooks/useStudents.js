@@ -29,7 +29,7 @@ export function useStudents() {
       const headers = await getAuthHeaders();
       const params = new URLSearchParams();
       if (statusFilter) params.append('status', statusFilter);
-      
+
       const response = await axios.get(`${API_URL}/api/admin/students?${params}`, { headers });
       if (response.data?.success) {
         setStudents(response.data.data);
@@ -42,6 +42,43 @@ export function useStudents() {
     }
   }, []);
 
+  // Fetch student detail với enrollments, invoices, attendance
+  const fetchStudentDetail = useCallback(async (studentId) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(
+      `${API_URL}/api/admin/students/${studentId}`,
+      { headers }
+    );
+
+    if (response.data?.success) {
+      return response.data.data;
+    }
+
+    throw new Error(response.data?.message || 'Không thể tải thông tin học viên');
+  }, []);
+
+  // Update student info
+  const updateStudent = useCallback(async (studentId, data) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.put(
+      `${API_URL}/api/admin/students/${studentId}`,
+      data,
+      { headers }
+    );
+
+    if (response.data?.success) {
+      // Update local state
+      setStudents(prev => prev.map(s =>
+        s.id === studentId
+          ? { ...s, ...response.data.data }
+          : s
+      ));
+      return response.data.data;
+    }
+
+    throw new Error(response.data?.message || 'Có lỗi xảy ra khi cập nhật');
+  }, []);
+
   // Promote student to staff
   const promoteStudent = useCallback(async (studentId, roleCode) => {
     const headers = await getAuthHeaders();
@@ -50,13 +87,13 @@ export function useStudents() {
       { role_code: roleCode },
       { headers }
     );
-    
+
     if (response.data?.success) {
       // Remove from students list
       setStudents(prev => prev.filter(s => s.id !== studentId));
       return true;
     }
-    
+
     throw new Error(response.data?.message || 'Có lỗi xảy ra');
   }, []);
 
@@ -76,6 +113,8 @@ export function useStudents() {
     students,
     loading,
     fetchStudents,
+    fetchStudentDetail,
+    updateStudent,
     promoteStudent,
     filterStudents,
   };

@@ -14,6 +14,49 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
+// ============ HELPER FUNCTIONS FOR PERMISSION ============
+
+/**
+ * Lấy center_id hiệu lực dựa trên role của user
+ * - SUPER_ADMIN: có thể xem tất cả hoặc filter theo centerId param
+ * - CENTER_MANAGER: chỉ được xem center của mình
+ * 
+ * @returns {Object} { effectiveCenterId, error }
+ */
+function getEffectiveCenterId(user, requestedCenterId = null) {
+  const userRole = user.roleCode;
+  const userCenterId = user.centerId;
+
+  // SUPER_ADMIN: không filter hoặc dùng centerId từ query
+  if (userRole === 'SUPER_ADMIN') {
+    return {
+      effectiveCenterId: requestedCenterId || null, // null = tất cả centers
+      error: null
+    };
+  }
+
+  // CENTER_MANAGER hoặc khác: phải có center và chỉ được xem center của mình
+  if (!userCenterId) {
+    return {
+      effectiveCenterId: null,
+      error: 'Bạn chưa được gán vào trung tâm nào. Vui lòng liên hệ admin.'
+    };
+  }
+
+  // Nếu request center khác với center của user
+  if (requestedCenterId && requestedCenterId !== userCenterId) {
+    return {
+      effectiveCenterId: null,
+      error: 'Bạn không có quyền xem dữ liệu của trung tâm khác.'
+    };
+  }
+
+  return {
+    effectiveCenterId: userCenterId,
+    error: null
+  };
+}
+
 // ============ UTILITY FUNCTIONS ============
 
 /**
@@ -536,31 +579,30 @@ app.get('/api/me', requireAuth, async (req, res) => {
 // Lấy danh sách nhân sự (Teacher, Manager)
 app.get('/api/admin/staff', requireAuth, async (req, res, next) => {
   try {
-    const { role } = req.query; // Filter theo role: TEACHER, CENTER_MANAGER
+    const { role, centerId } = req.query; // Filter theo role: TEACHER, CENTER_MANAGER
 
-    let query = supabase
-      .from('users')
-      .select(`
-        id,
-        email,
-        full_name,
-        phone,
-        avatar_url,
-        status,
-        created_at,
-        roles (
-          id,
-          code,
-          name
-        )
-      `)
-      .in('role_id', role
-        ? [role]
-        : ['TEACHER', 'CENTER_MANAGER'].map(r =>
-          supabase.from('roles').select('id').eq('code', r)
-        )
-      )
-      .order('created_at', { ascending: false });
+    // ====== PERMISSION CHECK ======
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, centerId);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    // Select fields - include hourly_rate và centers
+    const selectFields = `
+      id,
+      email,
+      full_name,
+      phone,
+      avatar_url,
+      status,
+      hourly_rate,
+      center_id,
+      created_at,
+      roles (id, code, name),
+      centers (id, name)
+    `;
+
+    let query;
 
     // Filter theo role nếu có
     if (role) {
@@ -574,22 +616,11 @@ app.get('/api/admin/staff', requireAuth, async (req, res, next) => {
       if (roleData) {
         query = supabase
           .from('users')
-          .select(`
-            id,
-            email,
-            full_name,
-            phone,
-            avatar_url,
-            status,
-            created_at,
-            roles (
-              id,
-              code,
-              name
-            )
-          `)
+          .select(selectFields)
           .eq('role_id', roleData.id)
           .order('created_at', { ascending: false });
+      } else {
+        return res.json({ success: true, data: [] });
       }
     } else {
       // Lấy tất cả staff (không phải STUDENT)
@@ -601,22 +632,14 @@ app.get('/api/admin/staff', requireAuth, async (req, res, next) => {
 
       query = supabase
         .from('users')
-        .select(`
-          id,
-          email,
-          full_name,
-          phone,
-          avatar_url,
-          status,
-          created_at,
-          roles (
-            id,
-            code,
-            name
-          )
-        `)
+        .select(selectFields)
         .neq('role_id', studentRole?.id || '')
         .order('created_at', { ascending: false });
+    }
+
+    // ====== CENTER FILTER ======
+    if (effectiveCenterId) {
+      query = query.eq('center_id', effectiveCenterId);
     }
 
     const { data, error } = await query;
@@ -628,6 +651,965 @@ app.get('/api/admin/staff', requireAuth, async (req, res, next) => {
     next(error);
   }
 });
+
+// ============ STAFF DETAIL APIs ============
+
+// Lấy chi tiết nhân viên (kèm thống kê lớp dạy, giờ dạy)
+app.get('/api/admin/staff/:id', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Lấy thông tin user
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select(`
+        id,
+        email,
+        full_name,
+        phone,
+        avatar_url,
+        status,
+        hourly_rate,
+        center_id,
+        created_at,
+        updated_at,
+        roles (id, code, name),
+        centers (id, name, address)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy nhân viên'
+      });
+    }
+
+    // Kiểm tra có phải staff không (TEACHER hoặc CENTER_MANAGER)
+    if (!['TEACHER', 'CENTER_MANAGER', 'SUPER_ADMIN'].includes(user.roles?.code)) {
+      return res.status(400).json({
+        success: false,
+        message: 'User này không phải nhân viên'
+      });
+    }
+
+    // Lấy thống kê lớp đang dạy (nếu là TEACHER)
+    let teachingStats = null;
+    if (user.roles?.code === 'TEACHER') {
+      // Đếm lớp đang dạy
+      const { count: activeClasses } = await supabase
+        .from('classes')
+        .select('*', { count: 'exact', head: true })
+        .eq('teacher_id', id)
+        .in('status', ['upcoming', 'ongoing']);
+
+      // Đếm tổng số buổi đã dạy trong tháng này
+      const now = new Date();
+      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+
+      const { data: sessionsThisMonth } = await supabase
+        .from('sessions')
+        .select('id, duration_hours, teacher_rate')
+        .eq('teacher_id', id)
+        .eq('status', 'completed')
+        .gte('session_date', firstDayOfMonth)
+        .lte('session_date', lastDayOfMonth);
+
+      const totalHoursThisMonth = (sessionsThisMonth || []).reduce((sum, s) => sum + (s.duration_hours || 0), 0);
+      const totalEarningsThisMonth = (sessionsThisMonth || []).reduce((sum, s) => sum + ((s.duration_hours || 0) * (s.teacher_rate || 0)), 0);
+
+      // Tổng số buổi đã dạy (all time)
+      const { count: totalSessions } = await supabase
+        .from('sessions')
+        .select('*', { count: 'exact', head: true })
+        .eq('teacher_id', id)
+        .eq('status', 'completed');
+
+      teachingStats = {
+        activeClasses: activeClasses || 0,
+        sessionsThisMonth: sessionsThisMonth?.length || 0,
+        totalHoursThisMonth: Math.round(totalHoursThisMonth * 10) / 10,
+        totalEarningsThisMonth,
+        totalSessionsAllTime: totalSessions || 0
+      };
+    }
+
+    res.json({
+      success: true,
+      data: {
+        ...user,
+        teachingStats
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching staff detail:', error);
+    next(error);
+  }
+});
+
+// Cập nhật thông tin nhân viên
+app.put('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { full_name, phone, status, hourly_rate, center_id, role_code } = req.body;
+
+    console.log(`✏️ Admin ${req.user.email} đang cập nhật nhân viên: ${id}`);
+
+    // Validate
+    if (!full_name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Họ tên là bắt buộc'
+      });
+    }
+
+    // Kiểm tra user tồn tại và là staff
+    const { data: existingUser, error: checkError } = await supabase
+      .from('users')
+      .select('id, roles(code)')
+      .eq('id', id)
+      .single();
+
+    if (checkError || !existingUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy nhân viên'
+      });
+    }
+
+    if (!['TEACHER', 'CENTER_MANAGER'].includes(existingUser.roles?.code)) {
+      return res.status(400).json({
+        success: false,
+        message: 'User này không phải nhân viên, không thể sửa từ đây'
+      });
+    }
+
+    // Build update object
+    const updateData = {
+      full_name,
+      phone: phone || null,
+      status: status || 'active',
+      hourly_rate: hourly_rate || 150000,
+      updated_at: new Date().toISOString()
+    };
+
+    // Nếu có center_id thì update
+    if (center_id !== undefined) {
+      updateData.center_id = center_id || null;
+    }
+
+    // Nếu đổi role
+    if (role_code && role_code !== existingUser.roles?.code) {
+      if (!['TEACHER', 'CENTER_MANAGER'].includes(role_code)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Role không hợp lệ cho nhân viên'
+        });
+      }
+
+      const { data: newRole } = await supabase
+        .from('roles')
+        .select('id')
+        .eq('code', role_code)
+        .single();
+
+      if (newRole) {
+        updateData.role_id = newRole.id;
+      }
+    }
+
+    // Update
+    const { data, error } = await supabase
+      .from('users')
+      .update(updateData)
+      .eq('id', id)
+      .select(`
+        id, email, full_name, phone, avatar_url, status, hourly_rate, center_id, created_at, updated_at,
+        roles (id, code, name),
+        centers (id, name)
+      `)
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: 'Cập nhật nhân viên thành công',
+      data
+    });
+  } catch (error) {
+    console.error('Error updating staff:', error);
+    next(error);
+  }
+});
+
+// Xóa/Vô hiệu hóa nhân viên (soft delete - chuyển status thành inactive)
+app.delete('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { permanent } = req.query; // ?permanent=true để xóa vĩnh viễn
+
+    console.log(`🗑️ Admin ${req.user.email} đang xóa nhân viên: ${id}`);
+
+    // Kiểm tra user tồn tại
+    const { data: existingUser, error: checkError } = await supabase
+      .from('users')
+      .select('id, email, full_name, roles(code)')
+      .eq('id', id)
+      .single();
+
+    if (checkError || !existingUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy nhân viên'
+      });
+    }
+
+    if (!['TEACHER', 'CENTER_MANAGER'].includes(existingUser.roles?.code)) {
+      return res.status(400).json({
+        success: false,
+        message: 'User này không phải nhân viên'
+      });
+    }
+
+    // Kiểm tra xem có đang dạy lớp nào không
+    const { count: activeClasses } = await supabase
+      .from('classes')
+      .select('*', { count: 'exact', head: true })
+      .eq('teacher_id', id)
+      .in('status', ['upcoming', 'ongoing']);
+
+    if (activeClasses && activeClasses > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Không thể xóa vì nhân viên đang phụ trách ${activeClasses} lớp học. Vui lòng chuyển lớp cho người khác trước.`
+      });
+    }
+
+    if (permanent === 'true') {
+      // Xóa vĩnh viễn - cần xóa cả trong Supabase Auth
+      // Lưu ý: Điều này sẽ cascade delete các record liên quan
+      const { error: deleteError } = await supabase.auth.admin.deleteUser(id);
+
+      if (deleteError) {
+        console.error('Error deleting from auth:', deleteError);
+        // Vẫn thử xóa từ public.users
+      }
+
+      const { error } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      res.json({
+        success: true,
+        message: `Đã xóa vĩnh viễn nhân viên "${existingUser.full_name}"`
+      });
+    } else {
+      // Soft delete - chỉ đổi status
+      const { data, error } = await supabase
+        .from('users')
+        .update({
+          status: 'inactive',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select('id, full_name, status')
+        .single();
+
+      if (error) throw error;
+
+      res.json({
+        success: true,
+        message: `Đã vô hiệu hóa nhân viên "${existingUser.full_name}"`,
+        data
+      });
+    }
+  } catch (error) {
+    console.error('Error deleting staff:', error);
+    next(error);
+  }
+});
+
+// Khôi phục nhân viên đã vô hiệu hóa
+app.patch('/api/admin/staff/:id/restore', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const { data, error } = await supabase
+      .from('users')
+      .update({
+        status: 'active',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select('id, full_name, status')
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: `Đã khôi phục nhân viên "${data.full_name}"`,
+      data
+    });
+  } catch (error) {
+    console.error('Error restoring staff:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// CENTERS MANAGEMENT APIs - Quản lý Trung tâm
+// ============================================================
+
+/**
+ * GET /api/admin/centers - Lấy danh sách trung tâm (với thống kê)
+ */
+app.get('/api/admin/centers', requireAuth, async (req, res, next) => {
+  try {
+    const { status, search, withStats } = req.query;
+
+    console.log(`🏢 Admin ${req.user.email} xem danh sách trung tâm`);
+
+    let query = supabase
+      .from('centers')
+      .select(`
+        id, 
+        code,
+        name, 
+        address, 
+        hotline,
+        email,
+        logo_url,
+        description,
+        working_hours,
+        status,
+        manager_id,
+        created_at,
+        updated_at
+      `)
+      .order('name');
+
+    // Filter theo status
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    // Search
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,code.ilike.%${search}%,address.ilike.%${search}%`);
+    }
+
+    const { data: centers, error } = await query;
+    if (error) throw error;
+
+    // Nếu yêu cầu thống kê
+    if (withStats === 'true') {
+      const centersWithStats = await Promise.all(
+        (centers || []).map(async (center) => {
+          // Đếm số phòng
+          const { count: roomCount } = await supabase
+            .from('rooms')
+            .select('*', { count: 'exact', head: true })
+            .eq('center_id', center.id);
+
+          // Đếm số lớp đang hoạt động
+          const { count: classCount } = await supabase
+            .from('classes')
+            .select('*', { count: 'exact', head: true })
+            .eq('center_id', center.id)
+            .in('status', ['upcoming', 'ongoing']);
+
+          // Đếm số nhân viên
+          const { count: staffCount } = await supabase
+            .from('users')
+            .select('*', { count: 'exact', head: true })
+            .eq('center_id', center.id)
+            .eq('status', 'active');
+
+          // Lấy thông tin manager nếu có
+          let manager = null;
+          if (center.manager_id) {
+            const { data: managerData } = await supabase
+              .from('users')
+              .select('id, full_name, email, avatar_url')
+              .eq('id', center.manager_id)
+              .single();
+            manager = managerData;
+          }
+
+          return {
+            ...center,
+            manager,
+            stats: {
+              roomCount: roomCount || 0,
+              classCount: classCount || 0,
+              staffCount: staffCount || 0
+            }
+          };
+        })
+      );
+
+      return res.json({ success: true, data: centersWithStats });
+    }
+
+    res.json({ success: true, data: centers || [] });
+  } catch (error) {
+    console.error('Error fetching centers:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/centers/:id - Chi tiết trung tâm
+ */
+app.get('/api/admin/centers/:id', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    console.log(`🏢 Admin ${req.user.email} xem chi tiết center: ${id}`);
+
+    // Lấy thông tin center
+    const { data: center, error } = await supabase
+      .from('centers')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error || !center) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy trung tâm'
+      });
+    }
+
+    // Lấy manager info
+    let manager = null;
+    if (center.manager_id) {
+      const { data: managerData } = await supabase
+        .from('users')
+        .select('id, full_name, email, phone, avatar_url')
+        .eq('id', center.manager_id)
+        .single();
+      manager = managerData;
+    }
+
+    // Thống kê chi tiết
+    const [roomsRes, classesRes, staffRes, studentsRes] = await Promise.all([
+      supabase.from('rooms').select('*', { count: 'exact', head: true }).eq('center_id', id),
+      supabase.from('classes').select('*', { count: 'exact', head: true }).eq('center_id', id),
+      supabase.from('users').select('*', { count: 'exact', head: true }).eq('center_id', id).eq('status', 'active'),
+      // Đếm học viên đang học tại center (qua enrollments)
+      supabase
+        .from('enrollments')
+        .select('student_id, classes!inner(center_id)', { count: 'exact', head: true })
+        .eq('classes.center_id', id)
+        .eq('status', 'active')
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        ...center,
+        manager,
+        stats: {
+          roomCount: roomsRes.count || 0,
+          classCount: classesRes.count || 0,
+          staffCount: staffRes.count || 0,
+          studentCount: studentsRes.count || 0
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching center detail:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/centers/:id/stats - Thống kê chi tiết trung tâm
+ */
+app.get('/api/admin/centers/:id/stats', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    console.log(`📊 Admin ${req.user.email} xem thống kê center: ${id}`);
+
+    // Kiểm tra center tồn tại
+    const { data: center, error: centerError } = await supabase
+      .from('centers')
+      .select('id, name, code')
+      .eq('id', id)
+      .single();
+
+    if (centerError || !center) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy trung tâm'
+      });
+    }
+
+    // Parallel queries cho performance
+    const [
+      roomsRes,
+      classesRes,
+      staffByRoleRes,
+      revenueRes,
+      sessionsRes
+    ] = await Promise.all([
+      // 1. Thống kê phòng học
+      supabase
+        .from('rooms')
+        .select('status, room_type')
+        .eq('center_id', id),
+
+      // 2. Thống kê lớp học theo status
+      supabase
+        .from('classes')
+        .select('status')
+        .eq('center_id', id),
+
+      // 3. Nhân sự theo role
+      supabase
+        .from('users')
+        .select('roles(code)')
+        .eq('center_id', id)
+        .eq('status', 'active'),
+
+      // 4. Doanh thu tháng này
+      supabase
+        .from('invoices')
+        .select('paid_amount, classes!inner(center_id)')
+        .eq('classes.center_id', id)
+        .eq('status', 'paid')
+        .gte('paid_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
+
+      // 5. Sessions tháng này
+      supabase
+        .from('sessions')
+        .select('status, classes!inner(center_id)')
+        .eq('classes.center_id', id)
+        .gte('session_date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0])
+    ]);
+
+    // Process room stats
+    const rooms = roomsRes.data || [];
+    const roomStats = {
+      total: rooms.length,
+      active: rooms.filter(r => r.status === 'active').length,
+      maintenance: rooms.filter(r => r.status === 'maintenance').length,
+      byType: {
+        standard: rooms.filter(r => r.room_type === 'standard').length,
+        lab: rooms.filter(r => r.room_type === 'lab').length,
+        vip: rooms.filter(r => r.room_type === 'vip').length
+      }
+    };
+
+    // Process class stats
+    const classes = classesRes.data || [];
+    const classStats = {
+      total: classes.length,
+      upcoming: classes.filter(c => c.status === 'upcoming').length,
+      ongoing: classes.filter(c => c.status === 'ongoing').length,
+      completed: classes.filter(c => c.status === 'completed').length
+    };
+
+    // Process staff stats
+    const staffList = staffByRoleRes.data || [];
+    const staffStats = {
+      total: staffList.length,
+      teachers: staffList.filter(s => s.roles?.code === 'TEACHER').length,
+      managers: staffList.filter(s => s.roles?.code === 'CENTER_MANAGER').length
+    };
+
+    // Process revenue
+    const invoices = revenueRes.data || [];
+    const monthlyRevenue = invoices.reduce((sum, inv) => sum + (parseFloat(inv.paid_amount) || 0), 0);
+
+    // Process sessions
+    const sessions = sessionsRes.data || [];
+    const sessionStats = {
+      total: sessions.length,
+      completed: sessions.filter(s => s.status === 'completed').length,
+      scheduled: sessions.filter(s => s.status === 'scheduled').length
+    };
+
+    res.json({
+      success: true,
+      data: {
+        center,
+        rooms: roomStats,
+        classes: classStats,
+        staff: staffStats,
+        sessions: sessionStats,
+        revenue: {
+          monthly: monthlyRevenue,
+          invoiceCount: invoices.length
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching center stats:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/centers - Tạo trung tâm mới (SUPER_ADMIN only)
+ */
+app.post('/api/admin/centers', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
+  try {
+    const { code, name, address, hotline, email, logo_url, description, working_hours, manager_id } = req.body;
+
+    console.log(`🏢 SUPER_ADMIN ${req.user.email} tạo trung tâm mới: ${name}`);
+
+    // Validate required fields
+    if (!name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tên trung tâm là bắt buộc'
+      });
+    }
+
+    // Auto-generate code nếu không có
+    let centerCode = code;
+    if (!centerCode) {
+      const { count } = await supabase
+        .from('centers')
+        .select('*', { count: 'exact', head: true });
+      centerCode = `CTR${String((count || 0) + 1).padStart(2, '0')}`;
+    }
+
+    // Check code uniqueness
+    const { data: existingCode } = await supabase
+      .from('centers')
+      .select('id')
+      .eq('code', centerCode)
+      .single();
+
+    if (existingCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mã trung tâm đã tồn tại'
+      });
+    }
+
+    // Insert
+    const { data, error } = await supabase
+      .from('centers')
+      .insert({
+        code: centerCode,
+        name,
+        address,
+        hotline,
+        email,
+        logo_url,
+        description,
+        working_hours: working_hours || null,
+        manager_id: manager_id || null,
+        status: 'active'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Nếu có manager_id, cập nhật center_id cho manager
+    if (manager_id) {
+      await supabase
+        .from('users')
+        .update({ center_id: data.id })
+        .eq('id', manager_id);
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Tạo trung tâm thành công',
+      data
+    });
+  } catch (error) {
+    console.error('Error creating center:', error);
+    next(error);
+  }
+});
+
+/**
+ * PUT /api/admin/centers/:id - Cập nhật trung tâm (SUPER_ADMIN only)
+ */
+app.put('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    console.log(`✏️ SUPER_ADMIN ${req.user.email} cập nhật center: ${id}`);
+
+    // Validate
+    const { data: existing, error: checkError } = await supabase
+      .from('centers')
+      .select('id, code, manager_id')
+      .eq('id', id)
+      .single();
+
+    if (checkError || !existing) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy trung tâm'
+      });
+    }
+
+    // Kiểm tra code uniqueness nếu thay đổi
+    if (updates.code && updates.code !== existing.code) {
+      const { data: existingCode } = await supabase
+        .from('centers')
+        .select('id')
+        .eq('code', updates.code)
+        .neq('id', id)
+        .single();
+
+      if (existingCode) {
+        return res.status(400).json({
+          success: false,
+          message: 'Mã trung tâm đã tồn tại'
+        });
+      }
+    }
+
+    // Remove fields không được update
+    delete updates.id;
+    delete updates.created_at;
+
+    // Update
+    const { data, error } = await supabase
+      .from('centers')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Nếu thay đổi manager
+    if (updates.manager_id !== undefined && updates.manager_id !== existing.manager_id) {
+      // Remove center_id from old manager
+      if (existing.manager_id) {
+        await supabase
+          .from('users')
+          .update({ center_id: null })
+          .eq('id', existing.manager_id);
+      }
+      // Assign center_id to new manager
+      if (updates.manager_id) {
+        await supabase
+          .from('users')
+          .update({ center_id: id })
+          .eq('id', updates.manager_id);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Cập nhật trung tâm thành công',
+      data
+    });
+  } catch (error) {
+    console.error('Error updating center:', error);
+    next(error);
+  }
+});
+
+/**
+ * DELETE /api/admin/centers/:id - Vô hiệu hóa trung tâm (SUPER_ADMIN only)
+ */
+app.delete('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { permanent } = req.query;
+
+    console.log(`🗑️ SUPER_ADMIN ${req.user.email} xóa center: ${id}`);
+
+    // Check existence
+    const { data: existing, error: checkError } = await supabase
+      .from('centers')
+      .select('id, name, status')
+      .eq('id', id)
+      .single();
+
+    if (checkError || !existing) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy trung tâm'
+      });
+    }
+
+    // Kiểm tra còn lớp đang hoạt động không
+    const { count: activeClasses } = await supabase
+      .from('classes')
+      .select('*', { count: 'exact', head: true })
+      .eq('center_id', id)
+      .in('status', ['upcoming', 'ongoing']);
+
+    if (activeClasses > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Không thể xóa. Trung tâm còn ${activeClasses} lớp đang hoạt động.`
+      });
+    }
+
+    // Soft delete (default) hoặc hard delete
+    if (permanent === 'true') {
+      // Hard delete - chỉ khi không còn data liên quan
+      const { count: roomCount } = await supabase
+        .from('rooms')
+        .select('*', { count: 'exact', head: true })
+        .eq('center_id', id);
+
+      if (roomCount > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Không thể xóa vĩnh viễn. Trung tâm còn ${roomCount} phòng học.`
+        });
+      }
+
+      const { error } = await supabase
+        .from('centers')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      return res.json({
+        success: true,
+        message: `Đã xóa vĩnh viễn trung tâm "${existing.name}"`
+      });
+    }
+
+    // Soft delete - chuyển status thành inactive
+    const { data, error } = await supabase
+      .from('centers')
+      .update({ status: 'inactive' })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: `Đã vô hiệu hóa trung tâm "${existing.name}"`,
+      data
+    });
+  } catch (error) {
+    console.error('Error deleting center:', error);
+    next(error);
+  }
+});
+
+/**
+ * PATCH /api/admin/centers/:id/restore - Khôi phục trung tâm
+ */
+app.patch('/api/admin/centers/:id/restore', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    console.log(`♻️ SUPER_ADMIN ${req.user.email} khôi phục center: ${id}`);
+
+    const { data, error } = await supabase
+      .from('centers')
+      .update({ status: 'active' })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: `Đã khôi phục trung tâm "${data.name}"`,
+      data
+    });
+  } catch (error) {
+    console.error('Error restoring center:', error);
+    next(error);
+  }
+});
+
+/**
+ * PATCH /api/admin/centers/:id/manager - Gán/đổi quản lý trung tâm
+ */
+app.patch('/api/admin/centers/:id/manager', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { manager_id } = req.body;
+
+    console.log(`👔 SUPER_ADMIN ${req.user.email} gán manager cho center: ${id}`);
+
+    // Validate manager
+    if (manager_id) {
+      const { data: manager, error: managerError } = await supabase
+        .from('users')
+        .select('id, full_name, roles(code)')
+        .eq('id', manager_id)
+        .single();
+
+      if (managerError || !manager) {
+        return res.status(400).json({
+          success: false,
+          message: 'Không tìm thấy người dùng'
+        });
+      }
+
+      if (manager.roles?.code !== 'CENTER_MANAGER') {
+        return res.status(400).json({
+          success: false,
+          message: 'Người được chọn phải có vai trò Quản lý (CENTER_MANAGER)'
+        });
+      }
+    }
+
+    // Lấy old manager để remove
+    const { data: center } = await supabase
+      .from('centers')
+      .select('manager_id')
+      .eq('id', id)
+      .single();
+
+    // Update center
+    const { data, error } = await supabase
+      .from('centers')
+      .update({ manager_id: manager_id || null })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Update users
+    if (center?.manager_id && center.manager_id !== manager_id) {
+      await supabase.from('users').update({ center_id: null }).eq('id', center.manager_id);
+    }
+    if (manager_id) {
+      await supabase.from('users').update({ center_id: id }).eq('id', manager_id);
+    }
+
+    res.json({
+      success: true,
+      message: manager_id ? 'Đã gán quản lý cho trung tâm' : 'Đã xóa quản lý trung tâm',
+      data
+    });
+  } catch (error) {
+    console.error('Error assigning manager:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// END CENTERS MANAGEMENT APIs
+// ============================================================
 
 // Tạo tài khoản nhân viên mới (Admin only)
 app.post('/api/admin/users', requireAuth, async (req, res, next) => {
@@ -762,7 +1744,13 @@ app.get('/api/roles', async (_req, res, next) => {
 // Lấy danh sách học viên (STUDENT)
 app.get('/api/admin/students', requireAuth, async (req, res, next) => {
   try {
-    const { search, status } = req.query;
+    const { search, status, centerId } = req.query;
+
+    // ====== PERMISSION CHECK ======
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, centerId);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
 
     // Lấy role_id của STUDENT
     const { data: studentRole } = await supabase
@@ -784,6 +1772,7 @@ app.get('/api/admin/students', requireAuth, async (req, res, next) => {
         phone,
         avatar_url,
         status,
+        center_id,
         created_at,
         roles (
           id,
@@ -797,6 +1786,27 @@ app.get('/api/admin/students', requireAuth, async (req, res, next) => {
     // Filter theo status nếu có
     if (status) {
       query = query.eq('status', status);
+    }
+
+    // ====== CENTER FILTER ======
+    // Học viên có thể học ở nhiều center qua enrollments, nên cần filter khác
+    // Lấy học viên có enrollment tại center này
+    if (effectiveCenterId) {
+      // Lấy danh sách student_id đang học tại center này
+      const { data: enrolledStudents } = await supabase
+        .from('enrollments')
+        .select('student_id, classes!inner(center_id)')
+        .eq('classes.center_id', effectiveCenterId)
+        .eq('status', 'active');
+
+      const studentIds = [...new Set((enrolledStudents || []).map(e => e.student_id))];
+
+      if (studentIds.length > 0) {
+        query = query.in('id', studentIds);
+      } else {
+        // Không có học viên nào tại center này
+        return res.json({ success: true, data: [] });
+      }
     }
 
     const { data, error } = await query;
@@ -816,6 +1826,292 @@ app.get('/api/admin/students', requireAuth, async (req, res, next) => {
     res.json({ success: true, data: result });
   } catch (error) {
     console.error('Error fetching students:', error);
+    next(error);
+  }
+});
+
+// ============ STUDENT DETAIL APIs ============
+
+// Lấy chi tiết học viên (kèm enrollments, invoices, attendance)
+app.get('/api/admin/students/:id', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Lấy thông tin user
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select(`
+        id,
+        email,
+        full_name,
+        phone,
+        avatar_url,
+        status,
+        created_at,
+        updated_at,
+        roles (id, code, name)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy học viên'
+      });
+    }
+
+    // Kiểm tra có phải STUDENT không
+    if (user.roles?.code !== 'STUDENT') {
+      return res.status(400).json({
+        success: false,
+        message: 'User này không phải học viên'
+      });
+    }
+
+    // Lấy danh sách lớp đang học (enrollments)
+    const { data: enrollments } = await supabase
+      .from('enrollments')
+      .select(`
+        id,
+        status,
+        enrolled_at,
+        tuition_fee,
+        discount_amount,
+        paid_amount,
+        classes (
+          id,
+          code,
+          name,
+          status,
+          start_date,
+          end_date,
+          courses (id, title, category)
+        )
+      `)
+      .eq('student_id', id)
+      .order('enrolled_at', { ascending: false });
+
+    // Lấy danh sách hóa đơn
+    const { data: invoices } = await supabase
+      .from('invoices')
+      .select(`
+        id,
+        invoice_code,
+        final_amount,
+        paid_amount,
+        status,
+        due_date,
+        created_at
+      `)
+      .eq('student_id', id)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    // Tính thống kê
+    const activeEnrollments = (enrollments || []).filter(e => e.status === 'active');
+    const completedEnrollments = (enrollments || []).filter(e => e.status === 'completed');
+
+    const totalPaid = (invoices || []).reduce((sum, inv) => sum + (inv.paid_amount || 0), 0);
+    const totalDebt = (invoices || [])
+      .filter(inv => inv.status !== 'paid' && inv.status !== 'cancelled')
+      .reduce((sum, inv) => sum + ((inv.final_amount || 0) - (inv.paid_amount || 0)), 0);
+
+    // Lấy thống kê điểm danh (30 ngày gần nhất)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const { data: attendanceData } = await supabase
+      .from('attendance')
+      .select('id, status, enrollment_id')
+      .in('enrollment_id', (enrollments || []).map(e => e.id))
+      .gte('session_date', thirtyDaysAgo.toISOString().split('T')[0]);
+
+    const attendanceStats = {
+      total: attendanceData?.length || 0,
+      present: attendanceData?.filter(a => a.status === 'present').length || 0,
+      absent: attendanceData?.filter(a => a.status === 'absent').length || 0,
+      late: attendanceData?.filter(a => a.status === 'late').length || 0,
+    };
+
+    res.json({
+      success: true,
+      data: {
+        ...user,
+        enrollments: enrollments || [],
+        invoices: invoices || [],
+        stats: {
+          activeClasses: activeEnrollments.length,
+          completedClasses: completedEnrollments.length,
+          totalClasses: (enrollments || []).length,
+          totalPaid,
+          totalDebt,
+          attendance: attendanceStats
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching student detail:', error);
+    next(error);
+  }
+});
+
+// Cập nhật thông tin học viên
+app.put('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { full_name, phone, status } = req.body;
+
+    console.log(`✏️ Admin ${req.user.email} đang cập nhật học viên: ${id}`);
+
+    // Validate
+    if (!full_name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Họ tên là bắt buộc'
+      });
+    }
+
+    // Kiểm tra user tồn tại và là student
+    const { data: existingUser, error: checkError } = await supabase
+      .from('users')
+      .select('id, roles(code)')
+      .eq('id', id)
+      .single();
+
+    if (checkError || !existingUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy học viên'
+      });
+    }
+
+    if (existingUser.roles?.code !== 'STUDENT') {
+      return res.status(400).json({
+        success: false,
+        message: 'User này không phải học viên'
+      });
+    }
+
+    // Update
+    const { data, error } = await supabase
+      .from('users')
+      .update({
+        full_name,
+        phone: phone || null,
+        status: status || 'active',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select(`
+        id, email, full_name, phone, avatar_url, status, created_at, updated_at,
+        roles (id, code, name)
+      `)
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: 'Cập nhật học viên thành công',
+      data
+    });
+  } catch (error) {
+    console.error('Error updating student:', error);
+    next(error);
+  }
+});
+
+// Vô hiệu hóa học viên
+app.delete('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    console.log(`🗑️ Admin ${req.user.email} đang vô hiệu hóa học viên: ${id}`);
+
+    // Kiểm tra user tồn tại
+    const { data: existingUser, error: checkError } = await supabase
+      .from('users')
+      .select('id, full_name, roles(code)')
+      .eq('id', id)
+      .single();
+
+    if (checkError || !existingUser) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy học viên'
+      });
+    }
+
+    if (existingUser.roles?.code !== 'STUDENT') {
+      return res.status(400).json({
+        success: false,
+        message: 'User này không phải học viên'
+      });
+    }
+
+    // Kiểm tra còn enrollment active không
+    const { count: activeEnrollments } = await supabase
+      .from('enrollments')
+      .select('*', { count: 'exact', head: true })
+      .eq('student_id', id)
+      .eq('status', 'active');
+
+    if (activeEnrollments && activeEnrollments > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Không thể vô hiệu hóa vì học viên đang học ${activeEnrollments} lớp. Vui lòng rút khỏi lớp trước.`
+      });
+    }
+
+    // Soft delete
+    const { data, error } = await supabase
+      .from('users')
+      .update({
+        status: 'inactive',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select('id, full_name, status')
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: `Đã vô hiệu hóa học viên "${existingUser.full_name}"`,
+      data
+    });
+  } catch (error) {
+    console.error('Error deleting student:', error);
+    next(error);
+  }
+});
+
+// Khôi phục học viên
+app.patch('/api/admin/students/:id/restore', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const { data, error } = await supabase
+      .from('users')
+      .update({
+        status: 'active',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select('id, full_name, status')
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: `Đã khôi phục học viên "${data.full_name}"`,
+      data
+    });
+  } catch (error) {
+    console.error('Error restoring student:', error);
     next(error);
   }
 });
@@ -919,7 +2215,13 @@ app.get('/api/centers', async (_req, res, next) => {
 // Lấy danh sách lớp học (với thông tin liên quan)
 app.get('/api/classes', requireAuth, async (req, res, next) => {
   try {
-    const { status, course_id, teacher_id } = req.query;
+    const { status, course_id, teacher_id, centerId } = req.query;
+
+    // ====== PERMISSION CHECK ======
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, centerId);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
 
     let query = supabase
       .from('classes')
@@ -927,6 +2229,7 @@ app.get('/api/classes', requireAuth, async (req, res, next) => {
         id,
         code,
         name,
+        center_id,
         start_date,
         end_date,
         schedule,
@@ -962,6 +2265,11 @@ app.get('/api/classes', requireAuth, async (req, res, next) => {
     if (status) query = query.eq('status', status);
     if (course_id) query = query.eq('course_id', course_id);
     if (teacher_id) query = query.eq('teacher_id', teacher_id);
+
+    // ====== CENTER FILTER ======
+    if (effectiveCenterId) {
+      query = query.eq('center_id', effectiveCenterId);
+    }
 
     const { data, error } = await query;
     if (error) throw error;
@@ -1890,9 +3198,15 @@ app.post('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, r
 // ============ ROOM MANAGEMENT APIs ============
 
 // Lấy danh sách phòng học
-app.get('/api/rooms', async (req, res, next) => {
+app.get('/api/rooms', requireAuth, async (req, res, next) => {
   try {
     const { center_id, status } = req.query;
+
+    // ====== PERMISSION CHECK ======
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, center_id);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
 
     let query = supabase
       .from('rooms')
@@ -1902,7 +3216,13 @@ app.get('/api/rooms', async (req, res, next) => {
       `)
       .order('name');
 
-    if (center_id) query = query.eq('center_id', center_id);
+    // ====== CENTER FILTER ======
+    if (effectiveCenterId) {
+      query = query.eq('center_id', effectiveCenterId);
+    } else if (center_id) {
+      query = query.eq('center_id', center_id);
+    }
+
     if (status) query = query.eq('status', status);
 
     const { data, error } = await query;
@@ -4383,31 +5703,55 @@ app.post('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAG
     };
     const defaultDesc = description || `${typeLabels[invoice_type] || 'Phí khác'} - ${student.full_name}`;
 
-    // Insert invoice
-    const { data: invoice, error } = await supabase
+    // Insert invoice - thử với invoice_type trước, nếu lỗi thì bỏ qua
+    let invoice, error;
+
+    // Thử insert với invoice_type
+    const insertData = {
+      student_id,
+      class_id: class_id || null,
+      amount: parseFloat(amount),
+      discount_amount: parseFloat(discount_amount || 0),
+      final_amount: finalAmount,
+      paid_amount: 0,
+      status: 'unpaid',
+      description: defaultDesc,
+      due_date: due_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      created_by: req.user?.id
+    };
+
+    // Thử insert với invoice_type (nếu column tồn tại)
+    const result1 = await supabase
       .from('invoices')
-      .insert({
-        student_id,
-        class_id: class_id || null,
-        invoice_type: invoice_type || 'other',
-        amount: parseFloat(amount),
-        discount_amount: parseFloat(discount_amount || 0),
-        final_amount: finalAmount,
-        paid_amount: 0,
-        status: 'unpaid',
-        description: defaultDesc,
-        due_date: due_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        created_by: req.user?.id
-      })
+      .insert({ ...insertData, invoice_type: invoice_type || 'other' })
       .select(`
         *,
         student:users!invoices_student_id_fkey (id, full_name, email, phone)
       `)
       .single();
 
+    if (result1.error && result1.error.message?.includes('invoice_type')) {
+      // Column không tồn tại, thử insert không có invoice_type
+      console.warn('⚠️ invoice_type column not found, inserting without it');
+      const result2 = await supabase
+        .from('invoices')
+        .insert(insertData)
+        .select(`
+          *,
+          student:users!invoices_student_id_fkey (id, full_name, email, phone)
+        `)
+        .single();
+
+      invoice = result2.data;
+      error = result2.error;
+    } else {
+      invoice = result1.data;
+      error = result1.error;
+    }
+
     if (error) throw error;
 
-    console.log(`📄 Tạo hóa đơn ${invoice.invoice_code} - ${invoice_type} cho ${student.full_name}`);
+    console.log(`📄 Tạo hóa đơn ${invoice.invoice_code} - ${invoice_type || 'other'} cho ${student.full_name}`);
 
     res.status(201).json({
       success: true,
@@ -5076,6 +6420,1068 @@ app.post('/api/admin/sessions/:id/exception', requireAuth, requireRole(['SUPER_A
 // END NEW SCHEDULE FEATURES
 // ============================================================
 
+// ============================================================
+// PAYROLL MANAGEMENT APIs - Quản lý bảng lương giáo viên
+// ============================================================
+
+/**
+ * GET /api/admin/payroll - Lấy danh sách bảng lương
+ * Query params:
+ * - month (int): Tháng (1-12)
+ * - year (int): Năm
+ * - status: draft, pending, approved, paid
+ * - teacher_id (uuid): Filter theo giáo viên
+ */
+app.get('/api/admin/payroll', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { month, year, status, teacher_id } = req.query;
+
+    let query = supabase
+      .from('payroll')
+      .select(`
+        *,
+        teacher:users!payroll_teacher_id_fkey (id, full_name, email, avatar_url, hourly_rate),
+        approver:users!payroll_approved_by_fkey (id, full_name)
+      `)
+      .order('period_year', { ascending: false })
+      .order('period_month', { ascending: false });
+
+    if (month) query = query.eq('period_month', parseInt(month));
+    if (year) query = query.eq('period_year', parseInt(year));
+    if (status) query = query.eq('status', status);
+    if (teacher_id) query = query.eq('teacher_id', teacher_id);
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json({ success: true, data: data || [] });
+  } catch (error) {
+    console.error('Error fetching payroll:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/payroll/stats - Thống kê payroll nhanh cho tháng hiện tại
+ */
+app.get('/api/admin/payroll/stats', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { month, year } = req.query;
+    const currentMonth = month ? parseInt(month) : new Date().getMonth() + 1;
+    const currentYear = year ? parseInt(year) : new Date().getFullYear();
+
+    // Lấy thống kê payroll theo status
+    const { data: payrollData, error: payrollError } = await supabase
+      .from('payroll')
+      .select('status, net_salary')
+      .eq('period_month', currentMonth)
+      .eq('period_year', currentYear);
+
+    if (payrollError) throw payrollError;
+
+    // Tính toán thống kê
+    const stats = {
+      total_payrolls: payrollData?.length || 0,
+      draft: 0,
+      pending: 0,
+      approved: 0,
+      paid: 0,
+      total_amount: 0,
+      pending_amount: 0,
+      paid_amount: 0
+    };
+
+    (payrollData || []).forEach(p => {
+      stats[p.status] = (stats[p.status] || 0) + 1;
+      stats.total_amount += parseInt(p.net_salary) || 0;
+      if (p.status === 'pending' || p.status === 'approved') {
+        stats.pending_amount += parseInt(p.net_salary) || 0;
+      }
+      if (p.status === 'paid') {
+        stats.paid_amount += parseInt(p.net_salary) || 0;
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        ...stats,
+        month: currentMonth,
+        year: currentYear
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching payroll stats:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/payroll/teachers - Lấy danh sách GV với thống kê giờ dạy tháng
+ */
+app.get('/api/admin/payroll/teachers', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { month, year } = req.query;
+    const currentMonth = month ? parseInt(month) : new Date().getMonth() + 1;
+    const currentYear = year ? parseInt(year) : new Date().getFullYear();
+
+    // Lấy role_id của TEACHER từ bảng roles
+    const { data: teacherRole } = await supabase
+      .from('roles')
+      .select('id')
+      .eq('code', 'TEACHER')
+      .single();
+
+    if (!teacherRole) {
+      return res.json({ success: true, data: [] });
+    }
+
+    // Lấy tất cả giáo viên
+    const { data: teachers, error: teachersError } = await supabase
+      .from('users')
+      .select('id, full_name, email, avatar_url, hourly_rate, status')
+      .eq('role_id', teacherRole.id)
+      .eq('status', 'active');
+
+    if (teachersError) throw teachersError;
+
+    if (!teachers || teachers.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    // OPTIMIZED: Fetch tất cả sessions và payrolls trong 2 query thay vì N+1
+    const teacherIds = teachers.map(t => t.id);
+    const startDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+    const endDate = currentMonth === 12
+      ? `${currentYear + 1}-01-01`
+      : `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
+
+    // Query all sessions for all teachers in one call
+    const { data: allSessions } = await supabase
+      .from('sessions')
+      .select('id, teacher_id, duration_hours, teacher_rate')
+      .in('teacher_id', teacherIds)
+      .eq('status', 'completed')
+      .gte('session_date', startDate)
+      .lt('session_date', endDate);
+
+    // Query all payrolls for the period in one call
+    const { data: allPayrolls } = await supabase
+      .from('payroll')
+      .select('id, teacher_id, status, net_salary')
+      .in('teacher_id', teacherIds)
+      .eq('period_month', currentMonth)
+      .eq('period_year', currentYear);
+
+    // Group sessions by teacher_id
+    const sessionsByTeacher = (allSessions || []).reduce((acc, session) => {
+      if (!acc[session.teacher_id]) acc[session.teacher_id] = [];
+      acc[session.teacher_id].push(session);
+      return acc;
+    }, {});
+
+    // Index payrolls by teacher_id
+    const payrollByTeacher = (allPayrolls || []).reduce((acc, payroll) => {
+      acc[payroll.teacher_id] = payroll;
+      return acc;
+    }, {});
+
+    // Map teachers with their stats (no additional queries needed)
+    const teacherStats = teachers.map(teacher => {
+      const sessions = sessionsByTeacher[teacher.id] || [];
+      const existingPayroll = payrollByTeacher[teacher.id] || null;
+
+      const totalSessions = sessions.length;
+      const totalHours = sessions.reduce((sum, s) => sum + (parseFloat(s.duration_hours) || 0), 0);
+      const baseSalary = sessions.reduce((sum, s) => {
+        const hours = parseFloat(s.duration_hours) || 0;
+        const rate = parseFloat(s.teacher_rate) || parseFloat(teacher.hourly_rate) || 150000;
+        return sum + (hours * rate);
+      }, 0);
+
+      return {
+        ...teacher,
+        month: currentMonth,
+        year: currentYear,
+        total_sessions: totalSessions,
+        total_hours: totalHours,
+        base_salary: baseSalary,
+        payroll: existingPayroll
+      };
+    });
+
+    res.json({ success: true, data: teacherStats });
+  } catch (error) {
+    console.error('Error fetching payroll teachers:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/payroll/generate - Tạo bảng lương cho GV
+ */
+app.post('/api/admin/payroll/generate', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { teacher_id, month, year, bonus = 0, deduction = 0, notes = '' } = req.body;
+
+    if (!teacher_id || !month || !year) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu thông tin teacher_id, month, year'
+      });
+    }
+
+    // Kiểm tra đã có payroll chưa
+    const { data: existing } = await supabase
+      .from('payroll')
+      .select('id')
+      .eq('teacher_id', teacher_id)
+      .eq('period_month', month)
+      .eq('period_year', year)
+      .single();
+
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: 'Bảng lương tháng này đã tồn tại'
+      });
+    }
+
+    // Lấy thông tin sessions đã completed
+    const { data: sessions } = await supabase
+      .from('sessions')
+      .select('id, duration_hours, teacher_rate')
+      .eq('teacher_id', teacher_id)
+      .eq('status', 'completed')
+      .gte('session_date', `${year}-${String(month).padStart(2, '0')}-01`)
+      .lt('session_date', month === 12
+        ? `${year + 1}-01-01`
+        : `${year}-${String(month + 1).padStart(2, '0')}-01`
+      );
+
+    // Lấy hourly_rate của GV
+    const { data: teacher } = await supabase
+      .from('users')
+      .select('hourly_rate')
+      .eq('id', teacher_id)
+      .single();
+
+    const totalSessions = sessions?.length || 0;
+    const totalHours = (sessions || []).reduce((sum, s) => sum + (parseFloat(s.duration_hours) || 0), 0);
+    const baseSalary = (sessions || []).reduce((sum, s) => {
+      const hours = parseFloat(s.duration_hours) || 0;
+      const rate = parseFloat(s.teacher_rate) || parseFloat(teacher?.hourly_rate) || 150000;
+      return sum + (hours * rate);
+    }, 0);
+
+    const netSalary = baseSalary + parseFloat(bonus || 0) - parseFloat(deduction || 0);
+
+    // Tạo bảng lương
+    const { data: payroll, error } = await supabase
+      .from('payroll')
+      .insert({
+        teacher_id,
+        period_month: month,
+        period_year: year,
+        total_sessions: totalSessions,
+        total_hours: totalHours,
+        base_salary: baseSalary,
+        bonus: parseFloat(bonus || 0),
+        deduction: parseFloat(deduction || 0),
+        net_salary: netSalary,
+        notes,
+        status: 'draft'
+      })
+      .select(`
+        *,
+        teacher:users!payroll_teacher_id_fkey (id, full_name, email)
+      `)
+      .single();
+
+    if (error) throw error;
+
+    // Cập nhật payroll_id cho các sessions
+    if (sessions && sessions.length > 0) {
+      const sessionIds = sessions.map(s => s.id);
+      await supabase
+        .from('sessions')
+        .update({ payroll_id: payroll.id })
+        .in('id', sessionIds);
+    }
+
+    res.json({ success: true, data: payroll });
+  } catch (error) {
+    console.error('Error generating payroll:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/payroll/:id - Lấy chi tiết bảng lương
+ */
+app.get('/api/admin/payroll/:id', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Lấy thông tin payroll
+    const { data: payroll, error: payrollError } = await supabase
+      .from('payroll')
+      .select(`
+        *,
+        teacher:users!payroll_teacher_id_fkey (id, full_name, email, avatar_url, hourly_rate, phone),
+        approver:users!payroll_approved_by_fkey (id, full_name)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (payrollError) throw payrollError;
+    if (!payroll) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bảng lương' });
+    }
+
+    // Lấy danh sách sessions liên quan
+    const { data: sessions } = await supabase
+      .from('sessions')
+      .select(`
+        id,
+        session_date,
+        start_time,
+        end_time,
+        duration_hours,
+        teacher_rate,
+        status,
+        topic,
+        classes (id, name)
+      `)
+      .eq('teacher_id', payroll.teacher_id)
+      .eq('status', 'completed')
+      .gte('session_date', `${payroll.period_year}-${String(payroll.period_month).padStart(2, '0')}-01`)
+      .lt('session_date', payroll.period_month === 12
+        ? `${payroll.period_year + 1}-01-01`
+        : `${payroll.period_year}-${String(payroll.period_month + 1).padStart(2, '0')}-01`
+      )
+      .order('session_date', { ascending: true });
+
+    res.json({
+      success: true,
+      data: {
+        ...payroll,
+        sessions: sessions || []
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching payroll detail:', error);
+    next(error);
+  }
+});
+
+/**
+ * PUT /api/admin/payroll/:id - Cập nhật bảng lương
+ */
+app.put('/api/admin/payroll/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { bonus, deduction, notes } = req.body;
+
+    // Lấy payroll hiện tại
+    const { data: current, error: fetchError } = await supabase
+      .from('payroll')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError) throw fetchError;
+    if (!current) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bảng lương' });
+    }
+
+    // Không cho sửa nếu đã approved hoặc paid
+    if (['approved', 'paid'].includes(current.status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không thể sửa bảng lương đã duyệt hoặc đã thanh toán'
+      });
+    }
+
+    const newBonus = bonus !== undefined ? parseFloat(bonus) : current.bonus;
+    const newDeduction = deduction !== undefined ? parseFloat(deduction) : current.deduction;
+    const netSalary = parseFloat(current.base_salary) + newBonus - newDeduction;
+
+    const { data: updated, error: updateError } = await supabase
+      .from('payroll')
+      .update({
+        bonus: newBonus,
+        deduction: newDeduction,
+        net_salary: netSalary,
+        notes: notes !== undefined ? notes : current.notes,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select(`
+        *,
+        teacher:users!payroll_teacher_id_fkey (id, full_name, email)
+      `)
+      .single();
+
+    if (updateError) throw updateError;
+
+    res.json({ success: true, data: updated });
+  } catch (error) {
+    console.error('Error updating payroll:', error);
+    next(error);
+  }
+});
+
+/**
+ * PATCH /api/admin/payroll/:id/status - Cập nhật trạng thái bảng lương
+ */
+app.patch('/api/admin/payroll/:id/status', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const userId = req.user.id;
+
+    const validStatuses = ['draft', 'pending', 'approved', 'paid'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Trạng thái không hợp lệ'
+      });
+    }
+
+    const updateData = {
+      status,
+      updated_at: new Date().toISOString()
+    };
+
+    // Ghi nhận người duyệt khi approved
+    if (status === 'approved') {
+      updateData.approved_by = userId;
+      updateData.approved_at = new Date().toISOString();
+    }
+
+    // Lock sessions khi approved
+    if (status === 'approved' || status === 'paid') {
+      // Lấy payroll để lấy thông tin
+      const { data: payroll } = await supabase
+        .from('payroll')
+        .select('teacher_id, period_month, period_year')
+        .eq('id', id)
+        .single();
+
+      if (payroll) {
+        await supabase
+          .from('sessions')
+          .update({ is_locked: true })
+          .eq('teacher_id', payroll.teacher_id)
+          .eq('status', 'completed')
+          .gte('session_date', `${payroll.period_year}-${String(payroll.period_month).padStart(2, '0')}-01`)
+          .lt('session_date', payroll.period_month === 12
+            ? `${payroll.period_year + 1}-01-01`
+            : `${payroll.period_year}-${String(payroll.period_month + 1).padStart(2, '0')}-01`
+          );
+      }
+    }
+
+    const { data: updated, error } = await supabase
+      .from('payroll')
+      .update(updateData)
+      .eq('id', id)
+      .select(`
+        *,
+        teacher:users!payroll_teacher_id_fkey (id, full_name, email),
+        approver:users!payroll_approved_by_fkey (id, full_name)
+      `)
+      .single();
+
+    if (error) throw error;
+
+    res.json({ success: true, data: updated });
+  } catch (error) {
+    console.error('Error updating payroll status:', error);
+    next(error);
+  }
+});
+
+/**
+ * DELETE /api/admin/payroll/:id - Xóa bảng lương (chỉ draft)
+ */
+app.delete('/api/admin/payroll/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Kiểm tra status
+    const { data: payroll, error: fetchError } = await supabase
+      .from('payroll')
+      .select('status')
+      .eq('id', id)
+      .single();
+
+    if (fetchError) throw fetchError;
+    if (!payroll) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bảng lương' });
+    }
+
+    if (payroll.status !== 'draft') {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ có thể xóa bảng lương ở trạng thái nháp'
+      });
+    }
+
+    // Xóa payroll_id trong sessions
+    await supabase
+      .from('sessions')
+      .update({ payroll_id: null })
+      .eq('payroll_id', id);
+
+    // Xóa payroll
+    const { error: deleteError } = await supabase
+      .from('payroll')
+      .delete()
+      .eq('id', id);
+
+    if (deleteError) throw deleteError;
+
+    res.json({ success: true, message: 'Đã xóa bảng lương' });
+  } catch (error) {
+    console.error('Error deleting payroll:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/payroll/bulk-generate - Tạo bảng lương hàng loạt cho nhiều GV
+ */
+app.post('/api/admin/payroll/bulk-generate', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { teacher_ids, month, year, bonus = 0, deduction = 0, notes = '' } = req.body;
+
+    if (!teacher_ids || !Array.isArray(teacher_ids) || teacher_ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cần cung cấp danh sách teacher_ids'
+      });
+    }
+
+    if (!month || !year) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu thông tin month, year'
+      });
+    }
+
+    const results = { success: [], failed: [] };
+
+    for (const teacher_id of teacher_ids) {
+      try {
+        // Kiểm tra đã có payroll chưa
+        const { data: existing } = await supabase
+          .from('payroll')
+          .select('id')
+          .eq('teacher_id', teacher_id)
+          .eq('period_month', month)
+          .eq('period_year', year)
+          .single();
+
+        if (existing) {
+          results.failed.push({ teacher_id, reason: 'Đã tồn tại bảng lương' });
+          continue;
+        }
+
+        // Lấy sessions đã completed
+        const { data: sessions } = await supabase
+          .from('sessions')
+          .select('id, duration_hours, teacher_rate')
+          .eq('teacher_id', teacher_id)
+          .eq('status', 'completed')
+          .gte('session_date', `${year}-${String(month).padStart(2, '0')}-01`)
+          .lt('session_date', month === 12
+            ? `${year + 1}-01-01`
+            : `${year}-${String(month + 1).padStart(2, '0')}-01`
+          );
+
+        // Lấy hourly_rate của GV
+        const { data: teacher } = await supabase
+          .from('users')
+          .select('hourly_rate, full_name')
+          .eq('id', teacher_id)
+          .single();
+
+        const totalSessions = sessions?.length || 0;
+        if (totalSessions === 0) {
+          results.failed.push({ teacher_id, teacher_name: teacher?.full_name, reason: 'Không có buổi dạy' });
+          continue;
+        }
+
+        const totalHours = (sessions || []).reduce((sum, s) => sum + (parseFloat(s.duration_hours) || 0), 0);
+        const baseSalary = (sessions || []).reduce((sum, s) => {
+          const hours = parseFloat(s.duration_hours) || 0;
+          const rate = parseFloat(s.teacher_rate) || parseFloat(teacher?.hourly_rate) || 150000;
+          return sum + (hours * rate);
+        }, 0);
+
+        const netSalary = baseSalary + parseFloat(bonus || 0) - parseFloat(deduction || 0);
+
+        // Tạo bảng lương
+        const { data: payroll, error } = await supabase
+          .from('payroll')
+          .insert({
+            teacher_id,
+            period_month: month,
+            period_year: year,
+            total_sessions: totalSessions,
+            total_hours: totalHours,
+            base_salary: baseSalary,
+            bonus: parseFloat(bonus || 0),
+            deduction: parseFloat(deduction || 0),
+            net_salary: netSalary,
+            notes,
+            status: 'draft'
+          })
+          .select()
+          .single();
+
+        if (error) {
+          results.failed.push({ teacher_id, teacher_name: teacher?.full_name, reason: error.message });
+          continue;
+        }
+
+        // Cập nhật payroll_id cho các sessions
+        if (sessions && sessions.length > 0) {
+          const sessionIds = sessions.map(s => s.id);
+          await supabase
+            .from('sessions')
+            .update({ payroll_id: payroll.id })
+            .in('id', sessionIds);
+        }
+
+        results.success.push({ teacher_id, teacher_name: teacher?.full_name, payroll_id: payroll.id });
+      } catch (err) {
+        results.failed.push({ teacher_id, reason: err.message });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Tạo thành công ${results.success.length}/${teacher_ids.length} bảng lương`,
+      data: results
+    });
+  } catch (error) {
+    console.error('Error bulk generating payroll:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/payroll/export - Export danh sách bảng lương ra Excel/CSV
+ */
+app.get('/api/admin/payroll/export', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { month, year, format = 'json' } = req.query;
+
+    let query = supabase
+      .from('payroll')
+      .select(`
+        id,
+        period_month,
+        period_year,
+        total_sessions,
+        total_hours,
+        base_salary,
+        bonus,
+        deduction,
+        net_salary,
+        status,
+        notes,
+        created_at,
+        approved_at,
+        teacher:users!payroll_teacher_id_fkey (id, full_name, email, phone),
+        approver:users!payroll_approved_by_fkey (id, full_name)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (month) query = query.eq('period_month', parseInt(month));
+    if (year) query = query.eq('period_year', parseInt(year));
+
+    const { data: payrolls, error } = await query;
+    if (error) throw error;
+
+    // Format dữ liệu cho export
+    const exportData = (payrolls || []).map(p => ({
+      'Mã bảng lương': p.id,
+      'Giáo viên': p.teacher?.full_name || '',
+      'Email': p.teacher?.email || '',
+      'SĐT': p.teacher?.phone || '',
+      'Tháng': p.period_month,
+      'Năm': p.period_year,
+      'Số buổi': p.total_sessions,
+      'Tổng giờ': p.total_hours,
+      'Lương cơ bản': p.base_salary,
+      'Thưởng': p.bonus || 0,
+      'Khấu trừ': p.deduction || 0,
+      'Thực nhận': p.net_salary,
+      'Trạng thái': p.status === 'draft' ? 'Nháp' : p.status === 'pending' ? 'Chờ duyệt' : p.status === 'approved' ? 'Đã duyệt' : 'Đã thanh toán',
+      'Người duyệt': p.approver?.full_name || '',
+      'Ngày duyệt': p.approved_at || '',
+      'Ghi chú': p.notes || ''
+    }));
+
+    if (format === 'csv') {
+      // Export CSV
+      const headers = Object.keys(exportData[0] || {}).join(',');
+      const rows = exportData.map(row =>
+        Object.values(row).map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
+      ).join('\n');
+      const csv = headers + '\n' + rows;
+
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename=payroll_${month}_${year}.csv`);
+      res.send('\ufeff' + csv); // BOM for Excel UTF-8
+    } else {
+      res.json({ success: true, data: exportData });
+    }
+  } catch (error) {
+    console.error('Error exporting payroll:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/teacher/payroll - Giáo viên xem bảng lương của mình
+ */
+app.get('/api/teacher/payroll', requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { month, year } = req.query;
+
+    let query = supabase
+      .from('payroll')
+      .select(`
+        id,
+        period_month,
+        period_year,
+        total_sessions,
+        total_hours,
+        base_salary,
+        bonus,
+        deduction,
+        net_salary,
+        status,
+        notes,
+        created_at,
+        approved_at,
+        approver:users!payroll_approved_by_fkey (id, full_name)
+      `)
+      .eq('teacher_id', userId)
+      .order('period_year', { ascending: false })
+      .order('period_month', { ascending: false });
+
+    if (month) query = query.eq('period_month', parseInt(month));
+    if (year) query = query.eq('period_year', parseInt(year));
+
+    const { data: payrolls, error } = await query;
+    if (error) throw error;
+
+    res.json({ success: true, data: payrolls || [] });
+  } catch (error) {
+    console.error('Error fetching teacher payroll:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/teacher/payroll/:id - Giáo viên xem chi tiết một bảng lương
+ */
+app.get('/api/teacher/payroll/:id', requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+
+    // Lấy payroll và verify là của user này
+    const { data: payroll, error: payrollError } = await supabase
+      .from('payroll')
+      .select(`
+        *,
+        approver:users!payroll_approved_by_fkey (id, full_name)
+      `)
+      .eq('id', id)
+      .eq('teacher_id', userId)
+      .single();
+
+    if (payrollError || !payroll) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bảng lương' });
+    }
+
+    // Lấy sessions liên quan
+    const { data: sessions } = await supabase
+      .from('sessions')
+      .select(`
+        id,
+        session_date,
+        start_time,
+        end_time,
+        duration_hours,
+        teacher_rate,
+        topic,
+        classes (id, name)
+      `)
+      .eq('teacher_id', userId)
+      .eq('status', 'completed')
+      .gte('session_date', `${payroll.period_year}-${String(payroll.period_month).padStart(2, '0')}-01`)
+      .lt('session_date', payroll.period_month === 12
+        ? `${payroll.period_year + 1}-01-01`
+        : `${payroll.period_year}-${String(payroll.period_month + 1).padStart(2, '0')}-01`
+      )
+      .order('session_date', { ascending: true });
+
+    res.json({
+      success: true,
+      data: { ...payroll, sessions: sessions || [] }
+    });
+  } catch (error) {
+    console.error('Error fetching teacher payroll detail:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/payroll/:id/audit - Lấy audit trail của một bảng lương
+ */
+app.get('/api/admin/payroll/:id/audit', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const { data: auditLogs, error } = await supabase
+      .from('payroll_audit_log')
+      .select(`
+        id,
+        action,
+        old_values,
+        new_values,
+        changed_at,
+        notes,
+        changed_by_user:users!payroll_audit_log_changed_by_fkey (id, full_name, email)
+      `)
+      .eq('payroll_id', id)
+      .order('changed_at', { ascending: false });
+
+    if (error) {
+      // Bảng audit có thể chưa tồn tại
+      console.log('Audit log table may not exist:', error.message);
+      return res.json({ success: true, data: [] });
+    }
+
+    res.json({ success: true, data: auditLogs || [] });
+  } catch (error) {
+    console.error('Error fetching payroll audit:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// END PAYROLL APIs
+// ============================================================
+
+// ============================================================
+// STUDENT TRANSCRIPT API - Bảng điểm tổng hợp của học viên
+// ============================================================
+
+/**
+ * GET /api/students/:id/transcript - Lấy bảng điểm tất cả các lớp của học viên
+ */
+app.get('/api/students/:id/transcript', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    console.log(`📜 Lấy transcript cho học viên: ${id}`);
+
+    // 1. Lấy thông tin học viên
+    const { data: student, error: studentError } = await supabase
+      .from('users')
+      .select('id, full_name, email, phone, avatar_url, created_at, roles(code)')
+      .eq('id', id)
+      .single();
+
+    if (studentError || !student) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy học viên' });
+    }
+
+    // 2. Lấy tất cả enrollments của học viên
+    const { data: enrollments, error: enrollmentError } = await supabase
+      .from('enrollments')
+      .select(`
+        id,
+        enrolled_at,
+        status,
+        classes (
+          id,
+          code,
+          name,
+          start_date,
+          end_date,
+          status,
+          courses (
+            id,
+            code,
+            title,
+            category,
+            calculation_type,
+            pass_score,
+            max_total_score
+          )
+        )
+      `)
+      .eq('student_id', id)
+      .order('enrolled_at', { ascending: false });
+
+    if (enrollmentError) throw enrollmentError;
+
+    // 3. Lấy điểm cho từng enrollment
+    const enrollmentIds = (enrollments || []).map(e => e.id);
+
+    const { data: grades, error: gradesError } = await supabase
+      .from('grades')
+      .select(`
+        id,
+        enrollment_id,
+        grade_structure_id,
+        score,
+        notes,
+        graded_at,
+        grade_structures (
+          id,
+          name,
+          weight,
+          max_score,
+          order_index
+        )
+      `)
+      .in('enrollment_id', enrollmentIds);
+
+    if (gradesError) throw gradesError;
+
+    // 4. Lấy cấu trúc điểm của các khóa học
+    const courseIds = [...new Set((enrollments || []).map(e => e.classes?.courses?.id).filter(Boolean))];
+
+    const { data: gradeStructures } = await supabase
+      .from('grade_structures')
+      .select('*')
+      .in('course_id', courseIds)
+      .order('order_index', { ascending: true });
+
+    // 5. Build transcript data
+    const transcript = (enrollments || []).map(enrollment => {
+      const cls = enrollment.classes;
+      const course = cls?.courses;
+
+      // Lấy điểm của enrollment này
+      const enrollmentGrades = (grades || []).filter(g => g.enrollment_id === enrollment.id);
+
+      // Lấy cấu trúc điểm của khóa học này
+      const courseStructures = (gradeStructures || []).filter(s => s.course_id === course?.id);
+
+      // Build grade map
+      const gradeMap = {};
+      courseStructures.forEach(structure => {
+        const grade = enrollmentGrades.find(g => g.grade_structure_id === structure.id);
+        gradeMap[structure.name] = {
+          structureId: structure.id,
+          score: grade?.score ?? null,
+          maxScore: structure.max_score,
+          weight: structure.weight,
+          gradedAt: grade?.graded_at
+        };
+      });
+
+      // Calculate weighted average
+      let totalWeightedScore = 0;
+      let totalWeight = 0;
+      Object.values(gradeMap).forEach(g => {
+        if (g.score !== null) {
+          totalWeightedScore += g.score * g.weight;
+          totalWeight += g.weight;
+        }
+      });
+      const weightedAverage = totalWeight > 0
+        ? Math.round((totalWeightedScore / totalWeight) * 100) / 100
+        : null;
+
+      // Determine pass/fail
+      const passScore = course?.pass_score || 5.0;
+      const passed = weightedAverage !== null && weightedAverage >= passScore;
+
+      return {
+        enrollmentId: enrollment.id,
+        enrolledAt: enrollment.enrolled_at,
+        enrollmentStatus: enrollment.status,
+        class: {
+          id: cls?.id,
+          code: cls?.code,
+          name: cls?.name,
+          startDate: cls?.start_date,
+          endDate: cls?.end_date,
+          status: cls?.status
+        },
+        course: {
+          id: course?.id,
+          code: course?.code,
+          title: course?.title,
+          category: course?.category
+        },
+        grades: gradeMap,
+        gradeColumns: courseStructures.map(s => ({ name: s.name, weight: s.weight, maxScore: s.max_score })),
+        summary: {
+          weightedAverage,
+          passScore,
+          passed,
+          totalColumns: courseStructures.length,
+          gradedColumns: Object.values(gradeMap).filter(g => g.score !== null).length
+        }
+      };
+    });
+
+    // 6. Calculate overall statistics
+    const totalClasses = transcript.length;
+    const completedClasses = transcript.filter(t => t.enrollmentStatus === 'completed' || t.class.status === 'completed').length;
+    const passedClasses = transcript.filter(t => t.summary.passed).length;
+    const avgScore = transcript.filter(t => t.summary.weightedAverage !== null)
+      .reduce((sum, t) => sum + t.summary.weightedAverage, 0) /
+      (transcript.filter(t => t.summary.weightedAverage !== null).length || 1);
+
+    res.json({
+      success: true,
+      data: {
+        student: {
+          id: student.id,
+          fullName: student.full_name,
+          email: student.email,
+          phone: student.phone,
+          avatarUrl: student.avatar_url,
+          joinedAt: student.created_at
+        },
+        transcript,
+        statistics: {
+          totalClasses,
+          completedClasses,
+          activeClasses: totalClasses - completedClasses,
+          passedClasses,
+          failedClasses: transcript.filter(t => t.summary.weightedAverage !== null && !t.summary.passed).length,
+          averageScore: avgScore ? avgScore.toFixed(2) : 'N/A'
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching student transcript:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// END TRANSCRIPT API
+// ============================================================
+
 app.use((err, _req, res, _next) => {
   console.error('🔥 Lỗi hệ thống:', err); // Log ra terminal để em xem
 
@@ -5085,6 +7491,11 @@ app.use((err, _req, res, _next) => {
     message: 'Internal server error',
     error: err.message // Thêm dòng này để FE biết lỗi gì
   });
+});
+
+// Test endpoint không cần auth
+app.get('/api/health', (req, res) => {
+  res.json({ success: true, message: 'Backend is running', time: new Date().toISOString() });
 });
 
 const PORT = process.env.PORT || 3000;

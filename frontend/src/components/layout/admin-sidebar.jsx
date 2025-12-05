@@ -13,6 +13,7 @@ import {
   Home,
   DoorOpen,
   Sparkles,
+  ClipboardList,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -34,6 +35,7 @@ const menuGroups = [
       { label: 'Khóa học', icon: BookOpen, path: '/admin/courses' },
       { label: 'Lớp học', icon: GraduationCap, path: '/admin/classes' },
       { label: 'Lịch dạy', icon: CalendarCheck, path: '/admin/schedule' },
+      { label: 'Bảng điểm', icon: ClipboardList, path: '/admin/grades' },
       { label: 'Phòng học', icon: DoorOpen, path: '/admin/rooms' },
     ],
   },
@@ -50,7 +52,7 @@ const menuGroups = [
     title: 'NỘI BỘ',
     items: [
       { label: 'Nhân sự', icon: UserCog, path: '/admin/staff' },
-      { label: 'Bảng lương', icon: Wallet, path: '/admin/payrolls' },
+      { label: 'Bảng lương', icon: Wallet, path: '/admin/payroll' },
     ],
   },
   {
@@ -68,24 +70,24 @@ export function AdminSidebar() {
   return (
     <aside className="flex h-screen w-72 flex-col bg-zinc-950 text-white">
       {/* Logo - Premium feel with glow effect */}
-      <Link 
+      <Link
         to="/"
         className="relative flex h-20 items-center gap-3 px-5 transition-all group overflow-hidden"
       >
         {/* Subtle gradient glow on hover */}
         <div className="absolute inset-0 bg-gradient-to-r from-red-600/0 via-red-600/5 to-orange-500/0 
                         opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-        
+
         {/* Logo Image */}
         <div className="relative flex items-center">
-          <img 
-            src={logoImage} 
-            alt="Skill Master" 
+          <img
+            src={logoImage}
+            alt="Skill Master"
             className="h-14 w-auto object-contain brightness-0 invert
                        group-hover:scale-105 transition-transform duration-300"
           />
         </div>
-        
+
         <div className="relative flex flex-col ml-1">
           <span className="text-[11px] text-zinc-500 flex items-center gap-1.5">
             <Home className="h-3 w-3" />
@@ -126,14 +128,14 @@ export function AdminSidebar() {
                   >
                     <div className={cn(
                       'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
-                      isActive 
-                        ? 'bg-white/20' 
+                      isActive
+                        ? 'bg-white/20'
                         : 'bg-zinc-800 group-hover/item:bg-zinc-700'
                     )}>
                       <item.icon className="h-4 w-4" />
                     </div>
                     <span>{item.label}</span>
-                    
+
                     {/* Active indicator dot */}
                     {isActive && (
                       <div className="ml-auto h-1.5 w-1.5 rounded-full bg-white/80" />
@@ -150,7 +152,7 @@ export function AdminSidebar() {
       <div className="p-4">
         {/* Divider */}
         <div className="mb-4 h-px bg-gradient-to-r from-transparent via-zinc-800 to-transparent" />
-        
+
         <Link
           to="/admin/settings"
           className={cn(
@@ -163,7 +165,7 @@ export function AdminSidebar() {
           <div className={cn(
             'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
             location.pathname === '/admin/settings'
-              ? 'bg-white/20' 
+              ? 'bg-white/20'
               : 'bg-zinc-800 group-hover/settings:bg-zinc-700'
           )}>
             <Settings className="h-4 w-4" />

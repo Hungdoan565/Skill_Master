@@ -6,12 +6,14 @@
 import { useState } from 'react';
 import { AlertCircle, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/toast';
 import { SimpleModal } from './SimpleModal';
 import { SimpleSelect } from './SimpleSelect';
 import { ColorAvatar } from './ColorAvatar';
 import { ROLE_OPTIONS } from '../utils';
 
 export function PromoteModal({ isOpen, onClose, student, onConfirm }) {
+  const { toast } = useToast();
   const [selectedRole, setSelectedRole] = useState('TEACHER');
   const [promoting, setPromoting] = useState(false);
 
@@ -20,11 +22,11 @@ export function PromoteModal({ isOpen, onClose, student, onConfirm }) {
     try {
       await onConfirm(student.id, selectedRole);
       const roleLabel = selectedRole === 'TEACHER' ? 'Giáo viên' : 'Quản lý';
-      alert(`Đã chuyển ${student.full_name} thành ${roleLabel}`);
+      toast.success(`Đã chuyển ${student.full_name} thành ${roleLabel}`);
       onClose();
     } catch (error) {
       console.error('Error promoting student:', error);
-      alert(error.response?.data?.message || error.message || 'Có lỗi xảy ra');
+      toast.error(error.response?.data?.message || error.message || 'Có lỗi xảy ra');
     } finally {
       setPromoting(false);
     }
@@ -70,13 +72,13 @@ export function PromoteModal({ isOpen, onClose, student, onConfirm }) {
 
         {/* Actions */}
         <div className="flex justify-end gap-2 pt-4 border-t">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={onClose}
           >
             Hủy
           </Button>
-          <Button 
+          <Button
             onClick={handleConfirm}
             disabled={promoting}
             className="bg-indigo-600 hover:bg-indigo-700"

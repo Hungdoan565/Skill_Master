@@ -12,43 +12,20 @@ import { API_URL } from '../utils';
  */
 const getAuthHeaders = async () => {
   const { data: { session }, error } = await supabase.auth.getSession();
-  
+
   if (!session?.access_token) {
     throw new Error('Chưa đăng nhập');
   }
-  
+
   return {
     Authorization: `Bearer ${session.access_token}`,
   };
 };
 
-// Mock data khi API chưa sẵn sàng
-const MOCK_STAFF = [
-  {
-    id: '1',
-    full_name: 'Nguyễn Văn A',
-    email: 'teacher.a@skillmaster.edu.vn',
-    phone: '0901234567',
-    avatar_url: null,
-    status: 'active',
-    created_at: new Date().toISOString(),
-    roles: { code: 'TEACHER', name: 'Giáo viên' }
-  },
-  {
-    id: '2',
-    full_name: 'Trần Thị B',
-    email: 'manager.hcm@skillmaster.edu.vn',
-    phone: '0912345678',
-    avatar_url: null,
-    status: 'active',
-    created_at: new Date().toISOString(),
-    roles: { code: 'CENTER_MANAGER', name: 'Quản lý Trung tâm' }
-  },
-];
-
 export function useStaff() {
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [centers, setCenters] = useState([]);
 
   // Fetch staff list
   const fetchStaff = useCallback(async (roleFilter = '') => {
@@ -57,16 +34,29 @@ export function useStaff() {
       const headers = await getAuthHeaders();
       const params = roleFilter ? `?role=${roleFilter}` : '';
       const response = await axios.get(`${API_URL}/api/admin/staff${params}`, { headers });
-      
+
       if (response.data?.success) {
         setStaff(response.data.data);
       }
     } catch (error) {
       console.error('Error fetching staff:', error);
-      // Use mock data if API fails
-      setStaff(MOCK_STAFF);
+      setStaff([]);
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  // Fetch centers list (for dropdown)
+  const fetchCenters = useCallback(async () => {
+    try {
+      const headers = await getAuthHeaders();
+      const response = await axios.get(`${API_URL}/api/admin/centers`, { headers });
+
+      if (response.data?.success) {
+        setCenters(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching centers:', error);
     }
   }, []);
 
@@ -74,7 +64,7 @@ export function useStaff() {
   const createStaff = useCallback(async (formData) => {
     const headers = await getAuthHeaders();
     const response = await axios.post(`${API_URL}/api/admin/users`, formData, { headers });
-    
+
     if (response.data?.success) {
       return {
         success: true,
@@ -82,7 +72,76 @@ export function useStaff() {
         defaultPassword: response.data.data?.default_password || 'SkillMaster@123',
       };
     }
-    
+
+    throw new Error(response.data?.message || 'Có lỗi xảy ra');
+  }, []);
+
+  // Get staff detail
+  const getStaffDetail = useCallback(async (staffId) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(`${API_URL}/api/admin/staff/${staffId}`, { headers });
+
+    if (response.data?.success) {
+      return response.data.data;
+    }
+
+    throw new Error(response.data?.message || 'Không tìm thấy nhân viên');
+  }, []);
+
+  // Update staff member
+  const updateStaff = useCallback(async (staffId, formData) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.put(`${API_URL}/api/admin/staff/${staffId}`, formData, { headers });
+
+    if (response.data?.success) {
+      // Update local state
+      setStaff(prev => prev.map(s =>
+        s.id === staffId ? { ...s, ...response.data.data } : s
+      ));
+      return { success: true, data: response.data.data };
+    }
+
+    throw new Error(response.data?.message || 'Có lỗi xảy ra');
+  }, []);
+
+  // Delete staff member
+  const deleteStaff = useCallback(async (staffId, permanent = false) => {
+    const headers = await getAuthHeaders();
+    const url = permanent
+      ? `${API_URL}/api/admin/staff/${staffId}?permanent=true`
+      : `${API_URL}/api/admin/staff/${staffId}`;
+
+    const response = await axios.delete(url, { headers });
+
+    if (response.data?.success) {
+      if (permanent) {
+        // Remove from local state
+        setStaff(prev => prev.filter(s => s.id !== staffId));
+      } else {
+        // Update status in local state
+        setStaff(prev => prev.map(s =>
+          s.id === staffId ? { ...s, status: 'inactive' } : s
+        ));
+      }
+      return { success: true, message: response.data.message };
+    }
+
+    throw new Error(response.data?.message || 'Có lỗi xảy ra');
+  }, []);
+
+  // Restore staff member
+  const restoreStaff = useCallback(async (staffId) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.patch(`${API_URL}/api/admin/staff/${staffId}/restore`, {}, { headers });
+
+    if (response.data?.success) {
+      // Update local state
+      setStaff(prev => prev.map(s =>
+        s.id === staffId ? { ...s, status: 'active' } : s
+      ));
+      return { success: true, message: response.data.message };
+    }
+
     throw new Error(response.data?.message || 'Có lỗi xảy ra');
   }, []);
 
@@ -100,8 +159,14 @@ export function useStaff() {
   return {
     staff,
     loading,
+    centers,
     fetchStaff,
+    fetchCenters,
     createStaff,
+    getStaffDetail,
+    updateStaff,
+    deleteStaff,
+    restoreStaff,
     filterStaff,
   };
 }

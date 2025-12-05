@@ -8,24 +8,31 @@ export const requireAuth = async (req, res, next) => {
   try {
     // 1. Lấy token từ header "Authorization: Bearer <token>"
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Thiếu token xác thực. Vui lòng đăng nhập.' 
+      return res.status(401).json({
+        success: false,
+        message: 'Thiếu token xác thực. Vui lòng đăng nhập.'
       });
     }
 
     const token = authHeader.split(' ')[1];
+    console.log('🔐 Verifying token:', token.substring(0, 20) + '...');
 
     // 2. Verify token với Supabase - hỏi xem token này có hợp lệ không
     const { data: { user }, error } = await supabase.auth.getUser(token);
 
+    if (error) {
+      console.error('❌ Auth error:', error);
+    }
+    if (!user) {
+      console.error('❌ No user found');
+    }
+
     if (error || !user) {
-      console.error('Auth error:', error?.message);
-      return res.status(401).json({ 
-        success: false, 
-        message: 'Token không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.' 
+      return res.status(401).json({
+        success: false,
+        message: 'Token không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.'
       });
     }
 
@@ -58,16 +65,16 @@ export const requireAuth = async (req, res, next) => {
       roleCode: profile?.roles?.code || null,
       centerId: profile?.center_id || null
     };
-    
+
     // Log để debug (có thể bỏ sau)
     console.log(`✅ Authenticated: ${user.email} | Role: ${req.user.roleCode} | Center: ${req.user.centerId}`);
-    
+
     next();
   } catch (err) {
     console.error('🔥 Auth Middleware Error:', err);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Lỗi hệ thống khi xác thực' 
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi hệ thống khi xác thực'
     });
   }
 };
@@ -79,22 +86,25 @@ export const requireAuth = async (req, res, next) => {
 export const requireRole = (allowedRoles) => {
   return async (req, res, next) => {
     try {
-      // Lấy role từ user metadata hoặc từ bảng users
-      const userRole = req.user?.app_metadata?.role || 'student';
-      
-      if (!allowedRoles.includes(userRole)) {
-        return res.status(403).json({ 
-          success: false, 
-          message: 'Bạn không có quyền truy cập tài nguyên này' 
+      // Lấy role từ req.user.roleCode đã được set bởi requireAuth
+      const userRole = req.user?.roleCode;
+
+      console.log(`🔐 Role check: ${userRole} in [${allowedRoles.join(', ')}]`);
+
+      if (!userRole || !allowedRoles.includes(userRole)) {
+        console.warn(`⛔ Access denied: User ${req.user?.email} with role ${userRole} tried to access resource requiring ${allowedRoles.join(' or ')}`);
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn không có quyền truy cập tài nguyên này'
         });
       }
-      
+
       next();
     } catch (err) {
       console.error('🔥 Role Middleware Error:', err);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Lỗi hệ thống khi kiểm tra quyền' 
+      res.status(500).json({
+        success: false,
+        message: 'Lỗi hệ thống khi kiểm tra quyền'
       });
     }
   };

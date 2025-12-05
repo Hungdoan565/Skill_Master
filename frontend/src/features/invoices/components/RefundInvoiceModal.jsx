@@ -10,9 +10,9 @@
  */
 
 import { useState, useEffect } from 'react';
-import { 
-  X, 
-  RefreshCcw, 
+import {
+  X,
+  RefreshCcw,
   Loader2,
   DollarSign,
   CreditCard,
@@ -32,13 +32,13 @@ const REFUND_METHODS = [
 
 export function RefundInvoiceModal({ isOpen, invoice, onClose, onSuccess }) {
   const { session } = useAuth();
-  
+
   const [formData, setFormData] = useState({
     amount: '',
     method: 'cash',
     notes: ''
   });
-  
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -64,7 +64,7 @@ export function RefundInvoiceModal({ isOpen, invoice, onClose, onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!refundAmount || refundAmount <= 0) {
       setError('Số tiền hoàn phải lớn hơn 0');
       return;
@@ -85,15 +85,15 @@ export function RefundInvoiceModal({ isOpen, invoice, onClose, onSuccess }) {
 
     try {
       const res = await fetch(`${API_URL}/api/invoices/${invoice.id}/refund`, {
-        method: 'PUT',
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session?.access_token}`
         },
         body: JSON.stringify({
-          amount: refundAmount,
-          method: formData.method,
-          notes: formData.notes.trim()
+          refund_amount: refundAmount,
+          refund_method: formData.method,
+          reason: formData.notes.trim()
         })
       });
 
@@ -123,21 +123,21 @@ export function RefundInvoiceModal({ isOpen, invoice, onClose, onSuccess }) {
 
   if (!isOpen || !invoice) return null;
 
-  const canRefund = invoice.status !== 'cancelled' && 
-                    invoice.status !== 'refunded' && 
-                    paidAmount > 0;
+  const canRefund = invoice.status !== 'cancelled' &&
+    invoice.status !== 'refunded' &&
+    paidAmount > 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/50" 
-        onClick={handleClose} 
+      <div
+        className="absolute inset-0 bg-black/50"
+        onClick={handleClose}
       />
-      
+
       {/* Modal */}
       <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-        
+
         {/* Header */}
         <div className="bg-linear-to-r from-purple-500 to-violet-500 px-4 py-3 text-white">
           <div className="flex items-center justify-between">
@@ -150,7 +150,7 @@ export function RefundInvoiceModal({ isOpen, invoice, onClose, onSuccess }) {
                 <p className="text-xs text-purple-100">{invoice.invoice_code}</p>
               </div>
             </div>
-            <button 
+            <button
               onClick={handleClose}
               disabled={submitting}
               className="p-1 hover:bg-white/20 rounded-lg transition-colors"
@@ -166,9 +166,9 @@ export function RefundInvoiceModal({ isOpen, invoice, onClose, onSuccess }) {
             <AlertCircle className="w-12 h-12 mx-auto mb-3 text-purple-400" />
             <p className="text-slate-700 font-medium">Không thể hoàn tiền</p>
             <p className="text-sm text-slate-500 mt-1">
-              {paidAmount === 0 
+              {paidAmount === 0
                 ? 'Hóa đơn chưa có khoản thanh toán nào.'
-                : invoice.status === 'cancelled' 
+                : invoice.status === 'cancelled'
                   ? 'Hóa đơn đã bị hủy.'
                   : 'Hóa đơn đã được hoàn tiền.'}
             </p>
@@ -179,7 +179,7 @@ export function RefundInvoiceModal({ isOpen, invoice, onClose, onSuccess }) {
         ) : (
           <form onSubmit={handleSubmit}>
             <div className="p-4 space-y-4">
-              
+
               {/* Error message */}
               {error && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">

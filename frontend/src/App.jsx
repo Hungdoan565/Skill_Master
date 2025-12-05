@@ -10,6 +10,7 @@ import {
 } from 'react-router-dom';
 import { ChevronDown, LogOut, User, Settings, HelpCircle, LayoutDashboard } from 'lucide-react';
 import { AdminLayout } from '@/layouts/admin-layout';
+import { ToastProvider } from '@/components/ui/toast';
 // REFACTORED: Import từ feature modules thay vì file monolithic
 import { InvoicesPage } from '@/features/invoices';
 import { ClassDetailPage } from '@/features/classes';
@@ -19,7 +20,10 @@ import { DashboardPage } from '@/features/dashboard';
 import { StaffPage } from '@/features/staff';
 import { RoomsPage } from '@/features/rooms';
 import { StudentsPage } from '@/features/students';
+import { PayrollPage, TeacherPayrollPage } from '@/features/payroll';
 import { SchedulePage } from '@/features/schedule';
+import { GradesPage } from '@/features/grades';
+import { CentersPage } from '@/features/centers';
 import { LoginPage } from '@/pages/auth/login-page';
 import { AuthPage } from '@/pages/auth/auth-page';
 import { LandingPage } from '@/pages/landing/landing-page';
@@ -164,8 +168,8 @@ const UserDropdown = ({ user, profile, displayName, avatarUrl, roleCode, onLogou
           absolute right-0 top-full mt-2 w-72 origin-top-right
           rounded-xl border border-slate-200 bg-white py-2 shadow-xl shadow-slate-200/50
           transition-all duration-200 ease-out z-50
-          ${isOpen 
-            ? 'opacity-100 scale-100 translate-y-0 visible' 
+          ${isOpen
+            ? 'opacity-100 scale-100 translate-y-0 visible'
             : 'opacity-0 scale-95 -translate-y-2 invisible pointer-events-none'
           }
         `}
@@ -199,8 +203,8 @@ const UserDropdown = ({ user, profile, displayName, avatarUrl, roleCode, onLogou
                 onClick={item.action}
                 className={`
                   w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors duration-150
-                  ${item.danger 
-                    ? 'text-red-600 hover:bg-red-50' 
+                  ${item.danger
+                    ? 'text-red-600 hover:bg-red-50'
                     : item.highlight
                       ? 'text-indigo-600 hover:bg-indigo-50 font-medium'
                       : 'text-slate-700 hover:bg-slate-50'
@@ -225,7 +229,7 @@ const UserDropdown = ({ user, profile, displayName, avatarUrl, roleCode, onLogou
 const PublicHeader = () => {
   const { user, profile, isAuthenticated, getRedirectPath, signOut } = useAuth();
   const navigate = useNavigate();
-  
+
   // Lấy thông tin user
   const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || '';
   const avatarUrl = profile?.avatar_url;
@@ -235,7 +239,7 @@ const PublicHeader = () => {
     await signOut();
     navigate('/login', { replace: true });
   };
-  
+
   return (
     <header className="border-b bg-white px-6 py-4">
       <div className="flex items-center justify-between max-w-7xl mx-auto">
@@ -248,7 +252,7 @@ const PublicHeader = () => {
         <nav className="flex items-center gap-6">
           <Link to="/" className="text-sm font-medium text-slate-600 hover:text-indigo-600 transition-colors">Trang chủ</Link>
           <Link to="/courses" className="text-sm font-medium text-slate-600 hover:text-indigo-600 transition-colors">Khóa học</Link>
-          
+
           {/* User Dropdown khi đã đăng nhập */}
           {isAuthenticated ? (
             <UserDropdown
@@ -308,84 +312,87 @@ const StudentLayout = () => (
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Landing Page - Standalone with its own header/footer */}
-        <Route index element={<LandingPage />} />
+    <ToastProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Landing Page - Standalone with its own header/footer */}
+          <Route index element={<LandingPage />} />
 
-        {/* Public Pages - Standalone with their own header/footer */}
-        <Route path="about" element={<AboutPage />} />
-        <Route path="resources" element={<BlogPage />} />
-        <Route path="blog" element={<BlogPage />} />
-        <Route path="contact" element={<ContactPage />} />
-        <Route path="roadmap" element={<RoadmapPage />} />
+          {/* Public Pages - Standalone with their own header/footer */}
+          <Route path="about" element={<AboutPage />} />
+          <Route path="resources" element={<BlogPage />} />
+          <Route path="blog" element={<BlogPage />} />
+          <Route path="contact" element={<ContactPage />} />
+          <Route path="roadmap" element={<RoadmapPage />} />
 
-        {/* Public Courses Page - Standalone with its own header/footer */}
-        <Route path="courses" element={<PublicCoursesPage />} />
-        <Route path="courses/:id" element={<PublicCoursesPage />} />
+          {/* Public Courses Page - Standalone with its own header/footer */}
+          <Route path="courses" element={<PublicCoursesPage />} />
+          <Route path="courses/:id" element={<PublicCoursesPage />} />
 
-        {/* Auth Pages - Chỉ cho phép khi CHƯA đăng nhập */}
-        <Route path="login" element={
-          <GuestRoute>
-            <AuthPage />
-          </GuestRoute>
-        } />
-        <Route path="register" element={
-          <GuestRoute>
-            <AuthPage />
-          </GuestRoute>
-        } />
+          {/* Auth Pages - Chỉ cho phép khi CHƯA đăng nhập */}
+          <Route path="login" element={
+            <GuestRoute>
+              <AuthPage />
+            </GuestRoute>
+          } />
+          <Route path="register" element={
+            <GuestRoute>
+              <AuthPage />
+            </GuestRoute>
+          } />
 
-        {/* Protected Admin Routes - Chỉ SUPER_ADMIN và CENTER_MANAGER */}
-        <Route path="admin" element={
-          <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'CENTER_MANAGER']}>
-            <AdminLayout />
-          </ProtectedRoute>
-        }>
-          <Route index element={<DashboardPage />} />
-          <Route path="dashboard" element={<DashboardPage />} />
-          <Route path="courses" element={<CoursesPage />} />
-          <Route path="classes" element={<ClassesPage />} />
-          <Route path="classes/:id" element={<ClassDetailPage />} />
-          <Route path="schedule" element={<SchedulePage />} />
-          <Route path="students" element={<StudentsPage />} />
-          <Route path="students/:id" element={<PlaceholderPage title="Hồ sơ Học viên" />} />
-          <Route path="enrollments/new" element={<PlaceholderPage title="Ghi danh" description="Đăng ký học viên vào lớp" />} />
-          <Route path="invoices" element={<InvoicesPage />} />
-          <Route path="payrolls" element={<PlaceholderPage title="Bảng lương" description="Tính lương giáo viên" />} />
-          <Route path="staff" element={<StaffPage />} />
-          <Route path="centers" element={<PlaceholderPage title="Quản lý Trung tâm" description="Thông tin các chi nhánh" />} />
-          <Route path="rooms" element={<RoomsPage />} />
-        </Route>
+          {/* Protected Admin Routes - Chỉ SUPER_ADMIN và CENTER_MANAGER */}
+          <Route path="admin" element={
+            <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'CENTER_MANAGER']}>
+              <AdminLayout />
+            </ProtectedRoute>
+          }>
+            <Route index element={<DashboardPage />} />
+            <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="courses" element={<CoursesPage />} />
+            <Route path="classes" element={<ClassesPage />} />
+            <Route path="classes/:id" element={<ClassDetailPage />} />
+            <Route path="schedule" element={<SchedulePage />} />
+            <Route path="students" element={<StudentsPage />} />
+            <Route path="students/:id" element={<PlaceholderPage title="Hồ sơ Học viên" />} />
+            <Route path="enrollments/new" element={<PlaceholderPage title="Ghi danh" description="Đăng ký học viên vào lớp" />} />
+            <Route path="invoices" element={<InvoicesPage />} />
+            <Route path="grades" element={<GradesPage />} />
+            <Route path="payroll" element={<PayrollPage />} />
+            <Route path="staff" element={<StaffPage />} />
+            <Route path="centers" element={<CentersPage />} />
+            <Route path="rooms" element={<RoomsPage />} />
+          </Route>
 
-        {/* Teacher Routes - Chỉ TEACHER (và Admin cũng vào được) */}
-        <Route path="teacher" element={
-          <ProtectedRoute allowedRoles={['TEACHER', 'SUPER_ADMIN', 'CENTER_MANAGER']}>
-            <TeacherLayout />
-          </ProtectedRoute>
-        }>
-          <Route path="schedule" element={<PlaceholderPage title="Teacher • Schedule" />} />
-          <Route path="classes" element={<PlaceholderPage title="Teacher • Classes" />} />
-          <Route path="classes/:id/attendance" element={<PlaceholderPage title="Teacher • Attendance" />} />
-          <Route path="classes/:id/gradebook" element={<PlaceholderPage title="Teacher • Gradebook" />} />
-          <Route path="payroll" element={<PlaceholderPage title="Teacher • Payroll" />} />
-        </Route>
+          {/* Teacher Routes - Chỉ TEACHER (và Admin cũng vào được) */}
+          <Route path="teacher" element={
+            <ProtectedRoute allowedRoles={['TEACHER', 'SUPER_ADMIN', 'CENTER_MANAGER']}>
+              <TeacherLayout />
+            </ProtectedRoute>
+          }>
+            <Route path="schedule" element={<PlaceholderPage title="Teacher • Schedule" />} />
+            <Route path="classes" element={<PlaceholderPage title="Teacher • Classes" />} />
+            <Route path="classes/:id/attendance" element={<PlaceholderPage title="Teacher • Attendance" />} />
+            <Route path="classes/:id/gradebook" element={<PlaceholderPage title="Teacher • Gradebook" />} />
+            <Route path="payroll" element={<TeacherPayrollPage />} />
+          </Route>
 
-        {/* Student Routes - Chỉ STUDENT */}
-        <Route path="student" element={
-          <ProtectedRoute allowedRoles={['STUDENT']}>
-            <StudentLayout />
-          </ProtectedRoute>
-        }>
-          <Route path="schedule" element={<PlaceholderPage title="Student • Schedule" />} />
-          <Route path="results" element={<PlaceholderPage title="Student • Results" />} />
-          <Route path="tuition" element={<PlaceholderPage title="Student • Tuition" />} />
-          <Route path="materials" element={<PlaceholderPage title="Student • Materials" />} />
-        </Route>
+          {/* Student Routes - Chỉ STUDENT */}
+          <Route path="student" element={
+            <ProtectedRoute allowedRoles={['STUDENT']}>
+              <StudentLayout />
+            </ProtectedRoute>
+          }>
+            <Route path="schedule" element={<PlaceholderPage title="Student • Schedule" />} />
+            <Route path="results" element={<PlaceholderPage title="Student • Results" />} />
+            <Route path="tuition" element={<PlaceholderPage title="Student • Tuition" />} />
+            <Route path="materials" element={<PlaceholderPage title="Student • Materials" />} />
+          </Route>
 
-        <Route path="*" element={<PlaceholderPage title="404" description="Page not found" />} />
-      </Routes>
-    </BrowserRouter>
+          <Route path="*" element={<PlaceholderPage title="404" description="Page not found" />} />
+        </Routes>
+      </BrowserRouter>
+    </ToastProvider>
   );
 }
 

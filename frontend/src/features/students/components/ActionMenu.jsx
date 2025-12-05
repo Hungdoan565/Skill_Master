@@ -4,10 +4,10 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { MoreHorizontal, Eye, UserCog } from 'lucide-react';
+import { MoreHorizontal, Eye, Edit, UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-export function ActionMenu({ student, onViewDetails, onPromote }) {
+export function ActionMenu({ student, onViewDetails, onEdit, onPromote }) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -23,14 +23,14 @@ export function ActionMenu({ student, onViewDetails, onPromote }) {
 
   return (
     <div className="relative" ref={menuRef}>
-      <Button 
-        variant="ghost" 
+      <Button
+        variant="ghost"
         size="icon"
         onClick={() => setIsOpen(!isOpen)}
       >
         <MoreHorizontal className="h-4 w-4" />
       </Button>
-      
+
       {isOpen && (
         <div className="absolute right-0 top-full mt-1 w-48 rounded-lg border bg-white py-1 shadow-lg z-10">
           <button
@@ -40,6 +40,14 @@ export function ActionMenu({ student, onViewDetails, onPromote }) {
             <Eye className="h-4 w-4" />
             Xem chi tiết
           </button>
+          <button
+            onClick={() => { onEdit(student); setIsOpen(false); }}
+            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+          >
+            <Edit className="h-4 w-4" />
+            Chỉnh sửa
+          </button>
+          <hr className="my-1 border-slate-100" />
           <button
             onClick={() => { onPromote(student); setIsOpen(false); }}
             className="flex w-full items-center gap-2 px-3 py-2 text-sm text-indigo-600 hover:bg-indigo-50"
