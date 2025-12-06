@@ -3,6 +3,7 @@
  */
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     MapPin,
     Phone,
@@ -34,6 +35,7 @@ export function CenterCard({
     canManage = false,
     showActions = true
 }) {
+    const navigate = useNavigate();
     const [showMenu, setShowMenu] = React.useState(false);
     const menuRef = React.useRef(null);
 
@@ -52,6 +54,15 @@ export function CenterCard({
     const isDeleted = center.status === 'inactive';
     const gradient = getGradient(center.name);
 
+    // Handle click on card to navigate to detail page
+    const handleCardClick = (e) => {
+        // Don't navigate if clicking on menu or action buttons
+        if (e.target.closest('[data-no-navigate]') || e.target.closest('button')) {
+            return;
+        }
+        navigate(`/admin/centers/${center.id}`);
+    };
+
     // Tính tổng giờ làm việc hôm nay
     const getTodayHours = () => {
         if (!center.working_hours) return null;
@@ -63,7 +74,10 @@ export function CenterCard({
     };
 
     return (
-        <Card className={`relative overflow-hidden transition-all duration-200 hover:shadow-lg ${isDeleted ? 'opacity-60' : ''}`}>
+        <Card
+            className={`relative overflow-hidden transition-all duration-200 hover:shadow-lg cursor-pointer ${isDeleted ? 'opacity-60' : ''}`}
+            onClick={handleCardClick}
+        >
             {/* Header với gradient và logo */}
             <div className={`h-24 ${gradient} relative`}>
                 {/* Logo hoặc initials */}
@@ -92,7 +106,7 @@ export function CenterCard({
 
                 {/* Action menu */}
                 {showActions && canManage && (
-                    <div className="absolute top-3 right-20" ref={menuRef}>
+                    <div className="absolute top-3 right-20" ref={menuRef} data-no-navigate>
                         <Button
                             variant="ghost"
                             size="sm"

@@ -574,6 +574,361 @@ app.get('/api/me', requireAuth, async (req, res) => {
   });
 });
 
+// ============ SYSTEM SETTINGS APIs ============
+
+/**
+ * Lấy tất cả settings (global + center-specific)
+ * GET /api/admin/settings
+ */
+app.get('/api/admin/settings', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { centerId } = req.query;
+    const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
+
+    // Lấy global settings
+    const { data: globalSettings, error: globalError } = await supabase
+      .from('system_settings')
+      .select('*')
+      .is('center_id', null)
+      .order('key');
+
+    if (globalError) throw globalError;
+
+    // Lấy center-specific settings nếu có
+    let centerSettings = [];
+    if (effectiveCenterId) {
+      const { data, error } = await supabase
+        .from('system_settings')
+        .select('*')
+        .eq('center_id', effectiveCenterId)
+        .order('key');
+
+      if (!error) centerSettings = data || [];
+    }
+
+    // Merge settings (center override global)
+    const settingsMap = {};
+    globalSettings?.forEach(s => {
+      settingsMap[s.key] = { ...s, scope: 'global' };
+    });
+    centerSettings?.forEach(s => {
+      settingsMap[s.key] = { ...s, scope: 'center' };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        settings: Object.values(settingsMap),
+        global: globalSettings || [],
+        center: centerSettings || []
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching settings:', error);
+    next(error);
+  }
+});
+
+/**
+ * Lấy một setting cụ thể theo key
+ * GET /api/admin/settings/:key
+ */
+app.get('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { key } = req.params;
+    const { centerId } = req.query;
+    const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
+
+    // Thử lấy center-specific trước
+    if (effectiveCenterId) {
+      const { data: centerSetting } = await supabase
+        .from('system_settings')
+        .select('*')
+        .eq('key', key)
+        .eq('center_id', effectiveCenterId)
+        .single();
+
+      if (centerSetting) {
+        return res.json({ success: true, data: { ...centerSetting, scope: 'center' } });
+      }
+    }
+
+    // Fallback về global
+    const { data: globalSetting, error } = await supabase
+      .from('system_settings')
+      .select('*')
+      .eq('key', key)
+      .is('center_id', null)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+
+    if (!globalSetting) {
+      return res.status(404).json({ success: false, message: 'Setting không tồn tại' });
+    }
+
+    res.json({ success: true, data: { ...globalSetting, scope: 'global' } });
+  } catch (error) {
+    console.error('Error fetching setting:', error);
+    next(error);
+  }
+});
+
+/**
+ * Cập nhật setting
+ * PUT /api/admin/settings/:key
+ */
+app.put('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { key } = req.params;
+    const { value, scope = 'global', centerId } = req.body;
+
+    // Security settings chỉ Super Admin được sửa
+    if (key === 'security_config' && req.user.roleCode !== 'SUPER_ADMIN') {
+      return res.status(403).json({ success: false, message: 'Chỉ Super Admin mới được sửa cấu hình bảo mật' });
+    }
+
+    const targetCenterId = scope === 'center' ? (centerId || req.user.centerId) : null;
+
+    // CENTER_MANAGER không được sửa global settings
+    if (req.user.roleCode === 'CENTER_MANAGER' && !targetCenterId) {
+      return res.status(403).json({ success: false, message: 'Bạn chỉ có thể sửa cấu hình của trung tâm mình' });
+    }
+
+    // Upsert setting
+    const { data, error } = await supabase
+      .from('system_settings')
+      .upsert({
+        center_id: targetCenterId,
+        key,
+        value,
+        updated_by: req.user.id
+      }, {
+        onConflict: 'center_id,key'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log(`⚙️ Setting "${key}" updated by ${req.user.email}`);
+    res.json({ success: true, message: 'Cập nhật thành công', data });
+  } catch (error) {
+    console.error('Error updating setting:', error);
+    next(error);
+  }
+});
+
+/**
+ * Xóa setting của center (reset về global)
+ * DELETE /api/admin/settings/:key
+ */
+app.delete('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { key } = req.params;
+    const { centerId } = req.query;
+
+    const targetCenterId = centerId || req.user.centerId;
+
+    // Chỉ cho phép xóa center-specific, không được xóa global
+    if (!targetCenterId) {
+      return res.status(400).json({ success: false, message: 'Không thể xóa cấu hình global' });
+    }
+
+    // CENTER_MANAGER chỉ xóa được setting của center mình
+    if (req.user.roleCode === 'CENTER_MANAGER' && targetCenterId !== req.user.centerId) {
+      return res.status(403).json({ success: false, message: 'Bạn chỉ có thể xóa cấu hình của trung tâm mình' });
+    }
+
+    const { error } = await supabase
+      .from('system_settings')
+      .delete()
+      .eq('key', key)
+      .eq('center_id', targetCenterId);
+
+    if (error) throw error;
+
+    console.log(`⚙️ Setting "${key}" reset to global by ${req.user.email}`);
+    res.json({ success: true, message: 'Đã reset về cấu hình mặc định' });
+  } catch (error) {
+    console.error('Error deleting setting:', error);
+    next(error);
+  }
+});
+
+// ============ USER PROFILE APIs ============
+
+/**
+ * Lấy profile của user hiện tại
+ * GET /api/users/me/profile
+ */
+app.get('/api/users/me/profile', requireAuth, async (req, res, next) => {
+  try {
+    const { data: profile, error } = await supabase
+      .from('users')
+      .select(`
+        id,
+        email,
+        full_name,
+        phone,
+        avatar_url,
+        status,
+        created_at,
+        updated_at,
+        roles (id, code, name),
+        centers!users_center_id_fkey (id, name, code)
+      `)
+      .eq('id', req.user.id)
+      .single();
+
+    if (error) throw error;
+
+    res.json({ success: true, data: profile });
+  } catch (error) {
+    console.error('Error fetching profile:', error);
+    next(error);
+  }
+});
+
+/**
+ * Cập nhật profile của user hiện tại
+ * PUT /api/users/me/profile
+ */
+app.put('/api/users/me/profile', requireAuth, async (req, res, next) => {
+  try {
+    const { full_name, phone, avatar_url } = req.body;
+
+    const updateData = {};
+    if (full_name !== undefined) updateData.full_name = full_name;
+    if (phone !== undefined) updateData.phone = phone;
+    if (avatar_url !== undefined) updateData.avatar_url = avatar_url;
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ success: false, message: 'Không có dữ liệu để cập nhật' });
+    }
+
+    const { data, error } = await supabase
+      .from('users')
+      .update(updateData)
+      .eq('id', req.user.id)
+      .select(`
+        id,
+        email,
+        full_name,
+        phone,
+        avatar_url,
+        roles (id, code, name),
+        centers!users_center_id_fkey (id, name, code)
+      `)
+      .single();
+
+    if (error) throw error;
+
+    console.log(`👤 Profile updated for ${req.user.email}`);
+    res.json({ success: true, message: 'Cập nhật thành công', data });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    next(error);
+  }
+});
+
+/**
+ * Đổi mật khẩu
+ * PUT /api/users/me/password
+ */
+app.put('/api/users/me/password', requireAuth, async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'Mật khẩu mới phải có ít nhất 6 ký tự' });
+    }
+
+    // Verify current password bằng cách thử đăng nhập
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: req.user.email,
+      password: currentPassword
+    });
+
+    if (signInError) {
+      return res.status(400).json({ success: false, message: 'Mật khẩu hiện tại không đúng' });
+    }
+
+    // Đổi mật khẩu
+    const { error } = await supabase.auth.admin.updateUserById(req.user.id, {
+      password: newPassword
+    });
+
+    if (error) throw error;
+
+    console.log(`🔐 Password changed for ${req.user.email}`);
+    res.json({ success: true, message: 'Đổi mật khẩu thành công' });
+  } catch (error) {
+    console.error('Error changing password:', error);
+    next(error);
+  }
+});
+
+/**
+ * Upload avatar
+ * POST /api/users/me/avatar
+ */
+app.post('/api/users/me/avatar', requireAuth, async (req, res, next) => {
+  try {
+    const { avatar_base64 } = req.body;
+
+    if (!avatar_base64) {
+      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp ảnh' });
+    }
+
+    // Decode base64 và upload lên Supabase Storage
+    const base64Data = avatar_base64.replace(/^data:image\/\w+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    const fileName = `avatars/${req.user.id}_${Date.now()}.jpg`;
+
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(fileName, buffer, {
+        contentType: 'image/jpeg',
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.error('Upload error:', uploadError);
+      // Nếu bucket chưa tồn tại, lưu base64 trực tiếp vào DB
+      const { data, error } = await supabase
+        .from('users')
+        .update({ avatar_url: avatar_base64 })
+        .eq('id', req.user.id)
+        .select('avatar_url')
+        .single();
+
+      if (error) throw error;
+      return res.json({ success: true, data: { avatar_url: data.avatar_url } });
+    }
+
+    // Lấy public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(fileName);
+
+    // Cập nhật avatar_url trong users
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ avatar_url: publicUrl })
+      .eq('id', req.user.id);
+
+    if (updateError) throw updateError;
+
+    console.log(`📷 Avatar uploaded for ${req.user.email}`);
+    res.json({ success: true, data: { avatar_url: publicUrl } });
+  } catch (error) {
+    console.error('Error uploading avatar:', error);
+    next(error);
+  }
+});
+
 // ============ ADMIN APIs (Chỉ Admin mới được dùng) ============
 
 // Lấy danh sách nhân sự (Teacher, Manager)
@@ -587,7 +942,7 @@ app.get('/api/admin/staff', requireAuth, async (req, res, next) => {
       return res.status(403).json({ success: false, message: permError });
     }
 
-    // Select fields - include hourly_rate và centers
+    // Select fields - use explicit FK hint to avoid ambiguity
     const selectFields = `
       id,
       email,
@@ -599,7 +954,7 @@ app.get('/api/admin/staff', requireAuth, async (req, res, next) => {
       center_id,
       created_at,
       roles (id, code, name),
-      centers (id, name)
+      centers!users_center_id_fkey (id, name)
     `;
 
     let query;
@@ -623,18 +978,29 @@ app.get('/api/admin/staff', requireAuth, async (req, res, next) => {
         return res.json({ success: true, data: [] });
       }
     } else {
-      // Lấy tất cả staff (không phải STUDENT)
-      const { data: studentRole } = await supabase
+      // Lấy tất cả staff (không phải STUDENT và không phải SUPER_ADMIN vì SA không xuất hiện trong list nhân viên)
+      const { data: excludeRoles } = await supabase
         .from('roles')
         .select('id')
-        .eq('code', 'STUDENT')
-        .single();
+        .in('code', ['STUDENT']);
 
-      query = supabase
-        .from('users')
-        .select(selectFields)
-        .neq('role_id', studentRole?.id || '')
-        .order('created_at', { ascending: false });
+      const excludeRoleIds = excludeRoles?.map(r => r.id) || [];
+
+      console.log('📋 Fetching staff - excluding role_ids:', excludeRoleIds);
+
+      if (excludeRoleIds.length > 0) {
+        query = supabase
+          .from('users')
+          .select(selectFields)
+          .not('role_id', 'in', `(${excludeRoleIds.join(',')})`)
+          .order('created_at', { ascending: false });
+      } else {
+        // Fallback nếu không có role STUDENT
+        query = supabase
+          .from('users')
+          .select(selectFields)
+          .order('created_at', { ascending: false });
+      }
     }
 
     // ====== CENTER FILTER ======
@@ -674,7 +1040,7 @@ app.get('/api/admin/staff/:id', requireAuth, async (req, res, next) => {
         created_at,
         updated_at,
         roles (id, code, name),
-        centers (id, name, address)
+        centers!users_center_id_fkey (id, name, address)
       `)
       .eq('id', id)
       .single();
@@ -786,12 +1152,24 @@ app.put('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
       });
     }
 
+    // Lấy default hourly_rate từ settings nếu không truyền vào
+    let effectiveHourlyRate = hourly_rate;
+    if (effectiveHourlyRate === undefined || effectiveHourlyRate === null) {
+      const { data: payrollSetting } = await supabase
+        .from('system_settings')
+        .select('value')
+        .eq('key', 'payroll_config')
+        .is('center_id', null)
+        .single();
+      effectiveHourlyRate = payrollSetting?.value?.defaultHourlyRate || 150000;
+    }
+
     // Build update object
     const updateData = {
       full_name,
       phone: phone || null,
       status: status || 'active',
-      hourly_rate: hourly_rate || 150000,
+      hourly_rate: effectiveHourlyRate,
       updated_at: new Date().toISOString()
     };
 
@@ -828,7 +1206,7 @@ app.put('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
       .select(`
         id, email, full_name, phone, avatar_url, status, hourly_rate, center_id, created_at, updated_at,
         roles (id, code, name),
-        centers (id, name)
+        centers!users_center_id_fkey (id, name)
       `)
       .single();
 
@@ -1614,7 +1992,7 @@ app.patch('/api/admin/centers/:id/manager', requireAuth, requireRole(['SUPER_ADM
 // Tạo tài khoản nhân viên mới (Admin only)
 app.post('/api/admin/users', requireAuth, async (req, res, next) => {
   try {
-    const { email, full_name, phone, role_code } = req.body;
+    const { email, full_name, phone, role_code, hourly_rate, center_id } = req.body;
 
     console.log(`👤 Admin ${req.user.email} đang tạo user: ${email} với role ${role_code}`);
 
@@ -1634,6 +2012,20 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
       });
     }
 
+    // Lấy cấu hình từ system_settings
+    const { data: payrollSetting } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'payroll_config')
+      .is('center_id', null)
+      .single();
+
+    const payrollConfig = payrollSetting?.value || {};
+    const defaultHourlyRate = payrollConfig.defaultHourlyRate || 150000;
+    const defaultPassword = payrollConfig.defaultPassword || 'SkillMaster@123';
+
+    console.log(`💰 Using default hourly rate: ${defaultHourlyRate}, password: ${defaultPassword}`);
+
     // Lấy role_id từ code
     const { data: roleData, error: roleError } = await supabase
       .from('roles')
@@ -1648,10 +2040,7 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
       });
     }
 
-    // Tạo user trong Supabase Auth với password mặc định
-    // Note: Trong production nên dùng inviteUserByEmail thay vì createUser
-    const defaultPassword = 'SkillMaster@123'; // Password mặc định, nhân viên đổi sau
-
+    // Tạo user trong Supabase Auth với password từ settings
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password: defaultPassword,
@@ -1675,6 +2064,8 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
 
     // Insert vào public.users với role được chỉ định
     const userId = authData?.user?.id;
+    // Xác định center_id: ưu tiên từ request, fallback về center của admin tạo
+    const effectiveCenterId = center_id || req.user.centerId || null;
 
     if (userId) {
       // Update role trong public.users (trigger đã tạo với role STUDENT)
@@ -1684,6 +2075,8 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
           role_id: roleData.id,
           full_name,
           phone: phone || null,
+          hourly_rate: hourly_rate || defaultHourlyRate,
+          center_id: effectiveCenterId,
         })
         .eq('id', userId);
 
@@ -1699,6 +2092,8 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
             phone: phone || null,
             role_id: roleData.id,
             status: 'active',
+            hourly_rate: hourly_rate || defaultHourlyRate,
+            center_id: effectiveCenterId,
           });
 
         if (insertError) {
@@ -1715,6 +2110,7 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
         email,
         full_name,
         role_code,
+        hourly_rate: hourly_rate || defaultHourlyRate,
         default_password: defaultPassword,
       }
     });
@@ -2649,14 +3045,14 @@ app.delete('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'C
         console.error('Error deleting attendance:', attendanceError);
       }
 
-      // Xóa student_grades nếu có
+      // Xóa grades nếu có
       const { error: gradesError } = await supabase
-        .from('student_grades')
+        .from('grades')
         .delete()
         .in('enrollment_id', ids);
 
       if (gradesError) {
-        console.error('Error deleting student_grades:', gradesError);
+        console.error('Error deleting grades:', gradesError);
       }
     }
 
@@ -4008,9 +4404,9 @@ app.delete('/api/classes/:classId/students/:studentId', requireAuth, async (req,
         .delete()
         .eq('enrollment_id', enrollment.id);
 
-      // Xóa student_grades của enrollment này
+      // Xóa grades của enrollment này
       await supabase
-        .from('student_grades')
+        .from('grades')
         .delete()
         .eq('enrollment_id', enrollment.id);
 
@@ -7480,6 +7876,941 @@ app.get('/api/students/:id/transcript', requireAuth, async (req, res, next) => {
 
 // ============================================================
 // END TRANSCRIPT API
+// ============================================================
+
+// ============================================================
+// REPORTS APIs - Báo cáo & Thống kê chi tiết
+// ============================================================
+
+// GET /api/reports/revenue - Báo cáo doanh thu chi tiết
+app.get('/api/reports/revenue', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const {
+      startDate,
+      endDate,
+      centerId,
+      courseId,
+      groupBy = 'day' // 'day', 'week', 'month'
+    } = req.query;
+
+    console.log(`📊 Revenue report requested by ${req.user.email}`);
+
+    // Default: 30 ngày gần nhất
+    const end = endDate ? new Date(endDate) : new Date();
+    const start = startDate ? new Date(startDate) : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    // Query payments trong khoảng thời gian
+    let paymentsQuery = supabase
+      .from('payments')
+      .select(`
+        id,
+        amount,
+        payment_method,
+        payment_date,
+        invoices!inner (
+          id,
+          invoice_code,
+          student_id,
+          class_id,
+          users!invoices_student_id_fkey (id, full_name),
+          classes (
+            id, code, name, center_id,
+            courses (id, title, category)
+          )
+        )
+      `)
+      .gte('payment_date', start.toISOString())
+      .lte('payment_date', end.toISOString())
+      .order('payment_date', { ascending: false });
+
+    const { data: payments, error } = await paymentsQuery;
+    if (error) throw error;
+
+    // Filter by center and course if provided
+    let filteredPayments = payments || [];
+    if (centerId) {
+      filteredPayments = filteredPayments.filter(p =>
+        p.invoices?.classes?.center_id === centerId
+      );
+    }
+    if (courseId) {
+      filteredPayments = filteredPayments.filter(p =>
+        p.invoices?.classes?.courses?.id === courseId
+      );
+    }
+
+    // Calculate totals
+    const totalRevenue = filteredPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+    const totalTransactions = filteredPayments.length;
+
+    // Group by date
+    const groupedData = {};
+    filteredPayments.forEach(p => {
+      const date = new Date(p.payment_date);
+      let key;
+
+      if (groupBy === 'month') {
+        key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      } else if (groupBy === 'week') {
+        const weekStart = new Date(date);
+        weekStart.setDate(date.getDate() - date.getDay());
+        key = weekStart.toISOString().split('T')[0];
+      } else {
+        key = date.toISOString().split('T')[0];
+      }
+
+      if (!groupedData[key]) {
+        groupedData[key] = { date: key, revenue: 0, count: 0 };
+      }
+      groupedData[key].revenue += parseFloat(p.amount) || 0;
+      groupedData[key].count++;
+    });
+
+    const chartData = Object.values(groupedData).sort((a, b) =>
+      new Date(a.date) - new Date(b.date)
+    );
+
+    // Revenue by payment method
+    const byMethod = {};
+    filteredPayments.forEach(p => {
+      const method = p.payment_method || 'cash';
+      if (!byMethod[method]) byMethod[method] = 0;
+      byMethod[method] += parseFloat(p.amount) || 0;
+    });
+
+    // Revenue by course
+    const byCourse = {};
+    filteredPayments.forEach(p => {
+      const courseName = p.invoices?.classes?.courses?.title || 'Khác';
+      if (!byCourse[courseName]) byCourse[courseName] = 0;
+      byCourse[courseName] += parseFloat(p.amount) || 0;
+    });
+
+    // Top transactions
+    const topTransactions = filteredPayments.slice(0, 10).map(p => ({
+      id: p.id,
+      amount: p.amount,
+      paymentDate: p.payment_date,
+      method: p.payment_method,
+      studentName: p.invoices?.users?.full_name || 'N/A',
+      invoiceCode: p.invoices?.invoice_code,
+      courseName: p.invoices?.classes?.courses?.title || 'N/A'
+    }));
+
+    // Compare with previous period
+    const periodDays = Math.ceil((end - start) / (24 * 60 * 60 * 1000));
+    const prevEnd = new Date(start.getTime() - 1);
+    const prevStart = new Date(prevEnd.getTime() - periodDays * 24 * 60 * 60 * 1000);
+
+    const { data: prevPayments } = await supabase
+      .from('payments')
+      .select('amount')
+      .gte('payment_date', prevStart.toISOString())
+      .lte('payment_date', prevEnd.toISOString());
+
+    const prevRevenue = prevPayments?.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) || 0;
+    const growthPercent = prevRevenue > 0
+      ? Math.round(((totalRevenue - prevRevenue) / prevRevenue) * 100)
+      : (totalRevenue > 0 ? 100 : 0);
+
+    res.json({
+      success: true,
+      data: {
+        summary: {
+          totalRevenue,
+          totalTransactions,
+          averageTransaction: totalTransactions > 0 ? Math.round(totalRevenue / totalTransactions) : 0,
+          growthPercent,
+          prevRevenue
+        },
+        chartData,
+        byPaymentMethod: Object.entries(byMethod).map(([name, value]) => ({ name, value })),
+        byCourse: Object.entries(byCourse)
+          .map(([name, value]) => ({ name, value }))
+          .sort((a, b) => b.value - a.value),
+        topTransactions,
+        period: {
+          startDate: start.toISOString().split('T')[0],
+          endDate: end.toISOString().split('T')[0],
+          days: periodDays
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error generating revenue report:', error);
+    next(error);
+  }
+});
+
+// GET /api/reports/enrollment - Báo cáo tuyển sinh
+app.get('/api/reports/enrollment', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { startDate, endDate, centerId, courseId } = req.query;
+
+    console.log(`📊 Enrollment report requested by ${req.user.email}`);
+
+    const end = endDate ? new Date(endDate) : new Date();
+    const start = startDate ? new Date(startDate) : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    // Query enrollments
+    let query = supabase
+      .from('enrollments')
+      .select(`
+        id,
+        status,
+        created_at,
+        tuition_fee,
+        paid_amount,
+        users!enrollments_student_id_fkey (id, full_name, email),
+        classes!inner (
+          id, code, name, center_id,
+          courses (id, title, category)
+        )
+      `)
+      .gte('created_at', start.toISOString())
+      .lte('created_at', end.toISOString())
+      .order('created_at', { ascending: false });
+
+    const { data: enrollments, error } = await query;
+    if (error) throw error;
+
+    // Filter
+    let filtered = enrollments || [];
+    if (centerId) {
+      filtered = filtered.filter(e => e.classes?.center_id === centerId);
+    }
+    if (courseId) {
+      filtered = filtered.filter(e => e.classes?.courses?.id === courseId);
+    }
+
+    // Stats
+    const totalEnrollments = filtered.length;
+    const activeEnrollments = filtered.filter(e => e.status === 'active').length;
+    const droppedEnrollments = filtered.filter(e => e.status === 'dropped').length;
+
+    // Group by date
+    const byDate = {};
+    filtered.forEach(e => {
+      const date = new Date(e.created_at).toISOString().split('T')[0];
+      if (!byDate[date]) byDate[date] = { date, count: 0 };
+      byDate[date].count++;
+    });
+
+    // By course
+    const byCourse = {};
+    filtered.forEach(e => {
+      const course = e.classes?.courses?.title || 'Khác';
+      if (!byCourse[course]) byCourse[course] = 0;
+      byCourse[course]++;
+    });
+
+    // By status
+    const byStatus = {};
+    filtered.forEach(e => {
+      const status = e.status || 'active';
+      if (!byStatus[status]) byStatus[status] = 0;
+      byStatus[status]++;
+    });
+
+    // Compare with previous period
+    const periodDays = Math.ceil((end - start) / (24 * 60 * 60 * 1000));
+    const prevEnd = new Date(start.getTime() - 1);
+    const prevStart = new Date(prevEnd.getTime() - periodDays * 24 * 60 * 60 * 1000);
+
+    const { count: prevCount } = await supabase
+      .from('enrollments')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', prevStart.toISOString())
+      .lte('created_at', prevEnd.toISOString());
+
+    const growthPercent = prevCount > 0
+      ? Math.round(((totalEnrollments - prevCount) / prevCount) * 100)
+      : (totalEnrollments > 0 ? 100 : 0);
+
+    // Recent enrollments
+    const recentEnrollments = filtered.slice(0, 10).map(e => ({
+      id: e.id,
+      studentName: e.users?.full_name || 'N/A',
+      studentEmail: e.users?.email,
+      courseName: e.classes?.courses?.title || 'N/A',
+      className: e.classes?.name,
+      status: e.status,
+      createdAt: e.created_at
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        summary: {
+          totalEnrollments,
+          activeEnrollments,
+          droppedEnrollments,
+          dropRate: totalEnrollments > 0 ? Math.round((droppedEnrollments / totalEnrollments) * 100) : 0,
+          growthPercent,
+          prevCount: prevCount || 0
+        },
+        chartData: Object.values(byDate).sort((a, b) => new Date(a.date) - new Date(b.date)),
+        byCourse: Object.entries(byCourse)
+          .map(([name, value]) => ({ name, value }))
+          .sort((a, b) => b.value - a.value),
+        byStatus: Object.entries(byStatus).map(([name, value]) => ({ name, value })),
+        recentEnrollments,
+        period: {
+          startDate: start.toISOString().split('T')[0],
+          endDate: end.toISOString().split('T')[0]
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error generating enrollment report:', error);
+    next(error);
+  }
+});
+
+// GET /api/reports/attendance - Báo cáo chuyên cần
+app.get('/api/reports/attendance', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const { startDate, endDate, classId, courseId } = req.query;
+
+    console.log(`📊 Attendance report requested by ${req.user.email}`);
+
+    const end = endDate ? new Date(endDate) : new Date();
+    const start = startDate ? new Date(startDate) : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    // Query attendance records
+    let query = supabase
+      .from('attendance')
+      .select(`
+        id,
+        status,
+        session_date,
+        enrollments!inner (
+          id,
+          student_id,
+          users!enrollments_student_id_fkey (id, full_name),
+          classes!inner (
+            id, code, name,
+            courses (id, title)
+          )
+        )
+      `)
+      .gte('session_date', start.toISOString().split('T')[0])
+      .lte('session_date', end.toISOString().split('T')[0]);
+
+    const { data: attendances, error } = await query;
+    if (error) throw error;
+
+    // Filter
+    let filtered = attendances || [];
+    if (classId) {
+      filtered = filtered.filter(a => a.enrollments?.classes?.id === classId);
+    }
+    if (courseId) {
+      filtered = filtered.filter(a => a.enrollments?.classes?.courses?.id === courseId);
+    }
+
+    // Stats
+    const totalRecords = filtered.length;
+    const presentCount = filtered.filter(a => a.status === 'present').length;
+    const absentCount = filtered.filter(a => a.status === 'absent').length;
+    const lateCount = filtered.filter(a => a.status === 'late').length;
+    const excusedCount = filtered.filter(a => a.status === 'excused').length;
+
+    const attendanceRate = totalRecords > 0
+      ? Math.round(((presentCount + lateCount) / totalRecords) * 100)
+      : 0;
+
+    // By status
+    const byStatus = [
+      { name: 'Có mặt', value: presentCount, color: '#22c55e' },
+      { name: 'Vắng', value: absentCount, color: '#ef4444' },
+      { name: 'Trễ', value: lateCount, color: '#f59e0b' },
+      { name: 'Có phép', value: excusedCount, color: '#3b82f6' }
+    ];
+
+    // By date
+    const byDate = {};
+    filtered.forEach(a => {
+      const date = a.session_date;
+      if (!byDate[date]) {
+        byDate[date] = { date, present: 0, absent: 0, late: 0, excused: 0, total: 0 };
+      }
+      byDate[date].total++;
+      if (a.status === 'present') byDate[date].present++;
+      else if (a.status === 'absent') byDate[date].absent++;
+      else if (a.status === 'late') byDate[date].late++;
+      else if (a.status === 'excused') byDate[date].excused++;
+    });
+
+    // Students with low attendance
+    const studentAttendance = {};
+    filtered.forEach(a => {
+      const studentId = a.enrollments?.student_id;
+      const studentName = a.enrollments?.users?.full_name || 'N/A';
+      if (!studentAttendance[studentId]) {
+        studentAttendance[studentId] = {
+          id: studentId,
+          name: studentName,
+          total: 0,
+          present: 0
+        };
+      }
+      studentAttendance[studentId].total++;
+      if (a.status === 'present' || a.status === 'late') {
+        studentAttendance[studentId].present++;
+      }
+    });
+
+    const lowAttendanceStudents = Object.values(studentAttendance)
+      .map(s => ({
+        ...s,
+        rate: s.total > 0 ? Math.round((s.present / s.total) * 100) : 0
+      }))
+      .filter(s => s.rate < 70 && s.total >= 3)
+      .sort((a, b) => a.rate - b.rate)
+      .slice(0, 10);
+
+    res.json({
+      success: true,
+      data: {
+        summary: {
+          totalRecords,
+          presentCount,
+          absentCount,
+          lateCount,
+          excusedCount,
+          attendanceRate
+        },
+        byStatus,
+        chartData: Object.values(byDate).sort((a, b) => new Date(a.date) - new Date(b.date)),
+        lowAttendanceStudents,
+        period: {
+          startDate: start.toISOString().split('T')[0],
+          endDate: end.toISOString().split('T')[0]
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error generating attendance report:', error);
+    next(error);
+  }
+});
+
+// GET /api/reports/grades - Báo cáo điểm số
+app.get('/api/reports/grades', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const { classId, courseId, centerId } = req.query;
+
+    console.log(`📊 Grades report requested by ${req.user.email}`);
+
+    // Query grades (đúng table name)
+    let query = supabase
+      .from('grades')
+      .select(`
+        id,
+        score,
+        enrollments!inner (
+          id,
+          student_id,
+          users!enrollments_student_id_fkey (id, full_name),
+          classes!inner (
+            id, code, name, center_id,
+            courses (id, title, pass_score)
+          )
+        ),
+        grade_structures (id, name, weight, max_score)
+      `);
+
+    const { data: grades, error } = await query;
+    if (error) throw error;
+
+    // Filter
+    let filtered = grades || [];
+    if (classId) {
+      filtered = filtered.filter(g => g.enrollments?.classes?.id === classId);
+    }
+    if (courseId) {
+      filtered = filtered.filter(g => g.enrollments?.classes?.courses?.id === courseId);
+    }
+    if (centerId) {
+      filtered = filtered.filter(g => g.enrollments?.classes?.center_id === centerId);
+    }
+
+    // Calculate averages per student
+    const studentScores = {};
+    filtered.forEach(g => {
+      const enrollmentId = g.enrollments?.id;
+      const studentId = g.enrollments?.student_id;
+      const studentName = g.enrollments?.users?.full_name || 'N/A';
+      const courseName = g.enrollments?.classes?.courses?.title || 'N/A';
+      const passScore = parseFloat(g.enrollments?.classes?.courses?.pass_score) || 5.0;
+
+      if (!studentScores[enrollmentId]) {
+        studentScores[enrollmentId] = {
+          enrollmentId,
+          studentId,
+          studentName,
+          courseName,
+          passScore,
+          totalWeight: 0,
+          weightedSum: 0,
+          grades: []
+        };
+      }
+
+      const weight = parseFloat(g.grade_structures?.weight) || 0;
+      const maxScore = parseFloat(g.grade_structures?.max_score) || 10;
+      const normalizedScore = (parseFloat(g.score) / maxScore) * 10; // Normalize to 10
+
+      studentScores[enrollmentId].grades.push({
+        name: g.grade_structures?.name,
+        score: g.score,
+        maxScore,
+        weight
+      });
+
+      if (g.score !== null && weight > 0) {
+        studentScores[enrollmentId].weightedSum += normalizedScore * weight;
+        studentScores[enrollmentId].totalWeight += weight;
+      }
+    });
+
+    // Calculate final scores
+    const studentsWithScores = Object.values(studentScores).map(s => {
+      const finalScore = s.totalWeight > 0
+        ? (s.weightedSum / s.totalWeight).toFixed(2)
+        : null;
+      return {
+        ...s,
+        finalScore: finalScore ? parseFloat(finalScore) : null,
+        passed: finalScore ? parseFloat(finalScore) >= s.passScore : null
+      };
+    });
+
+    // Stats
+    const studentsWithFinalScore = studentsWithScores.filter(s => s.finalScore !== null);
+    const totalStudents = studentsWithFinalScore.length;
+    const passedStudents = studentsWithFinalScore.filter(s => s.passed).length;
+    const failedStudents = totalStudents - passedStudents;
+    const passRate = totalStudents > 0 ? Math.round((passedStudents / totalStudents) * 100) : 0;
+
+    const allScores = studentsWithFinalScore.map(s => s.finalScore);
+    const avgScore = allScores.length > 0
+      ? (allScores.reduce((a, b) => a + b, 0) / allScores.length).toFixed(2)
+      : 0;
+    const maxScore = allScores.length > 0 ? Math.max(...allScores) : 0;
+    const minScore = allScores.length > 0 ? Math.min(...allScores) : 0;
+
+    // Score distribution
+    const distribution = [
+      { range: '9-10', count: 0 },
+      { range: '8-9', count: 0 },
+      { range: '7-8', count: 0 },
+      { range: '6-7', count: 0 },
+      { range: '5-6', count: 0 },
+      { range: '<5', count: 0 }
+    ];
+
+    allScores.forEach(score => {
+      if (score >= 9) distribution[0].count++;
+      else if (score >= 8) distribution[1].count++;
+      else if (score >= 7) distribution[2].count++;
+      else if (score >= 6) distribution[3].count++;
+      else if (score >= 5) distribution[4].count++;
+      else distribution[5].count++;
+    });
+
+    // Top students
+    const topStudents = studentsWithFinalScore
+      .sort((a, b) => (b.finalScore || 0) - (a.finalScore || 0))
+      .slice(0, 10)
+      .map(s => ({
+        studentName: s.studentName,
+        courseName: s.courseName,
+        finalScore: s.finalScore,
+        passed: s.passed
+      }));
+
+    // Students needing attention (low scores)
+    const lowScoreStudents = studentsWithFinalScore
+      .filter(s => s.finalScore < s.passScore)
+      .sort((a, b) => (a.finalScore || 0) - (b.finalScore || 0))
+      .slice(0, 10);
+
+    res.json({
+      success: true,
+      data: {
+        summary: {
+          totalStudents,
+          passedStudents,
+          failedStudents,
+          passRate,
+          avgScore: parseFloat(avgScore),
+          maxScore,
+          minScore
+        },
+        distribution,
+        topStudents,
+        lowScoreStudents,
+        passRateChart: [
+          { name: 'Đạt', value: passedStudents, color: '#22c55e' },
+          { name: 'Không đạt', value: failedStudents, color: '#ef4444' }
+        ]
+      }
+    });
+
+  } catch (error) {
+    console.error('Error generating grades report:', error);
+    next(error);
+  }
+});
+
+// GET /api/reports/staff - Báo cáo nhân sự
+app.get('/api/reports/staff', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { startDate, endDate, centerId } = req.query;
+
+    console.log(`📊 Staff report requested by ${req.user.email}`);
+
+    const end = endDate ? new Date(endDate) : new Date();
+    const start = startDate ? new Date(startDate) : new Date(end.getFullYear(), end.getMonth(), 1);
+
+    // Query staff
+    let staffQuery = supabase
+      .from('users')
+      .select(`
+        id,
+        full_name,
+        email,
+        phone,
+        center_id,
+        created_at,
+        roles!inner (code, name)
+      `)
+      .in('roles.code', ['TEACHER', 'CENTER_MANAGER']);
+
+    if (centerId) {
+      staffQuery = staffQuery.eq('center_id', centerId);
+    }
+
+    const { data: staff, error: staffError } = await staffQuery;
+    if (staffError) throw staffError;
+
+    // Get teaching hours
+    const { data: sessions, error: sessionsError } = await supabase
+      .from('sessions')
+      .select(`
+        id,
+        teacher_id,
+        session_date,
+        start_time,
+        end_time,
+        status
+      `)
+      .gte('session_date', start.toISOString().split('T')[0])
+      .lte('session_date', end.toISOString().split('T')[0])
+      .eq('status', 'completed');
+
+    if (sessionsError) throw sessionsError;
+
+    // Calculate hours per teacher
+    const teacherHours = {};
+    sessions?.forEach(s => {
+      if (!teacherHours[s.teacher_id]) {
+        teacherHours[s.teacher_id] = { sessions: 0, hours: 0 };
+      }
+      teacherHours[s.teacher_id].sessions++;
+
+      // Calculate hours
+      if (s.start_time && s.end_time) {
+        const [startH, startM] = s.start_time.split(':').map(Number);
+        const [endH, endM] = s.end_time.split(':').map(Number);
+        const hours = (endH + endM / 60) - (startH + startM / 60);
+        teacherHours[s.teacher_id].hours += hours;
+      } else {
+        teacherHours[s.teacher_id].hours += 2; // Default 2 hours
+      }
+    });
+
+    // Get payroll data
+    const { data: payroll } = await supabase
+      .from('payroll')
+      .select('staff_id, total_amount, period_start, period_end')
+      .gte('period_start', start.toISOString().split('T')[0])
+      .lte('period_end', end.toISOString().split('T')[0]);
+
+    const staffPayroll = {};
+    payroll?.forEach(p => {
+      if (!staffPayroll[p.staff_id]) staffPayroll[p.staff_id] = 0;
+      staffPayroll[p.staff_id] += parseFloat(p.total_amount) || 0;
+    });
+
+    // Combine data
+    const staffReport = staff?.map(s => ({
+      id: s.id,
+      name: s.full_name,
+      email: s.email,
+      role: s.roles?.name,
+      sessions: teacherHours[s.id]?.sessions || 0,
+      hours: Math.round((teacherHours[s.id]?.hours || 0) * 10) / 10,
+      totalPay: staffPayroll[s.id] || 0
+    })) || [];
+
+    // Summary
+    const totalStaff = staffReport.length;
+    const teachers = staffReport.filter(s => s.role === 'Teacher').length;
+    const totalSessions = staffReport.reduce((sum, s) => sum + s.sessions, 0);
+    const totalHours = staffReport.reduce((sum, s) => sum + s.hours, 0);
+    const totalPayroll = staffReport.reduce((sum, s) => sum + s.totalPay, 0);
+
+    // Top teachers by hours
+    const topTeachers = [...staffReport]
+      .sort((a, b) => b.hours - a.hours)
+      .slice(0, 10);
+
+    res.json({
+      success: true,
+      data: {
+        summary: {
+          totalStaff,
+          teachers,
+          totalSessions,
+          totalHours: Math.round(totalHours * 10) / 10,
+          totalPayroll,
+          avgHoursPerTeacher: teachers > 0 ? Math.round((totalHours / teachers) * 10) / 10 : 0
+        },
+        staffList: staffReport,
+        topTeachers,
+        period: {
+          startDate: start.toISOString().split('T')[0],
+          endDate: end.toISOString().split('T')[0]
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error generating staff report:', error);
+    next(error);
+  }
+});
+
+// GET /api/reports/courses - Báo cáo hiệu suất khóa học
+app.get('/api/reports/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { centerId } = req.query;
+
+    console.log(`📊 Courses report requested by ${req.user.email}`);
+
+    // Get all courses with stats
+    const { data: courses, error: coursesError } = await supabase
+      .from('courses')
+      .select(`
+        id,
+        code,
+        title,
+        category,
+        price,
+        total_sessions,
+        status,
+        classes (
+          id,
+          status,
+          center_id,
+          enrollments (id, status, tuition_fee, paid_amount)
+        )
+      `)
+      .eq('status', 'active');
+
+    if (coursesError) throw coursesError;
+
+    // Calculate stats per course
+    const courseStats = courses?.map(course => {
+      let classes = course.classes || [];
+
+      // Filter by center if needed
+      if (centerId) {
+        classes = classes.filter(c => c.center_id === centerId);
+      }
+
+      const totalClasses = classes.length;
+      const ongoingClasses = classes.filter(c => c.status === 'ongoing').length;
+      const completedClasses = classes.filter(c => c.status === 'completed').length;
+
+      let totalEnrollments = 0;
+      let activeEnrollments = 0;
+      let totalRevenue = 0;
+
+      classes.forEach(cls => {
+        const enrollments = cls.enrollments || [];
+        totalEnrollments += enrollments.length;
+        activeEnrollments += enrollments.filter(e => e.status === 'active').length;
+        totalRevenue += enrollments.reduce((sum, e) => sum + (parseFloat(e.paid_amount) || 0), 0);
+      });
+
+      return {
+        id: course.id,
+        code: course.code,
+        title: course.title,
+        category: course.category,
+        price: course.price,
+        totalClasses,
+        ongoingClasses,
+        completedClasses,
+        totalEnrollments,
+        activeEnrollments,
+        totalRevenue,
+        avgEnrollmentsPerClass: totalClasses > 0 ? Math.round(totalEnrollments / totalClasses) : 0
+      };
+    }) || [];
+
+    // Summary
+    const totalCourses = courseStats.length;
+    const totalClassesAll = courseStats.reduce((sum, c) => sum + c.totalClasses, 0);
+    const totalEnrollmentsAll = courseStats.reduce((sum, c) => sum + c.totalEnrollments, 0);
+    const totalRevenueAll = courseStats.reduce((sum, c) => sum + c.totalRevenue, 0);
+
+    // Top courses by revenue
+    const topByRevenue = [...courseStats]
+      .sort((a, b) => b.totalRevenue - a.totalRevenue)
+      .slice(0, 5);
+
+    // Top courses by enrollments
+    const topByEnrollments = [...courseStats]
+      .sort((a, b) => b.totalEnrollments - a.totalEnrollments)
+      .slice(0, 5);
+
+    // By category
+    const byCategory = {};
+    courseStats.forEach(c => {
+      if (!byCategory[c.category]) {
+        byCategory[c.category] = { courses: 0, enrollments: 0, revenue: 0 };
+      }
+      byCategory[c.category].courses++;
+      byCategory[c.category].enrollments += c.totalEnrollments;
+      byCategory[c.category].revenue += c.totalRevenue;
+    });
+
+    res.json({
+      success: true,
+      data: {
+        summary: {
+          totalCourses,
+          totalClasses: totalClassesAll,
+          totalEnrollments: totalEnrollmentsAll,
+          totalRevenue: totalRevenueAll,
+          avgRevenuePerCourse: totalCourses > 0 ? Math.round(totalRevenueAll / totalCourses) : 0
+        },
+        courseStats,
+        topByRevenue,
+        topByEnrollments,
+        byCategory: Object.entries(byCategory).map(([name, data]) => ({
+          name,
+          ...data
+        }))
+      }
+    });
+
+  } catch (error) {
+    console.error('Error generating courses report:', error);
+    next(error);
+  }
+});
+
+// POST /api/reports/saved - Lưu báo cáo
+app.post('/api/reports/saved', requireAuth, async (req, res, next) => {
+  try {
+    const { name, description, reportType, filters, schedule, emailRecipients, isPublic } = req.body;
+
+    const { data, error } = await supabase
+      .from('saved_reports')
+      .insert([{
+        name,
+        description,
+        report_type: reportType,
+        filters: filters || {},
+        schedule: schedule || null,
+        email_recipients: emailRecipients || [],
+        is_public: isPublic || false,
+        created_by: req.user.id,
+        center_id: req.user.centerId
+      }])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json({
+      success: true,
+      message: 'Đã lưu báo cáo',
+      data
+    });
+
+  } catch (error) {
+    console.error('Error saving report:', error);
+    next(error);
+  }
+});
+
+// GET /api/reports/saved - Lấy danh sách báo cáo đã lưu
+app.get('/api/reports/saved', requireAuth, async (req, res, next) => {
+  try {
+    // Build query với xử lý null centerId
+    let query = supabase
+      .from('saved_reports')
+      .select('*');
+
+    // Filter: own reports OR public reports in same center
+    if (req.user.centerId) {
+      query = query.or(`created_by.eq.${req.user.id},and(is_public.eq.true,center_id.eq.${req.user.centerId})`);
+    } else {
+      // Nếu không có center, chỉ lấy báo cáo của chính mình
+      query = query.eq('created_by', req.user.id);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data
+    });
+
+  } catch (error) {
+    console.error('Error fetching saved reports:', error);
+    next(error);
+  }
+});
+
+// DELETE /api/reports/saved/:id - Xóa báo cáo đã lưu
+app.delete('/api/reports/saved/:id', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const { error } = await supabase
+      .from('saved_reports')
+      .delete()
+      .eq('id', id)
+      .eq('created_by', req.user.id);
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: 'Đã xóa báo cáo'
+    });
+
+  } catch (error) {
+    console.error('Error deleting saved report:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// END REPORTS APIs
 // ============================================================
 
 app.use((err, _req, res, _next) => {

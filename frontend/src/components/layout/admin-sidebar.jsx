@@ -14,6 +14,7 @@ import {
   DoorOpen,
   Sparkles,
   ClipboardList,
+  BarChart3,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -59,6 +60,7 @@ const menuGroups = [
     id: 'system',
     title: 'HỆ THỐNG',
     items: [
+      { label: 'Báo cáo', icon: BarChart3, path: '/admin/reports' },
       { label: 'Trung tâm', icon: Building2, path: '/admin/centers' },
     ],
   },

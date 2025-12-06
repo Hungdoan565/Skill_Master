@@ -23,7 +23,17 @@ import { StudentsPage } from '@/features/students';
 import { PayrollPage, TeacherPayrollPage } from '@/features/payroll';
 import { SchedulePage } from '@/features/schedule';
 import { GradesPage } from '@/features/grades';
-import { CentersPage } from '@/features/centers';
+import { CentersPage, CenterDetailPage } from '@/features/centers';
+import { SettingsPage } from '@/features/settings';
+import {
+  ReportsPage,
+  RevenueReportPage,
+  EnrollmentReportPage,
+  AttendanceReportPage,
+  GradesReportPage,
+  StaffReportPage,
+  CoursesReportPage
+} from '@/features/reports';
 import { LoginPage } from '@/pages/auth/login-page';
 import { AuthPage } from '@/pages/auth/auth-page';
 import { LandingPage } from '@/pages/landing/landing-page';
@@ -361,7 +371,16 @@ function App() {
             <Route path="payroll" element={<PayrollPage />} />
             <Route path="staff" element={<StaffPage />} />
             <Route path="centers" element={<CentersPage />} />
+            <Route path="centers/:id" element={<CenterDetailPage />} />
             <Route path="rooms" element={<RoomsPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="reports" element={<ReportsPage />} />
+            <Route path="reports/revenue" element={<RevenueReportPage />} />
+            <Route path="reports/enrollment" element={<EnrollmentReportPage />} />
+            <Route path="reports/attendance" element={<AttendanceReportPage />} />
+            <Route path="reports/grades" element={<GradesReportPage />} />
+            <Route path="reports/staff" element={<StaffReportPage />} />
+            <Route path="reports/courses" element={<CoursesReportPage />} />
           </Route>
 
           {/* Teacher Routes - Chỉ TEACHER (và Admin cũng vào được) */}

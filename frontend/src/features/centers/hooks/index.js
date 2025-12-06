@@ -1,3 +1,8 @@
-export { useCenters, default as useCentersDefault } from './useCenters';
-export { useCenterForm, default as useCenterFormDefault } from './useCenterForm';
-export { useCenterStats, default as useCenterStatsDefault } from './useCenterStats';
+export { useCenters } from './useCenters';
+export { useCenterForm } from './useCenterForm';
+export { useCenterStats } from './useCenterStats';
+export { useCenterDetail } from './useCenterDetail';
+export { useCenterRooms } from './useCenterRooms';
+export { useCenterClasses } from './useCenterClasses';
+export { useCenterStaff } from './useCenterStaff';
+export { useCenterRevenue } from './useCenterRevenue';

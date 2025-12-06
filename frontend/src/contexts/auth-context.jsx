@@ -34,7 +34,7 @@ export function AuthProvider({ children }) {
             code,
             name
           ),
-          centers (
+          centers!users_center_id_fkey (
             id,
             name
           )
@@ -60,27 +60,27 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     let mounted = true;
-    
+
     const initAuth = async () => {
       try {
         console.log('[AuthContext] Initializing...');
-        
+
         // 1. Lấy session hiện tại
         const { data: { session: currentSession } } = await supabase.auth.getSession();
-        
+
         if (!mounted) return;
-        
+
         console.log('[AuthContext] Initial session:', currentSession ? 'Found' : 'None');
-        
+
         if (currentSession?.user) {
           // 2. Set user trước để không bị stuck
           setSession(currentSession);
           setUser(currentSession.user);
-          
+
           // 3. Fetch profile với timeout để tránh treo vô hạn
           try {
             console.log('[AuthContext] Fetching profile for:', currentSession.user.id);
-            
+
             const profilePromise = supabase
               .from('users')
               .select(`
@@ -96,19 +96,19 @@ export function AuthProvider({ children }) {
                   code,
                   name
                 ),
-                centers (
+                centers!users_center_id_fkey (
                   id,
                   name
                 )
               `)
               .eq('id', currentSession.user.id)
               .single();
-            
+
             // Timeout 5 giây
-            const timeoutPromise = new Promise((_, reject) => 
+            const timeoutPromise = new Promise((_, reject) =>
               setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
             );
-            
+
             const { data: profileData, error: profileError } = await Promise.race([
               profilePromise,
               timeoutPromise
@@ -150,9 +150,9 @@ export function AuthProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         console.log('[AuthContext] Auth event:', event);
-        
+
         if (!mounted) return;
-        
+
         if (event === 'SIGNED_OUT') {
           setSession(null);
           setUser(null);
@@ -161,11 +161,11 @@ export function AuthProvider({ children }) {
           // Set user ngay lập tức
           setSession(currentSession);
           setUser(currentSession.user);
-          
+
           // Fetch profile với timeout
           try {
             console.log('[AuthContext] SIGNED_IN - Fetching profile for:', currentSession.user.id);
-            
+
             const profilePromise = supabase
               .from('users')
               .select(`
@@ -181,24 +181,24 @@ export function AuthProvider({ children }) {
                   code,
                   name
                 ),
-                centers (
+                centers!users_center_id_fkey (
                   id,
                   name
                 )
               `)
               .eq('id', currentSession.user.id)
               .single();
-            
+
             // Timeout 5 giây
-            const timeoutPromise = new Promise((_, reject) => 
+            const timeoutPromise = new Promise((_, reject) =>
               setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
             );
-            
+
             const { data: profileData, error: profileError } = await Promise.race([
               profilePromise,
               timeoutPromise
             ]);
-            
+
             if (profileError) {
               console.error('[AuthContext] SIGNED_IN - Profile fetch error:', profileError);
               if (mounted) setProfile(null);
@@ -240,6 +240,12 @@ export function AuthProvider({ children }) {
     return result;
   };
 
+  // Refresh profile (sau khi update avatar/info)
+  const refreshProfile = useCallback(async () => {
+    if (!user?.id) return null;
+    return await fetchUserProfile(user.id);
+  }, [user, fetchUserProfile]);
+
   // Hàm tiện ích kiểm tra role
   const hasRole = useCallback((roleCode) => {
     return profile?.roles?.code === roleCode;
@@ -260,7 +266,7 @@ export function AuthProvider({ children }) {
   // Hàm lấy redirect path dựa trên role
   const getRedirectPath = useCallback(() => {
     const roleCode = profile?.roles?.code;
-    
+
     // Nếu có role từ profile
     if (roleCode) {
       switch (roleCode) {
@@ -275,7 +281,7 @@ export function AuthProvider({ children }) {
           return '/';
       }
     }
-    
+
     // Không có profile nhưng có user - fallback dựa vào email
     if (user?.email) {
       // Admin email -> admin dashboard
@@ -284,7 +290,7 @@ export function AuthProvider({ children }) {
         return '/admin/dashboard';
       }
     }
-    
+
     // Mặc định về trang chủ
     console.warn('[AuthContext] getRedirectPath: No role found, redirecting to home');
     return '/';
@@ -303,6 +309,7 @@ export function AuthProvider({ children }) {
     signInWithEmail,
     signOut,
     fetchUserProfile,
+    refreshProfile,
     hasRole,
     isAdmin,
     isTeacher,
