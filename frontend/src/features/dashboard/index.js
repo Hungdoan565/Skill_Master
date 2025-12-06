@@ -18,16 +18,34 @@ export { DashboardPage as default } from './pages';
 export {
   PrimaryStatCard,
   SecondaryStatCard,
+  ModernStatCard,
   SimpleAreaChart,
   SimplePieChart,
   ChartCard,
+  HorizontalBarChart,
+  CircularProgress,
+  CircularProgressWithLabel,
+  MultiCircularProgress,
   StudentItem,
   QuickAction,
   RecentStudentsList,
   QuickActionsCard,
   StatsSection,
   ChartsSection,
-  DashboardHeader
+  DashboardHeader,
+  GettingStartedCard,
+  LiveActivityStream,
+  StatusBadges,
+  StatusBadge,
+  RoleBadge,
+  PriorityBadge,
+  ConnectionStatus,
+  OnlineIndicator,
+  // Enhanced widgets
+  PaymentOverviewCard,
+  TodayScheduleCard,
+  ErrorAlert,
+  CenterSelector
 } from './components';
 
 // Hooks exports

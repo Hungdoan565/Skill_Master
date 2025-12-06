@@ -1,5 +1,6 @@
 /**
  * useDashboard Hook - Quản lý data cho dashboard
+ * UPGRADED: Thêm error handling, unified API, payment & attendance stats
  */
 
 import { useState, useCallback } from 'react';
@@ -8,14 +9,23 @@ import { API_URL } from '../utils';
 /**
  * Hook quản lý dashboard data
  * @param {string} accessToken - Token xác thực
+ * @param {string} centerId - Optional center ID for filtering
  */
-export function useDashboard(accessToken) {
+export function useDashboard(accessToken, centerId = null) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Main stats
   const [stats, setStats] = useState(null);
   const [revenueChart, setRevenueChart] = useState([]);
   const [recentStudents, setRecentStudents] = useState([]);
   const [courseDistribution, setCourseDistribution] = useState([]);
+
+  // New: Additional widgets data
+  const [paymentOverview, setPaymentOverview] = useState(null);
+  const [todaySchedule, setTodaySchedule] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   // API headers
   const getHeaders = useCallback(() => ({
@@ -23,56 +33,95 @@ export function useDashboard(accessToken) {
     'Authorization': `Bearer ${accessToken}`
   }), [accessToken]);
 
-  // Fetch all dashboard data
+  // Build query string with optional centerId
+  const buildQuery = useCallback((params = {}) => {
+    const query = new URLSearchParams();
+    if (centerId) query.append('centerId', centerId);
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== null && value !== undefined) {
+        query.append(key, value);
+      }
+    });
+    return query.toString() ? `?${query.toString()}` : '';
+  }, [centerId]);
+
+  // Fetch all dashboard data using unified API
   const fetchDashboardData = useCallback(async (showRefreshing = false) => {
     if (!accessToken) return;
-    
+
     if (showRefreshing) setRefreshing(true);
     else setLoading(true);
+    setError(null);
 
     try {
-      // Fetch all data in parallel
-      const [statsRes, revenueRes, studentsRes, distributionRes] = await Promise.all([
-        fetch(`${API_URL}/api/dashboard/stats`, { headers: getHeaders() }),
-        fetch(`${API_URL}/api/dashboard/revenue-chart`, { headers: getHeaders() }),
-        fetch(`${API_URL}/api/dashboard/recent-students?limit=5`, { headers: getHeaders() }),
-        fetch(`${API_URL}/api/dashboard/course-distribution`, { headers: getHeaders() })
+      // Use unified API for main data (reduces API calls from 4 to 1)
+      const [allDataRes, revenueRes, distributionRes] = await Promise.all([
+        fetch(`${API_URL}/api/dashboard/all${buildQuery()}`, { headers: getHeaders() }),
+        fetch(`${API_URL}/api/dashboard/revenue-chart${buildQuery()}`, { headers: getHeaders() }),
+        fetch(`${API_URL}/api/dashboard/course-distribution${buildQuery()}`, { headers: getHeaders() })
       ]);
 
-      const [statsData, revenueData, studentsData, distributionData] = await Promise.all([
-        statsRes.json(),
+      // Check for HTTP errors
+      if (!allDataRes.ok || !revenueRes.ok || !distributionRes.ok) {
+        throw new Error('Failed to fetch dashboard data');
+      }
+
+      const [allData, revenueData, distributionData] = await Promise.all([
+        allDataRes.json(),
         revenueRes.json(),
-        studentsRes.json(),
         distributionRes.json()
       ]);
 
-      if (statsData.success) setStats(statsData.data);
+      if (allData.success) {
+        setStats(allData.data.stats);
+        setPaymentOverview(allData.data.payments);
+        setRecentStudents(allData.data.recentStudents || []);
+        setTodaySchedule(allData.data.todaySchedule);
+      }
+
       if (revenueData.success) setRevenueChart(revenueData.data);
-      if (studentsData.success) setRecentStudents(studentsData.data);
       if (distributionData.success) setCourseDistribution(distributionData.data);
 
-    } catch (error) {
-      console.error('Error fetching dashboard:', error);
+      setLastUpdated(new Date());
+
+    } catch (err) {
+      console.error('Error fetching dashboard:', err);
+      setError(err.message || 'Không thể tải dữ liệu dashboard');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [accessToken, getHeaders]);
+  }, [accessToken, getHeaders, buildQuery]);
 
   // Refresh data
   const refresh = useCallback(() => {
     fetchDashboardData(true);
   }, [fetchDashboardData]);
 
+  // Clear error
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
   return {
+    // State
     loading,
     refreshing,
+    error,
+    lastUpdated,
+
+    // Data
     stats,
     revenueChart,
     recentStudents,
     courseDistribution,
+    paymentOverview,
+    todaySchedule,
+
+    // Actions
     fetchDashboardData,
-    refresh
+    refresh,
+    clearError
   };
 }
 
