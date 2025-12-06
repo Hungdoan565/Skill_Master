@@ -63,7 +63,8 @@ export const requireAuth = async (req, res, next) => {
       ...user,
       profile: profile || null,
       roleCode: profile?.roles?.code || null,
-      centerId: profile?.center_id || null
+      centerId: profile?.center_id || null,
+      center_id: profile?.center_id || null // Add snake_case for consistency
     };
 
     // Log để debug (có thể bỏ sau)

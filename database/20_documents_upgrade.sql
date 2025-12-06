@@ -29,7 +29,7 @@ ALTER TABLE documents ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 -- Update type constraint to match current usage
 ALTER TABLE documents DROP CONSTRAINT IF EXISTS documents_type_check;
 ALTER TABLE documents ADD CONSTRAINT documents_type_check 
-    CHECK (type IN ('lesson', 'exercise', 'exam', 'reference', 'material', 'assignment', 'resource', 'other'));
+    CHECK (type IN ('lesson', 'exercise', 'exam', 'reference', 'material', 'assignment', 'resource', 'video', 'audio', 'image', 'other'));
 
 -- ============================================================================
 -- 2. CREATE DOCUMENT_DOWNLOADS TABLE (download tracking)

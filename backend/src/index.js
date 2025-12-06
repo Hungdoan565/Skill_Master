@@ -8924,6 +8924,35 @@ app.post('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
       });
     }
 
+    // Get center_id from user or from class/course if not available
+    let centerIdToUse = req.user.centerId || req.user.center_id;
+
+    // If user doesn't have center_id (SUPER_ADMIN), try to get from class or course
+    if (!centerIdToUse) {
+      if (class_id) {
+        const { data: classData } = await supabase
+          .from('classes')
+          .select('center_id')
+          .eq('id', class_id)
+          .single();
+        centerIdToUse = classData?.center_id;
+      } else if (course_id) {
+        const { data: courseData } = await supabase
+          .from('courses')
+          .select('center_id')
+          .eq('id', course_id)
+          .single();
+        centerIdToUse = courseData?.center_id;
+      }
+    }
+
+    if (!centerIdToUse) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không xác định được trung tâm cho tài liệu này'
+      });
+    }
+
     const { data, error } = await supabase
       .from('documents')
       .insert({
@@ -8935,7 +8964,7 @@ app.post('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
         file_type,
         course_id: course_id || null,
         class_id: class_id || null,
-        center_id: req.user.centerId,
+        center_id: centerIdToUse,
         type: type || 'material',
         is_public: is_public || false,
         uploaded_by: req.user.id
