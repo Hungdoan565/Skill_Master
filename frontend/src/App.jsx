@@ -19,12 +19,16 @@ import { ClassesPage } from '@/features/classes-list';
 import { DashboardPage } from '@/features/dashboard';
 import { StaffPage } from '@/features/staff';
 import { RoomsPage } from '@/features/rooms';
-import { StudentsPage } from '@/features/students';
+import { StudentsPage, StudentDetailPage } from '@/features/students';
 import { PayrollPage, TeacherPayrollPage } from '@/features/payroll';
 import { SchedulePage } from '@/features/schedule';
 import { GradesPage } from '@/features/grades';
 import { CentersPage, CenterDetailPage } from '@/features/centers';
 import { SettingsPage } from '@/features/settings';
+import { EnrollmentsPage, NewEnrollmentPage } from '@/features/enrollments';
+import { DocumentsPage } from '@/features/documents';
+import { CertificatesPage, CertificateTypeDetailPage, CertificatePrintPage } from '@/features/certificates';
+import { SupportPage } from '@/features/support';
 import {
   ReportsPage,
   RevenueReportPage,
@@ -364,8 +368,9 @@ function App() {
             <Route path="classes/:id" element={<ClassDetailPage />} />
             <Route path="schedule" element={<SchedulePage />} />
             <Route path="students" element={<StudentsPage />} />
-            <Route path="students/:id" element={<PlaceholderPage title="Hồ sơ Học viên" />} />
-            <Route path="enrollments/new" element={<PlaceholderPage title="Ghi danh" description="Đăng ký học viên vào lớp" />} />
+            <Route path="students/:id" element={<StudentDetailPage />} />
+            <Route path="enrollments" element={<EnrollmentsPage />} />
+            <Route path="enrollments/new" element={<NewEnrollmentPage />} />
             <Route path="invoices" element={<InvoicesPage />} />
             <Route path="grades" element={<GradesPage />} />
             <Route path="payroll" element={<PayrollPage />} />
@@ -373,6 +378,11 @@ function App() {
             <Route path="centers" element={<CentersPage />} />
             <Route path="centers/:id" element={<CenterDetailPage />} />
             <Route path="rooms" element={<RoomsPage />} />
+            <Route path="documents" element={<DocumentsPage />} />
+            <Route path="certificates" element={<CertificatesPage />} />
+            <Route path="certificates/type/:id" element={<CertificateTypeDetailPage />} />
+            <Route path="certificates/:id/print" element={<CertificatePrintPage />} />
+            <Route path="support" element={<SupportPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="reports/revenue" element={<RevenueReportPage />} />

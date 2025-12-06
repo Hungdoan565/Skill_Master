@@ -1,0 +1,200 @@
+/**
+ * useEnrollments Hook - Quản lý ghi danh
+ */
+
+import { useState, useCallback } from 'react';
+import axios from 'axios';
+import { supabase } from '@/lib/supabaseClient';
+import { API_URL } from '../utils';
+
+/**
+ * Get auth headers from Supabase session
+ */
+const getAuthHeaders = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+        throw new Error('Chưa đăng nhập');
+    }
+    return { Authorization: `Bearer ${session.access_token}` };
+};
+
+export function useEnrollments() {
+    const [enrollments, setEnrollments] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [students, setStudents] = useState([]);
+    const [classes, setClasses] = useState([]);
+
+    // Fetch all enrollments
+    const fetchEnrollments = useCallback(async (filters = {}) => {
+        try {
+            setLoading(true);
+            const headers = await getAuthHeaders();
+            const params = new URLSearchParams();
+
+            if (filters.status) params.append('status', filters.status);
+            if (filters.classId) params.append('class_id', filters.classId);
+            if (filters.studentId) params.append('student_id', filters.studentId);
+            if (filters.centerId) params.append('center_id', filters.centerId);
+
+            const response = await axios.get(
+                `${API_URL}/api/admin/enrollments?${params}`,
+                { headers }
+            );
+
+            if (response.data?.success) {
+                setEnrollments(response.data.data || []);
+                return response.data.data;
+            }
+            return [];
+        } catch (error) {
+            console.error('Error fetching enrollments:', error);
+            setEnrollments([]);
+            return [];
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    // Fetch students for selection
+    const fetchStudents = useCallback(async (centerId = null) => {
+        try {
+            const headers = await getAuthHeaders();
+            const params = new URLSearchParams();
+            if (centerId) params.append('center_id', centerId);
+
+            const response = await axios.get(
+                `${API_URL}/api/admin/students?${params}`,
+                { headers }
+            );
+
+            if (response.data?.success) {
+                setStudents(response.data.data || []);
+                return response.data.data;
+            }
+            return [];
+        } catch (error) {
+            console.error('Error fetching students:', error);
+            return [];
+        }
+    }, []);
+
+    // Fetch classes for selection
+    const fetchClasses = useCallback(async (centerId = null) => {
+        try {
+            const headers = await getAuthHeaders();
+            const params = new URLSearchParams();
+            if (centerId) params.append('centerId', centerId);
+            params.append('status', 'active'); // Only active classes
+
+            const response = await axios.get(
+                `${API_URL}/api/classes?${params}`,
+                { headers }
+            );
+
+            if (response.data?.success) {
+                setClasses(response.data.data || []);
+                return response.data.data;
+            }
+            return [];
+        } catch (error) {
+            console.error('Error fetching classes:', error);
+            return [];
+        }
+    }, []);
+
+    // Create enrollment
+    const createEnrollment = useCallback(async (data) => {
+        const headers = await getAuthHeaders();
+        const response = await axios.post(
+            `${API_URL}/api/admin/enrollments`,
+            data,
+            { headers }
+        );
+
+        if (response.data?.success) {
+            return response.data.data;
+        }
+        throw new Error(response.data?.message || 'Có lỗi xảy ra khi ghi danh');
+    }, []);
+
+    // Create bulk enrollment (multiple students to one class)
+    const createBulkEnrollment = useCallback(async (classId, studentIds, options = {}) => {
+        const headers = await getAuthHeaders();
+        const response = await axios.post(
+            `${API_URL}/api/admin/enrollments/bulk`,
+            {
+                class_id: classId,
+                student_ids: studentIds,
+                ...options,
+            },
+            { headers }
+        );
+
+        if (response.data?.success) {
+            return response.data.data;
+        }
+        throw new Error(response.data?.message || 'Có lỗi xảy ra khi ghi danh hàng loạt');
+    }, []);
+
+    // Update enrollment status
+    const updateEnrollmentStatus = useCallback(async (enrollmentId, status, note = '') => {
+        const headers = await getAuthHeaders();
+        const response = await axios.patch(
+            `${API_URL}/api/admin/enrollments/${enrollmentId}/status`,
+            { status, note },
+            { headers }
+        );
+
+        if (response.data?.success) {
+            setEnrollments(prev => prev.map(e =>
+                e.id === enrollmentId ? { ...e, status } : e
+            ));
+            return response.data.data;
+        }
+        throw new Error(response.data?.message || 'Có lỗi xảy ra');
+    }, []);
+
+    // Delete enrollment
+    const deleteEnrollment = useCallback(async (enrollmentId) => {
+        const headers = await getAuthHeaders();
+        const response = await axios.delete(
+            `${API_URL}/api/admin/enrollments/${enrollmentId}`,
+            { headers }
+        );
+
+        if (response.data?.success) {
+            setEnrollments(prev => prev.filter(e => e.id !== enrollmentId));
+            return true;
+        }
+        throw new Error(response.data?.message || 'Có lỗi xảy ra khi xóa');
+    }, []);
+
+    // Filter enrollments locally
+    const filterEnrollments = useCallback((searchTerm) => {
+        if (!searchTerm) return enrollments;
+        const term = searchTerm.toLowerCase();
+        return enrollments.filter(
+            (e) =>
+                e.student?.full_name?.toLowerCase().includes(term) ||
+                e.student?.email?.toLowerCase().includes(term) ||
+                e.class?.name?.toLowerCase().includes(term)
+        );
+    }, [enrollments]);
+
+    return {
+        enrollments,
+        students,
+        classes,
+        loading,
+        fetchEnrollments,
+        fetchStudents,
+        fetchClasses,
+        createEnrollment,
+        createBulkEnrollment,
+        updateEnrollmentStatus,
+        deleteEnrollment,
+        filterEnrollments,
+    };
+}
+
+export default useEnrollments;

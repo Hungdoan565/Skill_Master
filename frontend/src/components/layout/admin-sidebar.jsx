@@ -15,6 +15,10 @@ import {
   Sparkles,
   ClipboardList,
   BarChart3,
+  UserPlus,
+  FileText,
+  Award,
+  MessageCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -45,7 +49,9 @@ const menuGroups = [
     title: 'HỌC VIÊN & TÀI CHÍNH',
     items: [
       { label: 'Học viên', icon: Users, path: '/admin/students' },
+      { label: 'Ghi danh', icon: UserPlus, path: '/admin/enrollments' },
       { label: 'Hóa đơn', icon: Receipt, path: '/admin/invoices' },
+      { label: 'Chứng chỉ', icon: Award, path: '/admin/certificates' },
     ],
   },
   {
@@ -60,6 +66,8 @@ const menuGroups = [
     id: 'system',
     title: 'HỆ THỐNG',
     items: [
+      { label: 'Tài liệu', icon: FileText, path: '/admin/documents' },
+      { label: 'Hỗ trợ', icon: MessageCircle, path: '/admin/support' },
       { label: 'Báo cáo', icon: BarChart3, path: '/admin/reports' },
       { label: 'Trung tâm', icon: Building2, path: '/admin/centers' },
     ],

@@ -12,6 +12,7 @@
 
 // Page export (default)
 export { StudentsPage } from './pages';
+export { StudentDetailPage } from './pages';
 export { StudentsPage as default } from './pages';
 
 // Components exports

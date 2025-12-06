@@ -255,6 +255,21 @@ export function AuthProvider({ children }) {
     return ['SUPER_ADMIN', 'CENTER_MANAGER'].includes(profile?.roles?.code);
   }, [profile]);
 
+  // Kiểm tra có phải là CENTER_MANAGER không (không phải SUPER_ADMIN)
+  const isManager = useCallback(() => {
+    return profile?.roles?.code === 'CENTER_MANAGER';
+  }, [profile]);
+
+  // Kiểm tra có phải SUPER_ADMIN không
+  const isSuperAdmin = useCallback(() => {
+    return profile?.roles?.code === 'SUPER_ADMIN';
+  }, [profile]);
+
+  // Lấy center_id của user (dùng để filter dữ liệu cho CENTER_MANAGER)
+  const getCenterId = useCallback(() => {
+    return profile?.center_id || null;
+  }, [profile]);
+
   const isTeacher = useCallback(() => {
     return profile?.roles?.code === 'TEACHER';
   }, [profile]);
@@ -312,6 +327,9 @@ export function AuthProvider({ children }) {
     refreshProfile,
     hasRole,
     isAdmin,
+    isManager,
+    isSuperAdmin,
+    getCenterId,
     isTeacher,
     isStudent,
     getRedirectPath,

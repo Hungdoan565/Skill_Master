@@ -2304,6 +2304,36 @@ app.get('/api/admin/students/:id', requireAuth, async (req, res, next) => {
       .order('created_at', { ascending: false })
       .limit(10);
 
+    // Lấy danh sách chứng chỉ (bao gồm certificate_types)
+    const { data: certificates } = await supabase
+      .from('certificates')
+      .select(`
+        id,
+        certificate_number,
+        completion_date,
+        issued_at,
+        status,
+        grade,
+        download_url,
+        scores,
+        external_id,
+        file_url,
+        expires_at,
+        courses (id, title, category),
+        certificate_types (
+          id, 
+          code, 
+          name, 
+          category,
+          issuing_organization,
+          is_external,
+          is_internal,
+          score_config
+        )
+      `)
+      .eq('student_id', id)
+      .order('issued_at', { ascending: false });
+
     // Tính thống kê
     const activeEnrollments = (enrollments || []).filter(e => e.status === 'active');
     const completedEnrollments = (enrollments || []).filter(e => e.status === 'completed');
@@ -2336,13 +2366,15 @@ app.get('/api/admin/students/:id', requireAuth, async (req, res, next) => {
         ...user,
         enrollments: enrollments || [],
         invoices: invoices || [],
+        certificates: certificates || [],
         stats: {
           activeClasses: activeEnrollments.length,
           completedClasses: completedEnrollments.length,
           totalClasses: (enrollments || []).length,
           totalPaid,
           totalDebt,
-          attendance: attendanceStats
+          attendance: attendanceStats,
+          certificatesCount: (certificates || []).length
         }
       }
     });
@@ -8811,6 +8843,1581 @@ app.delete('/api/reports/saved/:id', requireAuth, async (req, res, next) => {
 
 // ============================================================
 // END REPORTS APIs
+// ============================================================
+
+// ============================================================
+// DOCUMENTS APIs - Quản lý tài liệu
+// ============================================================
+
+// Lấy danh sách tài liệu
+app.get('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const { centerId, courseId, classId, type, search, page = 1, limit = 20 } = req.query;
+
+    // Permission check
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, centerId);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    let query = supabase
+      .from('documents')
+      .select(`
+        *,
+        courses (id, code, title),
+        classes (id, code, name),
+        centers (id, name),
+        uploaded_by_user:users!documents_uploaded_by_fkey (id, full_name, email)
+      `, { count: 'exact' })
+      .order('created_at', { ascending: false });
+
+    // Filters
+    if (effectiveCenterId) {
+      query = query.eq('center_id', effectiveCenterId);
+    }
+    if (courseId) {
+      query = query.eq('course_id', courseId);
+    }
+    if (classId) {
+      query = query.eq('class_id', classId);
+    }
+    if (type) {
+      query = query.eq('type', type);
+    }
+    if (search) {
+      query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
+    }
+
+    // Pagination
+    const offset = (page - 1) * limit;
+    query = query.range(offset, offset + parseInt(limit) - 1);
+
+    const { data, error, count } = await query;
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: data || [],
+      pagination: {
+        total: count || 0,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil((count || 0) / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching documents:', error);
+    next(error);
+  }
+});
+
+// Tạo tài liệu mới
+app.post('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const { title, description, file_url, file_name, file_size, file_type, course_id, class_id, type, is_public } = req.body;
+
+    if (!title || !file_url || !file_name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tiêu đề, URL file và tên file là bắt buộc'
+      });
+    }
+
+    const { data, error } = await supabase
+      .from('documents')
+      .insert({
+        title,
+        description,
+        file_url,
+        file_name,
+        file_size,
+        file_type,
+        course_id: course_id || null,
+        class_id: class_id || null,
+        center_id: req.user.centerId,
+        type: type || 'material',
+        is_public: is_public || false,
+        uploaded_by: req.user.id
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json({
+      success: true,
+      data,
+      message: 'Đã tải lên tài liệu thành công'
+    });
+  } catch (error) {
+    console.error('Error creating document:', error);
+    next(error);
+  }
+});
+
+// Cập nhật tài liệu
+app.put('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { title, description, course_id, class_id, type, is_public } = req.body;
+
+    const { data, error } = await supabase
+      .from('documents')
+      .update({
+        title,
+        description,
+        course_id: course_id || null,
+        class_id: class_id || null,
+        type,
+        is_public,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data,
+      message: 'Đã cập nhật tài liệu'
+    });
+  } catch (error) {
+    console.error('Error updating document:', error);
+    next(error);
+  }
+});
+
+// Track document download
+app.post('/api/admin/documents/:id/download', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    let centerId = req.user.center_id;
+
+    // If user doesn't have center_id, get it from the document
+    if (!centerId) {
+      const { data: doc } = await supabase
+        .from('documents')
+        .select('center_id')
+        .eq('id', id)
+        .single();
+
+      centerId = doc?.center_id;
+    }
+
+    console.log('Tracking download:', { document_id: id, user_id: userId, center_id: centerId });
+
+    // Get client IP and user agent
+    const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+
+    // Insert download record
+    const { data, error } = await supabase
+      .from('document_downloads')
+      .insert({
+        document_id: id,
+        user_id: userId,
+        center_id: centerId,
+        ip_address: ipAddress,
+        user_agent: userAgent
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Download tracking error:', error);
+      throw error;
+    }
+
+    console.log('Download tracked successfully:', data);
+
+    res.json({
+      success: true,
+      message: 'Download tracked',
+      data
+    });
+  } catch (error) {
+    console.error('Error tracking download:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to track download',
+      error: error.details || error.hint || error.message
+    });
+  }
+});
+
+// Get document analytics
+app.get('/api/admin/documents/:id/analytics', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Get document info
+    const { data: document, error: docError } = await supabase
+      .from('documents')
+      .select('*, centers(name)')
+      .eq('id', id)
+      .single();
+
+    if (docError) throw docError;
+    if (!document) {
+      return res.status(404).json({ success: false, message: 'Document not found' });
+    }
+
+    // Permission check
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, document.center_id);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    // Get download statistics using the helper function
+    const { data: stats, error: statsError } = await supabase.rpc('get_document_download_stats', {
+      doc_id: parseInt(id)
+    });
+
+    if (statsError) {
+      console.error('Stats error:', statsError);
+      // Fallback to basic stats
+      const { data: downloads, error: dlError } = await supabase
+        .from('document_downloads')
+        .select('downloaded_at, users(full_name)', { count: 'exact' })
+        .eq('document_id', id)
+        .order('downloaded_at', { ascending: false })
+        .limit(10);
+
+      return res.json({
+        success: true,
+        data: {
+          document,
+          total_downloads: document.download_count || 0,
+          recent_downloads: downloads || []
+        }
+      });
+    }
+
+    // Get recent downloads with user info
+    const { data: recentDownloads, error: dlError } = await supabase
+      .from('document_downloads')
+      .select('downloaded_at, users(id, full_name, role)')
+      .eq('document_id', id)
+      .order('downloaded_at', { ascending: false })
+      .limit(10);
+
+    if (dlError) throw dlError;
+
+    res.json({
+      success: true,
+      data: {
+        document,
+        stats: stats && stats.length > 0 ? stats[0] : {},
+        recent_downloads: recentDownloads
+      }
+    });
+  } catch (error) {
+    console.error('Error getting analytics:', error);
+    next(error);
+  }
+});
+
+// Xóa tài liệu
+app.delete('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const { error } = await supabase
+      .from('documents')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: 'Đã xóa tài liệu'
+    });
+  } catch (error) {
+    console.error('Error deleting document:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// CERTIFICATE TYPES APIs - Quản lý loại chứng chỉ
+// ============================================================
+
+// Lấy danh sách loại chứng chỉ với thống kê
+app.get('/api/admin/certificate-types', requireAuth, async (req, res, next) => {
+  try {
+    const { category, is_external, is_internal, include_stats } = req.query;
+
+    let query = supabase
+      .from('certificate_types')
+      .select('*')
+      .eq('is_active', true)
+      .order('display_order', { ascending: true })
+      .order('name', { ascending: true });
+
+    if (category) {
+      query = query.eq('category', category);
+    }
+    if (is_external === 'true') {
+      query = query.eq('is_external', true);
+    }
+    if (is_internal === 'true') {
+      query = query.eq('is_internal', true);
+    }
+
+    const { data: types, error } = await query;
+    if (error) throw error;
+
+    // Nếu cần thống kê, fetch thêm
+    let result = types;
+    if (include_stats === 'true') {
+      const typeIds = types.map(t => t.id);
+
+      // Get certificate counts per type
+      const { data: certCounts } = await supabase
+        .from('certificates')
+        .select('certificate_type_id')
+        .in('certificate_type_id', typeIds);
+
+      // Calculate stats
+      const statsMap = {};
+      (certCounts || []).forEach(c => {
+        if (!statsMap[c.certificate_type_id]) {
+          statsMap[c.certificate_type_id] = { total: 0 };
+        }
+        statsMap[c.certificate_type_id].total++;
+      });
+
+      result = types.map(type => ({
+        ...type,
+        stats: statsMap[type.id] || { total: 0 }
+      }));
+    }
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error fetching certificate types:', error);
+    next(error);
+  }
+});
+
+// Lấy chi tiết loại chứng chỉ với danh sách học viên đạt
+app.get('/api/admin/certificate-types/:id', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    // Fetch certificate type
+    const { data: certType, error: typeError } = await supabase
+      .from('certificate_types')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (typeError || !certType) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy loại chứng chỉ'
+      });
+    }
+
+    // Fetch certificates of this type with student info
+    const { data: certificates, error: certError, count } = await supabase
+      .from('certificates')
+      .select(`
+        id,
+        certificate_number,
+        student_id,
+        student_name,
+        course_name,
+        completion_date,
+        exam_date,
+        scores,
+        grade,
+        status,
+        issued_at,
+        file_url,
+        external_id,
+        students:users!certificates_student_id_fkey (
+          id,
+          full_name,
+          email,
+          phone,
+          avatar_url
+        ),
+        courses (id, title),
+        classes (id, name, code)
+      `, { count: 'exact' })
+      .eq('certificate_type_id', id)
+      .order('issued_at', { ascending: false })
+      .range(offset, offset + parseInt(limit) - 1);
+
+    if (certError) throw certError;
+
+    // Calculate statistics
+    const { data: allCerts } = await supabase
+      .from('certificates')
+      .select('status, issued_at, scores')
+      .eq('certificate_type_id', id);
+
+    const stats = {
+      total: allCerts?.length || 0,
+      issued: allCerts?.filter(c => c.status === 'issued').length || 0,
+      revoked: allCerts?.filter(c => c.status === 'revoked').length || 0,
+      last_30_days: allCerts?.filter(c => {
+        const issuedAt = new Date(c.issued_at);
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        return issuedAt >= thirtyDaysAgo;
+      }).length || 0
+    };
+
+    // Calculate score statistics if applicable
+    if (certType.score_config?.type === 'band' || certType.score_config?.type === 'numeric') {
+      const scores = allCerts
+        ?.map(c => c.scores?.overall || c.scores?.total || c.scores?.score)
+        .filter(s => s != null);
+
+      if (scores && scores.length > 0) {
+        stats.avg_score = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1);
+        stats.max_score = Math.max(...scores);
+        stats.min_score = Math.min(...scores);
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        type: certType,
+        certificates,
+        stats,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: count || 0,
+          totalPages: Math.ceil((count || 0) / parseInt(limit))
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching certificate type detail:', error);
+    next(error);
+  }
+});
+
+// Tạo loại chứng chỉ mới
+app.post('/api/admin/certificate-types', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const {
+      code,
+      name,
+      description,
+      provider,
+      category = 'other',
+      is_external = false,
+      is_internal = true,
+      score_config = {},
+      requirements = {},
+      template_preview_url,
+      validity_months,
+      display_order = 0
+    } = req.body;
+
+    if (!code || !name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mã và tên loại chứng chỉ là bắt buộc'
+      });
+    }
+
+    const { data, error } = await supabase
+      .from('certificate_types')
+      .insert({
+        code: code.toUpperCase(),
+        name,
+        description,
+        provider,
+        category,
+        is_external,
+        is_internal,
+        score_config,
+        requirements,
+        template_preview_url,
+        validity_months,
+        display_order,
+        created_by: req.user.id
+      })
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === '23505') {
+        return res.status(400).json({
+          success: false,
+          message: 'Mã loại chứng chỉ đã tồn tại'
+        });
+      }
+      throw error;
+    }
+
+    res.status(201).json({
+      success: true,
+      data,
+      message: 'Đã tạo loại chứng chỉ mới'
+    });
+  } catch (error) {
+    console.error('Error creating certificate type:', error);
+    next(error);
+  }
+});
+
+// Cập nhật loại chứng chỉ
+app.put('/api/admin/certificate-types/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const updateData = { ...req.body, updated_at: new Date().toISOString() };
+    delete updateData.id;
+    delete updateData.created_at;
+    delete updateData.created_by;
+
+    const { data, error } = await supabase
+      .from('certificate_types')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data,
+      message: 'Đã cập nhật loại chứng chỉ'
+    });
+  } catch (error) {
+    console.error('Error updating certificate type:', error);
+    next(error);
+  }
+});
+
+// Xóa (soft delete) loại chứng chỉ
+app.delete('/api/admin/certificate-types/:id', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Check if any certificates use this type
+    const { count } = await supabase
+      .from('certificates')
+      .select('*', { count: 'exact', head: true })
+      .eq('certificate_type_id', id);
+
+    if (count > 0) {
+      // Soft delete - just deactivate
+      const { error } = await supabase
+        .from('certificate_types')
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      return res.json({
+        success: true,
+        message: `Đã vô hiệu hóa loại chứng chỉ (có ${count} chứng chỉ đã cấp)`
+      });
+    }
+
+    // Hard delete if no certificates
+    const { error } = await supabase
+      .from('certificate_types')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: 'Đã xóa loại chứng chỉ'
+    });
+  } catch (error) {
+    console.error('Error deleting certificate type:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// CERTIFICATES APIs - Quản lý chứng chỉ
+// ============================================================
+
+// Lấy danh sách chứng chỉ
+app.get('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { centerId, studentId, courseId, status, search, certificate_type_id, page = 1, limit = 20 } = req.query;
+
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, centerId);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    let query = supabase
+      .from('certificates')
+      .select(`
+        *,
+        student:users!certificates_student_id_fkey (id, full_name, email, phone, avatar_url),
+        course:courses (id, code, title),
+        class:classes (id, code, name),
+        template:certificate_templates (id, name),
+        certificate_type:certificate_types (id, code, name, category, provider, is_external, score_config),
+        center:centers (id, name),
+        issuer:users!certificates_issued_by_fkey (id, full_name)
+      `, { count: 'exact' })
+      .order('issued_at', { ascending: false });
+
+    if (effectiveCenterId) {
+      query = query.eq('center_id', effectiveCenterId);
+    }
+    if (studentId) {
+      query = query.eq('student_id', studentId);
+    }
+    if (courseId) {
+      query = query.eq('course_id', courseId);
+    }
+    if (certificate_type_id) {
+      query = query.eq('certificate_type_id', certificate_type_id);
+    }
+    if (status) {
+      query = query.eq('status', status);
+    }
+    if (search) {
+      query = query.or(`certificate_number.ilike.%${search}%,student_name.ilike.%${search}%,course_name.ilike.%${search}%`);
+    }
+
+    const offset = (page - 1) * limit;
+    query = query.range(offset, offset + parseInt(limit) - 1);
+
+    const { data, error, count } = await query;
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: data || [],
+      pagination: {
+        total: count || 0,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil((count || 0) / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching certificates:', error);
+    next(error);
+  }
+});
+
+// Lấy danh sách mẫu chứng chỉ
+app.get('/api/admin/certificate-templates', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { data, error } = await supabase
+      .from('certificate_templates')
+      .select('*')
+      .eq('is_active', true)
+      .order('name');
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: data || []
+    });
+  } catch (error) {
+    console.error('Error fetching certificate templates:', error);
+    next(error);
+  }
+});
+
+// Tạo chứng chỉ mới (Issue certificate)
+app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const {
+      student_id,
+      course_id,
+      class_id,
+      enrollment_id,
+      completion_date,
+      grade,
+      template_id,
+      certificate_type_id,
+      scores,
+      external_id,
+      external_verify_url,
+      exam_date,
+      file_url,
+      expires_at
+    } = req.body;
+
+    if (!student_id || !completion_date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Học viên và ngày hoàn thành là bắt buộc'
+      });
+    }
+
+    // Lấy thông tin student
+    const { data: student } = await supabase
+      .from('users')
+      .select('id, full_name')
+      .eq('id', student_id)
+      .single();
+
+    if (!student) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không tìm thấy học viên'
+      });
+    }
+
+    // Lấy thông tin course nếu có
+    let courseName = null;
+    if (course_id) {
+      const { data: course } = await supabase
+        .from('courses')
+        .select('id, title')
+        .eq('id', course_id)
+        .single();
+      courseName = course?.title;
+    }
+
+    // Lấy thông tin certificate type nếu có
+    let certTypeCode = null;
+    if (certificate_type_id) {
+      const { data: certType } = await supabase
+        .from('certificate_types')
+        .select('code, name')
+        .eq('id', certificate_type_id)
+        .single();
+      certTypeCode = certType?.code;
+      if (!courseName) {
+        courseName = certType?.name;
+      }
+    }
+
+    // Generate certificate number
+    const { data: certNumber } = await supabase.rpc('generate_certificate_number', { type_code: certTypeCode });
+
+    const { data, error } = await supabase
+      .from('certificates')
+      .insert({
+        certificate_number: certNumber || `CC-${Date.now()}`,
+        student_id,
+        student_name: student.full_name,
+        course_id: course_id || null,
+        class_id: class_id || null,
+        enrollment_id: enrollment_id || null,
+        course_name: courseName || 'Certificate',
+        completion_date,
+        grade: grade || null,
+        template_id: template_id || null,
+        certificate_type_id: certificate_type_id || null,
+        scores: scores || {},
+        external_id: external_id || null,
+        external_verify_url: external_verify_url || null,
+        exam_date: exam_date || null,
+        file_url: file_url || null,
+        expires_at: expires_at || null,
+        center_id: req.user.centerId,
+        status: 'issued',
+        issued_by: req.user.id,
+        issued_at: new Date().toISOString()
+      })
+      .select(`
+        *,
+        student:users!certificates_student_id_fkey (id, full_name, email, avatar_url),
+        course:courses (id, title),
+        certificate_type:certificate_types (id, code, name, category, provider)
+      `)
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json({
+      success: true,
+      data,
+      message: 'Đã cấp chứng chỉ thành công'
+    });
+  } catch (error) {
+    console.error('Error issuing certificate:', error);
+    next(error);
+  }
+});
+
+// Lấy danh sách học viên đủ điều kiện cấp chứng chỉ
+app.get('/api/admin/certificates/eligible-students', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { centerId, classId } = req.query;
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, centerId);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    // Lấy các enrollment đã hoàn thành và chưa có chứng chỉ
+    let query = supabase
+      .from('enrollments')
+      .select(`
+        id,
+        student_id,
+        status,
+        student:users!enrollments_student_id_fkey (id, full_name, email),
+        class:classes (
+          id, code, name, status, end_date,
+          course:courses (id, code, title),
+          center:centers (id, name)
+        )
+      `)
+      .eq('status', 'completed');
+
+    if (classId) {
+      query = query.eq('class_id', classId);
+    }
+
+    const { data: completedEnrollments, error: enrollError } = await query;
+
+    if (enrollError) throw enrollError;
+
+    // Lấy danh sách student_id đã có chứng chỉ
+    const { data: existingCerts } = await supabase
+      .from('certificates')
+      .select('student_id, course_id, class_id')
+      .in('status', ['issued']);
+
+    const existingCertKeys = new Set(
+      (existingCerts || []).map(c => `${c.student_id}_${c.class_id}`)
+    );
+
+    // Lọc ra những học viên chưa có chứng chỉ và thuộc center
+    let eligibleStudents = (completedEnrollments || []).filter(e => {
+      const key = `${e.student_id}_${e.class?.id}`;
+      const matchCenter = !effectiveCenterId || e.class?.center?.id === effectiveCenterId;
+      return !existingCertKeys.has(key) && matchCenter;
+    });
+
+    res.json({
+      success: true,
+      data: eligibleStudents
+    });
+  } catch (error) {
+    console.error('Error fetching eligible students:', error);
+    next(error);
+  }
+});
+
+// Cấp chứng chỉ hàng loạt cho một lớp
+app.post('/api/admin/certificates/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { class_id, student_ids, grade, completion_date } = req.body;
+
+    if (!class_id || !student_ids || !student_ids.length) {
+      return res.status(400).json({
+        success: false,
+        message: 'Lớp học và danh sách học viên là bắt buộc'
+      });
+    }
+
+    // Lấy thông tin lớp và khóa học
+    const { data: classData, error: classError } = await supabase
+      .from('classes')
+      .select('id, name, end_date, course:courses(id, title), center:centers(id)')
+      .eq('id', class_id)
+      .single();
+
+    if (classError || !classData) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không tìm thấy lớp học'
+      });
+    }
+
+    // Lấy thông tin học viên
+    const { data: students } = await supabase
+      .from('users')
+      .select('id, full_name')
+      .in('id', student_ids);
+
+    const results = { success: [], failed: [] };
+
+    for (const studentId of student_ids) {
+      try {
+        const student = students?.find(s => s.id === studentId);
+        if (!student) {
+          results.failed.push({ student_id: studentId, reason: 'Không tìm thấy học viên' });
+          continue;
+        }
+
+        // Generate certificate number
+        const { data: certNumber } = await supabase.rpc('generate_certificate_number');
+
+        const { data, error } = await supabase
+          .from('certificates')
+          .insert({
+            certificate_number: certNumber || `CC-${Date.now()}-${studentId.slice(0, 4)}`,
+            student_id: studentId,
+            student_name: student.full_name,
+            course_id: classData.course.id,
+            class_id: class_id,
+            course_name: classData.course.title,
+            completion_date: completion_date || classData.end_date || new Date().toISOString().split('T')[0],
+            grade: grade || 'pass',
+            center_id: classData.center?.id || req.user.centerId,
+            status: 'issued',
+            issued_by: req.user.id,
+            issued_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (error) {
+          results.failed.push({ student_id: studentId, reason: error.message });
+        } else {
+          results.success.push(data);
+        }
+      } catch (err) {
+        results.failed.push({ student_id: studentId, reason: err.message });
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      message: `Đã cấp ${results.success.length}/${student_ids.length} chứng chỉ`,
+      data: results
+    });
+  } catch (error) {
+    console.error('Error bulk issuing certificates:', error);
+    next(error);
+  }
+});
+
+// Thu hồi chứng chỉ
+app.put('/api/admin/certificates/:id/revoke', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    const { data, error } = await supabase
+      .from('certificates')
+      .update({
+        status: 'revoked',
+        revoked_at: new Date().toISOString(),
+        revoked_reason: reason || 'Không có lý do',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data,
+      message: 'Đã thu hồi chứng chỉ'
+    });
+  } catch (error) {
+    console.error('Error revoking certificate:', error);
+    next(error);
+  }
+});
+
+// Lấy chi tiết một chứng chỉ
+app.get('/api/admin/certificates/:id', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const { data, error } = await supabase
+      .from('certificates')
+      .select(`
+        *,
+        student:users!certificates_student_id_fkey (
+          id, full_name, email, phone, avatar_url,
+          centers (id, name)
+        ),
+        course:courses (id, code, title, category),
+        class:classes (id, code, name, start_date, end_date),
+        template:certificate_templates (id, name, template_html, background_image),
+        certificate_type:certificate_types (
+          id, code, name, category, provider, provider_logo, 
+          is_external, is_internal, score_config, template_preview_url
+        ),
+        center:centers (id, name, address),
+        issuer:users!certificates_issued_by_fkey (id, full_name),
+        verifier:users!certificates_verified_by_fkey (id, full_name)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy chứng chỉ'
+      });
+    }
+
+    res.json({
+      success: true,
+      data
+    });
+  } catch (error) {
+    console.error('Error fetching certificate detail:', error);
+    next(error);
+  }
+});
+
+// Cập nhật chứng chỉ
+app.put('/api/admin/certificates/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const {
+      scores,
+      grade,
+      external_id,
+      external_verify_url,
+      exam_date,
+      file_url,
+      expires_at,
+      completion_date
+    } = req.body;
+
+    const updateData = {
+      updated_at: new Date().toISOString()
+    };
+
+    if (scores !== undefined) updateData.scores = scores;
+    if (grade !== undefined) updateData.grade = grade;
+    if (external_id !== undefined) updateData.external_id = external_id;
+    if (external_verify_url !== undefined) updateData.external_verify_url = external_verify_url;
+    if (exam_date !== undefined) updateData.exam_date = exam_date;
+    if (file_url !== undefined) updateData.file_url = file_url;
+    if (expires_at !== undefined) updateData.expires_at = expires_at;
+    if (completion_date !== undefined) updateData.completion_date = completion_date;
+
+    const { data, error } = await supabase
+      .from('certificates')
+      .update(updateData)
+      .eq('id', id)
+      .select(`
+        *,
+        student:users!certificates_student_id_fkey (id, full_name, email, avatar_url),
+        certificate_type:certificate_types (id, code, name)
+      `)
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data,
+      message: 'Đã cập nhật chứng chỉ'
+    });
+  } catch (error) {
+    console.error('Error updating certificate:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// SUPPORT TICKETS APIs - Hệ thống hỗ trợ
+// ============================================================
+
+// Lấy danh sách tickets
+app.get('/api/admin/support-tickets', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const { centerId, status, priority, category, assignedTo, search, page = 1, limit = 20 } = req.query;
+
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, centerId);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    let query = supabase
+      .from('support_tickets')
+      .select(`
+        *,
+        creator:users!support_tickets_created_by_fkey (id, full_name, email, phone),
+        assignee:users!support_tickets_assigned_to_fkey (id, full_name, email),
+        resolver:users!support_tickets_resolved_by_fkey (id, full_name),
+        center:centers (id, name),
+        class:classes (id, code, name)
+      `, { count: 'exact' })
+      .order('created_at', { ascending: false });
+
+    if (effectiveCenterId) {
+      query = query.eq('center_id', effectiveCenterId);
+    }
+    if (status) {
+      query = query.eq('status', status);
+    }
+    if (priority) {
+      query = query.eq('priority', priority);
+    }
+    if (category) {
+      query = query.eq('category', category);
+    }
+    if (assignedTo) {
+      query = query.eq('assigned_to', assignedTo);
+    }
+    if (search) {
+      query = query.or(`ticket_number.ilike.%${search}%,subject.ilike.%${search}%`);
+    }
+
+    const offset = (page - 1) * limit;
+    query = query.range(offset, offset + parseInt(limit) - 1);
+
+    const { data, error, count } = await query;
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: data || [],
+      pagination: {
+        total: count || 0,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil((count || 0) / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching support tickets:', error);
+    next(error);
+  }
+});
+
+// Lấy chi tiết ticket kèm messages
+app.get('/api/admin/support-tickets/:id', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const [ticketResult, messagesResult] = await Promise.all([
+      supabase
+        .from('support_tickets')
+        .select(`
+          *,
+          creator:users!support_tickets_created_by_fkey (id, full_name, email, phone, avatar_url),
+          assignee:users!support_tickets_assigned_to_fkey (id, full_name, email, avatar_url),
+          resolver:users!support_tickets_resolved_by_fkey (id, full_name),
+          center:centers (id, name),
+          class:classes (id, code, name, courses (title))
+        `)
+        .eq('id', id)
+        .single(),
+      supabase
+        .from('ticket_messages')
+        .select(`
+          *,
+          sender:users!ticket_messages_sender_id_fkey (id, full_name, avatar_url, roles (code))
+        `)
+        .eq('ticket_id', id)
+        .order('created_at', { ascending: true })
+    ]);
+
+    if (ticketResult.error || !ticketResult.data) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy ticket'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        ...ticketResult.data,
+        messages: messagesResult.data || []
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching ticket detail:', error);
+    next(error);
+  }
+});
+
+// Tạo ticket mới (từ admin hoặc student)
+app.post('/api/support-tickets', requireAuth, async (req, res, next) => {
+  try {
+    const { subject, message, category, priority, class_id } = req.body;
+
+    if (!subject || !message) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tiêu đề và nội dung là bắt buộc'
+      });
+    }
+
+    // Generate ticket number
+    const { data: ticketNumber } = await supabase.rpc('generate_ticket_number');
+
+    const { data: ticket, error: ticketError } = await supabase
+      .from('support_tickets')
+      .insert({
+        ticket_number: ticketNumber || `TK-${Date.now()}`,
+        subject,
+        category: category || 'general',
+        priority: priority || 'normal',
+        status: 'open',
+        created_by: req.user.id,
+        center_id: req.user.centerId,
+        class_id: class_id || null
+      })
+      .select()
+      .single();
+
+    if (ticketError) throw ticketError;
+
+    // Thêm message đầu tiên
+    await supabase
+      .from('ticket_messages')
+      .insert({
+        ticket_id: ticket.id,
+        message,
+        sender_id: req.user.id,
+        is_internal: false
+      });
+
+    res.status(201).json({
+      success: true,
+      data: ticket,
+      message: 'Đã tạo yêu cầu hỗ trợ'
+    });
+  } catch (error) {
+    console.error('Error creating support ticket:', error);
+    next(error);
+  }
+});
+
+// Cập nhật ticket (gán người xử lý, đổi trạng thái, priority)
+app.put('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status, priority, assigned_to, resolution_notes } = req.body;
+
+    const updateData = {
+      updated_at: new Date().toISOString()
+    };
+
+    if (status) updateData.status = status;
+    if (priority) updateData.priority = priority;
+    if (assigned_to !== undefined) updateData.assigned_to = assigned_to || null;
+
+    // Nếu đánh dấu resolved
+    if (status === 'resolved' || status === 'closed') {
+      updateData.resolved_at = new Date().toISOString();
+      updateData.resolved_by = req.user.id;
+      if (resolution_notes) updateData.resolution_notes = resolution_notes;
+    }
+
+    const { data, error } = await supabase
+      .from('support_tickets')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data,
+      message: 'Đã cập nhật ticket'
+    });
+  } catch (error) {
+    console.error('Error updating support ticket:', error);
+    next(error);
+  }
+});
+
+// Gửi reply vào ticket
+app.post('/api/support-tickets/:id/messages', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { message, is_internal, attachment_url, attachment_name } = req.body;
+
+    if (!message) {
+      return res.status(400).json({
+        success: false,
+        message: 'Nội dung tin nhắn là bắt buộc'
+      });
+    }
+
+    // Kiểm tra ticket tồn tại
+    const { data: ticket, error: ticketError } = await supabase
+      .from('support_tickets')
+      .select('id, status')
+      .eq('id', id)
+      .single();
+
+    if (ticketError || !ticket) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy ticket'
+      });
+    }
+
+    const { data, error } = await supabase
+      .from('ticket_messages')
+      .insert({
+        ticket_id: id,
+        message,
+        sender_id: req.user.id,
+        is_internal: is_internal || false,
+        attachment_url: attachment_url || null,
+        attachment_name: attachment_name || null
+      })
+      .select(`
+        *,
+        sender:users!ticket_messages_sender_id_fkey (id, full_name, avatar_url, roles (code))
+      `)
+      .single();
+
+    if (error) throw error;
+
+    // Cập nhật status thành in_progress nếu đang open
+    if (ticket.status === 'open') {
+      await supabase
+        .from('support_tickets')
+        .update({ status: 'in_progress', updated_at: new Date().toISOString() })
+        .eq('id', id);
+    }
+
+    res.status(201).json({
+      success: true,
+      data,
+      message: 'Đã gửi tin nhắn'
+    });
+  } catch (error) {
+    console.error('Error sending ticket message:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// ENROLLMENTS APIs - Quản lý ghi danh
+// ============================================================
+
+// Lấy danh sách ghi danh
+app.get('/api/admin/enrollments', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { centerId, classId, studentId, status, search, page = 1, limit = 20 } = req.query;
+
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, centerId);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    let query = supabase
+      .from('enrollments')
+      .select(`
+        *,
+        student:users!enrollments_student_id_fkey (id, full_name, email, phone),
+        class:classes (
+          id, code, name, status,
+          courses (id, code, title, price),
+          centers (id, name)
+        )
+      `, { count: 'exact' })
+      .order('enrolled_at', { ascending: false });
+
+    // Filter by center through class
+    if (effectiveCenterId) {
+      query = query.eq('classes.center_id', effectiveCenterId);
+    }
+    if (classId) {
+      query = query.eq('class_id', classId);
+    }
+    if (studentId) {
+      query = query.eq('student_id', studentId);
+    }
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    const offset = (page - 1) * limit;
+    query = query.range(offset, offset + parseInt(limit) - 1);
+
+    const { data, error, count } = await query;
+
+    if (error) throw error;
+
+    // Filter out nulls if center filter applied
+    let filteredData = data || [];
+    if (effectiveCenterId) {
+      filteredData = filteredData.filter(e => e.class?.centers?.id === effectiveCenterId);
+    }
+
+    res.json({
+      success: true,
+      data: filteredData,
+      pagination: {
+        total: count || 0,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil((count || 0) / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching enrollments:', error);
+    next(error);
+  }
+});
+
+// Tạo enrollment mới (ghi danh học viên vào lớp)
+app.post('/api/admin/enrollments', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { student_id, class_id, tuition_fee, discount_amount, paid_amount, notes } = req.body;
+
+    if (!student_id || !class_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Học viên và lớp học là bắt buộc'
+      });
+    }
+
+    // Check duplicate
+    const { data: existing } = await supabase
+      .from('enrollments')
+      .select('id')
+      .eq('student_id', student_id)
+      .eq('class_id', class_id)
+      .single();
+
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: 'Học viên đã được ghi danh vào lớp này'
+      });
+    }
+
+    // Check class capacity
+    const { data: classData } = await supabase
+      .from('classes')
+      .select('id, max_students')
+      .eq('id', class_id)
+      .single();
+
+    if (classData) {
+      const { count: currentCount } = await supabase
+        .from('enrollments')
+        .select('id', { count: 'exact' })
+        .eq('class_id', class_id)
+        .neq('status', 'dropped');
+
+      if (currentCount >= classData.max_students) {
+        return res.status(400).json({
+          success: false,
+          message: 'Lớp học đã đầy'
+        });
+      }
+    }
+
+    const { data, error } = await supabase
+      .from('enrollments')
+      .insert({
+        student_id,
+        class_id,
+        tuition_fee: tuition_fee || 0,
+        discount_amount: discount_amount || 0,
+        paid_amount: paid_amount || 0,
+        notes,
+        status: 'active',
+        enrolled_at: new Date().toISOString()
+      })
+      .select(`
+        *,
+        student:users!enrollments_student_id_fkey (id, full_name, email),
+        class:classes (id, code, name)
+      `)
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json({
+      success: true,
+      data,
+      message: 'Đã ghi danh học viên thành công'
+    });
+  } catch (error) {
+    console.error('Error creating enrollment:', error);
+    next(error);
+  }
+});
+
+// Cập nhật enrollment
+app.put('/api/admin/enrollments/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status, tuition_fee, discount_amount, paid_amount, notes } = req.body;
+
+    const { data, error } = await supabase
+      .from('enrollments')
+      .update({
+        status,
+        tuition_fee,
+        discount_amount,
+        paid_amount,
+        notes,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data,
+      message: 'Đã cập nhật ghi danh'
+    });
+  } catch (error) {
+    console.error('Error updating enrollment:', error);
+    next(error);
+  }
+});
+
+// Hủy enrollment (soft delete - set status = dropped)
+app.delete('/api/admin/enrollments/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const { data, error } = await supabase
+      .from('enrollments')
+      .update({
+        status: 'dropped',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data,
+      message: 'Đã hủy ghi danh'
+    });
+  } catch (error) {
+    console.error('Error deleting enrollment:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// END NEW MODULE APIs
 // ============================================================
 
 app.use((err, _req, res, _next) => {
