@@ -25,4 +25,4 @@ logs/
 *.log
 
 docs/
-github/prompts/
+.github/prompts/
