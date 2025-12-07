@@ -29,6 +29,10 @@ import { EnrollmentsPage, NewEnrollmentPage } from '@/features/enrollments';
 import { DocumentsPage } from '@/features/documents';
 import { CertificatesPage, CertificateTypeDetailPage, CertificatePrintPage } from '@/features/certificates';
 import { SupportPage } from '@/features/support';
+import { TeacherDashboardPage } from '@/features/teacher-dashboard';
+import { TeacherSchedulePage } from '@/features/teacher-schedule';
+import { TeacherClassesPage } from '@/features/teacher-classes';
+import { TeacherAvailabilityPage } from '@/features/teacher-availability';
 import {
   ReportsPage,
   RevenueReportPage,
@@ -301,16 +305,142 @@ const PublicLayout = () => (
   </div>
 );
 
-const TeacherLayout = () => (
-  <div style={{ padding: 16 }}>
-    <nav style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-      <Link to="schedule">My Schedule</Link>
-      <Link to="classes">My Classes</Link>
-      <Link to="payroll">Payroll</Link>
-    </nav>
-    <Outlet />
-  </div>
-);
+const TeacherLayout = () => {
+  const { user, profile, logout } = useAuth();
+  const navigate = useNavigate();
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
+  };
+
+  const navItems = [
+    { path: '/teacher', label: 'Tổng quan', icon: '📊' },
+    { path: '/teacher/schedule', label: 'Lịch dạy', icon: '📅' },
+    { path: '/teacher/classes', label: 'Lớp học', icon: '📚' },
+    { path: '/teacher/payroll', label: 'Bảng lương', icon: '💰' },
+    { path: '/teacher/availability', label: 'Lịch trống', icon: '⏰' },
+  ];
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <div className="flex items-center gap-3">
+              <Link to="/teacher" className="flex items-center gap-2">
+                <span className="text-2xl">🎓</span>
+                <span className="font-bold text-xl text-gray-900">Skill Master</span>
+              </Link>
+              <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
+                Giáo viên
+              </span>
+            </div>
+
+            {/* Navigation */}
+            <nav className="hidden md:flex items-center gap-1">
+              {navItems.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                >
+                  <span>{item.icon}</span>
+                  <span>{item.label}</span>
+                </Link>
+              ))}
+            </nav>
+
+            {/* User Menu */}
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-medium text-sm">
+                  {profile?.full_name?.charAt(0) || 'T'}
+                </div>
+                <span className="hidden sm:block text-sm font-medium text-gray-700">
+                  {profile?.full_name || 'Giáo viên'}
+                </span>
+                <ChevronDown className="h-4 w-4 text-gray-500" />
+              </button>
+
+              {showUserMenu && (
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <p className="font-medium text-gray-900">{profile?.full_name}</p>
+                    <p className="text-sm text-gray-500">{user?.email}</p>
+                  </div>
+                  <Link
+                    to="/teacher/profile"
+                    className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    <User className="h-4 w-4" />
+                    Thông tin cá nhân
+                  </Link>
+                  <Link
+                    to="/teacher/settings"
+                    className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    <Settings className="h-4 w-4" />
+                    Cài đặt
+                  </Link>
+                  <div className="border-t border-gray-100 mt-2 pt-2">
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Đăng xuất
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Navigation */}
+        <div className="md:hidden border-t border-gray-200 px-4 py-2 overflow-x-auto">
+          <nav className="flex items-center gap-1">
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors whitespace-nowrap"
+              >
+                <span>{item.icon}</span>
+                <span>{item.label}</span>
+              </Link>
+            ))}
+          </nav>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main>
+        <Outlet />
+      </main>
+    </div>
+  );
+};
 
 const StudentLayout = () => (
   <div style={{ padding: 16 }}>
@@ -399,11 +529,19 @@ function App() {
               <TeacherLayout />
             </ProtectedRoute>
           }>
-            <Route path="schedule" element={<PlaceholderPage title="Teacher • Schedule" />} />
-            <Route path="classes" element={<PlaceholderPage title="Teacher • Classes" />} />
-            <Route path="classes/:id/attendance" element={<PlaceholderPage title="Teacher • Attendance" />} />
-            <Route path="classes/:id/gradebook" element={<PlaceholderPage title="Teacher • Gradebook" />} />
+            <Route index element={<TeacherDashboardPage />} />
+            <Route path="dashboard" element={<TeacherDashboardPage />} />
+            <Route path="schedule" element={<TeacherSchedulePage />} />
+            <Route path="classes" element={<TeacherClassesPage />} />
+            <Route path="classes/:id" element={<PlaceholderPage title="Giáo viên • Chi tiết lớp học" />} />
+            <Route path="classes/:id/attendance" element={<PlaceholderPage title="Giáo viên • Điểm danh" />} />
+            <Route path="classes/:id/gradebook" element={<PlaceholderPage title="Giáo viên • Sổ điểm" />} />
             <Route path="payroll" element={<TeacherPayrollPage />} />
+            <Route path="availability" element={<TeacherAvailabilityPage />} />
+            <Route path="leave-requests" element={<PlaceholderPage title="Giáo viên • Đơn xin nghỉ" description="Quản lý đơn xin nghỉ phép" />} />
+            <Route path="attendance" element={<PlaceholderPage title="Giáo viên • Điểm danh nhanh" />} />
+            <Route path="profile" element={<PlaceholderPage title="Giáo viên • Thông tin cá nhân" />} />
+            <Route path="settings" element={<PlaceholderPage title="Giáo viên • Cài đặt" />} />
           </Route>
 
           {/* Student Routes - Chỉ STUDENT */}

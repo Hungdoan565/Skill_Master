@@ -2040,6 +2040,9 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
       });
     }
 
+    // Xác định center_id trước để truyền vào metadata
+    const effectiveCenterId = center_id || req.user.centerId || null;
+
     // Tạo user trong Supabase Auth với password từ settings
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
@@ -2048,6 +2051,9 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
       user_metadata: {
         full_name,
         phone,
+        role_code,  // ✅ Truyền role để trigger tạo profile đúng
+        center_id: effectiveCenterId,  // ✅ Truyền center
+        hourly_rate: hourly_rate || defaultHourlyRate
       }
     });
 
@@ -2064,25 +2070,34 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
 
     // Insert vào public.users với role được chỉ định
     const userId = authData?.user?.id;
-    // Xác định center_id: ưu tiên từ request, fallback về center của admin tạo
-    const effectiveCenterId = center_id || req.user.centerId || null;
 
     if (userId) {
-      // Update role trong public.users (trigger đã tạo với role STUDENT)
-      const { error: updateError } = await supabase
+      // Kiểm tra xem trigger đã tạo profile chưa
+      const { data: existingProfile } = await supabase
         .from('users')
-        .update({
-          role_id: roleData.id,
-          full_name,
-          phone: phone || null,
-          hourly_rate: hourly_rate || defaultHourlyRate,
-          center_id: effectiveCenterId,
-        })
-        .eq('id', userId);
+        .select('id, role_id')
+        .eq('id', userId)
+        .single();
 
-      if (updateError) {
-        console.error('Update user error:', updateError);
-        // Nếu user chưa được tạo bởi trigger, tạo mới
+      if (existingProfile) {
+        // Profile đã được trigger tạo, chỉ cần update nếu cần
+        console.log(`✅ Profile đã được trigger tạo với role_id: ${existingProfile.role_id}`);
+
+        // Nếu role không đúng (trigger tạo sai), update lại
+        if (existingProfile.role_id !== roleData.id) {
+          const { error: updateError } = await supabase
+            .from('users')
+            .update({
+              role_id: roleData.id,
+              hourly_rate: hourly_rate || defaultHourlyRate,
+            })
+            .eq('id', userId);
+
+          if (updateError) console.error('Update role error:', updateError);
+        }
+      } else {
+        // Trigger không chạy, tạo profile thủ công
+        console.log(`⚠️ Trigger không tạo profile, tạo thủ công...`);
         const { error: insertError } = await supabase
           .from('users')
           .insert({
@@ -8308,6 +8323,1045 @@ app.get('/api/admin/payroll/:id/audit', requireAuth, requireRole(['SUPER_ADMIN',
 
 // ============================================================
 // END PAYROLL APIs
+// ============================================================
+
+// ============================================================
+// TEACHER DASHBOARD APIs - Dashboard cho giáo viên
+// ============================================================
+
+/**
+ * GET /api/teacher/dashboard/overview - Tổng quan dashboard giáo viên
+ * Returns: stats (today sessions, monthly hours, income, pending attendance)
+ */
+app.get('/api/teacher/dashboard/overview', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+    const firstDayOfMonth = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+    const lastDayOfMonth = new Date(currentYear, currentMonth, 0).toISOString().split('T')[0];
+
+    // 1. Sessions today
+    const { data: todaySessions, error: todayError } = await supabase
+      .from('sessions')
+      .select('id, status')
+      .eq('teacher_id', teacherId)
+      .eq('session_date', today);
+
+    if (todayError) throw todayError;
+
+    const todayCount = todaySessions?.length || 0;
+    const todayCompleted = todaySessions?.filter(s => s.status === 'completed').length || 0;
+
+    // 2. This month stats
+    const { data: monthSessions, error: monthError } = await supabase
+      .from('sessions')
+      .select('id, duration_hours, teacher_rate, status')
+      .eq('teacher_id', teacherId)
+      .gte('session_date', firstDayOfMonth)
+      .lte('session_date', lastDayOfMonth);
+
+    if (monthError) throw monthError;
+
+    const monthTotalSessions = monthSessions?.length || 0;
+    const monthCompletedSessions = monthSessions?.filter(s => s.status === 'completed').length || 0;
+    const monthTotalHours = monthSessions?.reduce((sum, s) => sum + (parseFloat(s.duration_hours) || 0), 0) || 0;
+    const monthCompletedHours = monthSessions?.filter(s => s.status === 'completed')
+      .reduce((sum, s) => sum + (parseFloat(s.duration_hours) || 0), 0) || 0;
+    const monthEstimatedIncome = monthSessions?.filter(s => s.status === 'completed')
+      .reduce((sum, s) => {
+        const hours = parseFloat(s.duration_hours) || 0;
+        const rate = parseFloat(s.teacher_rate) || 150000;
+        return sum + (hours * rate);
+      }, 0) || 0;
+
+    // 3. Pending attendance (sessions today/past that are not completed)
+    const { data: pendingSessions, error: pendingError } = await supabase
+      .from('sessions')
+      .select('id')
+      .eq('teacher_id', teacherId)
+      .lte('session_date', today)
+      .in('status', ['scheduled', 'upcoming']);
+
+    if (pendingError) throw pendingError;
+    const pendingAttendance = pendingSessions?.length || 0;
+
+    // 4. Active classes count
+    const { count: activeClasses, error: classError } = await supabase
+      .from('classes')
+      .select('id', { count: 'exact', head: true })
+      .eq('teacher_id', teacherId)
+      .in('status', ['ongoing', 'upcoming']);
+
+    if (classError) throw classError;
+
+    // 5. Current payroll status (this month)
+    const { data: currentPayroll } = await supabase
+      .from('payroll')
+      .select('id, status, net_salary')
+      .eq('teacher_id', teacherId)
+      .eq('period_month', currentMonth)
+      .eq('period_year', currentYear)
+      .single();
+
+    res.json({
+      success: true,
+      data: {
+        today: {
+          total: todayCount,
+          completed: todayCompleted,
+          pending: todayCount - todayCompleted
+        },
+        month: {
+          month: currentMonth,
+          year: currentYear,
+          totalSessions: monthTotalSessions,
+          completedSessions: monthCompletedSessions,
+          totalHours: Math.round(monthTotalHours * 10) / 10,
+          completedHours: Math.round(monthCompletedHours * 10) / 10,
+          estimatedIncome: monthEstimatedIncome,
+          payrollStatus: currentPayroll?.status || null,
+          payrollAmount: currentPayroll?.net_salary || null
+        },
+        pendingAttendance,
+        activeClasses: activeClasses || 0
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching teacher dashboard overview:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/teacher/dashboard/today-sessions - Lịch dạy hôm nay của giáo viên
+ */
+app.get('/api/teacher/dashboard/today-sessions', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+    const today = new Date().toISOString().split('T')[0];
+
+    const { data: sessions, error } = await supabase
+      .from('sessions')
+      .select(`
+        id,
+        session_number,
+        session_date,
+        start_time,
+        end_time,
+        duration_hours,
+        status,
+        topic,
+        notes,
+        room_id,
+        classes (
+          id,
+          code,
+          name,
+          rooms (id, name),
+          courses (id, code, title)
+        )
+      `)
+      .eq('teacher_id', teacherId)
+      .eq('session_date', today)
+      .order('start_time', { ascending: true });
+
+    if (error) throw error;
+
+    // Get student count for each class
+    const classIds = [...new Set(sessions?.map(s => s.classes?.id).filter(Boolean))];
+    let studentCounts = {};
+
+    if (classIds.length > 0) {
+      const { data: enrollments } = await supabase
+        .from('enrollments')
+        .select('class_id')
+        .in('class_id', classIds)
+        .eq('status', 'active');
+
+      studentCounts = enrollments?.reduce((acc, e) => {
+        acc[e.class_id] = (acc[e.class_id] || 0) + 1;
+        return acc;
+      }, {}) || {};
+    }
+
+    // Check attendance status for each session
+    const enrichedSessions = await Promise.all((sessions || []).map(async (session) => {
+      const { count: attendanceCount } = await supabase
+        .from('attendance')
+        .select('id', { count: 'exact', head: true })
+        .eq('session_id', session.id);
+
+      return {
+        ...session,
+        studentCount: studentCounts[session.classes?.id] || 0,
+        attendanceMarked: (attendanceCount || 0) > 0,
+        roomName: session.classes?.rooms?.name || 'Chưa xếp phòng'
+      };
+    }));
+
+    res.json({
+      success: true,
+      data: enrichedSessions,
+      date: today
+    });
+  } catch (error) {
+    console.error('Error fetching today sessions:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/teacher/dashboard/upcoming-sessions - Buổi học sắp tới (7 ngày)
+ */
+app.get('/api/teacher/dashboard/upcoming-sessions', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+    const today = new Date();
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 7);
+    const todayStr = today.toISOString().split('T')[0];
+    const nextWeekStr = nextWeek.toISOString().split('T')[0];
+
+    const { data: sessions, error } = await supabase
+      .from('sessions')
+      .select(`
+        id,
+        session_number,
+        session_date,
+        start_time,
+        end_time,
+        duration_hours,
+        status,
+        classes (
+          id,
+          code,
+          name,
+          rooms (id, name),
+          courses (id, title)
+        )
+      `)
+      .eq('teacher_id', teacherId)
+      .gt('session_date', todayStr)
+      .lte('session_date', nextWeekStr)
+      .in('status', ['scheduled', 'upcoming'])
+      .order('session_date', { ascending: true })
+      .order('start_time', { ascending: true })
+      .limit(10);
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: sessions || []
+    });
+  } catch (error) {
+    console.error('Error fetching upcoming sessions:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/teacher/dashboard/classes-summary - Tổng quan các lớp đang dạy
+ */
+app.get('/api/teacher/dashboard/classes-summary', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+
+    const { data: classes, error } = await supabase
+      .from('classes')
+      .select(`
+        id,
+        code,
+        name,
+        start_date,
+        end_date,
+        schedule,
+        status,
+        rooms (id, name),
+        courses (id, code, title, category),
+        centers (id, name)
+      `)
+      .eq('teacher_id', teacherId)
+      .in('status', ['ongoing', 'upcoming'])
+      .order('start_date', { ascending: true });
+
+    if (error) throw error;
+
+    // Get stats for each class
+    const enrichedClasses = await Promise.all((classes || []).map(async (cls) => {
+      // Student count
+      const { count: studentCount } = await supabase
+        .from('enrollments')
+        .select('id', { count: 'exact', head: true })
+        .eq('class_id', cls.id)
+        .eq('status', 'active');
+
+      // Session stats
+      const { data: sessions } = await supabase
+        .from('sessions')
+        .select('id, status')
+        .eq('class_id', cls.id);
+
+      const totalSessions = sessions?.length || 0;
+      const completedSessions = sessions?.filter(s => s.status === 'completed').length || 0;
+      const progress = totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0;
+
+      return {
+        ...cls,
+        studentCount: studentCount || 0,
+        totalSessions,
+        completedSessions,
+        progress,
+        remainingSessions: totalSessions - completedSessions
+      };
+    }));
+
+    res.json({
+      success: true,
+      data: enrichedClasses
+    });
+  } catch (error) {
+    console.error('Error fetching classes summary:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/teacher/dashboard/attendance-stats - Thống kê điểm danh của GV
+ */
+app.get('/api/teacher/dashboard/attendance-stats', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+    const firstDayOfMonth = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+    const today = now.toISOString().split('T')[0];
+
+    // Get all sessions this month that should be completed
+    const { data: sessions, error: sessionsError } = await supabase
+      .from('sessions')
+      .select(`
+        id,
+        session_date,
+        status,
+        class_id,
+        classes (id, name)
+      `)
+      .eq('teacher_id', teacherId)
+      .gte('session_date', firstDayOfMonth)
+      .lte('session_date', today);
+
+    if (sessionsError) throw sessionsError;
+
+    // Get attendance records for these sessions
+    const sessionIds = sessions?.map(s => s.id) || [];
+    let attendanceBySession = {};
+
+    if (sessionIds.length > 0) {
+      const { data: attendances } = await supabase
+        .from('attendance')
+        .select('session_id, status')
+        .in('session_id', sessionIds);
+
+      attendanceBySession = attendances?.reduce((acc, a) => {
+        if (!acc[a.session_id]) acc[a.session_id] = [];
+        acc[a.session_id].push(a.status);
+        return acc;
+      }, {}) || {};
+    }
+
+    // Calculate stats
+    const totalSessions = sessions?.length || 0;
+    const markedSessions = sessions?.filter(s => attendanceBySession[s.id]?.length > 0).length || 0;
+    const completedSessions = sessions?.filter(s => s.status === 'completed').length || 0;
+    const unmarkedSessions = sessions?.filter(s =>
+      s.status !== 'cancelled' &&
+      s.session_date <= today &&
+      !attendanceBySession[s.id]?.length
+    ).length || 0;
+
+    // Attendance rate calculation
+    let totalStudents = 0;
+    let presentStudents = 0;
+    let lateStudents = 0;
+    let absentStudents = 0;
+
+    Object.values(attendanceBySession).forEach(statuses => {
+      statuses.forEach(status => {
+        totalStudents++;
+        if (status === 'present') presentStudents++;
+        else if (status === 'late') lateStudents++;
+        else if (status === 'absent') absentStudents++;
+      });
+    });
+
+    const attendanceRate = totalStudents > 0
+      ? Math.round(((presentStudents + lateStudents) / totalStudents) * 100)
+      : 0;
+
+    // Group by class for breakdown
+    const classSummary = {};
+    sessions?.forEach(s => {
+      const classId = s.class_id;
+      const className = s.classes?.name || 'Unknown';
+      if (!classSummary[classId]) {
+        classSummary[classId] = {
+          className,
+          totalSessions: 0,
+          markedSessions: 0,
+          present: 0,
+          late: 0,
+          absent: 0
+        };
+      }
+      classSummary[classId].totalSessions++;
+      if (attendanceBySession[s.id]?.length > 0) {
+        classSummary[classId].markedSessions++;
+        attendanceBySession[s.id].forEach(status => {
+          if (status === 'present') classSummary[classId].present++;
+          else if (status === 'late') classSummary[classId].late++;
+          else if (status === 'absent') classSummary[classId].absent++;
+        });
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        month: { month: currentMonth, year: currentYear },
+        summary: {
+          totalSessions,
+          completedSessions,
+          markedSessions,
+          unmarkedSessions,
+          attendanceRate
+        },
+        students: {
+          total: totalStudents,
+          present: presentStudents,
+          late: lateStudents,
+          absent: absentStudents
+        },
+        byClass: Object.values(classSummary)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching attendance stats:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/teacher/availability - Giáo viên xem lịch rảnh/bận của mình
+ */
+app.get('/api/teacher/availability', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+
+    const { data, error } = await supabase
+      .from('teacher_availability')
+      .select('*')
+      .eq('teacher_id', teacherId)
+      .order('day_of_week', { ascending: true });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: data || []
+    });
+  } catch (error) {
+    console.error('Error fetching teacher availability:', error);
+    next(error);
+  }
+});
+
+/**
+ * PUT /api/teacher/availability - Giáo viên cập nhật lịch rảnh/bận của mình
+ */
+app.put('/api/teacher/availability', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+    const { slots } = req.body; // Array of { day_of_week, start_time, end_time, type, reason }
+
+    // Xóa slots cũ
+    await supabase
+      .from('teacher_availability')
+      .delete()
+      .eq('teacher_id', teacherId);
+
+    // Thêm slots mới
+    if (slots && slots.length > 0) {
+      const slotsWithTeacher = slots.map(slot => ({
+        ...slot,
+        teacher_id: teacherId
+      }));
+
+      const { error: insertError } = await supabase
+        .from('teacher_availability')
+        .insert(slotsWithTeacher);
+
+      if (insertError) throw insertError;
+    }
+
+    // Fetch và return updated data
+    const { data: updatedSlots } = await supabase
+      .from('teacher_availability')
+      .select('*')
+      .eq('teacher_id', teacherId)
+      .order('day_of_week', { ascending: true });
+
+    res.json({
+      success: true,
+      message: 'Cập nhật lịch rảnh/bận thành công',
+      data: updatedSlots || []
+    });
+  } catch (error) {
+    console.error('Error updating teacher availability:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/teacher/classes - Danh sách lớp của giáo viên
+ */
+app.get('/api/teacher/classes', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+    const { status } = req.query;
+
+    let query = supabase
+      .from('classes')
+      .select(`
+        id,
+        code,
+        name,
+        start_date,
+        end_date,
+        schedule,
+        status,
+        max_students,
+        room_id,
+        rooms (id, name, capacity),
+        courses (id, code, title, category),
+        centers (id, name)
+      `)
+      .eq('teacher_id', teacherId)
+      .order('start_date', { ascending: false });
+
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    const { data: classes, error } = await query;
+    if (error) throw error;
+
+    // Enrich with enrollment count
+    const enrichedClasses = await Promise.all((classes || []).map(async (cls) => {
+      const { count } = await supabase
+        .from('enrollments')
+        .select('id', { count: 'exact', head: true })
+        .eq('class_id', cls.id)
+        .eq('status', 'active');
+
+      return {
+        ...cls,
+        studentCount: count || 0
+      };
+    }));
+
+    res.json({
+      success: true,
+      data: enrichedClasses
+    });
+  } catch (error) {
+    console.error('Error fetching teacher classes:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/teacher/classes/:id - Chi tiết một lớp (với students, sessions)
+ */
+app.get('/api/teacher/classes/:id', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+    const { id } = req.params;
+
+    // Verify teacher owns this class
+    const { data: classData, error: classError } = await supabase
+      .from('classes')
+      .select(`
+        *,
+        rooms (id, name, capacity),
+        courses (id, code, title, category, description),
+        centers (id, name, address)
+      `)
+      .eq('id', id)
+      .eq('teacher_id', teacherId)
+      .single();
+
+    if (classError || !classData) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học hoặc bạn không có quyền' });
+    }
+
+    // Get enrolled students
+    const { data: enrollments } = await supabase
+      .from('enrollments')
+      .select(`
+        id,
+        enrolled_at,
+        status,
+        student:users!enrollments_student_id_fkey (id, full_name, email, phone, avatar_url)
+      `)
+      .eq('class_id', id)
+      .eq('status', 'active');
+
+    // Get sessions
+    const { data: sessions } = await supabase
+      .from('sessions')
+      .select('id, session_number, session_date, start_time, end_time, status, topic')
+      .eq('class_id', id)
+      .order('session_date', { ascending: true });
+
+    res.json({
+      success: true,
+      data: {
+        ...classData,
+        students: enrollments?.map(e => e.student) || [],
+        sessions: sessions || [],
+        totalStudents: enrollments?.length || 0,
+        totalSessions: sessions?.length || 0,
+        completedSessions: sessions?.filter(s => s.status === 'completed').length || 0
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching teacher class detail:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/teacher/classes/:id/students - Danh sách học viên trong lớp
+ */
+app.get('/api/teacher/classes/:id/students', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+    const { id } = req.params;
+
+    // Verify teacher owns this class
+    const { data: classData, error: classError } = await supabase
+      .from('classes')
+      .select('id, teacher_id')
+      .eq('id', id)
+      .single();
+
+    if (classError || !classData || classData.teacher_id !== teacherId) {
+      return res.status(403).json({ success: false, message: 'Không có quyền truy cập lớp này' });
+    }
+
+    const { data: enrollments, error } = await supabase
+      .from('enrollments')
+      .select(`
+        id,
+        enrolled_at,
+        status,
+        student:users!enrollments_student_id_fkey (
+          id,
+          full_name,
+          email,
+          phone,
+          avatar_url
+        )
+      `)
+      .eq('class_id', id)
+      .eq('status', 'active');
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: enrollments?.map(e => ({
+        enrollment_id: e.id,
+        enrolled_at: e.enrolled_at,
+        student_id: e.student?.id,
+        ...e.student
+      })) || []
+    });
+  } catch (error) {
+    console.error('Error fetching class students:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/teacher/sessions/:id/attendance - Lấy điểm danh của một session
+ */
+app.get('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+    const { id: sessionId } = req.params;
+
+    // Verify teacher owns this session
+    const { data: session, error: sessionError } = await supabase
+      .from('sessions')
+      .select('id, teacher_id, class_id, session_date')
+      .eq('id', sessionId)
+      .single();
+
+    if (sessionError || !session || session.teacher_id !== teacherId) {
+      return res.status(403).json({ success: false, message: 'Không có quyền truy cập buổi học này' });
+    }
+
+    // Get attendance records
+    const { data: attendance, error } = await supabase
+      .from('attendance')
+      .select(`
+        id,
+        student_id,
+        status,
+        check_in_time,
+        notes,
+        student:users!attendance_student_id_fkey (id, full_name, email, avatar_url)
+      `)
+      .eq('session_id', sessionId);
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: attendance || []
+    });
+  } catch (error) {
+    console.error('Error fetching session attendance:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /api/teacher/sessions/:id/attendance - Giáo viên điểm danh
+ */
+app.post('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+    const { id: sessionId } = req.params;
+    const { attendances } = req.body; // Array of { student_id, status, notes }
+
+    // Verify teacher owns this session
+    const { data: session, error: sessionError } = await supabase
+      .from('sessions')
+      .select('id, teacher_id, class_id, is_locked')
+      .eq('id', sessionId)
+      .single();
+
+    if (sessionError || !session) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy buổi học' });
+    }
+
+    if (session.teacher_id !== teacherId) {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền điểm danh buổi học này' });
+    }
+
+    if (session.is_locked) {
+      return res.status(400).json({ success: false, message: 'Buổi học đã khóa sổ, không thể điểm danh' });
+    }
+
+    console.log(`📋 Teacher ${req.user.email} điểm danh ${attendances.length} học viên cho session ${sessionId}`);
+
+    // Upsert attendance records
+    const results = [];
+    for (const att of attendances) {
+      const { data, error } = await supabase
+        .from('attendance')
+        .upsert({
+          session_id: sessionId,
+          student_id: att.student_id,
+          status: att.status || 'present',
+          check_in_time: att.status === 'present' ? new Date().toISOString() : null,
+          notes: att.notes || null,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'session_id,student_id'
+        })
+        .select()
+        .single();
+
+      if (!error && data) {
+        results.push(data);
+      }
+    }
+
+    // Mark session as completed
+    await supabase
+      .from('sessions')
+      .update({ status: 'completed', updated_at: new Date().toISOString() })
+      .eq('id', sessionId);
+
+    res.json({
+      success: true,
+      message: `Đã điểm danh ${results.length} học viên`,
+      data: results
+    });
+  } catch (error) {
+    console.error('Error marking attendance:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/teacher/profile - Thông tin profile của giáo viên
+ */
+app.get('/api/teacher/profile', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+
+    const { data: profile, error } = await supabase
+      .from('users')
+      .select(`
+        id,
+        email,
+        full_name,
+        phone,
+        avatar_url,
+        hourly_rate,
+        status,
+        created_at,
+        center_id,
+        centers (id, name, address, hotline),
+        roles (id, code, name)
+      `)
+      .eq('id', teacherId)
+      .single();
+
+    if (error) throw error;
+
+    // Get teaching stats
+    const now = new Date();
+    const currentYear = now.getFullYear();
+
+    // Total classes taught
+    const { count: totalClasses } = await supabase
+      .from('classes')
+      .select('id', { count: 'exact', head: true })
+      .eq('teacher_id', teacherId);
+
+    // Total sessions completed
+    const { count: totalSessions } = await supabase
+      .from('sessions')
+      .select('id', { count: 'exact', head: true })
+      .eq('teacher_id', teacherId)
+      .eq('status', 'completed');
+
+    // Total hours this year
+    const { data: yearSessions } = await supabase
+      .from('sessions')
+      .select('duration_hours')
+      .eq('teacher_id', teacherId)
+      .eq('status', 'completed')
+      .gte('session_date', `${currentYear}-01-01`);
+
+    const totalHoursThisYear = yearSessions?.reduce((sum, s) => sum + (parseFloat(s.duration_hours) || 0), 0) || 0;
+
+    res.json({
+      success: true,
+      data: {
+        ...profile,
+        stats: {
+          totalClasses: totalClasses || 0,
+          totalSessions: totalSessions || 0,
+          totalHoursThisYear: Math.round(totalHoursThisYear * 10) / 10
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching teacher profile:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/teacher/schedule - Lấy lịch dạy của giáo viên theo khoảng thời gian
+ * Query params: start_date, end_date (default: this week)
+ */
+app.get('/api/teacher/schedule', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+
+    // Default to this week
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+
+    const startDate = req.query.start_date || monday.toISOString().split('T')[0];
+    const endDate = req.query.end_date || sunday.toISOString().split('T')[0];
+
+    const { data: sessions, error } = await supabase
+      .from('sessions')
+      .select(`
+        id,
+        session_number,
+        session_date,
+        start_time,
+        end_time,
+        duration_hours,
+        status,
+        topic,
+        notes,
+        room_id,
+        is_locked,
+        classes (
+          id,
+          code,
+          name,
+          rooms (id, name, capacity),
+          courses (id, code, title),
+          centers (id, name)
+        )
+      `)
+      .eq('teacher_id', teacherId)
+      .gte('session_date', startDate)
+      .lte('session_date', endDate)
+      .order('session_date', { ascending: true })
+      .order('start_time', { ascending: true });
+
+    if (error) throw error;
+
+    // Group by date for easier rendering
+    const groupedByDate = {};
+    sessions?.forEach(session => {
+      const date = session.session_date;
+      if (!groupedByDate[date]) {
+        groupedByDate[date] = [];
+      }
+      groupedByDate[date].push({
+        ...session,
+        class_name: session.classes?.name,
+        class_code: session.classes?.code,
+        course_name: session.classes?.courses?.title,
+        room_name: session.classes?.rooms?.name,
+        center_name: session.classes?.centers?.name
+      });
+    });
+
+    // Generate all dates in range
+    const allDates = [];
+    const current = new Date(startDate);
+    const end = new Date(endDate);
+    while (current <= end) {
+      const dateStr = current.toISOString().split('T')[0];
+      allDates.push({
+        date: dateStr,
+        dayOfWeek: current.getDay(),
+        sessions: groupedByDate[dateStr] || []
+      });
+      current.setDate(current.getDate() + 1);
+    }
+
+    // Stats
+    const totalSessions = sessions?.length || 0;
+    const completedSessions = sessions?.filter(s => s.status === 'completed').length || 0;
+    const totalHours = sessions?.reduce((sum, s) => sum + (parseFloat(s.duration_hours) || 0), 0) || 0;
+
+    res.json({
+      success: true,
+      data: {
+        startDate,
+        endDate,
+        schedule: allDates,
+        stats: {
+          totalSessions,
+          completedSessions,
+          totalHours: Math.round(totalHours * 10) / 10
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching teacher schedule:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/teacher/schedule/month - Lấy lịch dạy theo tháng (cho calendar view)
+ * Query params: month, year
+ */
+app.get('/api/teacher/schedule/month', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+    const now = new Date();
+    const month = parseInt(req.query.month) || (now.getMonth() + 1);
+    const year = parseInt(req.query.year) || now.getFullYear();
+
+    const firstDay = `${year}-${String(month).padStart(2, '0')}-01`;
+    const lastDay = new Date(year, month, 0).toISOString().split('T')[0];
+
+    const { data: sessions, error } = await supabase
+      .from('sessions')
+      .select(`
+        id,
+        session_number,
+        session_date,
+        start_time,
+        end_time,
+        duration_hours,
+        status,
+        classes (
+          id,
+          code,
+          name,
+          courses (id, title)
+        )
+      `)
+      .eq('teacher_id', teacherId)
+      .gte('session_date', firstDay)
+      .lte('session_date', lastDay)
+      .order('session_date')
+      .order('start_time');
+
+    if (error) throw error;
+
+    // Group sessions by date
+    const sessionsByDate = {};
+    sessions?.forEach(session => {
+      const date = session.session_date;
+      if (!sessionsByDate[date]) {
+        sessionsByDate[date] = [];
+      }
+      sessionsByDate[date].push({
+        id: session.id,
+        start_time: session.start_time,
+        end_time: session.end_time,
+        status: session.status,
+        class_name: session.classes?.name,
+        class_code: session.classes?.code,
+        course_title: session.classes?.courses?.title
+      });
+    });
+
+    res.json({
+      success: true,
+      data: {
+        month,
+        year,
+        sessionsByDate,
+        totalSessions: sessions?.length || 0
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching teacher monthly schedule:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// END TEACHER DASHBOARD APIs
 // ============================================================
 
 // ============================================================
