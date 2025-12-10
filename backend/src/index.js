@@ -5640,7 +5640,9 @@ app.get('/api/dashboard/revenue-chart', requireAuth, async (req, res, next) => {
         return a.monthNum - b.monthNum;
       })
       .map(m => ({
-        ...m,
+        label: m.month,      // ✅ Add 'label' for chart compatibility
+        month: m.month,      // Keep 'month' for backward compatibility
+        revenue: m.revenue,
         formatted: formatCurrency(m.revenue)
       }));
 
@@ -6245,7 +6247,8 @@ app.get('/api/dashboard/all', requireAuth, async (req, res, next) => {
         avatar_url: e.users?.avatar_url,
         course: e.classes?.courses?.title || e.classes?.name || 'N/A',
         class_code: e.classes?.code,
-        time: timeAgo
+        time: timeAgo,
+        created_at: e.created_at  // ✅ ADD created_at for date display
       };
     });
 

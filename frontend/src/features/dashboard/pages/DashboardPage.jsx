@@ -5,11 +5,15 @@
  * - Thêm widgets mới (Payment, Today Schedule)
  * - Thêm center selector cho SUPER_ADMIN
  * - Responsive layout cải tiến
+ * - Date range filtering
+ * - Export functionality
+ * - Activity stream (optional)
  */
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '../hooks';
+import { exportDashboardToCSV } from '../utils';
 import {
   DashboardHeader,
   StatsSection,
@@ -19,7 +23,9 @@ import {
   PaymentOverviewCard,
   TodayScheduleCard,
   ErrorAlert,
-  CenterSelector
+  CenterSelector,
+  DateRangeSelector,
+  GettingStartedCard
 } from '../components';
 
 export function DashboardPage() {
@@ -28,6 +34,8 @@ export function DashboardPage() {
 
   // State for center filtering (SUPER_ADMIN only)
   const [selectedCenterId, setSelectedCenterId] = useState(null);
+  const [selectedDateRange, setSelectedDateRange] = useState('this_month');
+  const [dateRangeValues, setDateRangeValues] = useState(null);
 
   const {
     loading,
@@ -57,27 +65,53 @@ export function DashboardPage() {
     setSelectedCenterId(centerId);
   };
 
+  // Handle date range change
+  const handleDateRangeChange = (rangeId, rangeValues) => {
+    setSelectedDateRange(rangeId);
+    setDateRangeValues(rangeValues);
+    // Will trigger re-fetch via useEffect when implemented
+  };
+
+  // Handle export
+  const handleExport = () => {
+    const exportData = {
+      stats,
+      revenueChart,
+      courseDistribution,
+      recentStudents,
+      paymentOverview,
+      todaySchedule
+    };
+    exportDashboardToCSV(exportData);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header with Center Selector */}
+        {/* Header with Center Selector and Date Range */}
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-8">
           <DashboardHeader
             userName={userName}
             onRefresh={refresh}
+            onExport={handleExport}
             refreshing={refreshing}
           />
 
-          {/* Center Selector - Only for SUPER_ADMIN */}
-          {isSuperAdmin?.() && (
-            <div className="flex-shrink-0">
+          {/* Filters - Center Selector and Date Range */}
+          <div className="flex flex-wrap items-center gap-3">
+            <DateRangeSelector
+              selectedRange={selectedDateRange}
+              onRangeChange={handleDateRangeChange}
+            />
+
+            {isSuperAdmin?.() && (
               <CenterSelector
                 selectedCenterId={selectedCenterId}
                 onCenterChange={handleCenterChange}
                 accessToken={accessToken}
               />
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Error Alert */}
@@ -86,6 +120,21 @@ export function DashboardPage() {
           onRetry={refresh}
           onDismiss={clearError}
         />
+
+        {/* Getting Started Card - Chỉ hiện khi là admin mới */}
+        {stats && (
+          <div className="mb-8">
+            <GettingStartedCard
+              completedSteps={{
+                hasCenter: stats?.summary?.totalCenters > 0,
+                hasStaff: stats?.summary?.totalTeachers > 0,
+                hasCourses: stats?.summary?.totalCourses > 0,
+                hasClasses: (stats?.activeClasses?.value || 0) > 0,
+                hasStudents: (stats?.newStudents?.value || 0) > 0,
+              }}
+            />
+          </div>
+        )}
 
         {/* Stats Section */}
         <div className="mb-8">
