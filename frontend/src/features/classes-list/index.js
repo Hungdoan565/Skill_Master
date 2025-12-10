@@ -16,7 +16,7 @@
  */
 
 // Pages
-export { ClassesPage } from './pages';
+export { ClassesPage, ClassAnalyticsPage } from './pages';
 
 // Components
 export { 

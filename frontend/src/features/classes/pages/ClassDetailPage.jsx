@@ -7,7 +7,7 @@ import { useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/button';
-import { Loader2, AlertCircle, ArrowLeft, Users, Calendar, GraduationCap } from 'lucide-react';
+import { Loader2, AlertCircle, ArrowLeft, Users, Calendar, GraduationCap, UserPlus, Mail, FileText, Copy } from 'lucide-react';
 
 // Components
 import {
@@ -21,7 +21,12 @@ import {
   DeleteConfirmModal,
   BulkRemoveStudentsModal,
   PaymentModal,
-  AttendanceModal
+  AttendanceModal,
+  // Phase 2 Components
+  BatchStudentEnrollmentModal,
+  StudentTransferModal,
+  ClassNotificationModal,
+  ClassReportModal
 } from '../components';
 
 // Hooks
@@ -45,6 +50,12 @@ export function ClassDetailPage() {
   
   // Active tab state
   const [activeTab, setActiveTab] = useState('students');
+  
+  // Phase 2 modals state
+  const [showBatchEnrollModal, setShowBatchEnrollModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   // API headers helper
   const getHeaders = useCallback(() => ({
@@ -293,6 +304,46 @@ export function ClassDetailPage() {
       {/* Header */}
       <ClassHeader classData={classData} />
 
+      {/* Phase 2 Action Buttons */}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowBatchEnrollModal(true)}
+          className="text-blue-600 border-blue-300 hover:bg-blue-50"
+        >
+          <UserPlus className="w-4 h-4 mr-2" />
+          Ghi danh hàng loạt
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowTransferModal(true)}
+          className="text-purple-600 border-purple-300 hover:bg-purple-50"
+        >
+          <Copy className="w-4 h-4 mr-2" />
+          Chuyển học viên
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowNotificationModal(true)}
+          className="text-green-600 border-green-300 hover:bg-green-50"
+        >
+          <Mail className="w-4 h-4 mr-2" />
+          Gửi thông báo
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowReportModal(true)}
+          className="text-orange-600 border-orange-300 hover:bg-orange-50"
+        >
+          <FileText className="w-4 h-4 mr-2" />
+          Xuất báo cáo
+        </Button>
+      </div>
+
       {/* Tabs Container */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200">
         {/* Tab Navigation */}
@@ -436,6 +487,48 @@ export function ClassDetailPage() {
         onSave={handleSaveAttendance}
         onClose={closeAttendanceModal}
         summary={getAttendanceSummary()}
+      />
+
+      {/* Phase 2 Modals */}
+      <BatchStudentEnrollmentModal
+        show={showBatchEnrollModal}
+        onClose={() => setShowBatchEnrollModal(false)}
+        classId={id}
+        classData={classData}
+        onSuccess={() => {
+          fetchStudents(filters);
+          fetchClassDetail();
+          showToast('Ghi danh hàng loạt thành công', 'success');
+        }}
+      />
+
+      <StudentTransferModal
+        show={showTransferModal}
+        onClose={() => setShowTransferModal(false)}
+        classId={id}
+        students={students}
+        onSuccess={() => {
+          fetchStudents(filters);
+          fetchClassDetail();
+          showToast('Chuyển học viên thành công', 'success');
+        }}
+      />
+
+      <ClassNotificationModal
+        show={showNotificationModal}
+        onClose={() => setShowNotificationModal(false)}
+        classId={id}
+        students={students}
+        onSuccess={() => {
+          showToast('Đã gửi thông báo thành công', 'success');
+        }}
+      />
+
+      <ClassReportModal
+        show={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        classId={id}
+        classData={classData}
       />
 
       {/* Toast */}

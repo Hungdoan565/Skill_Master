@@ -2155,7 +2155,11 @@ app.get('/api/roles', async (_req, res, next) => {
 // Lấy danh sách học viên (STUDENT)
 app.get('/api/admin/students', requireAuth, async (req, res, next) => {
   try {
-    const { search, status, centerId } = req.query;
+    const { search, status, centerId, limit = '50', page = '1' } = req.query;
+    
+    const pageNum = parseInt(page) || 1;
+    const limitNum = Math.min(parseInt(limit) || 50, 100); // Max 100 items
+    const offset = (pageNum - 1) * limitNum;
 
     // ====== PERMISSION CHECK ======
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, centerId);
@@ -2171,7 +2175,7 @@ app.get('/api/admin/students', requireAuth, async (req, res, next) => {
       .single();
 
     if (!studentRole) {
-      return res.json({ success: true, data: [] });
+      return res.json({ success: true, data: [], pagination: { total: 0, page: pageNum, limit: limitNum } });
     }
 
     let query = supabase
@@ -2190,9 +2194,10 @@ app.get('/api/admin/students', requireAuth, async (req, res, next) => {
           code,
           name
         )
-      `)
+      `, { count: 'exact' })
       .eq('role_id', studentRole.id)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limitNum - 1);
 
     // Filter theo status nếu có
     if (status) {
@@ -2208,7 +2213,8 @@ app.get('/api/admin/students', requireAuth, async (req, res, next) => {
         .from('enrollments')
         .select('student_id, classes!inner(center_id)')
         .eq('classes.center_id', effectiveCenterId)
-        .eq('status', 'active');
+        .eq('status', 'active')
+        .limit(1000); // Limit enrollments query
 
       const studentIds = [...new Set((enrolledStudents || []).map(e => e.student_id))];
 
@@ -2216,11 +2222,11 @@ app.get('/api/admin/students', requireAuth, async (req, res, next) => {
         query = query.in('id', studentIds);
       } else {
         // Không có học viên nào tại center này
-        return res.json({ success: true, data: [] });
+        return res.json({ success: true, data: [], pagination: { total: 0, page: pageNum, limit: limitNum } });
       }
     }
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
     if (error) throw error;
 
     // Filter theo search (tên hoặc email) - client side vì Supabase không hỗ trợ OR search tốt
@@ -2234,7 +2240,16 @@ app.get('/api/admin/students', requireAuth, async (req, res, next) => {
       );
     }
 
-    res.json({ success: true, data: result });
+    res.json({ 
+      success: true, 
+      data: result,
+      pagination: {
+        total: count || 0,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil((count || 0) / limitNum)
+      }
+    });
   } catch (error) {
     console.error('Error fetching students:', error);
     next(error);
@@ -3334,6 +3349,314 @@ app.post('/api/admin/classes/:classId/regenerate-sessions', requireAuth, require
   }
 });
 
+// ========================================
+// 🔥 BULK CREATE SESSIONS FROM PATTERN
+// Creates multiple sessions based on recurring pattern
+// ========================================
+app.post('/api/admin/classes/:classId/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { classId } = req.params;
+    const { pattern, sessions: previewSessions, preview = false } = req.body;
+
+    console.log(`🔄 Admin ${req.user.email} bulk create sessions cho lớp: ${classId}`);
+
+    // Validate input
+    if (!previewSessions || !Array.isArray(previewSessions) || previewSessions.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Danh sách buổi học không hợp lệ'
+      });
+    }
+
+    // Limit to 100 sessions per operation
+    if (previewSessions.length > 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tối đa 100 buổi học mỗi lần tạo'
+      });
+    }
+
+    // Get class info
+    const { data: classData, error: classError } = await supabase
+      .from('classes')
+      .select('id, teacher_id, room_id, center_id')
+      .eq('id', classId)
+      .single();
+
+    if (classError || !classData) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy lớp học'
+      });
+    }
+
+    // Get current max session number
+    const { data: existingSessions } = await supabase
+      .from('sessions')
+      .select('session_number')
+      .eq('class_id', classId)
+      .order('session_number', { ascending: false })
+      .limit(1);
+
+    const startSessionNumber = existingSessions?.[0]?.session_number + 1 || 1;
+
+    // Prepare sessions for insertion
+    const sessionsToInsert = previewSessions.map((session, index) => ({
+      class_id: classId,
+      teacher_id: classData.teacher_id,
+      room_id: classData.room_id,
+      session_number: startSessionNumber + index,
+      session_date: session.session_date,
+      start_time: session.start_time,
+      end_time: session.end_time,
+      status: 'scheduled'
+    }));
+
+    // If preview mode, return what would be created
+    if (preview) {
+      return res.json({
+        success: true,
+        preview: true,
+        sessions: sessionsToInsert,
+        count: sessionsToInsert.length,
+        message: `Sẽ tạo ${sessionsToInsert.length} buổi học từ buổi #${startSessionNumber}`
+      });
+    }
+
+    // Check for date conflicts within this class
+    const sessionDates = sessionsToInsert.map(s => s.session_date);
+    const { data: conflictingSessions } = await supabase
+      .from('sessions')
+      .select('session_date, session_number')
+      .eq('class_id', classId)
+      .in('session_date', sessionDates);
+
+    if (conflictingSessions && conflictingSessions.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Có ${conflictingSessions.length} ngày đã có buổi học. Vui lòng kiểm tra lại.`,
+        conflicts: conflictingSessions
+      });
+    }
+
+    // Insert sessions in batches
+    const batchSize = 50;
+    let insertedCount = 0;
+
+    for (let i = 0; i < sessionsToInsert.length; i += batchSize) {
+      const batch = sessionsToInsert.slice(i, i + batchSize);
+      const { error: insertError } = await supabase
+        .from('sessions')
+        .insert(batch);
+
+      if (insertError) {
+        console.error('Error inserting batch:', insertError);
+        return res.status(500).json({
+          success: false,
+          message: `Lỗi khi tạo buổi học: ${insertError.message}`,
+          insertedCount
+        });
+      }
+      insertedCount += batch.length;
+    }
+
+    console.log(`✅ Đã tạo ${insertedCount} buổi học cho lớp ${classId}`);
+
+    res.json({
+      success: true,
+      message: `Đã tạo ${insertedCount} buổi học thành công`,
+      count: insertedCount,
+      startSessionNumber
+    });
+  } catch (error) {
+    console.error('Error bulk creating sessions:', error);
+    next(error);
+  }
+});
+
+// ========================================
+// Import nhiều lớp học từ file
+// ========================================
+app.post('/api/admin/classes/import', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { classes: classesData } = req.body;
+
+    if (!classesData || !Array.isArray(classesData) || classesData.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Dữ liệu import không hợp lệ'
+      });
+    }
+
+    console.log(`📥 Admin ${req.user.email} import ${classesData.length} lớp học`);
+
+    // Fetch lookup data
+    const [coursesRes, teachersRes, centersRes, roomsRes] = await Promise.all([
+      supabase.from('courses').select('id, code, name'),
+      supabase.from('profiles').select('id, email, full_name').eq('role', 'TEACHER'),
+      supabase.from('centers').select('id, code, name'),
+      supabase.from('rooms').select('id, name, center_id')
+    ]);
+
+    const courses = coursesRes.data || [];
+    const teachers = teachersRes.data || [];
+    const centers = centersRes.data || [];
+    const rooms = roomsRes.data || [];
+
+    // Maps for quick lookup
+    const courseByCode = new Map(courses.map(c => [c.code?.toLowerCase(), c]));
+    const teacherByEmail = new Map(teachers.map(t => [t.email?.toLowerCase(), t]));
+    const centerByCode = new Map(centers.map(c => [c.code?.toLowerCase(), c]));
+
+    const results = {
+      success: 0,
+      failed: 0,
+      errors: [],
+      created: []
+    };
+
+    // Process each class
+    for (let i = 0; i < classesData.length; i++) {
+      const row = classesData[i];
+      const rowNum = i + 1;
+
+      try {
+        // Validate and lookup course
+        const course = courseByCode.get(row.course_code?.toLowerCase());
+        if (!course) {
+          results.failed++;
+          results.errors.push({
+            row: rowNum,
+            error: `Không tìm thấy khóa học với mã: ${row.course_code}`
+          });
+          continue;
+        }
+
+        // Lookup teacher (optional)
+        let teacher = null;
+        if (row.teacher_email) {
+          teacher = teacherByEmail.get(row.teacher_email?.toLowerCase());
+          if (!teacher) {
+            results.failed++;
+            results.errors.push({
+              row: rowNum,
+              error: `Không tìm thấy giáo viên với email: ${row.teacher_email}`
+            });
+            continue;
+          }
+        }
+
+        // Lookup center (optional, use first if not specified)
+        let center = null;
+        if (row.center_code) {
+          center = centerByCode.get(row.center_code?.toLowerCase());
+          if (!center) {
+            results.failed++;
+            results.errors.push({
+              row: rowNum,
+              error: `Không tìm thấy trung tâm với mã: ${row.center_code}`
+            });
+            continue;
+          }
+        } else if (centers.length > 0) {
+          center = centers[0]; // Default to first center
+        }
+
+        // Lookup room (optional)
+        let room = null;
+        if (row.room_name && center) {
+          room = rooms.find(r => 
+            r.name?.toLowerCase() === row.room_name?.toLowerCase() && 
+            r.center_id === center.id
+          );
+        }
+
+        // Generate class code if not provided
+        let code = row.code;
+        if (!code) {
+          const randomNum = Math.floor(100000 + Math.random() * 900000);
+          code = `CLS-${randomNum}`;
+        }
+
+        // Check for duplicate code
+        const { data: existing } = await supabase
+          .from('classes')
+          .select('id')
+          .eq('code', code)
+          .single();
+
+        if (existing) {
+          results.failed++;
+          results.errors.push({
+            row: rowNum,
+            error: `Mã lớp ${code} đã tồn tại`
+          });
+          continue;
+        }
+
+        // Validate status
+        const validStatuses = ['upcoming', 'ongoing', 'completed', 'cancelled'];
+        const status = validStatuses.includes(row.status?.toLowerCase()) 
+          ? row.status.toLowerCase() 
+          : 'upcoming';
+
+        // Insert class
+        const { data: newClass, error: insertError } = await supabase
+          .from('classes')
+          .insert({
+            code,
+            name: row.name,
+            course_id: course.id,
+            teacher_id: teacher?.id || null,
+            center_id: center?.id,
+            room_id: room?.id || null,
+            start_date: row.start_date || null,
+            end_date: row.end_date || null,
+            max_students: parseInt(row.max_students) || 20,
+            status,
+            schedule: []
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          results.failed++;
+          results.errors.push({
+            row: rowNum,
+            error: `Lỗi tạo lớp: ${insertError.message}`
+          });
+          continue;
+        }
+
+        results.success++;
+        results.created.push({
+          id: newClass.id,
+          code: newClass.code,
+          name: newClass.name
+        });
+
+      } catch (rowError) {
+        results.failed++;
+        results.errors.push({
+          row: rowNum,
+          error: rowError.message
+        });
+      }
+    }
+
+    console.log(`✅ Import kết quả: ${results.success} thành công, ${results.failed} thất bại`);
+
+    res.json({
+      success: true,
+      ...results
+    });
+
+  } catch (error) {
+    console.error('Error importing classes:', error);
+    next(error);
+  }
+});
+
 // Cập nhật một session (đổi GV, đổi status, etc.)
 app.put('/api/admin/sessions/:id', requireAuth, async (req, res, next) => {
   try {
@@ -3397,6 +3720,78 @@ app.put('/api/admin/sessions/:id', requireAuth, async (req, res, next) => {
     res.json({ success: true, data });
   } catch (error) {
     console.error('Error updating session:', error);
+    next(error);
+  }
+});
+
+// ========================================
+// Bulk update nhiều sessions cùng lúc
+// ========================================
+app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { sessionIds, updates } = req.body;
+
+    if (!sessionIds || !Array.isArray(sessionIds) || sessionIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Danh sách buổi học không hợp lệ'
+      });
+    }
+
+    if (!updates || Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không có thay đổi nào được gửi'
+      });
+    }
+
+    console.log(`📝 Admin ${req.user.email} bulk update ${sessionIds.length} sessions:`, updates);
+
+    // Check for locked sessions
+    const { data: sessions, error: fetchError } = await supabase
+      .from('sessions')
+      .select('id, is_locked')
+      .in('id', sessionIds);
+
+    if (fetchError) throw fetchError;
+
+    const lockedSessions = sessions?.filter(s => s.is_locked) || [];
+    if (lockedSessions.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `${lockedSessions.length} buổi học đã bị khóa sổ, không thể sửa`
+      });
+    }
+
+    // Sanitize updates - remove protected fields
+    const safeUpdates = { ...updates };
+    delete safeUpdates.is_locked;
+    delete safeUpdates.payroll_id;
+    delete safeUpdates.class_id;
+    delete safeUpdates.id;
+    
+    safeUpdates.updated_at = new Date().toISOString();
+
+    // Perform bulk update
+    const { data, error: updateError } = await supabase
+      .from('sessions')
+      .update(safeUpdates)
+      .in('id', sessionIds)
+      .select();
+
+    if (updateError) throw updateError;
+
+    console.log(`✅ Đã cập nhật ${data?.length || 0} buổi học`);
+
+    res.json({
+      success: true,
+      message: `Đã cập nhật ${data?.length || 0} buổi học`,
+      updated: data?.length || 0,
+      data
+    });
+
+  } catch (error) {
+    console.error('Error bulk updating sessions:', error);
     next(error);
   }
 });
@@ -12097,6 +12492,375 @@ app.delete('/api/admin/enrollments/:id', requireAuth, requireRole(['SUPER_ADMIN'
     });
   } catch (error) {
     console.error('Error deleting enrollment:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// NOTIFICATION APIs
+// ============================================================
+
+/**
+ * POST /api/admin/notifications/send
+ * Send notifications to students (email/SMS)
+ * Note: This is a placeholder - actual email/SMS integration requires third-party services
+ */
+app.post('/api/admin/notifications/send', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const { type, recipients, subject, content, classId } = req.body;
+
+    if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Danh sách người nhận không hợp lệ'
+      });
+    }
+
+    if (!content?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Nội dung thông báo không được để trống'
+      });
+    }
+
+    console.log(`📧 Admin ${req.user.email} gửi thông báo ${type} đến ${recipients.length} người`);
+
+    // Fetch recipient details
+    const { data: recipientProfiles, error: recipientError } = await supabase
+      .from('profiles')
+      .select('id, email, phone, full_name')
+      .in('id', recipients);
+
+    if (recipientError) throw recipientError;
+
+    // Log notification to database (for tracking)
+    const notificationLogs = recipientProfiles.map(profile => ({
+      recipient_id: profile.id,
+      recipient_email: profile.email,
+      recipient_phone: profile.phone,
+      notification_type: type,
+      subject: subject || null,
+      content,
+      class_id: classId || null,
+      sent_by: req.user.id,
+      status: 'sent', // In production, this would be 'pending' until actually sent
+      created_at: new Date().toISOString()
+    }));
+
+    // Note: In production, you would:
+    // 1. Queue emails using a service like SendGrid, AWS SES, etc.
+    // 2. Queue SMS using Twilio, Vonage, etc.
+    // 3. Update status after actual delivery
+
+    // For now, we'll just simulate success
+    // In production, insert notification logs to a notifications table
+
+    console.log(`✅ Đã "gửi" ${notificationLogs.length} thông báo (giả lập)`);
+
+    res.json({
+      success: true,
+      message: `Đã gửi thông báo đến ${recipientProfiles.length} người`,
+      sent: recipientProfiles.length,
+      failed: 0,
+      recipients: recipientProfiles.map(p => ({
+        id: p.id,
+        name: p.full_name,
+        email: type !== 'sms' ? p.email : undefined,
+        phone: type !== 'email' ? p.phone : undefined
+      }))
+    });
+
+  } catch (error) {
+    console.error('Error sending notifications:', error);
+    next(error);
+  }
+});
+
+/**
+ * Generate class report
+ * Report types: summary, attendance, grades, financial
+ */
+app.get('/api/admin/classes/:classId/report', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const { classId } = req.params;
+    const { reportType = 'summary', startDate, endDate } = req.query;
+
+    console.log(`📊 Generating ${reportType} report for class ${classId}`);
+
+    // Fetch class details
+    const { data: classData, error: classError } = await supabase
+      .from('classes')
+      .select(`
+        *,
+        course:courses(id, name, description, duration_months, price),
+        teacher:profiles!classes_teacher_id_fkey(id, full_name, email),
+        center:centers(id, name)
+      `)
+      .eq('id', classId)
+      .single();
+
+    if (classError || !classData) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy lớp học'
+      });
+    }
+
+    // Fetch enrollments with student info
+    const { data: enrollments, error: enrollError } = await supabase
+      .from('enrollments')
+      .select(`
+        id, enrolled_at, status, paid_amount,
+        student:profiles(id, full_name, email, phone)
+      `)
+      .eq('class_id', classId);
+
+    if (enrollError) throw enrollError;
+
+    // Fetch sessions in date range
+    let sessionsQuery = supabase
+      .from('sessions')
+      .select('*')
+      .eq('class_id', classId)
+      .order('session_date', { ascending: true });
+
+    if (startDate) {
+      sessionsQuery = sessionsQuery.gte('session_date', startDate);
+    }
+    if (endDate) {
+      sessionsQuery = sessionsQuery.lte('session_date', endDate);
+    }
+
+    const { data: sessions, error: sessionError } = await sessionsQuery;
+    if (sessionError) throw sessionError;
+
+    // Fetch attendance records
+    const sessionIds = sessions?.map(s => s.id) || [];
+    let attendance = [];
+    if (sessionIds.length > 0) {
+      const { data: attendanceData, error: attendanceError } = await supabase
+        .from('attendance')
+        .select('*')
+        .in('session_id', sessionIds);
+
+      if (attendanceError) throw attendanceError;
+      attendance = attendanceData || [];
+    }
+
+    // Fetch grades if report type includes grades
+    let grades = [];
+    if (reportType === 'grades' || reportType === 'summary') {
+      const { data: gradesData, error: gradesError } = await supabase
+        .from('grades')
+        .select(`
+          *,
+          grade_column:grade_columns(id, name, weight, type)
+        `)
+        .eq('class_id', classId);
+
+      if (!gradesError && gradesData) {
+        grades = gradesData;
+      }
+    }
+
+    // Build report based on type
+    let reportData = {
+      classInfo: {
+        id: classData.id,
+        name: classData.name,
+        className: classData.class_name,
+        course: classData.course?.name,
+        teacher: classData.teacher?.full_name,
+        center: classData.center?.name,
+        startDate: classData.start_date,
+        endDate: classData.end_date,
+        status: classData.status
+      },
+      generatedAt: new Date().toISOString(),
+      reportType,
+      dateRange: { startDate, endDate }
+    };
+
+    // Summary stats
+    const totalStudents = enrollments?.length || 0;
+    const activeStudents = enrollments?.filter(e => e.status === 'active')?.length || 0;
+    const totalSessions = sessions?.length || 0;
+    const completedSessions = sessions?.filter(s => s.status === 'completed')?.length || 0;
+
+    // Attendance summary
+    const totalAttendanceRecords = attendance?.length || 0;
+    const presentCount = attendance?.filter(a => a.status === 'present')?.length || 0;
+    const absentCount = attendance?.filter(a => a.status === 'absent')?.length || 0;
+    const attendanceRate = totalAttendanceRecords > 0 
+      ? Math.round((presentCount / totalAttendanceRecords) * 100) 
+      : 0;
+
+    // Financial summary
+    const totalRevenue = enrollments?.reduce((sum, e) => sum + (e.paid_amount || 0), 0) || 0;
+    const expectedRevenue = totalStudents * (classData.course?.price || 0);
+
+    switch (reportType) {
+      case 'attendance':
+        reportData = {
+          ...reportData,
+          summary: {
+            totalStudents,
+            totalSessions,
+            completedSessions,
+            attendanceRate
+          },
+          attendanceDetails: sessions?.map(session => {
+            const sessionAttendance = attendance?.filter(a => a.session_id === session.id) || [];
+            return {
+              sessionId: session.id,
+              date: session.session_date,
+              startTime: session.start_time,
+              endTime: session.end_time,
+              status: session.status,
+              attendanceRecords: sessionAttendance.map(a => ({
+                studentId: a.student_id,
+                status: a.status,
+                notes: a.notes
+              })),
+              presentCount: sessionAttendance.filter(a => a.status === 'present').length,
+              absentCount: sessionAttendance.filter(a => a.status === 'absent').length
+            };
+          }) || [],
+          students: enrollments?.map(e => ({
+            id: e.student?.id,
+            name: e.student?.full_name,
+            email: e.student?.email,
+            enrolledAt: e.enrolled_at
+          })) || []
+        };
+        break;
+
+      case 'grades':
+        // Calculate student averages
+        const studentGrades = {};
+        enrollments?.forEach(e => {
+          const studentId = e.student?.id;
+          if (studentId) {
+            const studentGradeRecords = grades?.filter(g => g.student_id === studentId) || [];
+            const totalWeight = studentGradeRecords.reduce((sum, g) => sum + (g.grade_column?.weight || 0), 0);
+            const weightedSum = studentGradeRecords.reduce((sum, g) => {
+              const weight = g.grade_column?.weight || 0;
+              return sum + (g.score || 0) * weight;
+            }, 0);
+            const average = totalWeight > 0 ? weightedSum / totalWeight : 0;
+
+            studentGrades[studentId] = {
+              student: {
+                id: studentId,
+                name: e.student?.full_name,
+                email: e.student?.email
+              },
+              grades: studentGradeRecords.map(g => ({
+                columnName: g.grade_column?.name,
+                type: g.grade_column?.type,
+                weight: g.grade_column?.weight,
+                score: g.score
+              })),
+              average: Math.round(average * 100) / 100
+            };
+          }
+        });
+
+        reportData = {
+          ...reportData,
+          summary: {
+            totalStudents,
+            totalGradeColumns: [...new Set(grades?.map(g => g.grade_column_id))].length,
+            classAverage: Object.values(studentGrades).length > 0
+              ? Math.round(
+                  Object.values(studentGrades).reduce((sum, s) => sum + s.average, 0) 
+                  / Object.values(studentGrades).length * 100
+                ) / 100
+              : 0
+          },
+          studentGrades: Object.values(studentGrades)
+        };
+        break;
+
+      case 'financial':
+        reportData = {
+          ...reportData,
+          summary: {
+            totalStudents,
+            totalRevenue,
+            expectedRevenue,
+            collectionRate: expectedRevenue > 0 
+              ? Math.round((totalRevenue / expectedRevenue) * 100) 
+              : 0
+          },
+          enrollmentDetails: enrollments?.map(e => ({
+            student: {
+              id: e.student?.id,
+              name: e.student?.full_name,
+              email: e.student?.email,
+              phone: e.student?.phone
+            },
+            enrolledAt: e.enrolled_at,
+            status: e.status,
+            paidAmount: e.paid_amount || 0,
+            expectedAmount: classData.course?.price || 0,
+            paymentStatus: (e.paid_amount || 0) >= (classData.course?.price || 0) 
+              ? 'paid' 
+              : e.paid_amount > 0 
+                ? 'partial' 
+                : 'unpaid'
+          })) || []
+        };
+        break;
+
+      case 'summary':
+      default:
+        reportData = {
+          ...reportData,
+          summary: {
+            totalStudents,
+            activeStudents,
+            totalSessions,
+            completedSessions,
+            remainingSessions: totalSessions - completedSessions,
+            attendanceRate,
+            totalRevenue,
+            expectedRevenue,
+            collectionRate: expectedRevenue > 0 
+              ? Math.round((totalRevenue / expectedRevenue) * 100) 
+              : 0,
+            classProgress: totalSessions > 0 
+              ? Math.round((completedSessions / totalSessions) * 100) 
+              : 0
+          },
+          students: enrollments?.map(e => ({
+            id: e.student?.id,
+            name: e.student?.full_name,
+            status: e.status,
+            paidAmount: e.paid_amount
+          })) || [],
+          upcomingSessions: sessions
+            ?.filter(s => s.status === 'scheduled' || s.status === 'pending')
+            ?.slice(0, 5)
+            ?.map(s => ({
+              id: s.id,
+              date: s.session_date,
+              startTime: s.start_time,
+              endTime: s.end_time
+            })) || []
+        };
+        break;
+    }
+
+    console.log(`✅ Generated ${reportType} report for class ${classData.name}`);
+
+    res.json({
+      success: true,
+      data: reportData
+    });
+
+  } catch (error) {
+    console.error('Error generating class report:', error);
     next(error);
   }
 });

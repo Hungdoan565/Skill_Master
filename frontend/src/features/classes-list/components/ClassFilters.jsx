@@ -1,9 +1,11 @@
 /**
  * ClassFilters Component - Thanh tìm kiếm và lọc
+ * Enhanced with advanced filters support
  */
 
-import { Search, Filter } from 'lucide-react';
+import { Search, Filter, SlidersHorizontal } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Select } from './Select';
 import { STATUS_CONFIG } from '../utils';
 
@@ -12,7 +14,9 @@ export function ClassFilters({
   onSearchChange, 
   statusFilter, 
   onStatusChange, 
-  totalCount 
+  totalCount,
+  activeFilterCount = 0,
+  onOpenAdvancedFilters
 }) {
   const statusOptions = Object.entries(STATUS_CONFIG).map(([value, { label }]) => ({ 
     value, 
@@ -42,6 +46,23 @@ export function ClassFilters({
           placeholder="Tất cả trạng thái"
           options={statusOptions}
         />
+        
+        {/* Advanced Filters Button */}
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={onOpenAdvancedFilters}
+          className="relative"
+        >
+          <SlidersHorizontal className="h-4 w-4 mr-2" />
+          Lọc nâng cao
+          {activeFilterCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-indigo-600 text-white text-xs rounded-full flex items-center justify-center">
+              {activeFilterCount}
+            </span>
+          )}
+        </Button>
+        
         <p className="text-sm text-muted-foreground whitespace-nowrap">
           Tổng: <strong>{totalCount}</strong> lớp
         </p>

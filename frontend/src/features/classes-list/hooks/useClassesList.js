@@ -1,5 +1,6 @@
 /**
  * useClassesList Hook - Quản lý danh sách lớp học
+ * Enhanced with advanced filtering support
  */
 
 import { useState, useCallback } from 'react';
@@ -16,18 +17,32 @@ const getAuthHeaders = async () => {
 
 /**
  * Hook quản lý danh sách lớp học
+ * Enhanced with advanced filtering capabilities
  */
 export function useClassesList() {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState([]);
 
-  // Fetch danh sách lớp học
-  const fetchClasses = useCallback(async () => {
+  // Fetch danh sách lớp học với optional server-side filters
+  const fetchClasses = useCallback(async (serverFilters = {}) => {
     try {
       setLoading(true);
       const headers = await getAuthHeaders();
-      const response = await axios.get(`${API_URL}/api/classes`, { headers });
+      
+      // Build query params for server-side filtering
+      const params = new URLSearchParams();
+      if (serverFilters.status) params.append('status', serverFilters.status);
+      if (serverFilters.courseId) params.append('course_id', serverFilters.courseId);
+      if (serverFilters.teacherId) params.append('teacher_id', serverFilters.teacherId);
+      if (serverFilters.centerId) params.append('centerId', serverFilters.centerId);
+      
+      const queryString = params.toString();
+      const url = queryString 
+        ? `${API_URL}/api/classes?${queryString}` 
+        : `${API_URL}/api/classes`;
+      
+      const response = await axios.get(url, { headers });
       
       if (response.data?.success) {
         setClasses(response.data.data);
@@ -75,15 +90,74 @@ export function useClassesList() {
     }
   }, []);
 
-  // Filter classes
-  const filterClasses = useCallback((searchTerm, statusFilter) => {
+  // Filter classes - Enhanced with advanced filters
+  const filterClasses = useCallback((filters = {}) => {
+    const { 
+      search = '', 
+      status = '', 
+      courseId = '', 
+      teacherId = '', 
+      centerId = '', 
+      dateStart = '', 
+      dateEnd = '', 
+      capacity = 'all' 
+    } = filters;
+
     return classes.filter((cls) => {
-      const matchSearch = 
-        cls.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        cls.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        cls.courses?.title?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchStatus = !statusFilter || cls.status === statusFilter;
-      return matchSearch && matchStatus;
+      // Search filter (name, code, course title)
+      const matchSearch = !search || 
+        cls.name?.toLowerCase().includes(search.toLowerCase()) ||
+        cls.code?.toLowerCase().includes(search.toLowerCase()) ||
+        cls.courses?.title?.toLowerCase().includes(search.toLowerCase());
+      
+      // Status filter
+      const matchStatus = !status || cls.status === status;
+      
+      // Course filter
+      const matchCourse = !courseId || cls.courses?.id === courseId;
+      
+      // Teacher filter
+      const matchTeacher = !teacherId || cls.users?.id === teacherId || cls.teacher?.id === teacherId;
+      
+      // Center filter
+      const matchCenter = !centerId || cls.center_id === centerId;
+      
+      // Date range filter (based on start_date)
+      let matchDateRange = true;
+      if (dateStart) {
+        matchDateRange = matchDateRange && cls.start_date >= dateStart;
+      }
+      if (dateEnd) {
+        matchDateRange = matchDateRange && cls.start_date <= dateEnd;
+      }
+      
+      // Capacity filter
+      let matchCapacity = true;
+      if (capacity && capacity !== 'all') {
+        const enrolled = cls.enrolled_count || 0;
+        const max = cls.max_students || 0;
+        const fillRate = max > 0 ? (enrolled / max) * 100 : 0;
+        
+        switch (capacity) {
+          case 'available':
+            matchCapacity = enrolled < max;
+            break;
+          case 'full':
+            matchCapacity = enrolled >= max;
+            break;
+          case 'nearly_full':
+            matchCapacity = fillRate >= 80 && fillRate < 100;
+            break;
+          case 'low':
+            matchCapacity = fillRate < 30;
+            break;
+          default:
+            matchCapacity = true;
+        }
+      }
+      
+      return matchSearch && matchStatus && matchCourse && matchTeacher && 
+             matchCenter && matchDateRange && matchCapacity;
     });
   }, [classes]);
 

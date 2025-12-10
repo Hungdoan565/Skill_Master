@@ -1,28 +1,35 @@
 /**
  * ClassesPage - Trang danh sách lớp học
+ * Enhanced with advanced filtering and export/import capabilities
  */
 
-import { useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import { Plus, BarChart3, Upload } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 
 // Feature imports
-import { useClassesList, useClassForm, useFormOptions } from '../hooks';
+import { useClassesList, useClassForm, useFormOptions, useAdvancedFilters } from '../hooks';
 import {
   ClassesTable,
   ClassFilters,
   BulkActionBar,
   CreateClassModal,
   DeleteClassModal,
-  BulkDeleteModal
+  BulkDeleteModal,
+  AdvancedFiltersDrawer,
+  FilterChips,
+  ExportButton,
+  ImportModal
 } from '../components';
+import { STATUS_CONFIG } from '../utils';
 
 export function ClassesPage() {
   // State
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ 
     isOpen: false, 
     classItem: null,
@@ -34,6 +41,20 @@ export function ClassesPage() {
   });
   const [deleting, setDeleting] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  // Advanced Filters Hook
+  const {
+    filters,
+    savedFilters,
+    updateFilter,
+    updateFilters,
+    resetFilters,
+    removeFilter,
+    saveFilterPreset,
+    loadFilterPreset,
+    deleteFilterPreset,
+    getActiveFilterCount
+  } = useAdvancedFilters();
 
   // Hooks
   const {
@@ -87,8 +108,17 @@ export function ClassesPage() {
     fetchAllOptions();
   }, [fetchClasses, fetchAllOptions]);
 
-  // Filtered classes
-  const filteredClasses = filterClasses(searchTerm, statusFilter);
+  // Filtered classes - using advanced filters
+  const filteredClasses = useMemo(() => {
+    return filterClasses(filters);
+  }, [filterClasses, filters]);
+
+  // Check if user is SUPER_ADMIN (simplified check)
+  const isSuperAdmin = useMemo(() => {
+    // This should ideally come from auth context
+    // For now, show center filter if there are multiple centers
+    return centers.length > 1;
+  }, [centers]);
 
   // Modal handlers
   const openModal = (classItem = null) => {
@@ -161,21 +191,56 @@ export function ClassesPage() {
           <h1 className="text-3xl font-bold tracking-tight">Quản lý Lớp học</h1>
           <p className="text-muted-foreground">Danh sách các lớp học của trung tâm</p>
         </div>
-        <Button onClick={() => openModal()}>
-          <Plus className="mr-2 h-4 w-4" />
-          Mở lớp mới
-        </Button>
+        <div className="flex items-center gap-2">
+          <ExportButton 
+            data={filteredClasses}
+            filename="danh-sach-lop-hoc"
+            courses={courses}
+            teachers={teachers}
+            centers={centers}
+          />
+          <Button 
+            variant="outline"
+            onClick={() => setImportModalOpen(true)}
+          >
+            <Upload className="mr-2 h-4 w-4" />
+            Nhập dữ liệu
+          </Button>
+          <Link to="/admin/classes/analytics">
+            <Button variant="outline">
+              <BarChart3 className="mr-2 h-4 w-4" />
+              Analytics
+            </Button>
+          </Link>
+          <Button onClick={() => openModal()}>
+            <Plus className="mr-2 h-4 w-4" />
+            Mở lớp mới
+          </Button>
+        </div>
       </div>
 
       {/* Main Content Card */}
       <Card>
         <CardHeader className="pb-3">
           <ClassFilters
-            searchTerm={searchTerm}
-            onSearchChange={setSearchTerm}
-            statusFilter={statusFilter}
-            onStatusChange={setStatusFilter}
+            searchTerm={filters.search}
+            onSearchChange={(value) => updateFilter('search', value)}
+            statusFilter={filters.status}
+            onStatusChange={(value) => updateFilter('status', value)}
             totalCount={filteredClasses.length}
+            activeFilterCount={getActiveFilterCount()}
+            onOpenAdvancedFilters={() => setAdvancedFiltersOpen(true)}
+          />
+          
+          {/* Filter Chips */}
+          <FilterChips
+            filters={filters}
+            onRemoveFilter={removeFilter}
+            onClearAll={resetFilters}
+            courses={courses}
+            teachers={teachers}
+            centers={centers}
+            statusConfig={STATUS_CONFIG}
           />
         </CardHeader>
         
@@ -191,8 +256,8 @@ export function ClassesPage() {
           <ClassesTable
             classes={filteredClasses}
             loading={loading}
-            searchTerm={searchTerm}
-            statusFilter={statusFilter}
+            searchTerm={filters.search}
+            statusFilter={filters.status}
             selectedIds={selectedIds}
             onToggleSelect={toggleSelectItem}
             onToggleSelectAll={() => toggleSelectAll(filteredClasses)}
@@ -250,6 +315,36 @@ export function ClassesPage() {
         error={bulkDeleteModal.error}
         onClose={() => setBulkDeleteModal({ isOpen: false, error: null })}
         onConfirm={handleBulkDelete}
+      />
+
+      {/* Advanced Filters Drawer */}
+      <AdvancedFiltersDrawer
+        isOpen={advancedFiltersOpen}
+        onClose={() => setAdvancedFiltersOpen(false)}
+        filters={filters}
+        onApplyFilters={updateFilters}
+        onResetFilters={resetFilters}
+        courses={courses}
+        teachers={teachers}
+        centers={centers}
+        savedFilters={savedFilters}
+        onSaveFilter={saveFilterPreset}
+        onLoadFilter={loadFilterPreset}
+        onDeleteFilter={deleteFilterPreset}
+        showCenterFilter={isSuperAdmin}
+      />
+
+      {/* Import Modal */}
+      <ImportModal
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onImportSuccess={() => {
+          setImportModalOpen(false);
+          fetchClasses();
+        }}
+        courses={courses}
+        teachers={teachers}
+        centers={centers}
       />
     </div>
   );

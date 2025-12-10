@@ -1,10 +1,9 @@
 /**
- * ScheduleTab Component
- * Displays session list with attendance management
- * Enhanced with Calendar View toggle
+ * EnhancedScheduleTab Component
+ * Enhanced session management with selection, bulk edit, and reschedule features
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
   Calendar,
   Clock,
@@ -14,25 +13,39 @@ import {
   Loader2,
   List,
   LayoutGrid,
-  Plus
+  Plus,
+  CheckSquare,
+  Square,
+  MinusSquare,
+  Settings,
+  CalendarDays,
+  Trash2,
+  MoreVertical
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatScheduleDisplay } from '../utils';
 import { ClassCalendarView } from './ClassCalendarView';
+import { SessionBulkEditModal } from './SessionBulkEditModal';
+import { SessionRescheduleModal } from './SessionRescheduleModal';
 
 // View mode storage key
 const VIEW_MODE_KEY = 'skill_master_schedule_view_mode';
 
-export function ScheduleTab({
+export function EnhancedScheduleTab({
   sessions,
   sessionsInfo,
   loading,
   classSchedule,
+  availableTeachers = [],
+  availableRooms = [],
   onAttendanceClick,
-  onCreateSessions // New prop for creating sessions
+  onCreateSessions,
+  onBulkUpdateSessions,
+  onRescheduleSession,
+  onDeleteSession
 }) {
-  // View mode state with localStorage persistence
+  // View mode state
   const [viewMode, setViewMode] = useState(() => {
     try {
       return localStorage.getItem(VIEW_MODE_KEY) || 'list';
@@ -40,6 +53,12 @@ export function ScheduleTab({
       return 'list';
     }
   });
+
+  // Selection state
+  const [selectedSessionIds, setSelectedSessionIds] = useState([]);
+  const [bulkEditModalOpen, setBulkEditModalOpen] = useState(false);
+  const [rescheduleModal, setRescheduleModal] = useState({ open: false, session: null });
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   // Handle view mode change
   const handleViewModeChange = (mode) => {
@@ -51,12 +70,60 @@ export function ScheduleTab({
     }
   };
 
+  // Selection handlers
+  const toggleSelectSession = useCallback((sessionId) => {
+    setSelectedSessionIds(prev => 
+      prev.includes(sessionId)
+        ? prev.filter(id => id !== sessionId)
+        : [...prev, sessionId]
+    );
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    if (selectedSessionIds.length === sessions.length) {
+      setSelectedSessionIds([]);
+    } else {
+      setSelectedSessionIds(sessions.map(s => s.id));
+    }
+  }, [sessions, selectedSessionIds.length]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedSessionIds([]);
+  }, []);
+
+  // Get selected sessions
+  const selectedSessions = useMemo(() => {
+    return sessions.filter(s => selectedSessionIds.includes(s.id));
+  }, [sessions, selectedSessionIds]);
+
+  // Bulk edit handler
+  const handleBulkUpdate = async (sessionIds, updates) => {
+    setBulkLoading(true);
+    try {
+      await onBulkUpdateSessions(sessionIds, updates);
+      clearSelection();
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  // Reschedule handler
+  const handleReschedule = async (sessionId, updates) => {
+    setBulkLoading(true);
+    try {
+      await onRescheduleSession(sessionId, updates);
+      setRescheduleModal({ open: false, session: null });
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   // Transform sessions data for calendar view
   const calendarSessions = useMemo(() => {
     if (!sessions) return [];
     return sessions.map(session => ({
       id: session.id,
-      session_date: session.date,
+      session_date: session.date || session.session_date,
       start_time: session.start_time,
       end_time: session.end_time,
       session_number: session.session_number,
@@ -68,6 +135,10 @@ export function ScheduleTab({
       users: session.teacher
     }));
   }, [sessions]);
+
+  const hasSelection = selectedSessionIds.length > 0;
+  const allSelected = sessions.length > 0 && selectedSessionIds.length === sessions.length;
+  const someSelected = hasSelection && !allSelected;
 
   return (
     <div className="space-y-4">
@@ -81,6 +152,15 @@ export function ScheduleTab({
         onCreateSessions={onCreateSessions}
       />
 
+      {/* Bulk Action Bar */}
+      {hasSelection && (
+        <BulkActionBar
+          selectedCount={selectedSessionIds.length}
+          onClearSelection={clearSelection}
+          onBulkEdit={() => setBulkEditModalOpen(true)}
+        />
+      )}
+
       {/* Content */}
       {loading ? (
         <LoadingState />
@@ -89,7 +169,16 @@ export function ScheduleTab({
       ) : (
         <>
           {viewMode === 'list' ? (
-            <SessionsList sessions={sessions} onAttendanceClick={onAttendanceClick} />
+            <EnhancedSessionsList
+              sessions={sessions}
+              selectedSessionIds={selectedSessionIds}
+              allSelected={allSelected}
+              someSelected={someSelected}
+              onToggleSelect={toggleSelectSession}
+              onToggleSelectAll={toggleSelectAll}
+              onAttendanceClick={onAttendanceClick}
+              onRescheduleClick={(session) => setRescheduleModal({ open: true, session })}
+            />
           ) : (
             <ClassCalendarView 
               sessions={calendarSessions} 
@@ -99,6 +188,28 @@ export function ScheduleTab({
           <Legend />
         </>
       )}
+
+      {/* Bulk Edit Modal */}
+      <SessionBulkEditModal
+        isOpen={bulkEditModalOpen}
+        onClose={() => setBulkEditModalOpen(false)}
+        selectedSessions={selectedSessions}
+        availableTeachers={availableTeachers}
+        availableRooms={availableRooms}
+        onSubmit={handleBulkUpdate}
+        loading={bulkLoading}
+      />
+
+      {/* Reschedule Modal */}
+      <SessionRescheduleModal
+        isOpen={rescheduleModal.open}
+        onClose={() => setRescheduleModal({ open: false, session: null })}
+        session={rescheduleModal.session}
+        availableTeachers={availableTeachers}
+        availableRooms={availableRooms}
+        onSubmit={handleReschedule}
+        loading={bulkLoading}
+      />
     </div>
   );
 }
@@ -185,6 +296,37 @@ function Header({ schedule, total, completed, viewMode, onViewModeChange, onCrea
   );
 }
 
+function BulkActionBar({ selectedCount, onClearSelection, onBulkEdit }) {
+  return (
+    <div className="flex items-center justify-between p-3 bg-indigo-50 border border-indigo-200 rounded-xl animate-in fade-in slide-in-from-top-2 duration-200">
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <CheckSquare className="w-5 h-5 text-indigo-600" />
+          <span className="font-medium text-indigo-900">
+            Đã chọn {selectedCount} buổi học
+          </span>
+        </div>
+        <button
+          onClick={onClearSelection}
+          className="text-sm text-indigo-600 hover:text-indigo-800 hover:underline"
+        >
+          Bỏ chọn
+        </button>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button 
+          size="sm"
+          onClick={onBulkEdit}
+          className="bg-indigo-600 hover:bg-indigo-700"
+        >
+          <Settings className="w-4 h-4 mr-1.5" />
+          Sửa hàng loạt
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function LoadingState() {
   return (
     <div className="text-center py-12">
@@ -215,31 +357,70 @@ function EmptyState({ onCreateSessions }) {
   );
 }
 
-function SessionsList({ sessions, onAttendanceClick }) {
+function EnhancedSessionsList({ 
+  sessions, 
+  selectedSessionIds, 
+  allSelected,
+  someSelected,
+  onToggleSelect, 
+  onToggleSelectAll,
+  onAttendanceClick,
+  onRescheduleClick 
+}) {
   return (
     <div className="space-y-2">
-      {sessions.map((session, index) => (
-        <SessionItem
-          key={index}
+      {/* Select All Header */}
+      <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 rounded-lg">
+        <button
+          onClick={onToggleSelectAll}
+          className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900"
+        >
+          {allSelected ? (
+            <CheckSquare className="w-5 h-5 text-indigo-600" />
+          ) : someSelected ? (
+            <MinusSquare className="w-5 h-5 text-indigo-600" />
+          ) : (
+            <Square className="w-5 h-5 text-slate-400" />
+          )}
+          <span>Chọn tất cả</span>
+        </button>
+      </div>
+
+      {/* Session Items */}
+      {sessions.map((session) => (
+        <EnhancedSessionItem
+          key={session.id}
           session={session}
+          isSelected={selectedSessionIds.includes(session.id)}
+          onToggleSelect={() => onToggleSelect(session.id)}
           onAttendanceClick={onAttendanceClick}
+          onRescheduleClick={onRescheduleClick}
         />
       ))}
     </div>
   );
 }
 
-function SessionItem({ session, onAttendanceClick }) {
+function EnhancedSessionItem({ 
+  session, 
+  isSelected, 
+  onToggleSelect, 
+  onAttendanceClick,
+  onRescheduleClick 
+}) {
+  const [showMenu, setShowMenu] = useState(false);
   const isToday = session.status === 'today';
   const isCompleted = session.status === 'completed';
   const isUpcoming = session.status === 'upcoming';
   const hasAttendance = session.is_marked;
 
-  const containerClass = isToday 
-    ? 'bg-indigo-50 border-indigo-200 ring-2 ring-indigo-500/20' 
-    : isCompleted 
-      ? 'bg-slate-50 border-slate-200' 
-      : 'bg-white border-slate-200 hover:border-slate-300';
+  const containerClass = isSelected
+    ? 'bg-indigo-50 border-indigo-300 ring-2 ring-indigo-500/20'
+    : isToday 
+      ? 'bg-indigo-50 border-indigo-200' 
+      : isCompleted 
+        ? 'bg-slate-50 border-slate-200' 
+        : 'bg-white border-slate-200 hover:border-slate-300';
 
   const numberClass = isToday 
     ? 'bg-indigo-500 text-white' 
@@ -249,6 +430,18 @@ function SessionItem({ session, onAttendanceClick }) {
 
   return (
     <div className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${containerClass}`}>
+      {/* Checkbox */}
+      <button
+        onClick={onToggleSelect}
+        className="flex-shrink-0"
+      >
+        {isSelected ? (
+          <CheckSquare className="w-5 h-5 text-indigo-600" />
+        ) : (
+          <Square className="w-5 h-5 text-slate-400 hover:text-slate-600" />
+        )}
+      </button>
+
       {/* Session Number */}
       <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg ${numberClass}`}>
         {session.session_number}
@@ -258,7 +451,7 @@ function SessionItem({ session, onAttendanceClick }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <p className={`font-semibold ${isToday ? 'text-indigo-900' : 'text-slate-900'}`}>
-            {session.day_name}, {new Date(session.date).toLocaleDateString('vi-VN', { 
+            {session.day_name}, {new Date(session.date || session.session_date).toLocaleDateString('vi-VN', { 
               day: '2-digit', 
               month: '2-digit', 
               year: 'numeric' 
@@ -276,14 +469,14 @@ function SessionItem({ session, onAttendanceClick }) {
           {session.teacher && (
             <span className="flex items-center gap-1">
               <User className="w-3.5 h-3.5" />
-              {session.teacher.full_name}
+              {session.teacher.full_name || session.teacher}
             </span>
           )}
         </div>
       </div>
 
-      {/* Attendance Status & Action */}
-      <div className="flex items-center gap-3">
+      {/* Attendance Status & Actions */}
+      <div className="flex items-center gap-2">
         {/* Attendance Summary */}
         {hasAttendance && session.attendance_summary && (
           <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-100 rounded-lg">
@@ -311,6 +504,37 @@ function SessionItem({ session, onAttendanceClick }) {
             {hasAttendance ? 'Xem/Sửa' : 'Điểm danh'}
           </Button>
         )}
+
+        {/* More Actions Menu */}
+        <div className="relative">
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+          >
+            <MoreVertical className="w-4 h-4 text-slate-500" />
+          </button>
+
+          {showMenu && (
+            <>
+              <div 
+                className="fixed inset-0 z-10" 
+                onClick={() => setShowMenu(false)} 
+              />
+              <div className="absolute right-0 top-full mt-1 z-20 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-1">
+                <button
+                  onClick={() => {
+                    onRescheduleClick(session);
+                    setShowMenu(false);
+                  }}
+                  className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                >
+                  <CalendarDays className="w-4 h-4" />
+                  Dời lịch buổi này
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -335,6 +559,12 @@ function Legend() {
         <UserCheck className="w-4 h-4 text-emerald-600" />
         <span>Đã điểm danh</span>
       </div>
+      <div className="flex items-center gap-1.5">
+        <CheckSquare className="w-4 h-4 text-indigo-600" />
+        <span>Đã chọn</span>
+      </div>
     </div>
   );
 }
+
+export default EnhancedScheduleTab;

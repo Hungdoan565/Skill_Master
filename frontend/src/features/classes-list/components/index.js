@@ -12,3 +12,10 @@ export { DeleteClassModal } from './DeleteClassModal';
 export { BulkDeleteModal } from './BulkDeleteModal';
 export { ConflictCard } from './ConflictCard';
 export { CreateClassModal } from './CreateClassModal';
+export { AdvancedFiltersDrawer } from './AdvancedFiltersDrawer';
+export { FilterChips } from './FilterChips';
+export { ExportButton } from './ExportButton';
+export { ImportModal } from './ImportModal';
+
+// Phase 2.3: Class Templates
+export { ClassTemplateModal } from './ClassTemplateModal';
