@@ -30,14 +30,14 @@ export function ClassesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
-  const [deleteModal, setDeleteModal] = useState({ 
-    isOpen: false, 
+  const [deleteModal, setDeleteModal] = useState({
+    isOpen: false,
     classItem: null,
-    error: null 
+    error: null
   });
-  const [bulkDeleteModal, setBulkDeleteModal] = useState({ 
-    isOpen: false, 
-    error: null 
+  const [bulkDeleteModal, setBulkDeleteModal] = useState({
+    isOpen: false,
+    error: null
   });
   const [deleting, setDeleting] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
@@ -192,14 +192,14 @@ export function ClassesPage() {
           <p className="text-muted-foreground">Danh sách các lớp học của trung tâm</p>
         </div>
         <div className="flex items-center gap-2">
-          <ExportButton 
+          <ExportButton
             data={filteredClasses}
             filename="danh-sach-lop-hoc"
             courses={courses}
             teachers={teachers}
             centers={centers}
           />
-          <Button 
+          <Button
             variant="outline"
             onClick={() => setImportModalOpen(true)}
           >
@@ -231,7 +231,7 @@ export function ClassesPage() {
             activeFilterCount={getActiveFilterCount()}
             onOpenAdvancedFilters={() => setAdvancedFiltersOpen(true)}
           />
-          
+
           {/* Filter Chips */}
           <FilterChips
             filters={filters}
@@ -243,7 +243,7 @@ export function ClassesPage() {
             statusConfig={STATUS_CONFIG}
           />
         </CardHeader>
-        
+
         <CardContent>
           {/* Bulk Action Bar */}
           <BulkActionBar

@@ -9,18 +9,18 @@ import { Button } from '@/components/ui/button';
 import { Select } from './Select';
 import { STATUS_CONFIG } from '../utils';
 
-export function ClassFilters({ 
-  searchTerm, 
-  onSearchChange, 
-  statusFilter, 
-  onStatusChange, 
+export function ClassFilters({
+  searchTerm,
+  onSearchChange,
+  statusFilter,
+  onStatusChange,
   totalCount,
   activeFilterCount = 0,
   onOpenAdvancedFilters
 }) {
-  const statusOptions = Object.entries(STATUS_CONFIG).map(([value, { label }]) => ({ 
-    value, 
-    label 
+  const statusOptions = Object.entries(STATUS_CONFIG).map(([value, { label }]) => ({
+    value,
+    label
   }));
 
   return (
@@ -36,7 +36,7 @@ export function ClassFilters({
           onChange={(e) => onSearchChange(e.target.value)}
         />
       </div>
-      
+
       {/* Filter & Count */}
       <div className="flex items-center gap-3">
         <Filter className="h-4 w-4 text-muted-foreground" />
@@ -46,10 +46,10 @@ export function ClassFilters({
           placeholder="Tất cả trạng thái"
           options={statusOptions}
         />
-        
+
         {/* Advanced Filters Button */}
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           size="sm"
           onClick={onOpenAdvancedFilters}
           className="relative"
@@ -62,7 +62,7 @@ export function ClassFilters({
             </span>
           )}
         </Button>
-        
+
         <p className="text-sm text-muted-foreground whitespace-nowrap">
           Tổng: <strong>{totalCount}</strong> lớp
         </p>

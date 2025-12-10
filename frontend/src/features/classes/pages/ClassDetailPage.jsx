@@ -47,10 +47,10 @@ export function ClassDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { session } = useAuth();
-  
+
   // Active tab state
   const [activeTab, setActiveTab] = useState('students');
-  
+
   // Phase 2 modals state
   const [showBatchEnrollModal, setShowBatchEnrollModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -65,7 +65,7 @@ export function ClassDetailPage() {
 
   // Initialize hooks
   const { toast, showToast, hideToast } = useToast();
-  
+
   const {
     classData,
     loading,
@@ -180,11 +180,11 @@ export function ClassDetailPage() {
       ]);
       setLoading(false);
     };
-    
+
     if (session?.access_token && id) {
       loadData();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.access_token, id]);
 
   // Reload students when filters change
@@ -192,7 +192,7 @@ export function ClassDetailPage() {
     if (session?.access_token && id && !loading) {
       fetchStudents(filters);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.page, filters.limit, filters.paymentStatus, filters.search]);
 
   // Load sessions when switching to schedule tab
@@ -200,7 +200,7 @@ export function ClassDetailPage() {
     if (activeTab === 'schedule' && session?.access_token && id) {
       fetchSessions();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   // Load grades when switching to grades tab
@@ -208,7 +208,7 @@ export function ClassDetailPage() {
     if (activeTab === 'grades' && session?.access_token && id) {
       fetchGrades();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   // Event handlers
@@ -348,22 +348,22 @@ export function ClassDetailPage() {
       <div className="bg-white rounded-xl shadow-sm border border-slate-200">
         {/* Tab Navigation */}
         <div className="flex items-center gap-2 p-4 border-b border-slate-200">
-          <TabButton 
-            active={activeTab === 'students'} 
+          <TabButton
+            active={activeTab === 'students'}
             onClick={() => setActiveTab('students')}
             icon={Users}
           >
             Học viên ({students.length})
           </TabButton>
-          <TabButton 
-            active={activeTab === 'schedule'} 
+          <TabButton
+            active={activeTab === 'schedule'}
             onClick={() => setActiveTab('schedule')}
             icon={Calendar}
           >
             Lịch trình & Điểm danh
           </TabButton>
-          <TabButton 
-            active={activeTab === 'grades'} 
+          <TabButton
+            active={activeTab === 'grades'}
             onClick={() => setActiveTab('grades')}
             icon={GraduationCap}
           >

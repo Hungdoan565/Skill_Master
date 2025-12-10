@@ -10,11 +10,13 @@ export function AdminLayout() {
 
       {/* Main content area */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Header */}
-        <AdminHeader />
+        {/* Header - z-index cao để dropdown không bị đè */}
+        <div className="relative z-50">
+          <AdminHeader />
+        </div>
 
         {/* Page content - Warm stone background with subtle pattern */}
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto relative z-0">
           {/* Background layer with subtle gradient */}
           <div className="min-h-full bg-gradient-to-br from-stone-50 via-stone-100/80 to-orange-50/30">
             {/* Subtle grid pattern overlay */}

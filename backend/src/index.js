@@ -2156,7 +2156,7 @@ app.get('/api/roles', async (_req, res, next) => {
 app.get('/api/admin/students', requireAuth, async (req, res, next) => {
   try {
     const { search, status, centerId, limit = '50', page = '1' } = req.query;
-    
+
     const pageNum = parseInt(page) || 1;
     const limitNum = Math.min(parseInt(limit) || 50, 100); // Max 100 items
     const offset = (pageNum - 1) * limitNum;
@@ -2240,8 +2240,8 @@ app.get('/api/admin/students', requireAuth, async (req, res, next) => {
       );
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: result,
       pagination: {
         total: count || 0,
@@ -3565,8 +3565,8 @@ app.post('/api/admin/classes/import', requireAuth, requireRole(['SUPER_ADMIN', '
         // Lookup room (optional)
         let room = null;
         if (row.room_name && center) {
-          room = rooms.find(r => 
-            r.name?.toLowerCase() === row.room_name?.toLowerCase() && 
+          room = rooms.find(r =>
+            r.name?.toLowerCase() === row.room_name?.toLowerCase() &&
             r.center_id === center.id
           );
         }
@@ -3596,8 +3596,8 @@ app.post('/api/admin/classes/import', requireAuth, requireRole(['SUPER_ADMIN', '
 
         // Validate status
         const validStatuses = ['upcoming', 'ongoing', 'completed', 'cancelled'];
-        const status = validStatuses.includes(row.status?.toLowerCase()) 
-          ? row.status.toLowerCase() 
+        const status = validStatuses.includes(row.status?.toLowerCase())
+          ? row.status.toLowerCase()
           : 'upcoming';
 
         // Insert class
@@ -3769,7 +3769,7 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     delete safeUpdates.payroll_id;
     delete safeUpdates.class_id;
     delete safeUpdates.id;
-    
+
     safeUpdates.updated_at = new Date().toISOString();
 
     // Perform bulk update
@@ -12691,8 +12691,8 @@ app.get('/api/admin/classes/:classId/report', requireAuth, requireRole(['SUPER_A
     const totalAttendanceRecords = attendance?.length || 0;
     const presentCount = attendance?.filter(a => a.status === 'present')?.length || 0;
     const absentCount = attendance?.filter(a => a.status === 'absent')?.length || 0;
-    const attendanceRate = totalAttendanceRecords > 0 
-      ? Math.round((presentCount / totalAttendanceRecords) * 100) 
+    const attendanceRate = totalAttendanceRecords > 0
+      ? Math.round((presentCount / totalAttendanceRecords) * 100)
       : 0;
 
     // Financial summary
@@ -12773,9 +12773,9 @@ app.get('/api/admin/classes/:classId/report', requireAuth, requireRole(['SUPER_A
             totalGradeColumns: [...new Set(grades?.map(g => g.grade_column_id))].length,
             classAverage: Object.values(studentGrades).length > 0
               ? Math.round(
-                  Object.values(studentGrades).reduce((sum, s) => sum + s.average, 0) 
-                  / Object.values(studentGrades).length * 100
-                ) / 100
+                Object.values(studentGrades).reduce((sum, s) => sum + s.average, 0)
+                / Object.values(studentGrades).length * 100
+              ) / 100
               : 0
           },
           studentGrades: Object.values(studentGrades)
@@ -12789,8 +12789,8 @@ app.get('/api/admin/classes/:classId/report', requireAuth, requireRole(['SUPER_A
             totalStudents,
             totalRevenue,
             expectedRevenue,
-            collectionRate: expectedRevenue > 0 
-              ? Math.round((totalRevenue / expectedRevenue) * 100) 
+            collectionRate: expectedRevenue > 0
+              ? Math.round((totalRevenue / expectedRevenue) * 100)
               : 0
           },
           enrollmentDetails: enrollments?.map(e => ({
@@ -12804,10 +12804,10 @@ app.get('/api/admin/classes/:classId/report', requireAuth, requireRole(['SUPER_A
             status: e.status,
             paidAmount: e.paid_amount || 0,
             expectedAmount: classData.course?.price || 0,
-            paymentStatus: (e.paid_amount || 0) >= (classData.course?.price || 0) 
-              ? 'paid' 
-              : e.paid_amount > 0 
-                ? 'partial' 
+            paymentStatus: (e.paid_amount || 0) >= (classData.course?.price || 0)
+              ? 'paid'
+              : e.paid_amount > 0
+                ? 'partial'
                 : 'unpaid'
           })) || []
         };
@@ -12826,11 +12826,11 @@ app.get('/api/admin/classes/:classId/report', requireAuth, requireRole(['SUPER_A
             attendanceRate,
             totalRevenue,
             expectedRevenue,
-            collectionRate: expectedRevenue > 0 
-              ? Math.round((totalRevenue / expectedRevenue) * 100) 
+            collectionRate: expectedRevenue > 0
+              ? Math.round((totalRevenue / expectedRevenue) * 100)
               : 0,
-            classProgress: totalSessions > 0 
-              ? Math.round((completedSessions / totalSessions) * 100) 
+            classProgress: totalSessions > 0
+              ? Math.round((completedSessions / totalSessions) * 100)
               : 0
           },
           students: enrollments?.map(e => ({

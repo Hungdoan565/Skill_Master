@@ -91,8 +91,8 @@ export function ScheduleTab({
           {viewMode === 'list' ? (
             <SessionsList sessions={sessions} onAttendanceClick={onAttendanceClick} />
           ) : (
-            <ClassCalendarView 
-              sessions={calendarSessions} 
+            <ClassCalendarView
+              sessions={calendarSessions}
               onSessionClick={onAttendanceClick}
             />
           )}
@@ -106,7 +106,7 @@ export function ScheduleTab({
 // Sub-components
 function Header({ schedule, total, completed, viewMode, onViewModeChange, onCreateSessions }) {
   const progressPercent = total ? (completed / total * 100) : 0;
-  
+
   return (
     <div className="flex flex-col gap-4 pb-4 border-b border-slate-200">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -116,7 +116,7 @@ function Header({ schedule, total, completed, viewMode, onViewModeChange, onCrea
             {formatScheduleDisplay(schedule)} • Tổng {total} buổi
           </p>
         </div>
-        
+
         {/* Actions Row */}
         <div className="flex items-center gap-3">
           {/* View Mode Toggle */}
@@ -125,8 +125,8 @@ function Header({ schedule, total, completed, viewMode, onViewModeChange, onCrea
               onClick={() => onViewModeChange('list')}
               className={`
                 px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5
-                ${viewMode === 'list' 
-                  ? 'bg-white text-indigo-600 shadow-sm' 
+                ${viewMode === 'list'
+                  ? 'bg-white text-indigo-600 shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
                 }
               `}
@@ -139,8 +139,8 @@ function Header({ schedule, total, completed, viewMode, onViewModeChange, onCrea
               onClick={() => onViewModeChange('calendar')}
               className={`
                 px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5
-                ${viewMode === 'calendar' 
-                  ? 'bg-white text-indigo-600 shadow-sm' 
+                ${viewMode === 'calendar'
+                  ? 'bg-white text-indigo-600 shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
                 }
               `}
@@ -170,7 +170,7 @@ function Header({ schedule, total, completed, viewMode, onViewModeChange, onCrea
       <div className="flex items-center gap-3">
         <div className="flex-1">
           <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-            <div 
+            <div
               className="h-full bg-indigo-500 rounded-full transition-all"
               style={{ width: `${progressPercent}%` }}
             />
@@ -235,16 +235,16 @@ function SessionItem({ session, onAttendanceClick }) {
   const isUpcoming = session.status === 'upcoming';
   const hasAttendance = session.is_marked;
 
-  const containerClass = isToday 
-    ? 'bg-indigo-50 border-indigo-200 ring-2 ring-indigo-500/20' 
-    : isCompleted 
-      ? 'bg-slate-50 border-slate-200' 
+  const containerClass = isToday
+    ? 'bg-indigo-50 border-indigo-200 ring-2 ring-indigo-500/20'
+    : isCompleted
+      ? 'bg-slate-50 border-slate-200'
       : 'bg-white border-slate-200 hover:border-slate-300';
 
-  const numberClass = isToday 
-    ? 'bg-indigo-500 text-white' 
-    : isCompleted 
-      ? 'bg-slate-300 text-slate-600' 
+  const numberClass = isToday
+    ? 'bg-indigo-500 text-white'
+    : isCompleted
+      ? 'bg-slate-300 text-slate-600'
       : 'bg-slate-100 text-slate-700';
 
   return (
@@ -258,10 +258,10 @@ function SessionItem({ session, onAttendanceClick }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <p className={`font-semibold ${isToday ? 'text-indigo-900' : 'text-slate-900'}`}>
-            {session.day_name}, {new Date(session.date).toLocaleDateString('vi-VN', { 
-              day: '2-digit', 
-              month: '2-digit', 
-              year: 'numeric' 
+            {session.day_name}, {new Date(session.date).toLocaleDateString('vi-VN', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric'
             })}
           </p>
           {isToday && (
@@ -300,11 +300,10 @@ function SessionItem({ session, onAttendanceClick }) {
         ) : (
           <Button
             size="sm"
-            className={`${
-              hasAttendance 
-                ? 'bg-slate-600 hover:bg-slate-700' 
+            className={`${hasAttendance
+                ? 'bg-slate-600 hover:bg-slate-700'
                 : 'bg-indigo-600 hover:bg-indigo-700'
-            } text-white`}
+              } text-white`}
             onClick={() => onAttendanceClick(session)}
           >
             <ClipboardCheck className="w-4 h-4 mr-1.5" />

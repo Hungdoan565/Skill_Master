@@ -19,7 +19,7 @@
 export { ClassesPage, ClassAnalyticsPage } from './pages';
 
 // Components
-export { 
+export {
   ColorAvatar,
   SimpleModal,
   Select,
@@ -33,7 +33,7 @@ export {
 } from './components';
 
 // Hooks
-export { 
+export {
   useClassesList,
   useClassForm,
   useConflictCheck,

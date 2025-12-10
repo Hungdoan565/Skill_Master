@@ -110,9 +110,12 @@ export function AdminHeader() {
 
   // Lấy thông tin từ profile (bảng users) hoặc fallback từ user metadata
   const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
-  const avatarUrl = profile?.avatar_url;
+  const avatarUrl = profile?.avatar_url || user?.user_metadata?.avatar_url;
   const roleCode = profile?.roles?.code || (user?.email?.includes('admin') ? 'SUPER_ADMIN' : null);
   const userEmail = user?.email || '';
+  
+  // Debug avatar
+  console.log('[AdminHeader] Avatar URL:', avatarUrl, '| Profile:', profile?.full_name);
 
   const dropdownItems = [
     { 
