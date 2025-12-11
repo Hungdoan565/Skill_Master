@@ -3336,6 +3336,52 @@ app.get('/api/admin/classes/:classId/sessions', requireAuth, async (req, res, ne
   }
 });
 
+// Lấy danh sách documents của một lớp
+app.get('/api/admin/classes/:classId/documents', requireAuth, async (req, res, next) => {
+  try {
+    const { classId } = req.params;
+    const { type, search, page = 1, limit = 50 } = req.query;
+
+    let query = supabase
+      .from('documents')
+      .select(`
+        *,
+        courses (id, code, title),
+        uploaded_by_user:users!documents_uploaded_by_fkey (id, full_name, email)
+      `, { count: 'exact' })
+      .eq('class_id', classId)
+      .order('created_at', { ascending: false });
+
+    if (type) {
+      query = query.eq('type', type);
+    }
+    if (search) {
+      query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
+    }
+
+    // Pagination
+    const offset = (page - 1) * limit;
+    query = query.range(offset, offset + parseInt(limit) - 1);
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: data || [],
+      pagination: {
+        total: count || 0,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil((count || 0) / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching class documents:', error);
+    next(error);
+  }
+});
+
 // Regenerate sessions cho một lớp
 app.post('/api/admin/classes/:classId/regenerate-sessions', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {

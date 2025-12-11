@@ -41,3 +41,6 @@ export { ClassNotificationModal } from './ClassNotificationModal';
 
 // Phase 2.5: Advanced Reporting
 export { ClassReportModal } from './ClassReportModal';
+
+// Phase 2.5: Document Management
+export { ClassDocumentsTab } from './ClassDocumentsTab';

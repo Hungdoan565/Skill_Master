@@ -7,7 +7,7 @@ import { useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/button';
-import { Loader2, AlertCircle, ArrowLeft, Users, Calendar, GraduationCap, UserPlus, Mail, FileText, Copy, TrendingUp, BarChart3 } from 'lucide-react';
+import { Loader2, AlertCircle, ArrowLeft, Users, Calendar, GraduationCap, UserPlus, Mail, FileText, Copy, TrendingUp, BarChart3, FolderOpen } from 'lucide-react';
 
 // Components
 import {
@@ -30,7 +30,9 @@ import {
   // Phase 2.3: Student Performance
   StudentPerformanceTab,
   // Phase 2.4: Grade Analytics
-  GradeAnalyticsTab
+  GradeAnalyticsTab,
+  // Phase 2.5: Documents
+  ClassDocumentsTab
 } from '../components';
 
 // Hooks
@@ -451,6 +453,13 @@ export function ClassDetailPage() {
           >
             Thống kê điểm
           </TabButton>
+          <TabButton
+            active={activeTab === 'documents'}
+            onClick={() => setActiveTab('documents')}
+            icon={FolderOpen}
+          >
+            Tài liệu
+          </TabButton>
         </div>
 
         {/* Tab Content */}
@@ -526,6 +535,15 @@ export function ClassDetailPage() {
               gradeMatrix={gradeMatrix}
               loading={loadingGrades}
               onRefresh={fetchGrades}
+            />
+          )}
+
+          {activeTab === 'documents' && (
+            <ClassDocumentsTab
+              classId={id}
+              className={classData?.name}
+              courseId={classData?.course_id}
+              getHeaders={getHeaders}
             />
           )}
         </div>
