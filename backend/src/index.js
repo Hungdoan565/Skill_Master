@@ -124,14 +124,18 @@ async function generateSessionsForClass(classId, startDate, endDate, schedule, t
     ]);
 
     const sessions = [];
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    // Parse dates as local time to avoid timezone issues
+    const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+    const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+    const start = new Date(startYear, startMonth - 1, startDay);
+    const end = new Date(endYear, endMonth - 1, endDay);
     let sessionNumber = 1;
 
     // Duyệt từng ngày từ start đến end
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       const dayOfWeek = d.getDay(); // 0=Sunday, 1=Monday, ...
-      const dateStr = d.toISOString().split('T')[0];
+      // Format date as YYYY-MM-DD without timezone conversion
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
       // Kiểm tra ngày này có trong lịch học không và không phải ngày lễ
       if (scheduleDays.has(dayOfWeek) && !holidays.has(dateStr)) {
@@ -3409,29 +3413,43 @@ app.post('/api/classes/:classId/sessions/preview', requireAuth, async (req, res,
       }
     });
 
-    // Get current max session number
-    const { data: existingSessions } = await supabase
+    // Get existing sessions to avoid duplicates
+    const { data: allExistingSessions } = await supabase
       .from('sessions')
-      .select('session_number')
-      .eq('class_id', classId)
-      .order('session_number', { ascending: false })
-      .limit(1);
+      .select('session_number, session_date')
+      .eq('class_id', classId);
 
-    const startSessionNumber = (existingSessions?.[0]?.session_number || 0) + 1;
+    const existingDates = new Set((allExistingSessions || []).map(s => s.session_date));
+    const maxSessionNumber = allExistingSessions?.length > 0
+      ? Math.max(...allExistingSessions.map(s => s.session_number || 0))
+      : 0;
+
+    const startSessionNumber = maxSessionNumber + 1;
 
     // Generate sessions
     const sessions = [];
-    const start = new Date(start_date);
-    const end = new Date(end_date);
+    const skippedDates = [];
+    // Parse dates as local time to avoid timezone issues
+    const [startYear, startMonth, startDay] = start_date.split('-').map(Number);
+    const [endYear, endMonth, endDay] = end_date.split('-').map(Number);
+    const start = new Date(startYear, startMonth - 1, startDay);
+    const end = new Date(endYear, endMonth - 1, endDay);
     let sessionNumber = startSessionNumber;
 
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       const dayOfWeek = d.getDay();
-      const dateStr = d.toISOString().split('T')[0];
+      // Format date as YYYY-MM-DD without timezone conversion
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
       if (!scheduleDays.has(dayOfWeek)) continue;
       if (skip_holidays && holidays.has(dateStr)) continue;
       if (exclude_dates.includes(dateStr)) continue;
+
+      // Skip dates that already have sessions
+      if (existingDates.has(dateStr)) {
+        skippedDates.push(dateStr);
+        continue;
+      }
 
       const time = timeByDay[dayOfWeek];
       sessions.push({
@@ -3439,7 +3457,7 @@ app.post('/api/classes/:classId/sessions/preview', requireAuth, async (req, res,
         session_date: dateStr,
         start_time: time.start,
         end_time: time.end,
-        status: 'scheduled'
+        status: 'upcoming'
       });
       sessionNumber++;
     }
@@ -3506,7 +3524,9 @@ app.post('/api/classes/:classId/sessions/preview', requireAuth, async (req, res,
         count: sessions.length,
         startSessionNumber,
         conflicts,
-        hasConflicts: conflicts.length > 0
+        hasConflicts: conflicts.length > 0,
+        skippedDates,
+        skippedCount: skippedDates.length
       }
     });
   } catch (error) {
@@ -3571,29 +3591,38 @@ app.post('/api/classes/:classId/sessions/bulk', requireAuth, requireRole(['SUPER
       await supabase.from('sessions').delete().eq('class_id', classId);
     }
 
-    // Get current max session number
-    const { data: existingSessions } = await supabase
+    // Get existing sessions to avoid duplicates
+    const { data: allExistingSessions } = await supabase
       .from('sessions')
-      .select('session_number')
-      .eq('class_id', classId)
-      .order('session_number', { ascending: false })
-      .limit(1);
+      .select('session_number, session_date')
+      .eq('class_id', classId);
 
-    const startSessionNumber = replace_existing ? 1 : ((existingSessions?.[0]?.session_number || 0) + 1);
+    const existingDates = new Set((allExistingSessions || []).map(s => s.session_date));
+    const maxSessionNumber = allExistingSessions?.length > 0
+      ? Math.max(...allExistingSessions.map(s => s.session_number || 0))
+      : 0;
+
+    const startSessionNumber = replace_existing ? 1 : (maxSessionNumber + 1);
 
     // Generate sessions
     const sessions = [];
-    const start = new Date(start_date);
-    const end = new Date(end_date);
+    // Parse dates as local time to avoid timezone issues
+    const [startYear, startMonth, startDay] = start_date.split('-').map(Number);
+    const [endYear, endMonth, endDay] = end_date.split('-').map(Number);
+    const start = new Date(startYear, startMonth - 1, startDay);
+    const end = new Date(endYear, endMonth - 1, endDay);
     let sessionNumber = startSessionNumber;
 
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       const dayOfWeek = d.getDay();
-      const dateStr = d.toISOString().split('T')[0];
+      // Format date as YYYY-MM-DD without timezone conversion
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
       if (!scheduleDays.has(dayOfWeek)) continue;
       if (skip_holidays && holidays.has(dateStr)) continue;
       if (exclude_dates.includes(dateStr)) continue;
+      // Skip dates that already have sessions
+      if (existingDates.has(dateStr)) continue;
 
       const time = timeByDay[dayOfWeek];
       sessions.push({
@@ -3604,9 +3633,17 @@ app.post('/api/classes/:classId/sessions/bulk', requireAuth, requireRole(['SUPER
         session_date: dateStr,
         start_time: time.start,
         end_time: time.end,
-        status: 'scheduled'
+        status: 'upcoming'
       });
       sessionNumber++;
+    }
+
+    // Check if no new sessions to create
+    if (sessions.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không có buổi học mới để tạo. Các ngày đã chọn có thể đã có buổi học hoặc trùng ngày lễ.'
+      });
     }
 
     // Limit to 100 sessions
@@ -3712,7 +3749,7 @@ app.post('/api/admin/classes/:classId/sessions/bulk', requireAuth, requireRole([
       session_date: session.session_date,
       start_time: session.start_time,
       end_time: session.end_time,
-      status: 'scheduled'
+      status: 'upcoming'
     }));
 
     // If preview mode, return what would be created
@@ -5765,8 +5802,11 @@ function generateSessions(startDate, endDate, schedule) {
   const { days: scheduleDays, startTime, endTime } = parseScheduleData(schedule);
   if (scheduleDays.length === 0) return sessions;
 
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  // Parse dates as local time to avoid timezone issues
+  const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+  const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+  const start = new Date(startYear, startMonth - 1, startDay);
+  const end = new Date(endYear, endMonth - 1, endDay);
   let sessionNumber = 1;
 
   // Danh sách ngày nghỉ lễ Việt Nam 2025-2026
@@ -5780,7 +5820,8 @@ function generateSessions(startDate, endDate, schedule) {
 
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
     const dayOfWeek = d.getDay(); // 0=CN, 1=T2, 2=T3, ...
-    const dateStr = d.toISOString().split('T')[0];
+    // Format date as YYYY-MM-DD without timezone conversion
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
     if (scheduleDays.includes(dayOfWeek) && !holidays.includes(dateStr)) {
       const today = new Date();

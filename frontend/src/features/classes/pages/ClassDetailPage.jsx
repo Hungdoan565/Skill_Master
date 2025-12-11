@@ -7,7 +7,7 @@ import { useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/button';
-import { Loader2, AlertCircle, ArrowLeft, Users, Calendar, GraduationCap, UserPlus, Mail, FileText, Copy, TrendingUp } from 'lucide-react';
+import { Loader2, AlertCircle, ArrowLeft, Users, Calendar, GraduationCap, UserPlus, Mail, FileText, Copy, TrendingUp, BarChart3 } from 'lucide-react';
 
 // Components
 import {
@@ -28,7 +28,9 @@ import {
   StudentTransferModal,
   ClassReportModal,
   // Phase 2.3: Student Performance
-  StudentPerformanceTab
+  StudentPerformanceTab,
+  // Phase 2.4: Grade Analytics
+  GradeAnalyticsTab
 } from '../components';
 
 // Hooks
@@ -235,6 +237,17 @@ export function ClassDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
+  // Load grades when switching to grade-analytics tab (if not already loaded)
+  useEffect(() => {
+    if (activeTab === 'grade-analytics' && session?.access_token && id) {
+      // Fetch grades if not already loaded
+      if (gradeMatrix.length === 0 && !loadingGrades) {
+        fetchGrades();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
   // Event handlers
   const handleEnroll = async (student) => {
     const result = await enrollStudent(student, classData?.courses?.price || 0);
@@ -343,6 +356,8 @@ export function ClassDetailPage() {
     const result = await saveAllGrades();
     if (result.success) {
       showToast(`Đã lưu ${result.count} điểm`, 'success');
+      // Refresh performance data after saving grades
+      fetchPerformance();
     } else {
       showToast(result.message, 'error');
     }
@@ -429,6 +444,13 @@ export function ClassDetailPage() {
           >
             Hiệu suất
           </TabButton>
+          <TabButton
+            active={activeTab === 'grade-analytics'}
+            onClick={() => setActiveTab('grade-analytics')}
+            icon={BarChart3}
+          >
+            Thống kê điểm
+          </TabButton>
         </div>
 
         {/* Tab Content */}
@@ -495,6 +517,15 @@ export function ClassDetailPage() {
               performanceData={performanceData}
               loading={loadingPerformance}
               onRefresh={fetchPerformance}
+            />
+          )}
+
+          {activeTab === 'grade-analytics' && (
+            <GradeAnalyticsTab
+              gradeStructures={gradeStructures}
+              gradeMatrix={gradeMatrix}
+              loading={loadingGrades}
+              onRefresh={fetchGrades}
             />
           )}
         </div>

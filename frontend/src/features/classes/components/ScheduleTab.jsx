@@ -1,7 +1,7 @@
 /**
  * ScheduleTab Component
  * Displays session list with attendance management
- * Enhanced with Calendar View toggle
+ * Enhanced with Calendar View toggle (List, Week, Calendar)
  */
 
 import { useState, useMemo } from 'react';
@@ -14,12 +14,14 @@ import {
   Loader2,
   List,
   LayoutGrid,
+  CalendarDays,
   Plus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatScheduleDisplay } from '../utils';
 import { ClassCalendarView } from './ClassCalendarView';
+import { WeeklyCalendarView } from './WeeklyCalendarView';
 
 // View mode storage key
 const VIEW_MODE_KEY = 'skill_master_schedule_view_mode';
@@ -90,6 +92,11 @@ export function ScheduleTab({
         <>
           {viewMode === 'list' ? (
             <SessionsList sessions={sessions} onAttendanceClick={onAttendanceClick} />
+          ) : viewMode === 'week' ? (
+            <WeeklyCalendarView
+              sessions={sessions}
+              onSessionClick={onAttendanceClick}
+            />
           ) : (
             <ClassCalendarView
               sessions={calendarSessions}
@@ -119,7 +126,7 @@ function Header({ schedule, total, completed, viewMode, onViewModeChange, onCrea
 
         {/* Actions Row */}
         <div className="flex items-center gap-3">
-          {/* View Mode Toggle */}
+          {/* View Mode Toggle - 3 options: List, Week, Calendar */}
           <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
             <button
               onClick={() => onViewModeChange('list')}
@@ -136,6 +143,20 @@ function Header({ schedule, total, completed, viewMode, onViewModeChange, onCrea
               <span className="hidden sm:inline">Danh sách</span>
             </button>
             <button
+              onClick={() => onViewModeChange('week')}
+              className={`
+                px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5
+                ${viewMode === 'week'
+                  ? 'bg-white text-indigo-600 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+                }
+              `}
+              title="Xem theo tuần"
+            >
+              <CalendarDays className="w-4 h-4" />
+              <span className="hidden sm:inline">Tuần</span>
+            </button>
+            <button
               onClick={() => onViewModeChange('calendar')}
               className={`
                 px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5
@@ -144,7 +165,7 @@ function Header({ schedule, total, completed, viewMode, onViewModeChange, onCrea
                   : 'text-slate-600 hover:text-slate-900'
                 }
               `}
-              title="Xem dạng lịch"
+              title="Xem dạng lịch tháng"
             >
               <LayoutGrid className="w-4 h-4" />
               <span className="hidden sm:inline">Lịch</span>
@@ -165,7 +186,6 @@ function Header({ schedule, total, completed, viewMode, onViewModeChange, onCrea
           )}
         </div>
       </div>
-
       {/* Progress Bar */}
       <div className="flex items-center gap-3">
         <div className="flex-1">
@@ -258,11 +278,16 @@ function SessionItem({ session, onAttendanceClick }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <p className={`font-semibold ${isToday ? 'text-indigo-900' : 'text-slate-900'}`}>
-            {session.day_name}, {new Date(session.date).toLocaleDateString('vi-VN', {
-              day: '2-digit',
-              month: '2-digit',
-              year: 'numeric'
-            })}
+            {session.day_name}, {(() => {
+              // Parse date as local time to avoid timezone issues
+              const [year, month, day] = session.date.split('-').map(Number);
+              const date = new Date(year, month - 1, day);
+              return date.toLocaleDateString('vi-VN', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+              });
+            })()}
           </p>
           {isToday && (
             <Badge className="bg-indigo-500 text-white text-xs">Hôm nay</Badge>
@@ -301,8 +326,8 @@ function SessionItem({ session, onAttendanceClick }) {
           <Button
             size="sm"
             className={`${hasAttendance
-                ? 'bg-slate-600 hover:bg-slate-700'
-                : 'bg-indigo-600 hover:bg-indigo-700'
+              ? 'bg-slate-600 hover:bg-slate-700'
+              : 'bg-indigo-600 hover:bg-indigo-700'
               } text-white`}
             onClick={() => onAttendanceClick(session)}
           >

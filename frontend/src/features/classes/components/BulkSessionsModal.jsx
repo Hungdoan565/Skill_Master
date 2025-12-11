@@ -121,14 +121,19 @@ export function BulkSessionsModal({
 
         const scheduleDays = new Set(selectedDays.map(d => dayMapping[d]));
         const sessions = [];
-        const start = new Date(dateRange.start);
-        const end = new Date(dateRange.end);
+
+        // Parse dates as local time to avoid timezone issues
+        const [startYear, startMonth, startDay] = dateRange.start.split('-').map(Number);
+        const [endYear, endMonth, endDay] = dateRange.end.split('-').map(Number);
+        const start = new Date(startYear, startMonth - 1, startDay);
+        const end = new Date(endYear, endMonth - 1, endDay);
 
         let sessionNumber = existingSessionsCount + 1;
 
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
             const dayOfWeek = d.getDay();
-            const dateStr = d.toISOString().split('T')[0];
+            // Format date as YYYY-MM-DD without timezone conversion
+            const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
             // Check if this day is in schedule
             if (!scheduleDays.has(dayOfWeek)) continue;
@@ -617,8 +622,8 @@ function Step2Preview({
                 <button
                     onClick={() => setFilter('all')}
                     className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${filter === 'all'
-                            ? 'border-indigo-600 text-indigo-600'
-                            : 'border-transparent text-slate-500 hover:text-slate-700'
+                        ? 'border-indigo-600 text-indigo-600'
+                        : 'border-transparent text-slate-500 hover:text-slate-700'
                         }`}
                 >
                     Tất cả ({sessions.length})
@@ -627,8 +632,8 @@ function Step2Preview({
                     <button
                         onClick={() => setFilter('conflicts')}
                         className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${filter === 'conflicts'
-                                ? 'border-amber-600 text-amber-600'
-                                : 'border-transparent text-slate-500 hover:text-slate-700'
+                            ? 'border-amber-600 text-amber-600'
+                            : 'border-transparent text-slate-500 hover:text-slate-700'
                             }`}
                     >
                         Xung đột ({conflicts.length})
@@ -773,7 +778,9 @@ function SummaryRow({ label, value, highlight }) {
 // Helper functions
 function formatDate(dateStr) {
     if (!dateStr) return '';
-    const date = new Date(dateStr);
+    // Parse date string as local time to avoid timezone issues
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
     return date.toLocaleDateString('vi-VN', {
         weekday: 'short',
         day: '2-digit',

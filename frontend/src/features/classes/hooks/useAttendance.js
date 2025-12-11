@@ -11,7 +11,7 @@ export function useAttendance(classId, getHeaders) {
   const [sessions, setSessions] = useState([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
   const [sessionsInfo, setSessionsInfo] = useState({ total: 0, completed: 0 });
-  
+
   // Attendance modal state
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
   const [selectedSession, setSelectedSession] = useState(null);
@@ -20,23 +20,56 @@ export function useAttendance(classId, getHeaders) {
   const [savingAttendance, setSavingAttendance] = useState(false);
   const [attendanceSearch, setAttendanceSearch] = useState('');
 
-  // Fetch sessions list
+  // Fetch sessions list from database (using admin API)
   const fetchSessions = useCallback(async () => {
     if (!classId) return;
-    
+
     setLoadingSessions(true);
     try {
+      // Use admin API to get sessions from database
       const res = await fetch(
-        `${API_URL}/api/classes/${classId}/sessions`, 
+        `${API_URL}/api/admin/classes/${classId}/sessions`,
         { headers: getHeaders() }
       );
       const json = await res.json();
-      
+
       if (json.success) {
-        setSessions(json.data.sessions || []);
+        // Process sessions to add day_name and status
+        const processedSessions = (json.data || []).map(session => {
+          // Parse session_date as local time to avoid timezone issues
+          const [year, month, day] = session.session_date.split('-').map(Number);
+          const sessionDate = new Date(year, month - 1, day);
+          const dayOfWeek = sessionDate.getDay(); // 0=Sunday, 1=Monday, ...
+
+          // Day names mapping (JS getDay)
+          const dayNames = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+
+          // Determine status
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          sessionDate.setHours(0, 0, 0, 0);
+
+          let displayStatus = session.status;
+          if (sessionDate.getTime() === today.getTime()) {
+            displayStatus = 'today';
+          } else if (sessionDate < today && session.status === 'upcoming') {
+            displayStatus = 'completed';
+          }
+
+          return {
+            ...session,
+            date: session.session_date,
+            day_of_week: dayOfWeek,
+            day_name: dayNames[dayOfWeek],
+            status: displayStatus,
+            teacher: session.users || null
+          };
+        });
+
+        setSessions(processedSessions);
         setSessionsInfo({
-          total: json.data.total_sessions || 0,
-          completed: json.data.completed_sessions || 0
+          total: processedSessions.length,
+          completed: processedSessions.filter(s => s.status === 'completed').length
         });
       }
     } catch (error) {
@@ -49,15 +82,15 @@ export function useAttendance(classId, getHeaders) {
   // Fetch attendance for a specific session
   const fetchAttendance = useCallback(async (date) => {
     if (!classId) return;
-    
+
     setLoadingAttendance(true);
     try {
       const res = await fetch(
-        `${API_URL}/api/classes/${classId}/attendance?date=${date}`, 
+        `${API_URL}/api/classes/${classId}/attendance?date=${date}`,
         { headers: getHeaders() }
       );
       const json = await res.json();
-      
+
       if (json.success) {
         // Default all to "present" if not marked yet
         const listWithDefaults = json.data.students.map(s => ({
@@ -92,14 +125,14 @@ export function useAttendance(classId, getHeaders) {
 
   // Update attendance status for a student
   const updateAttendanceStatus = useCallback((enrollmentId, status) => {
-    setAttendanceList(prev => prev.map(s => 
+    setAttendanceList(prev => prev.map(s =>
       s.enrollment_id === enrollmentId ? { ...s, status } : s
     ));
   }, []);
 
   // Update attendance notes
   const updateAttendanceNotes = useCallback((enrollmentId, notes) => {
-    setAttendanceList(prev => prev.map(s => 
+    setAttendanceList(prev => prev.map(s =>
       s.enrollment_id === enrollmentId ? { ...s, notes } : s
     ));
   }, []);
@@ -107,7 +140,7 @@ export function useAttendance(classId, getHeaders) {
   // Save attendance
   const saveAttendance = useCallback(async () => {
     if (!selectedSession || !classId) return { success: false };
-    
+
     setSavingAttendance(true);
     try {
       const res = await fetch(`${API_URL}/api/attendance/mark`, {
@@ -124,20 +157,20 @@ export function useAttendance(classId, getHeaders) {
           }))
         })
       });
-      
+
       const json = await res.json();
-      
+
       if (json.success) {
         closeAttendanceModal();
         fetchSessions(); // Refresh sessions list
-        return { 
-          success: true, 
-          summary: json.data.summary 
+        return {
+          success: true,
+          summary: json.data.summary
         };
       } else {
-        return { 
-          success: false, 
-          message: json.message || 'Lỗi khi lưu điểm danh' 
+        return {
+          success: false,
+          message: json.message || 'Lỗi khi lưu điểm danh'
         };
       }
     } catch (error) {
@@ -150,7 +183,7 @@ export function useAttendance(classId, getHeaders) {
 
   // Get filtered attendance list
   const getFilteredAttendanceList = useCallback(() => {
-    return attendanceList.filter(s => 
+    return attendanceList.filter(s =>
       s.full_name?.toLowerCase().includes(attendanceSearch.toLowerCase()) ||
       s.email?.toLowerCase().includes(attendanceSearch.toLowerCase())
     );
@@ -172,7 +205,7 @@ export function useAttendance(classId, getHeaders) {
     loadingSessions,
     sessionsInfo,
     fetchSessions,
-    
+
     // Attendance Modal
     showAttendanceModal,
     selectedSession,
@@ -181,14 +214,14 @@ export function useAttendance(classId, getHeaders) {
     savingAttendance,
     attendanceSearch,
     setAttendanceSearch,
-    
+
     // Actions
     openAttendanceModal,
     closeAttendanceModal,
     updateAttendanceStatus,
     updateAttendanceNotes,
     saveAttendance,
-    
+
     // Computed
     getFilteredAttendanceList,
     getAttendanceSummary

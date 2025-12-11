@@ -15,6 +15,7 @@ export { BulkRemoveStudentsModal } from './BulkRemoveStudentsModal';
 export { PaymentModal } from './PaymentModal';
 export { AttendanceModal } from './AttendanceModal';
 export { ClassCalendarView } from './ClassCalendarView';
+export { WeeklyCalendarView } from './WeeklyCalendarView';
 export { RecurringSessionsBuilder } from './RecurringSessionsBuilder';
 
 // Phase 1.3: Bulk Sessions Builder
@@ -31,6 +32,9 @@ export { StudentTransferModal } from './StudentTransferModal';
 // Phase 2.3: Student Performance Tracking
 export { StudentPerformanceCard } from './StudentPerformanceCard';
 export { StudentPerformanceTab } from './StudentPerformanceTab';
+
+// Phase 2.4: Grade Analytics & Visualization
+export { GradeAnalyticsTab } from './GradeAnalyticsTab';
 
 // Phase 2.4: Notification Integration
 export { ClassNotificationModal } from './ClassNotificationModal';
