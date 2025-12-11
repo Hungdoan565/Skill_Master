@@ -24,7 +24,6 @@ import {
   AttendanceModal,
   // Phase 2 Components
   StudentTransferModal,
-  ClassNotificationModal,
   ClassReportModal
 } from '../components';
 
@@ -52,7 +51,6 @@ export function ClassDetailPage() {
 
   // Phase 2 modals state
   const [showTransferModal, setShowTransferModal] = useState(false);
-  const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
 
   // API headers helper
@@ -363,15 +361,6 @@ export function ClassDetailPage() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setShowNotificationModal(true)}
-          className="text-green-600 border-green-300 hover:bg-green-50"
-        >
-          <Mail className="w-4 h-4 mr-2" />
-          Gửi thông báo
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
           onClick={() => setShowReportModal(true)}
           className="text-orange-600 border-orange-300 hover:bg-orange-50"
         >
@@ -536,16 +525,6 @@ export function ClassDetailPage() {
           fetchStudents(filters);
           fetchClassDetail();
           showToast('Chuyển học viên thành công', 'success');
-        }}
-      />
-
-      <ClassNotificationModal
-        show={showNotificationModal}
-        onClose={() => setShowNotificationModal(false)}
-        classId={id}
-        students={students}
-        onSuccess={() => {
-          showToast('Đã gửi thông báo thành công', 'success');
         }}
       />
 
