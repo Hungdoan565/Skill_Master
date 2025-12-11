@@ -19,6 +19,7 @@ import {
   FileText,
   Award,
   MessageCircle,
+  Bell,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -66,6 +67,7 @@ const menuGroups = [
     id: 'system',
     title: 'HỆ THỐNG',
     items: [
+      { label: 'Thông báo', icon: Bell, path: '/admin/notifications' },
       { label: 'Tài liệu', icon: FileText, path: '/admin/documents' },
       { label: 'Hỗ trợ', icon: MessageCircle, path: '/admin/support' },
       { label: 'Báo cáo', icon: BarChart3, path: '/admin/reports' },

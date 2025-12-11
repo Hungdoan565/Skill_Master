@@ -25,7 +25,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-// Notification templates
+// Notification templates with field definitions
 const NOTIFICATION_TEMPLATES = [
     {
         id: 'schedule_change',
@@ -43,7 +43,13 @@ Lý do: {reason}
 Mọi thắc mắc xin vui lòng liên hệ hotline hoặc nhắn tin trực tiếp.
 
 Trân trọng,
-{centerName}`
+{centerName}`,
+        // Các trường cần điền cho template này
+        fields: [
+            { key: 'oldSchedule', label: 'Lịch cũ', placeholder: 'VD: Thứ 2, 4, 6 - 18:00', type: 'text' },
+            { key: 'newSchedule', label: 'Lịch mới', placeholder: 'VD: Thứ 3, 5, 7 - 19:00', type: 'text' },
+            { key: 'reason', label: 'Lý do thay đổi', placeholder: 'VD: Điều chỉnh lịch giáo viên', type: 'text' }
+        ]
     },
     {
         id: 'class_reminder',
@@ -59,7 +65,10 @@ Trân trọng,
 Hãy chuẩn bị bài và đến đúng giờ nhé!
 
 Trân trọng,
-{centerName}`
+{centerName}`,
+        fields: [
+            { key: 'sessionTime', label: 'Thời gian học', placeholder: 'VD: 18:00 - 20:00', type: 'text' }
+        ]
     },
     {
         id: 'payment_reminder',
@@ -80,7 +89,14 @@ Thông tin chuyển khoản:
 - Nội dung: {transferContent}
 
 Trân trọng,
-{centerName}`
+{centerName}`,
+        fields: [
+            { key: 'remainingAmount', label: '💰 Số tiền còn lại', placeholder: 'VD: 2,000,000 VNĐ', type: 'text' },
+            { key: 'dueDate', label: '📅 Hạn thanh toán', placeholder: '', type: 'date' },
+            { key: 'bankName', label: '🏦 Ngân hàng', placeholder: 'VD: Vietcombank', type: 'select', options: ['Vietcombank', 'Techcombank', 'BIDV', 'Agribank', 'MB Bank', 'VPBank', 'ACB', 'Sacombank', 'TPBank', 'Khác'] },
+            { key: 'bankAccount', label: '💳 Số tài khoản', placeholder: 'VD: 1234567890', type: 'text' },
+            { key: 'transferContent', label: '📝 Nội dung CK', placeholder: 'VD: HP [Tên học viên] - [Tên lớp]', type: 'text' }
+        ]
     },
     {
         id: 'general_announcement',
@@ -88,10 +104,13 @@ Trân trọng,
         subject: 'Thông báo từ {centerName}',
         content: `Kính gửi các học viên lớp {className},
 
-{content}
+{customContent}
 
 Trân trọng,
-{centerName}`
+{centerName}`,
+        fields: [
+            { key: 'customContent', label: 'Nội dung thông báo', placeholder: 'Nhập nội dung thông báo...', type: 'textarea' }
+        ]
     }
 ];
 
@@ -122,6 +141,13 @@ export function ClassNotificationModal({
     const [selectedStudentIds, setSelectedStudentIds] = useState([]);
     const [sending, setSending] = useState(false);
     const [result, setResult] = useState(null);
+    const [templateFields, setTemplateFields] = useState({}); // Lưu giá trị các field của template
+
+    // Lấy template hiện tại
+    const currentTemplate = useMemo(() =>
+        NOTIFICATION_TEMPLATES.find(t => t.id === selectedTemplate),
+        [selectedTemplate]
+    );
 
     // Select all students by default
     useState(() => {
@@ -133,36 +159,67 @@ export function ClassNotificationModal({
     // Template selection handler
     const handleTemplateSelect = (templateId) => {
         setSelectedTemplate(templateId);
+        setTemplateFields({}); // Reset các field khi đổi template
+
         const template = NOTIFICATION_TEMPLATES.find(t => t.id === templateId);
         if (template) {
-            // Replace placeholders with actual data
+            // Chỉ replace các giá trị cố định (className, centerName, teacherName, studentName)
             let processedSubject = template.subject;
             let processedContent = template.content;
 
-            const replacements = {
+            const fixedReplacements = {
                 '{className}': classData?.name || 'Lớp học',
                 '{centerName}': classData?.center_name || 'Trung tâm',
                 '{teacherName}': classData?.teacher_name || 'Giáo viên',
-                '{studentName}': '[Tên học viên]',
-                '{oldSchedule}': '[Lịch cũ]',
-                '{newSchedule}': '[Lịch mới]',
-                '{reason}': '[Lý do]',
-                '{sessionTime}': '[Thời gian]',
-                '{remainingAmount}': '[Số tiền]',
-                '{dueDate}': '[Ngày hết hạn]',
-                '{bankName}': '[Tên ngân hàng]',
-                '{bankAccount}': '[Số tài khoản]',
-                '{transferContent}': '[Nội dung CK]',
-                '{content}': '[Nội dung thông báo]'
+                '{studentName}': '{studentName}' // Giữ nguyên để thay thế khi gửi
             };
 
-            Object.entries(replacements).forEach(([key, value]) => {
-                processedSubject = processedSubject.replace(new RegExp(key, 'g'), value);
-                processedContent = processedContent.replace(new RegExp(key, 'g'), value);
+            Object.entries(fixedReplacements).forEach(([key, value]) => {
+                processedSubject = processedSubject.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), value);
+                processedContent = processedContent.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), value);
             });
 
             setSubject(processedSubject);
             setContent(processedContent);
+        } else {
+            setSubject('');
+            setContent('');
+        }
+    };
+
+    // Cập nhật giá trị field và tự động cập nhật content
+    const handleFieldChange = (fieldKey, value) => {
+        const newFields = { ...templateFields, [fieldKey]: value };
+        setTemplateFields(newFields);
+
+        // Rebuild content từ template với các giá trị mới
+        if (currentTemplate) {
+            let processedContent = currentTemplate.content;
+            let processedSubject = currentTemplate.subject;
+
+            // Thay thế các giá trị cố định
+            const fixedReplacements = {
+                '{className}': classData?.name || 'Lớp học',
+                '{centerName}': classData?.center_name || 'Trung tâm',
+                '{teacherName}': classData?.teacher_name || 'Giáo viên',
+                '{studentName}': '{studentName}'
+            };
+
+            Object.entries(fixedReplacements).forEach(([key, val]) => {
+                processedSubject = processedSubject.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), val);
+                processedContent = processedContent.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), val);
+            });
+
+            // Thay thế các field đã điền
+            currentTemplate.fields?.forEach(field => {
+                const fieldValue = newFields[field.key] || `[${field.label.replace(/[💰📅🏦💳📝]/g, '').trim()}]`;
+                const regex = new RegExp(`\\{${field.key}\\}`, 'g');
+                processedContent = processedContent.replace(regex, fieldValue);
+                processedSubject = processedSubject.replace(regex, fieldValue);
+            });
+
+            setContent(processedContent);
+            setSubject(processedSubject);
         }
     };
 
@@ -376,6 +433,63 @@ export function ClassNotificationModal({
                                     ))}
                                 </select>
                             </div>
+
+                            {/* Dynamic Template Fields */}
+                            {currentTemplate?.fields && currentTemplate.fields.length > 0 && (
+                                <div className="bg-orange-50 rounded-xl p-4 border border-orange-200">
+                                    <label className="text-sm font-medium text-orange-800 mb-3 block">
+                                        📝 Điền thông tin cho mẫu "{currentTemplate.name}"
+                                    </label>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {currentTemplate.fields.map(field => (
+                                            <div key={field.key} className={field.type === 'textarea' ? 'md:col-span-2' : ''}>
+                                                <label className="text-xs font-medium text-slate-600 mb-1 block">
+                                                    {field.label}
+                                                </label>
+                                                {field.type === 'select' ? (
+                                                    <select
+                                                        value={templateFields[field.key] || ''}
+                                                        onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                                                        className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400"
+                                                    >
+                                                        <option value="">-- Chọn --</option>
+                                                        {field.options?.map(opt => (
+                                                            <option key={opt} value={opt}>{opt}</option>
+                                                        ))}
+                                                    </select>
+                                                ) : field.type === 'textarea' ? (
+                                                    <textarea
+                                                        value={templateFields[field.key] || ''}
+                                                        onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                                                        placeholder={field.placeholder}
+                                                        rows={3}
+                                                        className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 resize-none"
+                                                    />
+                                                ) : field.type === 'date' ? (
+                                                    <input
+                                                        type="date"
+                                                        value={templateFields[field.key] || ''}
+                                                        onChange={(e) => {
+                                                            // Format date to Vietnamese format
+                                                            const date = e.target.value ? new Date(e.target.value).toLocaleDateString('vi-VN') : '';
+                                                            handleFieldChange(field.key, date);
+                                                        }}
+                                                        className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400"
+                                                    />
+                                                ) : (
+                                                    <input
+                                                        type="text"
+                                                        value={templateFields[field.key] || ''}
+                                                        onChange={(e) => handleFieldChange(field.key, e.target.value)}
+                                                        placeholder={field.placeholder}
+                                                        className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400"
+                                                    />
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Subject (for email) */}
                             {notificationType !== 'sms' && (

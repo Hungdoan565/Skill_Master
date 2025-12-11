@@ -23,7 +23,6 @@ export { SessionBulkEditModal } from './SessionBulkEditModal';
 export { SessionRescheduleModal } from './SessionRescheduleModal';
 
 // Phase 2.2: Student Assignment Interface
-export { BatchStudentEnrollmentModal } from './BatchStudentEnrollmentModal';
 export { StudentTransferModal } from './StudentTransferModal';
 
 // Phase 2.4: Notification Integration

@@ -30,6 +30,7 @@ import { DocumentsPage } from '@/features/documents';
 import { CertificatesPage, CertificateTypeDetailPage, CertificatePrintPage } from '@/features/certificates';
 import { SupportPage } from '@/features/support';
 import { TeacherDashboardPage } from '@/features/teacher-dashboard';
+import AdminNotificationsPage from '@/features/notifications/AdminNotificationsPage';
 import { TeacherSchedulePage } from '@/features/teacher-schedule';
 import { TeacherClassesPage } from '@/features/teacher-classes';
 import { TeacherAvailabilityPage } from '@/features/teacher-availability';
@@ -514,6 +515,7 @@ function App() {
             <Route path="certificates/type/:id" element={<CertificateTypeDetailPage />} />
             <Route path="certificates/:id/print" element={<CertificatePrintPage />} />
             <Route path="support" element={<SupportPage />} />
+            <Route path="notifications" element={<AdminNotificationsPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="reports/revenue" element={<RevenueReportPage />} />

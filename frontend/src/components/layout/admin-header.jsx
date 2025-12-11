@@ -113,41 +113,41 @@ export function AdminHeader() {
   const avatarUrl = profile?.avatar_url || user?.user_metadata?.avatar_url;
   const roleCode = profile?.roles?.code || (user?.email?.includes('admin') ? 'SUPER_ADMIN' : null);
   const userEmail = user?.email || '';
-  
+
   // Debug avatar
   console.log('[AdminHeader] Avatar URL:', avatarUrl, '| Profile:', profile?.full_name);
 
   const dropdownItems = [
-    { 
-      label: 'Trang chủ', 
-      icon: Home, 
+    {
+      label: 'Trang chủ',
+      icon: Home,
       action: () => { setIsDropdownOpen(false); navigate('/'); },
-      divider: false 
+      divider: false
     },
-    { 
-      label: 'Hồ sơ cá nhân', 
-      icon: User, 
+    {
+      label: 'Hồ sơ cá nhân',
+      icon: User,
       action: () => { setIsDropdownOpen(false); navigate('/admin/profile'); },
-      divider: false 
+      divider: false
     },
-    { 
-      label: 'Cài đặt', 
-      icon: Settings, 
+    {
+      label: 'Cài đặt',
+      icon: Settings,
       action: () => { setIsDropdownOpen(false); navigate('/admin/settings'); },
-      divider: false 
+      divider: false
     },
-    { 
-      label: 'Trợ giúp', 
-      icon: HelpCircle, 
+    {
+      label: 'Trợ giúp',
+      icon: HelpCircle,
       action: () => { setIsDropdownOpen(false); navigate('/help'); },
-      divider: true 
+      divider: true
     },
-    { 
-      label: 'Đăng xuất', 
-      icon: LogOut, 
+    {
+      label: 'Đăng xuất',
+      icon: LogOut,
       action: handleLogout,
       divider: false,
-      danger: true 
+      danger: true
     },
   ];
 
@@ -213,11 +213,11 @@ export function AdminHeader() {
                 {roleCode && <RoleBadge roleCode={roleCode} />}
               </div>
             </div>
-            <ChevronDown 
+            <ChevronDown
               className={`
                 h-4 w-4 text-zinc-400 hidden sm:block transition-transform duration-200
                 ${isDropdownOpen ? 'rotate-180' : ''}
-              `} 
+              `}
             />
           </button>
 
@@ -228,8 +228,8 @@ export function AdminHeader() {
               rounded-2xl border border-stone-200/80 bg-white py-2 
               shadow-xl shadow-stone-900/5
               transition-all duration-200 ease-out z-50
-              ${isDropdownOpen 
-                ? 'opacity-100 scale-100 translate-y-0 visible' 
+              ${isDropdownOpen
+                ? 'opacity-100 scale-100 translate-y-0 visible'
                 : 'opacity-0 scale-95 -translate-y-2 invisible pointer-events-none'
               }
             `}
@@ -257,8 +257,8 @@ export function AdminHeader() {
                     onClick={item.action}
                     className={`
                       w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-150
-                      ${item.danger 
-                        ? 'text-red-600 hover:bg-red-50' 
+                      ${item.danger
+                        ? 'text-red-600 hover:bg-red-50'
                         : 'text-zinc-700 hover:bg-stone-50'
                       }
                     `}

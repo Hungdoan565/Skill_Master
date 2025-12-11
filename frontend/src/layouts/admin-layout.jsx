@@ -20,7 +20,7 @@ export function AdminLayout() {
           {/* Background layer with subtle gradient */}
           <div className="min-h-full bg-gradient-to-br from-stone-50 via-stone-100/80 to-orange-50/30">
             {/* Subtle grid pattern overlay */}
-            <div 
+            <div
               className="min-h-full p-8 lg:p-10"
               style={{
                 backgroundImage: `radial-gradient(circle at 1px 1px, rgba(0,0,0,0.03) 1px, transparent 0)`,

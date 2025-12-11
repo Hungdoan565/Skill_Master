@@ -19,7 +19,9 @@ export function AuthProvider({ children }) {
 
     try {
       console.log('[AuthContext] Fetching profile for:', userId);
-      const { data, error } = await supabase
+
+      // Tăng timeout lên 10 giây và tối ưu query
+      const profilePromise = supabase
         .from('users')
         .select(`
           id,
@@ -29,12 +31,12 @@ export function AuthProvider({ children }) {
           avatar_url,
           role_id,
           center_id,
-          roles (
+          roles!inner (
             id,
             code,
             name
           ),
-          centers!users_center_id_fkey (
+          centers (
             id,
             name
           )
@@ -42,13 +44,23 @@ export function AuthProvider({ children }) {
         .eq('id', userId)
         .single();
 
+      // Tăng timeout lên 10 giây
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
+      );
+
+      const { data, error } = await Promise.race([
+        profilePromise,
+        timeoutPromise
+      ]);
+
       if (error) {
         console.error('[AuthContext] Error fetching profile:', error);
         setProfile(null);
         return null;
       }
 
-      console.log('[AuthContext] Profile loaded:', data?.full_name, '| Role:', data?.roles?.code);
+      console.log('[AuthContext] Profile loaded:', data?.full_name, '| Role:', data?.roles?.code, '| Avatar:', data?.avatar_url);
       setProfile(data);
       return data;
     } catch (err) {
@@ -91,12 +103,12 @@ export function AuthProvider({ children }) {
                 avatar_url,
                 role_id,
                 center_id,
-                roles (
+                roles!inner (
                   id,
                   code,
                   name
                 ),
-                centers!users_center_id_fkey (
+                centers (
                   id,
                   name
                 )
@@ -104,9 +116,9 @@ export function AuthProvider({ children }) {
               .eq('id', currentSession.user.id)
               .single();
 
-            // Timeout 5 giây
+            // Timeout 10 giây thay vì 5
             const timeoutPromise = new Promise((_, reject) =>
-              setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
+              setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
             );
 
             const { data: profileData, error: profileError } = await Promise.race([
@@ -176,12 +188,12 @@ export function AuthProvider({ children }) {
                 avatar_url,
                 role_id,
                 center_id,
-                roles (
+                roles!inner (
                   id,
                   code,
                   name
                 ),
-                centers!users_center_id_fkey (
+                centers (
                   id,
                   name
                 )
@@ -189,9 +201,9 @@ export function AuthProvider({ children }) {
               .eq('id', currentSession.user.id)
               .single();
 
-            // Timeout 5 giây
+            // Timeout 10 giây
             const timeoutPromise = new Promise((_, reject) =>
-              setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
+              setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
             );
 
             const { data: profileData, error: profileError } = await Promise.race([

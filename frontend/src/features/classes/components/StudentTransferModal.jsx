@@ -33,10 +33,10 @@ export function StudentTransferModal({
 }) {
     const { session } = useAuth();
 
-    const getAuthHeaders = () => ({
+    const getAuthHeaders = useCallback(() => ({
         'Authorization': `Bearer ${session?.access_token}`,
         'Content-Type': 'application/json'
-    });
+    }), [session?.access_token]);
 
     const isOpen = show;
     const sourceClassId = classId;
@@ -59,11 +59,14 @@ export function StudentTransferModal({
     const fetchClasses = useCallback(async () => {
         setLoadingClasses(true);
         try {
-            const response = await fetch(`${API_URL}/api/admin/classes?limit=100`, {
+            const response = await fetch(`${API_URL}/api/classes`, {
                 headers: getAuthHeaders()
             });
 
-            if (!response.ok) throw new Error('Failed to fetch classes');
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+            }
 
             const data = await response.json();
             // Exclude current class
@@ -156,7 +159,7 @@ export function StudentTransferModal({
             // Step 1: Enroll students in target class
             for (const studentId of selectedStudentIds) {
                 try {
-                    const enrollResponse = await fetch(`${API_URL}/api/admin/classes/${targetClassId}/students`, {
+                    const enrollResponse = await fetch(`${API_URL}/api/classes/${targetClassId}/enroll`, {
                         method: 'POST',
                         headers: getAuthHeaders(),
                         body: JSON.stringify({ student_id: studentId })
@@ -187,7 +190,7 @@ export function StudentTransferModal({
                 for (const studentId of selectedStudentIds) {
                     try {
                         const removeResponse = await fetch(
-                            `${API_URL}/api/admin/classes/${sourceClassId}/students/${studentId}`,
+                            `${API_URL}/api/classes/${sourceClassId}/students/${studentId}`,
                             {
                                 method: 'DELETE',
                                 headers: getAuthHeaders()

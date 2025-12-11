@@ -43,12 +43,12 @@ export function BatchStudentEnrollmentModal({
         'Content-Type': 'application/json'
     });
 
-    const currentStudentIds = [];
     const courseId = classData?.course_id;
     const centerId = classData?.center_id;
     const className = classData?.name || classData?.class_name;
     const onEnrollSuccess = onSuccess;
     const isOpen = show;
+
     // State
     const [searchQuery, setSearchQuery] = useState('');
     const [students, setStudents] = useState([]);
@@ -56,6 +56,7 @@ export function BatchStudentEnrollmentModal({
     const [selectedIds, setSelectedIds] = useState([]);
     const [enrolling, setEnrolling] = useState(false);
     const [result, setResult] = useState(null);
+    const [currentStudentIds, setCurrentStudentIds] = useState([]);
 
     // Filters
     const [filters, setFilters] = useState({
@@ -68,7 +69,30 @@ export function BatchStudentEnrollmentModal({
     // Courses for filter
     const [courses, setCourses] = useState([]);
 
-    // Fetch students
+    // Fetch current students in class
+    const fetchCurrentStudents = useCallback(async () => {
+        if (!isOpen || !classId) return;
+
+        try {
+            // Use class detail public endpoint to get enrollments
+            const response = await fetch(`${API_URL}/api/classes/${classId}`, {
+                headers: getAuthHeaders()
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log('[BatchEnroll] Class detail response:', data);
+                // Extract student IDs from nested users object
+                const enrolledIds = data.data?.enrollments?.map(e => e.users?.id).filter(Boolean) || [];
+                setCurrentStudentIds(enrolledIds);
+                console.log('[BatchEnroll] Current enrolled student IDs:', enrolledIds);
+            } else {
+                console.error('[BatchEnroll] Failed to fetch class detail:', response.status);
+            }
+        } catch (error) {
+            console.error('Error fetching current students:', error);
+        }
+    }, [isOpen, classId, getAuthHeaders]);    // Fetch students
     const fetchStudents = useCallback(async () => {
         if (!isOpen) return;
 
@@ -106,15 +130,14 @@ export function BatchStudentEnrollmentModal({
     // Fetch on open
     useEffect(() => {
         if (isOpen) {
+            fetchCurrentStudents();
             fetchStudents();
             setSelectedIds([]);
             setResult(null);
             setSearchQuery('');
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isOpen]);
-
-    // Filtered students
+    }, [isOpen]);    // Filtered students
     const filteredStudents = useMemo(() => {
         let result = students;
 
@@ -191,14 +214,24 @@ export function BatchStudentEnrollmentModal({
         // Enroll each student
         for (const studentId of selectedIds) {
             try {
-                const response = await fetch(`${API_URL}/api/admin/classes/${classId}/students`, {
+                const payload = {
+                    student_id: studentId,
+                    class_id: classId,
+                    tuition_fee: classData?.courses?.price || 0,
+                    paid_amount: 0
+                };
+
+                console.log('[BatchEnroll] Enrolling student:', payload);
+
+                const response = await fetch(`${API_URL}/api/admin/enrollments`, {
                     method: 'POST',
                     headers: getAuthHeaders(),
-                    body: JSON.stringify({ student_id: studentId })
+                    body: JSON.stringify(payload)
                 });
 
                 if (!response.ok) {
                     const error = await response.json();
+                    console.error('[BatchEnroll] Failed:', error);
                     results.failed++;
                     const student = students.find(s => s.id === studentId);
                     results.errors.push({
@@ -206,9 +239,12 @@ export function BatchStudentEnrollmentModal({
                         error: error.message || 'Lỗi không xác định'
                     });
                 } else {
+                    const data = await response.json();
+                    console.log('[BatchEnroll] Success:', data);
                     results.success++;
                 }
             } catch (error) {
+                console.error('[BatchEnroll] Exception:', error);
                 results.failed++;
                 const student = students.find(s => s.id === studentId);
                 results.errors.push({

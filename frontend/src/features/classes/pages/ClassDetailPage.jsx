@@ -23,7 +23,6 @@ import {
   PaymentModal,
   AttendanceModal,
   // Phase 2 Components
-  BatchStudentEnrollmentModal,
   StudentTransferModal,
   ClassNotificationModal,
   ClassReportModal
@@ -52,7 +51,6 @@ export function ClassDetailPage() {
   const [activeTab, setActiveTab] = useState('students');
 
   // Phase 2 modals state
-  const [showBatchEnrollModal, setShowBatchEnrollModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -223,6 +221,53 @@ export function ClassDetailPage() {
     }
   };
 
+  const handleBatchEnroll = async (studentIds, tuitionFee) => {
+    try {
+      // Validation
+      if (!id) {
+        throw new Error('Không tìm thấy ID lớp học');
+      }
+      if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
+        throw new Error('Vui lòng chọn ít nhất một học viên');
+      }
+
+      console.log('[BatchEnroll] Payload:', {
+        class_id: id,
+        student_ids: studentIds,
+        tuition_fee: tuitionFee
+      });
+
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const response = await fetch(`${API_URL}/api/admin/enrollments/batch`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({
+          class_id: id,
+          student_ids: studentIds,
+          tuition_fee: tuitionFee
+        })
+      });
+
+      const data = await response.json();
+      console.log('[BatchEnroll] Response:', data);
+
+      if (data.success) {
+        const message = data.data.skipped > 0
+          ? `Đã thêm ${data.data.enrolled} học viên (${data.data.skipped} học viên đã tồn tại)`
+          : `Đã thêm ${data.data.enrolled} học viên vào lớp`;
+        showToast(message, 'success');
+        fetchStudents(filters);
+        fetchClassDetail();
+      } else {
+        throw new Error(data.message || 'Có lỗi xảy ra');
+      }
+    } catch (error) {
+      console.error('[BatchEnroll] Error:', error);
+      showToast(error.message || 'Không thể thêm học viên', 'error');
+      throw error;
+    }
+  };
+
   const handleRemoveStudent = async () => {
     const result = await removeStudent();
     if (result.success) {
@@ -306,15 +351,6 @@ export function ClassDetailPage() {
 
       {/* Phase 2 Action Buttons */}
       <div className="flex flex-wrap gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowBatchEnrollModal(true)}
-          className="text-blue-600 border-blue-300 hover:bg-blue-50"
-        >
-          <UserPlus className="w-4 h-4 mr-2" />
-          Ghi danh hàng loạt
-        </Button>
         <Button
           variant="outline"
           size="sm"
@@ -441,6 +477,7 @@ export function ClassDetailPage() {
         resultType={resultType}
         enrolling={enrolling}
         onEnroll={handleEnroll}
+        onBatchEnroll={handleBatchEnroll}
         defaultTuitionFee={classData?.courses?.price || 0}
       />
 
@@ -490,18 +527,6 @@ export function ClassDetailPage() {
       />
 
       {/* Phase 2 Modals */}
-      <BatchStudentEnrollmentModal
-        show={showBatchEnrollModal}
-        onClose={() => setShowBatchEnrollModal(false)}
-        classId={id}
-        classData={classData}
-        onSuccess={() => {
-          fetchStudents(filters);
-          fetchClassDetail();
-          showToast('Ghi danh hàng loạt thành công', 'success');
-        }}
-      />
-
       <StudentTransferModal
         show={showTransferModal}
         onClose={() => setShowTransferModal(false)}
