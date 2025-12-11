@@ -244,8 +244,8 @@ export function ClassDocumentsTab({ classId, className, courseId, getHeaders }) 
                     <button
                         onClick={() => setTypeFilter('all')}
                         className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${typeFilter === 'all'
-                                ? 'bg-indigo-100 text-indigo-700'
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            ? 'bg-indigo-100 text-indigo-700'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                             }`}
                     >
                         Tất cả
@@ -255,8 +255,8 @@ export function ClassDocumentsTab({ classId, className, courseId, getHeaders }) 
                             key={key}
                             onClick={() => setTypeFilter(key)}
                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${typeFilter === key
-                                    ? config.color
-                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                ? config.color
+                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                 }`}
                         >
                             {config.label}
@@ -544,14 +544,14 @@ function UploadModal({ classId, courseId, getHeaders, onClose, onSuccess }) {
                 const filePath = `class-documents/${classId}/${uniqueName}`;
 
                 const { error: uploadError } = await supabase.storage
-                    .from('documents')
+                    .from('document')
                     .upload(filePath, file);
 
                 if (uploadError) throw new Error(uploadError.message);
 
                 // Get public URL
                 const { data: urlData } = supabase.storage
-                    .from('documents')
+                    .from('document')
                     .getPublicUrl(filePath);
 
                 fileUrl = urlData.publicUrl;
@@ -613,8 +613,8 @@ function UploadModal({ classId, courseId, getHeaders, onClose, onSuccess }) {
                             type="button"
                             onClick={() => setUploadMode('file')}
                             className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-colors ${uploadMode === 'file'
-                                    ? 'bg-white text-indigo-600 shadow-sm'
-                                    : 'text-slate-600 hover:text-slate-900'
+                                ? 'bg-white text-indigo-600 shadow-sm'
+                                : 'text-slate-600 hover:text-slate-900'
                                 }`}
                         >
                             <Upload className="w-4 h-4" />
@@ -624,8 +624,8 @@ function UploadModal({ classId, courseId, getHeaders, onClose, onSuccess }) {
                             type="button"
                             onClick={() => setUploadMode('link')}
                             className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-colors ${uploadMode === 'link'
-                                    ? 'bg-white text-indigo-600 shadow-sm'
-                                    : 'text-slate-600 hover:text-slate-900'
+                                ? 'bg-white text-indigo-600 shadow-sm'
+                                : 'text-slate-600 hover:text-slate-900'
                                 }`}
                         >
                             <LinkIcon className="w-4 h-4" />
@@ -728,8 +728,8 @@ function UploadModal({ classId, courseId, getHeaders, onClose, onSuccess }) {
                                     type="button"
                                     onClick={() => setFormData(prev => ({ ...prev, type: key }))}
                                     className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${formData.type === key
-                                            ? config.color
-                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                        ? config.color
+                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                         }`}
                                 >
                                     <config.icon className="w-4 h-4" />
@@ -790,6 +790,8 @@ function PreviewModal({ document, onClose }) {
         document.file_url?.includes('youtu.be');
     const isPdf = document.file_name?.toLowerCase().endsWith('.pdf');
     const isImage = document.file_name?.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+    const isOfficeDoc = document.file_name?.match(/\.(doc|docx|xls|xlsx|ppt|pptx)$/i);
+    const isTextFile = document.file_name?.match(/\.(txt|md|json|xml|csv)$/i);
 
     // Get YouTube embed URL - supports regular videos, shorts, and youtu.be links
     const getYouTubeEmbedUrl = (url) => {
@@ -811,18 +813,34 @@ function PreviewModal({ document, onClose }) {
         return null;
     };
 
+    // Get Office document viewer URL (using Google Docs Viewer or Microsoft Office Online)
+    const getOfficeViewerUrl = (url) => {
+        if (!url) return null;
+        // Google Docs Viewer - works for public URLs
+        return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
+        // Alternative: Microsoft Office Online
+        // return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
+    };
+
     const embedUrl = isYouTube ? getYouTubeEmbedUrl(document.file_url) : null;
+    const officeViewerUrl = isOfficeDoc ? getOfficeViewerUrl(document.file_url) : null;
 
     // Debug log
     console.log('Preview Modal:', {
         file_url: document.file_url,
+        file_name: document.file_name,
         isYouTube,
-        embedUrl
+        isVideo,
+        isPdf,
+        isImage,
+        isOfficeDoc,
+        embedUrl,
+        officeViewerUrl
     });
 
     return (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b">
                     <div>
@@ -838,6 +856,19 @@ function PreviewModal({ document, onClose }) {
                             <ExternalLink className="w-4 h-4 mr-2" />
                             Mở tab mới
                         </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                                const a = window.document.createElement('a');
+                                a.href = document.file_url;
+                                a.download = document.file_name || 'download';
+                                a.click();
+                            }}
+                        >
+                            <Download className="w-4 h-4 mr-2" />
+                            Tải xuống
+                        </Button>
                         <button
                             onClick={onClose}
                             className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
@@ -848,37 +879,72 @@ function PreviewModal({ document, onClose }) {
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-auto bg-slate-900 flex items-center justify-center p-4">
+                <div className="flex-1 overflow-auto bg-slate-100 flex items-center justify-center">
                     {embedUrl ? (
-                        <iframe
-                            src={embedUrl}
-                            className="w-full aspect-video rounded-lg"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                        />
+                        // YouTube Video
+                        <div className="w-full h-full flex items-center justify-center bg-black p-4">
+                            <iframe
+                                src={embedUrl}
+                                className="w-full aspect-video max-h-[70vh] rounded-lg"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                            />
+                        </div>
                     ) : isVideo ? (
-                        <video
-                            src={document.file_url}
-                            controls
-                            className="max-w-full max-h-full rounded-lg"
-                        />
+                        // Local Video (mp4, webm, etc.)
+                        <div className="w-full h-full flex items-center justify-center bg-black p-4">
+                            <video
+                                src={document.file_url}
+                                controls
+                                autoPlay={false}
+                                className="max-w-full max-h-[70vh] rounded-lg"
+                            >
+                                Trình duyệt không hỗ trợ video này
+                            </video>
+                        </div>
                     ) : isPdf ? (
+                        // PDF Document
                         <iframe
                             src={document.file_url}
-                            className="w-full h-full min-h-[600px] bg-white rounded-lg"
+                            className="w-full h-full min-h-[70vh] bg-white"
+                            title={document.title}
                         />
+                    ) : isOfficeDoc ? (
+                        // Office Documents (Word, Excel, PowerPoint)
+                        <div className="w-full h-full flex flex-col">
+                            <div className="bg-blue-50 border-b border-blue-200 px-4 py-2 text-sm text-blue-700 flex items-center gap-2">
+                                <FileText className="w-4 h-4" />
+                                Đang xem qua Google Docs Viewer
+                            </div>
+                            <iframe
+                                src={officeViewerUrl}
+                                className="w-full flex-1 min-h-[65vh] bg-white"
+                                title={document.title}
+                            />
+                        </div>
                     ) : isImage ? (
-                        <img
-                            src={document.file_url}
-                            alt={document.title}
-                            className="max-w-full max-h-full object-contain rounded-lg"
-                        />
+                        // Images
+                        <div className="w-full h-full flex items-center justify-center p-4 bg-slate-800">
+                            <img
+                                src={document.file_url}
+                                alt={document.title}
+                                className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-2xl"
+                            />
+                        </div>
+                    ) : isTextFile ? (
+                        // Text files - fetch and display
+                        <TextFilePreview url={document.file_url} />
                     ) : (
-                        <div className="text-center text-white">
-                            <File className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                            <p>Không thể xem trước file này</p>
+                        // Unsupported file type
+                        <div className="text-center py-16">
+                            <div className="w-20 h-20 bg-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <File className="w-10 h-10 text-slate-400" />
+                            </div>
+                            <h4 className="font-medium text-slate-700 mb-2">Không thể xem trước file này</h4>
+                            <p className="text-sm text-slate-500 mb-4">
+                                Định dạng file: {document.file_name?.split('.').pop()?.toUpperCase() || 'Không xác định'}
+                            </p>
                             <Button
-                                className="mt-4"
                                 onClick={() => window.open(document.file_url, '_blank')}
                             >
                                 <Download className="w-4 h-4 mr-2" />
@@ -888,6 +954,54 @@ function PreviewModal({ document, onClose }) {
                     )}
                 </div>
             </div>
+        </div>
+    );
+}
+
+// Text file preview component
+function TextFilePreview({ url }) {
+    const [content, setContent] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const fetchContent = async () => {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Failed to fetch');
+                const text = await response.text();
+                setContent(text);
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchContent();
+    }, [url]);
+
+    if (loading) {
+        return (
+            <div className="w-full h-full flex items-center justify-center">
+                <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="text-center py-8">
+                <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-2" />
+                <p className="text-slate-500">Không thể tải nội dung file</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="w-full h-full overflow-auto bg-slate-900 p-4">
+            <pre className="text-sm text-slate-200 font-mono whitespace-pre-wrap">
+                {content}
+            </pre>
         </div>
     );
 }
