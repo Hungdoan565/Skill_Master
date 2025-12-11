@@ -9,3 +9,4 @@ export { useGrades } from './useGrades';
 export { useStudentEnrollment } from './useStudentEnrollment';
 export { usePayment } from './usePayment';
 export { useToast } from './useToast';
+export { useStudentPerformance } from './useStudentPerformance';

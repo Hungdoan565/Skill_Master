@@ -17,6 +17,9 @@ export { AttendanceModal } from './AttendanceModal';
 export { ClassCalendarView } from './ClassCalendarView';
 export { RecurringSessionsBuilder } from './RecurringSessionsBuilder';
 
+// Phase 1.3: Bulk Sessions Builder
+export { BulkSessionsModal } from './BulkSessionsModal';
+
 // Phase 2.1: Enhanced Session Management
 export { EnhancedScheduleTab } from './EnhancedScheduleTab';
 export { SessionBulkEditModal } from './SessionBulkEditModal';
@@ -24,6 +27,10 @@ export { SessionRescheduleModal } from './SessionRescheduleModal';
 
 // Phase 2.2: Student Assignment Interface
 export { StudentTransferModal } from './StudentTransferModal';
+
+// Phase 2.3: Student Performance Tracking
+export { StudentPerformanceCard } from './StudentPerformanceCard';
+export { StudentPerformanceTab } from './StudentPerformanceTab';
 
 // Phase 2.4: Notification Integration
 export { ClassNotificationModal } from './ClassNotificationModal';

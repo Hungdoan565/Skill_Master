@@ -46,6 +46,9 @@ const STATUS_CONFIG = {
     cancelled: { label: 'Đã hủy', color: 'bg-red-500' }
 };
 
+// Auto-refresh interval (5 minutes)
+const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000;
+
 export function ClassAnalyticsPage() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -54,9 +57,11 @@ export function ClassAnalyticsPage() {
     const [selectedCenter, setSelectedCenter] = useState('');
     const [centers, setCenters] = useState([]);
     const [dateRange, setDateRange] = useState('this_month');
+    const [lastRefresh, setLastRefresh] = useState(new Date());
+    const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
 
     // Fetch data
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async (isAutoRefresh = false) => {
         try {
             const headers = await getAuthHeaders();
 
@@ -69,6 +74,7 @@ export function ClassAnalyticsPage() {
             if (classesRes.data?.success) setClasses(classesRes.data.data);
             if (coursesRes.data?.success) setCourses(coursesRes.data.data);
             if (centersRes.data?.success) setCenters(centersRes.data.data);
+            setLastRefresh(new Date());
         } catch (error) {
             console.error('Error fetching analytics data:', error);
         } finally {
@@ -77,13 +83,95 @@ export function ClassAnalyticsPage() {
         }
     }, []);
 
+    // Initial fetch
     useEffect(() => {
         fetchData();
     }, [fetchData]);
 
+    // Auto-refresh every 5 minutes
+    useEffect(() => {
+        if (!autoRefreshEnabled) return;
+
+        const intervalId = setInterval(() => {
+            console.log('🔄 Auto-refreshing analytics data...');
+            fetchData(true);
+        }, AUTO_REFRESH_INTERVAL);
+
+        return () => clearInterval(intervalId);
+    }, [fetchData, autoRefreshEnabled]);
+
     const handleRefresh = () => {
         setRefreshing(true);
         fetchData();
+    };
+
+    // Export to PDF function
+    const handleExportPDF = async () => {
+        try {
+            // Dynamic import html2canvas and jspdf
+            const html2canvas = (await import('html2canvas')).default;
+            const { jsPDF } = await import('jspdf');
+
+            const content = document.getElementById('analytics-content');
+            if (!content) {
+                alert('Không tìm thấy nội dung để xuất');
+                return;
+            }
+
+            // Show loading
+            setRefreshing(true);
+
+            // Capture the content
+            const canvas = await html2canvas(content, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff'
+            });
+
+            // Create PDF
+            const imgWidth = 210; // A4 width in mm
+            const pageHeight = 297; // A4 height in mm
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+            const pdf = new jsPDF('p', 'mm', 'a4');
+
+            // Add header
+            pdf.setFontSize(18);
+            pdf.setTextColor(30, 58, 138); // Indigo color
+            pdf.text('BÁO CÁO PHÂN TÍCH LỚP HỌC', 105, 15, { align: 'center' });
+
+            pdf.setFontSize(10);
+            pdf.setTextColor(100, 100, 100);
+            pdf.text(`Ngày xuất: ${new Date().toLocaleString('vi-VN')}`, 105, 22, { align: 'center' });
+            pdf.text(`Tổng số lớp: ${analytics.total}`, 105, 27, { align: 'center' });
+
+            // Add image
+            const imgData = canvas.toDataURL('image/png');
+            let heightLeft = imgHeight;
+            let position = 35;
+
+            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            heightLeft -= (pageHeight - position);
+
+            // Add more pages if needed
+            while (heightLeft > 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+            }
+
+            // Save PDF
+            const fileName = `BaoCao_PhanTich_LopHoc_${new Date().toISOString().split('T')[0]}.pdf`;
+            pdf.save(fileName);
+
+        } catch (error) {
+            console.error('Error exporting PDF:', error);
+            alert('Không thể xuất PDF. Vui lòng thử lại hoặc cài đặt thư viện html2canvas và jspdf.');
+        } finally {
+            setRefreshing(false);
+        }
     };
 
     // Filter classes by center
@@ -248,217 +336,239 @@ export function ClassAnalyticsPage() {
                             ))}
                         </select>
                     )}
+
+                    {/* Auto-refresh toggle */}
+                    <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg text-sm">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={autoRefreshEnabled}
+                                onChange={(e) => setAutoRefreshEnabled(e.target.checked)}
+                                className="w-4 h-4 text-indigo-600 rounded"
+                            />
+                            <span className="text-slate-600">Tự động làm mới</span>
+                        </label>
+                        {autoRefreshEnabled && (
+                            <span className="text-xs text-slate-400">
+                                ({lastRefresh.toLocaleTimeString('vi-VN')})
+                            </span>
+                        )}
+                    </div>
+
                     <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
                         <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
                         Làm mới
                     </Button>
-                    <Button variant="outline">
+                    <Button variant="outline" onClick={handleExportPDF} disabled={refreshing}>
                         <Download className="w-4 h-4 mr-2" />
                         Xuất PDF
                     </Button>
                 </div>
             </div>
 
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <KPICard
-                    title="Tổng số lớp"
-                    value={analytics.total}
-                    icon={<BookOpen className="w-5 h-5" />}
-                    trend={null}
-                    color="indigo"
-                />
-                <KPICard
-                    title="Tổng học viên"
-                    value={analytics.totalEnrolled}
-                    subtitle={`/ ${analytics.totalCapacity} sức chứa`}
-                    icon={<Users className="w-5 h-5" />}
-                    trend={null}
-                    color="emerald"
-                />
-                <KPICard
-                    title="Tỷ lệ lấp đầy"
-                    value={`${analytics.avgFillRate}%`}
-                    icon={<TrendingUp className="w-5 h-5" />}
-                    trend={analytics.avgFillRate >= 70 ? 'up' : analytics.avgFillRate >= 50 ? 'neutral' : 'down'}
-                    color="amber"
-                />
-                <KPICard
-                    title="Đang học"
-                    value={analytics.byStatus.ongoing}
-                    subtitle={`${analytics.byStatus.upcoming} sắp mở`}
-                    icon={<Calendar className="w-5 h-5" />}
-                    trend={null}
-                    color="blue"
-                />
-            </div>
+            {/* Content wrapper for PDF export */}
+            <div id="analytics-content">
+                {/* KPI Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <KPICard
+                        title="Tổng số lớp"
+                        value={analytics.total}
+                        icon={<BookOpen className="w-5 h-5" />}
+                        trend={null}
+                        color="indigo"
+                    />
+                    <KPICard
+                        title="Tổng học viên"
+                        value={analytics.totalEnrolled}
+                        subtitle={`/ ${analytics.totalCapacity} sức chứa`}
+                        icon={<Users className="w-5 h-5" />}
+                        trend={null}
+                        color="emerald"
+                    />
+                    <KPICard
+                        title="Tỷ lệ lấp đầy"
+                        value={`${analytics.avgFillRate}%`}
+                        icon={<TrendingUp className="w-5 h-5" />}
+                        trend={analytics.avgFillRate >= 70 ? 'up' : analytics.avgFillRate >= 50 ? 'neutral' : 'down'}
+                        color="amber"
+                    />
+                    <KPICard
+                        title="Đang học"
+                        value={analytics.byStatus.ongoing}
+                        subtitle={`${analytics.byStatus.upcoming} sắp mở`}
+                        icon={<Calendar className="w-5 h-5" />}
+                        trend={null}
+                        color="blue"
+                    />
+                </div>
 
-            {/* Status Overview */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-lg">Trạng thái lớp học</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid grid-cols-4 gap-4">
-                        {Object.entries(STATUS_CONFIG).map(([key, config]) => (
-                            <div key={key} className="text-center p-4 rounded-lg bg-slate-50">
-                                <div className={`w-3 h-3 rounded-full ${config.color} mx-auto mb-2`} />
-                                <div className="text-2xl font-bold">{analytics.byStatus[key]}</div>
-                                <div className="text-sm text-slate-500">{config.label}</div>
-                            </div>
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Charts Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Monthly Trend */}
+                {/* Status Overview */}
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-lg">Xu hướng tạo lớp</CardTitle>
+                        <CardTitle className="text-lg">Trạng thái lớp học</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <SimpleAreaChart
-                            data={analytics.monthlyTrend}
-                            dataKey="count"
-                            height={250}
-                        />
+                        <div className="grid grid-cols-4 gap-4">
+                            {Object.entries(STATUS_CONFIG).map(([key, config]) => (
+                                <div key={key} className="text-center p-4 rounded-lg bg-slate-50">
+                                    <div className={`w-3 h-3 rounded-full ${config.color} mx-auto mb-2`} />
+                                    <div className="text-2xl font-bold">{analytics.byStatus[key]}</div>
+                                    <div className="text-sm text-slate-500">{config.label}</div>
+                                </div>
+                            ))}
+                        </div>
                     </CardContent>
                 </Card>
 
-                {/* Distribution by Course */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg">Phân bố theo khóa học</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <SimplePieChart data={analytics.byCourse} />
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Second Charts Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Top Teachers */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg">Top giáo viên theo số lớp</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {analytics.topTeachers.length > 0 ? (
-                            <HorizontalBarChart
-                                data={analytics.topTeachers}
-                                showValue
-                                barHeight={8}
+                {/* Charts Row */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Monthly Trend */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg">Xu hướng tạo lớp</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <SimpleAreaChart
+                                data={analytics.monthlyTrend}
+                                dataKey="count"
+                                height={250}
                             />
-                        ) : (
-                            <div className="text-center py-8 text-slate-500">
-                                Chưa có dữ liệu
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
 
-                {/* Capacity Distribution */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg">Phân bố sức chứa</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <SimplePieChart data={analytics.capacityDistribution} />
-                    </CardContent>
-                </Card>
-            </div>
+                    {/* Distribution by Course */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg">Phân bố theo khóa học</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <SimplePieChart data={analytics.byCourse} />
+                        </CardContent>
+                    </Card>
+                </div>
 
-            {/* Alerts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Low Enrollment Alert */}
-                <Card className="border-amber-200 bg-amber-50/50">
-                    <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                            <AlertTriangle className="w-5 h-5 text-amber-500" />
-                            Lớp cần chú ý ({analytics.lowEnrollment.length})
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {analytics.lowEnrollment.length > 0 ? (
-                            <div className="space-y-2 max-h-48 overflow-y-auto">
-                                {analytics.lowEnrollment.slice(0, 5).map(cls => (
-                                    <Link
-                                        key={cls.id}
-                                        to={`/admin/classes/${cls.id}`}
-                                        className="flex items-center justify-between p-3 bg-white rounded-lg hover:bg-amber-100 transition-colors"
-                                    >
-                                        <div>
-                                            <p className="font-medium text-sm">{cls.name}</p>
-                                            <p className="text-xs text-slate-500">{cls.courses?.title}</p>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="font-medium text-amber-600">
-                                                {cls.enrolled_count}/{cls.max_students}
-                                            </p>
-                                            <p className="text-xs text-slate-500">học viên</p>
-                                        </div>
-                                    </Link>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="text-center py-4 text-slate-500">
-                                <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-500" />
-                                <p>Không có lớp nào cần chú ý</p>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                {/* Second Charts Row */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Top Teachers */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg">Top giáo viên theo số lớp</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {analytics.topTeachers.length > 0 ? (
+                                <HorizontalBarChart
+                                    data={analytics.topTeachers}
+                                    showValue
+                                    barHeight={8}
+                                />
+                            ) : (
+                                <div className="text-center py-8 text-slate-500">
+                                    Chưa có dữ liệu
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
 
-                {/* Near Start Date Alert */}
-                <Card className="border-blue-200 bg-blue-50/50">
-                    <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                            <Clock className="w-5 h-5 text-blue-500" />
-                            Sắp khai giảng ({analytics.nearStartDate.length})
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {analytics.nearStartDate.length > 0 ? (
-                            <div className="space-y-2 max-h-48 overflow-y-auto">
-                                {analytics.nearStartDate.slice(0, 5).map(cls => {
-                                    const startDate = new Date(cls.start_date);
-                                    const today = new Date();
-                                    const daysUntil = Math.ceil((startDate - today) / (1000 * 60 * 60 * 24));
+                    {/* Capacity Distribution */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg">Phân bố sức chứa</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <SimplePieChart data={analytics.capacityDistribution} />
+                        </CardContent>
+                    </Card>
+                </div>
 
-                                    return (
+                {/* Alerts Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Low Enrollment Alert */}
+                    <Card className="border-amber-200 bg-amber-50/50">
+                        <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                <AlertTriangle className="w-5 h-5 text-amber-500" />
+                                Lớp cần chú ý ({analytics.lowEnrollment.length})
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {analytics.lowEnrollment.length > 0 ? (
+                                <div className="space-y-2 max-h-48 overflow-y-auto">
+                                    {analytics.lowEnrollment.slice(0, 5).map(cls => (
                                         <Link
                                             key={cls.id}
                                             to={`/admin/classes/${cls.id}`}
-                                            className="flex items-center justify-between p-3 bg-white rounded-lg hover:bg-blue-100 transition-colors"
+                                            className="flex items-center justify-between p-3 bg-white rounded-lg hover:bg-amber-100 transition-colors"
                                         >
                                             <div>
                                                 <p className="font-medium text-sm">{cls.name}</p>
                                                 <p className="text-xs text-slate-500">{cls.courses?.title}</p>
                                             </div>
                                             <div className="text-right">
-                                                <p className="font-medium text-blue-600">
-                                                    {daysUntil === 0 ? 'Hôm nay' : `${daysUntil} ngày`}
+                                                <p className="font-medium text-amber-600">
+                                                    {cls.enrolled_count}/{cls.max_students}
                                                 </p>
-                                                <p className="text-xs text-slate-500">
-                                                    {startDate.toLocaleDateString('vi-VN')}
-                                                </p>
+                                                <p className="text-xs text-slate-500">học viên</p>
                                             </div>
                                         </Link>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <div className="text-center py-4 text-slate-500">
-                                <Calendar className="w-8 h-8 mx-auto mb-2 text-slate-400" />
-                                <p>Không có lớp nào sắp khai giảng</p>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-            </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-4 text-slate-500">
+                                    <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-500" />
+                                    <p>Không có lớp nào cần chú ý</p>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Near Start Date Alert */}
+                    <Card className="border-blue-200 bg-blue-50/50">
+                        <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                <Clock className="w-5 h-5 text-blue-500" />
+                                Sắp khai giảng ({analytics.nearStartDate.length})
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {analytics.nearStartDate.length > 0 ? (
+                                <div className="space-y-2 max-h-48 overflow-y-auto">
+                                    {analytics.nearStartDate.slice(0, 5).map(cls => {
+                                        const startDate = new Date(cls.start_date);
+                                        const today = new Date();
+                                        const daysUntil = Math.ceil((startDate - today) / (1000 * 60 * 60 * 24));
+
+                                        return (
+                                            <Link
+                                                key={cls.id}
+                                                to={`/admin/classes/${cls.id}`}
+                                                className="flex items-center justify-between p-3 bg-white rounded-lg hover:bg-blue-100 transition-colors"
+                                            >
+                                                <div>
+                                                    <p className="font-medium text-sm">{cls.name}</p>
+                                                    <p className="text-xs text-slate-500">{cls.courses?.title}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="font-medium text-blue-600">
+                                                        {daysUntil === 0 ? 'Hôm nay' : `${daysUntil} ngày`}
+                                                    </p>
+                                                    <p className="text-xs text-slate-500">
+                                                        {startDate.toLocaleDateString('vi-VN')}
+                                                    </p>
+                                                </div>
+                                            </Link>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="text-center py-4 text-slate-500">
+                                    <Calendar className="w-8 h-8 mx-auto mb-2 text-slate-400" />
+                                    <p>Không có lớp nào sắp khai giảng</p>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+            </div> {/* End analytics-content */}
         </div>
     );
 }
@@ -490,8 +600,8 @@ function KPICard({ title, value, subtitle, icon, trend, color }) {
                 {trend && (
                     <div className="mt-3">
                         <span className={`text-sm font-medium ${trend === 'up' ? 'text-green-600' :
-                                trend === 'down' ? 'text-red-600' :
-                                    'text-slate-500'
+                            trend === 'down' ? 'text-red-600' :
+                                'text-slate-500'
                             }`}>
                             {trend === 'up' ? '↑ Tốt' : trend === 'down' ? '↓ Cần cải thiện' : '→ Ổn định'}
                         </span>

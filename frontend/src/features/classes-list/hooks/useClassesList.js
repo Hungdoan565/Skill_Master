@@ -36,6 +36,9 @@ export function useClassesList() {
       if (serverFilters.courseId) params.append('course_id', serverFilters.courseId);
       if (serverFilters.teacherId) params.append('teacher_id', serverFilters.teacherId);
       if (serverFilters.centerId) params.append('centerId', serverFilters.centerId);
+      // Date range filters (server-side for better performance)
+      if (serverFilters.dateStart) params.append('date_start', serverFilters.dateStart);
+      if (serverFilters.dateEnd) params.append('date_end', serverFilters.dateEnd);
 
       const queryString = params.toString();
       const url = queryString

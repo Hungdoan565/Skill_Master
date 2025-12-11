@@ -7,7 +7,7 @@ import { useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/button';
-import { Loader2, AlertCircle, ArrowLeft, Users, Calendar, GraduationCap, UserPlus, Mail, FileText, Copy } from 'lucide-react';
+import { Loader2, AlertCircle, ArrowLeft, Users, Calendar, GraduationCap, UserPlus, Mail, FileText, Copy, TrendingUp } from 'lucide-react';
 
 // Components
 import {
@@ -22,9 +22,13 @@ import {
   BulkRemoveStudentsModal,
   PaymentModal,
   AttendanceModal,
+  // Phase 1.3: Bulk Sessions
+  BulkSessionsModal,
   // Phase 2 Components
   StudentTransferModal,
-  ClassReportModal
+  ClassReportModal,
+  // Phase 2.3: Student Performance
+  StudentPerformanceTab
 } from '../components';
 
 // Hooks
@@ -35,7 +39,8 @@ import {
   useGrades,
   useStudentEnrollment,
   usePayment,
-  useToast
+  useToast,
+  useStudentPerformance
 } from '../hooks';
 
 // State for active tab
@@ -48,6 +53,9 @@ export function ClassDetailPage() {
 
   // Active tab state
   const [activeTab, setActiveTab] = useState('students');
+
+  // Phase 1.3: Bulk Sessions modal state
+  const [showBulkSessionsModal, setShowBulkSessionsModal] = useState(false);
 
   // Phase 2 modals state
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -166,6 +174,18 @@ export function ClassDetailPage() {
     copyTransferContent
   } = usePayment(id, getHeaders);
 
+  // Phase 2.3: Student Performance Hook
+  const {
+    performanceData,
+    performanceSummary,
+    loadingPerformance,
+    performanceError,
+    fetchPerformance,
+    getAtRiskStudents,
+    getTopPerformers,
+    getDistribution
+  } = useStudentPerformance(id, getHeaders);
+
   // Initial data load
   useEffect(() => {
     const loadData = async () => {
@@ -203,6 +223,14 @@ export function ClassDetailPage() {
   useEffect(() => {
     if (activeTab === 'grades' && session?.access_token && id) {
       fetchGrades();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  // Load performance when switching to performance tab
+  useEffect(() => {
+    if (activeTab === 'performance' && session?.access_token && id) {
+      fetchPerformance();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
@@ -394,6 +422,13 @@ export function ClassDetailPage() {
           >
             Bảng điểm
           </TabButton>
+          <TabButton
+            active={activeTab === 'performance'}
+            onClick={() => setActiveTab('performance')}
+            icon={TrendingUp}
+          >
+            Hiệu suất
+          </TabButton>
         </div>
 
         {/* Tab Content */}
@@ -430,6 +465,7 @@ export function ClassDetailPage() {
               loading={loadingSessions}
               classSchedule={classData?.schedule}
               onAttendanceClick={openAttendanceModal}
+              onCreateSessions={() => setShowBulkSessionsModal(true)}
             />
           )}
 
@@ -450,6 +486,15 @@ export function ClassDetailPage() {
               processGradeInput={processGradeInput}
               isCellPending={isCellPending}
               showToast={showToast}
+            />
+          )}
+
+          {activeTab === 'performance' && (
+            <StudentPerformanceTab
+              classId={id}
+              performanceData={performanceData}
+              loading={loadingPerformance}
+              onRefresh={fetchPerformance}
             />
           )}
         </div>
@@ -513,6 +558,18 @@ export function ClassDetailPage() {
         onSave={handleSaveAttendance}
         onClose={closeAttendanceModal}
         summary={getAttendanceSummary()}
+      />
+
+      {/* Phase 1.3: Bulk Sessions Modal */}
+      <BulkSessionsModal
+        isOpen={showBulkSessionsModal}
+        onClose={() => setShowBulkSessionsModal(false)}
+        classData={classData}
+        existingSessionsCount={sessionsInfo?.total || 0}
+        onSuccess={(data) => {
+          fetchSessions();
+          showToast(`Đã tạo ${data.count} buổi học thành công`, 'success');
+        }}
       />
 
       {/* Phase 2 Modals */}

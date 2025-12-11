@@ -2671,9 +2671,10 @@ app.get('/api/centers', async (_req, res, next) => {
 });
 
 // Lấy danh sách lớp học (với thông tin liên quan)
+// Supports advanced filters: status, course_id, teacher_id, centerId, date_start, date_end
 app.get('/api/classes', requireAuth, async (req, res, next) => {
   try {
-    const { status, course_id, teacher_id, centerId } = req.query;
+    const { status, course_id, teacher_id, centerId, date_start, date_end } = req.query;
 
     // ====== PERMISSION CHECK ======
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, centerId);
@@ -2723,6 +2724,15 @@ app.get('/api/classes', requireAuth, async (req, res, next) => {
     if (status) query = query.eq('status', status);
     if (course_id) query = query.eq('course_id', course_id);
     if (teacher_id) query = query.eq('teacher_id', teacher_id);
+
+    // ====== DATE RANGE FILTER ======
+    // Filter by start_date range
+    if (date_start) {
+      query = query.gte('start_date', date_start);
+    }
+    if (date_end) {
+      query = query.lte('start_date', date_end);
+    }
 
     // ====== CENTER FILTER ======
     if (effectiveCenterId) {
@@ -3350,8 +3360,301 @@ app.post('/api/admin/classes/:classId/regenerate-sessions', requireAuth, require
 });
 
 // ========================================
-// 🔥 BULK CREATE SESSIONS FROM PATTERN
+// 🔥 PREVIEW SESSIONS - Check conflicts before creating
+// ========================================
+app.post('/api/classes/:classId/sessions/preview', requireAuth, async (req, res, next) => {
+  try {
+    const { classId } = req.params;
+    const { schedule, start_date, end_date, skip_holidays = true, exclude_dates = [] } = req.body;
+
+    console.log(`👀 Preview sessions cho lớp: ${classId}`);
+
+    // Validate input
+    if (!schedule || !Array.isArray(schedule) || schedule.length === 0) {
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn lịch học' });
+    }
+    if (!start_date || !end_date) {
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn ngày bắt đầu và kết thúc' });
+    }
+
+    // Get class info
+    const { data: classData, error: classError } = await supabase
+      .from('classes')
+      .select('id, name, teacher_id, room_id, center_id')
+      .eq('id', classId)
+      .single();
+
+    if (classError || !classData) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+    }
+
+    // Vietnamese holidays
+    const holidays = new Set([
+      '2025-01-01', '2025-01-28', '2025-01-29', '2025-01-30', '2025-01-31',
+      '2025-02-01', '2025-02-02', '2025-02-03', '2025-04-30', '2025-05-01', '2025-09-02',
+      '2026-01-01', '2026-02-16', '2026-02-17', '2026-02-18', '2026-02-19', '2026-02-20'
+    ]);
+
+    // Day mapping
+    const dayMapping = { 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 0 };
+
+    // Build schedule lookup
+    const scheduleDays = new Set();
+    const timeByDay = {};
+    schedule.forEach(s => {
+      const jsDay = dayMapping[s.day];
+      if (jsDay !== undefined) {
+        scheduleDays.add(jsDay);
+        timeByDay[jsDay] = { start: s.start || '18:00', end: s.end || '20:00' };
+      }
+    });
+
+    // Get current max session number
+    const { data: existingSessions } = await supabase
+      .from('sessions')
+      .select('session_number')
+      .eq('class_id', classId)
+      .order('session_number', { ascending: false })
+      .limit(1);
+
+    const startSessionNumber = (existingSessions?.[0]?.session_number || 0) + 1;
+
+    // Generate sessions
+    const sessions = [];
+    const start = new Date(start_date);
+    const end = new Date(end_date);
+    let sessionNumber = startSessionNumber;
+
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const dayOfWeek = d.getDay();
+      const dateStr = d.toISOString().split('T')[0];
+
+      if (!scheduleDays.has(dayOfWeek)) continue;
+      if (skip_holidays && holidays.has(dateStr)) continue;
+      if (exclude_dates.includes(dateStr)) continue;
+
+      const time = timeByDay[dayOfWeek];
+      sessions.push({
+        session_number: sessionNumber,
+        session_date: dateStr,
+        start_time: time.start,
+        end_time: time.end,
+        status: 'scheduled'
+      });
+      sessionNumber++;
+    }
+
+    // Check conflicts with other classes (room + teacher)
+    const conflicts = [];
+    if (sessions.length > 0 && (classData.room_id || classData.teacher_id)) {
+      const sessionDates = sessions.map(s => s.session_date);
+
+      // Get all existing sessions on those dates for same room/teacher
+      let conflictQuery = supabase
+        .from('sessions')
+        .select(`
+          id, session_date, start_time, end_time,
+          classes!inner(id, name, room_id, teacher_id)
+        `)
+        .in('session_date', sessionDates)
+        .neq('classes.id', classId);
+
+      const { data: potentialConflicts } = await conflictQuery;
+
+      if (potentialConflicts) {
+        for (const session of sessions) {
+          for (const existing of potentialConflicts) {
+            // Check time overlap
+            const newStart = session.start_time;
+            const newEnd = session.end_time;
+            const existStart = existing.start_time;
+            const existEnd = existing.end_time;
+
+            if (existing.session_date !== session.session_date) continue;
+
+            const hasTimeOverlap = !(newEnd <= existStart || newStart >= existEnd);
+            if (!hasTimeOverlap) continue;
+
+            // Check room conflict
+            if (classData.room_id && existing.classes.room_id === classData.room_id) {
+              conflicts.push({
+                session_date: session.session_date,
+                conflict_type: 'room',
+                conflicting_class: existing.classes.name,
+                time: `${existStart} - ${existEnd}`
+              });
+            }
+
+            // Check teacher conflict
+            if (classData.teacher_id && existing.classes.teacher_id === classData.teacher_id) {
+              conflicts.push({
+                session_date: session.session_date,
+                conflict_type: 'teacher',
+                conflicting_class: existing.classes.name,
+                time: `${existStart} - ${existEnd}`
+              });
+            }
+          }
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        sessions,
+        count: sessions.length,
+        startSessionNumber,
+        conflicts,
+        hasConflicts: conflicts.length > 0
+      }
+    });
+  } catch (error) {
+    console.error('Error previewing sessions:', error);
+    next(error);
+  }
+});
+
+// ========================================
+// 🔥 BULK CREATE SESSIONS FROM SCHEDULE PATTERN
 // Creates multiple sessions based on recurring pattern
+// ========================================
+app.post('/api/classes/:classId/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { classId } = req.params;
+    const { schedule, start_date, end_date, skip_holidays = true, exclude_dates = [], replace_existing = false } = req.body;
+
+    console.log(`🔥 Admin ${req.user.email} bulk create sessions cho lớp: ${classId}`);
+
+    // Validate input
+    if (!schedule || !Array.isArray(schedule) || schedule.length === 0) {
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn lịch học' });
+    }
+    if (!start_date || !end_date) {
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn ngày bắt đầu và kết thúc' });
+    }
+
+    // Get class info
+    const { data: classData, error: classError } = await supabase
+      .from('classes')
+      .select('id, teacher_id, room_id, center_id')
+      .eq('id', classId)
+      .single();
+
+    if (classError || !classData) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+    }
+
+    // Vietnamese holidays
+    const holidays = new Set([
+      '2025-01-01', '2025-01-28', '2025-01-29', '2025-01-30', '2025-01-31',
+      '2025-02-01', '2025-02-02', '2025-02-03', '2025-04-30', '2025-05-01', '2025-09-02',
+      '2026-01-01', '2026-02-16', '2026-02-17', '2026-02-18', '2026-02-19', '2026-02-20'
+    ]);
+
+    // Day mapping
+    const dayMapping = { 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 0 };
+
+    // Build schedule lookup
+    const scheduleDays = new Set();
+    const timeByDay = {};
+    schedule.forEach(s => {
+      const jsDay = dayMapping[s.day];
+      if (jsDay !== undefined) {
+        scheduleDays.add(jsDay);
+        timeByDay[jsDay] = { start: s.start || '18:00', end: s.end || '20:00' };
+      }
+    });
+
+    // If replace_existing, delete all sessions first
+    if (replace_existing) {
+      await supabase.from('sessions').delete().eq('class_id', classId);
+    }
+
+    // Get current max session number
+    const { data: existingSessions } = await supabase
+      .from('sessions')
+      .select('session_number')
+      .eq('class_id', classId)
+      .order('session_number', { ascending: false })
+      .limit(1);
+
+    const startSessionNumber = replace_existing ? 1 : ((existingSessions?.[0]?.session_number || 0) + 1);
+
+    // Generate sessions
+    const sessions = [];
+    const start = new Date(start_date);
+    const end = new Date(end_date);
+    let sessionNumber = startSessionNumber;
+
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const dayOfWeek = d.getDay();
+      const dateStr = d.toISOString().split('T')[0];
+
+      if (!scheduleDays.has(dayOfWeek)) continue;
+      if (skip_holidays && holidays.has(dateStr)) continue;
+      if (exclude_dates.includes(dateStr)) continue;
+
+      const time = timeByDay[dayOfWeek];
+      sessions.push({
+        class_id: classId,
+        teacher_id: classData.teacher_id,
+        room_id: classData.room_id,
+        session_number: sessionNumber,
+        session_date: dateStr,
+        start_time: time.start,
+        end_time: time.end,
+        status: 'scheduled'
+      });
+      sessionNumber++;
+    }
+
+    // Limit to 100 sessions
+    if (sessions.length > 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tối đa 100 buổi học mỗi lần tạo. Vui lòng rút ngắn khoảng thời gian.'
+      });
+    }
+
+    // Insert sessions in batches
+    const batchSize = 50;
+    let insertedCount = 0;
+
+    for (let i = 0; i < sessions.length; i += batchSize) {
+      const batch = sessions.slice(i, i + batchSize);
+      const { error: insertError } = await supabase.from('sessions').insert(batch);
+
+      if (insertError) {
+        console.error('Error inserting batch:', insertError);
+        return res.status(500).json({
+          success: false,
+          message: `Lỗi khi tạo buổi học: ${insertError.message}`,
+          insertedCount
+        });
+      }
+      insertedCount += batch.length;
+    }
+
+    console.log(`✅ Đã tạo ${insertedCount} buổi học cho lớp ${classId}`);
+
+    res.json({
+      success: true,
+      message: `Đã tạo ${insertedCount} buổi học thành công`,
+      data: {
+        count: insertedCount,
+        startSessionNumber
+      }
+    });
+  } catch (error) {
+    console.error('Error bulk creating sessions:', error);
+    next(error);
+  }
+});
+
+// ========================================
+// 🔥 OLD BULK CREATE (keep for backward compatibility)
+// Creates multiple sessions based on preview array
 // ========================================
 app.post('/api/admin/classes/:classId/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -4931,6 +5234,262 @@ app.patch('/api/enrollments/:id', requireAuth, async (req, res, next) => {
     res.json({ success: true, message: 'Cập nhật thành công', data });
   } catch (error) {
     console.error('Error updating enrollment:', error);
+    next(error);
+  }
+});
+
+// ========================================
+// Student Performance Analytics API
+// ========================================
+
+/**
+ * GET /api/classes/:id/performance - Lấy performance data cho tất cả học viên trong lớp
+ * Bao gồm: attendance rate, average grade, rank, trend, alerts
+ */
+app.get('/api/classes/:id/performance', requireAuth, async (req, res, next) => {
+  try {
+    const { id: classId } = req.params;
+    console.log(`📊 Fetching performance data for class ${classId}`);
+
+    // 1. Lấy thông tin lớp và course
+    const { data: classData, error: classError } = await supabase
+      .from('classes')
+      .select(`
+        id, name, code,
+        courses (id, title, pass_score)
+      `)
+      .eq('id', classId)
+      .single();
+
+    if (classError || !classData) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+    }
+
+    // 2. Lấy tất cả enrollments trong lớp
+    const { data: enrollments, error: enrollmentsError } = await supabase
+      .from('enrollments')
+      .select(`
+        id,
+        student_id,
+        status,
+        tuition_fee,
+        discount_amount,
+        paid_amount,
+        enrolled_at,
+        users!enrollments_student_id_fkey (
+          id, full_name, email, avatar_url
+        )
+      `)
+      .eq('class_id', classId)
+      .eq('status', 'active');
+
+    if (enrollmentsError) throw enrollmentsError;
+
+    if (!enrollments || enrollments.length === 0) {
+      return res.json({
+        success: true,
+        data: [],
+        summary: { total: 0, avgAttendance: 0, avgGrade: 0 }
+      });
+    }
+
+    const enrollmentIds = enrollments.map(e => e.id);
+    const studentIds = enrollments.map(e => e.student_id);
+
+    // 3. Lấy attendance data
+    const { data: attendance } = await supabase
+      .from('attendance')
+      .select('enrollment_id, status, session_date')
+      .in('enrollment_id', enrollmentIds);
+
+    // 4. Lấy sessions để tính tổng số buổi
+    const { data: sessions } = await supabase
+      .from('sessions')
+      .select('id, session_date, status')
+      .eq('class_id', classId)
+      .in('status', ['completed', 'in_progress']);
+
+    const totalSessions = sessions?.length || 0;
+
+    // 5. Lấy grades data
+    const { data: grades } = await supabase
+      .from('grades')
+      .select(`
+        enrollment_id,
+        score,
+        grade_structures (id, name, weight, max_score)
+      `)
+      .in('enrollment_id', enrollmentIds);
+
+    // 6. Lấy grade structures của course
+    const { data: gradeStructures } = await supabase
+      .from('grade_structures')
+      .select('id, name, weight, max_score, order_index')
+      .eq('course_id', classData.courses?.id)
+      .order('order_index');
+
+    // 7. Build performance data cho từng học viên
+    const performanceData = enrollments.map(enrollment => {
+      const student = enrollment.users;
+      const enrollmentId = enrollment.id;
+
+      // Calculate attendance
+      const studentAttendance = (attendance || []).filter(a => a.enrollment_id === enrollmentId);
+      const presentCount = studentAttendance.filter(a => a.status === 'present' || a.status === 'late').length;
+      const absentCount = studentAttendance.filter(a => a.status === 'absent').length;
+      const excusedCount = studentAttendance.filter(a => a.status === 'excused').length;
+      const attendanceRate = totalSessions > 0
+        ? Math.round((presentCount / totalSessions) * 100)
+        : 0;
+
+      // Get recent attendance (last 5)
+      const recentAttendance = studentAttendance
+        .sort((a, b) => new Date(b.session_date) - new Date(a.session_date))
+        .slice(0, 5)
+        .map(a => ({ date: a.session_date, status: a.status }));
+
+      // Last attendance date
+      const lastAttendance = recentAttendance.length > 0
+        ? recentAttendance[0].date
+        : null;
+
+      // Calculate grades
+      const studentGrades = (grades || []).filter(g => g.enrollment_id === enrollmentId);
+      let totalWeight = 0;
+      let weightedSum = 0;
+      const gradeBreakdown = [];
+
+      (gradeStructures || []).forEach(structure => {
+        const gradeRecord = studentGrades.find(g => g.grade_structures?.id === structure.id);
+        const score = gradeRecord?.score || null;
+
+        gradeBreakdown.push({
+          name: structure.name,
+          score: score,
+          maxScore: structure.max_score,
+          weight: structure.weight
+        });
+
+        if (score !== null) {
+          // Normalize score to 10-point scale
+          const normalizedScore = (score / structure.max_score) * 10;
+          weightedSum += normalizedScore * structure.weight;
+          totalWeight += structure.weight;
+        }
+      });
+
+      const averageGrade = totalWeight > 0
+        ? Math.round((weightedSum / totalWeight) * 100) / 100
+        : null;
+
+      // Calculate trend (simplified - compare first half vs second half attendance)
+      let trend = 'stable';
+      if (studentAttendance.length >= 4) {
+        const midPoint = Math.floor(studentAttendance.length / 2);
+        const sorted = [...studentAttendance].sort((a, b) =>
+          new Date(a.session_date) - new Date(b.session_date)
+        );
+        const firstHalf = sorted.slice(0, midPoint);
+        const secondHalf = sorted.slice(midPoint);
+
+        const firstHalfPresent = firstHalf.filter(a => a.status === 'present' || a.status === 'late').length;
+        const secondHalfPresent = secondHalf.filter(a => a.status === 'present' || a.status === 'late').length;
+
+        const firstRate = firstHalf.length > 0 ? firstHalfPresent / firstHalf.length : 0;
+        const secondRate = secondHalf.length > 0 ? secondHalfPresent / secondHalf.length : 0;
+
+        if (secondRate > firstRate + 0.1) trend = 'improving';
+        else if (secondRate < firstRate - 0.1) trend = 'declining';
+      }
+
+      // Payment status
+      const tuitionFee = enrollment.tuition_fee || 0;
+      const discountAmount = enrollment.discount_amount || 0;
+      const paidAmount = enrollment.paid_amount || 0;
+      const finalAmount = tuitionFee - discountAmount;
+      const remainingAmount = finalAmount - paidAmount;
+      const paymentStatus = remainingAmount <= 0 ? 'paid' : 'unpaid';
+
+      // Completed assignments (grades entered)
+      const completedAssignments = studentGrades.length;
+
+      return {
+        studentId: student?.id,
+        enrollmentId: enrollmentId,
+        name: student?.full_name || 'N/A',
+        email: student?.email || '',
+        avatarUrl: student?.avatar_url,
+
+        // Attendance metrics
+        attendanceRate,
+        presentCount,
+        absentCount,
+        excusedCount,
+        totalSessions,
+        lastAttendance,
+        recentAttendance,
+
+        // Grade metrics
+        averageGrade,
+        gradeBreakdown,
+        completedAssignments,
+
+        // Trend
+        trend,
+
+        // Payment
+        tuitionFee,
+        paidAmount,
+        remainingAmount,
+        paymentStatus,
+
+        // Enrollment info
+        enrolledAt: enrollment.enrolled_at
+      };
+    });
+
+    // 8. Calculate ranks based on average grade
+    const sorted = [...performanceData]
+      .filter(s => s.averageGrade !== null)
+      .sort((a, b) => (b.averageGrade || 0) - (a.averageGrade || 0));
+
+    sorted.forEach((student, index) => {
+      const found = performanceData.find(s => s.studentId === student.studentId);
+      if (found) found.rank = index + 1;
+    });
+
+    // Students without grades get rank at the end
+    let nextRank = sorted.length + 1;
+    performanceData
+      .filter(s => s.averageGrade === null)
+      .forEach(s => { s.rank = nextRank++; });
+
+    // 9. Calculate summary
+    const total = performanceData.length;
+    const avgAttendance = total > 0
+      ? Math.round(performanceData.reduce((sum, s) => sum + s.attendanceRate, 0) / total)
+      : 0;
+    const studentsWithGrades = performanceData.filter(s => s.averageGrade !== null);
+    const avgGrade = studentsWithGrades.length > 0
+      ? Math.round(studentsWithGrades.reduce((sum, s) => sum + s.averageGrade, 0) / studentsWithGrades.length * 10) / 10
+      : 0;
+
+    console.log(`✅ Performance data: ${total} students, avg attendance: ${avgAttendance}%, avg grade: ${avgGrade}`);
+
+    res.json({
+      success: true,
+      data: performanceData,
+      summary: {
+        total,
+        avgAttendance,
+        avgGrade,
+        totalSessions,
+        passScore: classData.courses?.pass_score || 5
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching class performance:', error);
     next(error);
   }
 });
