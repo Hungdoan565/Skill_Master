@@ -13,13 +13,12 @@ import {
   Home,
   DoorOpen,
   Sparkles,
-  ClipboardList,
   BarChart3,
   UserPlus,
   FileText,
   Award,
-  MessageCircle,
   Bell,
+  TrendingUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -27,6 +26,7 @@ import { cn } from '@/lib/utils';
 import logoImage from '@/assets/logo.png';
 
 // Menu được gom nhóm theo chức năng
+// badge: 'new' | 'beta' | 'coming' để hiển thị trạng thái
 const menuGroups = [
   {
     id: 'overview',
@@ -41,7 +41,6 @@ const menuGroups = [
       { label: 'Khóa học', icon: BookOpen, path: '/admin/courses' },
       { label: 'Lớp học', icon: GraduationCap, path: '/admin/classes' },
       { label: 'Lịch dạy', icon: CalendarCheck, path: '/admin/schedule' },
-      { label: 'Bảng điểm', icon: ClipboardList, path: '/admin/grades' },
       { label: 'Phòng học', icon: DoorOpen, path: '/admin/rooms' },
     ],
   },
@@ -68,10 +67,9 @@ const menuGroups = [
     title: 'HỆ THỐNG',
     items: [
       { label: 'Thông báo', icon: Bell, path: '/admin/notifications' },
-      { label: 'Tài liệu', icon: FileText, path: '/admin/documents' },
-      { label: 'Hỗ trợ', icon: MessageCircle, path: '/admin/support' },
-      { label: 'Báo cáo', icon: BarChart3, path: '/admin/reports' },
       { label: 'Trung tâm', icon: Building2, path: '/admin/centers' },
+      { label: 'Tài liệu', icon: FileText, path: '/admin/documents', badge: 'coming' },
+      { label: 'Báo cáo', icon: BarChart3, path: '/admin/reports' },
     ],
   },
 ];
@@ -127,29 +125,53 @@ export function AdminSidebar() {
             <div className="space-y-1">
               {group.items.map((item) => {
                 const isActive = location.pathname === item.path;
+                const isComingSoon = item.badge === 'coming';
+
                 return (
                   <Link
                     key={item.path}
-                    to={item.path}
+                    to={isComingSoon ? '#' : item.path}
+                    onClick={isComingSoon ? (e) => e.preventDefault() : undefined}
                     className={cn(
                       'group/item flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
-                      isActive
-                        ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-lg shadow-red-600/25'
-                        : 'text-zinc-400 hover:bg-zinc-800/80 hover:text-white'
+                      isComingSoon
+                        ? 'text-zinc-600 cursor-not-allowed opacity-60'
+                        : isActive
+                          ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-lg shadow-red-600/25'
+                          : 'text-zinc-400 hover:bg-zinc-800/80 hover:text-white'
                     )}
                   >
                     <div className={cn(
                       'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
-                      isActive
-                        ? 'bg-white/20'
-                        : 'bg-zinc-800 group-hover/item:bg-zinc-700'
+                      isComingSoon
+                        ? 'bg-zinc-800/50'
+                        : isActive
+                          ? 'bg-white/20'
+                          : 'bg-zinc-800 group-hover/item:bg-zinc-700'
                     )}>
                       <item.icon className="h-4 w-4" />
                     </div>
                     <span>{item.label}</span>
 
+                    {/* Badge indicator */}
+                    {item.badge === 'new' && (
+                      <span className="ml-auto rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
+                        Mới
+                      </span>
+                    )}
+                    {item.badge === 'beta' && (
+                      <span className="ml-auto rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-semibold text-amber-400">
+                        Beta
+                      </span>
+                    )}
+                    {item.badge === 'coming' && (
+                      <span className="ml-auto rounded-full bg-zinc-700 px-2 py-0.5 text-[10px] font-medium text-zinc-400">
+                        Sắp ra mắt
+                      </span>
+                    )}
+
                     {/* Active indicator dot */}
-                    {isActive && (
+                    {isActive && !item.badge && (
                       <div className="ml-auto h-1.5 w-1.5 rounded-full bg-white/80" />
                     )}
                   </Link>

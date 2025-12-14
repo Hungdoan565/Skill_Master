@@ -1,9 +1,14 @@
 /**
  * Attendance Report Page - Báo cáo chuyên cần
+ * 
+ * Enhanced with:
+ * - URL params support (classId, courseId)
+ * - ClassFilter component
+ * - PDF export capability
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
     ArrowLeft,
     Download,
@@ -13,7 +18,9 @@ import {
     AlertTriangle,
     RefreshCw,
     Filter,
-    Save
+    Save,
+    FileText,
+    GraduationCap
 } from 'lucide-react';
 import {
     BarChart,
@@ -34,9 +41,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { useReports } from '../hooks/useReports';
 import { useAuth } from '@/contexts/auth-context';
-import { SaveReportModal } from '../components';
+import { SaveReportModal, ClassFilter, ReportPDFExport } from '../components';
 import {
     formatNumber,
     formatPercent,
@@ -50,6 +58,8 @@ import {
 export default function AttendanceReportPage() {
     const { fetchAttendanceReport, saveReport, loading, error } = useReports();
     const { session } = useAuth();
+    const [searchParams] = useSearchParams();
+    const reportContentRef = useRef(null);
 
     const [data, setData] = useState(null);
     const [datePreset, setDatePreset] = useState('30days');
@@ -63,6 +73,15 @@ export default function AttendanceReportPage() {
     const [showSaveModal, setShowSaveModal] = useState(false);
     const [savingReport, setSavingReport] = useState(false);
     const [exporting, setExporting] = useState(false);
+
+    // Initialize from URL params
+    useEffect(() => {
+        const classIdFromUrl = searchParams.get('classId');
+        const courseIdFromUrl = searchParams.get('courseId');
+
+        if (classIdFromUrl) setSelectedClassId(classIdFromUrl);
+        if (courseIdFromUrl) setSelectedCourseId(courseIdFromUrl);
+    }, [searchParams]);
 
     // Fetch filter data
     const fetchFilterData = useCallback(async () => {
@@ -185,6 +204,16 @@ export default function AttendanceReportPage() {
                         <Save className="h-4 w-4 mr-2" />
                         Lưu báo cáo
                     </Button>
+                    <ReportPDFExport
+                        contentRef={reportContentRef}
+                        reportTitle="Báo cáo Chuyên cần"
+                        filename={`bao-cao-chuyen-can-${new Date().toISOString().split('T')[0]}`}
+                        headerInfo={{
+                            period: data ? `${data.period?.startDate} - ${data.period?.endDate}` : '',
+                            className: selectedClassId ? classes.find(c => c.id === selectedClassId)?.name : 'Tất cả lớp'
+                        }}
+                        disabled={!data}
+                    />
                     <Button onClick={handleExport} disabled={exporting || !data}>
                         {exporting ? (
                             <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
@@ -257,20 +286,14 @@ export default function AttendanceReportPage() {
                             </select>
                         </div>
 
-                        {/* Class Filter */}
-                        <div>
-                            <Label className="text-xs text-gray-500">Lớp học</Label>
-                            <select
-                                value={selectedClassId}
-                                onChange={(e) => setSelectedClassId(e.target.value)}
-                                className="mt-1 block w-44 rounded-md border border-gray-300 px-3 py-2 text-sm"
-                            >
-                                <option value="">Tất cả lớp</option>
-                                {classes.map(c => (
-                                    <option key={c.id} value={c.id}>{c.name}</option>
-                                ))}
-                            </select>
-                        </div>
+                        {/* Class Filter - Enhanced Component */}
+                        <ClassFilter
+                            classes={classes}
+                            courses={courses}
+                            value={selectedClassId}
+                            onChange={setSelectedClassId}
+                            placeholder="Tất cả lớp"
+                        />
 
                         <div className="flex items-end">
                             <Button onClick={loadReport} disabled={loading}>
@@ -279,6 +302,24 @@ export default function AttendanceReportPage() {
                             </Button>
                         </div>
                     </div>
+
+                    {/* Show selected class info */}
+                    {selectedClassId && (
+                        <div className="mt-3 flex items-center gap-2">
+                            <Badge variant="secondary" className="flex items-center gap-1">
+                                <GraduationCap className="h-3 w-3" />
+                                Đang xem: {classes.find(c => c.id === selectedClassId)?.name}
+                            </Badge>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setSelectedClassId('')}
+                                className="h-6 text-xs"
+                            >
+                                Xem tất cả lớp
+                            </Button>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
@@ -287,7 +328,7 @@ export default function AttendanceReportPage() {
             )}
 
             {data && (
-                <>
+                <div ref={reportContentRef}>
                     {/* Summary Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                         <Card>
@@ -464,7 +505,7 @@ export default function AttendanceReportPage() {
                             </CardContent>
                         </Card>
                     )}
-                </>
+                </div>
             )}
 
             {/* Save Report Modal */}

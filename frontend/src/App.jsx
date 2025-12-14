@@ -15,7 +15,7 @@ import { ToastProvider } from '@/components/ui/toast';
 import { InvoicesPage } from '@/features/invoices';
 import { ClassDetailPage } from '@/features/classes';
 import { CoursesPage } from '@/features/courses';
-import { ClassesPage, ClassAnalyticsPage } from '@/features/classes-list';
+import { ClassesPage } from '@/features/classes-list';
 import { DashboardPage } from '@/features/dashboard';
 import { StaffPage } from '@/features/staff';
 import { RoomsPage } from '@/features/rooms';
@@ -496,7 +496,6 @@ function App() {
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="courses" element={<CoursesPage />} />
             <Route path="classes" element={<ClassesPage />} />
-            <Route path="classes/analytics" element={<ClassAnalyticsPage />} />
             <Route path="classes/:id" element={<ClassDetailPage />} />
             <Route path="schedule" element={<SchedulePage />} />
             <Route path="students" element={<StudentsPage />} />

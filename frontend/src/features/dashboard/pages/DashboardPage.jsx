@@ -22,6 +22,7 @@ import {
   QuickActionsCard,
   PaymentOverviewCard,
   TodayScheduleCard,
+  ClassInsightsCard,
   ErrorAlert,
   CenterSelector,
   DateRangeSelector,
@@ -150,8 +151,8 @@ export function DashboardPage() {
           />
         </div>
 
-        {/* Middle Section: Payment Overview + Today Schedule */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Middle Section: Payment Overview + Today Schedule + Class Insights */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <PaymentOverviewCard
             data={paymentOverview}
             loading={loading}
@@ -159,6 +160,10 @@ export function DashboardPage() {
           <TodayScheduleCard
             data={todaySchedule}
             loading={loading}
+          />
+          <ClassInsightsCard
+            accessToken={accessToken}
+            selectedCenterId={selectedCenterId}
           />
         </div>
 

@@ -44,6 +44,7 @@ export {
 // NEW: Enhanced widgets
 export { PaymentOverviewCard } from './PaymentOverviewCard';
 export { TodayScheduleCard } from './TodayScheduleCard';
+export { ClassInsightsCard } from './ClassInsightsCard';
 export { ErrorAlert } from './ErrorAlert';
 export { CenterSelector } from './CenterSelector';
 export { DateRangeSelector } from './DateRangeSelector';

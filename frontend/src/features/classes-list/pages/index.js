@@ -3,4 +3,3 @@
  */
 
 export { ClassesPage } from './ClassesPage';
-export { ClassAnalyticsPage } from './ClassAnalyticsPage';

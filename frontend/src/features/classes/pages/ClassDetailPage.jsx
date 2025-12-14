@@ -410,7 +410,36 @@ export function ClassDetailPage() {
           className="text-orange-600 border-orange-300 hover:bg-orange-50"
         >
           <FileText className="w-4 h-4 mr-2" />
-          Xuất báo cáo
+          Xuất báo cáo CSV
+        </Button>
+
+        {/* Quick Navigation to Reports Module */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate(`/admin/reports/attendance?classId=${id}`)}
+          className="text-green-600 border-green-300 hover:bg-green-50"
+        >
+          <BarChart3 className="w-4 h-4 mr-2" />
+          Báo cáo chuyên cần
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate(`/admin/reports/grades?classId=${id}`)}
+          className="text-blue-600 border-blue-300 hover:bg-blue-50"
+        >
+          <GraduationCap className="w-4 h-4 mr-2" />
+          Báo cáo điểm số
+        </Button>
+
+        <Button
+          size="sm"
+          onClick={() => navigate(`/admin/enrollments/new?classId=${id}`)}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white"
+        >
+          <UserPlus className="w-4 h-4 mr-2" />
+          Ghi danh vào lớp
         </Button>
       </div>
 

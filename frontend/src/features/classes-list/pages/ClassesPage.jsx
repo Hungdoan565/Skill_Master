@@ -206,12 +206,6 @@ export function ClassesPage() {
             <Upload className="mr-2 h-4 w-4" />
             Nhập dữ liệu
           </Button>
-          <Link to="/admin/classes/analytics">
-            <Button variant="outline">
-              <BarChart3 className="mr-2 h-4 w-4" />
-              Analytics
-            </Button>
-          </Link>
           <Button onClick={() => openModal()}>
             <Plus className="mr-2 h-4 w-4" />
             Mở lớp mới

@@ -4,12 +4,14 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
-import { GraduationCap } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { GraduationCap, UserPlus } from 'lucide-react';
 import {
   Card,
   CardContent,
   CardHeader,
 } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { useStudents } from '../hooks';
 import {
@@ -117,12 +119,18 @@ export function StudentsPage() {
             Danh sách học viên đã đăng ký tài khoản
           </p>
         </div>
-        {/* Stats */}
-        <div className="flex items-center gap-2 rounded-lg bg-green-50 px-4 py-2 border border-green-200">
-          <GraduationCap className="h-5 w-5 text-green-600" />
-          <span className="text-sm font-medium text-green-700">
-            {students.length} học viên
-          </span>
+        <div className="flex items-center gap-3">
+          <Link to="/admin/enrollments/new">
+            <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white">
+              <UserPlus className="h-4 w-4 mr-2" /> Ghi danh
+            </Button>
+          </Link>
+          <div className="flex items-center gap-2 rounded-lg bg-green-50 px-4 py-2 border border-green-200">
+            <GraduationCap className="h-5 w-5 text-green-600" />
+            <span className="text-sm font-medium text-green-700">
+              {students.length} học viên
+            </span>
+          </div>
         </div>
       </div>
 
