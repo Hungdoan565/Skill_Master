@@ -1,10 +1,15 @@
 /**
  * useDashboard Hook - Quản lý data cho dashboard
- * UPGRADED: Thêm error handling, unified API, payment & attendance stats
+ * UPGRADED: 
+ * - Error handling
+ * - Unified API
+ * - Payment & attendance stats
+ * - CACHE with stale-while-revalidate pattern for instant loading
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { API_URL } from '../utils';
+import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache';
 
 /**
  * Hook quản lý dashboard data
@@ -15,6 +20,7 @@ export function useDashboard(accessToken, centerId = null) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const isMounted = useRef(true);
 
   // Main stats
   const [stats, setStats] = useState(null);
@@ -26,6 +32,15 @@ export function useDashboard(accessToken, centerId = null) {
   const [paymentOverview, setPaymentOverview] = useState(null);
   const [todaySchedule, setTodaySchedule] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+
+  // Cache key based on centerId
+  const cacheKey = CACHE_KEYS.dashboard(centerId);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
 
   // API headers
   const getHeaders = useCallback(() => ({
@@ -45,9 +60,43 @@ export function useDashboard(accessToken, centerId = null) {
     return query.toString() ? `?${query.toString()}` : '';
   }, [centerId]);
 
+  // Apply cached data to state
+  const applyCachedData = useCallback((cachedData) => {
+    if (!cachedData) return false;
+
+    setStats(cachedData.stats);
+    setPaymentOverview(cachedData.paymentOverview);
+    setRecentStudents(cachedData.recentStudents || []);
+    setTodaySchedule(cachedData.todaySchedule);
+    setRevenueChart(cachedData.revenueChart || []);
+    setCourseDistribution(cachedData.courseDistribution || []);
+    setLastUpdated(cachedData.lastUpdated);
+
+    return true;
+  }, []);
+
   // Fetch all dashboard data using unified API
-  const fetchDashboardData = useCallback(async (showRefreshing = false) => {
+  const fetchDashboardData = useCallback(async (showRefreshing = false, skipCache = false) => {
     if (!accessToken) return;
+
+    // ====== STALE-WHILE-REVALIDATE PATTERN ======
+    // 1. Check cache first
+    if (!skipCache) {
+      const { data: cachedData, isStale, isMiss } = cache.getWithStale(cacheKey);
+
+      if (!isMiss) {
+        // Show cached data immediately
+        applyCachedData(cachedData);
+        setLoading(false);
+
+        // If not stale, we're done
+        if (!isStale) {
+          return;
+        }
+        // If stale, continue to fetch fresh data in background
+        showRefreshing = true;
+      }
+    }
 
     if (showRefreshing) setRefreshing(true);
     else setLoading(true);
@@ -72,30 +121,61 @@ export function useDashboard(accessToken, centerId = null) {
         distributionRes.json()
       ]);
 
+      if (!isMounted.current) return;
+
+      const newData = {
+        stats: null,
+        paymentOverview: null,
+        recentStudents: [],
+        todaySchedule: null,
+        revenueChart: [],
+        courseDistribution: [],
+        lastUpdated: new Date()
+      };
+
       if (allData.success) {
-        setStats(allData.data.stats);
-        setPaymentOverview(allData.data.payments);
-        setRecentStudents(allData.data.recentStudents || []);
-        setTodaySchedule(allData.data.todaySchedule);
+        newData.stats = allData.data.stats;
+        newData.paymentOverview = allData.data.payments;
+        newData.recentStudents = allData.data.recentStudents || [];
+        newData.todaySchedule = allData.data.todaySchedule;
+
+        setStats(newData.stats);
+        setPaymentOverview(newData.paymentOverview);
+        setRecentStudents(newData.recentStudents);
+        setTodaySchedule(newData.todaySchedule);
       }
 
-      if (revenueData.success) setRevenueChart(revenueData.data);
-      if (distributionData.success) setCourseDistribution(distributionData.data);
+      if (revenueData.success) {
+        newData.revenueChart = revenueData.data;
+        setRevenueChart(newData.revenueChart);
+      }
 
-      setLastUpdated(new Date());
+      if (distributionData.success) {
+        newData.courseDistribution = distributionData.data;
+        setCourseDistribution(newData.courseDistribution);
+      }
+
+      setLastUpdated(newData.lastUpdated);
+
+      // ====== SAVE TO CACHE ======
+      cache.set(cacheKey, newData, CACHE_TTL.MEDIUM);
 
     } catch (err) {
       console.error('Error fetching dashboard:', err);
-      setError(err.message || 'Không thể tải dữ liệu dashboard');
+      if (isMounted.current) {
+        setError(err.message || 'Không thể tải dữ liệu dashboard');
+      }
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (isMounted.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  }, [accessToken, getHeaders, buildQuery]);
+  }, [accessToken, getHeaders, buildQuery, cacheKey, applyCachedData]);
 
-  // Refresh data
+  // Refresh data (skip cache)
   const refresh = useCallback(() => {
-    fetchDashboardData(true);
+    fetchDashboardData(true, true);
   }, [fetchDashboardData]);
 
   // Clear error

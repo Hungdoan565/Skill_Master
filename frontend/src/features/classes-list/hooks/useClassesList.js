@@ -1,12 +1,15 @@
 /**
  * useClassesList Hook - Quản lý danh sách lớp học
- * Enhanced with advanced filtering support
+ * UPGRADED:
+ * - Advanced filtering support
+ * - CACHE with stale-while-revalidate pattern for instant loading
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { supabase } from '@/lib/supabaseClient';
 import { API_URL } from '../utils';
+import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache';
 
 // Helper: Lấy auth headers
 const getAuthHeaders = async () => {
@@ -17,17 +20,56 @@ const getAuthHeaders = async () => {
 
 /**
  * Hook quản lý danh sách lớp học
- * Enhanced with advanced filtering capabilities
+ * Enhanced with caching and advanced filtering capabilities
  */
 export function useClassesList() {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
+  const isMounted = useRef(true);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
+
+  // Build cache key from filters
+  const buildCacheKey = useCallback((serverFilters = {}) => {
+    const filterString = JSON.stringify(serverFilters);
+    return CACHE_KEYS.classes(filterString);
+  }, []);
 
   // Fetch danh sách lớp học với optional server-side filters
-  const fetchClasses = useCallback(async (serverFilters = {}) => {
+  const fetchClasses = useCallback(async (serverFilters = {}, options = {}) => {
+    const { skipCache = false, showRefreshing = false } = options;
+    const cacheKey = buildCacheKey(serverFilters);
+
     try {
-      setLoading(true);
+      // ====== STALE-WHILE-REVALIDATE PATTERN ======
+      if (!skipCache) {
+        const { data: cachedData, isStale, isMiss } = cache.getWithStale(cacheKey);
+
+        if (!isMiss && cachedData) {
+          // Show cached data immediately
+          setClasses(cachedData);
+          setLoading(false);
+
+          // If not stale, we're done
+          if (!isStale) {
+            return;
+          }
+          // If stale, continue to fetch fresh data in background
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
+      } else {
+        if (showRefreshing) setRefreshing(true);
+        else setLoading(true);
+      }
+
       const headers = await getAuthHeaders();
 
       // Build query params for server-side filtering
@@ -47,15 +89,29 @@ export function useClassesList() {
 
       const response = await axios.get(url, { headers });
 
+      if (!isMounted.current) return;
+
       if (response.data?.success) {
-        setClasses(response.data.data);
+        const newData = response.data.data;
+        setClasses(newData);
+
+        // ====== SAVE TO CACHE ======
+        cache.set(cacheKey, newData, CACHE_TTL.SHORT);
       }
     } catch (error) {
       console.error('Error fetching classes:', error);
     } finally {
-      setLoading(false);
+      if (isMounted.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  }, []);
+  }, [buildCacheKey]);
+
+  // Force refresh (skip cache)
+  const refreshClasses = useCallback((serverFilters = {}) => {
+    return fetchClasses(serverFilters, { skipCache: true, showRefreshing: true });
+  }, [fetchClasses]);
 
   // Delete single class
   const deleteClass = useCallback(async (classId) => {
@@ -188,8 +244,10 @@ export function useClassesList() {
   return {
     classes,
     loading,
+    refreshing,
     selectedIds,
     fetchClasses,
+    refreshClasses,
     deleteClass,
     deleteMultipleClasses,
     filterClasses,

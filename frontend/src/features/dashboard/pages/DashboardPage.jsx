@@ -8,11 +8,13 @@
  * - Date range filtering
  * - Export functionality
  * - Activity stream (optional)
+ * - PERFORMANCE: Centralized data fetching with caching
  */
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '../hooks';
+import { useClassesList } from '@/features/classes-list/hooks/useClassesList';
 import { exportDashboardToCSV } from '../utils';
 import {
   DashboardHeader,
@@ -53,10 +55,20 @@ export function DashboardPage() {
     clearError
   } = useDashboard(accessToken, selectedCenterId);
 
+  // Use centralized classes data hook - for ClassInsightsCard
+  const {
+    classes,
+    loading: classesLoading,
+    fetchClasses,
+    refreshClasses
+  } = useClassesList();
+
   // Fetch data on mount and when center changes
   useEffect(() => {
     fetchDashboardData();
-  }, [fetchDashboardData]);
+    // Fetch classes with centerId filter
+    fetchClasses({ centerId: selectedCenterId });
+  }, [fetchDashboardData, fetchClasses, selectedCenterId]);
 
   // Get user name for greeting
   const userName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0];
@@ -86,6 +98,12 @@ export function DashboardPage() {
     exportDashboardToCSV(exportData);
   };
 
+  // Handle refresh all data
+  const handleRefreshAll = () => {
+    refresh();
+    refreshClasses({ centerId: selectedCenterId });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -93,7 +111,7 @@ export function DashboardPage() {
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-8">
           <DashboardHeader
             userName={userName}
-            onRefresh={refresh}
+            onRefresh={handleRefreshAll}
             onExport={handleExport}
             refreshing={refreshing}
           />
@@ -162,8 +180,9 @@ export function DashboardPage() {
             loading={loading}
           />
           <ClassInsightsCard
-            accessToken={accessToken}
-            selectedCenterId={selectedCenterId}
+            classes={classes}
+            loading={classesLoading}
+            onRefresh={() => refreshClasses({ centerId: selectedCenterId })}
           />
         </div>
 

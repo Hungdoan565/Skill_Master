@@ -1,6 +1,9 @@
 /**
  * ClassInsightsCard - Compact class insights for Dashboard
  * 
+ * UPGRADED: Uses data passed from parent (Dashboard) instead of fetching independently
+ * This eliminates redundant API calls and improves performance
+ * 
  * Shows:
  * - Fill rate overview
  * - Low enrollment alerts
@@ -15,42 +18,20 @@ import {
     TrendingUp,
     ArrowRight,
     Users,
-    BarChart3
+    BarChart3,
+    RefreshCw
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
-export function ClassInsightsCard({ accessToken, selectedCenterId }) {
-    const [classes, setClasses] = useState([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        fetchClasses();
-    }, [accessToken, selectedCenterId]);
-
-    const fetchClasses = async () => {
-        if (!accessToken) return;
-
-        try {
-            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-            let url = `${API_URL}/api/classes`;
-            if (selectedCenterId) {
-                url += `?centerId=${selectedCenterId}`;
-            }
-            const response = await fetch(url, {
-                headers: { 'Authorization': `Bearer ${accessToken}` }
-            });
-            const data = await response.json();
-            if (data.success) {
-                setClasses(data.data || []);
-            }
-        } catch (error) {
-            console.error('Error fetching classes:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+/**
+ * ClassInsightsCard Component
+ * @param {Array} classes - Classes data passed from parent (from useClassesList hook)
+ * @param {boolean} loading - Loading state from parent
+ * @param {function} onRefresh - Optional callback to refresh data
+ */
+export function ClassInsightsCard({ classes = [], loading = false, onRefresh }) {
 
     const insights = useMemo(() => {
         // Filter for active classes (ongoing = đang học, upcoming = sắp mở)
@@ -88,6 +69,7 @@ export function ClassInsightsCard({ accessToken, selectedCenterId }) {
             <Card>
                 <CardContent className="pt-6">
                     <div className="flex items-center justify-center h-32">
+                        <RefreshCw className="h-5 w-5 animate-spin text-gray-400 mr-2" />
                         <div className="text-sm text-gray-500">Đang tải...</div>
                     </div>
                 </CardContent>

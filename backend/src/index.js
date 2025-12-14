@@ -2746,22 +2746,33 @@ app.get('/api/classes', requireAuth, async (req, res, next) => {
     const { data, error } = await query;
     if (error) throw error;
 
-    // Đếm số học viên enrolled cho mỗi lớp
-    const classesWithCount = await Promise.all(
-      (data || []).map(async (cls) => {
-        const { count } = await supabase
-          .from('enrollments')
-          .select('*', { count: 'exact', head: true })
-          .eq('class_id', cls.id)
-          .eq('status', 'active');
+    // ====== OPTIMIZED: Single query to get all enrollment counts ======
+    // Instead of N+1 queries (1 per class), we do just 1 aggregation query
+    const classIds = (data || []).map(cls => cls.id);
 
-        return {
-          ...cls,
-          enrolled_count: count || 0,
-          teacher: cls.users,
-        };
-      })
-    );
+    let enrollmentCounts = {};
+    if (classIds.length > 0) {
+      const { data: enrollments, error: enrollError } = await supabase
+        .from('enrollments')
+        .select('class_id')
+        .in('class_id', classIds)
+        .eq('status', 'active');
+
+      if (!enrollError && enrollments) {
+        // Count enrollments per class in memory
+        enrollmentCounts = enrollments.reduce((acc, e) => {
+          acc[e.class_id] = (acc[e.class_id] || 0) + 1;
+          return acc;
+        }, {});
+      }
+    }
+
+    // Map counts to classes - O(n) instead of O(n) API calls!
+    const classesWithCount = (data || []).map(cls => ({
+      ...cls,
+      enrolled_count: enrollmentCounts[cls.id] || 0,
+      teacher: cls.users,
+    }));
 
     res.json({ success: true, data: classesWithCount });
   } catch (error) {
