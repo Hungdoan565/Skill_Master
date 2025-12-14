@@ -2,7 +2,7 @@
  * EnrollmentsPage - Trang danh sách ghi danh
  */
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     UserPlus,
@@ -123,17 +123,18 @@ export function EnrollmentsPage() {
     const { isManager, getCenterId, isSuperAdmin, profile } = useAuth();
 
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [selectedCenter, setSelectedCenter] = useState('');
     const [centers, setCenters] = useState([]);
     const [deleteModal, setDeleteModal] = useState({ isOpen: false, enrollment: null });
+    const debounceRef = useRef(null);
 
     const {
         enrollments,
         loading,
         fetchEnrollments,
         deleteEnrollment,
-        filterEnrollments,
     } = useEnrollments();
 
     // Effective center ID
@@ -166,16 +167,30 @@ export function EnrollmentsPage() {
         }
     }, [isSuperAdmin]);
 
-    // Fetch enrollments
+    // Debounce search term (300ms delay)
+    useEffect(() => {
+        if (debounceRef.current) {
+            clearTimeout(debounceRef.current);
+        }
+        debounceRef.current = setTimeout(() => {
+            setDebouncedSearch(searchTerm);
+        }, 300);
+
+        return () => {
+            if (debounceRef.current) {
+                clearTimeout(debounceRef.current);
+            }
+        };
+    }, [searchTerm]);
+
+    // Fetch enrollments with server-side filtering
     useEffect(() => {
         fetchEnrollments({
             status: statusFilter,
             centerId: effectiveCenterId,
+            search: debouncedSearch,
         });
-    }, [fetchEnrollments, statusFilter, effectiveCenterId]);
-
-    // Filter enrollments locally
-    const filteredEnrollments = filterEnrollments(searchTerm);
+    }, [fetchEnrollments, statusFilter, effectiveCenterId, debouncedSearch]);
 
     // Stats
     const stats = useMemo(() => ({
@@ -279,7 +294,7 @@ export function EnrollmentsPage() {
                         <div className="flex items-center justify-center py-12">
                             <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
                         </div>
-                    ) : filteredEnrollments.length === 0 ? (
+                    ) : enrollments.length === 0 ? (
                         <div className="text-center py-12 text-slate-500">
                             <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
                             <p>Chưa có ghi danh nào</p>
@@ -315,7 +330,7 @@ export function EnrollmentsPage() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {filteredEnrollments.map(enrollment => (
+                                    {enrollments.map(enrollment => (
                                         <EnrollmentRow
                                             key={enrollment.id}
                                             enrollment={enrollment}

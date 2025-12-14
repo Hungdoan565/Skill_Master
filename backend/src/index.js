@@ -12994,6 +12994,17 @@ app.get('/api/admin/enrollments', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
       filteredData = filteredData.filter(e => e.class?.centers?.id === effectiveCenterId);
     }
 
+    // Search filter (student name/email, class name)
+    if (search) {
+      const searchLower = search.toLowerCase();
+      filteredData = filteredData.filter(e =>
+        e.student?.full_name?.toLowerCase().includes(searchLower) ||
+        e.student?.email?.toLowerCase().includes(searchLower) ||
+        e.class?.name?.toLowerCase().includes(searchLower) ||
+        e.class?.code?.toLowerCase().includes(searchLower)
+      );
+    }
+
     res.json({
       success: true,
       data: filteredData,

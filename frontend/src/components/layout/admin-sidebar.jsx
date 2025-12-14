@@ -68,7 +68,7 @@ const menuGroups = [
     items: [
       { label: 'Thông báo', icon: Bell, path: '/admin/notifications' },
       { label: 'Trung tâm', icon: Building2, path: '/admin/centers' },
-      { label: 'Tài liệu', icon: FileText, path: '/admin/documents', badge: 'coming' },
+      { label: 'Tài liệu', icon: FileText, path: '/admin/documents' },
       { label: 'Báo cáo', icon: BarChart3, path: '/admin/reports' },
     ],
   },
