@@ -57,3 +57,92 @@ export const DEFAULT_ROOM_FORM = {
   notes: '',
   status: 'active'
 };
+
+/**
+ * Extract zone/block from room code
+ * Examples: "E2-01" → "E", "A3-05" → "A", "LAB1" → "LAB", "P101" → "P"
+ */
+export const extractZoneFromCode = (code) => {
+  if (!code) return 'Khác';
+  
+  // Pattern 1: Letter followed by number-number (e.g., "E2-01" → "E")
+  const match1 = code.match(/^([A-Z]+)\d+-\d+/i);
+  if (match1) return match1[1].toUpperCase();
+  
+  // Pattern 2: Letter(s) followed by number (e.g., "LAB1" → "LAB", "P101" → "P")
+  const match2 = code.match(/^([A-Z]+)\d+/i);
+  if (match2) return match2[1].toUpperCase();
+  
+  // Pattern 3: Just letters (e.g., "MTG" → "MTG")
+  const match3 = code.match(/^([A-Z]+)/i);
+  if (match3) return match3[1].toUpperCase();
+  
+  return 'Khác';
+};
+
+/**
+ * Group rooms by zone and sort them
+ */
+export const groupAndSortRoomsByZone = (rooms) => {
+  // Group by zone
+  const grouped = rooms.reduce((acc, room) => {
+    const zone = extractZoneFromCode(room.code);
+    if (!acc[zone]) acc[zone] = [];
+    acc[zone].push(room);
+    return acc;
+  }, {});
+  
+  // Sort rooms within each zone by code
+  Object.keys(grouped).forEach(zone => {
+    grouped[zone].sort((a, b) => {
+      // Natural sort for codes like E2-01, E2-02, E2-10, E3-01
+      return a.code.localeCompare(b.code, undefined, { numeric: true, sensitivity: 'base' });
+    });
+  });
+  
+  return grouped;
+};
+
+/**
+ * Get all unique zones from rooms list
+ */
+export const getUniqueZones = (rooms) => {
+  const zones = rooms.map(room => extractZoneFromCode(room.code));
+  return [...new Set(zones)].sort();
+};
+
+/**
+ * Calculate stats for a center (zones, rooms, total capacity)
+ */
+export const getCenterStats = (rooms) => {
+  const zones = getUniqueZones(rooms);
+  const totalCapacity = rooms.reduce((sum, room) => sum + (room.capacity || 0), 0);
+  
+  return {
+    zones: zones.length,
+    rooms: rooms.length,
+    capacity: totalCapacity,
+    activeRooms: rooms.filter(r => r.status === 'active').length,
+    maintenanceRooms: rooms.filter(r => r.status === 'maintenance').length
+  };
+};
+
+/**
+ * Group rooms by center, then by zone
+ */
+export const groupRoomsByCenterAndZone = (rooms, centers) => {
+  const result = {};
+  
+  centers.forEach(center => {
+    const centerRooms = rooms.filter(r => r.center_id === center.id);
+    const groupedByZone = groupAndSortRoomsByZone(centerRooms);
+    
+    result[center.id] = {
+      center,
+      zones: groupedByZone,
+      stats: getCenterStats(centerRooms)
+    };
+  });
+  
+  return result;
+};

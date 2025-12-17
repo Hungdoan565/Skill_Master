@@ -50,7 +50,7 @@ export function useGlobalSessions(initialFilters = {}) {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   // Kiểm tra quyền: SUPER_ADMIN có thể xem tất cả centers
   const isSuperAdmin = profile?.roles?.code === 'SUPER_ADMIN';
   const userCenterId = profile?.center_id;
@@ -74,20 +74,24 @@ export function useGlobalSessions(initialFilters = {}) {
 
     try {
       const headers = await getAuthHeaders();
-      
+
       // Build query params
       const params = new URLSearchParams();
       if (filters.startDate) params.append('startDate', filters.startDate);
       if (filters.endDate) params.append('endDate', filters.endDate);
       if (filters.status) params.append('status', filters.status);
       if (filters.teacherId) params.append('teacherId', filters.teacherId);
-      
+
       // Auto-inject centerId cho non-SUPER_ADMIN users
       // Backend cũng validate nhưng inject ở frontend giúp UX tốt hơn
       const effectiveCenterId = isSuperAdmin ? filters.centerId : userCenterId;
       if (effectiveCenterId) params.append('centerId', effectiveCenterId);
-      
+
       if (filters.roomId) params.append('roomId', filters.roomId);
+
+      // Pagination (server defaults to 200 if not provided). Keep small window for UI.
+      params.append('limit', '200');
+      params.append('offset', '0');
 
       const res = await fetch(`${API_URL}/api/admin/sessions?${params}`, { headers });
       const json = await res.json();
@@ -117,7 +121,7 @@ export function useGlobalSessions(initialFilters = {}) {
   // Quick filter presets
   const applyPreset = useCallback((preset) => {
     const today = new Date();
-    
+
     switch (preset) {
       case 'today': {
         const todayStr = formatDate(today);
@@ -153,9 +157,9 @@ export function useGlobalSessions(initialFilters = {}) {
     const today = new Date();
     const firstDay = new Date(today.setDate(today.getDate() - today.getDay() + 1));
     const lastDay = new Date(today.setDate(today.getDate() - today.getDay() + 7));
-    updateFilters({ 
-      startDate: formatDate(firstDay), 
-      endDate: formatDate(lastDay) 
+    updateFilters({
+      startDate: formatDate(firstDay),
+      endDate: formatDate(lastDay)
     });
   }, [updateFilters]);
 
@@ -163,9 +167,9 @@ export function useGlobalSessions(initialFilters = {}) {
     const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
     const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-    updateFilters({ 
-      startDate: formatDate(firstDay), 
-      endDate: formatDate(lastDay) 
+    updateFilters({
+      startDate: formatDate(firstDay),
+      endDate: formatDate(lastDay)
     });
   }, [updateFilters]);
 

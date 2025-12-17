@@ -12,3 +12,6 @@ export { RoomsGrid } from './RoomsGrid';
 export { RoomFilters } from './RoomFilters';
 export { RoomFormModal } from './RoomFormModal';
 export { DeleteRoomModal } from './DeleteRoomModal';
+export { CenterCard } from './CenterCard';
+export { ZoneCard } from './ZoneCard';
+export { RoomListModal } from './RoomListModal';

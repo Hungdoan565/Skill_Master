@@ -44,7 +44,13 @@ export function useClassesList() {
   // Fetch danh sách lớp học với optional server-side filters
   const fetchClasses = useCallback(async (serverFilters = {}, options = {}) => {
     const { skipCache = false, showRefreshing = false } = options;
-    const cacheKey = buildCacheKey(serverFilters);
+
+    // Pagination + projection controls (client defaults)
+    const page = Number(serverFilters.page || 1);
+    const pageSize = Math.min(Number(serverFilters.pageSize || 20), 100);
+    const effectiveFilters = { ...serverFilters, page, pageSize, minimal: true };
+
+    const cacheKey = buildCacheKey(effectiveFilters);
 
     try {
       // ====== STALE-WHILE-REVALIDATE PATTERN ======
@@ -81,6 +87,11 @@ export function useClassesList() {
       // Date range filters (server-side for better performance)
       if (serverFilters.dateStart) params.append('date_start', serverFilters.dateStart);
       if (serverFilters.dateEnd) params.append('date_end', serverFilters.dateEnd);
+
+      // Pagination + minimal projection
+      params.append('limit', pageSize);
+      params.append('offset', (page - 1) * pageSize);
+      params.append('minimal', 'true');
 
       const queryString = params.toString();
       const url = queryString

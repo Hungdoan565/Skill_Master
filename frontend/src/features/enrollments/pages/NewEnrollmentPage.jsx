@@ -126,7 +126,7 @@ export function NewEnrollmentPage() {
     const [selectedClass, setSelectedClass] = useState(preSelectedClassId || '');
     const [studentSearch, setStudentSearch] = useState('');
     const [classSearch, setClassSearch] = useState('');
-    const [createInvoice, setCreateInvoice] = useState(true);
+    // 🔥 REMOVED: createInvoice state - always create draft invoice now
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
@@ -250,10 +250,9 @@ export function NewEnrollmentPage() {
         setError(null);
 
         try {
-            await createBulkEnrollment(selectedClass, selectedStudents, {
-                create_invoice: createInvoice,
-            });
-            setSuccess(`Đã ghi danh ${selectedStudents.length} học viên thành công!`);
+            // 🔥 UPDATED: Removed create_invoice option - always create draft invoice
+            await createBulkEnrollment(selectedClass, selectedStudents);
+            setSuccess(`Đã ghi danh ${selectedStudents.length} học viên thành công! Hóa đơn đã tạo ở trạng thái Draft.`);
 
             // Reset và redirect sau 2s
             setTimeout(() => {
@@ -437,24 +436,19 @@ export function NewEnrollmentPage() {
             <Card>
                 <CardContent className="pt-6">
                     <div className="flex items-center justify-between flex-wrap gap-4">
-                        {/* Options */}
-                        <div className="flex items-center gap-6">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={createInvoice}
-                                    onChange={(e) => setCreateInvoice(e.target.checked)}
-                                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                                />
-                                <span className="text-sm text-slate-700">Tạo hóa đơn học phí tự động</span>
-                            </label>
+                        {/* 🔥 NEW: Info notice about draft invoice */}
+                        <div className="flex items-center gap-3 text-sm">
+                            <AlertCircle className="h-5 w-5 text-blue-500 flex-shrink-0" />
+                            <p className="text-slate-600">
+                                Hóa đơn sẽ được tạo ở trạng thái <span className="font-semibold text-blue-600">Draft</span> để xác nhận sau
+                            </p>
                         </div>
 
                         {/* Summary */}
                         <div className="flex items-center gap-4">
                             {selectedClassInfo && selectedStudents.length > 0 && (
                                 <div className="text-right">
-                                    <p className="text-sm text-slate-500">Tổng học phí:</p>
+                                    <p className="text-sm text-slate-500">Ước tính học phí:</p>
                                     <p className="text-lg font-bold text-slate-900">
                                         {formatCurrency((selectedClassInfo.courses?.tuition_fee || 0) * selectedStudents.length)}
                                     </p>

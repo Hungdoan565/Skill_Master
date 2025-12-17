@@ -5,10 +5,10 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
-import { 
-  X, 
-  DoorOpen, 
-  Loader2, 
+import {
+  X,
+  DoorOpen,
+  Loader2,
   Building2,
   Sparkles,
   AlertCircle,
@@ -32,21 +32,31 @@ const CAPACITY_SUGGESTIONS = {
 // Auto-generate room code from name
 const generateRoomCode = (name) => {
   if (!name) return '';
-  
-  // Clean and normalize
-  const cleaned = name.trim().toLowerCase();
-  
-  // Extract number if exists (e.g., "Phòng 101" -> "101")
-  const numberMatch = cleaned.match(/\d+/);
-  const number = numberMatch ? numberMatch[0] : '';
-  
-  // Determine prefix based on keywords
+
+  const cleaned = name.trim();
+
+  // Priority 1: Extract pattern {Letter}{Number}-{Number} (e.g., "E2-01", "A3-12", "Phòng E2-01")
+  const complexPattern = cleaned.match(/([A-Z]\d+[-]\d+)/i);
+  if (complexPattern) {
+    return complexPattern[1].toUpperCase(); // "E2-01" -> "E2-01"
+  }
+
+  // Priority 2: Extract pattern {Letter}{Number} (e.g., "LAB1", "MTG2", "Lab E2")
+  const simplePattern = cleaned.match(/([A-Z]+\d+)/i);
+  if (simplePattern) {
+    return simplePattern[1].toUpperCase(); // "LAB1" -> "LAB1"
+  }
+
+  // Priority 3: Build from keywords + numbers
+  const lowerCleaned = cleaned.toLowerCase();
+  const numbers = cleaned.match(/\d+/g);
+  const number = numbers ? numbers.join('') : '';
+
   let prefix = 'R'; // Default: Room
-  if (cleaned.includes('lab') || cleaned.includes('máy tính')) prefix = 'LAB';
-  else if (cleaned.includes('họp') || cleaned.includes('meeting')) prefix = 'MTG';
-  else if (cleaned.includes('online') || cleaned.includes('ảo')) prefix = 'ONL';
-  else if (cleaned.includes('phòng')) prefix = 'P';
-  
+  if (lowerCleaned.includes('lab') || lowerCleaned.includes('máy tính')) prefix = 'LAB';
+  else if (lowerCleaned.includes('họp') || lowerCleaned.includes('meeting')) prefix = 'MTG';
+  else if (lowerCleaned.includes('online') || lowerCleaned.includes('ảo')) prefix = 'ONL';
+
   return number ? `${prefix}${number}` : prefix;
 };
 
@@ -77,13 +87,13 @@ export function RoomFormModal({
   // ESC key handler
   useEffect(() => {
     if (!isOpen) return;
-    
+
     const handleKeyDown = (e) => {
       if (e.key === 'Escape' && !saving) {
         onClose();
       }
     };
-    
+
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, saving, onClose]);
@@ -117,7 +127,7 @@ export function RoomFormModal({
   if (!isOpen) return null;
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
@@ -125,10 +135,10 @@ export function RoomFormModal({
     >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      
+
       {/* Modal */}
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
-        
+
         {/* Header - Gradient cam-đỏ */}
         <div className="bg-linear-to-r from-red-500 to-orange-500 px-6 py-4 shrink-0">
           <div className="flex items-center justify-between">
@@ -145,7 +155,7 @@ export function RoomFormModal({
                 </p>
               </div>
             </div>
-            <button 
+            <button
               onClick={onClose}
               className="p-2 hover:bg-white/20 rounded-lg transition-colors"
             >
@@ -156,7 +166,7 @@ export function RoomFormModal({
 
         {/* Body - Scrollable */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
-          
+
           {/* Form Error Display */}
           {formError && (
             <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
@@ -192,7 +202,7 @@ export function RoomFormModal({
                 </p>
               )}
             </div>
-            
+
             <div className="col-span-2">
               <div className="flex items-center justify-between">
                 <Label className="text-slate-700 font-medium">Mã phòng</Label>
@@ -200,11 +210,10 @@ export function RoomFormModal({
                   <button
                     type="button"
                     onClick={() => setAutoCode(!autoCode)}
-                    className={`text-xs flex items-center gap-1 px-2 py-0.5 rounded-full transition-colors ${
-                      autoCode 
-                        ? 'bg-orange-100 text-orange-700' 
+                    className={`text-xs flex items-center gap-1 px-2 py-0.5 rounded-full transition-colors ${autoCode
+                        ? 'bg-orange-100 text-orange-700'
                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
+                      }`}
                   >
                     <Sparkles className="w-3 h-3" />
                     {autoCode ? 'Tự động' : 'Thủ công'}
@@ -238,7 +247,7 @@ export function RoomFormModal({
                 ))}
               </select>
             </div>
-            
+
             <div>
               <div className="flex items-center justify-between">
                 <Label className="text-slate-700 font-medium">Sức chứa</Label>
@@ -280,9 +289,8 @@ export function RoomFormModal({
             <select
               value={formData.center_id}
               onChange={(e) => onFieldChange('center_id', e.target.value)}
-              className={`w-full mt-1.5 px-3 py-2 bg-white border rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all ${
-                validation.center_id ? 'border-red-300' : 'border-slate-200'
-              }`}
+              className={`w-full mt-1.5 px-3 py-2 bg-white border rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all ${validation.center_id ? 'border-red-300' : 'border-slate-200'
+                }`}
             >
               <option value="">-- Chọn trung tâm --</option>
               {centers.map(c => (
@@ -327,7 +335,7 @@ export function RoomFormModal({
                   className={`
                     px-3 py-2 rounded-lg text-sm font-medium border-2 transition-all
                     ${formData.status === opt.value
-                      ? opt.value === 'active' 
+                      ? opt.value === 'active'
                         ? 'border-green-500 bg-green-50 text-green-700'
                         : opt.value === 'maintenance'
                           ? 'border-amber-500 bg-amber-50 text-amber-700'
@@ -365,8 +373,8 @@ export function RoomFormModal({
             <Button variant="outline" onClick={onClose}>
               Hủy
             </Button>
-            <Button 
-              onClick={onSave} 
+            <Button
+              onClick={onSave}
               disabled={saving || !isValid}
               className="bg-orange-500 hover:bg-orange-600 text-white"
             >

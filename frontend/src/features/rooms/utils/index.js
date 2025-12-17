@@ -10,5 +10,10 @@ export {
   STATUS_OPTIONS,
   EQUIPMENT_LABELS,
   EQUIPMENT_LIST,
-  DEFAULT_ROOM_FORM 
+  DEFAULT_ROOM_FORM,
+  extractZoneFromCode,
+  groupAndSortRoomsByZone,
+  getUniqueZones,
+  getCenterStats,
+  groupRoomsByCenterAndZone
 } from './constants';

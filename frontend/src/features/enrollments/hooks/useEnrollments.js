@@ -35,7 +35,6 @@ export function useEnrollments() {
             if (filters.classId) params.append('class_id', filters.classId);
             if (filters.studentId) params.append('student_id', filters.studentId);
             if (filters.centerId) params.append('center_id', filters.centerId);
-            if (filters.search) params.append('search', filters.search);
 
             const response = await axios.get(
                 `${API_URL}/api/admin/enrollments?${params}`,

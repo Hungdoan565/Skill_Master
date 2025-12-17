@@ -1,9 +1,9 @@
 /**
  * StudentsPage Component
- * Trang quản lý học viên - refactored version with server-side filtering
+ * Trang quản lý học viên - refactored version
  */
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { GraduationCap, UserPlus } from 'lucide-react';
 import {
@@ -26,9 +26,7 @@ import {
 export function StudentsPage() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const debounceRef = useRef(null);
 
   // Modal states
   const [promoteModal, setPromoteModal] = useState({ isOpen: false, student: null });
@@ -42,28 +40,16 @@ export function StudentsPage() {
     fetchStudentDetail,
     updateStudent,
     promoteStudent,
+    filterStudents
   } = useStudents();
 
-  // Debounce search term (300ms delay)
+  // Fetch students on mount and when filter changes
   useEffect(() => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-    debounceRef.current = setTimeout(() => {
-      setDebouncedSearch(searchTerm);
-    }, 300);
+    fetchStudents(statusFilter);
+  }, [fetchStudents, statusFilter]);
 
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-    };
-  }, [searchTerm]);
-
-  // Fetch students with server-side filtering
-  useEffect(() => {
-    fetchStudents({ status: statusFilter, search: debouncedSearch });
-  }, [fetchStudents, statusFilter, debouncedSearch]);
+  // Filter students locally by search
+  const filteredStudents = filterStudents(searchTerm);
 
   // Handle view details
   const handleViewDetails = useCallback(async (student) => {
@@ -156,7 +142,7 @@ export function StudentsPage() {
             onSearchChange={setSearchTerm}
             statusFilter={statusFilter}
             onStatusChange={setStatusFilter}
-            filteredCount={students.length}
+            filteredCount={filteredStudents.length}
             totalCount={students.length}
           />
         </CardHeader>
@@ -166,7 +152,7 @@ export function StudentsPage() {
             <LoadingState />
           ) : (
             <StudentsTable
-              students={students}
+              students={filteredStudents}
               onViewDetails={handleViewDetails}
               onEdit={handleEditClick}
               onPromote={handlePromoteClick}

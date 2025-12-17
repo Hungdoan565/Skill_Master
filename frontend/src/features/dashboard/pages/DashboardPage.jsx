@@ -30,6 +30,7 @@ import {
   DateRangeSelector,
   GettingStartedCard
 } from '../components';
+import { ActionableAlertsWidget } from '../components/ActionableAlertsWidget';
 
 export function DashboardPage() {
   const { user, session, profile, isSuperAdmin } = useAuth();
@@ -184,6 +185,11 @@ export function DashboardPage() {
             loading={classesLoading}
             onRefresh={() => refreshClasses({ centerId: selectedCenterId })}
           />
+        </div>
+
+        {/* 🔥 NEW: Actionable Alerts Widget */}
+        <div className="mb-8">
+          <ActionableAlertsWidget centerId={selectedCenterId} />
         </div>
 
         {/* Bottom Section: Recent Students + Quick Actions */}

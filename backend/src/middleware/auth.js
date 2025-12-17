@@ -17,6 +17,20 @@ export const requireAuth = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
+
+    // Validate token format BEFORE sending to Supabase
+    if (!token || token === 'null' || token === 'undefined' || token.length < 20) {
+      console.error('❌ Invalid token format:', {
+        hasToken: !!token,
+        tokenValue: token,
+        tokenLength: token?.length
+      });
+      return res.status(401).json({
+        success: false,
+        message: 'Token không hợp lệ. Vui lòng đăng nhập lại.'
+      });
+    }
+
     console.log('🔐 Verifying token:', token.substring(0, 20) + '...');
 
     // 2. Verify token với Supabase - hỏi xem token này có hợp lệ không
