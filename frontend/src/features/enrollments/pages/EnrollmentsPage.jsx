@@ -18,6 +18,8 @@ import {
     Users,
     Loader2,
     Building2,
+    DollarSign,
+    Receipt,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +28,27 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/auth-context';
 import { useEnrollments } from '../hooks';
 import { formatDate, getStatusConfig, STATUS_OPTIONS } from '../utils';
+
+// Payment Status Helper
+const getPaymentStatus = (enrollment) => {
+    const tuition = enrollment.tuition_fee || 0;
+    const discount = enrollment.discount_amount || 0;
+    const paid = enrollment.paid_amount || 0;
+    const remaining = tuition - discount - paid;
+
+    if (remaining <= 0) {
+        return { label: 'Đã đóng', color: 'bg-green-100 text-green-700', icon: CheckCircle };
+    }
+    if (paid > 0) {
+        return { label: 'Nợ một phần', color: 'bg-yellow-100 text-yellow-700', icon: Clock };
+    }
+    return { label: 'Chưa đóng', color: 'bg-red-100 text-red-700', icon: XCircle };
+};
+
+// Format currency
+const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount || 0);
+};
 
 // Stats Card
 const StatsCard = ({ icon: Icon, label, value, color }) => (
@@ -43,9 +66,11 @@ const StatsCard = ({ icon: Icon, label, value, color }) => (
 );
 
 // Enrollment Row
-const EnrollmentRow = ({ enrollment, onView, onDelete }) => {
+const EnrollmentRow = ({ enrollment, onView, onDelete, onViewInvoice }) => {
     const [menuOpen, setMenuOpen] = useState(false);
     const statusConfig = getStatusConfig(enrollment.status);
+    const paymentStatus = getPaymentStatus(enrollment);
+    const navigate = useNavigate();
 
     const getInitials = (name) => {
         if (!name) return '?';
@@ -53,6 +78,11 @@ const EnrollmentRow = ({ enrollment, onView, onDelete }) => {
         if (parts.length === 1) return parts[0][0]?.toUpperCase() || '?';
         return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     };
+
+    const tuition = enrollment.tuition_fee || 0;
+    const discount = enrollment.discount_amount || 0;
+    const paid = enrollment.paid_amount || 0;
+    const remaining = tuition - discount - paid;
 
     return (
         <tr className="hover:bg-slate-50 transition-colors">
@@ -71,13 +101,30 @@ const EnrollmentRow = ({ enrollment, onView, onDelete }) => {
                 <p className="font-medium text-slate-900">{enrollment.class?.name || 'N/A'}</p>
                 <p className="text-sm text-slate-500">{enrollment.class?.courses?.title || 'N/A'}</p>
             </td>
-            <td className="px-4 py-3 text-slate-500">
-                {formatDate(enrollment.enrolled_at)}
+            <td className="px-4 py-3">
+                <p className="text-sm text-slate-700">{enrollment.class?.teacher?.full_name || 'Chưa có'}</p>
+            </td>
+            <td className="px-4 py-3 text-right">
+                <p className="font-medium text-slate-900">{formatCurrency(tuition)}</p>
+                {discount > 0 && <p className="text-xs text-green-600">-{formatCurrency(discount)}</p>}
+            </td>
+            <td className="px-4 py-3 text-right">
+                <p className="font-medium text-blue-600">{formatCurrency(paid)}</p>
+            </td>
+            <td className="px-4 py-3 text-right">
+                <p className={`font-medium ${remaining > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    {formatCurrency(remaining)}
+                </p>
             </td>
             <td className="px-4 py-3">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig.color}`}>
-                    {statusConfig.label}
-                </span>
+                <div className="flex flex-col gap-1">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig.color}`}>
+                        {statusConfig.label}
+                    </span>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${paymentStatus.color}`}>
+                        {paymentStatus.label}
+                    </span>
+                </div>
             </td>
             <td className="px-4 py-3">
                 <div className="relative">
@@ -94,7 +141,7 @@ const EnrollmentRow = ({ enrollment, onView, onDelete }) => {
                                 className="fixed inset-0 z-10"
                                 onClick={() => setMenuOpen(false)}
                             />
-                            <div className="absolute right-0 top-full mt-1 w-40 bg-white rounded-lg shadow-lg border z-20">
+                            <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border z-20">
                                 <button
                                     onClick={() => { onView(enrollment); setMenuOpen(false); }}
                                     className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
@@ -102,6 +149,21 @@ const EnrollmentRow = ({ enrollment, onView, onDelete }) => {
                                     <Eye className="h-4 w-4" />
                                     Xem chi tiết
                                 </button>
+                                <button
+                                    onClick={() => { navigate(`/admin/invoices?student_id=${enrollment.student_id}`); setMenuOpen(false); }}
+                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                                >
+                                    <Receipt className="h-4 w-4" />
+                                    Xem hóa đơn
+                                </button>
+                                <button
+                                    onClick={() => { navigate(`/admin/invoices/new?enrollment_id=${enrollment.id}`); setMenuOpen(false); }}
+                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                                >
+                                    <DollarSign className="h-4 w-4" />
+                                    Thu học phí
+                                </button>
+                                <div className="border-t my-1"></div>
                                 <button
                                     onClick={() => { onDelete(enrollment); setMenuOpen(false); }}
                                     className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
@@ -125,12 +187,15 @@ export function EnrollmentsPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [selectedCenter, setSelectedCenter] = useState('');
+    const [paymentStatusFilter, setPaymentStatusFilter] = useState('');
     const [centers, setCenters] = useState([]);
     const [deleteModal, setDeleteModal] = useState({ isOpen: false, enrollment: null });
+    const [currentPage, setCurrentPage] = useState(1);
 
     const {
         enrollments,
         loading,
+        pagination,
         fetchEnrollments,
         deleteEnrollment,
         filterEnrollments,
@@ -171,11 +236,32 @@ export function EnrollmentsPage() {
         fetchEnrollments({
             status: statusFilter,
             centerId: effectiveCenterId,
+            page: currentPage,
+            limit: 20,
         });
-    }, [fetchEnrollments, statusFilter, effectiveCenterId]);
+    }, [fetchEnrollments, statusFilter, effectiveCenterId, currentPage]);
 
     // Filter enrollments locally
-    const filteredEnrollments = filterEnrollments(searchTerm);
+    const filteredEnrollments = useMemo(() => {
+        let filtered = filterEnrollments(searchTerm);
+        
+        // Filter by payment status
+        if (paymentStatusFilter) {
+            filtered = filtered.filter(e => {
+                const tuition = e.tuition_fee || 0;
+                const discount = e.discount_amount || 0;
+                const paid = e.paid_amount || 0;
+                const remaining = tuition - discount - paid;
+                
+                if (paymentStatusFilter === 'paid') return remaining <= 0;
+                if (paymentStatusFilter === 'unpaid') return paid === 0;
+                if (paymentStatusFilter === 'partial') return paid > 0 && remaining > 0;
+                return true;
+            });
+        }
+        
+        return filtered;
+    }, [filterEnrollments, searchTerm, paymentStatusFilter]);
 
     // Stats
     const stats = useMemo(() => ({
@@ -259,6 +345,18 @@ export function EnrollmentsPage() {
                             </select>
                         )}
 
+                        {/* Payment Status Filter */}
+                        <select
+                            value={paymentStatusFilter}
+                            onChange={(e) => setPaymentStatusFilter(e.target.value)}
+                            className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[150px]"
+                        >
+                            <option value="">Tất cả thanh toán</option>
+                            <option value="paid">Đã đóng</option>
+                            <option value="partial">Nợ một phần</option>
+                            <option value="unpaid">Chưa đóng</option>
+                        </select>
+
                         {/* Refresh */}
                         <Button
                             variant="outline"
@@ -304,7 +402,16 @@ export function EnrollmentsPage() {
                                             Lớp học
                                         </th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                                            Ngày ghi danh
+                                            Giáo viên
+                                        </th>
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
+                                            Học phí
+                                        </th>
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
+                                            Đã đóng
+                                        </th>
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
+                                            Còn nợ
                                         </th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                                             Trạng thái
@@ -327,6 +434,38 @@ export function EnrollmentsPage() {
                             </table>
                         </div>
                     )}
+                    
+                    {/* Pagination */}
+                    {!loading && filteredEnrollments.length > 0 && pagination.totalPages > 1 && (
+                        <div className="flex items-center justify-between px-4 py-3 border-t">
+                            <div className="text-sm text-slate-500">
+                                Hiển thị {((pagination.page - 1) * pagination.limit) + 1}-{Math.min(pagination.page * pagination.limit, pagination.total)} trong tổng số {pagination.total} ghi danh
+                            </div>
+                            <div className="flex gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(p => p - 1)}
+                                    disabled={pagination.page === 1}
+                                >
+                                    Trước
+                                </Button>
+                                <div className="flex items-center gap-2 px-3">
+                                    <span className="text-sm text-slate-600">
+                                        Trang {pagination.page} / {pagination.totalPages}
+                                    </span>
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setCurrentPage(p => p + 1)}
+                                    disabled={pagination.page >= pagination.totalPages}
+                                >
+                                    Sau
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
@@ -337,8 +476,8 @@ export function EnrollmentsPage() {
                         <h3 className="text-lg font-semibold text-slate-900">Xác nhận hủy ghi danh</h3>
                         <p className="text-slate-500 mt-2">
                             Bạn có chắc muốn hủy ghi danh của{' '}
-                            <strong>{deleteModal.enrollment?.students?.full_name}</strong> khỏi lớp{' '}
-                            <strong>{deleteModal.enrollment?.classes?.name}</strong>?
+                            <strong>{deleteModal.enrollment?.student?.full_name}</strong> khỏi lớp{' '}
+                            <strong>{deleteModal.enrollment?.class?.name}</strong>?
                         </p>
                         <div className="flex justify-end gap-3 mt-6">
                             <Button

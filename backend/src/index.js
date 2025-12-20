@@ -13361,9 +13361,11 @@ app.get('/api/admin/enrollments', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
         *,
         student:users!enrollments_student_id_fkey (id, full_name, email, phone),
         class:classes (
-          id, code, name, status,
+          id, code, name, status, start_date, end_date,
           courses (id, code, title, price),
-          centers (id, name)
+          centers (id, name),
+          teacher:users!classes_teacher_id_fkey (id, full_name, email),
+          rooms (id, name, code)
         )
       `, { count: 'exact' })
       .order('enrolled_at', { ascending: false });

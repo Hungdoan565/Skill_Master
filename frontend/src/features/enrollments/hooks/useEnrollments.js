@@ -23,6 +23,12 @@ export function useEnrollments() {
     const [loading, setLoading] = useState(false);
     const [students, setStudents] = useState([]);
     const [classes, setClasses] = useState([]);
+    const [pagination, setPagination] = useState({
+        total: 0,
+        page: 1,
+        limit: 20,
+        totalPages: 0
+    });
 
     // Fetch all enrollments
     const fetchEnrollments = useCallback(async (filters = {}) => {
@@ -35,6 +41,8 @@ export function useEnrollments() {
             if (filters.classId) params.append('class_id', filters.classId);
             if (filters.studentId) params.append('student_id', filters.studentId);
             if (filters.centerId) params.append('center_id', filters.centerId);
+            if (filters.page) params.append('page', filters.page);
+            if (filters.limit) params.append('limit', filters.limit);
 
             const response = await axios.get(
                 `${API_URL}/api/admin/enrollments?${params}`,
@@ -43,6 +51,9 @@ export function useEnrollments() {
 
             if (response.data?.success) {
                 setEnrollments(response.data.data || []);
+                if (response.data.pagination) {
+                    setPagination(response.data.pagination);
+                }
                 return response.data.data;
             }
             return [];
@@ -186,6 +197,7 @@ export function useEnrollments() {
         students,
         classes,
         loading,
+        pagination,
         fetchEnrollments,
         fetchStudents,
         fetchClasses,
