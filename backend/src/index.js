@@ -12860,6 +12860,18 @@ app.post('/api/admin/certificates/bulk', requireAuth, requireRole(['SUPER_ADMIN'
   try {
     const { certificates, class_id, student_ids, grade, completion_date } = req.body;
 
+    console.log('=== BULK CERTIFICATE REQUEST ===');
+    console.log('User:', req.user?.email, 'Center ID:', req.user?.centerId, 'Role:', req.user?.roleCode);
+    console.log('Certificates count:', certificates?.length);
+    console.log('First cert:', certificates?.[0]);
+
+    if (!req.user?.centerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'User không có center_id, không thể cấp chứng chỉ'
+      });
+    }
+
     // Hỗ trợ cả format mới (certificates array) và format cũ (class_id + student_ids)
     if (certificates && Array.isArray(certificates) && certificates.length > 0) {
       // NEW FORMAT: Cấp nhiều chứng chỉ với thông tin chi tiết từng người
@@ -12907,7 +12919,7 @@ app.post('/api/admin/certificates/bulk', requireAuth, requireRole(['SUPER_ADMIN'
             scores: cert.scores || {},
             external_id: cert.external_id,
             exam_date: cert.exam_date,
-            expiry_date: expiryDate,
+            expires_at: expiryDate,
             center_id: req.user.centerId,
             status: 'issued',
             issued_by: req.user.id,
@@ -12925,14 +12937,23 @@ app.post('/api/admin/certificates/bulk', requireAuth, requireRole(['SUPER_ADMIN'
 
           if (error) {
             console.error('Error inserting certificate:', error);
+            console.error('Insert data was:', insertData);
             results.failed.push({ student_id: cert.student_id, reason: error.message });
           } else {
+            console.log('Successfully inserted certificate:', data.certificate_number);
             results.success.push(data);
           }
         } catch (err) {
           console.error('Error processing certificate:', err);
           results.failed.push({ student_id: cert.student_id, reason: err.message });
         }
+      }
+
+      console.log('=== BULK RESULT ===');
+      console.log('Success:', results.success.length);
+      console.log('Failed:', results.failed.length);
+      if (results.failed.length > 0) {
+        console.log('Failed details:', results.failed);
       }
 
       return res.status(201).json({

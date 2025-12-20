@@ -364,6 +364,25 @@ export function CertificateListPage() {
                                                         <Badge className="bg-green-100 text-green-700">
                                                             {cert.grade}
                                                         </Badge>
+                                                    ) : cert.scores && Object.keys(cert.scores).length > 0 ? (
+                                                        <div className="text-sm text-slate-700">
+                                                            {/* IELTS: Hiển thị Overall hoặc trung bình 4 kỹ năng */}
+                                                            {cert.scores.overall ? (
+                                                                <span className="font-medium">Overall: {cert.scores.overall}</span>
+                                                            ) : cert.scores.listening !== undefined ? (
+                                                                <span className="font-medium">
+                                                                    L:{cert.scores.listening} R:{cert.scores.reading} W:{cert.scores.writing} S:{cert.scores.speaking}
+                                                                </span>
+                                                            ) : cert.scores.total !== undefined ? (
+                                                                /* TOEIC */
+                                                                <span className="font-medium">{cert.scores.total} điểm</span>
+                                                            ) : cert.scores.score !== undefined ? (
+                                                                /* MOS, etc */
+                                                                <span className="font-medium">{cert.scores.score} điểm</span>
+                                                            ) : (
+                                                                <span className="text-slate-400">Có điểm</span>
+                                                            )}
+                                                        </div>
                                                     ) : (
                                                         <span className="text-sm text-slate-400">-</span>
                                                     )}

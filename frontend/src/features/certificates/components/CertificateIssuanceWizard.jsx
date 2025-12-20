@@ -1681,15 +1681,20 @@ export function CertificateIssuanceWizard({ isOpen, onClose, onSuccess }) {
                 body: JSON.stringify({ certificates })
             });
 
+            console.log('Response status:', response.status);
+            const data = await response.json();
+            console.log('Response data:', data);
+
             if (response.ok) {
-                const data = await response.json();
                 // API returns { data: { success: [...], failed: [...] } }
                 const issuedCerts = data.data?.success || data.certificates || [];
+                console.log('Issued certificates:', issuedCerts);
                 setIssuedCertificates(issuedCerts);
                 setShowSuccess(true);
                 onSuccess?.(data);
             } else {
-                const error = await response.json();
+                const error = data;
+                console.error('API Error:', error);
                 alert(error.message || 'Có lỗi xảy ra khi cấp chứng chỉ');
             }
         } catch (error) {
