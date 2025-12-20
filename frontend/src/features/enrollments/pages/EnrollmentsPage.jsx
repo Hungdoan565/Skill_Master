@@ -28,27 +28,11 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/auth-context';
 import { useEnrollments } from '../hooks';
 import { formatDate, getStatusConfig, STATUS_OPTIONS } from '../utils';
-
-// Payment Status Helper
-const getPaymentStatus = (enrollment) => {
-    const tuition = enrollment.tuition_fee || 0;
-    const discount = enrollment.discount_amount || 0;
-    const paid = enrollment.paid_amount || 0;
-    const remaining = tuition - discount - paid;
-
-    if (remaining <= 0) {
-        return { label: 'Đã đóng', color: 'bg-green-100 text-green-700', icon: CheckCircle };
-    }
-    if (paid > 0) {
-        return { label: 'Nợ một phần', color: 'bg-yellow-100 text-yellow-700', icon: Clock };
-    }
-    return { label: 'Chưa đóng', color: 'bg-red-100 text-red-700', icon: XCircle };
-};
-
-// Format currency
-const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount || 0);
-};
+import { 
+    calculateRemaining, 
+    getEnrollmentPaymentStatus, 
+    formatCurrency 
+} from '../utils/paymentUtils';
 
 // Stats Card
 const StatsCard = ({ icon: Icon, label, value, color }) => (
@@ -69,7 +53,7 @@ const StatsCard = ({ icon: Icon, label, value, color }) => (
 const EnrollmentRow = ({ enrollment, onView, onDelete, onViewInvoice }) => {
     const [menuOpen, setMenuOpen] = useState(false);
     const statusConfig = getStatusConfig(enrollment.status);
-    const paymentStatus = getPaymentStatus(enrollment);
+    const paymentStatus = getEnrollmentPaymentStatus(enrollment);
     const navigate = useNavigate();
 
     const getInitials = (name) => {
@@ -82,7 +66,7 @@ const EnrollmentRow = ({ enrollment, onView, onDelete, onViewInvoice }) => {
     const tuition = enrollment.tuition_fee || 0;
     const discount = enrollment.discount_amount || 0;
     const paid = enrollment.paid_amount || 0;
-    const remaining = tuition - discount - paid;
+    const remaining = calculateRemaining(tuition, discount, paid);
 
     return (
         <tr className="hover:bg-slate-50 transition-colors">
@@ -244,22 +228,22 @@ export function EnrollmentsPage() {
     // Filter enrollments locally
     const filteredEnrollments = useMemo(() => {
         let filtered = filterEnrollments(searchTerm);
-        
+
         // Filter by payment status
         if (paymentStatusFilter) {
             filtered = filtered.filter(e => {
                 const tuition = e.tuition_fee || 0;
                 const discount = e.discount_amount || 0;
                 const paid = e.paid_amount || 0;
-                const remaining = tuition - discount - paid;
-                
+                const remaining = calculateRemaining(tuition, discount, paid);
+
                 if (paymentStatusFilter === 'paid') return remaining <= 0;
                 if (paymentStatusFilter === 'unpaid') return paid === 0;
                 if (paymentStatusFilter === 'partial') return paid > 0 && remaining > 0;
                 return true;
             });
         }
-        
+
         return filtered;
     }, [filterEnrollments, searchTerm, paymentStatusFilter]);
 
@@ -434,7 +418,7 @@ export function EnrollmentsPage() {
                             </table>
                         </div>
                     )}
-                    
+
                     {/* Pagination */}
                     {!loading && filteredEnrollments.length > 0 && pagination.totalPages > 1 && (
                         <div className="flex items-center justify-between px-4 py-3 border-t">
