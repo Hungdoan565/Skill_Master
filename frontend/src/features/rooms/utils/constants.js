@@ -64,19 +64,19 @@ export const DEFAULT_ROOM_FORM = {
  */
 export const extractZoneFromCode = (code) => {
   if (!code) return 'Khác';
-  
+
   // Pattern 1: Letter followed by number-number (e.g., "E2-01" → "E")
   const match1 = code.match(/^([A-Z]+)\d+-\d+/i);
   if (match1) return match1[1].toUpperCase();
-  
+
   // Pattern 2: Letter(s) followed by number (e.g., "LAB1" → "LAB", "P101" → "P")
   const match2 = code.match(/^([A-Z]+)\d+/i);
   if (match2) return match2[1].toUpperCase();
-  
+
   // Pattern 3: Just letters (e.g., "MTG" → "MTG")
   const match3 = code.match(/^([A-Z]+)/i);
   if (match3) return match3[1].toUpperCase();
-  
+
   return 'Khác';
 };
 
@@ -91,7 +91,7 @@ export const groupAndSortRoomsByZone = (rooms) => {
     acc[zone].push(room);
     return acc;
   }, {});
-  
+
   // Sort rooms within each zone by code
   Object.keys(grouped).forEach(zone => {
     grouped[zone].sort((a, b) => {
@@ -99,7 +99,7 @@ export const groupAndSortRoomsByZone = (rooms) => {
       return a.code.localeCompare(b.code, undefined, { numeric: true, sensitivity: 'base' });
     });
   });
-  
+
   return grouped;
 };
 
@@ -117,7 +117,7 @@ export const getUniqueZones = (rooms) => {
 export const getCenterStats = (rooms) => {
   const zones = getUniqueZones(rooms);
   const totalCapacity = rooms.reduce((sum, room) => sum + (room.capacity || 0), 0);
-  
+
   return {
     zones: zones.length,
     rooms: rooms.length,
@@ -132,17 +132,17 @@ export const getCenterStats = (rooms) => {
  */
 export const groupRoomsByCenterAndZone = (rooms, centers) => {
   const result = {};
-  
+
   centers.forEach(center => {
     const centerRooms = rooms.filter(r => r.center_id === center.id);
     const groupedByZone = groupAndSortRoomsByZone(centerRooms);
-    
+
     result[center.id] = {
       center,
       zones: groupedByZone,
       stats: getCenterStats(centerRooms)
     };
   });
-  
+
   return result;
 };

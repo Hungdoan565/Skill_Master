@@ -2689,7 +2689,7 @@ app.get('/api/centers', async (_req, res, next) => {
 app.get('/api/classes', requireAuth, async (req, res, next) => {
   console.time('⏱️ /api/classes');
   try {
-    const { status, course_id, teacher_id, centerId, date_start, date_end, minimal, limit, offset } = req.query;
+    const { status, course_id, teacher_id, centerId, date_start, date_end, minimal, limit, offset, smart_filter } = req.query;
 
     // Pagination & projection controls
     const pageLimit = Math.min(Number(limit) || 20, 100);
@@ -2706,19 +2706,24 @@ app.get('/api/classes', requireAuth, async (req, res, next) => {
       id,
       code,
       name,
+      course_id,
       center_id,
       start_date,
       end_date,
+      schedule,
+      max_students,
       status,
       teacher_id,
+      courses (id, code, title, category),
       centers (id, name),
-      users!classes_teacher_id_fkey (id, full_name)
+      users!classes_teacher_id_fkey (id, full_name, avatar_url)
     `;
 
     const selectFull = `
       id,
       code,
       name,
+      course_id,
       center_id,
       start_date,
       end_date,
@@ -2753,8 +2758,8 @@ app.get('/api/classes', requireAuth, async (req, res, next) => {
 
     let query = supabase
       .from('classes')
-      .select(isMinimal ? selectMinimal : selectFull, { count: 'exact' })
-      .order('created_at', { ascending: false });
+      .select(isMinimal ? selectMinimal : selectFull, { count: 'exact' });
+      // Note: We'll sort in application layer for smart sorting
 
     if (status) query = query.eq('status', status);
     if (course_id) query = query.eq('course_id', course_id);
@@ -2780,34 +2785,262 @@ app.get('/api/classes', requireAuth, async (req, res, next) => {
     const { data, error, count } = await query;
     if (error) throw error;
 
-    // ====== OPTIMIZED: Single query to get all enrollment counts ======
+    // ====== OPTIMIZED: Single query to get all enrollment counts & breakdown ======
     const classIds = (data || []).map(cls => cls.id);
+    const teacherIds = [...new Set((data || []).map(cls => cls.teacher_id).filter(Boolean))];
 
-    let enrollmentCounts = {};
+    let enrollmentData = {};
+    let teacherWorkload = {};
+    let sessionsProgress = {};
+
     if (classIds.length > 0) {
+      // 1. Get enrollment breakdown (active, pending, dropped) + payment status
       const { data: enrollments, error: enrollError } = await supabase
         .from('enrollments')
-        .select('class_id')
-        .in('class_id', classIds)
-        .eq('status', 'active');
+        .select('class_id, status, tuition_fee, discount_amount, paid_amount')
+        .in('class_id', classIds);
 
       if (!enrollError && enrollments) {
-        // Count enrollments per class in memory
-        enrollmentCounts = enrollments.reduce((acc, e) => {
-          acc[e.class_id] = (acc[e.class_id] || 0) + 1;
+        enrollmentData = enrollments.reduce((acc, e) => {
+          if (!acc[e.class_id]) {
+            acc[e.class_id] = {
+              total: 0,
+              active: 0,
+              pending: 0,
+              dropped: 0,
+              completed: 0,
+              unpaid_count: 0
+            };
+          }
+
+          acc[e.class_id].total++;
+
+          // Count by status
+          if (e.status === 'active') acc[e.class_id].active++;
+          else if (e.status === 'pending') acc[e.class_id].pending++;
+          else if (e.status === 'dropped') acc[e.class_id].dropped++;
+          else if (e.status === 'completed') acc[e.class_id].completed++;
+
+          // Check payment status
+          const tuition = e.tuition_fee || 0;
+          const discount = e.discount_amount || 0;
+          const paid = e.paid_amount || 0;
+          const amountDue = tuition - discount;
+          const remaining = amountDue - paid;
+
+          if (remaining > 0 && amountDue > 0) {
+            acc[e.class_id].unpaid_count++;
+          }
+
+          return acc;
+        }, {});
+      }
+
+      // 2. Get sessions progress (completed vs total)
+      const { data: sessions, error: sessionsError } = await supabase
+        .from('sessions')
+        .select('class_id, status')
+        .in('class_id', classIds);
+
+      if (!sessionsError && sessions) {
+        sessionsProgress = sessions.reduce((acc, s) => {
+          if (!acc[s.class_id]) {
+            acc[s.class_id] = { total: 0, completed: 0 };
+          }
+          acc[s.class_id].total++;
+          if (s.status === 'completed') {
+            acc[s.class_id].completed++;
+          }
           return acc;
         }, {});
       }
     }
 
-    // Map counts to classes - O(n) instead of O(n) API calls!
-    const classesWithCount = (data || []).map(cls => ({
-      ...cls,
-      enrolled_count: enrollmentCounts[cls.id] || 0,
-      teacher: cls.users,
-    }));
+    // 3. Get teacher workload (number of active classes per teacher)
+    if (teacherIds.length > 0) {
+      const { data: teacherClasses, error: teacherError } = await supabase
+        .from('classes')
+        .select('teacher_id')
+        .in('teacher_id', teacherIds)
+        .in('status', ['upcoming', 'ongoing']);
 
-    res.json({ success: true, data: classesWithCount, pagination: { total: count || 0, limit: pageLimit, offset: pageOffset } });
+      if (!teacherError && teacherClasses) {
+        teacherWorkload = teacherClasses.reduce((acc, tc) => {
+          acc[tc.teacher_id] = (acc[tc.teacher_id] || 0) + 1;
+          return acc;
+        }, {});
+      }
+    }
+
+    // 4. Check schedule conflicts for each class
+    const conflictChecks = await Promise.all(
+      (data || []).map(async (cls) => {
+        if (!cls.schedule || !Array.isArray(cls.schedule) || cls.schedule.length === 0) {
+          return { classId: cls.id, hasConflict: false, conflicts: [] };
+        }
+
+        if (!cls.start_date || !cls.end_date) {
+          return { classId: cls.id, hasConflict: false, conflicts: [] };
+        }
+
+        if (!cls.room_id && !cls.teacher_id) {
+          return { classId: cls.id, hasConflict: false, conflicts: [] };
+        }
+
+        try {
+          const conflictResult = await checkScheduleConflict(supabase, {
+            room_id: cls.room_id,
+            teacher_id: cls.teacher_id,
+            start_date: cls.start_date,
+            end_date: cls.end_date,
+            schedule: cls.schedule
+          }, cls.id);
+
+          return {
+            classId: cls.id,
+            hasConflict: conflictResult.hasConflict,
+            conflicts: conflictResult.conflicts || []
+          };
+        } catch (err) {
+          console.error(`Error checking conflict for class ${cls.id}:`, err);
+          return { classId: cls.id, hasConflict: false, conflicts: [] };
+        }
+      })
+    );
+
+    const conflictsMap = conflictChecks.reduce((acc, c) => {
+      acc[c.classId] = {
+        hasConflict: c.hasConflict,
+        conflicts: c.conflicts
+      };
+      return acc;
+    }, {});
+
+    // Map all enhanced data to classes
+    const classesWithEnhancedData = (data || []).map(cls => {
+      const enrollment = enrollmentData[cls.id] || { total: 0, active: 0, pending: 0, dropped: 0, completed: 0, unpaid_count: 0 };
+      const progress = sessionsProgress[cls.id] || { total: 0, completed: 0 };
+      const conflicts = conflictsMap[cls.id] || { hasConflict: false, conflicts: [] };
+
+      return {
+        ...cls,
+        enrolled_count: enrollment.active, // Backward compatible
+        enrollment_breakdown: {
+          active: enrollment.active,
+          pending: enrollment.pending,
+          dropped: enrollment.dropped,
+          completed: enrollment.completed,
+          total: enrollment.total
+        },
+        payment_status: {
+          unpaid_count: enrollment.unpaid_count,
+          has_unpaid: enrollment.unpaid_count > 0
+        },
+        sessions_progress: {
+          completed: progress.completed,
+          total: progress.total,
+          percentage: progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0
+        },
+        conflicts: {
+          has_conflict: conflicts.hasConflict,
+          details: conflicts.conflicts
+        },
+        teacher: cls.users ? {
+          ...cls.users,
+          active_classes_count: teacherWorkload[cls.teacher_id] || 0
+        } : null,
+      };
+    });
+
+    // ====== SMART FILTERS ======
+    let filteredClasses = classesWithEnhancedData;
+
+    if (smart_filter) {
+      switch (smart_filter) {
+        case 'nearly-full':
+          // Classes with >80% capacity
+          filteredClasses = filteredClasses.filter(cls => {
+            const capacity = cls.max_students || 1;
+            const enrolled = cls.enrolled_count || 0;
+            return (enrolled / capacity) >= 0.8;
+          });
+          break;
+
+        case 'has-unpaid':
+          // Classes with unpaid students
+          filteredClasses = filteredClasses.filter(cls => cls.payment_status.has_unpaid);
+          break;
+
+        case 'has-conflict':
+          // Classes with schedule conflicts
+          filteredClasses = filteredClasses.filter(cls => cls.conflicts.has_conflict);
+          break;
+
+        case 'low-attendance':
+          // Classes with <70% attendance (based on sessions completed)
+          filteredClasses = filteredClasses.filter(cls => {
+            return cls.sessions_progress.total > 0 && cls.sessions_progress.percentage < 70;
+          });
+          break;
+
+        case 'ending-soon':
+          // Classes ending within 2 weeks
+          const twoWeeksFromNow = new Date();
+          twoWeeksFromNow.setDate(twoWeeksFromNow.getDate() + 14);
+          filteredClasses = filteredClasses.filter(cls => {
+            if (!cls.end_date) return false;
+            const endDate = new Date(cls.end_date);
+            return endDate <= twoWeeksFromNow && endDate >= new Date();
+          });
+          break;
+      }
+    }
+
+    // ====== SMART SORTING ======
+    // Priority: ongoing > upcoming > completed > cancelled
+    const statusPriority = {
+      'ongoing': 1,
+      'upcoming': 2,
+      'completed': 3,
+      'cancelled': 4
+    };
+
+    filteredClasses.sort((a, b) => {
+      // First: Sort by status priority
+      const priorityA = statusPriority[a.status] || 999;
+      const priorityB = statusPriority[b.status] || 999;
+
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+
+      // Second: For same status, sort by start_date (upcoming classes first)
+      if (a.start_date && b.start_date) {
+        return new Date(a.start_date) - new Date(b.start_date);
+      }
+
+      // Third: Fallback to created_at
+      if (a.created_at && b.created_at) {
+        return new Date(b.created_at) - new Date(a.created_at);
+      }
+
+      return 0;
+    });
+
+    // ====== PAGINATION (after filtering and sorting) ======
+    const totalFiltered = filteredClasses.length;
+    const paginatedClasses = filteredClasses.slice(pageOffset, pageOffset + pageLimit);
+
+    res.json({
+      success: true,
+      data: paginatedClasses,
+      pagination: {
+        total: totalFiltered,
+        total_unfiltered: count || 0,
+        limit: pageLimit,
+        offset: pageOffset
+      }
+    });
   } catch (error) {
     console.error('Error fetching classes:', error);
     next(error);
@@ -4440,7 +4673,19 @@ app.post('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, r
 
     // Upsert từng attendance
     const results = [];
+    const errors = [];
+
     for (const att of attendances) {
+      // Validate status
+      const validStatuses = ['present', 'absent', 'late', 'excused'];
+      if (att.status && !validStatuses.includes(att.status)) {
+        errors.push({
+          student_id: att.student_id,
+          error: `Trạng thái không hợp lệ: ${att.status}. Chỉ chấp nhận: ${validStatuses.join(', ')}`
+        });
+        continue;
+      }
+
       const { data, error } = await supabase
         .from('attendance')
         .upsert({
@@ -4456,7 +4701,12 @@ app.post('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, r
         .select()
         .single();
 
-      if (!error && data) {
+      if (error) {
+        errors.push({
+          student_id: att.student_id,
+          error: error.message
+        });
+      } else if (data) {
         results.push(data);
       }
     }
@@ -4469,8 +4719,9 @@ app.post('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, r
 
     res.json({
       success: true,
-      message: `Đã điểm danh ${results.length} học viên`,
-      data: results
+      message: `Đã lưu điểm danh cho ${results.length} học viên`,
+      data: results,
+      errors: errors.length > 0 ? errors : undefined
     });
   } catch (error) {
     next(error);
@@ -5098,6 +5349,14 @@ app.get('/api/students/search', requireAuth, async (req, res, next) => {
       .eq('status', 'active');
 
     if (q && q.trim().length > 0) {
+      // Validate minimum search length
+      if (q.trim().length < 2) {
+        return res.status(400).json({
+          success: false,
+          message: 'Từ khóa tìm kiếm phải có ít nhất 2 ký tự'
+        });
+      }
+
       // Có từ khóa -> Tìm kiếm theo tên/email/phone
       query = query.or(`full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`);
       query = query.limit(20);
@@ -5143,8 +5402,28 @@ app.post('/api/classes/:id/enroll', requireAuth, async (req, res, next) => {
     const { id: class_id } = req.params;
     const { student_id, tuition_fee, discount_amount, paid_amount, notes } = req.body;
 
+    // Validation
     if (!student_id) {
       return res.status(400).json({ success: false, message: 'Thiếu student_id' });
+    }
+
+    if (!class_id) {
+      return res.status(400).json({ success: false, message: 'Thiếu class_id' });
+    }
+
+    // Validate tuition_fee if provided
+    if (tuition_fee !== undefined && (tuition_fee < 0 || isNaN(tuition_fee))) {
+      return res.status(400).json({ success: false, message: 'Học phí không hợp lệ' });
+    }
+
+    // Validate discount_amount if provided
+    if (discount_amount !== undefined && (discount_amount < 0 || isNaN(discount_amount))) {
+      return res.status(400).json({ success: false, message: 'Số tiền giảm giá không hợp lệ' });
+    }
+
+    // Validate paid_amount if provided
+    if (paid_amount !== undefined && (paid_amount < 0 || isNaN(paid_amount))) {
+      return res.status(400).json({ success: false, message: 'Số tiền đã đóng không hợp lệ' });
     }
 
     // 🔥 Use unified enrollment service
@@ -5174,7 +5453,10 @@ app.post('/api/classes/:id/enroll', requireAuth, async (req, res, next) => {
     });
   } catch (error) {
     console.error('Error enrolling student:', error);
-    next(error);
+    res.status(500).json({
+      success: false,
+      message: 'Có lỗi xảy ra khi ghi danh học viên'
+    });
   }
 });
 
@@ -5243,6 +5525,28 @@ app.delete('/api/classes/:classId/students/:studentId', requireAuth, async (req,
     }
 
     // Soft delete - đổi status thành dropped
+    const { data: currentEnrollment, error: checkError } = await supabase
+      .from('enrollments')
+      .select('id, status')
+      .eq('class_id', classId)
+      .eq('student_id', studentId)
+      .single();
+
+    if (checkError || !currentEnrollment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy thông tin ghi danh'
+      });
+    }
+
+    // Check if already dropped
+    if (currentEnrollment.status === 'dropped') {
+      return res.status(400).json({
+        success: false,
+        message: 'Học viên đã được cho nghỉ học trước đó'
+      });
+    }
+
     const { data, error } = await supabase
       .from('enrollments')
       .update({ status: 'dropped', updated_at: new Date().toISOString() })
@@ -6309,14 +6613,40 @@ app.post('/api/grades/bulk-update', requireAuth, async (req, res, next) => {
     console.log(`📝 Cập nhật ${grades.length} điểm bởi user ${req.user.email}`);
 
     // Validate và chuẩn bị data
-    const upsertData = grades.map(g => ({
-      enrollment_id: g.enrollment_id,
-      grade_structure_id: g.grade_structure_id,
-      score: g.score !== '' && g.score !== null ? parseFloat(g.score) : null,
-      notes: g.notes || null,
-      graded_by: gradedBy,
-      graded_at: new Date().toISOString()
-    }));
+    const upsertData = [];
+    const errors = [];
+
+    for (const g of grades) {
+      // Validate score range if provided
+      if (g.score !== '' && g.score !== null && g.score !== undefined) {
+        const score = parseFloat(g.score);
+        if (isNaN(score) || score < 0 || score > 10) {
+          errors.push({
+            enrollment_id: g.enrollment_id,
+            grade_structure_id: g.grade_structure_id,
+            error: `Điểm không hợp lệ: ${g.score}. Điểm phải từ 0-10`
+          });
+          continue;
+        }
+      }
+
+      upsertData.push({
+        enrollment_id: g.enrollment_id,
+        grade_structure_id: g.grade_structure_id,
+        score: g.score !== '' && g.score !== null ? parseFloat(g.score) : null,
+        notes: g.notes || null,
+        graded_by: gradedBy,
+        graded_at: new Date().toISOString()
+      });
+    }
+
+    if (upsertData.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không có điểm hợp lệ để lưu',
+        errors
+      });
+    }
 
     // Upsert (có rồi thì update, chưa có thì insert)
     const { data, error } = await supabase
@@ -6334,7 +6664,8 @@ app.post('/api/grades/bulk-update', requireAuth, async (req, res, next) => {
     res.json({
       success: true,
       message: `Đã lưu ${data?.length || 0} điểm`,
-      data
+      data,
+      errors: errors.length > 0 ? errors : undefined
     });
 
   } catch (error) {
@@ -13134,6 +13465,14 @@ app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN'
       return res.status(400).json({
         success: false,
         message: 'Học viên và lớp học là bắt buộc'
+      });
+    }
+
+    // Validate student_ids length (max 50 at once)
+    if (student_ids.length > 50) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tối đa 50 học viên mỗi lần ghi danh'
       });
     }
 

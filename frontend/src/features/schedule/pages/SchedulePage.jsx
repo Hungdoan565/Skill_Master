@@ -54,6 +54,7 @@ export function SchedulePage() {
     filters,
     updateFilters,
     applyPreset,
+    activePreset,
     filterOptions,
     fetchSessions,
     markSessionStatus
@@ -218,6 +219,9 @@ export function SchedulePage() {
           filters={filters}
           onFilterChange={updateFilters}
           onPresetClick={applyPreset}
+          activePreset={activePreset}
+          loading={loading}
+          sessionCount={sessions.length}
           options={filterOptions}
         />
 

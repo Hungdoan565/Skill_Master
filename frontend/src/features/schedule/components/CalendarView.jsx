@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CalendarSkeleton } from './CalendarSkeleton';
+import { DaySessionsModal } from './DaySessionsModal';
 
 // ============================================
 // CONSTANTS
@@ -224,8 +225,8 @@ function WeekView({ sessions, currentDate, onSessionClick }) {
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-      {/* Header - Days */}
-      <div className="grid grid-cols-8 border-b border-slate-200">
+      {/* Header - Days - Sticky */}
+      <div className="sticky top-0 z-20 grid grid-cols-8 border-b border-slate-200 bg-slate-50 shadow-sm">
         <div className="p-2 bg-slate-50 border-r border-slate-200">
           <span className="text-xs font-medium text-slate-500">Giờ</span>
         </div>
@@ -296,7 +297,7 @@ function WeekView({ sessions, currentDate, onSessionClick }) {
 // ============================================
 // MONTH VIEW COMPONENT
 // ============================================
-function MonthView({ sessions, currentDate, onSessionClick }) {
+function MonthView({ sessions, currentDate, onSessionClick, onShowMore }) {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const monthDates = useMemo(() => getMonthDates(year, month), [year, month]);
@@ -312,11 +313,13 @@ function MonthView({ sessions, currentDate, onSessionClick }) {
     });
     return map;
   }, [sessions]);
+  
+  const MAX_VISIBLE_SESSIONS = 3;
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-      {/* Header - Days of week */}
-      <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
+      {/* Header - Days of week - Sticky */}
+      <div className="sticky top-0 z-20 grid grid-cols-7 border-b border-slate-200 bg-slate-50 shadow-sm">
         {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(day => (
           <div key={day} className="p-2 text-center text-xs font-medium text-slate-500 border-r border-slate-200 last:border-r-0">
             {day}
@@ -355,7 +358,7 @@ function MonthView({ sessions, currentDate, onSessionClick }) {
               
               {/* Sessions */}
               <div className="space-y-0.5 max-h-20 overflow-y-auto">
-                {daySessions.slice(0, 3).map(session => (
+                {daySessions.slice(0, MAX_VISIBLE_SESSIONS).map(session => (
                   <SessionCard 
                     key={session.id} 
                     session={session} 
@@ -363,10 +366,13 @@ function MonthView({ sessions, currentDate, onSessionClick }) {
                     compact
                   />
                 ))}
-                {daySessions.length > 3 && (
-                  <div className="text-[10px] text-slate-500 text-center">
-                    +{daySessions.length - 3} buổi khác
-                  </div>
+                {daySessions.length > MAX_VISIBLE_SESSIONS && (
+                  <button
+                    onClick={() => onShowMore?.(dateKey, daySessions)}
+                    className="w-full text-[10px] text-indigo-600 hover:text-indigo-800 font-medium text-center py-1 hover:bg-indigo-50 rounded transition-colors"
+                  >
+                    +{daySessions.length - MAX_VISIBLE_SESSIONS} buổi khác
+                  </button>
                 )}
               </div>
             </div>
@@ -385,10 +391,34 @@ export function CalendarView({
   loading = false,
   onSessionClick,
   onDateChange,
+  onAction,
   initialView = 'week'
 }) {
   const [viewMode, setViewMode] = useState(initialView); // 'week' | 'month'
   const [currentDate, setCurrentDate] = useState(new Date());
+  
+  // Modal state for showing all sessions in a day
+  const [dayModalState, setDayModalState] = useState({
+    isOpen: false,
+    date: null,
+    sessions: []
+  });
+  
+  const handleShowMore = (date, sessions) => {
+    setDayModalState({
+      isOpen: true,
+      date,
+      sessions
+    });
+  };
+  
+  const closeDayModal = () => {
+    setDayModalState({
+      isOpen: false,
+      date: null,
+      sessions: []
+    });
+  };
 
   // Navigation
   const navigate = (direction) => {
@@ -580,10 +610,20 @@ export function CalendarView({
           sessions={sessions} 
           currentDate={currentDate}
           onSessionClick={onSessionClick}
+          onShowMore={handleShowMore}
         />
       )}
       </>
       )}
+      
+      {/* Day Sessions Modal */}
+      <DaySessionsModal
+        isOpen={dayModalState.isOpen}
+        onClose={closeDayModal}
+        date={dayModalState.date}
+        sessions={dayModalState.sessions}
+        onAction={onAction}
+      />
     </div>
   );
 }

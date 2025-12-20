@@ -133,6 +133,7 @@ export function AddStudentModal({
           ) : searchResults.length === 0 ? (
             <EmptyState
               hasSearchQuery={searchQuery.length >= MIN_SEARCH_LENGTH}
+              resultType={resultType}
             />
           ) : (
             <div className="space-y-2">
@@ -208,8 +209,8 @@ function StudentItem({ student, isEnrolling, onEnroll, batchMode, isSelected, on
   return (
     <div
       className={`flex items-center justify-between p-3 rounded-lg transition-colors border ${batchMode && isSelected
-          ? 'bg-blue-50 border-blue-300'
-          : 'bg-slate-50 hover:bg-slate-100 border-transparent hover:border-slate-200'
+        ? 'bg-blue-50 border-blue-300'
+        : 'bg-slate-50 hover:bg-slate-100 border-transparent hover:border-slate-200'
         }`}
       onClick={batchMode ? onToggle : undefined}
       style={batchMode ? { cursor: 'pointer' } : undefined}
@@ -262,7 +263,35 @@ function StudentItem({ student, isEnrolling, onEnroll, batchMode, isSelected, on
 }
 
 // Empty State sub-component
-function EmptyState({ hasSearchQuery }) {
+function EmptyState({ hasSearchQuery, resultType }) {
+  // Show hint for short search query
+  if (resultType === 'hint') {
+    return (
+      <div className="text-center py-12">
+        <div className="w-16 h-16 mx-auto mb-4 bg-blue-50 rounded-full flex items-center justify-center">
+          <Search className="w-8 h-8 text-blue-400" />
+        </div>
+        <p className="text-slate-600 font-medium">Nhập thêm ký tự để tìm kiếm</p>
+        <p className="text-sm text-slate-400 mt-1">
+          Cần ít nhất {MIN_SEARCH_LENGTH} ký tự
+        </p>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (resultType === 'error') {
+    return (
+      <div className="text-center py-12">
+        <div className="w-16 h-16 mx-auto mb-4 bg-red-50 rounded-full flex items-center justify-center">
+          <AlertCircle className="w-8 h-8 text-red-400" />
+        </div>
+        <p className="text-slate-600 font-medium">Lỗi khi tìm kiếm</p>
+        <p className="text-sm text-slate-400 mt-1">Vui lòng thử lại</p>
+      </div>
+    );
+  }
+
   return (
     <div className="text-center py-12">
       {hasSearchQuery ? (

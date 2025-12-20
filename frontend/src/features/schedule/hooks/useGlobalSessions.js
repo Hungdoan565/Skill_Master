@@ -66,6 +66,9 @@ export function useGlobalSessions(initialFilters = {}) {
     roomId: initialFilters.roomId || '',
     ...initialFilters
   });
+  
+  // Track active preset for UI feedback (today, week, month, or null for custom)
+  const [activePreset, setActivePreset] = useState('week');
 
   // Fetch sessions
   const fetchSessions = useCallback(async () => {
@@ -116,7 +119,27 @@ export function useGlobalSessions(initialFilters = {}) {
   // Update filters
   const updateFilters = useCallback((newFilters) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
-  }, []);
+    
+    // Clear activePreset if user manually changes dates (not from preset)
+    if (newFilters.startDate !== undefined || newFilters.endDate !== undefined) {
+      // Check if the new dates match any preset
+      const today = formatDate(new Date());
+      const week = getWeekRange();
+      const now = new Date();
+      const monthStart = formatDate(new Date(now.getFullYear(), now.getMonth(), 1));
+      const monthEnd = formatDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+      
+      const newStart = newFilters.startDate !== undefined ? newFilters.startDate : filters.startDate;
+      const newEnd = newFilters.endDate !== undefined ? newFilters.endDate : filters.endDate;
+      
+      // Only clear if it doesn't match any preset
+      if (!(newStart === today && newEnd === today) && 
+          !(newStart === week.start && newEnd === week.end) &&
+          !(newStart === monthStart && newEnd === monthEnd)) {
+        setActivePreset(null);
+      }
+    }
+  }, [filters.startDate, filters.endDate]);
 
   // Quick filter presets
   const applyPreset = useCallback((preset) => {
@@ -126,6 +149,7 @@ export function useGlobalSessions(initialFilters = {}) {
       case 'today': {
         const todayStr = formatDate(today);
         updateFilters({ startDate: todayStr, endDate: todayStr });
+        setActivePreset('today');
         break;
       }
       case 'week': {
@@ -135,12 +159,14 @@ export function useGlobalSessions(initialFilters = {}) {
         const sunday = new Date(monday);
         sunday.setDate(monday.getDate() + 6);
         updateFilters({ startDate: formatDate(monday), endDate: formatDate(sunday) });
+        setActivePreset('week');
         break;
       }
       case 'month': {
         const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
         const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
         updateFilters({ startDate: formatDate(firstDay), endDate: formatDate(lastDay) });
+        setActivePreset('month');
         break;
       }
       default:
@@ -223,6 +249,7 @@ export function useGlobalSessions(initialFilters = {}) {
     refetch: fetchSessions,
     // Quick filters
     applyPreset,
+    activePreset,
     setToday,
     setThisWeek,
     setThisMonth,

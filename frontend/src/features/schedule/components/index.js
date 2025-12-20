@@ -11,6 +11,7 @@ export { ChangeTeacherModal } from './ChangeTeacherModal';
 export { ChangeRoomModal } from './ChangeRoomModal';
 export { CancelSessionModal } from './CancelSessionModal';
 export { SessionDetailModal } from './SessionDetailModal';
+export { DaySessionsModal } from './DaySessionsModal';
 
 // New components - Phase 2
 export { CalendarView } from './CalendarView';

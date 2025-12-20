@@ -6,10 +6,10 @@
 import { Search, Building2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
-export function RoomFilters({ 
-  searchTerm, 
-  onSearchChange, 
-  filterCenter, 
+export function RoomFilters({
+  searchTerm,
+  onSearchChange,
+  filterCenter,
   onCenterChange,
   filterZone,
   onZoneChange,
@@ -27,7 +27,7 @@ export function RoomFilters({
           className="pl-10"
         />
       </div>
-      
+
       {/* Zone Filter */}
       <select
         value={filterZone}
@@ -39,7 +39,7 @@ export function RoomFilters({
           <option key={zone} value={zone}>Khu {zone}</option>
         ))}
       </select>
-      
+
       {/* Center Filter */}
       <select
         value={filterCenter}

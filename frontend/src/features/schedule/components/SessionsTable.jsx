@@ -3,6 +3,7 @@
  * Với Dropdown Action Menu cho xử lý sự cố
  */
 
+import { useState, useEffect } from 'react';
 import { 
   Clock, 
   MapPin, 
@@ -12,7 +13,9 @@ import {
   CheckCircle,
   XCircle,
   PlayCircle,
-  Calendar
+  Calendar,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { SessionActionMenu } from './SessionActionMenu';
 
@@ -151,6 +154,17 @@ export function SessionsTable({
   loading,
   onAction // Single handler for all actions
 }) {
+  const ITEMS_PER_PAGE = 20;
+  const [currentPage, setCurrentPage] = useState(1);
+  
+  // Reset to page 1 when sessions change and would be out of bounds
+  useEffect(() => {
+    const totalPages = Math.ceil(sessions.length / ITEMS_PER_PAGE);
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(1);
+    }
+  }, [sessions.length, currentPage]);
+  
   if (loading) {
     return (
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
@@ -184,6 +198,29 @@ export function SessionsTable({
 
   // Sort dates
   const sortedDates = Object.keys(groupedSessions).sort();
+  
+  // Pagination calculations
+  const totalItems = sessions.length;
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, totalItems);
+  
+  // Paginate sessions while preserving date grouping
+  const paginatedSessions = sessions.slice(startIndex, endIndex);
+  const paginatedGrouped = paginatedSessions.reduce((acc, session) => {
+    const date = session.session_date;
+    if (!acc[date]) acc[date] = [];
+    acc[date].push(session);
+    return acc;
+  }, {});
+  const paginatedDates = Object.keys(paginatedGrouped).sort();
+  
+  const goToPage = (page) => {
+    const newPage = Math.max(1, Math.min(page, totalPages));
+    setCurrentPage(newPage);
+    // Smooth scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-visible">
@@ -204,8 +241,8 @@ export function SessionsTable({
         </div>
       </div>
 
-      {/* Table Header */}
-      <div className="bg-slate-50 border-b border-slate-200 px-4 py-3">
+      {/* Table Header - Make it sticky */}
+      <div className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200 px-4 py-3">
         <div className="grid grid-cols-12 gap-4 text-xs font-medium text-slate-500 uppercase tracking-wider">
           <div className="col-span-3">Lớp học</div>
           <div className="col-span-2">Thời gian</div>
@@ -218,8 +255,8 @@ export function SessionsTable({
 
       {/* Table Body - Grouped by Date */}
       <div className="divide-y divide-slate-100">
-        {sortedDates.map((date) => {
-          const dateSessions = groupedSessions[date];
+        {paginatedDates.map((date) => {
+          const dateSessions = paginatedGrouped[date];
           const today = new Date().toISOString().split('T')[0];
           const isToday = date === today;
           const isPast = date < today;
@@ -375,6 +412,71 @@ export function SessionsTable({
           );
         })}
       </div>
+      
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="bg-slate-50 border-t border-slate-200 px-4 py-3">
+          <div className="flex items-center justify-between">
+            {/* Info */}
+            <div className="text-sm text-slate-600">
+              Hiển thị <span className="font-medium">{startIndex + 1}</span> - <span className="font-medium">{endIndex}</span> trong tổng số <span className="font-medium">{totalItems}</span> buổi học
+            </div>
+            
+            {/* Pagination Buttons */}
+            <div className="flex items-center gap-2">
+              {/* Previous */}
+              <button
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Trước
+              </button>
+              
+              {/* Page Numbers */}
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => goToPage(pageNum)}
+                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                        currentPage === pageNum
+                          ? 'bg-indigo-600 text-white shadow-sm'
+                          : 'text-slate-700 hover:bg-slate-100 border border-slate-200'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+              
+              {/* Next */}
+              <button
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+              >
+                Sau
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

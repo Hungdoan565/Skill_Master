@@ -10,7 +10,8 @@ import {
   Building2,
   DoorOpen,
   ChevronDown,
-  X
+  X,
+  RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,7 +39,9 @@ export function SessionFilters({
   filters, 
   onFilterChange,
   onPresetClick,
-  activePreset = 'today'
+  activePreset = 'week',
+  loading = false,
+  sessionCount = 0
 }) {
   const { profile } = useAuth();
   const [teachers, setTeachers] = useState([]);
@@ -56,29 +59,50 @@ export function SessionFilters({
     const fetchOptions = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
+        if (!session) {
+          console.warn('No active session - skipping filter options fetch');
+          return;
+        }
 
         const headers = { Authorization: `Bearer ${session.access_token}` };
 
-        // Fetch teachers
-        const teachersRes = await fetch(`${API_URL}/api/admin/teachers`, { headers });
-        if (teachersRes.ok) {
-          const teachersData = await teachersRes.json();
-          setTeachers(teachersData.data || []);
+        // Fetch teachers - with better error handling
+        try {
+          const teachersRes = await fetch(`${API_URL}/api/teachers`, { headers });
+          if (teachersRes.ok) {
+            const teachersData = await teachersRes.json();
+            setTeachers(teachersData.data || []);
+          } else if (teachersRes.status !== 404) {
+            console.warn(`Teachers API returned ${teachersRes.status}`);
+          }
+        } catch (err) {
+          console.warn('Failed to fetch teachers:', err.message);
         }
 
         // Fetch centers
-        const centersRes = await fetch(`${API_URL}/api/centers`, { headers });
-        if (centersRes.ok) {
-          const centersData = await centersRes.json();
-          setCenters(centersData.data || []);
+        try {
+          const centersRes = await fetch(`${API_URL}/api/centers`, { headers });
+          if (centersRes.ok) {
+            const centersData = await centersRes.json();
+            setCenters(centersData.data || []);
+          } else if (centersRes.status !== 404) {
+            console.warn(`Centers API returned ${centersRes.status}`);
+          }
+        } catch (err) {
+          console.warn('Failed to fetch centers:', err.message);
         }
 
         // Fetch rooms
-        const roomsRes = await fetch(`${API_URL}/api/admin/rooms`, { headers });
-        if (roomsRes.ok) {
-          const roomsData = await roomsRes.json();
-          setRooms(roomsData.data || []);
+        try {
+          const roomsRes = await fetch(`${API_URL}/api/rooms`, { headers });
+          if (roomsRes.ok) {
+            const roomsData = await roomsRes.json();
+            setRooms(roomsData.data || []);
+          } else if (roomsRes.status !== 404) {
+            console.warn(`Rooms API returned ${roomsRes.status}`);
+          }
+        } catch (err) {
+          console.warn('Failed to fetch rooms:', err.message);
         }
       } catch (err) {
         console.error('Error fetching filter options:', err);
@@ -112,21 +136,39 @@ export function SessionFilters({
           <Calendar className="w-4 h-4 inline mr-1" />
           Xem theo:
         </span>
-        {DATE_PRESETS.map(preset => (
-          <button
-            key={preset.value}
-            onClick={() => onPresetClick(preset.value)}
-            className={`
-              px-3 py-1.5 rounded-lg text-sm font-medium transition-all
-              ${activePreset === preset.value
-                ? 'bg-indigo-600 text-white'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }
-            `}
-          >
-            {preset.label}
-          </button>
-        ))}
+        {DATE_PRESETS.map(preset => {
+          const isActive = activePreset === preset.value;
+          return (
+            <button
+              key={preset.value}
+              onClick={() => onPresetClick(preset.value)}
+              disabled={loading}
+              className={`
+                px-3 py-1.5 rounded-lg text-sm font-medium transition-all
+                disabled:opacity-50 disabled:cursor-not-allowed
+                ${
+                  isActive
+                    ? 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-300'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:shadow-sm'
+                }
+              `}
+            >
+              {preset.label}
+            </button>
+          );
+        })}
+        
+        {/* Session Count & Loading Indicator */}
+        {loading ? (
+          <div className="flex items-center gap-2 ml-4 text-sm text-slate-500">
+            <RefreshCw className="w-4 h-4 animate-spin" />
+            <span>Đang tải...</span>
+          </div>
+        ) : sessionCount > 0 ? (
+          <div className="ml-4 px-3 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-sm font-medium">
+            {sessionCount} buổi học
+          </div>
+        ) : null}
         
         {/* Custom Date Range */}
         <div className="flex items-center gap-2 ml-4">
@@ -134,6 +176,7 @@ export function SessionFilters({
             type="date"
             value={filters.startDate}
             onChange={(e) => onFilterChange({ startDate: e.target.value })}
+            disabled={loading}
             className="h-8 w-36 text-sm"
           />
           <span className="text-slate-400">→</span>
@@ -141,6 +184,7 @@ export function SessionFilters({
             type="date"
             value={filters.endDate}
             onChange={(e) => onFilterChange({ endDate: e.target.value })}
+            disabled={loading}
             className="h-8 w-36 text-sm"
           />
         </div>

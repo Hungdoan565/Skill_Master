@@ -22,7 +22,7 @@ export function RoomsPage() {
   const [selectedCenter, setSelectedCenter] = useState(null);
   const [selectedZone, setSelectedZone] = useState(null);
   const [roomListModal, setRoomListModal] = useState({ isOpen: false, zone: null, rooms: [] });
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteModal, setDeleteModal] = useState({
     isOpen: false,
@@ -123,8 +123,8 @@ export function RoomsPage() {
       fetchRooms();
       // Refresh room list modal if open
       if (roomListModal.isOpen) {
-        const updatedRooms = rooms.filter(r => 
-          extractZoneFromCode(r.code) === roomListModal.zone && 
+        const updatedRooms = rooms.filter(r =>
+          extractZoneFromCode(r.code) === roomListModal.zone &&
           r.center_id === selectedCenter?.id
         );
         setRoomListModal(prev => ({ ...prev, rooms: updatedRooms }));
@@ -155,8 +155,8 @@ export function RoomsPage() {
               </p>
             </div>
           </div>
-          <Button 
-            onClick={handleAddClick} 
+          <Button
+            onClick={handleAddClick}
             className="gap-2 bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/25"
           >
             <Plus className="h-4 w-4" /> Thêm phòng
@@ -166,7 +166,7 @@ export function RoomsPage() {
         {/* Breadcrumb */}
         {viewLevel === 'zones' && (
           <div className="flex items-center gap-2 mt-4 text-sm">
-            <button 
+            <button
               onClick={handleBackToCenters}
               className="flex items-center gap-1 text-orange-600 hover:text-orange-700 font-medium"
             >

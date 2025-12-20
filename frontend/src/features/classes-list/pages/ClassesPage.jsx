@@ -108,6 +108,15 @@ export function ClassesPage() {
     fetchAllOptions();
   }, [fetchClasses, fetchAllOptions]);
 
+  // Refetch when smartFilter changes (server-side filter)
+  useEffect(() => {
+    if (filters.smartFilter) {
+      fetchClasses({ smartFilter: filters.smartFilter });
+    } else {
+      fetchClasses();
+    }
+  }, [filters.smartFilter, fetchClasses]);
+
   // Filtered classes - using advanced filters
   const filteredClasses = useMemo(() => {
     return filterClasses(filters);
@@ -183,6 +192,20 @@ export function ClassesPage() {
     }
   };
 
+  // Bulk export
+  const handleBulkExport = () => {
+    const selectedClasses = classes.filter(cls => selectedIds.includes(cls.id));
+    // Reuse ExportButton logic
+    console.log('Exporting selected classes:', selectedClasses);
+    // TODO: Implement export logic
+  };
+
+  // Bulk notify
+  const handleBulkNotify = () => {
+    console.log('Sending notifications to selected classes:', selectedIds);
+    // TODO: Implement notification logic
+  };
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -221,6 +244,8 @@ export function ClassesPage() {
             onSearchChange={(value) => updateFilter('search', value)}
             statusFilter={filters.status}
             onStatusChange={(value) => updateFilter('status', value)}
+            smartFilter={filters.smartFilter}
+            onSmartFilterChange={(value) => updateFilter('smartFilter', value)}
             totalCount={filteredClasses.length}
             activeFilterCount={getActiveFilterCount()}
             onOpenAdvancedFilters={() => setAdvancedFiltersOpen(true)}
@@ -244,6 +269,8 @@ export function ClassesPage() {
             selectedCount={selectedIds.length}
             onClearSelection={clearSelection}
             onBulkDelete={() => setBulkDeleteModal({ isOpen: true, error: null })}
+            onBulkExport={handleBulkExport}
+            onBulkNotify={handleBulkNotify}
           />
 
           {/* Classes Table */}

@@ -14,6 +14,8 @@ export function ClassFilters({
   onSearchChange,
   statusFilter,
   onStatusChange,
+  smartFilter,
+  onSmartFilterChange,
   totalCount,
   activeFilterCount = 0,
   onOpenAdvancedFilters
@@ -22,6 +24,15 @@ export function ClassFilters({
     value,
     label
   }));
+
+  const smartFilterOptions = [
+    { value: '', label: 'Tất cả lớp' },
+    { value: 'nearly-full', label: '🔴 Sắp đầy (>80%)' },
+    { value: 'has-unpaid', label: '💰 Có nợ học phí' },
+    { value: 'has-conflict', label: '⚠️ Có xung đột lịch' },
+    { value: 'low-attendance', label: '📉 Điểm danh thấp (<70%)' },
+    { value: 'ending-soon', label: '⏰ Sắp kết thúc (2 tuần)' }
+  ];
 
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -38,13 +49,23 @@ export function ClassFilters({
       </div>
 
       {/* Filter & Count */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <Filter className="h-4 w-4 text-muted-foreground" />
+
+        {/* Status Filter */}
         <Select
           value={statusFilter}
           onChange={onStatusChange}
           placeholder="Tất cả trạng thái"
           options={statusOptions}
+        />
+
+        {/* Smart Filter */}
+        <Select
+          value={smartFilter || ''}
+          onChange={onSmartFilterChange}
+          placeholder="Lọc thông minh"
+          options={smartFilterOptions}
         />
 
         {/* Advanced Filters Button */}

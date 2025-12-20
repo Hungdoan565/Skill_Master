@@ -17,7 +17,8 @@ const DEFAULT_FILTERS = {
     centerId: '',
     dateStart: '',
     dateEnd: '',
-    capacity: 'all'
+    capacity: 'all',
+    smartFilter: ''
 };
 
 /**

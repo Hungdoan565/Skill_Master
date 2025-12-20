@@ -2,10 +2,10 @@
  * BulkActionBar Component - Thanh thao tác hàng loạt
  */
 
-import { Trash2 } from 'lucide-react';
+import { Trash2, Mail, FileText, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-export function BulkActionBar({ selectedCount, onClearSelection, onBulkDelete }) {
+export function BulkActionBar({ selectedCount, onClearSelection, onBulkDelete, onBulkExport, onBulkNotify }) {
   if (selectedCount === 0) return null;
 
   return (
@@ -27,6 +27,28 @@ export function BulkActionBar({ selectedCount, onClearSelection, onBulkDelete })
         >
           Bỏ chọn
         </Button>
+        {onBulkNotify && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onBulkNotify}
+            className="text-indigo-600"
+          >
+            <Mail className="mr-2 h-4 w-4" />
+            Gửi thông báo
+          </Button>
+        )}
+        {onBulkExport && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onBulkExport}
+            className="text-indigo-600"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Xuất báo cáo
+          </Button>
+        )}
         <Button
           variant="destructive"
           size="sm"

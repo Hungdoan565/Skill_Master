@@ -11,16 +11,16 @@ export function useStudentEnrollment(classId, getHeaders) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
-  
+
   // Selection state
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
-  
+
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [resultType, setResultType] = useState('recent'); // 'recent' | 'search'
-  
+
   // Operation state
   const [enrolling, setEnrolling] = useState(null); // student.id being enrolled
   const [studentToDelete, setStudentToDelete] = useState(null);
@@ -31,7 +31,7 @@ export function useStudentEnrollment(classId, getHeaders) {
   // Fetch recent students (when modal opens)
   const fetchRecentStudents = useCallback(async () => {
     if (!classId) return;
-    
+
     setSearching(true);
     try {
       const res = await fetch(
@@ -39,7 +39,7 @@ export function useStudentEnrollment(classId, getHeaders) {
         { headers: getHeaders() }
       );
       const json = await res.json();
-      
+
       if (json.success) {
         setSearchResults(json.data || []);
         setResultType('recent');
@@ -61,15 +61,18 @@ export function useStudentEnrollment(classId, getHeaders) {
   // Search students
   const handleSearch = useCallback(async (query) => {
     setSearchQuery(query);
-    
+
     // If empty, load recent students
     if (!query || query.length === 0) {
       fetchRecentStudents();
       return;
     }
-    
+
     // Wait for minimum characters
     if (query.length < MIN_SEARCH_LENGTH) {
+      // Show hint but don't search yet
+      setSearchResults([]);
+      setResultType('hint');
       return;
     }
 
@@ -79,14 +82,22 @@ export function useStudentEnrollment(classId, getHeaders) {
         `${API_URL}/api/students/search?q=${encodeURIComponent(query)}&exclude_class_id=${classId}`,
         { headers: getHeaders() }
       );
+
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.message || 'Lỗi khi tìm kiếm');
+      }
+
       const json = await res.json();
-      
+
       if (json.success) {
         setSearchResults(json.data || []);
         setResultType(json.type || 'search');
       }
     } catch (error) {
       console.error('Error searching students:', error);
+      setSearchResults([]);
+      setResultType('error');
     } finally {
       setSearching(false);
     }
@@ -94,8 +105,13 @@ export function useStudentEnrollment(classId, getHeaders) {
 
   // Enroll a student
   const enrollStudent = useCallback(async (student, tuitionFee = 0) => {
-    if (!classId) return { success: false };
-    
+    if (!classId) return { success: false, message: 'Thiếu ID lớp học' };
+
+    // Validate tuition fee
+    if (tuitionFee < 0 || isNaN(tuitionFee)) {
+      return { success: false, message: 'Học phí không hợp lệ' };
+    }
+
     setEnrolling(student.id);
     try {
       const res = await fetch(`${API_URL}/api/classes/${classId}/enroll`, {
@@ -106,9 +122,16 @@ export function useStudentEnrollment(classId, getHeaders) {
           tuition_fee: tuitionFee
         })
       });
-      
+
       const json = await res.json();
-      
+
+      if (!res.ok) {
+        return {
+          success: false,
+          message: json.message || `Lỗi ${res.status}: ${res.statusText}`
+        };
+      }
+
       if (json.success) {
         // Remove from search results
         setSearchResults(prev => prev.filter(s => s.id !== student.id));
@@ -118,7 +141,7 @@ export function useStudentEnrollment(classId, getHeaders) {
       }
     } catch (error) {
       console.error('Error enrolling student:', error);
-      return { success: false, message: 'Có lỗi xảy ra khi ghi danh' };
+      return { success: false, message: 'Không thể kết nối đến server' };
     } finally {
       setEnrolling(null);
     }
@@ -138,20 +161,27 @@ export function useStudentEnrollment(classId, getHeaders) {
 
   // Remove student from class
   const removeStudent = useCallback(async () => {
-    if (!studentToDelete || !classId) return { success: false };
-    
+    if (!studentToDelete || !classId) return { success: false, message: 'Thiếu thông tin học viên hoặc lớp học' };
+
     setDeleting(true);
     try {
       const res = await fetch(
-        `${API_URL}/api/classes/${classId}/students/${studentToDelete.student_id}`, 
+        `${API_URL}/api/classes/${classId}/students/${studentToDelete.student_id}`,
         {
           method: 'DELETE',
           headers: getHeaders()
         }
       );
-      
+
       const json = await res.json();
-      
+
+      if (!res.ok) {
+        return {
+          success: false,
+          message: json.message || `Lỗi ${res.status}: ${res.statusText}`
+        };
+      }
+
       if (json.success) {
         closeDeleteModal();
         return { success: true, student: studentToDelete };
@@ -160,7 +190,7 @@ export function useStudentEnrollment(classId, getHeaders) {
       }
     } catch (error) {
       console.error('Error removing student:', error);
-      return { success: false, message: 'Có lỗi xảy ra khi xóa học viên' };
+      return { success: false, message: 'Không thể kết nối đến server' };
     } finally {
       setDeleting(false);
     }
@@ -175,7 +205,7 @@ export function useStudentEnrollment(classId, getHeaders) {
 
   // Selection handlers
   const toggleSelectStudent = useCallback((studentId) => {
-    setSelectedStudentIds(prev => 
+    setSelectedStudentIds(prev =>
       prev.includes(studentId)
         ? prev.filter(id => id !== studentId)
         : [...prev, studentId]
@@ -206,16 +236,16 @@ export function useStudentEnrollment(classId, getHeaders) {
   // Bulk remove students from class
   const bulkRemoveStudents = useCallback(async (studentsToRemove) => {
     if (!classId || studentsToRemove.length === 0) return { success: false };
-    
+
     setBulkDeleting(true);
     setBulkDeleteError(null);
-    
+
     try {
       // Remove students one by one (could be optimized with bulk API)
       const results = await Promise.allSettled(
-        studentsToRemove.map(student => 
+        studentsToRemove.map(student =>
           fetch(
-            `${API_URL}/api/classes/${classId}/students/${student.student_id}`, 
+            `${API_URL}/api/classes/${classId}/students/${student.student_id}`,
             {
               method: 'DELETE',
               headers: getHeaders()
@@ -223,15 +253,15 @@ export function useStudentEnrollment(classId, getHeaders) {
           ).then(res => res.json())
         )
       );
-      
+
       const successful = results.filter(r => r.status === 'fulfilled' && r.value?.success).length;
       const failed = studentsToRemove.length - successful;
-      
+
       if (failed > 0) {
         setBulkDeleteError(`Đã xóa ${successful}/${studentsToRemove.length} học viên. ${failed} học viên không thể xóa.`);
         return { success: false, message: `${failed} học viên không thể xóa` };
       }
-      
+
       closeBulkDeleteModal();
       clearSelection();
       return { success: true, count: successful };
@@ -256,7 +286,7 @@ export function useStudentEnrollment(classId, getHeaders) {
     handleSearch,
     enrollStudent,
     enrolling,
-    
+
     // Delete Student Modal
     showDeleteModal,
     studentToDelete,
@@ -264,7 +294,7 @@ export function useStudentEnrollment(classId, getHeaders) {
     openDeleteModal,
     closeDeleteModal,
     removeStudent,
-    
+
     // Bulk Delete
     selectedStudentIds,
     toggleSelectStudent,
