@@ -25,6 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/contexts/auth-context';
 import { useEnrollments } from '../hooks';
 import { formatDate, getStatusConfig, STATUS_OPTIONS } from '../utils';
@@ -33,6 +34,7 @@ import {
     getEnrollmentPaymentStatus, 
     formatCurrency 
 } from '../utils/paymentUtils';
+import { TableSkeleton, StatsCardSkeleton } from '../components/TableSkeleton';
 
 // Stats Card
 const StatsCard = ({ icon: Icon, label, value, color }) => (
@@ -116,6 +118,8 @@ const EnrollmentRow = ({ enrollment, onView, onDelete, onViewInvoice }) => {
                         variant="ghost"
                         size="icon"
                         onClick={() => setMenuOpen(!menuOpen)}
+                        aria-label="Mở menu hành động"
+                        aria-expanded={menuOpen}
                     >
                         <MoreVertical className="h-4 w-4" />
                     </Button>
@@ -125,10 +129,12 @@ const EnrollmentRow = ({ enrollment, onView, onDelete, onViewInvoice }) => {
                                 className="fixed inset-0 z-10"
                                 onClick={() => setMenuOpen(false)}
                             />
-                            <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border z-20">
+                            <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border z-20" role="menu" aria-label="Hành động ghi danh">
                                 <button
                                     onClick={() => { onView(enrollment); setMenuOpen(false); }}
                                     className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                                    role="menuitem"
+                                    aria-label="Xem chi tiết học viên"
                                 >
                                     <Eye className="h-4 w-4" />
                                     Xem chi tiết
@@ -136,6 +142,8 @@ const EnrollmentRow = ({ enrollment, onView, onDelete, onViewInvoice }) => {
                                 <button
                                     onClick={() => { navigate(`/admin/invoices?student_id=${enrollment.student_id}`); setMenuOpen(false); }}
                                     className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                                    role="menuitem"
+                                    aria-label="Xem hóa đơn của học viên"
                                 >
                                     <Receipt className="h-4 w-4" />
                                     Xem hóa đơn
@@ -143,6 +151,8 @@ const EnrollmentRow = ({ enrollment, onView, onDelete, onViewInvoice }) => {
                                 <button
                                     onClick={() => { navigate(`/admin/invoices/new?enrollment_id=${enrollment.id}`); setMenuOpen(false); }}
                                     className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                                    role="menuitem"
+                                    aria-label="Thu học phí"
                                 >
                                     <DollarSign className="h-4 w-4" />
                                     Thu học phí
@@ -151,6 +161,8 @@ const EnrollmentRow = ({ enrollment, onView, onDelete, onViewInvoice }) => {
                                 <button
                                     onClick={() => { onDelete(enrollment); setMenuOpen(false); }}
                                     className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                                    role="menuitem"
+                                    aria-label="Hủy ghi danh"
                                 >
                                     <Trash2 className="h-4 w-4" />
                                     Hủy ghi danh
@@ -167,6 +179,7 @@ const EnrollmentRow = ({ enrollment, onView, onDelete, onViewInvoice }) => {
 export function EnrollmentsPage() {
     const navigate = useNavigate();
     const { isManager, getCenterId, isSuperAdmin, profile } = useAuth();
+    const { toast } = useToast();
 
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
@@ -261,8 +274,10 @@ export function EnrollmentsPage() {
         try {
             await deleteEnrollment(deleteModal.enrollment.id);
             setDeleteModal({ isOpen: false, enrollment: null });
+            toast.success('Hủy ghi danh thành công!');
         } catch (err) {
             console.error('Error deleting enrollment:', err);
+            toast.error(err.message || 'Có lỗi xảy ra khi hủy ghi danh');
         }
     };
 
@@ -358,9 +373,7 @@ export function EnrollmentsPage() {
             <Card>
                 <CardContent className="p-0">
                     {loading ? (
-                        <div className="flex items-center justify-center py-12">
-                            <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-                        </div>
+                        <TableSkeleton rows={5} columns={8} />
                     ) : filteredEnrollments.length === 0 ? (
                         <div className="text-center py-12 text-slate-500">
                             <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
