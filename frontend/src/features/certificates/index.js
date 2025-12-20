@@ -5,7 +5,7 @@
  */
 
 // Pages
-export { CertificatesPage, CertificateTypeDetailPage, CertificatePrintPage } from './pages';
+export { CertificatesPage, CertificateTypeDetailPage, CertificatePrintPage, CertificateListPage, CertificateBulkPrintPage, CertificateViewPage } from './pages';
 
 // Hooks
 export { useCertificates, useCertificateTypes } from './hooks';

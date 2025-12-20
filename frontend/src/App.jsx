@@ -27,7 +27,8 @@ import { CentersPage, CenterDetailPage } from '@/features/centers';
 import { SettingsPage } from '@/features/settings';
 import { EnrollmentsPage, NewEnrollmentPage } from '@/features/enrollments';
 import { DocumentsPage } from '@/features/documents';
-import { CertificatesPage, CertificateTypeDetailPage, CertificatePrintPage } from '@/features/certificates';
+import { CertificatesPage, CertificateTypeDetailPage, CertificatePrintPage, CertificateListPage, CertificateBulkPrintPage, CertificateViewPage } from '@/features/certificates';
+import { PublicCertificateVerification } from '@/features/certificates/pages/PublicCertificateVerification';
 import { SupportPage } from '@/features/support';
 import { TeacherDashboardPage } from '@/features/teacher-dashboard';
 import AdminNotificationsPage from '@/features/notifications/AdminNotificationsPage';
@@ -474,6 +475,11 @@ function App() {
           <Route path="courses" element={<PublicCoursesPage />} />
           <Route path="courses/:id" element={<PublicCoursesPage />} />
 
+          {/* Public Certificate Verification - No login required */}
+          <Route path="verify-certificate" element={<PublicCertificateVerification />} />
+          <Route path="certificates/:id/view" element={<CertificateViewPage />} />
+          <Route path="certificates/:id/print" element={<CertificatePrintPage />} />
+
           {/* Auth Pages - Chỉ cho phép khi CHƯA đăng nhập */}
           <Route path="login" element={
             <GuestRoute>
@@ -511,8 +517,11 @@ function App() {
             <Route path="rooms" element={<RoomsPage />} />
             <Route path="documents" element={<DocumentsPage />} />
             <Route path="certificates" element={<CertificatesPage />} />
+            <Route path="certificates/list" element={<CertificateListPage />} />
+            <Route path="certificates/bulk-print" element={<CertificateBulkPrintPage />} />
             <Route path="certificates/type/:id" element={<CertificateTypeDetailPage />} />
             <Route path="certificates/:id/print" element={<CertificatePrintPage />} />
+            <Route path="certificates/:id/view" element={<CertificateViewPage />} />
             <Route path="support" element={<SupportPage />} />
             <Route path="notifications" element={<AdminNotificationsPage />} />
             <Route path="settings" element={<SettingsPage />} />

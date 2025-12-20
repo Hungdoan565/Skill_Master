@@ -17,8 +17,9 @@
  * - Hoàn tiền
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
+import { useSearchParams } from 'react-router-dom';
 import { Download, RefreshCw, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -48,6 +49,7 @@ import { exportInvoicesToExcel } from '../utils/exportExcel';
 
 export function InvoicesPage() {
   const { session } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // ============================================
   // HOOKS - Data & Logic
@@ -84,6 +86,7 @@ export function InvoicesPage() {
 
   // New modals state
   const [createModal, setCreateModal] = useState(false);
+  const [createModalData, setCreateModalData] = useState(null); // Pre-fill data từ URL
   const [editModal, setEditModal] = useState({ isOpen: false, invoice: null });
   const [cancelModal, setCancelModal] = useState({ isOpen: false, invoice: null });
   const [refundModal, setRefundModal] = useState({ isOpen: false, invoice: null });
@@ -99,6 +102,52 @@ export function InvoicesPage() {
   const closeToast = useCallback(() => {
     setToast({ show: false, message: '', type: 'success' });
   }, []);
+
+  // ============================================
+  // AUTO-OPEN CREATE MODAL FROM URL
+  // ============================================
+  useEffect(() => {
+    const shouldCreate = searchParams.get('create');
+    if (shouldCreate === 'true') {
+      // Lấy tất cả params từ URL
+      const enrollmentId = searchParams.get('enrollment_id');
+      const studentId = searchParams.get('student_id');
+      const studentName = searchParams.get('student_name');
+      const classId = searchParams.get('class_id');
+      const className = searchParams.get('class_name');
+      const courseName = searchParams.get('course_name');
+      const amount = searchParams.get('amount');
+      const type = searchParams.get('type');
+
+      // Mở modal với pre-fill data đầy đủ
+      setCreateModalData({
+        enrollment_id: enrollmentId,
+        student_id: studentId,
+        student_name: studentName,
+        class_id: classId,
+        class_name: className,
+        course_name: courseName,
+        amount: parseFloat(amount) || 0,
+        invoice_type: type || 'tuition', // Default học phí
+        auto_description: `Thu học phí - ${className || 'N/A'} - ${studentName || 'N/A'}`,
+        locked: true // Lock student và class fields
+      });
+      setCreateModal(true);
+
+      // Clean URL sau khi mở modal
+      const cleanParams = new URLSearchParams(searchParams);
+      cleanParams.delete('create');
+      cleanParams.delete('enrollment_id');
+      cleanParams.delete('student_id');
+      cleanParams.delete('student_name');
+      cleanParams.delete('class_id');
+      cleanParams.delete('class_name');
+      cleanParams.delete('course_name');
+      cleanParams.delete('amount');
+      cleanParams.delete('type');
+      setSearchParams(cleanParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   // ============================================
   // PAYMENT HOOK - With callbacks
@@ -291,8 +340,12 @@ export function InvoicesPage() {
         {/* Create Invoice Modal */}
         <CreateInvoiceModal
           isOpen={createModal}
-          onClose={() => setCreateModal(false)}
+          onClose={() => {
+            setCreateModal(false);
+            setCreateModalData(null);
+          }}
           onSuccess={handleModalSuccess}
+          initialData={createModalData}
         />
 
         {/* Edit Invoice Modal */}

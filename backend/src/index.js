@@ -2759,7 +2759,7 @@ app.get('/api/classes', requireAuth, async (req, res, next) => {
     let query = supabase
       .from('classes')
       .select(isMinimal ? selectMinimal : selectFull, { count: 'exact' });
-      // Note: We'll sort in application layer for smart sorting
+    // Note: We'll sort in application layer for smart sorting
 
     if (status) query = query.eq('status', status);
     if (course_id) query = query.eq('course_id', course_id);
@@ -12858,12 +12858,95 @@ app.get('/api/admin/certificates/eligible-students', requireAuth, requireRole(['
 // Cấp chứng chỉ hàng loạt cho một lớp
 app.post('/api/admin/certificates/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
-    const { class_id, student_ids, grade, completion_date } = req.body;
+    const { certificates, class_id, student_ids, grade, completion_date } = req.body;
 
+    // Hỗ trợ cả format mới (certificates array) và format cũ (class_id + student_ids)
+    if (certificates && Array.isArray(certificates) && certificates.length > 0) {
+      // NEW FORMAT: Cấp nhiều chứng chỉ với thông tin chi tiết từng người
+      const results = { success: [], failed: [] };
+
+      for (const cert of certificates) {
+        try {
+          // Validate required fields
+          if (!cert.certificate_type_id || !cert.student_id) {
+            results.failed.push({
+              student_id: cert.student_id,
+              reason: 'Thiếu certificate_type_id hoặc student_id'
+            });
+            continue;
+          }
+
+          // Generate certificate number
+          const { data: certNumber } = await supabase.rpc('generate_certificate_number');
+          const generatedNumber = certNumber || `SM-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+          // Calculate expiry date based on certificate type
+          let expiryDate = null;
+          if (cert.certificate_type_id) {
+            const { data: certType } = await supabase
+              .from('certificate_types')
+              .select('validity_period_months')
+              .eq('id', cert.certificate_type_id)
+              .single();
+
+            if (certType?.validity_period_months) {
+              const expiry = new Date();
+              expiry.setMonth(expiry.getMonth() + certType.validity_period_months);
+              expiryDate = expiry.toISOString().split('T')[0];
+            }
+          }
+
+          const insertData = {
+            certificate_number: generatedNumber,
+            certificate_type_id: cert.certificate_type_id,
+            student_id: cert.student_id,
+            student_name: cert.student_name,
+            course_name: cert.course_name,
+            completion_date: cert.completion_date || new Date().toISOString().split('T')[0],
+            grade: cert.grade,
+            scores: cert.scores || {},
+            external_id: cert.external_id,
+            exam_date: cert.exam_date,
+            expiry_date: expiryDate,
+            center_id: req.user.centerId,
+            status: 'issued',
+            issued_by: req.user.id,
+            issued_at: new Date().toISOString()
+          };
+
+          const { data, error } = await supabase
+            .from('certificates')
+            .insert(insertData)
+            .select(`
+              *,
+              certificate_type:certificate_types (id, name, code, category)
+            `)
+            .single();
+
+          if (error) {
+            console.error('Error inserting certificate:', error);
+            results.failed.push({ student_id: cert.student_id, reason: error.message });
+          } else {
+            results.success.push(data);
+          }
+        } catch (err) {
+          console.error('Error processing certificate:', err);
+          results.failed.push({ student_id: cert.student_id, reason: err.message });
+        }
+      }
+
+      return res.status(201).json({
+        success: true,
+        message: `Đã cấp ${results.success.length}/${certificates.length} chứng chỉ`,
+        data: results
+      });
+    }
+
+    // OLD FORMAT: Cấp chứng chỉ từ class
     if (!class_id || !student_ids || !student_ids.length) {
       return res.status(400).json({
         success: false,
-        message: 'Lớp học và danh sách học viên là bắt buộc'
+        message: 'Cần có certificates array hoặc class_id + student_ids'
       });
     }
 
@@ -13064,6 +13147,113 @@ app.put('/api/admin/certificates/:id', requireAuth, requireRole(['SUPER_ADMIN', 
   } catch (error) {
     console.error('Error updating certificate:', error);
     next(error);
+  }
+});
+
+// ============================================================
+// PUBLIC CERTIFICATE VERIFICATION API - Xác thực chứng chỉ công khai
+// ============================================================
+
+/**
+ * @api {GET} /api/public/verify-certificate/:certificateNumber
+ * @description Xác thực chứng chỉ theo mã số - KHÔNG CẦN ĐĂNG NHẬP
+ */
+app.get('/api/public/verify-certificate/:certificateNumber', async (req, res, next) => {
+  try {
+    const { certificateNumber } = req.params;
+
+    if (!certificateNumber || certificateNumber.trim().length < 3) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mã chứng chỉ không hợp lệ'
+      });
+    }
+
+    // Tìm chứng chỉ với mã số
+    const { data: certificate, error } = await supabase
+      .from('certificates')
+      .select(`
+        id,
+        certificate_number,
+        student_name,
+        course_name,
+        grade,
+        scores,
+        completion_date,
+        issued_at,
+        expiry_date,
+        status,
+        certificate_type:certificate_types (
+          id,
+          name,
+          code,
+          category,
+          is_external,
+          is_internal,
+          provider,
+          validity_period_months
+        ),
+        center:centers (
+          id,
+          name,
+          address,
+          phone
+        )
+      `)
+      .eq('certificate_number', certificateNumber.trim().toUpperCase())
+      .single();
+
+    if (error || !certificate) {
+      console.log('Certificate not found:', certificateNumber, error);
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy chứng chỉ với mã số này',
+        code: 'CERTIFICATE_NOT_FOUND'
+      });
+    }
+
+    // Không trả về student_id hoặc thông tin nhạy cảm
+    const publicData = {
+      certificate_number: certificate.certificate_number,
+      student_name: certificate.student_name,
+      course_name: certificate.course_name,
+      grade: certificate.grade,
+      scores: certificate.scores,
+      completion_date: certificate.completion_date,
+      issued_at: certificate.issued_at,
+      expiry_date: certificate.expiry_date,
+      status: certificate.status,
+      certificate_type: certificate.certificate_type,
+      center: certificate.center ? {
+        name: certificate.center.name,
+        address: certificate.center.address
+      } : null
+    };
+
+    // Kiểm tra trạng thái
+    let verificationStatus = 'valid';
+    if (certificate.status === 'revoked') {
+      verificationStatus = 'revoked';
+    } else if (certificate.expiry_date && new Date(certificate.expiry_date) < new Date()) {
+      verificationStatus = 'expired';
+    }
+
+    // Log verification attempt
+    console.log(`[VERIFY] Certificate ${certificateNumber} verified - Status: ${verificationStatus}`);
+
+    res.json({
+      success: true,
+      data: publicData,
+      verification_status: verificationStatus,
+      verified_at: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error verifying certificate:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi hệ thống khi xác thực chứng chỉ'
+    });
   }
 });
 

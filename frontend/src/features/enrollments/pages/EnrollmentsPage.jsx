@@ -29,10 +29,10 @@ import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/contexts/auth-context';
 import { useEnrollments } from '../hooks';
 import { formatDate, getStatusConfig, STATUS_OPTIONS } from '../utils';
-import { 
-    calculateRemaining, 
-    getEnrollmentPaymentStatus, 
-    formatCurrency 
+import {
+    calculateRemaining,
+    getEnrollmentPaymentStatus,
+    formatCurrency
 } from '../utils/paymentUtils';
 import { TableSkeleton, StatsCardSkeleton } from '../components/TableSkeleton';
 
@@ -149,7 +149,27 @@ const EnrollmentRow = ({ enrollment, onView, onDelete, onViewInvoice }) => {
                                     Xem hóa đơn
                                 </button>
                                 <button
-                                    onClick={() => { navigate(`/admin/invoices/new?enrollment_id=${enrollment.id}`); setMenuOpen(false); }}
+                                    onClick={() => {
+                                        const remaining = calculateRemaining(
+                                            enrollment.tuition_fee,
+                                            enrollment.discount_amount,
+                                            enrollment.paid_amount
+                                        );
+                                        // Navigate với full data để auto-fill modal
+                                        const params = new URLSearchParams({
+                                            create: 'true',
+                                            enrollment_id: enrollment.id,
+                                            student_id: enrollment.student_id,
+                                            student_name: enrollment.student?.full_name || '',
+                                            class_id: enrollment.class_id,
+                                            class_name: enrollment.class?.name || '',
+                                            course_name: enrollment.class?.courses?.title || '',
+                                            amount: remaining,
+                                            type: 'tuition' // Mặc định học phí
+                                        });
+                                        navigate(`/admin/invoices?${params.toString()}`);
+                                        setMenuOpen(false);
+                                    }}
                                     className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
                                     role="menuitem"
                                     aria-label="Thu học phí"
