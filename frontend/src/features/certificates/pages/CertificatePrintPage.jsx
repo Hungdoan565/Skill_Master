@@ -209,14 +209,14 @@ export function CertificatePrintPage() {
                 console.log('=== FETCHING CERTIFICATE FOR PRINT ===');
                 console.log('Certificate ID:', id);
                 console.log('API URL:', API_URL);
-                
+
                 const { data: { session } } = await supabase.auth.getSession();
                 console.log('Has session:', !!session);
                 console.log('Has token:', !!session?.access_token);
 
                 const url = `${API_URL}/api/admin/certificates/${id}`;
                 console.log('Fetching from:', url);
-                
+
                 const response = await axios.get(url, {
                     headers: {
                         Authorization: `Bearer ${session?.access_token}`
@@ -225,7 +225,7 @@ export function CertificatePrintPage() {
 
                 console.log('Response status:', response.status);
                 console.log('Response data:', response.data);
-                
+
                 if (response.data?.success) {
                     setCertificate(response.data.data);
                 } else {

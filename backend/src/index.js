@@ -12895,16 +12895,21 @@ app.post('/api/admin/certificates/bulk', requireAuth, requireRole(['SUPER_ADMIN'
           // Calculate expiry date based on certificate type
           let expiryDate = null;
           if (cert.certificate_type_id) {
-            const { data: certType } = await supabase
-              .from('certificate_types')
-              .select('validity_period_months')
-              .eq('id', cert.certificate_type_id)
-              .single();
+            try {
+              const { data: certType } = await supabase
+                .from('certificate_types')
+                .select('validity_months')
+                .eq('id', cert.certificate_type_id)
+                .single();
 
-            if (certType?.validity_period_months) {
-              const expiry = new Date();
-              expiry.setMonth(expiry.getMonth() + certType.validity_period_months);
-              expiryDate = expiry.toISOString().split('T')[0];
+              if (certType?.validity_months) {
+                const expiry = new Date();
+                expiry.setMonth(expiry.getMonth() + certType.validity_months);
+                expiryDate = expiry.toISOString().split('T')[0];
+              }
+            } catch (e) {
+              // Column may not exist, skip expiry date calculation
+              console.log('Skipping expiry date calculation:', e.message);
             }
           }
 
@@ -13207,7 +13212,6 @@ app.get('/api/public/verify-certificate/:certificateNumber', async (req, res, ne
         scores,
         completion_date,
         issued_at,
-        expiry_date,
         status,
         certificate_type:certificate_types (
           id,
@@ -13216,14 +13220,12 @@ app.get('/api/public/verify-certificate/:certificateNumber', async (req, res, ne
           category,
           is_external,
           is_internal,
-          provider,
-          validity_period_months
+          provider
         ),
         center:centers (
           id,
           name,
-          address,
-          phone
+          address
         )
       `)
       .ilike('certificate_number', certificateNumber)

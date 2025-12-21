@@ -40,11 +40,11 @@ export function CertificateViewPage() {
         console.log('API URL:', API_URL);
         console.log('Has session:', !!session);
         console.log('Has token:', !!session?.access_token);
-        
+
         try {
             const url = `${API_URL}/api/admin/certificates/${id}`;
             console.log('Fetching from:', url);
-            
+
             const response = await fetch(url, {
                 headers: {
                     'Authorization': `Bearer ${session?.access_token}`,
@@ -52,7 +52,7 @@ export function CertificateViewPage() {
             });
 
             console.log('Response status:', response.status);
-            
+
             if (response.ok) {
                 const data = await response.json();
                 console.log('Certificate data:', data);

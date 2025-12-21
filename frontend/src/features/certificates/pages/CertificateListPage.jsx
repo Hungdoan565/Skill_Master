@@ -81,7 +81,7 @@ export function CertificateListPage() {
     const [statusFilter, setStatusFilter] = useState(''); // Empty = show all
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
-    
+
     // Modal states - MVP simple approach
     const [selectedCertificate, setSelectedCertificate] = useState(null);
     const [showViewModal, setShowViewModal] = useState(false);
@@ -107,11 +107,11 @@ export function CertificateListPage() {
         console.log('API URL:', API_URL);
         console.log('Has session:', !!session);
         console.log('Has token:', !!session?.access_token);
-        
+
         try {
             const url = `${API_URL}/api/admin/certificates?limit=100`;
             console.log('Fetching from:', url);
-            
+
             const response = await fetch(url, {
                 headers: {
                     'Authorization': `Bearer ${session?.access_token}`,
@@ -119,22 +119,22 @@ export function CertificateListPage() {
             });
 
             console.log('Response status:', response.status);
-            
+
             if (response.ok) {
                 const data = await response.json();
                 console.log('Certificates data:', data);
                 console.log('Number of certificates:', data.data?.length || data.certificates?.length || 0);
-                
+
                 // API returns { data: [...], pagination: {...} }
                 const certs = data.data || data.certificates || [];
                 console.log('Certificates array:', certs);
-                
+
                 // Log first certificate to see structure
                 if (certs.length > 0) {
                     console.log('First certificate:', certs[0]);
                     console.log('First certificate ID:', certs[0].id);
                 }
-                
+
                 setCertificates(certs);
             } else {
                 console.error('Failed to fetch certificates:', response.status);
@@ -223,7 +223,7 @@ export function CertificateListPage() {
                 day: '2-digit', month: '2-digit', year: 'numeric'
             });
         };
-        
+
         const formatDateEn = (dateStr) => {
             if (!dateStr) return 'N/A';
             return new Date(dateStr).toLocaleDateString('en-US', {
@@ -278,9 +278,9 @@ export function CertificateListPage() {
                 cornerStyle: 'elegant'
             }
         };
-        
+
         const t = templates[category] || templates.language;
-        
+
         // Generate corner decorations based on style
         const cornerDecorations = {
             ornate: `
@@ -635,11 +635,10 @@ export function CertificateListPage() {
             
             <!-- Header -->
             <div class="center-name">Skill Master</div>
-            <div class="center-slogan">${
-                category === 'language' ? 'Language Training & Education Center' :
+            <div class="center-slogan">${category === 'language' ? 'Language Training & Education Center' :
                 category === 'office' ? 'Digital Skills Training Center' :
-                category === 'programming' ? 'Technology & Development Academy' :
-                'Professional Development Institute'
+                    category === 'programming' ? 'Technology & Development Academy' :
+                        'Professional Development Institute'
             }</div>
             
             <!-- Title -->
@@ -706,7 +705,7 @@ export function CertificateListPage() {
     // Print certificate using popup window
     const doPrint = () => {
         if (!selectedCertificate) return;
-        
+
         const printWindow = window.open('', '_blank', 'width=1200,height=800');
         if (!printWindow) {
             alert('Vui lòng cho phép popup để in chứng chỉ');
@@ -716,9 +715,9 @@ export function CertificateListPage() {
         const cert = selectedCertificate;
         const certType = cert.certificate_type || {};
         const category = certType.category || 'language';
-        
+
         const html = generateTemplateHTML(cert, certType, category);
-        
+
         printWindow.document.write(html);
         printWindow.document.close();
     };
@@ -1073,8 +1072,8 @@ export function CertificateListPage() {
                                 <Award className="h-5 w-5 text-blue-600" />
                                 Chi tiết chứng chỉ
                             </CardTitle>
-                            <Button 
-                                variant="ghost" 
+                            <Button
+                                variant="ghost"
                                 size="sm"
                                 onClick={() => setShowViewModal(false)}
                                 className="h-8 w-8 p-0"
@@ -1198,8 +1197,8 @@ export function CertificateListPage() {
                                 <Printer className="h-5 w-5 text-blue-600" />
                                 In chứng chỉ
                             </CardTitle>
-                            <Button 
-                                variant="ghost" 
+                            <Button
+                                variant="ghost"
                                 size="sm"
                                 onClick={() => setShowPrintModal(false)}
                                 className="h-8 w-8 p-0"
@@ -1209,10 +1208,10 @@ export function CertificateListPage() {
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <p className="text-slate-600">
-                                Bạn muốn in chứng chỉ <strong>{selectedCertificate.certificate_number}</strong> 
+                                Bạn muốn in chứng chỉ <strong>{selectedCertificate.certificate_number}</strong>
                                 của học viên <strong>{selectedCertificate.student_name}</strong>?
                             </p>
-                            
+
                             <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-600">
                                 <p className="font-medium text-slate-900 mb-2">Thông tin in:</p>
                                 <ul className="list-disc list-inside space-y-1">
