@@ -1,8 +1,8 @@
 /**
- * CoursesPage - Trang quản lý khóa học
+ * CoursesPage - Trang quản lý khóa học với đầy đủ tính năng
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Plus, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,13 +14,15 @@ import { useAuth } from '@/contexts/auth-context';
 
 // Feature imports
 import { useCourses } from '../hooks';
-import { 
-  CourseFilters, 
-  CourseTable, 
+import {
+  CourseFilters,
+  CourseTable,
   CreateCourseModal,
   EditCourseModal,
   DeleteConfirmModal,
-  GradeStructureModal 
+  GradeStructureModal,
+  CourseAnalyticsModal,
+  BatchActionsToolbar
 } from '../components';
 
 export function CoursesPage() {
@@ -30,27 +32,42 @@ export function CoursesPage() {
   // State
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [sortBy, setSortBy] = useState('newest');
+  const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [showCreateModal, setShowCreateModal] = useState(false);
-  
+
+  // Selection state for batch operations
+  const [selectedIds, setSelectedIds] = useState([]);
+
   // Edit modal state
-  const [editModal, setEditModal] = useState({ 
-    open: false, 
-    course: null 
+  const [editModal, setEditModal] = useState({
+    open: false,
+    course: null
   });
-  
+
   // Delete modal state
-  const [deleteModal, setDeleteModal] = useState({ 
-    open: false, 
+  const [deleteModal, setDeleteModal] = useState({
+    open: false,
     course: null,
     loading: false,
     error: null
   });
-  
+
   // Grade structure modal state
-  const [gradeStructureModal, setGradeStructureModal] = useState({ 
-    open: false, 
-    course: null 
+  const [gradeStructureModal, setGradeStructureModal] = useState({
+    open: false,
+    course: null
   });
+
+  // Analytics modal state
+  const [analyticsModal, setAnalyticsModal] = useState({
+    open: false,
+    course: null
+  });
+
+  // Clone state - pre-fill create modal
+  const [cloneData, setCloneData] = useState(null);
 
   // Hooks
   const {
@@ -67,8 +84,61 @@ export function CoursesPage() {
     fetchCourses();
   }, [fetchCourses]);
 
-  // Filtered courses
-  const filteredCourses = filterCourses(searchTerm, statusFilter);
+  // Clear selection when courses change
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [courses]);
+
+  // Advanced filtering & sorting
+  const filteredAndSortedCourses = useMemo(() => {
+    let result = filterCourses(searchTerm, statusFilter);
+
+    // Category filter
+    if (categoryFilter) {
+      result = result.filter(c => c.category === categoryFilter);
+    }
+
+    // Price range filter
+    if (priceRange.min) {
+      result = result.filter(c => c.price >= Number(priceRange.min));
+    }
+    if (priceRange.max) {
+      result = result.filter(c => c.price <= Number(priceRange.max));
+    }
+
+    // Sorting
+    result = [...result].sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+        case 'oldest':
+          return new Date(a.created_at || 0) - new Date(b.created_at || 0);
+        case 'name_asc':
+          return (a.title || '').localeCompare(b.title || '');
+        case 'name_desc':
+          return (b.title || '').localeCompare(a.title || '');
+        case 'price_asc':
+          return (a.price || 0) - (b.price || 0);
+        case 'price_desc':
+          return (b.price || 0) - (a.price || 0);
+        case 'sessions_asc':
+          return (a.total_sessions || 0) - (b.total_sessions || 0);
+        case 'sessions_desc':
+          return (b.total_sessions || 0) - (a.total_sessions || 0);
+        default:
+          return 0;
+      }
+    });
+
+    return result;
+  }, [courses, searchTerm, statusFilter, categoryFilter, priceRange, sortBy, filterCourses]);
+
+  // Clear all filters
+  const handleClearFilters = useCallback(() => {
+    setStatusFilter('');
+    setCategoryFilter('');
+    setPriceRange({ min: '', max: '' });
+  }, []);
 
   // Handlers
   const handleOpenEdit = (course) => {
@@ -89,17 +159,17 @@ export function CoursesPage() {
 
   const handleConfirmDelete = async () => {
     if (!deleteModal.course) return;
-    
+
     setDeleteModal(prev => ({ ...prev, loading: true, error: null }));
-    
+
     try {
       await deleteCourse(deleteModal.course.id);
       handleCloseDelete();
     } catch (err) {
-      setDeleteModal(prev => ({ 
-        ...prev, 
-        loading: false, 
-        error: err.response?.data?.message || 'Không thể xóa khóa học' 
+      setDeleteModal(prev => ({
+        ...prev,
+        loading: false,
+        error: err.response?.data?.message || 'Không thể xóa khóa học'
       }));
     }
   };
@@ -112,12 +182,50 @@ export function CoursesPage() {
     setGradeStructureModal({ open: false, course: null });
   };
 
+  // Analytics handlers
+  const handleOpenAnalytics = (course) => {
+    setAnalyticsModal({ open: true, course });
+  };
+
+  const handleCloseAnalytics = () => {
+    setAnalyticsModal({ open: false, course: null });
+  };
+
+  // Clone handler
+  const handleClone = (course) => {
+    // Pre-fill data with new code
+    setCloneData({
+      code: `${course.code}-COPY`,
+      title: `${course.title} (Copy)`,
+      category: course.category,
+      level: course.level,
+      total_sessions: course.total_sessions,
+      duration_weeks: course.duration_weeks,
+      price: String(course.price),
+      cover_image: course.cover_image || '',
+      description: course.description || '',
+      status: 'draft'
+    });
+    setShowCreateModal(true);
+  };
+
   const handleCreateSuccess = () => {
     fetchCourses();
+    setCloneData(null);
+  };
+
+  const handleCloseCreate = () => {
+    setShowCreateModal(false);
+    setCloneData(null);
   };
 
   const handleEditSuccess = () => {
     fetchCourses();
+  };
+
+  const handleBatchSuccess = () => {
+    fetchCourses();
+    setSelectedIds([]);
   };
 
   return (
@@ -130,14 +238,22 @@ export function CoursesPage() {
             Danh sách tất cả khóa học của trung tâm
           </p>
         </div>
-        <Button 
+        <Button
           onClick={() => setShowCreateModal(true)}
-          className="bg-linear-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white"
+          className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white"
         >
           <Plus className="mr-2 h-4 w-4" />
           Tạo khóa học
         </Button>
       </div>
+
+      {/* Batch Actions Toolbar */}
+      <BatchActionsToolbar
+        selectedIds={selectedIds}
+        onClearSelection={() => setSelectedIds([])}
+        accessToken={accessToken}
+        onSuccess={handleBatchSuccess}
+      />
 
       {/* Main Content Card */}
       <Card>
@@ -147,17 +263,28 @@ export function CoursesPage() {
             onSearchChange={setSearchTerm}
             statusFilter={statusFilter}
             onStatusChange={setStatusFilter}
-            totalCount={filteredCourses.length}
+            categoryFilter={categoryFilter}
+            onCategoryChange={setCategoryFilter}
+            sortBy={sortBy}
+            onSortChange={setSortBy}
+            priceRange={priceRange}
+            onPriceRangeChange={setPriceRange}
+            totalCount={filteredAndSortedCourses.length}
+            onClearFilters={handleClearFilters}
           />
         </CardHeader>
         <CardContent>
           <CourseTable
-            courses={filteredCourses}
+            courses={filteredAndSortedCourses}
             loading={loading}
             searchTerm={searchTerm}
             deletingId={deletingId}
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
             onDelete={handleOpenDelete}
             onEdit={handleOpenEdit}
+            onClone={handleClone}
+            onViewAnalytics={handleOpenAnalytics}
             onConfigGrade={handleOpenGradeConfig}
           />
         </CardContent>
@@ -166,9 +293,10 @@ export function CoursesPage() {
       {/* Create Modal */}
       <CreateCourseModal
         isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
+        onClose={handleCloseCreate}
         onSuccess={handleCreateSuccess}
         accessToken={accessToken}
+        initialData={cloneData}
       />
 
       {/* Edit Modal */}
@@ -195,6 +323,14 @@ export function CoursesPage() {
         isOpen={gradeStructureModal.open}
         onClose={handleCloseGradeConfig}
         course={gradeStructureModal.course}
+        accessToken={accessToken}
+      />
+
+      {/* Analytics Modal */}
+      <CourseAnalyticsModal
+        isOpen={analyticsModal.open}
+        onClose={handleCloseAnalytics}
+        course={analyticsModal.course}
         accessToken={accessToken}
       />
     </div>

@@ -7683,21 +7683,124 @@ app.get('/api/dashboard/alerts', requireAuth, async (req, res, next) => {
 
     console.log(`📊 Dashboard alerts requested by ${req.user.email} | Center: ${effectiveCenterId || 'ALL'}`);
 
-    // Call database function to get all alerts
-    const { data, error } = await supabase
-      .rpc('get_dashboard_alerts', { p_center_id: effectiveCenterId });
+    const today = new Date().toISOString().split('T')[0];
+    const alerts = {};
 
-    if (error) {
-      console.error('Error fetching dashboard alerts:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Lỗi khi lấy alerts từ database',
-        error: error.message
-      });
+    // 1. Overdue Invoices
+    let overdueQuery = supabase
+      .from('invoices')
+      .select(`
+        id,
+        invoice_code,
+        final_amount,
+        paid_amount,
+        due_date,
+        student:users!invoices_student_id_fkey (full_name),
+        class:classes!inner (center_id)
+      `)
+      .in('status', ['pending', 'partial'])
+      .lt('due_date', today);
+
+    if (effectiveCenterId) {
+      overdueQuery = overdueQuery.eq('class.center_id', effectiveCenterId);
     }
 
-    // Parse and format alerts
-    const alerts = data || {};
+    const { data: overdueInvoices } = await overdueQuery;
+
+    alerts.overdue_invoices = {
+      data: (overdueInvoices || []).map(inv => {
+        const daysOverdue = Math.floor((new Date() - new Date(inv.due_date)) / (1000 * 60 * 60 * 24));
+        return {
+          invoice_id: inv.id,
+          invoice_number: inv.invoice_code,
+          student_name: inv.student?.full_name || 'N/A',
+          amount: (inv.final_amount || 0) - (inv.paid_amount || 0),
+          days_overdue: daysOverdue
+        };
+      })
+    };
+
+    // 2. Classes Missing Schedule
+    let missingScheduleQuery = supabase
+      .from('classes')
+      .select(`
+        id,
+        name,
+        start_date,
+        courses (title)
+      `)
+      .in('status', ['upcoming', 'ongoing']);
+
+    if (effectiveCenterId) {
+      missingScheduleQuery = missingScheduleQuery.eq('center_id', effectiveCenterId);
+    }
+
+    const { data: classes } = await missingScheduleQuery;
+
+    // Check which classes have no sessions
+    const classesWithoutSessions = [];
+    if (classes && classes.length > 0) {
+      for (const cls of classes) {
+        const { count } = await supabase
+          .from('sessions')
+          .select('*', { count: 'exact', head: true })
+          .eq('class_id', cls.id);
+
+        if (count === 0) {
+          classesWithoutSessions.push({
+            class_id: cls.id,
+            class_name: cls.name,
+            course_name: cls.courses?.title || 'N/A',
+            start_date: cls.start_date
+          });
+        }
+      }
+    }
+
+    alerts.classes_missing_schedule = {
+      data: classesWithoutSessions
+    };
+
+    // 3. Draft Invoices (old drafts)
+    const draftThreshold = new Date();
+    draftThreshold.setDate(draftThreshold.getDate() - 7); // 7 days ago
+
+    let draftQuery = supabase
+      .from('invoices')
+      .select(`
+        id,
+        invoice_code,
+        final_amount,
+        created_at,
+        student:users!invoices_student_id_fkey (full_name),
+        class:classes!inner (center_id)
+      `)
+      .eq('status', 'draft')
+      .lt('created_at', draftThreshold.toISOString());
+
+    if (effectiveCenterId) {
+      draftQuery = draftQuery.eq('class.center_id', effectiveCenterId);
+    }
+
+    const { data: draftInvoices } = await draftQuery;
+
+    alerts.draft_invoices = {
+      data: (draftInvoices || []).map(inv => {
+        const daysInDraft = Math.floor((new Date() - new Date(inv.created_at)) / (1000 * 60 * 60 * 24));
+        return {
+          invoice_id: inv.id,
+          invoice_number: inv.invoice_code,
+          student_name: inv.student?.full_name || 'N/A',
+          amount: inv.final_amount,
+          days_in_draft: daysInDraft
+        };
+      })
+    };
+
+    // 4. Certificates Pending (placeholder - implement if needed)
+    alerts.certificates_pending = {
+      data: []
+    };
 
     // Count total alerts
     const totalAlerts = Object.keys(alerts).reduce((sum, key) => {

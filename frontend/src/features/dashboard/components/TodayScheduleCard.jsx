@@ -115,9 +115,12 @@ export function TodayScheduleCard({ data, loading = false }) {
             {/* Sessions List */}
             <div className="space-y-1">
                 {sessions.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                        <Clock size={40} className="mx-auto mb-2 opacity-50" />
-                        <p>Không có buổi học nào hôm nay</p>
+                    <div className="text-center py-8 text-gray-400">
+                        <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-orange-50 flex items-center justify-center">
+                            <Calendar size={28} className="text-orange-300" />
+                        </div>
+                        <p className="font-medium text-gray-500">Không có buổi học hôm nay</p>
+                        <p className="text-sm mt-1">Nghỉ ngơi hoặc chuẩn bị cho ngày mai! 🎉</p>
                     </div>
                 ) : (
                     sessions.map((session, index) => (

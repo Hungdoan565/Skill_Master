@@ -11,11 +11,13 @@ export {
   COURSE_STATUS,
   DEFAULT_COURSE_FORM,
   GRADE_TEMPLATES,
-  DEFAULT_GRADE_CONFIG
+  DEFAULT_GRADE_CONFIG,
+  COURSE_TEMPLATES
 } from './constants';
 
 // Formatters
 export {
+  parseApiError,
   formatPriceInput,
   parsePriceValue,
   formatPrice,

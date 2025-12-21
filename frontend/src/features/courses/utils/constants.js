@@ -2,8 +2,9 @@
  * Courses Constants - Cấu hình và hằng số cho module courses
  */
 
-import { 
-  Code2, Languages, Award, MessageCircle, Wrench 
+import {
+  Code2, Languages, Award, MessageCircle, Wrench,
+  Target, Rocket, BookOpen, Trophy, FileText, Table2, TrendingUp, Users2
 } from 'lucide-react';
 
 // API URL
@@ -15,37 +16,37 @@ export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 // Config màu cho từng danh mục khóa học
 export const CATEGORY_CONFIG = {
-  english: { 
-    label: 'Tiếng Anh', 
-    color: 'bg-blue-100 text-blue-700 border-blue-200' 
+  english: {
+    label: 'Tiếng Anh',
+    color: 'bg-blue-100 text-blue-700 border-blue-200'
   },
-  it: { 
-    label: 'Tin học', 
-    color: 'bg-purple-100 text-purple-700 border-purple-200' 
+  it: {
+    label: 'Tin học',
+    color: 'bg-purple-100 text-purple-700 border-purple-200'
   },
-  programming: { 
-    label: 'Lập trình', 
-    color: 'bg-violet-100 text-violet-700 border-violet-200' 
+  programming: {
+    label: 'Lập trình',
+    color: 'bg-violet-100 text-violet-700 border-violet-200'
   },
-  ielts: { 
-    label: 'IELTS', 
-    color: 'bg-amber-100 text-amber-700 border-amber-200' 
+  ielts: {
+    label: 'IELTS',
+    color: 'bg-amber-100 text-amber-700 border-amber-200'
   },
-  toeic: { 
-    label: 'TOEIC', 
-    color: 'bg-emerald-100 text-emerald-700 border-emerald-200' 
+  toeic: {
+    label: 'TOEIC',
+    color: 'bg-emerald-100 text-emerald-700 border-emerald-200'
   },
-  communication: { 
-    label: 'Giao tiếp', 
-    color: 'bg-cyan-100 text-cyan-700 border-cyan-200' 
+  communication: {
+    label: 'Giao tiếp',
+    color: 'bg-cyan-100 text-cyan-700 border-cyan-200'
   },
-  office: { 
-    label: 'Tin học VP', 
-    color: 'bg-orange-100 text-orange-700 border-orange-200' 
+  office: {
+    label: 'Tin học VP',
+    color: 'bg-orange-100 text-orange-700 border-orange-200'
   },
-  default: { 
-    label: 'Khác', 
-    color: 'bg-slate-100 text-slate-700 border-slate-200' 
+  default: {
+    label: 'Khác',
+    color: 'bg-slate-100 text-slate-700 border-slate-200'
   },
 };
 
@@ -179,3 +180,154 @@ export const DEFAULT_GRADE_CONFIG = {
   passScore: 5.0,
   maxTotalScore: 10.0
 };
+
+// ============================================================
+// COURSE TEMPLATES - Mẫu khóa học nhanh
+// ============================================================
+
+export const COURSE_TEMPLATES = [
+  {
+    id: 'ielts-foundation',
+    name: 'IELTS Foundation',
+    icon: Target,
+    color: 'text-amber-600',
+    bgColor: 'bg-amber-100',
+    description: 'Khóa IELTS cơ bản cho người mới bắt đầu',
+    data: {
+      code: 'IELTS-FOUND',
+      title: 'IELTS Foundation',
+      category: 'ielts',
+      level: 'Beginner',
+      total_sessions: 36,
+      duration_weeks: 12,
+      price: '8500000',
+      description: 'Khóa IELTS cơ bản dành cho người mới bắt đầu. Mục tiêu đạt band 5.0-5.5. Bao gồm 4 kỹ năng: Listening, Reading, Writing, Speaking.'
+    }
+  },
+  {
+    id: 'ielts-intensive',
+    name: 'IELTS Intensive',
+    icon: Rocket,
+    color: 'text-red-600',
+    bgColor: 'bg-red-100',
+    description: 'Khóa IELTS luyện thi chuyên sâu',
+    data: {
+      code: 'IELTS-INT',
+      title: 'IELTS Intensive',
+      category: 'ielts',
+      level: 'Intermediate',
+      total_sessions: 48,
+      duration_weeks: 8,
+      price: '12000000',
+      description: 'Khóa IELTS chuyên sâu cho người đã có nền tảng. Mục tiêu đạt band 6.5-7.0. Tập trung vào kỹ năng thi và strategies.'
+    }
+  },
+  {
+    id: 'toeic-standard',
+    name: 'TOEIC 600+',
+    icon: BookOpen,
+    color: 'text-emerald-600',
+    bgColor: 'bg-emerald-100',
+    description: 'Khóa TOEIC mục tiêu 600+ điểm',
+    data: {
+      code: 'TOEIC-600',
+      title: 'TOEIC 600+',
+      category: 'toeic',
+      level: 'Beginner',
+      total_sessions: 24,
+      duration_weeks: 8,
+      price: '6500000',
+      description: 'Khóa TOEIC dành cho người mới, mục tiêu 600+ điểm. Phù hợp sinh viên và người đi làm cần chứng chỉ TOEIC.'
+    }
+  },
+  {
+    id: 'toeic-advanced',
+    name: 'TOEIC 800+',
+    icon: Trophy,
+    color: 'text-yellow-600',
+    bgColor: 'bg-yellow-100',
+    description: 'Khóa TOEIC mục tiêu 800+ điểm',
+    data: {
+      code: 'TOEIC-800',
+      title: 'TOEIC 800+',
+      category: 'toeic',
+      level: 'Advanced',
+      total_sessions: 32,
+      duration_weeks: 10,
+      price: '8500000',
+      description: 'Khóa TOEIC nâng cao, mục tiêu 800+ điểm. Dành cho người đã có nền tảng tiếng Anh tốt.'
+    }
+  },
+  {
+    id: 'mos-word',
+    name: 'MOS Word',
+    icon: FileText,
+    color: 'text-blue-600',
+    bgColor: 'bg-blue-100',
+    description: 'Luyện thi MOS Word chuẩn quốc tế',
+    data: {
+      code: 'MOS-WORD',
+      title: 'MOS Word 365/2019',
+      category: 'office',
+      level: 'Beginner',
+      total_sessions: 12,
+      duration_weeks: 4,
+      price: '2500000',
+      description: 'Khóa luyện thi chứng chỉ MOS Word Associate. Học 1 kèm 1 hoặc nhóm nhỏ. Cam kết đầu ra.'
+    }
+  },
+  {
+    id: 'mos-excel',
+    name: 'MOS Excel',
+    icon: Table2,
+    color: 'text-green-600',
+    bgColor: 'bg-green-100',
+    description: 'Luyện thi MOS Excel chuẩn quốc tế',
+    data: {
+      code: 'MOS-EXCEL',
+      title: 'MOS Excel 365/2019',
+      category: 'office',
+      level: 'Beginner',
+      total_sessions: 12,
+      duration_weeks: 4,
+      price: '2500000',
+      description: 'Khóa luyện thi chứng chỉ MOS Excel Associate. Học thực hành 70%, lý thuyết 30%.'
+    }
+  },
+  {
+    id: 'excel-advanced',
+    name: 'Excel Nâng cao',
+    icon: TrendingUp,
+    color: 'text-violet-600',
+    bgColor: 'bg-violet-100',
+    description: 'Excel chuyên sâu: Pivot, Dashboard, VBA',
+    data: {
+      code: 'EXCEL-ADV',
+      title: 'Excel Nâng cao - Pivot & Dashboard',
+      category: 'office',
+      level: 'Advanced',
+      total_sessions: 16,
+      duration_weeks: 6,
+      price: '3500000',
+      description: 'Khóa Excel chuyên sâu với Pivot Table, Power Query, Dashboard và VBA cơ bản. Dành cho người đã biết Excel.'
+    }
+  },
+  {
+    id: 'communication',
+    name: 'Giao tiếp căn bản',
+    icon: Users2,
+    color: 'text-cyan-600',
+    bgColor: 'bg-cyan-100',
+    description: 'Tiếng Anh giao tiếp cho người đi làm',
+    data: {
+      code: 'COMM-BASIC',
+      title: 'English Communication Basic',
+      category: 'communication',
+      level: 'Beginner',
+      total_sessions: 24,
+      duration_weeks: 8,
+      price: '5500000',
+      description: 'Khóa tiếng Anh giao tiếp cơ bản dành cho người đi làm. Tập trung vào các tình huống thực tế.'
+    }
+  }
+];

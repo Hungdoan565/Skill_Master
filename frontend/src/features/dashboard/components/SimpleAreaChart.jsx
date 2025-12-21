@@ -21,8 +21,12 @@ export function SimpleAreaChart({ data, dataKey, height = 280 }) {
 
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[280px] text-gray-400">
-        <p>Không có dữ liệu</p>
+      <div className="flex flex-col items-center justify-center h-[280px] text-gray-400">
+        <svg className="w-16 h-16 mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+        </svg>
+        <p className="text-sm font-medium">Chưa có dữ liệu doanh thu</p>
+        <p className="text-xs mt-1">Dữ liệu sẽ hiển thị khi có giao dịch</p>
       </div>
     );
   }
@@ -54,7 +58,7 @@ export function SimpleAreaChart({ data, dataKey, height = 280 }) {
     if (points.length < 2) return '';
 
     let path = `M ${points[0].x},${points[0].y}`;
-    
+
     for (let i = 0; i < points.length - 1; i++) {
       const p0 = points[i - 1] || points[i];
       const p1 = points[i];
@@ -98,9 +102,9 @@ export function SimpleAreaChart({ data, dataKey, height = 280 }) {
 
       {/* Chart */}
       <div className="absolute left-14 right-0 top-0 bottom-0">
-        <svg 
-          viewBox="0 0 100 100" 
-          preserveAspectRatio="none" 
+        <svg
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
           className="w-full h-full"
           style={{ overflow: 'visible' }}
         >
@@ -184,9 +188,9 @@ export function SimpleAreaChart({ data, dataKey, height = 280 }) {
 
         {/* Tooltip */}
         {hoveredIndex !== null && (
-          <div 
+          <div
             className="absolute z-10 transform -translate-x-1/2 -translate-y-full pointer-events-none"
-            style={{ 
+            style={{
               left: `${(points[hoveredIndex].x / 100) * 100}%`,
               top: `${(points[hoveredIndex].y / 100) * 100 - 8}%`
             }}
@@ -202,8 +206,8 @@ export function SimpleAreaChart({ data, dataKey, height = 280 }) {
         {/* X-axis labels */}
         <div className="absolute left-0 right-0 bottom-0 h-6 flex justify-between text-xs text-gray-400">
           {data.map((d, i) => (
-            <span 
-              key={i} 
+            <span
+              key={i}
               className={`${hoveredIndex === i ? 'text-orange-500 font-medium' : ''} transition-colors`}
               style={{ width: `${100 / data.length}%`, textAlign: 'center' }}
             >

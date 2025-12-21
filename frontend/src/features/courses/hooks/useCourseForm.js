@@ -4,12 +4,13 @@
 
 import { useState, useCallback } from 'react';
 import axios from 'axios';
-import { 
-  API_URL, 
+import {
+  API_URL,
   DEFAULT_COURSE_FORM,
   formatPriceInput,
   parsePriceValue,
-  validateCourseForm
+  validateCourseForm,
+  parseApiError
 } from '../utils';
 
 /**
@@ -32,7 +33,7 @@ export function useCourseForm(accessToken) {
   // Handle input change
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;
-    
+
     if (name === 'code') {
       // Auto uppercase cho mã khóa học
       setFormData(prev => ({ ...prev, [name]: value.toUpperCase() }));
@@ -62,7 +63,7 @@ export function useCourseForm(accessToken) {
       setError('Ảnh không được vượt quá 5MB');
       return;
     }
-    
+
     const reader = new FileReader();
     reader.onloadend = () => {
       setImagePreview(reader.result);
@@ -105,7 +106,10 @@ export function useCourseForm(accessToken) {
       return response.data?.success || false;
     } catch (err) {
       console.error('Error creating course:', err);
-      setError(err.response?.data?.message || 'Có lỗi xảy ra khi tạo khóa học');
+
+      // Parse error message cho user-friendly
+      const errorMessage = parseApiError(err, 'tạo khóa học');
+      setError(errorMessage);
       return false;
     } finally {
       setLoading(false);
@@ -115,7 +119,7 @@ export function useCourseForm(accessToken) {
   // Load course data để edit
   const loadCourseData = useCallback((course) => {
     if (!course) return;
-    
+
     setFormData({
       code: course.code || '',
       title: course.title || '',
@@ -128,7 +132,7 @@ export function useCourseForm(accessToken) {
       description: course.description || '',
       status: course.status || 'active'
     });
-    
+
     if (course.cover_image) {
       setImagePreview(course.cover_image);
     }
@@ -140,10 +144,11 @@ export function useCourseForm(accessToken) {
     loading,
     error,
     imagePreview,
-    
+
     // Actions
     handleChange,
     setFieldValue,
+    setFormData,
     handleImageChange,
     clearImage,
     createCourse,

@@ -44,7 +44,7 @@ export function RecentStudentsList({ students = [], loading = false }) {
             <p className="text-xs text-gray-500">Đăng ký gần đây</p>
           </div>
         </div>
-        <button 
+        <button
           onClick={() => navigate('/admin/students')}
           className="flex items-center gap-1 text-sm text-red-600 hover:text-red-700 font-medium"
         >
@@ -56,9 +56,12 @@ export function RecentStudentsList({ students = [], loading = false }) {
       {/* List */}
       <div className="space-y-1">
         {students.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <Users size={40} className="mx-auto mb-2 opacity-50" />
-            <p>Chưa có sinh viên mới</p>
+          <div className="text-center py-8 text-gray-400">
+            <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-gray-50 flex items-center justify-center">
+              <Users size={28} className="opacity-60" />
+            </div>
+            <p className="font-medium text-gray-500">Chưa có học viên mới</p>
+            <p className="text-sm mt-1">Học viên ghi danh sẽ hiển thị ở đây</p>
           </div>
         ) : (
           students.map((student, index) => (

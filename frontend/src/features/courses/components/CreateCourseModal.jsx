@@ -2,18 +2,21 @@
  * CreateCourseModal Component - Modal tạo khóa học mới
  */
 
-import { useEffect } from 'react';
-import { 
-  BookOpen, X, DollarSign, Clock, 
-  Image as ImageIcon, AlertCircle, Loader2, CheckCircle2 
+import { useEffect, useState } from 'react';
+import {
+  BookOpen, X, DollarSign, Clock,
+  Image as ImageIcon, AlertCircle, Loader2, CheckCircle2, Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCourseForm } from '../hooks';
 import { CATEGORIES, LEVELS, COURSE_STATUS } from '../utils';
+import { CourseTemplateSelector } from './CourseTemplateSelector';
 
-export function CreateCourseModal({ isOpen, onClose, onSuccess, accessToken }) {
+export function CreateCourseModal({ isOpen, onClose, onSuccess, accessToken, initialData }) {
+  const [showTemplates, setShowTemplates] = useState(true);
+
   const {
     formData,
     loading,
@@ -21,6 +24,7 @@ export function CreateCourseModal({ isOpen, onClose, onSuccess, accessToken }) {
     imagePreview,
     handleChange,
     setFieldValue,
+    setFormData,
     handleImageChange,
     clearImage,
     createCourse,
@@ -31,8 +35,26 @@ export function CreateCourseModal({ isOpen, onClose, onSuccess, accessToken }) {
   useEffect(() => {
     if (!isOpen) {
       resetForm();
+      setShowTemplates(true);
     }
   }, [isOpen, resetForm]);
+
+  // Load initialData (for clone)
+  useEffect(() => {
+    if (isOpen && initialData) {
+      setFormData(initialData);
+      setShowTemplates(false);
+    }
+  }, [isOpen, initialData, setFormData]);
+
+  // Handle template selection
+  const handleSelectTemplate = (templateData) => {
+    setFormData(prev => ({
+      ...prev,
+      ...templateData
+    }));
+    setShowTemplates(false);
+  };
 
   // ESC key handler
   useEffect(() => {
@@ -60,30 +82,34 @@ export function CreateCourseModal({ isOpen, onClose, onSuccess, accessToken }) {
   if (!isOpen) return null;
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center"
       role="dialog"
       aria-modal="true"
       aria-labelledby="create-course-modal-title"
     >
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
-      
+
       {/* Modal */}
-      <div className="relative w-full max-w-3xl mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-3xl mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="bg-linear-to-r from-red-500 to-orange-500 px-6 py-4">
+        <div className="bg-gradient-to-r from-red-500 to-orange-500 px-6 py-4 sticky top-0 z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/20 rounded-lg">
                 <BookOpen className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 id="create-course-modal-title" className="text-lg font-semibold text-white">Tạo khóa học mới</h2>
-                <p className="text-sm text-white/80">Điền thông tin để tạo khóa học</p>
+                <h2 id="create-course-modal-title" className="text-lg font-semibold text-white">
+                  {initialData ? 'Nhân bản khóa học' : 'Tạo khóa học mới'}
+                </h2>
+                <p className="text-sm text-white/80">
+                  {initialData ? 'Chỉnh sửa và lưu khóa học mới' : 'Điền thông tin để tạo khóa học'}
+                </p>
               </div>
             </div>
             <button
@@ -95,6 +121,16 @@ export function CreateCourseModal({ isOpen, onClose, onSuccess, accessToken }) {
             </button>
           </div>
         </div>
+
+        {/* Template Selector (only show if no initialData) */}
+        {showTemplates && !initialData && (
+          <div className="p-6 border-b bg-amber-50/50">
+            <CourseTemplateSelector
+              onSelectTemplate={handleSelectTemplate}
+              onSkip={() => setShowTemplates(false)}
+            />
+          </div>
+        )}
 
         {/* Body */}
         <form onSubmit={handleSubmit} className="p-6">
@@ -251,9 +287,9 @@ export function CreateCourseModal({ isOpen, onClose, onSuccess, accessToken }) {
                 <div className="border-2 border-dashed border-zinc-200 rounded-lg p-4 text-center hover:border-red-300 transition-colors">
                   {imagePreview ? (
                     <div className="relative">
-                      <img 
-                        src={imagePreview} 
-                        alt="Preview" 
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
                         className="w-full h-32 object-cover rounded-lg"
                       />
                       <button
@@ -311,11 +347,10 @@ export function CreateCourseModal({ isOpen, onClose, onSuccess, accessToken }) {
                       key={status.value}
                       type="button"
                       onClick={() => setFieldValue('status', status.value)}
-                      className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
-                        formData.status === status.value
+                      className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${formData.status === status.value
                           ? status.color + ' ring-2 ring-offset-1 ring-red-400'
                           : 'bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300'
-                      }`}
+                        }`}
                     >
                       {status.label}
                     </button>
