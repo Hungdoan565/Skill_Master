@@ -26,6 +26,11 @@ import {
     Check,
     Star,
     GraduationCap,
+    Share2,
+    Wifi,
+    WifiOff,
+    ServerCrash,
+    Link as LinkIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -78,6 +83,22 @@ const STATUS_CONFIG = {
         borderColor: 'border-red-200',
         label: 'Không tìm thấy',
         description: 'Không tìm thấy chứng chỉ với mã số này trong hệ thống'
+    },
+    network_error: {
+        icon: WifiOff,
+        color: 'text-orange-600',
+        bgColor: 'bg-orange-50',
+        borderColor: 'border-orange-200',
+        label: 'Lỗi kết nối',
+        description: 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối internet và thử lại.'
+    },
+    server_error: {
+        icon: ServerCrash,
+        color: 'text-red-600',
+        bgColor: 'bg-red-50',
+        borderColor: 'border-red-200',
+        label: 'Lỗi máy chủ',
+        description: 'Hệ thống đang gặp sự cố. Vui lòng thử lại sau ít phút.'
     }
 };
 
@@ -112,6 +133,7 @@ const CATEGORY_CONFIG = {
 // Certificate detail card
 const CertificateDetailCard = ({ certificate, centerInfo }) => {
     const [copied, setCopied] = useState(false);
+    const [urlCopied, setUrlCopied] = useState(false);
     const category = certificate?.certificate_type?.category || 'language';
     const catConfig = CATEGORY_CONFIG[category] || CATEGORY_CONFIG.language;
     const CategoryIcon = catConfig.icon;
@@ -120,6 +142,13 @@ const CertificateDetailCard = ({ certificate, centerInfo }) => {
         navigator.clipboard.writeText(certificate.certificate_number);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+    };
+
+    const shareUrl = () => {
+        const url = `${window.location.origin}/public/verify-certificate?cert=${certificate.certificate_number}`;
+        navigator.clipboard.writeText(url);
+        setUrlCopied(true);
+        setTimeout(() => setUrlCopied(false), 2000);
     };
 
     return (
@@ -154,24 +183,46 @@ const CertificateDetailCard = ({ certificate, centerInfo }) => {
                                 {certificate.certificate_number}
                             </p>
                         </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={copyToClipboard}
-                            className="gap-2"
-                        >
-                            {copied ? (
-                                <>
-                                    <Check className="h-4 w-4 text-green-500" />
-                                    Đã copy
-                                </>
-                            ) : (
-                                <>
-                                    <Copy className="h-4 w-4" />
-                                    Copy
-                                </>
-                            )}
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={copyToClipboard}
+                                className="gap-2"
+                                aria-label="Copy mã chứng chỉ"
+                            >
+                                {copied ? (
+                                    <>
+                                        <Check className="h-4 w-4 text-green-500" />
+                                        Đã copy
+                                    </>
+                                ) : (
+                                    <>
+                                        <Copy className="h-4 w-4" />
+                                        Copy
+                                    </>
+                                )}
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={shareUrl}
+                                className="gap-2"
+                                aria-label="Chia sẻ link xác thực"
+                            >
+                                {urlCopied ? (
+                                    <>
+                                        <Check className="h-4 w-4 text-green-500" />
+                                        Đã copy
+                                    </>
+                                ) : (
+                                    <>
+                                        <Share2 className="h-4 w-4" />
+                                        Chia sẻ
+                                    </>
+                                )}
+                            </Button>
+                        </div>
                     </div>
 
                     {/* Student Info */}
@@ -339,7 +390,7 @@ export function PublicCertificateVerification() {
     const [searchParams] = useSearchParams();
     const [certificateNumber, setCertificateNumber] = useState('');
     const [certificate, setCertificate] = useState(null);
-    const [status, setStatus] = useState(null); // 'valid', 'invalid', 'expired', 'revoked'
+    const [status, setStatus] = useState(null); // 'valid', 'invalid', 'expired', 'revoked', 'network_error', 'server_error'
     const [loading, setLoading] = useState(false);
     const [searched, setSearched] = useState(false);
 
@@ -353,14 +404,23 @@ export function PublicCertificateVerification() {
     }, [searchParams]);
 
     const verifyCertificate = async (certNumber) => {
-        if (!certNumber?.trim()) return;
+        const trimmedCode = certNumber?.trim();
+        if (!trimmedCode) return;
 
         setLoading(true);
         setSearched(true);
+        setCertificate(null);
+        
         try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
             const response = await fetch(
-                `${API_URL}/api/public/verify-certificate/${certNumber.trim()}`
+                `${API_URL}/api/public/verify-certificate/${encodeURIComponent(trimmedCode)}`,
+                { signal: controller.signal }
             );
+            
+            clearTimeout(timeoutId);
 
             if (response.ok) {
                 const data = await response.json();
@@ -377,6 +437,9 @@ export function PublicCertificateVerification() {
             } else if (response.status === 404) {
                 setCertificate(null);
                 setStatus('invalid');
+            } else if (response.status >= 500) {
+                setCertificate(null);
+                setStatus('server_error');
             } else {
                 setCertificate(null);
                 setStatus('invalid');
@@ -384,7 +447,13 @@ export function PublicCertificateVerification() {
         } catch (error) {
             console.error('Error verifying certificate:', error);
             setCertificate(null);
-            setStatus('invalid');
+            
+            // Distinguish between network errors and other errors
+            if (error.name === 'AbortError' || error.message.includes('fetch')) {
+                setStatus('network_error');
+            } else {
+                setStatus('invalid');
+            }
         }
         setLoading(false);
     };
@@ -433,34 +502,64 @@ export function PublicCertificateVerification() {
 
                 {/* Search Form */}
                 <form onSubmit={handleSubmit} className="max-w-xl mx-auto mb-12">
-                    <div className="flex gap-3">
-                        <div className="relative flex-1">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                            <Input
-                                type="text"
-                                value={certificateNumber}
-                                onChange={(e) => setCertificateNumber(e.target.value)}
-                                placeholder="Nhập mã chứng chỉ (VD: SM-202412-0001)"
-                                className="pl-12 h-14 text-lg border-2 focus:border-blue-500"
-                            />
+                    <div className="flex flex-col gap-3">
+                        <div className="flex gap-3">
+                            <div className="relative flex-1">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                                <Input
+                                    type="text"
+                                    value={certificateNumber}
+                                    onChange={(e) => setCertificateNumber(e.target.value.toUpperCase())}
+                                    placeholder="VD: SM-202512-YUBX"
+                                    className="pl-12 h-14 text-lg border-2 focus:border-blue-500"
+                                    aria-label="Mã chứng chỉ"
+                                    aria-required="true"
+                                    aria-describedby="cert-hint"
+                                    autoComplete="off"
+                                />
+                            </div>
+                            <Button
+                                type="submit"
+                                size="lg"
+                                className="h-14 px-8 bg-blue-600 hover:bg-blue-700"
+                                disabled={loading || !certificateNumber.trim()}
+                                aria-busy={loading}
+                                aria-label="Xác thực chứng chỉ"
+                            >
+                                {loading ? (
+                                    <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+                                ) : (
+                                    <>
+                                        <Search className="h-5 w-5 mr-2" aria-hidden="true" />
+                                        Xác thực
+                                    </>
+                                )}
+                            </Button>
                         </div>
-                        <Button
-                            type="submit"
-                            size="lg"
-                            className="h-14 px-8 bg-blue-600 hover:bg-blue-700"
-                            disabled={loading || !certificateNumber.trim()}
-                        >
-                            {loading ? (
-                                <Loader2 className="h-5 w-5 animate-spin" />
-                            ) : (
-                                <>
-                                    <Search className="h-5 w-5 mr-2" />
-                                    Xác thực
-                                </>
-                            )}
-                        </Button>
+                        <p id="cert-hint" className="text-sm text-slate-500 text-center">
+                            Nhập mã chứng chỉ (định dạng: SM-YYYYMM-XXXX)
+                        </p>
                     </div>
                 </form>
+
+                {/* Loading Skeleton */}
+                {loading && (
+                    <div className="max-w-3xl mx-auto">
+                        <div className="animate-pulse space-y-6">
+                            <div className="h-20 bg-slate-200 rounded-xl"></div>
+                            <Card>
+                                <CardContent className="p-6 space-y-4">
+                                    <div className="h-6 bg-slate-200 rounded w-3/4"></div>
+                                    <div className="h-4 bg-slate-200 rounded w-1/2"></div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="h-20 bg-slate-200 rounded"></div>
+                                        <div className="h-20 bg-slate-200 rounded"></div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
+                )}
 
                 {/* Result Section */}
                 {searched && !loading && (
@@ -488,20 +587,44 @@ export function PublicCertificateVerification() {
                             <CertificateDetailCard certificate={certificate} />
                         )}
 
-                        {/* Not Found */}
-                        {status === 'invalid' && (
+                        {/* Error States */}
+                        {(status === 'invalid' || status === 'network_error' || status === 'server_error') && (
                             <Card className="border-2 border-red-200 bg-red-50/50">
                                 <CardContent className="py-12 text-center">
-                                    <XCircle className="h-16 w-16 text-red-400 mx-auto mb-4" />
+                                    {status === 'network_error' ? (
+                                        <WifiOff className="h-16 w-16 text-orange-400 mx-auto mb-4" />
+                                    ) : status === 'server_error' ? (
+                                        <ServerCrash className="h-16 w-16 text-red-400 mx-auto mb-4" />
+                                    ) : (
+                                        <XCircle className="h-16 w-16 text-red-400 mx-auto mb-4" />
+                                    )}
                                     <h3 className="text-xl font-semibold text-slate-900 mb-2">
-                                        Không tìm thấy chứng chỉ
+                                        {statusConfig?.label || 'Có lỗi xảy ra'}
                                     </h3>
                                     <p className="text-slate-600 mb-6">
-                                        Mã chứng chỉ <strong>{certificateNumber}</strong> không tồn tại trong hệ thống.
+                                        {status === 'invalid' ? (
+                                            <>Mã chứng chỉ <strong>{certificateNumber}</strong> không tồn tại trong hệ thống.</>
+                                        ) : (
+                                            statusConfig?.description
+                                        )}
                                     </p>
                                     <div className="text-sm text-slate-500 space-y-1">
-                                        <p>Vui lòng kiểm tra lại mã chứng chỉ hoặc liên hệ:</p>
-                                        <p className="font-medium">support@skillmaster.edu.vn | 1900-xxxx</p>
+                                        {status === 'invalid' && (
+                                            <>
+                                                <p>Vui lòng kiểm tra lại mã chứng chỉ hoặc liên hệ:</p>
+                                                <p className="font-medium">support@skillmaster.edu.vn | 1900-xxxx</p>
+                                            </>
+                                        )}
+                                        {(status === 'network_error' || status === 'server_error') && (
+                                            <Button
+                                                onClick={() => verifyCertificate(certificateNumber)}
+                                                variant="outline"
+                                                className="mt-4"
+                                            >
+                                                <Loader2 className="h-4 w-4 mr-2" />
+                                                Thử lại
+                                            </Button>
+                                        )}
                                     </div>
                                 </CardContent>
                             </Card>

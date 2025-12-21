@@ -274,8 +274,7 @@ export function CertificateTypeDetailPage() {
 
     // Handlers
     const handleViewDetail = (certificate) => {
-        setSelectedCertificate(certificate);
-        // TODO: Open CertificateDetailModal
+        navigate(`/certificates/${certificate.id}/view`);
     };
 
     const handleViewStudent = (studentId) => {
@@ -283,7 +282,7 @@ export function CertificateTypeDetailPage() {
     };
 
     const handlePrint = (certificate) => {
-        window.open(`/admin/certificates/${certificate.id}/print`, '_blank');
+        navigate(`/certificates/${certificate.id}/print`);
     };
 
     const handleExportExcel = () => {

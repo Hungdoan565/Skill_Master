@@ -351,7 +351,7 @@ export function CertificatesPage() {
                     </p>
                 </div>
                 <div className="flex gap-3">
-                    <Link to="/verify-certificate" target="_blank">
+                    <Link to="/verify-certificate">
                         <Button variant="outline">
                             <Shield className="h-4 w-4 mr-2" />
                             Xác thực

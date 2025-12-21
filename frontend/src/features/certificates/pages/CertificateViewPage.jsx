@@ -20,26 +20,51 @@ export function CertificateViewPage() {
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        fetchCertificate();
-    }, [id]);
+        if (session?.access_token) {
+            fetchCertificate();
+        } else {
+            console.warn('Waiting for session...');
+            // Retry after session loads
+            const timer = setTimeout(() => {
+                if (session?.access_token) {
+                    fetchCertificate();
+                }
+            }, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [id, session?.access_token]);
 
     const fetchCertificate = async () => {
+        console.log('=== FETCHING CERTIFICATE ===');
+        console.log('Certificate ID:', id);
+        console.log('API URL:', API_URL);
+        console.log('Has session:', !!session);
+        console.log('Has token:', !!session?.access_token);
+        
         try {
-            const response = await fetch(`${API_URL}/api/admin/certificates/${id}`, {
+            const url = `${API_URL}/api/admin/certificates/${id}`;
+            console.log('Fetching from:', url);
+            
+            const response = await fetch(url, {
                 headers: {
                     'Authorization': `Bearer ${session?.access_token}`,
                 },
             });
 
+            console.log('Response status:', response.status);
+            
             if (response.ok) {
                 const data = await response.json();
+                console.log('Certificate data:', data);
                 setCertificate(data.data || data);
             } else {
-                setError('Không tìm thấy chứng chỉ');
+                const errorData = await response.json().catch(() => ({}));
+                console.error('API Error:', response.status, errorData);
+                setError(`Không tìm thấy chứng chỉ (${response.status})`);
             }
         } catch (err) {
             console.error('Error fetching certificate:', err);
-            setError('Có lỗi xảy ra khi tải chứng chỉ');
+            setError('Có lỗi xảy ra khi tải chứng chỉ: ' + err.message);
         }
         setLoading(false);
     };

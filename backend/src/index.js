@@ -13181,16 +13181,21 @@ app.put('/api/admin/certificates/:id', requireAuth, requireRole(['SUPER_ADMIN', 
  */
 app.get('/api/public/verify-certificate/:certificateNumber', async (req, res, next) => {
   try {
-    const { certificateNumber } = req.params;
+    // Decode URL-encoded certificate number and trim whitespace
+    const certificateNumber = decodeURIComponent(req.params.certificateNumber).trim();
 
-    if (!certificateNumber || certificateNumber.trim().length < 3) {
+    console.log('=== VERIFY CERTIFICATE ===');
+    console.log('Certificate number:', certificateNumber);
+
+    if (!certificateNumber || certificateNumber.length < 3) {
       return res.status(400).json({
         success: false,
-        message: 'Mã chứng chỉ không hợp lệ'
+        message: 'Mã chứng chỉ không hợp lệ',
+        code: 'INVALID_FORMAT'
       });
     }
 
-    // Tìm chứng chỉ với mã số
+    // Tìm chứng chỉ với mã số (case-insensitive)
     const { data: certificate, error } = await supabase
       .from('certificates')
       .select(`
@@ -13221,7 +13226,7 @@ app.get('/api/public/verify-certificate/:certificateNumber', async (req, res, ne
           phone
         )
       `)
-      .eq('certificate_number', certificateNumber.trim().toUpperCase())
+      .ilike('certificate_number', certificateNumber)
       .single();
 
     if (error || !certificate) {
@@ -13229,7 +13234,8 @@ app.get('/api/public/verify-certificate/:certificateNumber', async (req, res, ne
       return res.status(404).json({
         success: false,
         message: 'Không tìm thấy chứng chỉ với mã số này',
-        code: 'CERTIFICATE_NOT_FOUND'
+        code: 'CERTIFICATE_NOT_FOUND',
+        searched_code: certificateNumber
       });
     }
 
@@ -13273,7 +13279,8 @@ app.get('/api/public/verify-certificate/:certificateNumber', async (req, res, ne
     console.error('Error verifying certificate:', error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi hệ thống khi xác thực chứng chỉ'
+      message: 'Lỗi hệ thống khi xác thực chứng chỉ. Vui lòng thử lại sau.',
+      code: 'SERVER_ERROR'
     });
   }
 });

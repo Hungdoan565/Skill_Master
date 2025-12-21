@@ -206,25 +206,36 @@ export function CertificatePrintPage() {
         const fetchCertificate = async () => {
             try {
                 setLoading(true);
+                console.log('=== FETCHING CERTIFICATE FOR PRINT ===');
+                console.log('Certificate ID:', id);
+                console.log('API URL:', API_URL);
+                
                 const { data: { session } } = await supabase.auth.getSession();
+                console.log('Has session:', !!session);
+                console.log('Has token:', !!session?.access_token);
 
-                const response = await axios.get(
-                    `${API_URL}/api/admin/certificates/${id}`,
-                    {
-                        headers: {
-                            Authorization: `Bearer ${session?.access_token}`
-                        }
+                const url = `${API_URL}/api/admin/certificates/${id}`;
+                console.log('Fetching from:', url);
+                
+                const response = await axios.get(url, {
+                    headers: {
+                        Authorization: `Bearer ${session?.access_token}`
                     }
-                );
+                });
 
+                console.log('Response status:', response.status);
+                console.log('Response data:', response.data);
+                
                 if (response.data?.success) {
                     setCertificate(response.data.data);
                 } else {
+                    console.error('Certificate not found in response');
                     setError('Không tìm thấy chứng chỉ');
                 }
             } catch (err) {
                 console.error('Error fetching certificate:', err);
-                setError('Không thể tải thông tin chứng chỉ');
+                console.error('Error details:', err.response?.data);
+                setError(`Không thể tải thông tin chứng chỉ: ${err.message}`);
             } finally {
                 setLoading(false);
             }
@@ -232,6 +243,10 @@ export function CertificatePrintPage() {
 
         if (id) {
             fetchCertificate();
+        } else {
+            console.error('No certificate ID provided');
+            setError('Thiếu mã chứng chỉ');
+            setLoading(false);
         }
     }, [id]);
 

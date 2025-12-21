@@ -9,7 +9,7 @@
  * - Hủy chứng chỉ (nếu có quyền)
  */
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Award,
@@ -29,6 +29,10 @@ import {
     Loader2,
     CheckCircle,
     AlertCircle,
+    X,
+    Copy,
+    Check,
+    Share2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,6 +40,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/auth-context';
 import { formatDate } from '../utils';
+import { CertificateTemplate } from '../components/CertificateTemplates';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -66,6 +71,7 @@ const STATUS_CONFIG = {
 export function CertificateListPage() {
     const navigate = useNavigate();
     const { session, isAdmin } = useAuth();
+    const printRef = useRef(null);
 
     // States
     const [certificates, setCertificates] = useState([]);
@@ -75,6 +81,12 @@ export function CertificateListPage() {
     const [statusFilter, setStatusFilter] = useState(''); // Empty = show all
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
+    
+    // Modal states - MVP simple approach
+    const [selectedCertificate, setSelectedCertificate] = useState(null);
+    const [showViewModal, setShowViewModal] = useState(false);
+    const [showPrintModal, setShowPrintModal] = useState(false);
+    const [copied, setCopied] = useState(false);
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
@@ -91,17 +103,41 @@ export function CertificateListPage() {
 
     const fetchCertificates = async () => {
         setLoading(true);
+        console.log('=== FETCHING CERTIFICATES LIST ===');
+        console.log('API URL:', API_URL);
+        console.log('Has session:', !!session);
+        console.log('Has token:', !!session?.access_token);
+        
         try {
-            const response = await fetch(`${API_URL}/api/admin/certificates?limit=100`, {
+            const url = `${API_URL}/api/admin/certificates?limit=100`;
+            console.log('Fetching from:', url);
+            
+            const response = await fetch(url, {
                 headers: {
                     'Authorization': `Bearer ${session?.access_token}`,
                 },
             });
 
+            console.log('Response status:', response.status);
+            
             if (response.ok) {
                 const data = await response.json();
+                console.log('Certificates data:', data);
+                console.log('Number of certificates:', data.data?.length || data.certificates?.length || 0);
+                
                 // API returns { data: [...], pagination: {...} }
-                setCertificates(data.data || data.certificates || []);
+                const certs = data.data || data.certificates || [];
+                console.log('Certificates array:', certs);
+                
+                // Log first certificate to see structure
+                if (certs.length > 0) {
+                    console.log('First certificate:', certs[0]);
+                    console.log('First certificate ID:', certs[0].id);
+                }
+                
+                setCertificates(certs);
+            } else {
+                console.error('Failed to fetch certificates:', response.status);
             }
         } catch (error) {
             console.error('Error fetching certificates:', error);
@@ -167,14 +203,533 @@ export function CertificateListPage() {
         currentPage * itemsPerPage
     );
 
-    // Handle print certificate
+    // Handle print certificate - Open print modal (MVP simple approach)
     const handlePrint = (certificate) => {
-        window.open(`/certificates/${certificate.id}/print`, '_blank');
+        setSelectedCertificate(certificate);
+        setShowPrintModal(true);
     };
 
-    // Handle view certificate
+    // Handle view certificate - Open view modal (MVP simple approach)
     const handleView = (certificate) => {
-        window.open(`/certificates/${certificate.id}/view`, '_blank');
+        setSelectedCertificate(certificate);
+        setShowViewModal(true);
+    };
+
+    // Generate template-specific HTML for printing
+    const generateTemplateHTML = (cert, certType, category) => {
+        const formatDate = (dateStr) => {
+            if (!dateStr) return 'N/A';
+            return new Date(dateStr).toLocaleDateString('vi-VN', {
+                day: '2-digit', month: '2-digit', year: 'numeric'
+            });
+        };
+        
+        const formatDateEn = (dateStr) => {
+            if (!dateStr) return 'N/A';
+            return new Date(dateStr).toLocaleDateString('en-US', {
+                month: 'long', day: 'numeric', year: 'numeric'
+            });
+        };
+
+        // Template styles based on category
+        const templates = {
+            // TEMPLATE 1: Classic Gold (Language - Anh ngữ)
+            language: {
+                background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #fed7aa 100%)',
+                borderColor: '#d4af37',
+                titleFont: "'Cormorant Garamond', 'Times New Roman', serif",
+                primaryColor: '#92400e',
+                secondaryColor: '#b45309',
+                accentBg: 'linear-gradient(90deg, #fef3c7, #fffbeb, #fef3c7)',
+                sealColor: '#d4af37',
+                cornerStyle: 'ornate'
+            },
+            // TEMPLATE 2: Modern Blue (Office - Tin học)
+            office: {
+                background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #e0e7ff 100%)',
+                borderColor: '#3b82f6',
+                titleFont: "'Inter', 'Segoe UI', sans-serif",
+                primaryColor: '#1e40af',
+                secondaryColor: '#3b82f6',
+                accentBg: 'linear-gradient(90deg, #3b82f6, #06b6d4)',
+                sealColor: '#3b82f6',
+                cornerStyle: 'modern'
+            },
+            // TEMPLATE 3: Professional Purple (Programming - Lập trình)
+            programming: {
+                background: 'linear-gradient(135deg, #faf5ff 0%, #f3e8ff 50%, #ede9fe 100%)',
+                borderColor: '#7c3aed',
+                titleFont: "'JetBrains Mono', 'Consolas', monospace",
+                primaryColor: '#5b21b6',
+                secondaryColor: '#7c3aed',
+                accentBg: 'linear-gradient(90deg, #7c3aed, #a855f7)',
+                sealColor: '#7c3aed',
+                cornerStyle: 'tech'
+            },
+            // TEMPLATE 4: Elegant Warm (Soft Skills - Kỹ năng mềm)
+            soft_skill: {
+                background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 50%, #fed7aa 100%)',
+                borderColor: '#ea580c',
+                titleFont: "'Playfair Display', 'Georgia', serif",
+                primaryColor: '#c2410c',
+                secondaryColor: '#ea580c',
+                accentBg: 'linear-gradient(90deg, #fdba74, #fb923c, #fdba74)',
+                sealColor: '#ea580c',
+                cornerStyle: 'elegant'
+            }
+        };
+        
+        const t = templates[category] || templates.language;
+        
+        // Generate corner decorations based on style
+        const cornerDecorations = {
+            ornate: `
+                <div class="corner corner-tl">❧</div>
+                <div class="corner corner-tr">❧</div>
+                <div class="corner corner-bl">❧</div>
+                <div class="corner corner-br">❧</div>
+            `,
+            modern: `
+                <div class="corner-modern corner-tl"></div>
+                <div class="corner-modern corner-tr"></div>
+                <div class="corner-modern corner-bl"></div>
+                <div class="corner-modern corner-br"></div>
+            `,
+            tech: `
+                <div class="corner-tech corner-tl">&lt;/&gt;</div>
+                <div class="corner-tech corner-tr">&lt;/&gt;</div>
+                <div class="corner-tech corner-bl">&lt;/&gt;</div>
+                <div class="corner-tech corner-br">&lt;/&gt;</div>
+            `,
+            elegant: `
+                <div class="corner-elegant corner-tl">✦</div>
+                <div class="corner-elegant corner-tr">✦</div>
+                <div class="corner-elegant corner-bl">✦</div>
+                <div class="corner-elegant corner-br">✦</div>
+            `
+        };
+
+        return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Chứng chỉ - ${cert.certificate_number}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Great+Vibes&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        @page { size: A4 landscape; margin: 0; }
+        body { 
+            font-family: ${t.titleFont};
+            background: #f1f5f9;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .certificate {
+            width: 297mm;
+            height: 210mm;
+            background: ${t.background};
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+        }
+        /* Borders */
+        .border-outer {
+            position: absolute;
+            inset: 16px;
+            border: 4px double ${t.borderColor};
+            border-radius: 8px;
+            opacity: 0.7;
+        }
+        .border-inner {
+            position: absolute;
+            inset: 24px;
+            border: 2px solid ${t.borderColor};
+            border-radius: 4px;
+            opacity: 0.5;
+        }
+        .border-innermost {
+            position: absolute;
+            inset: 28px;
+            border: 1px solid ${t.borderColor};
+            border-radius: 2px;
+            opacity: 0.3;
+        }
+        /* Corner decorations */
+        .corner {
+            position: absolute;
+            font-size: 32px;
+            color: ${t.borderColor};
+            opacity: 0.8;
+        }
+        .corner-tl { top: 35px; left: 35px; transform: rotate(-45deg); }
+        .corner-tr { top: 35px; right: 35px; transform: rotate(45deg); }
+        .corner-bl { bottom: 35px; left: 35px; transform: rotate(-135deg); }
+        .corner-br { bottom: 35px; right: 35px; transform: rotate(135deg); }
+        .corner-modern {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border: 4px solid ${t.borderColor};
+        }
+        .corner-modern.corner-tl { top: 30px; left: 30px; border-right: none; border-bottom: none; border-radius: 8px 0 0 0; }
+        .corner-modern.corner-tr { top: 30px; right: 30px; border-left: none; border-bottom: none; border-radius: 0 8px 0 0; }
+        .corner-modern.corner-bl { bottom: 30px; left: 30px; border-right: none; border-top: none; border-radius: 0 0 0 8px; }
+        .corner-modern.corner-br { bottom: 30px; right: 30px; border-left: none; border-top: none; border-radius: 0 0 8px 0; }
+        .corner-tech {
+            position: absolute;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            color: ${t.borderColor};
+            opacity: 0.6;
+            padding: 8px;
+            border: 2px solid ${t.borderColor};
+            border-radius: 4px;
+        }
+        .corner-tech.corner-tl { top: 30px; left: 30px; }
+        .corner-tech.corner-tr { top: 30px; right: 30px; }
+        .corner-tech.corner-bl { bottom: 30px; left: 30px; }
+        .corner-tech.corner-br { bottom: 30px; right: 30px; }
+        .corner-elegant {
+            position: absolute;
+            font-size: 24px;
+            color: ${t.borderColor};
+            opacity: 0.7;
+        }
+        .corner-elegant.corner-tl { top: 40px; left: 40px; }
+        .corner-elegant.corner-tr { top: 40px; right: 40px; }
+        .corner-elegant.corner-bl { bottom: 40px; left: 40px; }
+        .corner-elegant.corner-br { bottom: 40px; right: 40px; }
+        /* Content */
+        .content {
+            position: relative;
+            height: 100%;
+            padding: 50px 80px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        .logo {
+            width: 70px;
+            height: 70px;
+            background: ${t.accentBg};
+            border-radius: ${category === 'office' ? '12px' : '50%'};
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+        .logo svg {
+            width: 40px;
+            height: 40px;
+            color: white;
+        }
+        .center-name {
+            font-size: 22px;
+            font-weight: 700;
+            color: ${t.primaryColor};
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .center-slogan {
+            font-size: 12px;
+            color: ${t.secondaryColor};
+            letter-spacing: 0.15em;
+            margin-bottom: 20px;
+        }
+        .cert-type {
+            font-size: 14px;
+            color: #64748b;
+            font-style: italic;
+            margin-bottom: 8px;
+        }
+        .title {
+            font-size: 42px;
+            font-weight: 700;
+            color: ${t.primaryColor};
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .title-sub {
+            font-size: 16px;
+            color: #64748b;
+            margin-bottom: 20px;
+        }
+        .recipient-intro {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 8px;
+        }
+        .recipient-name {
+            font-family: 'Great Vibes', cursive;
+            font-size: 42px;
+            color: #1e293b;
+            margin-bottom: 8px;
+            padding: 8px 40px;
+            border-top: 2px solid ${t.borderColor}40;
+            border-bottom: 2px solid ${t.borderColor}40;
+        }
+        .course-intro {
+            font-size: 14px;
+            color: #64748b;
+            margin: 16px 0 8px;
+        }
+        .course-name {
+            font-size: 24px;
+            font-weight: 700;
+            color: ${t.primaryColor};
+            margin-bottom: 4px;
+        }
+        .provider {
+            font-size: 13px;
+            color: #64748b;
+        }
+        .grade-badge {
+            display: inline-block;
+            margin: 16px 0;
+            padding: 10px 32px;
+            background: ${t.accentBg};
+            border: 2px solid ${t.borderColor}80;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: 600;
+            color: ${t.primaryColor};
+        }
+        .details {
+            display: flex;
+            justify-content: center;
+            gap: 50px;
+            margin: 16px 0;
+            font-size: 13px;
+            color: #475569;
+        }
+        .detail-item {
+            text-align: center;
+        }
+        .detail-label {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-bottom: 2px;
+        }
+        .detail-value {
+            font-weight: 600;
+            color: #334155;
+            font-family: ${category === 'programming' ? "'JetBrains Mono', monospace" : 'inherit'};
+        }
+        .signatures {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 600px;
+            margin-top: 24px;
+        }
+        .signature {
+            text-align: center;
+            min-width: 180px;
+        }
+        .sig-line {
+            width: 160px;
+            height: 48px;
+            border-bottom: 2px solid #64748b;
+            margin: 0 auto 8px;
+        }
+        .sig-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: #334155;
+        }
+        .sig-title {
+            font-size: 11px;
+            color: #64748b;
+        }
+        /* Seal */
+        .seal {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 80px;
+            border: 3px double ${t.sealColor};
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 700;
+            color: ${t.sealColor};
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        /* QR Code placeholder */
+        .qr-section {
+            position: absolute;
+            bottom: 30px;
+            right: 40px;
+            text-align: center;
+        }
+        .qr-code {
+            width: 60px;
+            height: 60px;
+            border: 2px solid ${t.borderColor}60;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #94a3b8;
+        }
+        .qr-label {
+            font-size: 10px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+        /* Print button */
+        .print-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 24px;
+            background: ${t.primaryColor};
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            z-index: 1000;
+            font-family: system-ui, sans-serif;
+        }
+        .print-btn:hover { opacity: 0.9; }
+        @media print {
+            body { padding: 0; background: white; }
+            .print-btn { display: none; }
+            .certificate { box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+    <button class="print-btn" onclick="window.print()">🖨️ In chứng chỉ</button>
+    <div class="certificate">
+        <div class="border-outer"></div>
+        <div class="border-inner"></div>
+        <div class="border-innermost"></div>
+        ${cornerDecorations[t.cornerStyle]}
+        
+        <div class="content">
+            <!-- Logo -->
+            <div class="logo">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M12 15l-2 5l9 -4l-9 4l-2 -5m4 0a7 7 0 1 0 0 -14a7 7 0 0 0 0 14" />
+                </svg>
+            </div>
+            
+            <!-- Header -->
+            <div class="center-name">Skill Master</div>
+            <div class="center-slogan">${
+                category === 'language' ? 'Language Training & Education Center' :
+                category === 'office' ? 'Digital Skills Training Center' :
+                category === 'programming' ? 'Technology & Development Academy' :
+                'Professional Development Institute'
+            }</div>
+            
+            <!-- Title -->
+            <div class="cert-type">proudly presents this</div>
+            <div class="title">Certificate</div>
+            <div class="title-sub">of ${certType?.is_external ? 'Achievement' : 'Completion'}</div>
+            
+            <!-- Recipient -->
+            <div class="recipient-intro">This is to certify that</div>
+            <div class="recipient-name">${cert.student_name || 'N/A'}</div>
+            
+            <!-- Course -->
+            <div class="course-intro">has successfully completed the requirements for</div>
+            <div class="course-name">${certType?.name || cert.course_name || 'N/A'}</div>
+            ${certType?.provider ? `<div class="provider">Certified by: ${certType.provider}</div>` : ''}
+            
+            <!-- Grade -->
+            ${cert.grade ? `<div class="grade-badge">Grade: ${cert.grade.toUpperCase()}</div>` : ''}
+            
+            <!-- Details -->
+            <div class="details">
+                <div class="detail-item">
+                    <div class="detail-label">Certificate No.</div>
+                    <div class="detail-value">${cert.certificate_number}</div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">Completion Date</div>
+                    <div class="detail-value">${formatDateEn(cert.completion_date)}</div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">Issue Date</div>
+                    <div class="detail-value">${formatDateEn(cert.issued_at)}</div>
+                </div>
+            </div>
+            
+            <!-- Signatures -->
+            <div class="signatures">
+                <div class="signature">
+                    <div class="sig-line"></div>
+                    <div class="sig-name">Center Director</div>
+                    <div class="sig-title">Authorized Signature</div>
+                </div>
+                <div class="signature">
+                    <div class="sig-line"></div>
+                    <div class="sig-name">Academic Director</div>
+                    <div class="sig-title">Authorized Signature</div>
+                </div>
+            </div>
+            
+            <!-- Seal -->
+            <div class="seal">OFFICIAL</div>
+        </div>
+        
+        <!-- QR Code -->
+        <div class="qr-section">
+            <div class="qr-code">QR</div>
+            <div class="qr-label">Scan to verify</div>
+        </div>
+    </div>
+</body>
+</html>`;
+    };
+
+    // Print certificate using popup window
+    const doPrint = () => {
+        if (!selectedCertificate) return;
+        
+        const printWindow = window.open('', '_blank', 'width=1200,height=800');
+        if (!printWindow) {
+            alert('Vui lòng cho phép popup để in chứng chỉ');
+            return;
+        }
+
+        const cert = selectedCertificate;
+        const certType = cert.certificate_type || {};
+        const category = certType.category || 'language';
+        
+        const html = generateTemplateHTML(cert, certType, category);
+        
+        printWindow.document.write(html);
+        printWindow.document.close();
+    };
+
+    // Copy certificate number
+    const copyCode = () => {
+        if (selectedCertificate) {
+            navigator.clipboard.writeText(selectedCertificate.certificate_number);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }
     };
 
     // Handle revoke certificate
@@ -506,6 +1061,178 @@ export function CertificateListPage() {
                             <ChevronsRight className="h-4 w-4" />
                         </Button>
                     </div>
+                </div>
+            )}
+
+            {/* View Certificate Modal - MVP Simple */}
+            {showViewModal && selectedCertificate && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setShowViewModal(false)}>
+                    <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                            <CardTitle className="flex items-center gap-2">
+                                <Award className="h-5 w-5 text-blue-600" />
+                                Chi tiết chứng chỉ
+                            </CardTitle>
+                            <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => setShowViewModal(false)}
+                                className="h-8 w-8 p-0"
+                            >
+                                <X className="h-4 w-4" />
+                            </Button>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {/* Certificate Number */}
+                            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                                <div>
+                                    <p className="text-sm text-slate-500">Số hiệu chứng chỉ</p>
+                                    <p className="font-mono font-bold text-lg text-slate-900">
+                                        {selectedCertificate.certificate_number}
+                                    </p>
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={copyCode}
+                                    className="gap-2"
+                                >
+                                    {copied ? (
+                                        <>
+                                            <Check className="h-4 w-4 text-green-500" />
+                                            Đã copy
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Copy className="h-4 w-4" />
+                                            Copy
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
+
+                            {/* Info Grid */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <p className="text-sm text-slate-500">Học viên</p>
+                                    <p className="font-medium text-slate-900">{selectedCertificate.student_name}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-sm text-slate-500">Khóa học/Loại chứng chỉ</p>
+                                    <p className="font-medium text-slate-900">
+                                        {selectedCertificate.course_name || selectedCertificate.certificate_type?.name || '-'}
+                                    </p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-sm text-slate-500">Xếp loại</p>
+                                    <p className="font-medium text-slate-900">{selectedCertificate.grade || '-'}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-sm text-slate-500">Ngày cấp</p>
+                                    <p className="font-medium text-slate-900">
+                                        {selectedCertificate.issued_at ? formatDate(selectedCertificate.issued_at) : '-'}
+                                    </p>
+                                </div>
+                                {selectedCertificate.completion_date && (
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-slate-500">Ngày hoàn thành</p>
+                                        <p className="font-medium text-slate-900">
+                                            {formatDate(selectedCertificate.completion_date)}
+                                        </p>
+                                    </div>
+                                )}
+                                {selectedCertificate.expiry_date && (
+                                    <div className="space-y-1">
+                                        <p className="text-sm text-slate-500">Hiệu lực đến</p>
+                                        <p className="font-medium text-slate-900">
+                                            {formatDate(selectedCertificate.expiry_date)}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Scores if available */}
+                            {selectedCertificate.scores && Object.keys(selectedCertificate.scores).length > 0 && (
+                                <div className="p-4 bg-blue-50 rounded-lg">
+                                    <p className="text-sm text-blue-600 font-medium mb-2">Điểm số chi tiết</p>
+                                    <div className="grid grid-cols-3 gap-2 text-sm">
+                                        {Object.entries(selectedCertificate.scores).map(([key, value]) => (
+                                            <div key={key} className="flex justify-between">
+                                                <span className="text-slate-600 capitalize">{key}:</span>
+                                                <span className="font-medium">{value}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Status */}
+                            <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg">
+                                <CheckCircle className="h-5 w-5 text-green-600" />
+                                <span className="text-green-700 font-medium">
+                                    {STATUS_CONFIG[selectedCertificate.status]?.label || 'Đang hiệu lực'}
+                                </span>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex justify-end gap-2 pt-4 border-t">
+                                <Button variant="outline" onClick={() => setShowViewModal(false)}>
+                                    Đóng
+                                </Button>
+                                <Button onClick={() => { setShowViewModal(false); handlePrint(selectedCertificate); }}>
+                                    <Printer className="h-4 w-4 mr-2" />
+                                    In chứng chỉ
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
+
+            {/* Print Certificate Modal - MVP Simple */}
+            {showPrintModal && selectedCertificate && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setShowPrintModal(false)}>
+                    <Card className="max-w-md w-full bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                            <CardTitle className="flex items-center gap-2">
+                                <Printer className="h-5 w-5 text-blue-600" />
+                                In chứng chỉ
+                            </CardTitle>
+                            <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => setShowPrintModal(false)}
+                                className="h-8 w-8 p-0"
+                            >
+                                <X className="h-4 w-4" />
+                            </Button>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <p className="text-slate-600">
+                                Bạn muốn in chứng chỉ <strong>{selectedCertificate.certificate_number}</strong> 
+                                của học viên <strong>{selectedCertificate.student_name}</strong>?
+                            </p>
+                            
+                            <div className="bg-slate-50 p-4 rounded-lg text-sm text-slate-600">
+                                <p className="font-medium text-slate-900 mb-2">Thông tin in:</p>
+                                <ul className="list-disc list-inside space-y-1">
+                                    <li>Kích thước: A4 ngang (Landscape)</li>
+                                    <li>Nên dùng giấy dày để in đẹp hơn</li>
+                                    <li>Có thể in màu hoặc đen trắng</li>
+                                </ul>
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-4 border-t">
+                                <Button variant="outline" onClick={() => setShowPrintModal(false)}>
+                                    Hủy
+                                </Button>
+                                <Button onClick={doPrint} className="gap-2">
+                                    <Printer className="h-4 w-4" />
+                                    Mở cửa sổ in
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
             )}
         </div>
