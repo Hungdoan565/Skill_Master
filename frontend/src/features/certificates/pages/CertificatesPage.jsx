@@ -176,7 +176,7 @@ const CertificateTypeCard = ({ type, onClick, viewMode = 'grid' }) => {
                 <div className={`h-10 w-10 rounded-lg ${config.bgLight} flex items-center justify-center flex-shrink-0`}>
                     <Icon className={`h-5 w-5 ${config.textColor}`} />
                 </div>
-                
+
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                         <h3 className="font-medium text-slate-900 truncate">{type.name}</h3>
@@ -281,7 +281,7 @@ const CategorySection = ({ category, types, config, onTypeClick, viewMode, defau
     return (
         <div className="border rounded-xl overflow-hidden bg-white shadow-sm">
             {/* Category Header - Clickable */}
-            <div 
+            <div
                 className="flex items-center gap-3 p-4 cursor-pointer hover:bg-slate-50 transition-colors"
                 style={{ borderLeft: `4px solid ${config.borderColor}` }}
                 onClick={() => setIsExpanded(!isExpanded)}
@@ -413,7 +413,7 @@ export function CertificatesPage() {
             category: cat,
             totalStudents: groups[cat].reduce((sum, t) => sum + (t.stats?.total || 0), 0)
         }));
-        
+
         // Sort by total students desc, then by predefined order
         categoriesWithStats.sort((a, b) => {
             if (b.totalStudents !== a.totalStudents) {
@@ -575,11 +575,10 @@ export function CertificatesPage() {
                         {/* Toggle: Show only with students */}
                         <button
                             onClick={() => setShowOnlyWithStudents(!showOnlyWithStudents)}
-                            className={`flex items-center gap-2 px-3 py-2 border rounded-lg text-sm font-medium transition-colors ${
-                                showOnlyWithStudents
+                            className={`flex items-center gap-2 px-3 py-2 border rounded-lg text-sm font-medium transition-colors ${showOnlyWithStudents
                                     ? 'bg-green-50 border-green-200 text-green-700'
                                     : 'bg-white text-slate-600 hover:bg-slate-50'
-                            }`}
+                                }`}
                             title={showOnlyWithStudents ? 'Hiện tất cả' : 'Chỉ hiện chứng chỉ có học viên'}
                         >
                             {showOnlyWithStudents ? (
