@@ -1,11 +1,12 @@
 /**
- * CertificatesPage - Trang quản lý chứng chỉ (Redesigned)
+ * CertificatesPage - Trang quản lý chứng chỉ (Redesigned v2)
  * 
  * Features:
- * - Hiển thị loại chứng chỉ dạng card (IELTS, TOEIC, MOS, Internal...)
- * - Thống kê số lượng học viên đạt
- * - Click vào loại để xem danh sách chi tiết
- * - Tạo chứng chỉ mới với Wizard multi-step
+ * - Hiển thị loại chứng chỉ dạng compact
+ * - Sắp xếp theo số học viên đạt (nhiều nhất lên đầu)
+ * - Thu gọn/mở rộng từng category
+ * - Filter chỉ hiển thị chứng chỉ có học viên
+ * - View mode: Grid / List
  */
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
@@ -15,6 +16,8 @@ import {
     Search,
     Plus,
     ChevronRight,
+    ChevronDown,
+    ChevronUp,
     CheckCircle,
     Loader2,
     Building2,
@@ -30,6 +33,11 @@ import {
     Shield,
     QrCode,
     Printer,
+    LayoutGrid,
+    List,
+    SortDesc,
+    Eye,
+    EyeOff,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -152,11 +160,51 @@ const StatsOverviewCard = ({ totalTypes, totalIssued, last30Days, topType }) => 
     </div>
 );
 
-// Certificate Type Card
-const CertificateTypeCard = ({ type, onClick }) => {
+// Certificate Type Card - Compact Version
+const CertificateTypeCard = ({ type, onClick, viewMode = 'grid' }) => {
     const config = CATEGORY_CONFIG[type.category] || CATEGORY_CONFIG.other;
     const Icon = config.icon;
+    const studentCount = type.stats?.total || 0;
 
+    if (viewMode === 'list') {
+        // List view - more compact
+        return (
+            <div
+                className="flex items-center gap-4 p-3 bg-white rounded-lg border hover:shadow-md hover:border-indigo-300 cursor-pointer transition-all group"
+                onClick={onClick}
+            >
+                <div className={`h-10 w-10 rounded-lg ${config.bgLight} flex items-center justify-center flex-shrink-0`}>
+                    <Icon className={`h-5 w-5 ${config.textColor}`} />
+                </div>
+                
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                        <h3 className="font-medium text-slate-900 truncate">{type.name}</h3>
+                        {type.is_external ? (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-blue-600 border-blue-200">Ngoài</Badge>
+                        ) : (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-green-600 border-green-200">Nội bộ</Badge>
+                        )}
+                    </div>
+                    {type.provider && (
+                        <p className="text-xs text-slate-500 truncate">{type.provider}</p>
+                    )}
+                </div>
+
+                <div className="flex items-center gap-4 flex-shrink-0">
+                    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full ${studentCount > 0 ? 'bg-green-50' : 'bg-slate-50'}`}>
+                        <Users className={`h-3.5 w-3.5 ${studentCount > 0 ? 'text-green-600' : 'text-slate-400'}`} />
+                        <span className={`text-sm font-semibold ${studentCount > 0 ? 'text-green-700' : 'text-slate-500'}`}>
+                            {studentCount}
+                        </span>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" />
+                </div>
+            </div>
+        );
+    }
+
+    // Grid view - card style
     return (
         <Card
             className="hover:shadow-lg transition-all cursor-pointer group border-l-4 hover:scale-[1.02]"
@@ -205,32 +253,77 @@ const CertificateTypeCard = ({ type, onClick }) => {
                             )}
 
                             <div className="flex items-center gap-3">
-                                <div className="flex items-center gap-1 text-xs">
-                                    <Users className="h-3.5 w-3.5 text-slate-400" />
-                                    <span className="font-medium text-slate-700">
-                                        {type.stats?.total || 0}
+                                <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${studentCount > 0 ? 'bg-green-50' : 'bg-slate-50'}`}>
+                                    <Users className={`h-3.5 w-3.5 ${studentCount > 0 ? 'text-green-500' : 'text-slate-400'}`} />
+                                    <span className={`font-semibold ${studentCount > 0 ? 'text-green-700' : 'text-slate-500'}`}>
+                                        {studentCount}
                                     </span>
                                     <span className="text-slate-500">học viên</span>
                                 </div>
-
-                                <Badge className={`text-xs ${config.bgLight} ${config.textColor} font-normal`}>
-                                    {config.label}
-                                </Badge>
                             </div>
                         </div>
                     </div>
 
                     <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all flex-shrink-0" />
                 </div>
-
-                {/* Description - Shorter */}
-                {type.description && (
-                    <p className="text-xs text-slate-500 mt-2 line-clamp-1 ml-15">
-                        {type.description}
-                    </p>
-                )}
             </CardContent>
         </Card>
+    );
+};
+
+// Collapsible Category Section
+const CategorySection = ({ category, types, config, onTypeClick, viewMode, defaultExpanded = true }) => {
+    const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+    const CategoryIcon = config.icon;
+    const totalStudents = types.reduce((sum, t) => sum + (t.stats?.total || 0), 0);
+    const activeTypes = types.filter(t => t.stats?.total > 0).length;
+
+    return (
+        <div className="border rounded-xl overflow-hidden bg-white shadow-sm">
+            {/* Category Header - Clickable */}
+            <div 
+                className="flex items-center gap-3 p-4 cursor-pointer hover:bg-slate-50 transition-colors"
+                style={{ borderLeft: `4px solid ${config.borderColor}` }}
+                onClick={() => setIsExpanded(!isExpanded)}
+            >
+                <div className={`p-2 rounded-lg ${config.bgLight}`}>
+                    <CategoryIcon className={`h-5 w-5 ${config.textColor}`} />
+                </div>
+                <div className="flex-1">
+                    <h2 className="text-lg font-bold text-slate-900">{config.label}</h2>
+                    <p className="text-xs text-slate-500">
+                        {types.length} loại • {activeTypes} có học viên • Tổng: {totalStudents} học viên
+                    </p>
+                </div>
+                <div className="flex items-center gap-3">
+                    {totalStudents > 0 && (
+                        <Badge className="bg-green-100 text-green-700 border-0">
+                            <Users className="h-3 w-3 mr-1" />
+                            {totalStudents}
+                        </Badge>
+                    )}
+                    {isExpanded ? (
+                        <ChevronUp className="h-5 w-5 text-slate-400" />
+                    ) : (
+                        <ChevronDown className="h-5 w-5 text-slate-400" />
+                    )}
+                </div>
+            </div>
+
+            {/* Category Content */}
+            {isExpanded && (
+                <div className={`p-4 pt-0 ${viewMode === 'list' ? 'space-y-2' : 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3'}`}>
+                    {types.map(type => (
+                        <CertificateTypeCard
+                            key={type.id}
+                            type={type}
+                            onClick={() => onTypeClick(type)}
+                            viewMode={viewMode}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
     );
 };
 
@@ -244,6 +337,8 @@ export function CertificatesPage() {
     const [categoryFilter, setCategoryFilter] = useState('');
     const [typeFilter, setTypeFilter] = useState('all'); // all, external, internal
     const [wizardOpen, setWizardOpen] = useState(false);
+    const [viewMode, setViewMode] = useState('list'); // 'grid' or 'list'
+    const [showOnlyWithStudents, setShowOnlyWithStudents] = useState(false);
 
     // Hooks
     const {
@@ -288,10 +383,15 @@ export function CertificatesPage() {
             result = result.filter(t => t.is_internal && !t.is_external);
         }
 
-        return result;
-    }, [certificateTypes, searchTerm, categoryFilter, typeFilter]);
+        // Filter by has students
+        if (showOnlyWithStudents) {
+            result = result.filter(t => (t.stats?.total || 0) > 0);
+        }
 
-    // Group certificates by category
+        return result;
+    }, [certificateTypes, searchTerm, categoryFilter, typeFilter, showOnlyWithStudents]);
+
+    // Group certificates by category - SORTED BY POPULARITY
     const groupedTypes = useMemo(() => {
         const groups = {};
         filteredTypes.forEach(type => {
@@ -302,12 +402,30 @@ export function CertificatesPage() {
             groups[category].push(type);
         });
 
-        // Sort categories by predefined order
+        // Sort by popularity (number of students) within each category
+        Object.keys(groups).forEach(category => {
+            groups[category].sort((a, b) => (b.stats?.total || 0) - (a.stats?.total || 0));
+        });
+
+        // Sort categories by total students first, then by predefined order
         const categoryOrder = ['language', 'office', 'programming', 'soft_skill', 'other'];
+        const categoriesWithStats = Object.keys(groups).map(cat => ({
+            category: cat,
+            totalStudents: groups[cat].reduce((sum, t) => sum + (t.stats?.total || 0), 0)
+        }));
+        
+        // Sort by total students desc, then by predefined order
+        categoriesWithStats.sort((a, b) => {
+            if (b.totalStudents !== a.totalStudents) {
+                return b.totalStudents - a.totalStudents;
+            }
+            return categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category);
+        });
+
         const sortedGroups = {};
-        categoryOrder.forEach(cat => {
-            if (groups[cat] && groups[cat].length > 0) {
-                sortedGroups[cat] = groups[cat];
+        categoriesWithStats.forEach(({ category }) => {
+            if (groups[category] && groups[category].length > 0) {
+                sortedGroups[category] = groups[category];
             }
         });
 
@@ -429,11 +547,53 @@ export function CertificatesPage() {
                                 Nội bộ
                             </button>
                         </div>
+
+                        {/* View Mode Toggle */}
+                        <div className="flex rounded-lg border overflow-hidden bg-white">
+                            <button
+                                onClick={() => setViewMode('grid')}
+                                className={`px-3 py-2 transition-colors ${viewMode === 'grid'
+                                    ? 'bg-slate-100 text-slate-900'
+                                    : 'bg-white text-slate-500 hover:bg-slate-50'
+                                    }`}
+                                title="Xem dạng lưới"
+                            >
+                                <LayoutGrid className="h-4 w-4" />
+                            </button>
+                            <button
+                                onClick={() => setViewMode('list')}
+                                className={`px-3 py-2 transition-colors border-l ${viewMode === 'list'
+                                    ? 'bg-slate-100 text-slate-900'
+                                    : 'bg-white text-slate-500 hover:bg-slate-50'
+                                    }`}
+                                title="Xem dạng danh sách"
+                            >
+                                <List className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        {/* Toggle: Show only with students */}
+                        <button
+                            onClick={() => setShowOnlyWithStudents(!showOnlyWithStudents)}
+                            className={`flex items-center gap-2 px-3 py-2 border rounded-lg text-sm font-medium transition-colors ${
+                                showOnlyWithStudents
+                                    ? 'bg-green-50 border-green-200 text-green-700'
+                                    : 'bg-white text-slate-600 hover:bg-slate-50'
+                            }`}
+                            title={showOnlyWithStudents ? 'Hiện tất cả' : 'Chỉ hiện chứng chỉ có học viên'}
+                        >
+                            {showOnlyWithStudents ? (
+                                <Eye className="h-4 w-4" />
+                            ) : (
+                                <EyeOff className="h-4 w-4" />
+                            )}
+                            <span className="hidden sm:inline">Có học viên</span>
+                        </button>
                     </div>
                 </CardContent>
             </Card>
 
-            {/* Certificate Types Grid - 3 columns on large screens */}
+            {/* Certificate Types - Collapsible by Category */}
             {loading ? (
                 <div className="flex items-center justify-center py-12">
                     <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
@@ -443,7 +603,7 @@ export function CertificatesPage() {
                     <CardContent className="py-12 text-center">
                         <Award className="h-12 w-12 mx-auto mb-4 text-slate-300" />
                         <p className="text-slate-500">Không tìm thấy loại chứng chỉ nào</p>
-                        {searchTerm && (
+                        {(searchTerm || showOnlyWithStudents) && (
                             <Button
                                 variant="outline"
                                 className="mt-4"
@@ -451,6 +611,7 @@ export function CertificatesPage() {
                                     setSearchTerm('');
                                     setCategoryFilter('');
                                     setTypeFilter('all');
+                                    setShowOnlyWithStudents(false);
                                 }}
                             >
                                 Xóa bộ lọc
@@ -460,12 +621,18 @@ export function CertificatesPage() {
                 </Card>
             ) : (
                 <div>
-                    {/* Result count */}
+                    {/* Result count with sort indicator */}
                     <div className="flex items-center justify-between mb-4">
-                        <p className="text-sm text-slate-500">
-                            Hiển thị <span className="font-medium text-slate-700">{filteredTypes.length}</span> loại chứng chỉ
-                        </p>
-                        {(searchTerm || categoryFilter || typeFilter !== 'all') && (
+                        <div className="flex items-center gap-2">
+                            <p className="text-sm text-slate-500">
+                                Hiển thị <span className="font-medium text-slate-700">{filteredTypes.length}</span> loại chứng chỉ
+                            </p>
+                            <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                                <SortDesc className="h-3 w-3 mr-1" />
+                                Sắp xếp theo học viên
+                            </Badge>
+                        </div>
+                        {(searchTerm || categoryFilter || typeFilter !== 'all' || showOnlyWithStudents) && (
                             <Button
                                 variant="ghost"
                                 size="sm"
@@ -473,6 +640,7 @@ export function CertificatesPage() {
                                     setSearchTerm('');
                                     setCategoryFilter('');
                                     setTypeFilter('all');
+                                    setShowOnlyWithStudents(false);
                                 }}
                             >
                                 <X className="h-4 w-4 mr-1" />
@@ -481,39 +649,20 @@ export function CertificatesPage() {
                         )}
                     </div>
 
-                    {/* Grouped by Category */}
-                    <div className="space-y-6">
-                        {Object.entries(groupedTypes).map(([category, types]) => {
+                    {/* Grouped by Category - Using CategorySection component */}
+                    <div className="space-y-4">
+                        {Object.entries(groupedTypes).map(([category, types], index) => {
                             const config = CATEGORY_CONFIG[category] || CATEGORY_CONFIG.other;
-                            const CategoryIcon = config.icon;
-
                             return (
-                                <div key={category} className="space-y-3">
-                                    {/* Category Header */}
-                                    <div className="flex items-center gap-3 pb-2 border-b-2" style={{ borderColor: config.borderColor }}>
-                                        <div className={`p-2 rounded-lg ${config.bgLight}`}>
-                                            <CategoryIcon className={`h-5 w-5 ${config.textColor}`} />
-                                        </div>
-                                        <div className="flex-1">
-                                            <h2 className="text-lg font-bold text-slate-900">{config.label}</h2>
-                                            <p className="text-xs text-slate-500">{types.length} loại chứng chỉ</p>
-                                        </div>
-                                        <Badge variant="outline" className={`${config.bgLight} ${config.textColor}`}>
-                                            {types.filter(t => t.stats?.total > 0).length} đang sử dụng
-                                        </Badge>
-                                    </div>
-
-                                    {/* Category Grid */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                                        {types.map(type => (
-                                            <CertificateTypeCard
-                                                key={type.id}
-                                                type={type}
-                                                onClick={() => handleTypeClick(type)}
-                                            />
-                                        ))}
-                                    </div>
-                                </div>
+                                <CategorySection
+                                    key={category}
+                                    category={category}
+                                    types={types}
+                                    config={config}
+                                    onTypeClick={handleTypeClick}
+                                    viewMode={viewMode}
+                                    defaultExpanded={index < 2} // First 2 categories expanded by default
+                                />
                             );
                         })}
                     </div>
