@@ -263,9 +263,9 @@ export const HeroSection = () => {
                                     </div>
                                 </div>
 
-                                {/* Floating Elements */}
-                                <div className="absolute -top-4 -right-4 p-4 bg-white rounded-2xl shadow-xl 
-                             border border-stone-100 animate-float">
+                                {/* Floating Elements - Repositioned to avoid obscuring content */}
+                                <div className="absolute top-20 -right-12 p-4 bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl 
+                             border border-stone-100 animate-float z-20 hidden lg:block">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
                                             <CheckCircle2 className="w-5 h-5 text-green-600" />
@@ -277,15 +277,15 @@ export const HeroSection = () => {
                                     </div>
                                 </div>
 
-                                <div className="absolute -bottom-4 -left-4 p-4 bg-white rounded-2xl shadow-xl 
-                             border border-stone-100 animate-float-delayed">
+                                <div className="absolute bottom-28 -left-12 p-4 bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl 
+                             border border-stone-100 animate-float-delayed z-20 hidden lg:block">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-                                            <Award className="w-5 h-5 text-purple-600" />
+                                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                            <FileText className="w-5 h-5 text-blue-600" />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-semibold text-zinc-900">{heroCourseCard.classRank}</p>
-                                            <p className="text-xs text-zinc-500">trong lớp</p>
+                                            <p className="text-sm font-semibold text-zinc-900">128+</p>
+                                            <p className="text-xs text-zinc-500">bài tập đã làm</p>
                                         </div>
                                     </div>
                                 </div>
