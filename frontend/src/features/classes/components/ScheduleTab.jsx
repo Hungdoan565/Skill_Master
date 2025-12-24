@@ -15,13 +15,16 @@ import {
   List,
   LayoutGrid,
   CalendarDays,
-  Plus
+  Plus,
+  Download
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatScheduleDisplay } from '../utils';
 import { ClassCalendarView } from './ClassCalendarView';
 import { WeeklyCalendarView } from './WeeklyCalendarView';
+import { SessionsListSkeleton } from './Skeleton';
+import { exportAttendanceToExcel } from '../utils/exportUtils';
 
 // View mode storage key
 const VIEW_MODE_KEY = 'skill_master_schedule_view_mode';
@@ -31,6 +34,8 @@ export function ScheduleTab({
   sessionsInfo,
   loading,
   classSchedule,
+  classInfo,
+  students,
   onAttendanceClick,
   onCreateSessions // New prop for creating sessions
 }) {
@@ -71,6 +76,20 @@ export function ScheduleTab({
     }));
   }, [sessions]);
 
+  // Export attendance handler
+  const handleExportAttendance = () => {
+    try {
+      exportAttendanceToExcel({
+        sessions,
+        students: students || [],
+        classInfo
+      });
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert(error.message || 'Xuất dữ liệu thất bại');
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -81,11 +100,12 @@ export function ScheduleTab({
         viewMode={viewMode}
         onViewModeChange={handleViewModeChange}
         onCreateSessions={onCreateSessions}
+        onExportAttendance={sessions?.length > 0 ? handleExportAttendance : null}
       />
 
       {/* Content */}
       {loading ? (
-        <LoadingState />
+        <SessionsListSkeleton count={5} />
       ) : sessions.length === 0 ? (
         <EmptyState onCreateSessions={onCreateSessions} />
       ) : (
@@ -111,7 +131,7 @@ export function ScheduleTab({
 }
 
 // Sub-components
-function Header({ schedule, total, completed, viewMode, onViewModeChange, onCreateSessions }) {
+function Header({ schedule, total, completed, viewMode, onViewModeChange, onCreateSessions, onExportAttendance }) {
   const progressPercent = total ? (completed / total * 100) : 0;
 
   return (
@@ -182,6 +202,19 @@ function Header({ schedule, total, completed, viewMode, onViewModeChange, onCrea
             >
               <Plus className="w-4 h-4 mr-1" />
               Tạo nhiều buổi
+            </Button>
+          )}
+
+          {/* Export Attendance Button */}
+          {onExportAttendance && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onExportAttendance}
+              className="whitespace-nowrap text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+            >
+              <Download className="w-4 h-4 mr-1" />
+              Xuất Excel
             </Button>
           )}
         </div>
@@ -255,6 +288,14 @@ function SessionItem({ session, onAttendanceClick }) {
   const isUpcoming = session.status === 'upcoming';
   const hasAttendance = session.is_marked;
 
+  // Check if session is in the future (cannot mark attendance)
+  const sessionDate = new Date(session.date);
+  sessionDate.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const isFutureSession = sessionDate > today;
+  const canMarkAttendance = !isFutureSession && session.status !== 'cancelled';
+
   const containerClass = isToday
     ? 'bg-indigo-50 border-indigo-200 ring-2 ring-indigo-500/20'
     : isCompleted
@@ -320,8 +361,13 @@ function SessionItem({ session, onAttendanceClick }) {
         )}
 
         {/* Status Badge or Action Button */}
-        {isUpcoming && !isToday ? (
-          <Badge className="bg-blue-50 text-blue-600 border border-blue-200">Sắp tới</Badge>
+        {isFutureSession && !isToday ? (
+          <div className="flex items-center gap-2">
+            <Badge className="bg-blue-50 text-blue-600 border border-blue-200">Sắp tới</Badge>
+            <span className="text-xs text-slate-400" title="Chỉ điểm danh được buổi đã học">
+              (Chưa thể điểm danh)
+            </span>
+          </div>
         ) : (
           <Button
             size="sm"
@@ -329,7 +375,9 @@ function SessionItem({ session, onAttendanceClick }) {
               ? 'bg-slate-600 hover:bg-slate-700'
               : 'bg-indigo-600 hover:bg-indigo-700'
               } text-white`}
-            onClick={() => onAttendanceClick(session)}
+            onClick={() => canMarkAttendance && onAttendanceClick(session)}
+            disabled={!canMarkAttendance}
+            title={!canMarkAttendance ? 'Chỉ điểm danh được buổi đã học' : ''}
           >
             <ClipboardCheck className="w-4 h-4 mr-1.5" />
             {hasAttendance ? 'Xem/Sửa' : 'Điểm danh'}

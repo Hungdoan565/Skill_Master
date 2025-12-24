@@ -27,6 +27,7 @@ export function useClassesList() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [error, setError] = useState(null);
   const isMounted = useRef(true);
 
   // Cleanup on unmount
@@ -106,12 +107,20 @@ export function useClassesList() {
       if (response.data?.success) {
         const newData = response.data.data;
         setClasses(newData);
+        setError(null);
 
         // ====== SAVE TO CACHE ======
         cache.set(cacheKey, newData, CACHE_TTL.SHORT);
       }
-    } catch (error) {
-      console.error('Error fetching classes:', error);
+    } catch (err) {
+      console.error('Error fetching classes:', err);
+      if (isMounted.current) {
+        setError({
+          type: 'network',
+          message: err.response?.data?.message || 'Không thể kết nối đến server. Vui lòng thử lại.',
+          retry: () => fetchClasses(serverFilters, { skipCache: true })
+        });
+      }
     } finally {
       if (isMounted.current) {
         setLoading(false);
@@ -253,11 +262,17 @@ export function useClassesList() {
     setSelectedIds([]);
   }, []);
 
+  // Clear error
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
   return {
     classes,
     loading,
     refreshing,
     selectedIds,
+    error,
     fetchClasses,
     refreshClasses,
     deleteClass,
@@ -265,7 +280,8 @@ export function useClassesList() {
     filterClasses,
     toggleSelectItem,
     toggleSelectAll,
-    clearSelection
+    clearSelection,
+    clearError
   };
 }
 

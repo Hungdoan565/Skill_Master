@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar } from './Avatar';
+import { GradesTableSkeleton } from './Skeleton';
 import { GRADE_PASS_THRESHOLD } from '../utils';
 
 export function GradesTab({
@@ -44,7 +45,7 @@ export function GradesTab({
 
       {/* Content */}
       {loading ? (
-        <LoadingState />
+        <GradesTableSkeleton rows={8} columns={gradeStructures.length || 3} />
       ) : gradeStructures.length === 0 ? (
         <NoStructureState />
       ) : gradeMatrix.length === 0 ? (
@@ -81,9 +82,15 @@ function Header({ summary, hasPendingChanges, pendingCount, saving, onSave }) {
       </div>
       <div className="flex items-center gap-3">
         {hasPendingChanges && (
-          <span className="text-sm text-amber-600">
-            {pendingCount} thay đổi chưa lưu
-          </span>
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+            </span>
+            <span className="text-sm font-medium text-amber-700">
+              {pendingCount} thay đổi chưa lưu
+            </span>
+          </div>
         )}
         <Button
           onClick={onSave}
@@ -151,6 +158,51 @@ function GradeTable({
   isCellPending,
   showToast
 }) {
+  // Navigate between cells
+  const handleCellNavigate = (currentEnrollmentId, currentStructureIndex, direction) => {
+    const studentIndex = students.findIndex(s => s.enrollment_id === currentEnrollmentId);
+    if (studentIndex === -1) return;
+
+    let newStudentIndex = studentIndex;
+    let newStructureIndex = currentStructureIndex;
+
+    switch (direction) {
+      case 'next':
+        if (currentStructureIndex < structures.length - 1) {
+          newStructureIndex = currentStructureIndex + 1;
+        } else if (studentIndex < students.length - 1) {
+          newStudentIndex = studentIndex + 1;
+          newStructureIndex = 0;
+        }
+        break;
+      case 'prev':
+        if (currentStructureIndex > 0) {
+          newStructureIndex = currentStructureIndex - 1;
+        } else if (studentIndex > 0) {
+          newStudentIndex = studentIndex - 1;
+          newStructureIndex = structures.length - 1;
+        }
+        break;
+      case 'down':
+        if (studentIndex < students.length - 1) {
+          newStudentIndex = studentIndex + 1;
+        }
+        break;
+      case 'up':
+        if (studentIndex > 0) {
+          newStudentIndex = studentIndex - 1;
+        }
+        break;
+    }
+
+    // Only navigate if position changed
+    if (newStudentIndex !== studentIndex || newStructureIndex !== currentStructureIndex) {
+      const newStudent = students[newStudentIndex];
+      const newStructure = structures[newStructureIndex];
+      onEditCell({ enrollment_id: newStudent.enrollment_id, structure_id: newStructure.id });
+    }
+  };
+
   return (
     <div className="border border-slate-200 rounded-lg overflow-hidden">
       <div className="overflow-x-auto">
@@ -185,6 +237,7 @@ function GradeTable({
                 processGradeInput={processGradeInput}
                 isCellPending={isCellPending}
                 showToast={showToast}
+                onCellNavigate={handleCellNavigate}
               />
             ))}
           </tbody>
@@ -204,15 +257,16 @@ function StudentRow({
   calculateWeightedAverage,
   processGradeInput,
   isCellPending,
-  showToast
+  showToast,
+  onCellNavigate
 }) {
   const weightedAvg = calculateWeightedAverage(student.enrollment_id);
-  
+
   return (
     <tr className="hover:bg-slate-50 transition-colors">
       {/* Index */}
       <td className="px-3 py-3 text-sm text-slate-500">{index + 1}</td>
-      
+
       {/* Student Info */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
@@ -223,9 +277,9 @@ function StudentRow({
           </div>
         </div>
       </td>
-      
+
       {/* Grade Cells */}
-      {structures.map(structure => (
+      {structures.map((structure, structureIndex) => (
         <GradeCell
           key={structure.id}
           enrollmentId={student.enrollment_id}
@@ -241,24 +295,24 @@ function StudentRow({
             }
           }}
           onCancel={() => onEditCell(null)}
+          onNavigate={(direction) => onCellNavigate(student.enrollment_id, structureIndex, direction)}
         />
       ))}
-      
+
       {/* Weighted Average */}
       <td className="px-3 py-3 text-center bg-indigo-50">
-        <span className={`text-sm font-semibold ${
-          weightedAvg !== null
-            ? weightedAvg >= 8 
-              ? 'text-emerald-600' 
-              : weightedAvg >= GRADE_PASS_THRESHOLD 
-                ? 'text-indigo-600' 
-                : 'text-red-600'
-            : 'text-slate-400'
-        }`}>
+        <span className={`text-sm font-semibold ${weightedAvg !== null
+          ? weightedAvg >= 8
+            ? 'text-emerald-600'
+            : weightedAvg >= GRADE_PASS_THRESHOLD
+              ? 'text-indigo-600'
+              : 'text-red-600'
+          : 'text-slate-400'
+          }`}>
           {weightedAvg !== null ? weightedAvg.toFixed(2) : '—'}
         </span>
       </td>
-      
+
       {/* Pass/Fail */}
       <td className="px-3 py-3 text-center">
         {weightedAvg !== null ? (
@@ -281,7 +335,7 @@ function StudentRow({
   );
 }
 
-function GradeCell({ enrollmentId, structure, isEditing, isPending, currentScore, onEdit, onBlur, onCancel }) {
+function GradeCell({ enrollmentId, structure, isEditing, isPending, currentScore, onEdit, onBlur, onCancel, onNavigate }) {
   if (isEditing) {
     return (
       <td className="px-2 py-2 text-center">
@@ -294,29 +348,62 @@ function GradeCell({ enrollmentId, structure, isEditing, isPending, currentScore
           className="w-16 px-2 py-1 text-center text-sm border border-indigo-400 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
           defaultValue={currentScore}
           onKeyDown={(e) => {
-            if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'Enter', 'Escape', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+            // Allow numeric input
+            if (!/[\d.]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'Enter', 'Escape', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
               e.preventDefault();
             }
-            if (e.key === 'Enter') e.target.blur();
-            if (e.key === 'Escape') onCancel();
+            // Enter = save and blur
+            if (e.key === 'Enter') {
+              e.target.blur();
+            }
+            // Escape = cancel
+            if (e.key === 'Escape') {
+              onCancel();
+            }
+            // Tab = save and go to next cell
+            if (e.key === 'Tab') {
+              e.preventDefault();
+              onBlur(e.target.value);
+              onNavigate && onNavigate(e.shiftKey ? 'prev' : 'next');
+            }
+            // Arrow keys for navigation
+            if (e.key === 'ArrowRight' && e.target.selectionStart === e.target.value.length) {
+              e.preventDefault();
+              onBlur(e.target.value);
+              onNavigate && onNavigate('next');
+            }
+            if (e.key === 'ArrowLeft' && e.target.selectionStart === 0) {
+              e.preventDefault();
+              onBlur(e.target.value);
+              onNavigate && onNavigate('prev');
+            }
+            if (e.key === 'ArrowDown') {
+              e.preventDefault();
+              onBlur(e.target.value);
+              onNavigate && onNavigate('down');
+            }
+            if (e.key === 'ArrowUp') {
+              e.preventDefault();
+              onBlur(e.target.value);
+              onNavigate && onNavigate('up');
+            }
           }}
           onBlur={(e) => onBlur(e.target.value)}
         />
       </td>
     );
   }
-  
+
   return (
     <td className="px-2 py-2 text-center">
       <button
         onClick={onEdit}
-        className={`w-16 px-2 py-1.5 text-sm rounded transition-colors ${
-          currentScore !== '' && currentScore !== null
-            ? isPending 
-              ? 'bg-amber-100 text-amber-700 font-medium' 
-              : 'bg-slate-100 text-slate-700 font-medium'
-            : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
-        }`}
+        className={`w-16 px-2 py-1.5 text-sm rounded transition-colors ${currentScore !== '' && currentScore !== null
+          ? isPending
+            ? 'bg-amber-100 text-amber-700 font-medium'
+            : 'bg-slate-100 text-slate-700 font-medium'
+          : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+          }`}
       >
         {currentScore !== '' && currentScore !== null ? currentScore : '—'}
       </button>
@@ -345,7 +432,7 @@ function Legend() {
         <span>&lt; {GRADE_PASS_THRESHOLD}</span>
       </div>
       <span className="text-slate-400 ml-auto">
-        💡 Click vào ô điểm để chỉnh sửa
+        💡 Click vào ô điểm để chỉnh sửa • Tab/Shift+Tab hoặc phím mũi tên để di chuyển
       </span>
     </div>
   );

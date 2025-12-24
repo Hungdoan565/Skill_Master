@@ -138,12 +138,15 @@ export function ClassFilter({
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
                     {value && (
-                        <button
+                        <span
+                            role="button"
+                            tabIndex={0}
                             onClick={handleClear}
-                            className="p-1 hover:bg-gray-100 rounded"
+                            onKeyDown={(e) => e.key === 'Enter' && handleClear(e)}
+                            className="p-1 hover:bg-gray-100 rounded cursor-pointer"
                         >
                             <X className="h-3 w-3 text-gray-400" />
-                        </button>
+                        </span>
                     )}
                     <ChevronDown className={cn(
                         'h-4 w-4 text-gray-400 transition-transform',

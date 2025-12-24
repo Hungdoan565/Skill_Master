@@ -172,7 +172,7 @@ export default function GradesReportPage() {
                         Lưu báo cáo
                     </Button>
                     <ReportPDFExport
-                        contentRef={reportContentRef}
+                        reportData={data}
                         reportTitle="Báo cáo Điểm số"
                         filename={`bao-cao-diem-so-${new Date().toISOString().split('T')[0]}`}
                         headerInfo={{

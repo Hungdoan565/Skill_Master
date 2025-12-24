@@ -7,7 +7,7 @@ import { useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/button';
-import { Loader2, AlertCircle, ArrowLeft, Users, Calendar, GraduationCap, UserPlus, Mail, FileText, Copy, TrendingUp, BarChart3, FolderOpen } from 'lucide-react';
+import { Loader2, AlertCircle, ArrowLeft, Users, Calendar, GraduationCap, UserPlus, Mail, FileText, Copy, TrendingUp, BarChart3, FolderOpen, Keyboard } from 'lucide-react';
 
 // Components
 import {
@@ -32,8 +32,11 @@ import {
   // Phase 2.4: Grade Analytics
   GradeAnalyticsTab,
   // Phase 2.5: Documents
-  ClassDocumentsTab
+  ClassDocumentsTab,
+  // Keyboard shortcuts
+  KeyboardShortcutsModal
 } from '../components';
+import { useKeyboardShortcuts } from '../components/KeyboardShortcutsModal';
 
 // Hooks
 import {
@@ -57,6 +60,9 @@ export function ClassDetailPage() {
 
   // Active tab state
   const [activeTab, setActiveTab] = useState('students');
+
+  // Keyboard shortcuts
+  const { showHelp, setShowHelp } = useKeyboardShortcuts(activeTab);
 
   // Phase 1.3: Bulk Sessions modal state
   const [showBulkSessionsModal, setShowBulkSessionsModal] = useState(false);
@@ -249,6 +255,21 @@ export function ClassDetailPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
+
+  // P0-5: Warning when leaving page with unsaved grades
+  // Handle browser/tab close with unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (hasPendingChanges) {
+        e.preventDefault();
+        e.returnValue = 'Bạn có thay đổi điểm chưa lưu. Bạn có chắc muốn rời khỏi trang?';
+        return e.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasPendingChanges]);
 
   // Event handlers
   const handleEnroll = async (student) => {
@@ -670,6 +691,13 @@ export function ClassDetailPage() {
         classData={classData}
       />
 
+      {/* Keyboard Shortcuts Modal */}
+      <KeyboardShortcutsModal
+        isOpen={showHelp}
+        onClose={() => setShowHelp(false)}
+        activeTab={activeTab}
+      />
+
       {/* Toast */}
       <Toast
         show={toast.show}
@@ -677,6 +705,15 @@ export function ClassDetailPage() {
         type={toast.type}
         onClose={hideToast}
       />
+
+      {/* Keyboard Shortcuts Button */}
+      <button
+        onClick={() => setShowHelp(true)}
+        className="fixed bottom-4 right-4 p-3 bg-white border border-slate-200 rounded-full shadow-lg hover:bg-slate-50 transition-colors z-40"
+        title="Phím tắt (nhấn ? để mở)"
+      >
+        <Keyboard className="w-5 h-5 text-slate-600" />
+      </button>
     </div>
   );
 }

@@ -997,13 +997,13 @@ export async function exportGradesReport(data) {
     const sectionMerges = getSectionTitleMerges(wsData, COL_COUNT);
     ws['!merges'] = [...headerMerges, ...sectionMerges];
 
-    // Auto-fit column widths với merge awareness
+    // Auto-fit column widths với merge awareness - INCREASED FOR FULL DISPLAY
     ws['!cols'] = autoFitColumns(wsData, [
-        { min: 5, max: 8, default: 6 },     // STT
-        { min: 20, max: 35, default: 25 },  // Học viên
-        { min: 25, max: 40, default: 32 },  // Khóa học
-        { min: 10, max: 15, default: 12 },  // Điểm
-        { min: 12, max: 18, default: 14 },  // Kết quả
+        { min: 6, max: 10, default: 8 },     // STT - increased
+        { min: 25, max: 45, default: 35 },   // Học viên - increased
+        { min: 30, max: 50, default: 40 },   // Khóa học - increased
+        { min: 12, max: 18, default: 15 },   // Điểm - increased
+        { min: 15, max: 22, default: 18 },   // Kết quả - increased
     ], ws['!merges']);
 
     // Row heights

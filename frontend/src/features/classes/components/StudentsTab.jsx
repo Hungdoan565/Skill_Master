@@ -25,6 +25,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar } from './Avatar';
 import { getPaymentStatus } from '../utils';
+import { HighlightedText } from '../utils/highlightUtils.jsx';
+import { StudentsTableSkeleton } from './Skeleton';
 
 export function StudentsTab({
   students,
@@ -94,7 +96,7 @@ export function StudentsTab({
 
       {/* Table */}
       {loading ? (
-        <LoadingState />
+        <StudentsTableSkeleton rows={filters.limit || 10} />
       ) : students.length === 0 ? (
         <EmptyState
           hasFilters={filters.search || filters.paymentStatus !== 'all'}
@@ -104,6 +106,7 @@ export function StudentsTab({
       ) : (
         <StudentsTable
           students={students}
+          searchTerm={filters.search}
           selectedStudentIds={selectedStudentIds}
           allSelected={allSelected}
           someSelected={someSelected}
@@ -202,8 +205,8 @@ function FilterBar({
         {hasActiveFilters && (
           <>
             <div className="hidden sm:block h-6 w-px bg-slate-200" />
-            <button 
-              onClick={onClearFilters} 
+            <button
+              onClick={onClearFilters}
               className="flex items-center gap-1.5 px-3 py-2 text-sm text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
             >
               <X className="w-4 h-4" />
@@ -293,8 +296,8 @@ function BulkActionBar({ selectedCount, onClearSelection, onBulkDelete }) {
           Bỏ chọn tất cả
         </button>
       </div>
-      <Button 
-        variant="destructive" 
+      <Button
+        variant="destructive"
         size="sm"
         onClick={onBulkDelete}
         className="bg-red-600 hover:bg-red-700"
@@ -306,15 +309,16 @@ function BulkActionBar({ selectedCount, onClearSelection, onBulkDelete }) {
   );
 }
 
-function StudentsTable({ 
-  students, 
+function StudentsTable({
+  students,
+  searchTerm,
   selectedStudentIds,
   allSelected,
   someSelected,
   onToggleSelect,
   onToggleSelectAll,
-  onPaymentClick, 
-  onDeleteClick 
+  onPaymentClick,
+  onDeleteClick
 }) {
   return (
     <div className="overflow-x-auto border border-slate-200 rounded-xl">
@@ -322,7 +326,7 @@ function StudentsTable({
         <thead className="bg-slate-50">
           <tr className="border-b border-slate-200">
             <th className="w-12 py-3 px-4">
-              <button 
+              <button
                 onClick={onToggleSelectAll}
                 className="flex items-center justify-center text-slate-500 hover:text-indigo-600 transition-colors"
               >
@@ -348,6 +352,7 @@ function StudentsTable({
             <StudentRow
               key={student.enrollment_id}
               student={student}
+              searchTerm={searchTerm}
               isSelected={selectedStudentIds.includes(student.student_id)}
               onToggleSelect={() => onToggleSelect(student.student_id)}
               onPaymentClick={onPaymentClick}
@@ -360,13 +365,13 @@ function StudentsTable({
   );
 }
 
-function StudentRow({ student, isSelected, onToggleSelect, onPaymentClick, onDeleteClick }) {
+function StudentRow({ student, searchTerm, isSelected, onToggleSelect, onPaymentClick, onDeleteClick }) {
   const paymentStatus = getPaymentStatus(student);
-  
+
   return (
     <tr className={`hover:bg-slate-50 transition-colors ${isSelected ? 'bg-indigo-50/50' : ''}`}>
       <td className="py-3 px-4">
-        <button 
+        <button
           onClick={onToggleSelect}
           className="flex items-center justify-center text-slate-500 hover:text-indigo-600 transition-colors"
         >
@@ -381,13 +386,19 @@ function StudentRow({ student, isSelected, onToggleSelect, onPaymentClick, onDel
         <div className="flex items-center gap-3">
           <Avatar name={student.full_name} url={student.avatar_url} />
           <div>
-            <p className="font-medium text-slate-900">{student.full_name}</p>
-            <p className="text-xs text-slate-500">{student.email}</p>
+            <p className="font-medium text-slate-900">
+              <HighlightedText text={student.full_name} searchTerm={searchTerm} />
+            </p>
+            <p className="text-xs text-slate-500">
+              <HighlightedText text={student.email} searchTerm={searchTerm} />
+            </p>
           </div>
         </div>
       </td>
       <td className="py-3 px-4">
-        <p className="text-sm text-slate-600">{student.phone || '-'}</p>
+        <p className="text-sm text-slate-600">
+          <HighlightedText text={student.phone || '-'} searchTerm={searchTerm} />
+        </p>
       </td>
       <td className="py-3 px-4">
         <p className="text-sm text-slate-600">
@@ -421,8 +432,8 @@ function StudentRow({ student, isSelected, onToggleSelect, onPaymentClick, onDel
       <td className="py-3 px-4 text-right">
         <div className="flex items-center justify-end gap-2">
           {student.remaining > 0 && (
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="sm"
               onClick={() => onPaymentClick(student)}
               className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
@@ -431,8 +442,8 @@ function StudentRow({ student, isSelected, onToggleSelect, onPaymentClick, onDel
               <Banknote className="w-4 h-4" />
             </Button>
           )}
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             size="sm"
             onClick={() => onDeleteClick(student)}
             className="text-red-600 hover:text-red-700 hover:bg-red-50"
@@ -487,7 +498,7 @@ function Pagination({ pagination, onPageChange }) {
 
 function PageNumbers({ current, total, onPageChange }) {
   const pages = [];
-  
+
   if (current > 3) {
     pages.push(
       <button key={1} onClick={() => onPageChange(1)} className="w-8 h-8 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100">1</button>
@@ -496,21 +507,20 @@ function PageNumbers({ current, total, onPageChange }) {
       pages.push(<span key="dots1" className="px-1 text-slate-400">...</span>);
     }
   }
-  
+
   for (let i = Math.max(1, current - 2); i <= Math.min(total, current + 2); i++) {
     pages.push(
       <button
         key={i}
         onClick={() => onPageChange(i)}
-        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-          i === current ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
-        }`}
+        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${i === current ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+          }`}
       >
         {i}
       </button>
     );
   }
-  
+
   if (current < total - 2) {
     if (current < total - 3) {
       pages.push(<span key="dots2" className="px-1 text-slate-400">...</span>);
@@ -519,7 +529,7 @@ function PageNumbers({ current, total, onPageChange }) {
       <button key={total} onClick={() => onPageChange(total)} className="w-8 h-8 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100">{total}</button>
     );
   }
-  
+
   return pages;
 }
 

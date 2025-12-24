@@ -107,16 +107,35 @@ export function ClassesTable({
 
   // Empty state
   if (classes.length === 0) {
+    const hasFilters = searchTerm || statusFilter;
     return (
-      <div className="flex h-40 flex-col items-center justify-center gap-2">
-        <BookOpen className="h-10 w-10 text-slate-300" />
-        <p className="text-muted-foreground">
-          {searchTerm || statusFilter ? 'Không tìm thấy lớp học phù hợp' : 'Chưa có lớp học nào'}
+      <div className="flex flex-col items-center justify-center py-16 px-4">
+        <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${hasFilters ? 'bg-amber-50' : 'bg-indigo-50'
+          }`}>
+          {hasFilters ? (
+            <svg className="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          ) : (
+            <BookOpen className="h-8 w-8 text-indigo-400" />
+          )}
+        </div>
+        <h3 className="text-lg font-semibold text-slate-900 mb-2">
+          {hasFilters ? 'Không tìm thấy kết quả' : 'Chưa có lớp học nào'}
+        </h3>
+        <p className="text-slate-500 text-center mb-6 max-w-md">
+          {hasFilters
+            ? 'Không tìm thấy lớp học phù hợp với bộ lọc hiện tại. Hãy thử điều chỉnh tiêu chí tìm kiếm.'
+            : 'Bắt đầu bằng cách tạo lớp học đầu tiên để quản lý học viên và lịch dạy.'}
         </p>
-        {!searchTerm && !statusFilter && (
-          <Button variant="outline" size="sm" onClick={onOpenModal}>
+        {hasFilters ? (
+          <Button variant="outline" onClick={() => window.location.reload()}>
+            Xóa bộ lọc
+          </Button>
+        ) : (
+          <Button onClick={onOpenModal}>
             <Plus className="mr-2 h-4 w-4" />
-            Mở lớp đầu tiên
+            Tạo lớp học đầu tiên
           </Button>
         )}
       </div>
@@ -255,11 +274,10 @@ function ClassRow({ cls, isSelected, onToggleSelect, onNavigate, onEdit, onDelet
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger>
-                      <span className={`text-xs ${
-                        cls.teacher.active_classes_count >= 10 ? 'text-red-600' :
-                        cls.teacher.active_classes_count >= 7 ? 'text-amber-600' :
-                        'text-slate-500'
-                      }`}>
+                      <span className={`text-xs ${cls.teacher.active_classes_count >= 10 ? 'text-red-600' :
+                          cls.teacher.active_classes_count >= 7 ? 'text-amber-600' :
+                            'text-slate-500'
+                        }`}>
                         {cls.teacher.active_classes_count} lớp
                       </span>
                     </TooltipTrigger>
@@ -326,11 +344,10 @@ function ClassRow({ cls, isSelected, onToggleSelect, onNavigate, onEdit, onDelet
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
-                  <span className={`text-sm font-medium ${
-                    enrollmentPercentage >= 100 ? 'text-red-600' :
-                    enrollmentPercentage >= 80 ? 'text-amber-600' :
-                    'text-slate-700'
-                  }`}>
+                  <span className={`text-sm font-medium ${enrollmentPercentage >= 100 ? 'text-red-600' :
+                      enrollmentPercentage >= 80 ? 'text-amber-600' :
+                        'text-slate-700'
+                    }`}>
                     {cls.enrolled_count || 0}/{cls.max_students || 0}
                   </span>
                 </TooltipTrigger>

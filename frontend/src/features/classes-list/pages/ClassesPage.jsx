@@ -61,13 +61,15 @@ export function ClassesPage() {
     classes,
     loading,
     selectedIds,
+    error,
     fetchClasses,
     deleteClass,
     deleteMultipleClasses,
     filterClasses,
     toggleSelectItem,
     toggleSelectAll,
-    clearSelection
+    clearSelection,
+    clearError
   } = useClassesList();
 
   const {
@@ -79,6 +81,7 @@ export function ClassesPage() {
     isEditing,
     editingClass,
     formError,
+    validationErrors,
     resetForm,
     loadClassData,
     toggleDay,
@@ -89,7 +92,8 @@ export function ClassesPage() {
     submitForm,
     setStartTime,
     setEndTime,
-    clearFormError
+    clearFormError,
+    clearValidationError
   } = useClassForm();
 
   const {
@@ -264,6 +268,34 @@ export function ClassesPage() {
         </CardHeader>
 
         <CardContent>
+          {/* Network Error Banner */}
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                  <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-medium text-red-800">Lỗi kết nối</p>
+                  <p className="text-sm text-red-600">{error.message}</p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  clearError();
+                  error.retry?.();
+                }}
+                className="border-red-300 text-red-700 hover:bg-red-100"
+              >
+                Thử lại
+              </Button>
+            </div>
+          )}
+
           {/* Bulk Action Bar */}
           <BulkActionBar
             selectedCount={selectedIds.length}
@@ -301,6 +333,7 @@ export function ClassesPage() {
         isEditing={isEditing}
         editingClass={editingClass}
         formError={formError}
+        validationErrors={validationErrors}
         courses={courses}
         teachers={teachers}
         centers={centers}
@@ -313,6 +346,7 @@ export function ClassesPage() {
         onStartDateChange={(v) => handleStartDateChange(v, courses)}
         onRegenerateName={() => regenerateName(courses)}
         onSubmit={handleSubmit}
+        onClearValidationError={clearValidationError}
         getRoomsByCenter={getRoomsByCenter}
         getRoomById={getRoomById}
       />

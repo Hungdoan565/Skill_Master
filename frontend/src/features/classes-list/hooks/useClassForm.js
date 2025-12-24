@@ -5,8 +5,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import { supabase } from '@/lib/supabaseClient';
-import { 
-  API_URL, 
+import {
+  API_URL,
   DEFAULT_CLASS_FORM,
   parseSchedule,
   generateClassName,
@@ -32,6 +32,7 @@ export function useClassForm() {
   const [submitting, setSubmitting] = useState(false);
   const [editingClass, setEditingClass] = useState(null);
   const [formError, setFormError] = useState(null);
+  const [validationErrors, setValidationErrors] = useState({});
 
   // Build schedule array khi thay đổi ngày/giờ
   useEffect(() => {
@@ -57,16 +58,16 @@ export function useClassForm() {
     if (!classItem) return;
 
     setEditingClass(classItem);
-    
+
     // Parse schedule an toàn
     const schedule = parseSchedule(classItem.schedule);
     const days = schedule.map(s => s.day);
     const time = schedule[0] || { start: '18:00', end: '20:00' };
-    
+
     setSelectedDays(days);
     setStartTime(time.start || '18:00');
     setEndTime(time.end || '20:00');
-    
+
     setFormData({
       code: classItem.code || '',
       name: classItem.name || '',
@@ -84,9 +85,9 @@ export function useClassForm() {
 
   // Toggle day selection
   const toggleDay = useCallback((day) => {
-    setSelectedDays(prev => 
-      prev.includes(day) 
-        ? prev.filter(d => d !== day) 
+    setSelectedDays(prev =>
+      prev.includes(day)
+        ? prev.filter(d => d !== day)
         : [...prev, day].sort((a, b) => a - b)
     );
   }, []);
@@ -104,11 +105,11 @@ export function useClassForm() {
   // Auto-generate code và name khi chọn khóa học
   const handleCourseChange = useCallback((courseId, courses) => {
     const selectedCourse = courses.find(c => c.id === courseId);
-    
+
     if (selectedCourse) {
       const newCode = generateClassCode(selectedCourse.code, formData.start_date);
       const newName = generateClassName(selectedCourse.code, formData.start_date);
-      
+
       setFormData(prev => ({
         ...prev,
         course_id: courseId,
@@ -125,12 +126,12 @@ export function useClassForm() {
     const course = courses.find(c => c.id === formData.course_id);
     let newCode = formData.code;
     let newName = formData.name;
-    
+
     if (course && newStartDate) {
       newCode = generateClassCode(course.code, newStartDate);
       newName = generateClassName(course.code, newStartDate);
     }
-    
+
     setFormData(prev => ({
       ...prev,
       start_date: newStartDate,
@@ -148,14 +149,75 @@ export function useClassForm() {
     }
   }, [formData.course_id, formData.start_date]);
 
+  // Validate form - returns true if valid
+  const validateForm = useCallback(() => {
+    const errors = {};
+
+    // Required fields
+    if (!formData.course_id) {
+      errors.course_id = 'Vui lòng chọn khóa học';
+    }
+    if (!formData.name?.trim()) {
+      errors.name = 'Vui lòng nhập tên lớp';
+    }
+    if (!formData.teacher_id) {
+      errors.teacher_id = 'Vui lòng chọn giáo viên';
+    }
+    if (!formData.center_id) {
+      errors.center_id = 'Vui lòng chọn trung tâm';
+    }
+    if (!formData.start_date) {
+      errors.start_date = 'Vui lòng chọn ngày bắt đầu';
+    }
+    if (!formData.end_date) {
+      errors.end_date = 'Vui lòng chọn ngày kết thúc';
+    }
+
+    // Schedule validation
+    if (selectedDays.length === 0) {
+      errors.schedule = 'Vui lòng chọn ít nhất một ngày trong tuần';
+    }
+
+    // Date validation
+    if (formData.start_date && formData.end_date) {
+      const startDate = new Date(formData.start_date);
+      const endDate = new Date(formData.end_date);
+      if (endDate <= startDate) {
+        errors.end_date = 'Ngày kết thúc phải sau ngày bắt đầu';
+      }
+    }
+
+    // Time validation
+    if (startTime && endTime && startTime >= endTime) {
+      errors.time = 'Giờ kết thúc phải sau giờ bắt đầu';
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  }, [formData, selectedDays, startTime, endTime]);
+
+  // Clear validation error for a specific field
+  const clearValidationError = useCallback((fieldName) => {
+    setValidationErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors[fieldName];
+      return newErrors;
+    });
+  }, []);
+
   // Submit form
   const submitForm = useCallback(async () => {
+    // Validate first
+    if (!validateForm()) {
+      return false;
+    }
+
     setSubmitting(true);
     setFormError(null);
 
     try {
       const headers = await getAuthHeaders();
-      
+
       const payload = {
         ...formData,
         room: null
@@ -193,6 +255,7 @@ export function useClassForm() {
     editingClass,
     isEditing: !!editingClass,
     formError,
+    validationErrors,
 
     // Actions
     resetForm,
@@ -206,7 +269,9 @@ export function useClassForm() {
     submitForm,
     setStartTime,
     setEndTime,
-    clearFormError
+    clearFormError,
+    validateForm,
+    clearValidationError
   };
 }
 

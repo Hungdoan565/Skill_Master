@@ -1,8 +1,8 @@
 /**
- * ReportPDFExport Component - Export reports to PDF with charts
+ * ReportPDFExport Component - Export reports to PDF
  * 
- * Uses html2canvas + jsPDF for high-quality PDF generation
- * Following the pattern from ClassAnalyticsPage
+ * Uses jsPDF with autoTable for reliable PDF generation from data
+ * No html2canvas dependency - works with any CSS
  */
 
 import { useState, useRef, useCallback } from 'react';
@@ -10,133 +10,148 @@ import { Download, FileText, Loader2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-// PDF export function using dynamic imports
-async function exportToPDF(element, filename, options = {}) {
-    const {
-        title = 'Báo cáo',
-        orientation = 'landscape',
-        format = 'a4',
-        margin = 10,
-        includeHeader = true,
-        headerInfo = {}
-    } = options;
-
+// PDF export function using jsPDF + autoTable
+async function exportToPDFFromData(data, title, options = {}) {
     try {
-        // Dynamic imports for better code splitting
-        const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
-            import('html2canvas'),
-            import('jspdf')
-        ]);
+        const { jsPDF } = await import('jspdf');
+        await import('jspdf-autotable');
 
-        // Capture element as canvas
-        const canvas = await html2canvas(element, {
-            scale: 2, // Higher resolution
-            useCORS: true,
-            logging: false,
-            backgroundColor: '#ffffff',
-            windowWidth: element.scrollWidth,
-            windowHeight: element.scrollHeight
-        });
-
-        // Create PDF
         const pdf = new jsPDF({
-            orientation,
+            orientation: 'landscape',
             unit: 'mm',
-            format
+            format: 'a4'
         });
 
         const pageWidth = pdf.internal.pageSize.getWidth();
         const pageHeight = pdf.internal.pageSize.getHeight();
-        const contentWidth = pageWidth - (margin * 2);
+        const margin = 15;
 
-        // Calculate header height
-        let yOffset = margin;
+        // Header
+        pdf.setFontSize(18);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(title, margin, 20);
 
-        if (includeHeader) {
-            // Add title
-            pdf.setFontSize(18);
+        // Metadata
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'normal');
+        let yPos = 28;
+
+        if (options.className) {
+            pdf.text(`Lớp học: ${options.className}`, margin, yPos);
+            yPos += 6;
+        }
+        if (options.period) {
+            pdf.text(`Kỳ báo cáo: ${options.period}`, margin, yPos);
+            yPos += 6;
+        }
+
+        pdf.setFontSize(9);
+        pdf.setTextColor(100);
+        pdf.text(`Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`, margin, yPos);
+        yPos += 10;
+
+        // Summary cards
+        if (data.summary) {
+            const summaryData = [
+                ['Tỷ lệ đậu', `${data.summary.passRate || 0}%`],
+                ['Điểm TB', data.summary.avgScore?.toFixed(2) || '0'],
+                ['Điểm cao nhất', data.summary.maxScore || '0'],
+                ['Điểm thấp nhất', data.summary.minScore || '0']
+            ];
+
+            pdf.autoTable({
+                startY: yPos,
+                head: [['Chỉ số', 'Giá trị']],
+                body: summaryData,
+                theme: 'grid',
+                headStyles: { fillColor: [37, 99, 235], fontSize: 11 },
+                columnStyles: {
+                    0: { cellWidth: 50, fontStyle: 'bold' },
+                    1: { cellWidth: 40, halign: 'center', fontSize: 12, textColor: [0, 128, 0] }
+                },
+                margin: { left: margin }
+            });
+
+            yPos = pdf.lastAutoTable.finalY + 10;
+        }
+
+        // Distribution table
+        if (data.distribution?.length > 0) {
+            pdf.setFontSize(12);
             pdf.setFont('helvetica', 'bold');
-            pdf.text(title, margin, yOffset + 8);
-            yOffset += 12;
+            pdf.setTextColor(0);
+            pdf.text('Phân bố điểm', margin, yPos);
+            yPos += 6;
 
-            // Add metadata
-            pdf.setFontSize(10);
-            pdf.setFont('helvetica', 'normal');
-            pdf.setTextColor(100);
+            const distData = data.distribution.map((item, idx) => [
+                idx + 1,
+                item.range,
+                item.count || 0,
+                `${item.percentage?.toFixed(1) || 0}%`
+            ]);
 
-            if (headerInfo.period) {
-                pdf.text(`Kỳ báo cáo: ${headerInfo.period}`, margin, yOffset + 4);
-                yOffset += 5;
-            }
-            if (headerInfo.className) {
-                pdf.text(`Lớp học: ${headerInfo.className}`, margin, yOffset + 4);
-                yOffset += 5;
-            }
-            if (headerInfo.centerName) {
-                pdf.text(`Trung tâm: ${headerInfo.centerName}`, margin, yOffset + 4);
-                yOffset += 5;
-            }
+            pdf.autoTable({
+                startY: yPos,
+                head: [['STT', 'Khoảng điểm', 'Số học viên', 'Tỷ lệ']],
+                body: distData,
+                theme: 'striped',
+                headStyles: { fillColor: [37, 99, 235] },
+                columnStyles: {
+                    0: { cellWidth: 20, halign: 'center' },
+                    1: { cellWidth: 60, halign: 'center' },
+                    2: { cellWidth: 40, halign: 'center' },
+                    3: { cellWidth: 30, halign: 'center' }
+                },
+                margin: { left: margin }
+            });
 
-            // Export date
-            pdf.text(`Xuất ngày: ${new Date().toLocaleDateString('vi-VN')}`, margin, yOffset + 4);
-            yOffset += 10;
-
-            // Divider line
-            pdf.setDrawColor(200);
-            pdf.line(margin, yOffset, pageWidth - margin, yOffset);
-            yOffset += 5;
+            yPos = pdf.lastAutoTable.finalY + 10;
         }
 
-        // Calculate image dimensions
-        const imgWidth = contentWidth;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        const availableHeight = pageHeight - yOffset - margin;
+        // Top students table
+        if (data.topStudents?.length > 0) {
+            if (yPos > pageHeight - 60) {
+                pdf.addPage();
+                yPos = margin + 10;
+            }
 
-        // Add image (may span multiple pages)
-        const imgData = canvas.toDataURL('image/png');
+            pdf.setFontSize(12);
+            pdf.setFont('helvetica', 'bold');
+            pdf.text('Top học viên xuất sắc', margin, yPos);
+            yPos += 6;
 
-        if (imgHeight <= availableHeight) {
-            // Fits on one page
-            pdf.addImage(imgData, 'PNG', margin, yOffset, imgWidth, imgHeight);
-        } else {
-            // Multi-page
-            let remainingHeight = imgHeight;
-            let sourceY = 0;
-            let isFirstPage = true;
+            const topData = data.topStudents.map((item, idx) => [
+                idx + 1,
+                item.studentName || 'N/A',
+                item.courseName || 'N/A',
+                item.finalScore?.toFixed(2) || '0',
+                item.passed ? 'Đạt' : 'Không đạt'
+            ]);
 
-            while (remainingHeight > 0) {
-                if (!isFirstPage) {
-                    pdf.addPage();
-                    yOffset = margin;
+            pdf.autoTable({
+                startY: yPos,
+                head: [['STT', 'Học viên', 'Khóa học', 'Điểm', 'Kết quả']],
+                body: topData,
+                theme: 'striped',
+                headStyles: { fillColor: [37, 99, 235] },
+                columnStyles: {
+                    0: { cellWidth: 15, halign: 'center' },
+                    1: { cellWidth: 60 },
+                    2: { cellWidth: 70 },
+                    3: { cellWidth: 25, halign: 'center' },
+                    4: { cellWidth: 30, halign: 'center' }
+                },
+                margin: { left: margin },
+                didParseCell: function (data) {
+                    if (data.column.index === 4 && data.cell.raw === 'Đạt') {
+                        data.cell.styles.textColor = [0, 128, 0];
+                        data.cell.styles.fontStyle = 'bold';
+                    }
                 }
-
-                const pageImgHeight = isFirstPage ? availableHeight : pageHeight - (margin * 2);
-                const sourceHeight = (pageImgHeight * canvas.height) / imgHeight;
-
-                // Create a new canvas for this page section
-                const pageCanvas = document.createElement('canvas');
-                pageCanvas.width = canvas.width;
-                pageCanvas.height = Math.min(sourceHeight, canvas.height - sourceY);
-
-                const ctx = pageCanvas.getContext('2d');
-                ctx.drawImage(
-                    canvas,
-                    0, sourceY, canvas.width, pageCanvas.height,
-                    0, 0, canvas.width, pageCanvas.height
-                );
-
-                const pageImgData = pageCanvas.toDataURL('image/png');
-                const actualHeight = (pageCanvas.height * imgWidth) / canvas.width;
-
-                pdf.addImage(pageImgData, 'PNG', margin, yOffset, imgWidth, actualHeight);
-
-                sourceY += pageCanvas.height;
-                remainingHeight -= pageImgHeight;
-                isFirstPage = false;
-            }
+            });
         }
 
-        // Add footer with page numbers
+        // Footer
         const totalPages = pdf.internal.getNumberOfPages();
         for (let i = 1; i <= totalPages; i++) {
             pdf.setPage(i);
@@ -145,13 +160,12 @@ async function exportToPDF(element, filename, options = {}) {
             pdf.text(
                 `Trang ${i} / ${totalPages}`,
                 pageWidth / 2,
-                pageHeight - 5,
+                pageHeight - 10,
                 { align: 'center' }
             );
         }
 
-        // Save
-        pdf.save(`${filename}.pdf`);
+        pdf.save(`${options.filename || 'bao-cao'}.pdf`);
         return true;
     } catch (error) {
         console.error('PDF export error:', error);
@@ -160,7 +174,7 @@ async function exportToPDF(element, filename, options = {}) {
 }
 
 export function ReportPDFExport({
-    contentRef,
+    reportData,
     reportTitle,
     filename = 'bao-cao',
     headerInfo = {},
@@ -172,19 +186,18 @@ export function ReportPDFExport({
     const [exporting, setExporting] = useState(false);
     const [exportSuccess, setExportSuccess] = useState(false);
 
-    const handleExport = useCallback(async (options = {}) => {
-        if (!contentRef?.current || exporting) return;
+    const handleExport = useCallback(async () => {
+        if (!reportData || exporting) return;
 
         setExporting(true);
         setExportSuccess(false);
 
         try {
-            await exportToPDF(contentRef.current, filename, {
-                title: reportTitle,
-                headerInfo,
-                orientation: 'landscape', // Default to landscape for reports
-                ...options
+            await exportToPDFFromData(reportData, reportTitle, {
+                ...headerInfo,
+                filename
             });
+
             setExportSuccess(true);
             setTimeout(() => setExportSuccess(false), 2000);
         } catch (error) {
@@ -193,13 +206,13 @@ export function ReportPDFExport({
         } finally {
             setExporting(false);
         }
-    }, [contentRef, filename, reportTitle, headerInfo, exporting]);
+    }, [reportData, reportTitle, headerInfo, filename, exporting]);
 
-    // Simple button export
+    // Button export
     return (
         <Button
-            onClick={() => handleExport()}
-            disabled={disabled || exporting}
+            onClick={handleExport}
+            disabled={disabled || exporting || !reportData}
             variant="outline"
             size={size}
             className={cn(
@@ -210,12 +223,12 @@ export function ReportPDFExport({
             {exporting ? (
                 <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Đang xuất PDF...
+                    Đang xuất...
                 </>
             ) : exportSuccess ? (
                 <>
                     <Check className="h-4 w-4 mr-2" />
-                    Đã xuất PDF
+                    Đã xuất
                 </>
             ) : (
                 <>
@@ -228,16 +241,15 @@ export function ReportPDFExport({
 }
 
 // Hook for easier usage
-export function useReportPDFExport() {
-    const contentRef = useRef(null);
+export function useReportPDFExport(reportData) {
     const [exporting, setExporting] = useState(false);
 
     const exportPDF = useCallback(async (options = {}) => {
-        if (!contentRef.current || exporting) return false;
+        if (!reportData || exporting) return false;
 
         setExporting(true);
         try {
-            await exportToPDF(contentRef.current, options.filename || 'bao-cao', options);
+            await exportToPDFFromData(reportData, options.title || 'Báo cáo', options);
             return true;
         } catch (error) {
             console.error('Export failed:', error);
@@ -245,7 +257,7 @@ export function useReportPDFExport() {
         } finally {
             setExporting(false);
         }
-    }, [exporting]);
+    }, [reportData, exporting]);
 
-    return { contentRef, exporting, exportPDF };
+    return { exporting, exportPDF };
 }
