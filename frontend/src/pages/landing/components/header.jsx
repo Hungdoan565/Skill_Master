@@ -260,7 +260,7 @@ export const Header = () => {
                 <nav className="flex items-center justify-between h-24">
                     {/* Logo */}
                     <Link to="/" className="group flex items-center gap-2">
-                        <img src={logoImage} alt="Skill Master Logo" className="h-24 w-auto object-contain brightness-0 invert opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300" />
+                        <img src={logoImage} alt="Skill Master Logo" className="h-24 w-auto object-contain group-hover:scale-105 transition-transform duration-300" />
                     </Link>
 
                     {/* Desktop Navigation */}
