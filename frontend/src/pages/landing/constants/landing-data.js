@@ -59,6 +59,17 @@ export const courses = [
         duration: '3-6 tháng',
         color: 'from-red-500 to-orange-500',
         bgColor: 'bg-red-50',
+        details: {
+            price: '5.500.000đ',
+            schedule: 'Thứ 2-4-6 (19:30 - 21:00)',
+            startDate: '15/01/2025',
+            syllabus: [
+                'Giai đoạn 1: Nền tảng ngữ pháp & từ vựng (1 tháng)',
+                'Giai đoạn 2: Kỹ năng Nghe & Đọc chuyên sâu (1.5 tháng)',
+                'Giai đoạn 3: Tư duy Viết & Nói logic (1.5 tháng)',
+                'Giai đoạn 4: Luyện đề & Tổng ôn (1 tháng)'
+            ]
+        }
     },
     {
         category: 'Tiếng Anh',
@@ -68,6 +79,17 @@ export const courses = [
         duration: '2-4 tháng',
         color: 'from-blue-500 to-cyan-500',
         bgColor: 'bg-blue-50',
+        details: {
+            price: '3.800.000đ',
+            schedule: 'Thứ 3-5-7 (18:00 - 19:30)',
+            startDate: '20/01/2025',
+            syllabus: [
+                'Module 1: Ngữ pháp TOEIC trọng tâm',
+                'Module 2: Kỹ năng Nghe (Parts 1-4)',
+                'Module 3: Kỹ năng Đọc (Parts 5-7)',
+                'Module 4: Speaking & Writing cơ bản'
+            ]
+        }
     },
     {
         category: 'Tin học',
@@ -77,6 +99,17 @@ export const courses = [
         duration: '1-2 tháng',
         color: 'from-emerald-500 to-teal-500',
         bgColor: 'bg-emerald-50',
+        details: {
+            price: '2.500.000đ',
+            schedule: 'Linh hoạt (Sáng/Chiều/Tối)',
+            startDate: 'Hàng tuần',
+            syllabus: [
+                'Phần 1: Microsoft Word & Soạn thảo văn bản',
+                'Phần 2: Microsoft Excel & Xử lý dữ liệu',
+                'Phần 3: Microsoft PowerPoint & Thuyết trình',
+                'Phần 4: Luyện thi chứng chỉ MOS'
+            ]
+        }
     },
     {
         category: 'Tin học',
@@ -86,6 +119,17 @@ export const courses = [
         duration: '2-3 tháng',
         color: 'from-violet-500 to-purple-500',
         bgColor: 'bg-violet-50',
+        details: {
+            price: '3.200.000đ',
+            schedule: 'Cuối tuần (T7-CN)',
+            startDate: '05/02/2025',
+            syllabus: [
+                'Máy tính căn bản (Computing Fundamentals)',
+                'Các ứng dụng chính (Key Applications)',
+                'Cuộc sống trực tuyến (Living Online)',
+                'An toàn & Bảo mật thông tin'
+            ]
+        }
     },
 ];
 
