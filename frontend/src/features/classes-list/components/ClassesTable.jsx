@@ -155,7 +155,7 @@ export function ClassesTable({
                   if (el) el.indeterminate = isSomeSelected;
                 }}
                 onChange={onToggleSelectAll}
-                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500 cursor-pointer transition-all"
               />
             </th>
             <th className="pb-3 pr-4">Lớp học</th>
@@ -198,7 +198,7 @@ function ClassRow({ cls, isSelected, onToggleSelect, onNavigate, onEdit, onDelet
     : 0;
 
   return (
-    <tr className={`border-b last:border-0 transition-colors ${isSelected ? 'bg-indigo-50 hover:bg-indigo-100' : 'hover:bg-slate-50'
+    <tr className={`border-b last:border-0 transition-all duration-300 ${isSelected ? 'bg-orange-50/50 hover:bg-orange-100/50' : 'hover:bg-slate-50/80 hover:shadow-sm'
       }`}>
       {/* Checkbox */}
       <td className="py-4 pr-2 w-10">
@@ -206,7 +206,7 @@ function ClassRow({ cls, isSelected, onToggleSelect, onNavigate, onEdit, onDelet
           type="checkbox"
           checked={isSelected}
           onChange={onToggleSelect}
-          className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+          className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500 cursor-pointer transition-all"
         />
       </td>
 
@@ -214,7 +214,7 @@ function ClassRow({ cls, isSelected, onToggleSelect, onNavigate, onEdit, onDelet
       <td className="py-4 pr-4">
         <div className="cursor-pointer group" onClick={onNavigate}>
           <div className="flex items-center gap-2">
-            <p className="font-medium text-slate-900 group-hover:text-indigo-600 transition-colors">
+            <p className="font-semibold text-slate-900 group-hover:text-orange-600 transition-colors">
               {cls.name}
             </p>
             {/* Conflict Warning */}
@@ -275,8 +275,8 @@ function ClassRow({ cls, isSelected, onToggleSelect, onNavigate, onEdit, onDelet
                   <Tooltip>
                     <TooltipTrigger>
                       <span className={`text-xs ${cls.teacher.active_classes_count >= 10 ? 'text-red-600' :
-                          cls.teacher.active_classes_count >= 7 ? 'text-amber-600' :
-                            'text-slate-500'
+                        cls.teacher.active_classes_count >= 7 ? 'text-amber-600' :
+                          'text-slate-500'
                         }`}>
                         {cls.teacher.active_classes_count} lớp
                       </span>
@@ -316,9 +316,9 @@ function ClassRow({ cls, isSelected, onToggleSelect, onNavigate, onEdit, onDelet
               <Tooltip>
                 <TooltipTrigger>
                   <div className="flex items-center gap-1">
-                    <div className="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                    <div className="w-20 h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
                       <div
-                        className="h-full bg-indigo-500 transition-all"
+                        className="h-full bg-gradient-to-r from-orange-400 to-red-500 transition-all duration-500 ease-out shadow-[0_0_8px_rgba(249,115,22,0.4)]"
                         style={{ width: `${cls.sessions_progress.percentage}%` }}
                       />
                     </div>
@@ -345,8 +345,8 @@ function ClassRow({ cls, isSelected, onToggleSelect, onNavigate, onEdit, onDelet
               <Tooltip>
                 <TooltipTrigger>
                   <span className={`text-sm font-medium ${enrollmentPercentage >= 100 ? 'text-red-600' :
-                      enrollmentPercentage >= 80 ? 'text-amber-600' :
-                        'text-slate-700'
+                    enrollmentPercentage >= 80 ? 'text-amber-600' :
+                      'text-slate-700'
                     }`}>
                     {cls.enrolled_count || 0}/{cls.max_students || 0}
                   </span>
@@ -406,7 +406,7 @@ function ClassRow({ cls, isSelected, onToggleSelect, onNavigate, onEdit, onDelet
             size="icon"
             onClick={onNavigate}
             title="Xem chi tiết"
-            className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+            className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 transition-all duration-300"
           >
             <Eye className="h-4 w-4" />
           </Button>

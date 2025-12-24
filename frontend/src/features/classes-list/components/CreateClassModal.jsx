@@ -385,11 +385,11 @@ export function CreateClassModal({
                         onToggleDay(value);
                         onClearValidationError?.('schedule');
                       }}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${selectedDays.includes(value)
-                          ? 'bg-indigo-600 text-white border-indigo-600'
-                          : validationErrors.schedule
-                            ? 'bg-white text-slate-600 border-red-300 hover:border-red-400'
-                            : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all duration-300 ${selectedDays.includes(value)
+                        ? 'bg-gradient-to-br from-red-500 to-orange-500 text-white border-transparent shadow-md shadow-orange-500/20 scale-105'
+                        : validationErrors.schedule
+                          ? 'bg-white text-slate-600 border-red-300 hover:border-red-400'
+                          : 'bg-white text-slate-600 border-slate-200 hover:border-orange-300 hover:text-orange-600 hover:bg-orange-50/30'
                         }`}
                     >
                       {label}
@@ -449,8 +449,8 @@ export function CreateClassModal({
                     value={formData.max_students}
                     onChange={(e) => onUpdateField('max_students', parseInt(e.target.value) || 20)}
                     className={`h-9 text-sm ${selectedRoom && formData.max_students > selectedRoom.capacity
-                        ? 'border-red-300 focus:ring-red-500'
-                        : ''
+                      ? 'border-red-300 focus:ring-red-500'
+                      : ''
                       }`}
                   />
                   {/* Warning nếu sĩ số vượt sức chứa phòng */}
@@ -479,12 +479,12 @@ export function CreateClassModal({
 
               {/* Lịch học đã chọn (Preview) */}
               {formData.schedule.length > 0 && (
-                <div className="p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+                <div className="p-3 bg-orange-50 rounded-lg border border-orange-100/50 backdrop-blur-sm shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
                   <div className="flex items-start gap-2">
-                    <CalendarIcon className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
-                    <div className="text-sm text-indigo-800">
-                      <p className="font-medium">Lịch học đã chọn:</p>
-                      <p className="text-indigo-700">
+                    <CalendarIcon className="h-4 w-4 text-orange-500 shrink-0 mt-0.5" />
+                    <div className="text-sm text-orange-900">
+                      <p className="font-semibold">Lịch học đã chọn:</p>
+                      <p className="text-orange-700/80">
                         {selectedDays.map(d => DAY_NAMES[d]).join(', ')} | {startTime} - {endTime}
                       </p>
                     </div>
@@ -503,7 +503,7 @@ export function CreateClassModal({
               {formData.course_id && (
                 <div className="mt-4 bg-white rounded-lg border border-slate-200 p-4">
                   <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-                    <CalendarIcon className="w-4 h-4 text-indigo-500" />
+                    <CalendarIcon className="w-4 h-4 text-orange-500" />
                     Thông tin lớp học
                   </h4>
                   <div className="space-y-2 text-sm">
@@ -553,8 +553,8 @@ export function CreateClassModal({
                     <div className="flex items-center justify-between py-1.5">
                       <span className="text-slate-500">Sĩ số tối đa:</span>
                       <span className={`font-medium ${selectedRoom && formData.max_students > selectedRoom.capacity
-                          ? 'text-red-600'
-                          : 'text-slate-800'
+                        ? 'text-red-600'
+                        : 'text-slate-800'
                         }`}>
                         {formData.max_students} học viên
                         {selectedRoom && formData.max_students > selectedRoom.capacity && (
@@ -568,22 +568,23 @@ export function CreateClassModal({
 
               {/* Lịch học preview khi chưa có conflict check */}
               {formData.schedule.length > 0 && (
-                <div className="mt-4 bg-indigo-50 rounded-lg border border-indigo-200 p-4">
-                  <h4 className="text-sm font-semibold text-indigo-700 mb-2 flex items-center gap-2">
+                <div className="mt-4 bg-orange-50/50 rounded-xl border border-orange-200/40 p-4 backdrop-blur-sm shadow-inner">
+                  <h4 className="text-sm font-semibold text-orange-700 mb-2 flex items-center gap-2">
                     <CalendarIcon className="w-4 h-4" />
                     Lịch học chi tiết
                   </h4>
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     {formData.schedule.map((s, idx) => (
                       <div key={idx} className="flex items-center justify-between text-sm">
-                        <span className="text-indigo-800 font-medium">{DAY_NAMES[s.day]}</span>
-                        <span className="text-indigo-600">{s.start} - {s.end}</span>
+                        <span className="text-orange-900/70 font-medium">{DAY_NAMES[s.day]}</span>
+                        <span className="text-orange-600 font-semibold">{s.start} - {s.end}</span>
                       </div>
                     ))}
                   </div>
                   {formData.start_date && formData.end_date && (
-                    <div className="mt-3 pt-3 border-t border-indigo-200 text-xs text-indigo-600">
-                      📅 Từ {new Date(formData.start_date).toLocaleDateString('vi-VN')} đến {new Date(formData.end_date).toLocaleDateString('vi-VN')}
+                    <div className="mt-3 pt-3 border-t border-orange-200/50 text-xs text-orange-600/70 font-medium flex items-center gap-1">
+                      <span>📅</span>
+                      <span>Từ {new Date(formData.start_date).toLocaleDateString('vi-VN')} đến {new Date(formData.end_date).toLocaleDateString('vi-VN')}</span>
                     </div>
                   )}
                 </div>
@@ -608,7 +609,11 @@ export function CreateClassModal({
             <Button type="button" variant="outline" onClick={onClose}>
               Hủy
             </Button>
-            <Button type="submit" disabled={submitting}>
+            <Button
+              type="submit"
+              disabled={submitting}
+              className="bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-700 hover:to-orange-600 text-white shadow-md shadow-orange-500/20 transition-all duration-300"
+            >
               {submitting ? (
                 <>
                   <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />

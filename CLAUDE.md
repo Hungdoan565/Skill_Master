@@ -250,6 +250,11 @@ Backend uses extensive console logging with emojis:
 - `cors`: CORS middleware
 - `dotenv`: Environment variables
 - `jsonwebtoken`: JWT utilities
+- `bullmq`: Job queue for background tasks
+- `ioredis`: Redis client (required for BullMQ)
+- `nodemailer`: Email sending
+- `handlebars`: Email template engine
+- `pg`: PostgreSQL client
 
 ### Frontend
 - `react` + `react-dom`: UI framework
@@ -261,6 +266,59 @@ Backend uses extensive console logging with emojis:
 - `recharts`: Charts
 - `date-fns`: Date utilities
 - `xlsx`: Excel export
+
+## Testing
+
+### Backend Testing
+- **Test Framework**: Jest configured in `backend/package.json`
+- **Test Scripts**:
+  - `backend/test-schedule-apis.js` - Automated API tests
+  - `backend/test-api-automated.js` - Full API test suite
+  - `backend/test-endpoints.ps1` - PowerShell endpoint validation
+- **Running Tests**: Tests require authentication token from browser DevTools
+  - Location: `Application > Local Storage > sb-*-auth-token > access_token`
+
+### No Automated Test Suite
+- Currently no `npm test` script configured
+- Tests are run manually using provided scripts
+
+## Email Queue System
+
+**Stack**: BullMQ + Redis + Nodemailer + Handlebars
+
+The backend uses BullMQ for asynchronous email processing:
+- **Queue**: Background job processing for emails
+- **Templates**: Handlebars templates (location TBD in codebase)
+- **Redis Required**: Must have Redis server running locally or remote
+- **Use Cases**: Welcome emails, invoice notifications, certificate issuance
+
+**Setup**:
+```bash
+# Install and start Redis (required for BullMQ)
+# macOS: brew install redis && brew services start redis
+# Windows: Download from https://redis.io/download
+# Linux: sudo apt-get install redis-server
+redis-server
+```
+
+## Additional Technical Details
+
+### Session Uniqueness Constraint
+Database enforces: **One class can only have one session per date**
+- Constraint: `UNIQUE(class_id, session_date)` in `sessions` table
+- Prevents double-booking of sessions
+
+### Vite Proxy Configuration
+Frontend proxies `/api` requests to backend:
+- Config: `frontend/vite.config.mts`
+- Proxy: `/api` → `http://localhost:3000`
+- Allows relative API calls from frontend
+
+### Locked Sessions Protection
+Sessions with `is_locked=true` are **never** deleted or modified:
+- Protected when they have: attendance records, grades, or payment records
+- Auto-generation skips locked sessions
+- Manual deletion also blocked
 
 ## Additional AI Tools
 

@@ -214,11 +214,16 @@ export function ClassesPage() {
     <div className="space-y-6">
       {/* Page Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Quản lý Lớp học</h1>
-          <p className="text-muted-foreground">Danh sách các lớp học của trung tâm</p>
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+            Quản lý Lớp học
+          </h1>
+          <p className="text-muted-foreground flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+            Quản lý danh sách, lịch trình và sĩ số các lớp học của trung tâm
+          </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <ExportButton
             data={filteredClasses}
             filename="danh-sach-lop-hoc"
@@ -229,11 +234,15 @@ export function ClassesPage() {
           <Button
             variant="outline"
             onClick={() => setImportModalOpen(true)}
+            className="hover:bg-slate-50 transition-all duration-300"
           >
             <Upload className="mr-2 h-4 w-4" />
             Nhập dữ liệu
           </Button>
-          <Button onClick={() => openModal()}>
+          <Button
+            onClick={() => openModal()}
+            className="bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-700 hover:to-orange-600 text-white shadow-lg shadow-orange-500/25 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+          >
             <Plus className="mr-2 h-4 w-4" />
             Mở lớp mới
           </Button>

@@ -73,12 +73,12 @@ export function ClassFilters({
           variant="outline"
           size="sm"
           onClick={onOpenAdvancedFilters}
-          className="relative"
+          className="relative hover:border-orange-200 hover:bg-orange-50/50 transition-all duration-300"
         >
           <SlidersHorizontal className="h-4 w-4 mr-2" />
           Lọc nâng cao
           {activeFilterCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-indigo-600 text-white text-xs rounded-full flex items-center justify-center">
+            <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-gradient-to-br from-red-500 to-orange-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm border border-white">
               {activeFilterCount}
             </span>
           )}
