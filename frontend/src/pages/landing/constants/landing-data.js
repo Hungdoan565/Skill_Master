@@ -313,6 +313,29 @@ export const faqs = [
     },
 ];
 
+export const trustBadges = [
+    {
+        icon: 'Shield',
+        label: 'Cam kết đầu ra',
+        description: 'Bằng văn bản pháp lý'
+    },
+    {
+        icon: 'Award',
+        label: 'Chứng chỉ Quốc tế',
+        description: 'Được công nhận toàn cầu'
+    },
+    {
+        icon: 'Users',
+        label: 'Hỗ trợ 24/7',
+        description: 'Đội ngũ mentor tận tâm'
+    },
+    {
+        icon: 'BookOpen',
+        label: 'Lộ trình tinh gọn',
+        description: 'Tiết kiệm 30% thời gian'
+    }
+];
+
 // ============================================
 // FOOTER LINKS
 // ============================================
@@ -320,7 +343,6 @@ export const footerLinks = {
     'Khóa học': ['IELTS', 'TOEIC', 'Giao tiếp', 'Tin học VP', 'IC3'],
     'Lộ trình': ['Từ 0 lên 6.5', 'TOEIC 700+', 'IELTS 7.0+', 'Excel Pro'],
     'Hỗ trợ': ['Tư vấn miễn phí', 'Lịch khai giảng', 'Chính sách', 'FAQ'],
-    'Liên hệ': ['Hotline: 1900 xxxx', 'Email: info@skillmaster.vn', 'Fanpage', 'Zalo OA'],
 };
 
 // ============================================

@@ -79,14 +79,15 @@ const NavDropdown = ({ label, children, isOpen, onToggle, onClose }) => {
                 <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
             </button>
 
-            {/* Dropdown Panel */}
+            {/* Dropdown Panel - Enhanced smooth animation */}
             <div
-                className={`absolute top-full left-0 mt-4 min-w-[280px] origin-top-left
-                  bg-white rounded-2xl border border-stone-200/80 shadow-xl shadow-stone-200/50
-                  transition-all duration-200 ease-out z-50
+                className={`absolute top-full left-0 mt-2 min-w-[280px] origin-top-left
+                  bg-white/95 backdrop-blur-xl rounded-xl border-t-4 border-t-red-600 border-x border-b border-stone-200/50 
+                  shadow-2xl shadow-zinc-900/10
+                  transition-all duration-300 cubic-bezier(0.34, 1.56, 0.64, 1) z-50 overflow-hidden
                   ${isOpen
                         ? 'opacity-100 scale-100 translate-y-0 visible'
-                        : 'opacity-0 scale-95 -translate-y-2 invisible pointer-events-none'
+                        : 'opacity-0 scale-95 -translate-y-4 invisible pointer-events-none'
                     }`}
                 role="menu"
                 aria-hidden={!isOpen}
@@ -259,7 +260,7 @@ export const Header = () => {
                 <nav className="flex items-center justify-between h-24">
                     {/* Logo */}
                     <Link to="/" className="group flex items-center gap-2">
-                        <img src={logoImage} alt="Skill Master Logo" className="h-24 w-auto object-contain group-hover:scale-105 transition-transform duration-300" />
+                        <img src={logoImage} alt="Skill Master Logo" className="h-24 w-auto object-contain brightness-0 invert opacity-90 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300" />
                     </Link>
 
                     {/* Desktop Navigation */}
