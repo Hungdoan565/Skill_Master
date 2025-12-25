@@ -86,7 +86,12 @@ export const DEFAULT_COURSE_FORM = {
   price: '',
   cover_image: '',
   description: '',
-  status: 'active'
+  status: 'active',
+  // JSON Array fields for public UI
+  syllabus: [],
+  outcomes: [],
+  features: [],
+  faq: []
 };
 
 // ============================================================
@@ -201,7 +206,63 @@ export const COURSE_TEMPLATES = [
       total_sessions: 36,
       duration_weeks: 12,
       price: '8500000',
-      description: 'Khóa IELTS cơ bản dành cho người mới bắt đầu. Mục tiêu đạt band 5.0-5.5. Bao gồm 4 kỹ năng: Listening, Reading, Writing, Speaking.'
+      description: 'Khóa IELTS cơ bản dành cho người mới bắt đầu. Mục tiêu đạt band 5.0-5.5. Bao gồm 4 kỹ năng: Listening, Reading, Writing, Speaking.',
+      syllabus: [
+        {
+          title: 'Listening Fundamentals',
+          topics: ['Note-taking skills', 'Common question types', 'Multiple choice strategies', 'Map and diagram labeling']
+        },
+        {
+          title: 'Reading Basics',
+          topics: ['Skimming and scanning techniques', 'True/False/Not Given questions', 'Matching headings', 'Summary completion']
+        },
+        {
+          title: 'Writing Task 1',
+          topics: ['Describing charts and graphs', 'Process diagrams', 'Map comparisons', 'Sentence structures']
+        },
+        {
+          title: 'Writing Task 2',
+          topics: ['Essay organization', 'Opinion essays', 'Discussion essays', 'Problem-solution essays']
+        },
+        {
+          title: 'Speaking Part 1-3',
+          topics: ['Fluency practice', 'Common topics', 'Idea development', 'Pronunciation drills']
+        }
+      ],
+      outcomes: [
+        'Achieve IELTS band 5.0-5.5',
+        'Master fundamental grammar structures',
+        'Build 1500+ academic vocabulary',
+        'Understand all question types across 4 skills',
+        'Develop effective time management for exam',
+        'Gain confidence in English communication'
+      ],
+      features: [
+        '100% mock tests chuẩn Cambridge',
+        'Học liệu chính thức từ IELTS.org',
+        'Luyện nói 1-1 với giáo viên',
+        'Chấm bài writing chi tiết',
+        'Đảm bảo đầu ra hoặc học lại miễn phí',
+        'Hỗ trợ học tập 24/7'
+      ],
+      faq: [
+        {
+          question: 'Khóa học phù hợp với ai?',
+          answer: 'Khóa này dành cho người mới bắt đầu hoặc có trình độ tiếng Anh cơ bản (tương đương Pre-Intermediate). Phù hợp với học sinh, sinh viên cần chứng chỉ IELTS 5.0-5.5 để du học, định cư hoặc xin việc.'
+        },
+        {
+          question: 'Cần chuẩn bị gì trước khi học?',
+          answer: 'Bạn chỉ cần có tiếng Anh cơ bản (biết ngữ pháp căn bản, vốn từ vựng khoảng 1000 từ). Trung tâm sẽ cung cấp đầy đủ giáo trình và tài liệu học tập.'
+        },
+        {
+          question: 'Học online hay offline?',
+          answer: 'Khóa học hỗ trợ cả hai hình thức. Bạn có thể chọn học trực tiếp tại trung tâm hoặc học online qua Zoom với tương tác trực tiếp với giáo viên.'
+        },
+        {
+          question: 'Cam kết đầu ra như thế nào?',
+          answer: 'Trung tâm cam kết học viên đạt band 5.0-5.5 sau khóa học. Nếu không đạt, học viên được học lại miễn phí đến khi đạt mục tiêu (với điều kiện tham gia đầy đủ các buổi học và làm bài tập).'
+        }
+      ]
     }
   },
   {

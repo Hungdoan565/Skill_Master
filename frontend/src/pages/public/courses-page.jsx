@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  ArrowRight, 
-  ArrowUpRight, 
-  Clock, 
-  Users, 
+import {
+  ArrowRight,
+  ArrowUpRight,
+  Clock,
+  Users,
   BookOpen,
   CheckCircle,
   Filter,
@@ -16,8 +16,19 @@ import {
 } from 'lucide-react';
 import PublicHeader from '../../components/layout/public-header';
 
-// Import logo
+import { supabase } from '@/lib/supabaseClient';
 import logoImage from '@/assets/logo.png';
+
+// Helper to format currency
+const formatCurrency = (amount) => {
+  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+};
+
+// Helper to map categories
+const getCategoryLabel = (cat) => {
+  const map = { english: 'Tiếng Anh', it: 'Tin học', office: 'Tin học', softskill: 'Kỹ năng mềm' };
+  return map[cat] || cat;
+};
 
 // ============================================
 // SWISS MINIMALISM COURSES PAGE
@@ -53,174 +64,7 @@ const useInView = (options = {}) => {
 // ============================================
 // COURSES DATA
 // ============================================
-const coursesData = [
-  {
-    id: 'ielts-academic',
-    category: 'english',
-    categoryLabel: 'Tiếng Anh',
-    title: 'IELTS Academic',
-    subtitle: 'Chinh phục IELTS từ 5.0 đến 8.0+',
-    description: 'Chương trình luyện thi IELTS toàn diện với phương pháp Cambridge, được thiết kế cho học viên muốn du học hoặc định cư. Cam kết đầu ra rõ ràng.',
-    duration: '3-6 tháng',
-    sessions: '24-48 buổi',
-    classSize: '8-12 học viên',
-    level: 'Từ 5.0+',
-    schedule: 'T2-T4-T6 hoặc T3-T5-T7',
-    features: [
-      'Giáo viên IELTS 8.0+',
-      'Cam kết đầu ra',
-      'Thi thử hàng tuần',
-      'Chấm Writing miễn phí',
-      'Phòng tự học 24/7',
-      'Tài liệu Cambridge'
-    ],
-    levels: [
-      { name: 'Foundation', target: '5.0 - 5.5', duration: '2 tháng' },
-      { name: 'Intermediate', target: '6.0 - 6.5', duration: '3 tháng' },
-      { name: 'Advanced', target: '7.0 - 7.5', duration: '4 tháng' },
-      { name: 'Master', target: '8.0+', duration: '6 tháng' },
-    ],
-    price: '8.500.000đ',
-    popular: true,
-  },
-  {
-    id: 'toeic-4skills',
-    category: 'english',
-    categoryLabel: 'Tiếng Anh',
-    title: 'TOEIC 4 Kỹ năng',
-    subtitle: 'Đạt mục tiêu TOEIC nhanh chóng',
-    description: 'Khóa học TOEIC toàn diện với giáo trình ETS chính hãng, phù hợp cho sinh viên và người đi làm cần chứng chỉ TOEIC để tốt nghiệp hoặc thăng tiến.',
-    duration: '2-4 tháng',
-    sessions: '16-32 buổi',
-    classSize: '10-15 học viên',
-    level: 'Từ 300+',
-    schedule: 'T2-T4-T6 hoặc T3-T5-T7',
-    features: [
-      'Giáo trình ETS chính hãng',
-      'Thi thử mỗi tuần',
-      'Phân tích đề chi tiết',
-      'Tips & Tricks hiệu quả',
-      'Học nhóm nhỏ',
-      'Cam kết tăng 150+ điểm'
-    ],
-    levels: [
-      { name: 'Starter', target: '450+', duration: '2 tháng' },
-      { name: 'Target', target: '650+', duration: '3 tháng' },
-      { name: 'Achiever', target: '850+', duration: '4 tháng' },
-    ],
-    price: '5.500.000đ',
-    popular: false,
-  },
-  {
-    id: 'business-english',
-    category: 'english',
-    categoryLabel: 'Tiếng Anh',
-    title: 'Business English',
-    subtitle: 'Tiếng Anh cho môi trường công sở',
-    description: 'Khóa học Tiếng Anh thương mại dành cho người đi làm, tập trung vào giao tiếp, email, thuyết trình và đàm phán trong môi trường doanh nghiệp.',
-    duration: '2-3 tháng',
-    sessions: '20 buổi',
-    classSize: '6-8 học viên',
-    level: 'Intermediate+',
-    schedule: 'T3-T5 tối hoặc Thứ 7',
-    features: [
-      'Giáo viên bản ngữ',
-      'Tình huống thực tế',
-      'Email & Report Writing',
-      'Presentation Skills',
-      'Meeting & Negotiation',
-      'Chứng chỉ hoàn thành'
-    ],
-    levels: [
-      { name: 'Essential', target: 'Giao tiếp cơ bản', duration: '2 tháng' },
-      { name: 'Professional', target: 'Thành thạo công việc', duration: '3 tháng' },
-    ],
-    price: '6.500.000đ',
-    popular: false,
-  },
-  {
-    id: 'mos-office',
-    category: 'it',
-    categoryLabel: 'Tin học',
-    title: 'MOS - Tin học Văn phòng',
-    subtitle: 'Chứng chỉ MOS quốc tế',
-    description: 'Khóa học Tin học Văn phòng chuẩn MOS (Microsoft Office Specialist), bao gồm Word, Excel, PowerPoint. Phù hợp cho sinh viên và người đi làm.',
-    duration: '1-2 tháng',
-    sessions: '12-20 buổi',
-    classSize: '1-1 hoặc nhóm nhỏ',
-    level: 'Từ cơ bản',
-    schedule: 'Linh hoạt',
-    features: [
-      'Chứng chỉ MOS quốc tế',
-      'Thực hành 70%',
-      'Học 1 kèm 1',
-      'Giáo trình Microsoft',
-      'Thi thử trước kỳ thi',
-      'Hỗ trợ đăng ký thi'
-    ],
-    levels: [
-      { name: 'Word', target: 'MOS Word', duration: '1 tháng' },
-      { name: 'Excel', target: 'MOS Excel', duration: '1 tháng' },
-      { name: 'PowerPoint', target: 'MOS PowerPoint', duration: '1 tháng' },
-      { name: 'Expert', target: 'MOS Expert', duration: '2 tháng' },
-    ],
-    price: '2.500.000đ',
-    popular: true,
-  },
-  {
-    id: 'ic3',
-    category: 'it',
-    categoryLabel: 'Tin học',
-    title: 'IC3 Digital Literacy',
-    subtitle: 'Chứng chỉ Tin học quốc tế',
-    description: 'Chương trình IC3 (Internet and Computing Core Certification) cung cấp nền tảng công nghệ số toàn diện, được công nhận toàn cầu.',
-    duration: '2-3 tháng',
-    sessions: '24 buổi',
-    classSize: '8-12 học viên',
-    level: 'Từ cơ bản',
-    schedule: 'T2-T4-T6 hoặc Thứ 7-CN',
-    features: [
-      'Chứng chỉ quốc tế',
-      'Computing Fundamentals',
-      'Key Applications',
-      'Living Online',
-      'Giáo trình Certiport',
-      'Thi online tại trung tâm'
-    ],
-    levels: [
-      { name: 'GS5 Level 1', target: 'Cơ bản', duration: '2 tháng' },
-      { name: 'GS5 Level 2', target: 'Nâng cao', duration: '3 tháng' },
-    ],
-    price: '3.500.000đ',
-    popular: false,
-  },
-  {
-    id: 'excel-advanced',
-    category: 'it',
-    categoryLabel: 'Tin học',
-    title: 'Excel Nâng cao',
-    subtitle: 'Làm chủ Excel cho công việc',
-    description: 'Khóa học Excel chuyên sâu với các hàm nâng cao, Pivot Table, Dashboard, VBA Macro. Dành cho người đã có nền tảng Excel cơ bản.',
-    duration: '1.5 tháng',
-    sessions: '12 buổi',
-    classSize: '8-10 học viên',
-    level: 'Đã biết Excel cơ bản',
-    schedule: 'T3-T5 tối hoặc Thứ 7',
-    features: [
-      'Hàm nâng cao (INDEX, MATCH...)',
-      'Pivot Table & Chart',
-      'Dashboard & Báo cáo',
-      'Power Query',
-      'VBA Macro cơ bản',
-      'Case study thực tế'
-    ],
-    levels: [
-      { name: 'Advanced', target: 'Thành thạo', duration: '1.5 tháng' },
-    ],
-    price: '2.000.000đ',
-    popular: false,
-  },
-];
+// Data fetched from Supabase now
 
 // ============================================
 // PAGE HEADER SECTION
@@ -252,11 +96,11 @@ const PageHeader = () => {
                           transform transition-all duration-500 delay-100
                           ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
               <p className="text-lg text-neutral-600 leading-relaxed max-w-xl">
-                Khám phá các chương trình đào tạo Anh ngữ và Tin học được thiết kế 
+                Khám phá các chương trình đào tạo Anh ngữ và Tin học được thiết kế
                 theo chuẩn quốc tế, phù hợp với mọi mục tiêu học tập.
               </p>
             </div>
-            
+
             {/* Quick Stats */}
             <div className="grid grid-cols-3 border-t border-neutral-200">
               <div className={`p-6 lg:p-8 border-r border-neutral-200
@@ -296,7 +140,7 @@ const FilterSection = ({ activeFilter, setActiveFilter, searchTerm, setSearchTer
   ];
 
   return (
-    <section className="border-b border-neutral-200 sticky top-16 bg-white z-40">
+    <section className="border-b border-neutral-200 sticky top-16 bg-white/80 backdrop-blur-md z-40 transition-all duration-300">
       <div className="max-w-[1600px] mx-auto">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 lg:px-8">
           {/* Filter Tabs */}
@@ -305,11 +149,10 @@ const FilterSection = ({ activeFilter, setActiveFilter, searchTerm, setSearchTer
               <button
                 key={filter.id}
                 onClick={() => setActiveFilter(filter.id)}
-                className={`px-4 py-2 text-sm font-medium transition-colors duration-150 ${
-                  activeFilter === filter.id
-                    ? 'bg-neutral-900 text-white'
-                    : 'text-neutral-600 hover:bg-neutral-100'
-                }`}
+                className={`px-4 py-2 text-sm font-medium transition-colors duration-150 ${activeFilter === filter.id
+                  ? 'bg-neutral-900 text-white'
+                  : 'text-neutral-600 hover:bg-neutral-100'
+                  }`}
               >
                 {filter.label}
               </button>
@@ -351,18 +194,31 @@ const CourseCard = ({ course, index }) => {
       style={{ transitionDelay: `${index * 50}ms` }}
     >
       {/* Main Card Content */}
-      <div className="grid lg:grid-cols-12 hover:bg-neutral-50 transition-colors duration-150">
+      <div
+        className="group relative grid lg:grid-cols-12 hover:bg-neutral-50 transition-all duration-300 ease-out overflow-hidden cursor-pointer"
+        onClick={() => setExpanded(!expanded)}
+      >
+        {/* HOVER WATERMARK ART */}
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-32 group-hover:translate-x-12 opacity-0 group-hover:opacity-5 pointer-events-none transition-all duration-700 ease-out">
+          <span className="text-[10rem] font-black uppercase tracking-tighter leading-none whitespace-nowrap">
+            {course.category}
+          </span>
+        </div>
+
+        {/* HOVER ACCENT LINE */}
+        <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#FF4D00] transform -translate-x-full group-hover:translate-x-0 transition-transform duration-300 ease-out" />
+
         {/* Number & Category */}
-        <div className="lg:col-span-2 p-6 lg:p-8 lg:border-r border-neutral-200 flex lg:flex-col justify-between lg:justify-start gap-4">
-          <span className="text-sm font-medium text-neutral-400">
+        <div className="lg:col-span-2 p-6 lg:p-8 lg:border-r border-transparent lg:group-hover:border-neutral-200 transaction-colors flex lg:flex-col justify-between lg:justify-start gap-4 z-10">
+          <span className="text-xl font-mono font-bold text-neutral-300 group-hover:text-neutral-900 transition-colors duration-300">
             {String(index + 1).padStart(2, '0')}
           </span>
           <div className="flex items-center gap-2">
-            <span className="px-2 py-1 bg-neutral-900 text-white text-xs font-medium uppercase tracking-wider">
+            <span className="px-2 py-1 bg-neutral-900 text-white text-xs font-medium uppercase tracking-wider group-hover:bg-[#FF4D00] transition-colors duration-300">
               {course.categoryLabel}
             </span>
             {course.popular && (
-              <span className="px-2 py-1 bg-[#FF4D00] text-white text-xs font-medium uppercase tracking-wider">
+              <span className="px-2 py-1 border border-[#FF4D00] text-[#FF4D00] text-xs font-medium uppercase tracking-wider">
                 Hot
               </span>
             )}
@@ -370,64 +226,51 @@ const CourseCard = ({ course, index }) => {
         </div>
 
         {/* Title & Description */}
-        <div className="lg:col-span-5 p-6 lg:p-8 lg:border-r border-neutral-200">
-          <h3 className="text-xl lg:text-2xl font-bold text-neutral-900 mb-2">
+        <div className="lg:col-span-5 p-6 lg:p-8 lg:border-r border-transparent lg:group-hover:border-neutral-200 z-10">
+          <h3 className="text-xl lg:text-3xl font-black text-neutral-900 mb-2 group-hover:translate-x-2 transition-transform duration-300">
             {course.title}
           </h3>
-          <p className="text-sm text-neutral-500 mb-4">{course.subtitle}</p>
-          <p className="text-sm text-neutral-600 leading-relaxed">
+          <p className="text-sm font-mono text-[#FF4D00] mb-4 opacity-0 group-hover:opacity-100 transform -translate-y-2 group-hover:translate-y-0 transition-all duration-300 delay-75">
+            {course.subtitle} ///
+          </p>
+          <p className="text-sm text-neutral-600 leading-relaxed max-w-md group-hover:text-neutral-900 transition-colors">
             {course.description}
           </p>
         </div>
 
         {/* Quick Info */}
-        <div className="lg:col-span-3 p-6 lg:p-8 lg:border-r border-neutral-200">
-          <div className="grid grid-cols-2 gap-4">
+        <div className="lg:col-span-3 p-6 lg:p-8 lg:border-r border-transparent lg:group-hover:border-neutral-200 z-10 flex items-center">
+          <div className="grid grid-cols-2 gap-x-8 gap-y-4 w-full">
             <div>
-              <p className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Thời lượng</p>
-              <p className="text-sm font-medium text-neutral-900 flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5" />
+              <p className="text-[10px] text-neutral-400 uppercase tracking-widest mb-1 group-hover:text-neutral-500">Thời lượng</p>
+              <p className="text-sm font-bold text-neutral-900 font-mono">
                 {course.duration}
               </p>
             </div>
             <div>
-              <p className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Số buổi</p>
-              <p className="text-sm font-medium text-neutral-900 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5" />
+              <p className="text-[10px] text-neutral-400 uppercase tracking-widest mb-1 group-hover:text-neutral-500">Số buổi</p>
+              <p className="text-sm font-bold text-neutral-900 font-mono">
                 {course.sessions}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Sĩ số</p>
-              <p className="text-sm font-medium text-neutral-900 flex items-center gap-1">
-                <Users className="w-3.5 h-3.5" />
-                {course.classSize}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Trình độ</p>
-              <p className="text-sm font-medium text-neutral-900 flex items-center gap-1">
-                <Target className="w-3.5 h-3.5" />
-                {course.level}
               </p>
             </div>
           </div>
         </div>
 
         {/* Price & CTA */}
-        <div className="lg:col-span-2 p-6 lg:p-8 flex flex-col justify-between">
-          <div>
-            <p className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Học phí từ</p>
-            <p className="text-xl font-bold text-neutral-900">{course.price}</p>
+        <div className="lg:col-span-2 p-6 lg:p-8 flex flex-col justify-between z-10">
+          <div className="text-right lg:text-left group-hover:scale-110 transition-transform duration-300 origin-left">
+            <p className="text-[10px] text-neutral-400 uppercase tracking-widest mb-1 group-hover:text-[#FF4D00]">Học phí</p>
+            <p className="text-xl font-black text-neutral-900">{formatCurrency(course.price || 0)}</p>
           </div>
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="mt-4 flex items-center gap-2 text-sm font-medium text-neutral-900 
-                     hover:opacity-60 transition-opacity duration-150"
-          >
-            {expanded ? 'Thu gọn' : 'Xem chi tiết'}
-            <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
-          </button>
+
+          <div className="mt-4 flex items-center gap-2 text-sm font-bold text-neutral-900 justify-end lg:justify-start group/btn">
+            <span className="opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0 transition-all duration-300">
+              Chi tiết
+            </span>
+            <div className={`w-8 h-8 rounded-full border border-neutral-900 flex items-center justify-center group-hover/btn:bg-neutral-900 group-hover/btn:text-white transition-all duration-300 ${expanded ? 'rotate-180 bg-neutral-900 text-white' : ''}`}>
+              <ChevronDown className="w-4 h-4" />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -449,34 +292,36 @@ const CourseCard = ({ course, index }) => {
             </ul>
           </div>
 
-          {/* Levels */}
-          <div className="lg:col-span-5 p-6 lg:p-8 lg:border-r border-neutral-200">
-            <h4 className="text-xs font-medium text-neutral-500 uppercase tracking-widest mb-4">
-              Các cấp độ
-            </h4>
-            <div className="space-y-3">
-              {course.levels.map((level, i) => (
-                <div key={i} className="flex items-center justify-between p-3 bg-white border border-neutral-200">
-                  <div>
-                    <p className="font-medium text-neutral-900">{level.name}</p>
-                    <p className="text-xs text-neutral-500">Mục tiêu: {level.target}</p>
+          {/* Levels - Shown only if available */}
+          {course.levels && course.levels.length > 0 && (
+            <div className="lg:col-span-5 p-6 lg:p-8 lg:border-r border-neutral-200">
+              <h4 className="text-xs font-medium text-neutral-500 uppercase tracking-widest mb-4">
+                Các cấp độ
+              </h4>
+              <div className="space-y-3">
+                {course.levels.map((level, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 bg-white border border-neutral-200">
+                    <div>
+                      <p className="font-medium text-neutral-900">{level.name}</p>
+                      <p className="text-xs text-neutral-500">Mục tiêu: {level.target}</p>
+                    </div>
+                    <span className="text-xs text-neutral-500">{level.duration}</span>
                   </div>
-                  <span className="text-xs text-neutral-500">{level.duration}</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Schedule & CTA */}
-          <div className="lg:col-span-3 p-6 lg:p-8">
+          <div className={`${(course.levels && course.levels.length > 0) ? 'lg:col-span-3' : 'lg:col-span-8'} p-6 lg:p-8`}>
             <h4 className="text-xs font-medium text-neutral-500 uppercase tracking-widest mb-4">
               Lịch học
             </h4>
             <p className="text-sm text-neutral-700 mb-6">{course.schedule}</p>
-            
+
             <div className="space-y-3">
               <Link
-                to="/register"
+                to={`/courses/${course.slug || course.id}`}
                 className="w-full flex items-center justify-center gap-2 px-6 py-3 
                          bg-[#FF4D00] text-white text-sm font-semibold uppercase tracking-wider
                          hover:bg-[#E64500] transition-colors duration-150"
@@ -498,9 +343,49 @@ const CourseCard = ({ course, index }) => {
 };
 
 // ============================================
+// COURSE SKELETON COMPONENT
+// ============================================
+const CourseSkeleton = () => (
+  <div className="border-b border-neutral-200 p-8 animate-pulse text-transparent select-none bg-neutral-50/50">
+    <div className="max-w-[1600px] mx-auto grid lg:grid-cols-12 gap-8">
+      <div className="lg:col-span-2">
+        <div className="w-12 h-6 bg-neutral-200 rounded mb-4" />
+        <div className="w-20 h-4 bg-neutral-200 rounded" />
+      </div>
+      <div className="lg:col-span-5">
+        <div className="w-3/4 h-10 bg-neutral-200 rounded mb-4" />
+        <div className="w-1/2 h-4 bg-neutral-200 rounded mb-2" />
+        <div className="w-full h-4 bg-neutral-200 rounded" />
+      </div>
+      <div className="lg:col-span-3">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="h-12 bg-neutral-200 rounded" />
+          <div className="h-12 bg-neutral-200 rounded" />
+        </div>
+      </div>
+      <div className="lg:col-span-2">
+        <div className="h-16 bg-neutral-200 rounded" />
+      </div>
+    </div>
+  </div>
+);
+
+// ============================================
 // COURSES LIST SECTION
 // ============================================
-const CoursesList = ({ courses }) => {
+const CoursesList = ({ courses, loading }) => {
+  if (loading) {
+    return (
+      <section className="border-b border-neutral-900">
+        <div className="divide-y divide-neutral-200">
+          {[1, 2, 3].map((i) => (
+            <CourseSkeleton key={i} />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="border-b border-neutral-900">
       <div className="max-w-[1600px] mx-auto">
@@ -579,9 +464,9 @@ const Footer = () => {
           {/* Brand */}
           <div className="p-6 lg:p-8 md:border-r border-neutral-200">
             <Link to="/" className="flex items-center gap-2 mb-4">
-              <img 
-                src={logoImage} 
-                alt="Skill Master" 
+              <img
+                src={logoImage}
+                alt="Skill Master"
                 className="h-11 w-auto object-contain"
               />
             </Link>
@@ -654,12 +539,55 @@ const Footer = () => {
 export const CoursesPage = () => {
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchCourses();
+  }, []);
+
+  const fetchCourses = async () => {
+    try {
+      setLoading(true);
+      const startTime = performance.now();
+
+      const { data, error } = await supabase
+        .from('courses')
+        .select('*')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+
+      const duration = (performance.now() - startTime).toFixed(2);
+      console.log(`[Supabase] fetchCourses took ${duration}ms`);
+
+      if (error) throw error;
+
+      // Transform data to match UI needs
+      const transformed = data.map(c => ({
+        ...c,
+        categoryLabel: getCategoryLabel(c.category),
+        subtitle: c.code, // Fallback
+        duration: c.duration_weeks ? `${c.duration_weeks} tuần` : 'Liên hệ',
+        sessions: c.total_sessions ? `${c.total_sessions} buổi` : 'Liên hệ',
+        classSize: '8-12 học viên',
+        schedule: 'Linh hoạt',
+        features: typeof c.features === 'string' ? JSON.parse(c.features) : (c.features || []),
+        levels: [] // No levels in DB yet
+      }));
+
+      setCourses(transformed);
+    } catch (err) {
+      console.error('Error fetching courses:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Filter courses
-  const filteredCourses = coursesData.filter(course => {
+  const filteredCourses = courses.filter(course => {
     const matchesFilter = activeFilter === 'all' || course.category === activeFilter;
-    const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         course.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = (course.title?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (course.description?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     return matchesFilter && matchesSearch;
   });
 
@@ -668,13 +596,13 @@ export const CoursesPage = () => {
       <PublicHeader />
       <main>
         <PageHeader />
-        <FilterSection 
-          activeFilter={activeFilter} 
+        <FilterSection
+          activeFilter={activeFilter}
           setActiveFilter={setActiveFilter}
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
         />
-        <CoursesList courses={filteredCourses} />
+        <CoursesList courses={filteredCourses} loading={loading} />
         <CTASection />
       </main>
       <Footer />

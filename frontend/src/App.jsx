@@ -48,6 +48,7 @@ import { LoginPage } from '@/pages/auth/login-page';
 import { AuthPage } from '@/pages/auth/auth-page';
 import { LandingPage } from '@/pages/landing/landing-page';
 import { CoursesPage as PublicCoursesPage } from '@/pages/public/courses-page';
+import { CourseDetailPage } from '@/pages/public/course-detail-page';
 import { AboutPage } from '@/pages/public/about-page';
 import { BlogPage } from '@/pages/public/blog-page';
 import { ContactPage } from '@/pages/public/contact-page-new';
@@ -473,7 +474,7 @@ function App() {
 
           {/* Public Courses Page - Standalone with its own header/footer */}
           <Route path="courses" element={<PublicCoursesPage />} />
-          <Route path="courses/:id" element={<PublicCoursesPage />} />
+          <Route path="courses/:id" element={<CourseDetailPage />} />
 
           {/* Public Certificate Verification - No login required */}
           <Route path="verify-certificate" element={<PublicCertificateVerification />} />
