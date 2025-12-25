@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
+import { Footer } from '@/pages/landing/components/footer';
 import { supabase } from '@/lib/supabaseClient';
 import {
     ArrowRight,
@@ -417,15 +419,31 @@ const DotGridPattern = () => (
 const LoadingSkeleton = () => (
     <div className="min-h-screen bg-white">
         <PublicHeader />
-        <div className="max-w-[1600px] mx-auto p-6 pt-20">
-            <div className="animate-pulse space-y-8">
-                <div className="h-24 bg-neutral-900 w-full rounded-none"></div>
-                <div className="grid lg:grid-cols-3 gap-8 mt-12">
-                    <div className="lg:col-span-2 space-y-4">
-                        <div className="h-64 bg-gray-100 rounded-none"></div>
-                        <div className="h-32 bg-gray-100 rounded-none"></div>
+        <div className="pt-20">
+            {/* Hero Skeleton */}
+            <div className="bg-neutral-900 h-[60vh] relative overflow-hidden">
+                <div className="max-w-[1600px] mx-auto grid lg:grid-cols-12 h-full">
+                    <div className="lg:col-span-8 p-8 lg:p-20 flex flex-col justify-center gap-6">
+                        <div className="w-32 h-6 bg-neutral-800 animate-pulse rounded" />
+                        <div className="w-3/4 h-20 bg-neutral-800 animate-pulse rounded" />
+                        <div className="w-1/2 h-10 bg-neutral-800 animate-pulse rounded" />
+                        <div className="grid grid-cols-4 gap-8 mt-8">
+                            {[1, 2, 3, 4].map(i => (
+                                <div key={i} className="h-16 bg-neutral-800 animate-pulse rounded" />
+                            ))}
+                        </div>
                     </div>
-                    <div className="h-96 bg-gray-100 rounded-none border border-neutral-200"></div>
+                </div>
+            </div>
+
+            {/* Content Skeleton */}
+            <div className="max-w-[1600px] mx-auto grid lg:grid-cols-12">
+                <div className="lg:col-span-8 p-8 lg:p-16 space-y-12">
+                    <div className="h-32 bg-neutral-100 animate-pulse rounded" />
+                    <div className="h-96 bg-neutral-100 animate-pulse rounded" />
+                </div>
+                <div className="lg:col-span-4 p-8 lg:p-12">
+                    <div className="h-[500px] bg-neutral-900 animate-pulse rounded shadow-2xl" />
                 </div>
             </div>
         </div>
@@ -621,6 +639,33 @@ const ConsultationModal = ({ isOpen, onClose, courseId, courseName }) => {
 };
 
 // ============================================
+// MOBILE FIXED ACTION BAR
+// ============================================
+
+const MobileActionBar = ({ price, onRegister, onConsult, theme }) => (
+    <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-neutral-200 p-4 shadow-[0_-10px_20px_rgba(0,0,0,0.05)] flex items-center justify-between gap-4 animate-in slide-in-from-bottom duration-500">
+        <div className="flex-shrink-0">
+            <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Học phí</p>
+            <p className="text-lg font-black text-neutral-900">{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price || 0)}</p>
+        </div>
+        <div className="flex flex-1 gap-2">
+            <button
+                onClick={onConsult}
+                className="flex-1 py-3 border-2 border-neutral-900 text-neutral-900 text-xs font-black uppercase tracking-widest"
+            >
+                Tư vấn
+            </button>
+            <Link
+                to="/register"
+                className={`flex-1 py-3 text-white text-xs font-black uppercase tracking-widest text-center ${theme.ctaBg}`}
+            >
+                Đăng ký
+            </Link>
+        </div>
+    </div>
+);
+
+// ============================================
 // MAIN COMPONENT
 // ============================================
 
@@ -700,6 +745,13 @@ export const CourseDetailPage = () => {
 
     return (
         <div className={`min-h-screen bg-white antialiased font-sans ${theme.selection}`}>
+            <Helmet>
+                <title>{course?.title ? `${course.title} | Lộ trình Skill Master` : 'Chi tiết khóa học | Skill Master'}</title>
+                <meta name="description" content={course?.description ? `${course.description.substring(0, 150)}...` : 'Thông tin chi tiết về khóa học tại Skill Master. Đăng ký ngay để nhận ưu đãi.'} />
+                <meta property="og:title" content={course?.title ? `${course.title} | Skill Master` : 'Chi tiết khóa học | Skill Master'} />
+                <meta property="og:description" content={course?.description || 'Thông tin chi tiết về khóa học tại Skill Master.'} />
+                <meta property="og:type" content="website" />
+            </Helmet>
             <PublicHeader />
 
             <main className="pt-20">
@@ -1177,6 +1229,14 @@ export const CourseDetailPage = () => {
                     </div>
                 </div>
 
+                {/* MOBILE ACTION BAR */}
+                <MobileActionBar
+                    price={course?.price}
+                    onRegister={() => { }}
+                    onConsult={() => setShowConsultation(true)}
+                    theme={theme}
+                />
+
                 {/* CONSULTATION MODAL */}
                 <ConsultationModal
                     isOpen={showConsultation}
@@ -1186,13 +1246,7 @@ export const CourseDetailPage = () => {
                 />
             </main>
 
-            <footer className="bg-neutral-900 text-neutral-500 border-t border-neutral-800">
-                <div className="max-w-[1600px] mx-auto p-12 lg:p-20 text-center text-sm font-mono">
-           // SKILL MASTER EDUCATION SYSTEM_
-                    <br />
-                    EST. 2025 • HO CHI MINH CITY
-                </div>
-            </footer>
+            <Footer />
         </div>
     );
 };

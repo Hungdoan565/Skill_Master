@@ -471,6 +471,7 @@ function App() {
           <Route path="blog" element={<BlogPage />} />
           <Route path="contact" element={<ContactPage />} />
           <Route path="roadmap" element={<RoadmapPage />} />
+          <Route path="roadmap/:slug" element={<RoadmapPage />} />
 
           {/* Public Courses Page - Standalone with its own header/footer */}
           <Route path="courses" element={<PublicCoursesPage />} />

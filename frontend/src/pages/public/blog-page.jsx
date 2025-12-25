@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  ArrowRight, ArrowUpRight, Clock, User, Tag, Search, 
+import {
+  ArrowRight, ArrowUpRight, Clock, User, Tag, Search,
   BookOpen, Lightbulb, Target, TrendingUp, ChevronRight,
   Calendar, Eye, Heart, MessageCircle, Phone
 } from 'lucide-react';
+import { Helmet } from 'react-helmet-async';
 import PublicHeader from '../../components/layout/public-header';
+import { Footer } from '@/pages/landing/components/footer';
 
 // Import logo
 import logoImage from '@/assets/logo.png';
@@ -212,7 +214,7 @@ const HeroSection = () => {
           <p className={`mt-6 text-xl text-zinc-500 leading-relaxed
                       transform transition-all duration-700 delay-200
                       ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-            Tips học tập, lộ trình chi tiết, và tài liệu miễn phí giúp bạn 
+            Tips học tập, lộ trình chi tiết, và tài liệu miễn phí giúp bạn
             tiến bộ mỗi ngày trong hành trình chinh phục Anh ngữ & Tin học.
           </p>
 
@@ -240,10 +242,10 @@ const HeroSection = () => {
               <button
                 key={index}
                 className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all
-                         ${index === 0 
-                           ? 'bg-zinc-900 text-white border-zinc-900' 
-                           : 'bg-white text-zinc-600 border-stone-200 hover:border-zinc-900 hover:text-zinc-900'
-                         }`}
+                         ${index === 0
+                    ? 'bg-zinc-900 text-white border-zinc-900'
+                    : 'bg-white text-zinc-600 border-stone-200 hover:border-zinc-900 hover:text-zinc-900'
+                  }`}
               >
                 <category.icon className="w-4 h-4" />
                 <span className="text-sm font-medium">{category.name}</span>
@@ -268,7 +270,7 @@ const FeaturedArticle = ({ post, index }) => {
   const isEven = index % 2 === 0;
 
   return (
-    <article 
+    <article
       ref={ref}
       className={`py-16 ${index === 0 ? 'pt-8' : ''} border-b border-stone-200 last:border-b-0`}
     >
@@ -279,8 +281,8 @@ const FeaturedArticle = ({ post, index }) => {
                       transform transition-all duration-1000
                       ${isInView ? 'opacity-100 translate-x-0' : `opacity-0 ${isEven ? '-translate-x-12' : 'translate-x-12'}`}
                       ${isEven ? '' : 'lg:order-2'}`}>
-          <img 
-            src={post.image} 
+          <img
+            src={post.image}
             alt={post.title}
             className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
           />
@@ -418,8 +420,8 @@ const ArticleCard = ({ post, index }) => {
     >
       {/* Image */}
       <div className="relative aspect-[16/10] overflow-hidden">
-        <img 
-          src={post.image} 
+        <img
+          src={post.image}
           alt={post.title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
         />
@@ -578,27 +580,7 @@ const NewsletterSection = () => {
   );
 };
 
-// ============================================
-// FOOTER
-// ============================================
-const Footer = () => {
-  return (
-    <footer className="bg-stone-100 border-t border-stone-200 py-12">
-      <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-          <Link to="/" className="flex items-center gap-2">
-            <img 
-              src={logoImage} 
-              alt="Skill Master" 
-              className="h-12 w-auto object-contain"
-            />
-          </Link>
-          <p className="text-sm text-zinc-500">© 2025 Skill Master. All rights reserved.</p>
-        </div>
-      </div>
-    </footer>
-  );
-};
+
 
 // ============================================
 // MAIN BLOG PAGE
@@ -606,6 +588,10 @@ const Footer = () => {
 export const BlogPage = () => {
   return (
     <div className="min-h-screen bg-stone-50 font-sans antialiased">
+      <Helmet>
+        <title>Blog | Skill Master - Kiến thức & Kinh nghiệm học tập</title>
+        <meta name="description" content="Khám phá các bài viết chuyên sâu về học IELTS, TOEIC và Tin học văn phòng. Chia sẻ kinh nghiệm, mẹo học tập và xu hướng giáo dục từ chuyên gia Skill Master." />
+      </Helmet>
       <PublicHeader />
       <main>
         <HeroSection />

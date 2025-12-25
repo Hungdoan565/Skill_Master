@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  ArrowRight, ArrowUpRight, Phone, Mail, MapPin, 
+import {
+  ArrowRight, ArrowUpRight, Phone, Mail, MapPin,
   MessageCircle, CheckCircle, ChevronDown, Sparkles,
   Clock, Users, Building2, Star
 } from 'lucide-react';
 import PublicHeader from '../../components/layout/public-header';
+import { Helmet } from 'react-helmet-async';
+import { Footer } from '@/pages/landing/components/footer';
 
 // Import logo
 import logoImage from '@/assets/logo.png';
@@ -78,19 +80,19 @@ const HeroSection = () => {
       <div className="absolute inset-0">
         <div className="absolute top-0 right-0 w-full lg:w-[45%] h-full bg-neutral-900" />
       </div>
-      
+
       <div className="max-w-[1600px] mx-auto relative">
         <div className="grid lg:grid-cols-12 min-h-[calc(100vh-80px)]">
-          
+
           {/* ========================================
               LEFT PANEL: "THE INPUT ZONE"
               Clean form, ample whitespace, no distractions
               ======================================== */}
           <div className="lg:col-span-7 relative p-8 lg:p-16 xl:p-20 flex flex-col justify-center bg-white">
-            
+
             <div className={`relative z-10 max-w-xl transform transition-all duration-1000
                           ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'}`}>
-              
+
               {/* Section Label */}
               <div className="flex items-center gap-4 mb-8">
                 <div className="w-10 h-px bg-[#FF4D00]" />
@@ -98,18 +100,18 @@ const HeroSection = () => {
                   Liên hệ
                 </span>
               </div>
-              
+
               {/* Heading */}
               <h1 className="text-4xl lg:text-5xl font-bold text-neutral-900 tracking-tight leading-[1.15] mb-4">
                 Gửi tin nhắn
                 <br />
                 <span className="text-neutral-400">cho chúng tôi</span>
               </h1>
-              
+
               <p className="text-lg text-neutral-500 mb-10 max-w-md">
                 Điền thông tin bên dưới, chúng tôi sẽ liên hệ bạn trong vòng 24 giờ.
               </p>
-              
+
               {/* Form */}
               {submitted ? (
                 <div className="text-center py-12">
@@ -118,7 +120,7 @@ const HeroSection = () => {
                   </div>
                   <h3 className="text-2xl font-bold text-neutral-900 mb-2">Đã gửi thành công!</h3>
                   <p className="text-neutral-500 mb-6">Chúng tôi sẽ liên hệ bạn trong thời gian sớm nhất.</p>
-                  <button 
+                  <button
                     onClick={() => {
                       setSubmitted(false);
                       setFormData({ name: '', email: '', phone: '', message: '' });
@@ -139,17 +141,17 @@ const HeroSection = () => {
                       type="text"
                       required
                       value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       onFocus={() => setFocusedField('name')}
                       onBlur={() => setFocusedField(null)}
                       className={`w-full px-4 py-3.5 bg-white border rounded-none transition-all
-                               ${focusedField === 'name' 
-                                 ? 'border-[#FF4D00] ring-2 ring-[#FF4D00]/20' 
-                                 : 'border-gray-200 hover:border-gray-300'}`}
+                               ${focusedField === 'name'
+                          ? 'border-[#FF4D00] ring-2 ring-[#FF4D00]/20'
+                          : 'border-gray-200 hover:border-gray-300'}`}
                       placeholder="Nguyễn Văn A"
                     />
                   </div>
-                  
+
                   {/* Email & Phone - 2 columns */}
                   <div className="grid md:grid-cols-2 gap-6">
                     <div>
@@ -160,13 +162,13 @@ const HeroSection = () => {
                         type="email"
                         required
                         value={formData.email}
-                        onChange={(e) => setFormData({...formData, email: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         onFocus={() => setFocusedField('email')}
                         onBlur={() => setFocusedField(null)}
                         className={`w-full px-4 py-3.5 bg-white border rounded-none transition-all
-                                 ${focusedField === 'email' 
-                                   ? 'border-[#FF4D00] ring-2 ring-[#FF4D00]/20' 
-                                   : 'border-gray-200 hover:border-gray-300'}`}
+                                 ${focusedField === 'email'
+                            ? 'border-[#FF4D00] ring-2 ring-[#FF4D00]/20'
+                            : 'border-gray-200 hover:border-gray-300'}`}
                         placeholder="email@example.com"
                       />
                     </div>
@@ -178,18 +180,18 @@ const HeroSection = () => {
                         type="tel"
                         required
                         value={formData.phone}
-                        onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                         onFocus={() => setFocusedField('phone')}
                         onBlur={() => setFocusedField(null)}
                         className={`w-full px-4 py-3.5 bg-white border rounded-none transition-all
-                                 ${focusedField === 'phone' 
-                                   ? 'border-[#FF4D00] ring-2 ring-[#FF4D00]/20' 
-                                   : 'border-gray-200 hover:border-gray-300'}`}
+                                 ${focusedField === 'phone'
+                            ? 'border-[#FF4D00] ring-2 ring-[#FF4D00]/20'
+                            : 'border-gray-200 hover:border-gray-300'}`}
                         placeholder="0901 234 567"
                       />
                     </div>
                   </div>
-                  
+
                   {/* Message */}
                   <div>
                     <label className="block text-sm font-medium text-neutral-700 mb-2">
@@ -198,17 +200,17 @@ const HeroSection = () => {
                     <textarea
                       rows={4}
                       value={formData.message}
-                      onChange={(e) => setFormData({...formData, message: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                       onFocus={() => setFocusedField('message')}
                       onBlur={() => setFocusedField(null)}
                       className={`w-full px-4 py-3.5 bg-white border rounded-none transition-all resize-none
-                               ${focusedField === 'message' 
-                                 ? 'border-[#FF4D00] ring-2 ring-[#FF4D00]/20' 
-                                 : 'border-gray-200 hover:border-gray-300'}`}
+                               ${focusedField === 'message'
+                          ? 'border-[#FF4D00] ring-2 ring-[#FF4D00]/20'
+                          : 'border-gray-200 hover:border-gray-300'}`}
                       placeholder="Bạn quan tâm đến khóa học nào? Mục tiêu của bạn là gì?"
                     />
                   </div>
-                  
+
                   {/* Submit Button - Full Width, Orange */}
                   <button
                     type="submit"
@@ -230,7 +232,7 @@ const HeroSection = () => {
                       </>
                     )}
                   </button>
-                  
+
                   {/* Privacy note */}
                   <p className="text-xs text-neutral-400 text-center">
                     Bằng việc gửi form, bạn đồng ý với <a href="#" className="underline hover:text-neutral-600">Chính sách bảo mật</a> của chúng tôi.
@@ -239,13 +241,13 @@ const HeroSection = () => {
               )}
             </div>
           </div>
-          
+
           {/* ========================================
               RIGHT PANEL: "THE TRUST & INFO ZONE"
               Response time hook + All contact methods + Testimonial
               ======================================== */}
           <div className="lg:col-span-5 relative bg-neutral-900 p-8 lg:p-12 xl:p-16 flex flex-col text-white">
-            
+
             {/* Top: Online Status */}
             <div className={`relative flex items-center gap-3 mb-8 transform transition-all duration-700 delay-100
                           ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
@@ -257,7 +259,7 @@ const HeroSection = () => {
               <span className="text-neutral-600">•</span>
               <span className="text-sm text-neutral-500">Mở cửa đến 21:00</span>
             </div>
-            
+
             {/* The Hook: Response Time */}
             <div className={`mb-10 transform transition-all duration-1000 delay-200
                           ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
@@ -274,16 +276,16 @@ const HeroSection = () => {
                 Thực tế trung bình chỉ <span className="text-white font-semibold">4 giờ</span>
               </p>
             </div>
-            
+
             {/* Contact Methods - Info Cards */}
             <div className={`space-y-3 mb-10 transform transition-all duration-1000 delay-300
                           ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
               <p className="text-xs uppercase tracking-[0.2em] text-neutral-500 font-medium mb-4">
                 Hoặc liên hệ trực tiếp
               </p>
-              
+
               {/* Hotline Card */}
-              <a 
+              <a
                 href="tel:19001234"
                 className="group flex items-center gap-4 p-4 bg-white/5 hover:bg-white/10 
                          border border-white/5 hover:border-white/10 transition-all"
@@ -297,9 +299,9 @@ const HeroSection = () => {
                 </div>
                 <ArrowUpRight className="w-5 h-5 text-neutral-600 group-hover:text-white transition-colors" />
               </a>
-              
+
               {/* Email Card */}
-              <a 
+              <a
                 href="mailto:info@skillmaster.edu.vn"
                 className="group flex items-center gap-4 p-4 bg-white/5 hover:bg-white/10 
                          border border-white/5 hover:border-white/10 transition-all"
@@ -313,9 +315,9 @@ const HeroSection = () => {
                 </div>
                 <ArrowUpRight className="w-5 h-5 text-neutral-600 group-hover:text-white transition-colors" />
               </a>
-              
+
               {/* Zalo Card */}
-              <a 
+              <a
                 href="https://zalo.me/skillmaster"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -332,7 +334,7 @@ const HeroSection = () => {
                 <ArrowUpRight className="w-5 h-5 text-neutral-600 group-hover:text-white transition-colors" />
               </a>
             </div>
-            
+
             {/* Testimonial - Compact */}
             <div className={`mt-auto pt-8 border-t border-neutral-800 transform transition-all duration-1000 delay-400
                           ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
@@ -385,10 +387,10 @@ const ContactFormSection = () => {
     <section ref={ref} className="border-t border-neutral-900">
       <div className="max-w-[1600px] mx-auto">
         <div className="grid lg:grid-cols-12">
-          
+
           {/* Left - Section Label + Contact Methods */}
           <div className="lg:col-span-4 lg:border-r border-neutral-200">
-            
+
             {/* Section Indicator */}
             <div className="p-8 lg:p-12 border-b border-neutral-200">
               <div className="flex items-center gap-3">
@@ -398,25 +400,25 @@ const ContactFormSection = () => {
                 </span>
               </div>
             </div>
-            
+
             {/* Direct Contact Info */}
             <div className={`p-8 lg:p-12 transform transition-all duration-700
                           ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-              
+
               <h2 className="text-4xl lg:text-5xl font-bold text-neutral-900 tracking-tight mb-4">
                 Liên hệ
                 <br />
                 <span className="text-neutral-400">trực tiếp</span>
               </h2>
-              
+
               <p className="text-neutral-500 mb-12 leading-relaxed">
                 Bạn có thể liên hệ qua các kênh dưới đây hoặc gửi tin nhắn qua form.
               </p>
-              
+
               {/* Contact Items - Card Style */}
               <div className="space-y-4">
-                <a 
-                  href="tel:19001234" 
+                <a
+                  href="tel:19001234"
                   className="group block p-6 bg-neutral-900 text-white hover:bg-[#FF4D00] transition-colors"
                 >
                   <div className="flex items-center justify-between">
@@ -432,9 +434,9 @@ const ContactFormSection = () => {
                     <ArrowUpRight className="w-5 h-5 text-neutral-600 group-hover:text-white transition-colors" />
                   </div>
                 </a>
-                
-                <a 
-                  href="mailto:info@skillmaster.edu.vn" 
+
+                <a
+                  href="mailto:info@skillmaster.edu.vn"
                   className="group block p-6 border-2 border-neutral-200 hover:border-neutral-900 transition-colors"
                 >
                   <div className="flex items-center justify-between">
@@ -451,7 +453,7 @@ const ContactFormSection = () => {
                   </div>
                 </a>
               </div>
-              
+
               {/* Working Hours */}
               <div className="mt-12 pt-8 border-t border-neutral-200">
                 <p className="text-xs uppercase tracking-widest text-neutral-400 mb-4">
@@ -468,13 +470,13 @@ const ContactFormSection = () => {
                   </div>
                 </div>
               </div>
-              
+
               {/* Social Links */}
               <div className="mt-8">
                 <p className="text-xs uppercase tracking-widest text-neutral-400 mb-4">Social</p>
                 <div className="flex gap-2">
                   {['Facebook', 'Zalo', 'LinkedIn'].map(social => (
-                    <a 
+                    <a
                       key={social}
                       href="#"
                       className="px-4 py-2 text-sm text-neutral-600 border border-neutral-200 
@@ -487,7 +489,7 @@ const ContactFormSection = () => {
               </div>
             </div>
           </div>
-          
+
           {/* Right - Form with Warm Background */}
           <div className="lg:col-span-8 p-8 lg:p-12 xl:p-16 bg-[#FAF9F7]">
             {submitted ? (
@@ -504,7 +506,7 @@ const ContactFormSection = () => {
                 <p className="text-neutral-400 mb-8 max-w-sm">
                   Chúng tôi sẽ phản hồi trong vòng 24 giờ làm việc.
                 </p>
-                <button 
+                <button
                   onClick={() => setSubmitted(false)}
                   className="group inline-flex items-center gap-2 text-neutral-500 hover:text-neutral-900 transition-colors"
                 >
@@ -527,15 +529,15 @@ const ContactFormSection = () => {
                   </div>
                   <Sparkles className="w-6 h-6 text-[#FF4D00]" />
                 </div>
-                
+
                 <div className="space-y-6">
                   {/* Name & Email Row */}
                   <div className="grid md:grid-cols-2 gap-6">
                     <div className="relative">
                       <label className={`absolute left-4 transition-all duration-200 pointer-events-none
-                                      ${focusedField === 'name' || formData.name 
-                                        ? 'top-2 text-xs text-[#FF4D00]' 
-                                        : 'top-4 text-neutral-400'}`}>
+                                      ${focusedField === 'name' || formData.name
+                          ? 'top-2 text-xs text-[#FF4D00]'
+                          : 'top-4 text-neutral-400'}`}>
                         Họ tên <span className="text-[#FF4D00]">*</span>
                       </label>
                       <input
@@ -544,16 +546,16 @@ const ContactFormSection = () => {
                         value={formData.name}
                         onFocus={() => setFocusedField('name')}
                         onBlur={() => setFocusedField(null)}
-                        onChange={(e) => setFormData({...formData, name: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         className="w-full px-4 pt-7 pb-3 bg-white border-2 border-transparent
                                  text-neutral-900 focus:border-neutral-900 focus:outline-none transition-colors"
                       />
                     </div>
                     <div className="relative">
                       <label className={`absolute left-4 transition-all duration-200 pointer-events-none
-                                      ${focusedField === 'email' || formData.email 
-                                        ? 'top-2 text-xs text-[#FF4D00]' 
-                                        : 'top-4 text-neutral-400'}`}>
+                                      ${focusedField === 'email' || formData.email
+                          ? 'top-2 text-xs text-[#FF4D00]'
+                          : 'top-4 text-neutral-400'}`}>
                         Email <span className="text-[#FF4D00]">*</span>
                       </label>
                       <input
@@ -562,20 +564,20 @@ const ContactFormSection = () => {
                         value={formData.email}
                         onFocus={() => setFocusedField('email')}
                         onBlur={() => setFocusedField(null)}
-                        onChange={(e) => setFormData({...formData, email: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         className="w-full px-4 pt-7 pb-3 bg-white border-2 border-transparent
                                  text-neutral-900 focus:border-neutral-900 focus:outline-none transition-colors"
                       />
                     </div>
                   </div>
-                  
+
                   {/* Phone & Interest Row */}
                   <div className="grid md:grid-cols-2 gap-6">
                     <div className="relative">
                       <label className={`absolute left-4 transition-all duration-200 pointer-events-none
-                                      ${focusedField === 'phone' || formData.phone 
-                                        ? 'top-2 text-xs text-[#FF4D00]' 
-                                        : 'top-4 text-neutral-400'}`}>
+                                      ${focusedField === 'phone' || formData.phone
+                          ? 'top-2 text-xs text-[#FF4D00]'
+                          : 'top-4 text-neutral-400'}`}>
                         Số điện thoại <span className="text-[#FF4D00]">*</span>
                       </label>
                       <input
@@ -584,7 +586,7 @@ const ContactFormSection = () => {
                         value={formData.phone}
                         onFocus={() => setFocusedField('phone')}
                         onBlur={() => setFocusedField(null)}
-                        onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                         className="w-full px-4 pt-7 pb-3 bg-white border-2 border-transparent
                                  text-neutral-900 focus:border-neutral-900 focus:outline-none transition-colors"
                       />
@@ -595,7 +597,7 @@ const ContactFormSection = () => {
                       </label>
                       <select
                         value={formData.interest}
-                        onChange={(e) => setFormData({...formData, interest: e.target.value})}
+                        onChange={(e) => setFormData({ ...formData, interest: e.target.value })}
                         className="w-full px-4 pt-7 pb-3 bg-white border-2 border-transparent
                                  text-neutral-900 focus:border-neutral-900 focus:outline-none 
                                  transition-colors appearance-none cursor-pointer"
@@ -610,13 +612,13 @@ const ContactFormSection = () => {
                       <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400 pointer-events-none" />
                     </div>
                   </div>
-                  
+
                   {/* Message */}
                   <div className="relative">
                     <label className={`absolute left-4 transition-all duration-200 pointer-events-none
-                                    ${focusedField === 'message' || formData.message 
-                                      ? 'top-2 text-xs text-[#FF4D00]' 
-                                      : 'top-4 text-neutral-400'}`}>
+                                    ${focusedField === 'message' || formData.message
+                        ? 'top-2 text-xs text-[#FF4D00]'
+                        : 'top-4 text-neutral-400'}`}>
                       Lời nhắn
                     </label>
                     <textarea
@@ -624,13 +626,13 @@ const ContactFormSection = () => {
                       value={formData.message}
                       onFocus={() => setFocusedField('message')}
                       onBlur={() => setFocusedField(null)}
-                      onChange={(e) => setFormData({...formData, message: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                       className="w-full px-4 pt-7 pb-3 bg-white border-2 border-transparent
                                text-neutral-900 focus:border-neutral-900 focus:outline-none 
                                transition-colors resize-none"
                     />
                   </div>
-                  
+
                   {/* Submit Row */}
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4">
                     <p className="text-sm text-neutral-400">
@@ -718,7 +720,7 @@ const LocationsSection = () => {
   return (
     <section ref={ref} className="border-t border-neutral-900 bg-white">
       <div className="max-w-[1600px] mx-auto">
-        
+
         {/* Section Header */}
         <div className="grid lg:grid-cols-12 border-b border-neutral-200">
           <div className="lg:col-span-4 p-8 lg:p-12 lg:border-r border-neutral-200">
@@ -748,9 +750,9 @@ const LocationsSection = () => {
                   key={loc.id}
                   onClick={() => setActiveLocation(i)}
                   className={`px-4 py-2 text-sm font-medium transition-colors
-                           ${activeLocation === i 
-                             ? 'bg-neutral-900 text-white' 
-                             : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'}`}
+                           ${activeLocation === i
+                      ? 'bg-neutral-900 text-white'
+                      : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'}`}
                 >
                   {loc.name}
                   {loc.isNew && (
@@ -763,25 +765,25 @@ const LocationsSection = () => {
             </div>
           </div>
         </div>
-        
+
         {/* Location Detail - Image + Info Split */}
         {locations.map((loc, i) => (
-          <div 
+          <div
             key={loc.id}
             className={`transition-all duration-500 ${activeLocation === i ? 'block' : 'hidden'}`}
           >
             <div className="grid lg:grid-cols-2">
-              
+
               {/* Left: Image + Map */}
               <div className="relative group">
                 {/* Main Image */}
                 <div className="aspect-[4/3] lg:aspect-auto lg:h-full relative overflow-hidden">
-                  <img 
+                  <img
                     src={loc.image}
                     alt={`Skill Master ${loc.name}`}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
-                  
+
                   {/* Image Overlay on Hover - Shows Map */}
                   <div className="absolute inset-0 bg-neutral-900/90 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center">
                     <div className="text-center text-white p-8">
@@ -790,7 +792,7 @@ const LocationsSection = () => {
                       <p className="text-neutral-400 text-sm">Di chuột ra để xem ảnh</p>
                     </div>
                   </div>
-                  
+
                   {/* Highlight Badge */}
                   <div className="absolute top-6 left-6">
                     <div className={`px-4 py-2 text-sm font-medium
@@ -800,10 +802,10 @@ const LocationsSection = () => {
                   </div>
                 </div>
               </div>
-              
+
               {/* Right: Info */}
               <div className="p-8 lg:p-12 xl:p-16 flex flex-col justify-between bg-[#FAF9F7]">
-                
+
                 {/* Top: Main Info */}
                 <div>
                   <span className="text-xs uppercase tracking-widest text-[#FF4D00] font-medium">
@@ -812,7 +814,7 @@ const LocationsSection = () => {
                   <h3 className="text-4xl lg:text-5xl font-bold text-neutral-900 tracking-tight mt-4 mb-6">
                     {loc.name}
                   </h3>
-                  
+
                   {/* Contact Info Grid */}
                   <div className="grid gap-6">
                     <div className="flex items-start gap-4 p-4 bg-white">
@@ -822,9 +824,9 @@ const LocationsSection = () => {
                         <p className="text-neutral-900 font-medium">{loc.address}</p>
                       </div>
                     </div>
-                    
+
                     <div className="grid grid-cols-2 gap-4">
-                      <a 
+                      <a
                         href={`tel:${loc.phone.replace(/\s/g, '')}`}
                         className="flex items-start gap-4 p-4 bg-white hover:bg-neutral-100 transition-colors group"
                       >
@@ -834,7 +836,7 @@ const LocationsSection = () => {
                           <p className="text-neutral-900 font-medium">{loc.phone}</p>
                         </div>
                       </a>
-                      
+
                       <div className="flex items-start gap-4 p-4 bg-white">
                         <Clock className="w-5 h-5 text-neutral-400 mt-0.5 shrink-0" />
                         <div>
@@ -844,14 +846,14 @@ const LocationsSection = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Features */}
                   <div className="mt-8">
                     <p className="text-xs uppercase tracking-widest text-neutral-400 mb-4">Tiện ích</p>
                     <div className="flex flex-wrap gap-2">
                       {loc.features.map(f => (
-                        <span 
-                          key={f} 
+                        <span
+                          key={f}
                           className="px-3 py-2 bg-neutral-900 text-white text-sm"
                         >
                           {f}
@@ -860,10 +862,10 @@ const LocationsSection = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Bottom: Actions */}
                 <div className="mt-8 pt-8 border-t border-neutral-200 flex flex-wrap gap-4">
-                  <a 
+                  <a
                     href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc.address)}`}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -874,7 +876,7 @@ const LocationsSection = () => {
                     <span className="font-semibold">Chỉ đường</span>
                     <ArrowUpRight className="w-4 h-4 opacity-60 group-hover:opacity-100 transition-opacity" />
                   </a>
-                  <a 
+                  <a
                     href={`tel:${loc.phone.replace(/\s/g, '')}`}
                     className="group inline-flex items-center gap-3 px-6 py-4 border-2 border-neutral-900 text-neutral-900
                              hover:bg-neutral-900 hover:text-white transition-colors"
@@ -885,7 +887,7 @@ const LocationsSection = () => {
                 </div>
               </div>
             </div>
-            
+
             {/* Embedded Google Map */}
             <div className="h-[300px] lg:h-[400px] border-t border-neutral-200">
               <iframe
@@ -902,7 +904,7 @@ const LocationsSection = () => {
             </div>
           </div>
         ))}
-        
+
         {/* Quick Navigation Cards - Always visible */}
         <div className="grid lg:grid-cols-3 border-t border-neutral-900">
           {locations.map((loc, i) => (
@@ -918,7 +920,7 @@ const LocationsSection = () => {
               {/* Hover Effect - Sliding background */}
               <div className={`absolute inset-0 bg-[#FF4D00] transition-transform duration-500
                            ${hoveredCard === i && activeLocation !== i ? 'translate-y-0' : 'translate-y-full'}`} />
-              
+
               <div className="relative flex items-center justify-between">
                 <div>
                   <span className={`text-xs uppercase tracking-widest mb-2 block
@@ -937,16 +939,16 @@ const LocationsSection = () => {
                     {loc.address.split(',')[0]}
                   </p>
                 </div>
-                
+
                 <div className={`w-10 h-10 flex items-center justify-center transition-all
-                             ${activeLocation === i 
-                               ? 'bg-[#FF4D00] text-white' 
-                               : 'bg-neutral-100 text-neutral-400 group-hover:bg-white group-hover:text-[#FF4D00]'}
+                             ${activeLocation === i
+                    ? 'bg-[#FF4D00] text-white'
+                    : 'bg-neutral-100 text-neutral-400 group-hover:bg-white group-hover:text-[#FF4D00]'}
                              ${hoveredCard === i && activeLocation !== i ? 'bg-white text-[#FF4D00]' : ''}`}>
                   <ArrowUpRight className="w-5 h-5" />
                 </div>
               </div>
-              
+
               {/* Active indicator */}
               {activeLocation === i && (
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-[#FF4D00]" />
@@ -995,7 +997,7 @@ const FAQSection = () => {
     <section ref={ref} className="border-t border-neutral-900 bg-[#FAF9F7]">
       <div className="max-w-[1600px] mx-auto">
         <div className="grid lg:grid-cols-12">
-          
+
           {/* Left - Header with Visual Interest */}
           <div className="lg:col-span-4 p-8 lg:p-12 lg:border-r border-neutral-200">
             <div className="lg:sticky lg:top-24">
@@ -1005,7 +1007,7 @@ const FAQSection = () => {
                   04 — FAQ
                 </span>
               </div>
-              
+
               <h2 className={`text-5xl lg:text-6xl font-bold text-neutral-900 tracking-tight mb-6
                            transform transition-all duration-500
                            ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
@@ -1013,16 +1015,16 @@ const FAQSection = () => {
                 <br />
                 <span className="text-neutral-400">đáp</span>
               </h2>
-              
+
               <p className={`text-neutral-500 leading-relaxed mb-8
                           transform transition-all duration-500 delay-100
                           ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-                Câu trả lời cho những thắc mắc phổ biến nhất. Không tìm thấy? 
+                Câu trả lời cho những thắc mắc phổ biến nhất. Không tìm thấy?
                 <a href="tel:19001234" className="text-[#FF4D00] hover:underline ml-1">
                   Gọi ngay cho chúng tôi.
                 </a>
               </p>
-              
+
               {/* Quick Stats */}
               <div className={`p-6 bg-white border-l-4 border-[#FF4D00]
                            transform transition-all duration-500 delay-200
@@ -1034,11 +1036,11 @@ const FAQSection = () => {
               </div>
             </div>
           </div>
-          
+
           {/* Right - Accordion */}
           <div className="lg:col-span-8 py-4 lg:py-8">
             {faqs.map((faq, i) => (
-              <div 
+              <div
                 key={i}
                 className={`border-b border-neutral-200 last:border-b-0 
                           transform transition-all duration-500
@@ -1055,7 +1057,7 @@ const FAQSection = () => {
                                 ${openIndex === i ? 'bg-[#FF4D00] text-white' : 'bg-neutral-200 text-neutral-500'}`}>
                     {String(i + 1).padStart(2, '0')}
                   </span>
-                  
+
                   {/* Question + Icon */}
                   <div className="flex-1 flex items-start justify-between gap-4">
                     <span className={`text-lg font-medium transition-colors
@@ -1073,7 +1075,7 @@ const FAQSection = () => {
                     </span>
                   </div>
                 </button>
-                
+
                 {/* Answer */}
                 <div className={`overflow-hidden transition-all duration-300 ease-out
                              ${openIndex === i ? 'max-h-48' : 'max-h-0'}`}>
@@ -1105,10 +1107,10 @@ const CTASection = () => {
         <div className={`grid lg:grid-cols-2
                       transform transition-all duration-700
                       ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}>
-          
+
           {/* Left - Testimonial + Emotional Hook */}
           <div className="p-8 lg:p-16 xl:p-20 bg-neutral-900 text-white flex flex-col justify-between min-h-[50vh]">
-            
+
             {/* Section indicator */}
             <div className="flex items-center gap-3 mb-auto">
               <div className="w-2 h-2 bg-[#FF4D00]" />
@@ -1116,7 +1118,7 @@ const CTASection = () => {
                 05 — Bắt đầu
               </span>
             </div>
-            
+
             {/* Quote */}
             <div className="my-8 lg:my-12">
               <blockquote className="text-2xl lg:text-3xl font-medium leading-relaxed mb-8">
@@ -1132,7 +1134,7 @@ const CTASection = () => {
                 </div>
               </div>
             </div>
-            
+
             {/* Stats row */}
             <div className="grid grid-cols-3 gap-4 pt-8 border-t border-neutral-800 mt-auto">
               <div>
@@ -1149,27 +1151,27 @@ const CTASection = () => {
               </div>
             </div>
           </div>
-          
+
           {/* Right - CTA */}
           <div className="p-8 lg:p-16 xl:p-20 bg-[#FF4D00] text-white flex flex-col justify-center relative overflow-hidden">
-            
+
             {/* Background pattern */}
             <div className="absolute inset-0 opacity-10">
               <div className="absolute -right-20 -top-20 w-64 h-64 border-[40px] border-white rounded-full" />
               <div className="absolute -left-10 -bottom-10 w-40 h-40 border-[20px] border-white rounded-full" />
             </div>
-            
+
             <div className="relative">
               <h2 className="text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight leading-[1.1] mb-6">
                 Sẵn sàng
                 <br />
                 thay đổi?
               </h2>
-              
+
               <p className="text-lg text-white/80 mb-12 max-w-md">
                 Đăng ký học thử miễn phí và trải nghiệm phương pháp giảng dạy của Skill Master.
               </p>
-              
+
               {/* Primary CTA */}
               <Link
                 to="/register"
@@ -1184,7 +1186,7 @@ const CTASection = () => {
                 </div>
                 <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
               </Link>
-              
+
               {/* Secondary - Call */}
               <a
                 href="tel:19001234"
@@ -1205,91 +1207,6 @@ const CTASection = () => {
   );
 };
 
-// ============================================
-// FOOTER - MINIMAL
-// ============================================
-const Footer = () => {
-  return (
-    <footer className="bg-neutral-900 text-white border-t border-neutral-800">
-      <div className="max-w-[1600px] mx-auto">
-        <div className="grid lg:grid-cols-12 gap-8 p-8 lg:p-12">
-          
-          {/* Brand */}
-          <div className="lg:col-span-4">
-            <Link to="/" className="inline-flex items-center gap-2 mb-6">
-              <img 
-                src={logoImage} 
-                alt="Skill Master" 
-                className="h-11 w-auto object-contain brightness-0 invert"
-              />
-            </Link>
-            <p className="text-neutral-400 text-sm leading-relaxed max-w-xs">
-              Hệ thống đào tạo Anh ngữ và Tin học hàng đầu tại TP.HCM.
-            </p>
-          </div>
-          
-          {/* Links */}
-          <div className="lg:col-span-2">
-            <h4 className="text-xs font-medium tracking-widest uppercase text-neutral-500 mb-4">
-              Khám phá
-            </h4>
-            <ul className="space-y-3">
-              {['Khóa học', 'Lộ trình', 'Về chúng tôi', 'Blog'].map(item => (
-                <li key={item}>
-                  <a href="#" className="text-sm text-neutral-400 hover:text-white transition-colors">
-                    {item}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-          
-          {/* Contact */}
-          <div className="lg:col-span-3">
-            <h4 className="text-xs font-medium tracking-widest uppercase text-neutral-500 mb-4">
-              Liên hệ
-            </h4>
-            <div className="space-y-3">
-              <a href="tel:19001234" className="block text-sm text-neutral-400 hover:text-white transition-colors">
-                1900 1234
-              </a>
-              <a href="mailto:info@skillmaster.edu.vn" className="block text-sm text-neutral-400 hover:text-white transition-colors">
-                info@skillmaster.edu.vn
-              </a>
-            </div>
-          </div>
-          
-          {/* Address */}
-          <div className="lg:col-span-3">
-            <h4 className="text-xs font-medium tracking-widest uppercase text-neutral-500 mb-4">
-              Trụ sở chính
-            </h4>
-            <p className="text-sm text-neutral-400">
-              123 Nguyễn Huệ, P. Bến Nghé,
-              <br />
-              Quận 1, TP. Hồ Chí Minh
-            </p>
-          </div>
-        </div>
-        
-        {/* Bottom */}
-        <div className="px-8 lg:px-12 py-6 border-t border-neutral-800 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-xs text-neutral-500">
-            © 2025 Skill Master. All rights reserved.
-          </p>
-          <div className="flex gap-6">
-            <a href="#" className="text-xs text-neutral-500 hover:text-white transition-colors">
-              Điều khoản
-            </a>
-            <a href="#" className="text-xs text-neutral-500 hover:text-white transition-colors">
-              Bảo mật
-            </a>
-          </div>
-        </div>
-      </div>
-    </footer>
-  );
-};
 
 // ============================================
 // MAIN COMPONENT
@@ -1297,6 +1214,10 @@ const Footer = () => {
 export const ContactPage = () => {
   return (
     <div className="min-h-screen bg-white antialiased">
+      <Helmet>
+        <title>Liên hệ | Skill Master - Tư vấn lộ trình học tập</title>
+        <meta name="description" content="Liên hệ với Skill Master để được tư vấn lộ trình học IELTS, TOEIC và Tin học văn phòng cá nhân hóa. Chúng tôi luôn sẵn sàng hỗ trợ bạn." />
+      </Helmet>
       <PublicHeader />
       <main>
         <HeroSection />

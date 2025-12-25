@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  ArrowRight, ArrowDown, GraduationCap, Briefcase, BookOpen, 
+import {
+  ArrowRight, ArrowDown, GraduationCap, Briefcase, BookOpen,
   Target, Award, Users, CheckCircle, Clock, Star, Play, TrendingUp
 } from 'lucide-react';
 import PublicHeader from '../../components/layout/public-header';
+import { Helmet } from 'react-helmet-async';
+import { Footer } from '@/pages/landing/components/footer';
 
 // Import logo
 import logoImage from '@/assets/logo.png';
@@ -67,11 +69,11 @@ const PageHeader = () => {
               <h1 className="text-4xl lg:text-5xl xl:text-6xl font-bold text-neutral-900 tracking-tight leading-[1.1]">
                 Đích đến của bạn?
               </h1>
-              
+
               {/* Quick Stats - Below Title */}
               <div className="flex gap-8 mt-10 pt-8 border-t border-neutral-200">
                 {quickStats.map((stat, i) => (
-                  <div 
+                  <div
                     key={i}
                     className={`transform transition-all duration-500
                              ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
@@ -90,10 +92,10 @@ const PageHeader = () => {
             <div className={`flex-1 p-6 lg:p-12 transform transition-all duration-500 delay-100
                           ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
               <p className="text-lg text-neutral-600 leading-relaxed max-w-xl">
-                Mỗi người có một mục tiêu riêng. Hãy cho chúng tôi biết bạn muốn 
+                Mỗi người có một mục tiêu riêng. Hãy cho chúng tôi biết bạn muốn
                 đi đâu, và chúng tôi sẽ vẽ ra con đường ngắn nhất để bạn đến được đó.
               </p>
-              
+
               {/* Journey Steps Preview */}
               <div className="mt-8 flex items-center gap-4">
                 <div className="flex items-center gap-2 text-sm">
@@ -112,7 +114,7 @@ const PageHeader = () => {
                 </div>
               </div>
             </div>
-            
+
             {/* Scroll CTA */}
             <div className="p-6 lg:px-12 lg:pb-12 border-t border-neutral-200">
               <a href="#goals" className="inline-flex items-center gap-3 text-neutral-900 font-medium
@@ -180,7 +182,7 @@ const GoalsSection = () => {
   return (
     <section id="goals" ref={ref} className="border-b border-neutral-900">
       <div className="max-w-[1600px] mx-auto">
-        
+
         {/* Section Header */}
         <div className="grid lg:grid-cols-12 border-b border-neutral-200">
           <div className="lg:col-span-4 p-6 lg:p-12 lg:border-r border-neutral-200">
@@ -203,7 +205,7 @@ const GoalsSection = () => {
         {/* Goals Cards - Horizontal with Visual Differentiation */}
         <div className="grid lg:grid-cols-3">
           {goals.map((goal, i) => (
-            <div 
+            <div
               key={goal.id}
               className={`relative border-b lg:border-b-0 lg:border-r border-neutral-200 last:border-r-0
                        transform transition-all duration-500
@@ -216,11 +218,11 @@ const GoalsSection = () => {
               {goal.popular && (
                 <div className="absolute -top-px left-0 right-0 h-1 bg-[#FF4D00]" />
               )}
-              
+
               {/* Card Header */}
               <div className={`p-6 lg:p-8 transition-colors duration-300
                            ${hoveredGoal === goal.id ? goal.color : 'bg-white'}`}>
-                
+
                 {/* Top row */}
                 <div className="flex items-start justify-between mb-6">
                   <div className={`w-14 h-14 flex items-center justify-center transition-colors duration-300
@@ -279,18 +281,18 @@ const GoalsSection = () => {
                       </div>
                     ))}
                   </div>
-                  
+
                   <div className="flex gap-3">
                     <Link to="/courses"
-                          className={`flex-1 py-3 text-center text-sm font-semibold uppercase tracking-wider
+                      className={`flex-1 py-3 text-center text-sm font-semibold uppercase tracking-wider
                                    transition-colors duration-150
-                                   ${goal.popular 
-                                     ? 'bg-[#FF4D00] text-white hover:bg-[#E64500]' 
-                                     : 'bg-neutral-900 text-white hover:bg-neutral-800'}`}>
+                                   ${goal.popular
+                          ? 'bg-[#FF4D00] text-white hover:bg-[#E64500]'
+                          : 'bg-neutral-900 text-white hover:bg-neutral-800'}`}>
                       Xem chi tiết
                     </Link>
                     <Link to="/contact"
-                          className="flex-1 py-3 border border-neutral-300 text-neutral-700 text-center text-sm 
+                      className="flex-1 py-3 border border-neutral-300 text-neutral-700 text-center text-sm 
                                    font-semibold uppercase tracking-wider hover:bg-white transition-colors duration-150">
                       Tư vấn
                     </Link>
@@ -378,7 +380,7 @@ const LevelsSection = () => {
   return (
     <section ref={ref} className="border-b border-neutral-900 bg-neutral-50">
       <div className="max-w-[1600px] mx-auto">
-        
+
         {/* Section Header */}
         <div className="grid lg:grid-cols-12 border-b border-neutral-200">
           <div className="lg:col-span-4 p-6 lg:p-12 lg:border-r border-neutral-200">
@@ -405,17 +407,17 @@ const LevelsSection = () => {
             <div className="absolute top-6 left-[15%] right-[15%] h-1 bg-neutral-200 rounded-full">
               <div className="h-full bg-gradient-to-r from-emerald-500 via-blue-500 to-[#FF4D00] rounded-full opacity-40" />
             </div>
-            
+
             {/* Timeline Dots */}
             <div className="flex justify-between px-[10%]">
               {levels.map((level, i) => (
-                <div 
+                <div
                   key={level.id}
                   className={`flex flex-col items-center transform transition-all duration-500
                            ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
                   style={{ transitionDelay: `${200 + i * 150}ms` }}
                 >
-                  <div 
+                  <div
                     onClick={() => setActiveLevel(activeLevel === level.id ? null : level.id)}
                     className={`w-12 h-12 rounded-full flex items-center justify-center cursor-pointer
                              transition-all duration-300 relative z-10 text-white font-bold
@@ -439,7 +441,7 @@ const LevelsSection = () => {
         {/* Level Cards Grid */}
         <div className="grid lg:grid-cols-3 p-6 lg:p-12 gap-6">
           {levels.map((level, i) => (
-            <div 
+            <div
               key={level.id}
               className={`relative transition-all duration-500 cursor-pointer
                        ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}
@@ -449,13 +451,13 @@ const LevelsSection = () => {
               onMouseLeave={() => setActiveLevel(null)}
             >
               <div className={`bg-white border-2 transition-all duration-300 overflow-hidden
-                           ${activeLevel === level.id 
-                             ? getColorClasses(level.color, 'border') + ' shadow-lg' 
-                             : 'border-neutral-200'}`}>
-                
+                           ${activeLevel === level.id
+                  ? getColorClasses(level.color, 'border') + ' shadow-lg'
+                  : 'border-neutral-200'}`}>
+
                 {/* Color Bar */}
                 <div className={`h-1.5 ${getColorClasses(level.color, 'accent')}`} />
-                
+
                 <div className="p-6">
                   {/* Mobile Number */}
                   <div className="lg:hidden mb-4">
@@ -499,11 +501,11 @@ const LevelsSection = () => {
                   <div className={`overflow-hidden transition-all duration-300 pt-4 border-t border-neutral-100
                                ${activeLevel === level.id ? 'max-h-[80px] opacity-100' : 'max-h-0 opacity-0'}`}>
                     <Link to="/contact"
-                          className={`w-full py-3 text-center text-sm font-semibold uppercase tracking-wider
+                      className={`w-full py-3 text-center text-sm font-semibold uppercase tracking-wider
                                    block transition-colors duration-150
-                                   ${level.color === 'advanced' 
-                                     ? 'bg-[#FF4D00] text-white hover:bg-[#E64500]' 
-                                     : 'bg-neutral-900 text-white hover:bg-neutral-800'}`}>
+                                   ${level.color === 'advanced'
+                          ? 'bg-[#FF4D00] text-white hover:bg-[#E64500]'
+                          : 'bg-neutral-900 text-white hover:bg-neutral-800'}`}>
                       Kiểm tra trình độ
                     </Link>
                   </div>
@@ -531,7 +533,7 @@ const LevelsSection = () => {
                         transform transition-all duration-500 delay-500
                         ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
             <Link to="/contact"
-                  className="w-full flex items-center justify-center gap-2 py-4 bg-neutral-900 text-white 
+              className="w-full flex items-center justify-center gap-2 py-4 bg-neutral-900 text-white 
                            text-sm font-semibold uppercase tracking-wider hover:bg-neutral-800 transition-colors">
               <Play className="w-4 h-4" />
               Làm bài test miễn phí
@@ -550,28 +552,28 @@ const WhySection = () => {
   const [ref, isInView] = useInView();
 
   const features = [
-    { 
+    {
       num: '01',
-      icon: Target, 
-      title: 'Cá nhân hóa', 
+      icon: Target,
+      title: 'Cá nhân hóa',
       desc: 'Lộ trình được điều chỉnh theo mục tiêu và thời gian của bạn'
     },
-    { 
+    {
       num: '02',
-      icon: Users, 
-      title: 'Mentor 1-1', 
+      icon: Users,
+      title: 'Mentor 1-1',
       desc: 'Được theo dõi và hỗ trợ bởi mentor riêng suốt quá trình học'
     },
-    { 
+    {
       num: '03',
-      icon: TrendingUp, 
-      title: 'Đo lường tiến độ', 
+      icon: TrendingUp,
+      title: 'Đo lường tiến độ',
       desc: 'Test định kỳ để theo dõi sự tiến bộ và điều chỉnh kịp thời'
     },
-    { 
+    {
       num: '04',
-      icon: Award, 
-      title: 'Cam kết đầu ra', 
+      icon: Award,
+      title: 'Cam kết đầu ra',
       desc: 'Học lại miễn phí nếu không đạt mục tiêu cam kết',
       featured: true
     },
@@ -586,7 +588,7 @@ const WhySection = () => {
   return (
     <section ref={ref} className="bg-neutral-900 border-b border-neutral-900">
       <div className="max-w-[1600px] mx-auto">
-        
+
         {/* Section Header */}
         <div className="grid lg:grid-cols-12 border-b border-neutral-800">
           <div className="lg:col-span-4 p-6 lg:p-12 lg:border-r border-neutral-800">
@@ -625,11 +627,11 @@ const WhySection = () => {
               <p className="text-white/60 mt-2">Học viên đạt mục tiêu cam kết</p>
             </div>
           </div>
-          
+
           {/* Other 3 Features */}
           <div className="lg:col-span-7 grid lg:grid-cols-3">
             {features.filter(f => !f.featured).map((feature, i) => (
-              <div 
+              <div
                 key={i}
                 className={`p-6 lg:p-8 border-b lg:border-b-0 lg:border-r border-neutral-800 last:border-r-0
                          hover:bg-neutral-800 transition-colors duration-150
@@ -643,7 +645,7 @@ const WhySection = () => {
                   </div>
                   <span className="text-sm text-neutral-600">{feature.num}</span>
                 </div>
-                
+
                 <h3 className="text-lg font-bold text-white mb-2">{feature.title}</h3>
                 <p className="text-sm text-neutral-400 leading-relaxed">{feature.desc}</p>
               </div>
@@ -654,7 +656,7 @@ const WhySection = () => {
         {/* Stats Row - Compact */}
         <div className="grid lg:grid-cols-3">
           {stats.map((stat, i) => (
-            <div 
+            <div
               key={i}
               className={`p-6 lg:p-8 lg:border-r border-neutral-800 last:border-r-0 text-center
                         transform transition-all duration-500
@@ -699,7 +701,7 @@ const CTASection = () => {
             <p className={`mt-4 text-neutral-500 leading-relaxed max-w-xl
                         transform transition-all duration-500 delay-100
                         ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-              Đăng ký tư vấn miễn phí để nhận lộ trình học tập được thiết kế riêng cho bạn. 
+              Đăng ký tư vấn miễn phí để nhận lộ trình học tập được thiết kế riêng cho bạn.
               Chuyên gia của chúng tôi sẽ liên hệ trong vòng 24h.
             </p>
           </div>
@@ -717,7 +719,7 @@ const CTASection = () => {
               Đăng ký tư vấn miễn phí
               <ArrowRight className="w-4 h-4" />
             </Link>
-            
+
             {/* Secondary CTA */}
             <Link
               to="/courses"
@@ -738,76 +740,6 @@ const CTASection = () => {
   );
 };
 
-// ============================================
-// FOOTER - IMPROVED (GAP INSTEAD OF BORDERS)
-// ============================================
-const Footer = () => {
-  return (
-    <footer className="bg-neutral-50">
-      <div className="max-w-[1600px] mx-auto">
-        {/* Main Footer Grid - Gap Layout */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-px bg-neutral-200 p-px">
-          {/* Brand */}
-          <div className="p-6 lg:p-8 bg-white">
-            <Link to="/" className="flex items-center gap-2 mb-4">
-              <img 
-                src={logoImage} 
-                alt="Skill Master" 
-                className="h-11 w-auto object-contain"
-              />
-            </Link>
-            <p className="text-sm text-neutral-600 leading-relaxed">
-              Hệ thống đào tạo Anh ngữ và Tin học hàng đầu.
-            </p>
-          </div>
-
-          {/* Courses */}
-          <div className="p-6 lg:p-8 bg-white">
-            <h4 className="text-xs font-medium text-neutral-500 uppercase tracking-widest mb-4">Khóa học</h4>
-            <ul className="space-y-2">
-              {['IELTS Academic', 'TOEIC 4 Kỹ năng', 'Tin học Văn phòng', 'IC3 Digital'].map(item => (
-                <li key={item}>
-                  <a href="#" className="text-sm text-neutral-900 hover:opacity-60 transition-opacity">{item}</a>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* About */}
-          <div className="p-6 lg:p-8 bg-white">
-            <h4 className="text-xs font-medium text-neutral-500 uppercase tracking-widest mb-4">Về chúng tôi</h4>
-            <ul className="space-y-2">
-              {['Giới thiệu', 'Đội ngũ', 'Blog', 'Tuyển dụng'].map(item => (
-                <li key={item}>
-                  <a href="#" className="text-sm text-neutral-900 hover:opacity-60 transition-opacity">{item}</a>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Contact */}
-          <div className="p-6 lg:p-8 bg-white">
-            <h4 className="text-xs font-medium text-neutral-500 uppercase tracking-widest mb-4">Liên hệ</h4>
-            <ul className="space-y-2 text-sm text-neutral-600">
-              <li>123 Nguyễn Văn Linh, Q.7, TP.HCM</li>
-              <li>contact@skillmaster.vn</li>
-              <li>0909 123 456</li>
-            </ul>
-          </div>
-        </div>
-
-        {/* Bottom Bar */}
-        <div className="p-6 lg:p-8 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white border-t border-neutral-200">
-          <p className="text-xs text-neutral-500">© 2025 Skill Master. All rights reserved.</p>
-          <div className="flex items-center gap-6">
-            <a href="#" className="text-xs text-neutral-500 hover:text-neutral-900 transition-colors">Điều khoản</a>
-            <a href="#" className="text-xs text-neutral-500 hover:text-neutral-900 transition-colors">Bảo mật</a>
-          </div>
-        </div>
-      </div>
-    </footer>
-  );
-};
 
 // ============================================
 // MAIN PAGE
@@ -815,6 +747,10 @@ const Footer = () => {
 export const RoadmapPage = () => {
   return (
     <div className="min-h-screen bg-white antialiased">
+      <Helmet>
+        <title>Lộ trình học tập | Skill Master - Định hướng thành công</title>
+        <meta name="description" content="Khám phá lộ trình học tập tối ưu cho IELTS, TOEIC và Tin học quốc tế tại Skill Master. Từ mất gốc đến thành thạo với phương pháp học hiện đại." />
+      </Helmet>
       <PublicHeader />
       <main>
         <PageHeader />

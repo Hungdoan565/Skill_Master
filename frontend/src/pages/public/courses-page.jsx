@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
+import { Footer } from '@/pages/landing/components/footer';
 import {
   ArrowRight,
   ArrowUpRight,
@@ -69,7 +71,7 @@ const useInView = (options = {}) => {
 // ============================================
 // PAGE HEADER SECTION
 // ============================================
-const PageHeader = () => {
+const PageHeader = ({ totalCourses, totalCategories }) => {
   const [ref, isInView] = useInView();
 
   return (
@@ -106,13 +108,13 @@ const PageHeader = () => {
               <div className={`p-6 lg:p-8 border-r border-neutral-200
                            transform transition-all duration-500 delay-200
                            ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-                <p className="text-3xl lg:text-4xl font-bold text-neutral-900">6</p>
+                <p className="text-3xl lg:text-4xl font-bold text-neutral-900">{totalCourses}</p>
                 <p className="text-xs text-neutral-500 uppercase tracking-wider mt-1">Khóa học</p>
               </div>
               <div className={`p-6 lg:p-8 border-r border-neutral-200
                            transform transition-all duration-500 delay-300
                            ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-                <p className="text-3xl lg:text-4xl font-bold text-neutral-900">2</p>
+                <p className="text-3xl lg:text-4xl font-bold text-neutral-900">{totalCategories}</p>
                 <p className="text-xs text-neutral-500 uppercase tracking-wider mt-1">Lĩnh vực</p>
               </div>
               <div className={`p-6 lg:p-8
@@ -132,11 +134,10 @@ const PageHeader = () => {
 // ============================================
 // FILTER SECTION
 // ============================================
-const FilterSection = ({ activeFilter, setActiveFilter, searchTerm, setSearchTerm }) => {
+const FilterSection = ({ activeFilter, setActiveFilter, searchTerm, setSearchTerm, dynamicCategories }) => {
   const filters = [
     { id: 'all', label: 'Tất cả' },
-    { id: 'english', label: 'Tiếng Anh' },
-    { id: 'it', label: 'Tin học' },
+    ...dynamicCategories
   ];
 
   return (
@@ -144,12 +145,15 @@ const FilterSection = ({ activeFilter, setActiveFilter, searchTerm, setSearchTer
       <div className="max-w-[1600px] mx-auto">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 lg:px-8">
           {/* Filter Tabs */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 overflow-x-auto pb-2 md:pb-0 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
             {filters.map((filter) => (
               <button
                 key={filter.id}
-                onClick={() => setActiveFilter(filter.id)}
-                className={`px-4 py-2 text-sm font-medium transition-colors duration-150 ${activeFilter === filter.id
+                onClick={() => {
+                  setActiveFilter(filter.id);
+                  setSearchTerm(''); // Reset search when changing filter
+                }}
+                className={`px-4 py-2 text-sm font-medium transition-colors duration-150 whitespace-nowrap rounded-full md:rounded-none ${activeFilter === filter.id
                   ? 'bg-neutral-900 text-white'
                   : 'text-neutral-600 hover:bg-neutral-100'
                   }`}
@@ -181,9 +185,15 @@ const FilterSection = ({ activeFilter, setActiveFilter, searchTerm, setSearchTer
 // ============================================
 // COURSE CARD COMPONENT
 // ============================================
-const CourseCard = ({ course, index }) => {
+const CourseCard = ({ course, index, isExpanded, onToggle }) => {
   const [ref, isInView] = useInView();
-  const [expanded, setExpanded] = useState(false);
+
+  if (!course) {
+    console.warn('CourseCard received null course at index', index);
+    return null;
+  }
+
+  const courseUrl = `/courses/${course.slug || course.id}`;
 
   return (
     <div
@@ -195,8 +205,7 @@ const CourseCard = ({ course, index }) => {
     >
       {/* Main Card Content */}
       <div
-        className="group relative grid lg:grid-cols-12 hover:bg-neutral-50 transition-all duration-300 ease-out overflow-hidden cursor-pointer"
-        onClick={() => setExpanded(!expanded)}
+        className="group relative grid lg:grid-cols-12 hover:bg-neutral-50 transition-all duration-300 ease-out overflow-hidden"
       >
         {/* HOVER WATERMARK ART */}
         <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-32 group-hover:translate-x-12 opacity-0 group-hover:opacity-5 pointer-events-none transition-all duration-700 ease-out">
@@ -227,9 +236,11 @@ const CourseCard = ({ course, index }) => {
 
         {/* Title & Description */}
         <div className="lg:col-span-5 p-6 lg:p-8 lg:border-r border-transparent lg:group-hover:border-neutral-200 z-10">
-          <h3 className="text-xl lg:text-3xl font-black text-neutral-900 mb-2 group-hover:translate-x-2 transition-transform duration-300">
-            {course.title}
-          </h3>
+          <Link to={courseUrl} className="block group/title">
+            <h3 className="text-xl lg:text-3xl font-black text-neutral-900 mb-2 group-hover/title:text-[#FF4D00] group-hover:translate-x-2 transition-all duration-300">
+              {course.title}
+            </h3>
+          </Link>
           <p className="text-sm font-mono text-[#FF4D00] mb-4 opacity-0 group-hover:opacity-100 transform -translate-y-2 group-hover:translate-y-0 transition-all duration-300 delay-75">
             {course.subtitle} ///
           </p>
@@ -263,19 +274,24 @@ const CourseCard = ({ course, index }) => {
             <p className="text-xl font-black text-neutral-900">{formatCurrency(course.price || 0)}</p>
           </div>
 
-          <div className="mt-4 flex items-center gap-2 text-sm font-bold text-neutral-900 justify-end lg:justify-start group/btn">
-            <span className="opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0 transition-all duration-300">
+          <div className="mt-4 flex items-center gap-2 text-sm font-bold text-neutral-900 justify-end lg:justify-start">
+            <Link to={courseUrl} className="opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0 transition-all duration-300 hover:text-[#FF4D00]">
               Chi tiết
-            </span>
-            <div className={`w-8 h-8 rounded-full border border-neutral-900 flex items-center justify-center group-hover/btn:bg-neutral-900 group-hover/btn:text-white transition-all duration-300 ${expanded ? 'rotate-180 bg-neutral-900 text-white' : ''}`}>
+            </Link>
+            <button
+              onClick={onToggle}
+              aria-expanded={isExpanded}
+              aria-label={isExpanded ? "Thu gọn chi tiết" : "Xem nhanh chi tiết"}
+              className={`w-8 h-8 rounded-full border border-neutral-900 flex items-center justify-center transition-all duration-300 hover:bg-neutral-900 hover:text-white ${isExpanded ? 'rotate-180 bg-neutral-900 text-white' : ''}`}
+            >
               <ChevronDown className="w-4 h-4" />
-            </div>
+            </button>
           </div>
         </div>
       </div>
 
       {/* Expanded Details */}
-      <div className={`overflow-hidden transition-all duration-300 ${expanded ? 'max-h-[800px]' : 'max-h-0'}`}>
+      <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isExpanded ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'}`}>
         <div className="grid lg:grid-cols-12 bg-neutral-50 border-t border-neutral-200">
           {/* Features */}
           <div className="lg:col-span-4 p-6 lg:p-8 lg:border-r border-neutral-200">
@@ -283,7 +299,7 @@ const CourseCard = ({ course, index }) => {
               Đặc điểm khóa học
             </h4>
             <ul className="space-y-3">
-              {course.features.map((feature, i) => (
+              {Array.isArray(course.features) && course.features.map((feature, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm text-neutral-700">
                   <CheckCircle className="w-4 h-4 text-neutral-400 mt-0.5 flex-shrink-0" />
                   {feature}
@@ -321,12 +337,12 @@ const CourseCard = ({ course, index }) => {
 
             <div className="space-y-3">
               <Link
-                to={`/courses/${course.slug || course.id}`}
+                to={courseUrl}
                 className="w-full flex items-center justify-center gap-2 px-6 py-3 
                          bg-[#FF4D00] text-white text-sm font-semibold uppercase tracking-wider
                          hover:bg-[#E64500] transition-colors duration-150"
               >
-                Đăng ký ngay
+                Xem chi tiết
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <button className="w-full px-6 py-3 border border-neutral-900 text-neutral-900 
@@ -373,7 +389,7 @@ const CourseSkeleton = () => (
 // ============================================
 // COURSES LIST SECTION
 // ============================================
-const CoursesList = ({ courses, loading }) => {
+const CoursesList = ({ courses, loading, openCardIndex, setOpenCardIndex }) => {
   if (loading) {
     return (
       <section className="border-b border-neutral-900">
@@ -391,7 +407,13 @@ const CoursesList = ({ courses, loading }) => {
       <div className="max-w-[1600px] mx-auto">
         {courses.length > 0 ? (
           courses.map((course, index) => (
-            <CourseCard key={course.id} course={course} index={index} />
+            <CourseCard
+              key={course.id}
+              course={course}
+              index={index}
+              isExpanded={openCardIndex === index}
+              onToggle={() => setOpenCardIndex(openCardIndex === index ? null : index)}
+            />
           ))
         ) : (
           <div className="p-12 text-center">
@@ -453,87 +475,6 @@ const CTASection = () => {
 };
 
 // ============================================
-// FOOTER COMPONENT
-// ============================================
-const Footer = () => {
-  return (
-    <footer className="bg-white">
-      <div className="max-w-[1600px] mx-auto">
-        {/* Main Footer */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 border-b border-neutral-200">
-          {/* Brand */}
-          <div className="p-6 lg:p-8 md:border-r border-neutral-200">
-            <Link to="/" className="flex items-center gap-2 mb-4">
-              <img
-                src={logoImage}
-                alt="Skill Master"
-                className="h-11 w-auto object-contain"
-              />
-            </Link>
-            <p className="text-sm text-neutral-600 leading-relaxed">
-              Hệ thống đào tạo Anh ngữ và Tin học hàng đầu.
-            </p>
-          </div>
-
-          {/* Courses */}
-          <div className="p-6 lg:p-8 md:border-r border-neutral-200">
-            <h4 className="text-xs font-medium text-neutral-500 uppercase tracking-widest mb-4">Khóa học</h4>
-            <ul className="space-y-2">
-              {['IELTS Academic', 'TOEIC 4 Kỹ năng', 'Tin học Văn phòng', 'IC3 Digital'].map(item => (
-                <li key={item}>
-                  <a href="#" className="text-sm text-neutral-900 hover:opacity-60 transition-opacity">
-                    {item}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Company */}
-          <div className="p-6 lg:p-8 md:border-r border-neutral-200">
-            <h4 className="text-xs font-medium text-neutral-500 uppercase tracking-widest mb-4">Về chúng tôi</h4>
-            <ul className="space-y-2">
-              {['Giới thiệu', 'Đội ngũ giáo viên', 'Blog', 'Tuyển dụng'].map(item => (
-                <li key={item}>
-                  <a href="#" className="text-sm text-neutral-900 hover:opacity-60 transition-opacity">
-                    {item}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Contact */}
-          <div className="p-6 lg:p-8">
-            <h4 className="text-xs font-medium text-neutral-500 uppercase tracking-widest mb-4">Liên hệ</h4>
-            <ul className="space-y-2 text-sm text-neutral-600">
-              <li>123 Nguyễn Văn Linh, Q.7, TP.HCM</li>
-              <li>contact@skillmaster.vn</li>
-              <li>0909 123 456</li>
-            </ul>
-          </div>
-        </div>
-
-        {/* Bottom */}
-        <div className="p-6 lg:p-8 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p className="text-xs text-neutral-500">
-            © 2025 Skill Master. All rights reserved.
-          </p>
-          <div className="flex items-center gap-6">
-            <a href="#" className="text-xs text-neutral-500 hover:text-neutral-900 transition-colors">
-              Điều khoản
-            </a>
-            <a href="#" className="text-xs text-neutral-500 hover:text-neutral-900 transition-colors">
-              Bảo mật
-            </a>
-          </div>
-        </div>
-      </div>
-    </footer>
-  );
-};
-
-// ============================================
 // MAIN COURSES PAGE COMPONENT
 // ============================================
 export const CoursesPage = () => {
@@ -541,6 +482,7 @@ export const CoursesPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [openCardIndex, setOpenCardIndex] = useState(null); // Single-open interaction
 
   useEffect(() => {
     fetchCourses();
@@ -571,7 +513,14 @@ export const CoursesPage = () => {
         sessions: c.total_sessions ? `${c.total_sessions} buổi` : 'Liên hệ',
         classSize: '8-12 học viên',
         schedule: 'Linh hoạt',
-        features: typeof c.features === 'string' ? JSON.parse(c.features) : (c.features || []),
+        features: (() => {
+          try {
+            return typeof c.features === 'string' ? JSON.parse(c.features) : (c.features || []);
+          } catch (e) {
+            console.warn('Parsing features error:', c.id, e);
+            return [];
+          }
+        })(),
         levels: [] // No levels in DB yet
       }));
 
@@ -591,18 +540,43 @@ export const CoursesPage = () => {
     return matchesFilter && matchesSearch;
   });
 
+  // Calculate unique categories for dynamic filters
+  const dynamicCategories = Array.from(new Set(courses.map(c => c.category)))
+    .filter(cat => cat) // Remove null/undefined
+    .map(cat => ({
+      id: cat,
+      label: getCategoryLabel(cat)
+    }));
+
   return (
     <div className="min-h-screen bg-white antialiased">
+      <Helmet>
+        <title>Lộ trình học tiếng Anh & Tin học chuẩn quốc tế | Skill Master</title>
+        <meta name="description" content="Khám phá các khóa học Tiếng Anh (IELTS, TOEIC) và Tin học văn phòng chuẩn quốc tế tại Skill Master. Đào tạo chất lượng cao, cam kết đầu ra bằng văn bản." />
+        <meta name="keywords" content="khóa học ielts, luyện thi toeic, tin học văn phòng, skill master, học tiếng anh, học tin học, lộ trình học tập" />
+        <meta property="og:title" content="Lộ trình học tiếng Anh & Tin học chuẩn quốc tế | Skill Master" />
+        <meta property="og:description" content="Đào tạo chất lượng cao, cam kết đầu ra với các khóa học IELTS, TOEIC và Tin học văn phòng." />
+        <link rel="canonical" href="https://skillmaster.vn/courses" />
+      </Helmet>
       <PublicHeader />
       <main>
-        <PageHeader />
+        <PageHeader
+          totalCourses={courses.length}
+          totalCategories={new Set(courses.map(c => c.category)).size}
+        />
         <FilterSection
           activeFilter={activeFilter}
           setActiveFilter={setActiveFilter}
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
+          dynamicCategories={dynamicCategories}
         />
-        <CoursesList courses={filteredCourses} loading={loading} />
+        <CoursesList
+          courses={filteredCourses}
+          loading={loading}
+          openCardIndex={openCardIndex}
+          setOpenCardIndex={setOpenCardIndex}
+        />
         <CTASection />
       </main>
       <Footer />

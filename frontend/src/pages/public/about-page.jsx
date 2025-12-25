@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { 
+import {
   ArrowRight, MapPin, Phone, Award
 } from 'lucide-react';
 import PublicHeader from '../../components/layout/public-header';
+import { Helmet } from 'react-helmet-async';
+import { Footer } from '@/pages/landing/components/footer';
 
 // Import logo
 import logoImage from '@/assets/logo.png';
@@ -93,11 +95,11 @@ const PageHeader = () => {
                           transform transition-all duration-500 delay-100
                           ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
               <p className="text-lg text-neutral-600 leading-relaxed max-w-xl">
-                Hệ thống đào tạo Anh ngữ và Tin học hàng đầu, 
+                Hệ thống đào tạo Anh ngữ và Tin học hàng đầu,
                 cam kết mang đến chất lượng giáo dục chuẩn quốc tế từ năm 2016.
               </p>
             </div>
-            
+
             {/* Quick Stats - ASYMMETRIC RHYTHM */}
             <div className="grid grid-cols-12 border-t border-neutral-200">
               {/* Big stat 1 - Years (anchor) */}
@@ -110,7 +112,7 @@ const PageHeader = () => {
                 <p className="text-sm text-neutral-600 mt-2">Năm kinh nghiệm</p>
                 <p className="text-xs text-neutral-400 mt-1">Từ 2016 đến nay</p>
               </div>
-              
+
               {/* Big stat 2 - Students */}
               <div className={`col-span-4 p-6 lg:p-8 border-r border-neutral-200
                            transform transition-all duration-500 delay-300
@@ -120,7 +122,7 @@ const PageHeader = () => {
                 </p>
                 <p className="text-xs text-neutral-500 uppercase tracking-wider mt-2">Học viên</p>
               </div>
-              
+
               {/* Small stats stacked */}
               <div className="col-span-3 flex flex-col">
                 <div className={`flex-1 p-4 lg:p-6 border-b border-neutral-200
@@ -166,7 +168,7 @@ const StorySection = () => {
     <section ref={ref} className="border-b border-neutral-900">
       <div className="max-w-[1600px] mx-auto">
         <div className="grid lg:grid-cols-12">
-          
+
           {/* Left - Quote */}
           <div className="lg:col-span-5 p-6 lg:p-12 lg:border-r border-neutral-900 bg-neutral-900">
             <div className={`transform transition-all duration-500
@@ -175,7 +177,7 @@ const StorySection = () => {
                 Tầm nhìn
               </span>
               <blockquote className="text-2xl lg:text-3xl font-light text-white leading-relaxed">
-                "Mỗi học viên đến với chúng tôi đều mang theo một ước mơ. 
+                "Mỗi học viên đến với chúng tôi đều mang theo một ước mơ.
                 Sứ mệnh của Skill Master là biến những ước mơ ấy thành hiện thực."
               </blockquote>
               <div className="mt-10">
@@ -192,15 +194,15 @@ const StorySection = () => {
               <span className="text-xs font-medium tracking-widest uppercase text-neutral-500 mb-8 block">
                 Hành trình
               </span>
-              
+
               <div className="space-y-0">
                 {timeline.map((item, i) => (
-                  <div 
-                    key={i} 
+                  <div
+                    key={i}
                     className={`grid grid-cols-12 border-t py-6 transition-all duration-500
-                             ${item.highlight 
-                               ? 'border-t-2 border-[#FF4D00] bg-gradient-to-r from-orange-50 to-transparent -mx-6 px-6 lg:-mx-12 lg:px-12' 
-                               : 'border-neutral-200'}
+                             ${item.highlight
+                        ? 'border-t-2 border-[#FF4D00] bg-gradient-to-r from-orange-50 to-transparent -mx-6 px-6 lg:-mx-12 lg:px-12'
+                        : 'border-neutral-200'}
                              transform ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
                     style={{ transitionDelay: `${200 + i * 100}ms` }}
                   >
@@ -238,28 +240,28 @@ const ValuesSection = () => {
   const [ref, isInView] = useInView();
 
   const values = [
-    { 
+    {
       num: '01',
-      title: 'Tận tâm', 
+      title: 'Tận tâm',
       desc: 'Mỗi học viên là một cá nhân riêng biệt. Chúng tôi lắng nghe, thấu hiểu và đồng hành cùng từng bước tiến.',
       featured: true,
       quote: '"Thành công của học viên là thành công của chúng tôi"'
     },
-    { 
+    {
       num: '02',
-      title: 'Cam kết', 
+      title: 'Cam kết',
       desc: 'Đồng hành đến khi đạt mục tiêu. Cam kết đầu ra bằng văn bản, học lại miễn phí nếu chưa đạt.',
       featured: false
     },
-    { 
+    {
       num: '03',
-      title: 'Đổi mới', 
+      title: 'Đổi mới',
       desc: 'Phương pháp hiện đại, hiệu quả. Ứng dụng công nghệ và giáo trình quốc tế vào giảng dạy.',
       featured: false
     },
-    { 
+    {
       num: '04',
-      title: 'Cộng đồng', 
+      title: 'Cộng đồng',
       desc: 'Môi trường học tập tích cực. 10,000+ học viên, cộng đồng hỗ trợ lẫn nhau cùng tiến bộ.',
       featured: false
     },
@@ -271,7 +273,7 @@ const ValuesSection = () => {
   return (
     <section ref={ref} className="border-b border-neutral-900">
       <div className="max-w-[1600px] mx-auto">
-        
+
         {/* Section Header */}
         <div className="grid lg:grid-cols-12 border-b border-neutral-200">
           <div className="lg:col-span-4 p-6 lg:p-12 lg:border-r border-neutral-200">
@@ -309,7 +311,7 @@ const ValuesSection = () => {
         {/* Other Values - Compact row */}
         <div className="grid lg:grid-cols-3">
           {otherValues.map((value, i) => (
-            <div 
+            <div
               key={i}
               className={`p-6 lg:p-8 border-b lg:border-b-0 lg:border-r border-neutral-200 last:border-r-0
                        hover:bg-neutral-50 transition-colors duration-150
@@ -338,8 +340,8 @@ const TeamSection = () => {
 
   // Full team data - Vietnamese + International
   const team = [
-    { 
-      name: 'Nguyễn Văn Minh', 
+    {
+      name: 'Nguyễn Văn Minh',
       role: 'Founder & CEO',
       department: 'Leadership',
       nationality: 'VN',
@@ -349,8 +351,8 @@ const TeamSection = () => {
       students: '3,000+',
       image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=face'
     },
-    { 
-      name: 'Sarah Johnson', 
+    {
+      name: 'Sarah Johnson',
       role: 'Senior ELT Trainer',
       department: 'English',
       nationality: 'US',
@@ -360,8 +362,8 @@ const TeamSection = () => {
       students: '1,800+',
       image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop&crop=face'
     },
-    { 
-      name: 'Trần Thị Hương', 
+    {
+      name: 'Trần Thị Hương',
       role: 'Academic Director',
       department: 'English',
       nationality: 'VN',
@@ -371,8 +373,8 @@ const TeamSection = () => {
       students: '2,500+',
       image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop&crop=face'
     },
-    { 
-      name: 'Lê Hoàng Nam', 
+    {
+      name: 'Lê Hoàng Nam',
       role: 'IT Program Lead',
       department: 'IT',
       nationality: 'VN',
@@ -382,8 +384,8 @@ const TeamSection = () => {
       students: '2,000+',
       image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=face'
     },
-    { 
-      name: 'David Lee', 
+    {
+      name: 'David Lee',
       role: 'IELTS Specialist',
       department: 'English',
       nationality: 'SG',
@@ -393,8 +395,8 @@ const TeamSection = () => {
       students: '1,500+',
       image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop&crop=face'
     },
-    { 
-      name: 'Phạm Thị Lan', 
+    {
+      name: 'Phạm Thị Lan',
       role: 'Head of Training',
       department: 'English',
       nationality: 'VN',
@@ -404,8 +406,8 @@ const TeamSection = () => {
       students: '2,800+',
       image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=400&fit=crop&crop=face'
     },
-    { 
-      name: 'Emily Chen', 
+    {
+      name: 'Emily Chen',
       role: 'Kids English Lead',
       department: 'English',
       nationality: 'TW',
@@ -415,8 +417,8 @@ const TeamSection = () => {
       students: '1,200+',
       image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop&crop=face'
     },
-    { 
-      name: 'Võ Minh Tuấn', 
+    {
+      name: 'Võ Minh Tuấn',
       role: 'IT Instructor',
       department: 'IT',
       nationality: 'VN',
@@ -438,7 +440,7 @@ const TeamSection = () => {
   return (
     <section ref={ref} className="border-b border-neutral-900">
       <div className="max-w-[1600px] mx-auto">
-        
+
         {/* Section Header */}
         <div className="grid lg:grid-cols-12 border-b border-neutral-200">
           <div className="lg:col-span-4 p-6 lg:p-12 lg:border-r border-neutral-200">
@@ -463,13 +465,13 @@ const TeamSection = () => {
         <div className={`grid lg:grid-cols-12 border-b border-neutral-200
                       transform transition-all duration-500 delay-100
                       ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          
+
           {/* Left: 3 Avatars */}
           <div className="lg:col-span-5 p-6 lg:p-10 lg:border-r border-neutral-200 bg-neutral-50">
             <p className="text-xs font-medium tracking-widest uppercase text-neutral-500 mb-6">
               Ban lãnh đạo
             </p>
-            
+
             <div className="flex items-center gap-4">
               {stripMembers.map((member, i) => (
                 <button
@@ -477,12 +479,12 @@ const TeamSection = () => {
                   onClick={() => setActiveStrip(i)}
                   onMouseEnter={() => setActiveStrip(i)}
                   className={`relative w-20 h-20 lg:w-24 lg:h-24 overflow-hidden transition-all duration-300
-                            ${activeStrip === i 
-                              ? 'ring-2 ring-[#FF4D00] ring-offset-2 scale-110 z-10' 
-                              : 'opacity-60 hover:opacity-100 grayscale hover:grayscale-0'}`}
+                            ${activeStrip === i
+                      ? 'ring-2 ring-[#FF4D00] ring-offset-2 scale-110 z-10'
+                      : 'opacity-60 hover:opacity-100 grayscale hover:grayscale-0'}`}
                 >
-                  <img 
-                    src={member.image} 
+                  <img
+                    src={member.image}
                     alt={member.name}
                     className="w-full h-full object-cover"
                   />
@@ -498,11 +500,10 @@ const TeamSection = () => {
             {/* Active indicator */}
             <div className="flex gap-2 mt-6">
               {stripMembers.map((_, i) => (
-                <div 
+                <div
                   key={i}
-                  className={`h-1 transition-all duration-300 ${
-                    activeStrip === i ? 'w-8 bg-[#FF4D00]' : 'w-4 bg-neutral-300'
-                  }`}
+                  className={`h-1 transition-all duration-300 ${activeStrip === i ? 'w-8 bg-[#FF4D00]' : 'w-4 bg-neutral-300'
+                    }`}
                 />
               ))}
             </div>
@@ -511,12 +512,12 @@ const TeamSection = () => {
           {/* Right: Active Teacher Info */}
           <div className="lg:col-span-7 p-6 lg:p-10 relative min-h-[320px]">
             {stripMembers.map((member, i) => (
-              <div 
+              <div
                 key={i}
                 className={`absolute inset-0 p-6 lg:p-10 transition-all duration-400
-                          ${activeStrip === i 
-                            ? 'opacity-100 translate-y-0' 
-                            : 'opacity-0 translate-y-4 pointer-events-none'}`}
+                          ${activeStrip === i
+                    ? 'opacity-100 translate-y-0'
+                    : 'opacity-0 translate-y-4 pointer-events-none'}`}
               >
                 <div className="flex items-start justify-between mb-4">
                   <div>
@@ -579,13 +580,13 @@ const TeamSection = () => {
           <p className="text-xs font-medium tracking-widest uppercase text-neutral-500 px-6 lg:px-10 mb-6">
             Toàn bộ đội ngũ · Hover để xem chi tiết
           </p>
-          
-          <div 
+
+          <div
             className="relative"
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}
           >
-            <div 
+            <div
               className="flex gap-4 px-6"
               style={{
                 animation: 'marquee 40s linear infinite',
@@ -654,17 +655,17 @@ const MarqueeCard = ({ member, index }) => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={`flex-shrink-0 border bg-white transition-all duration-300 cursor-pointer
-                ${isInternational 
-                  ? 'w-[300px] lg:w-[360px] border-[#FF4D00]/30 hover:border-[#FF4D00]' 
-                  : 'w-[260px] lg:w-[300px] border-neutral-200'}
+                ${isInternational
+          ? 'w-[300px] lg:w-[360px] border-[#FF4D00]/30 hover:border-[#FF4D00]'
+          : 'w-[260px] lg:w-[300px] border-neutral-200'}
                 ${isHovered ? 'bg-neutral-50 -translate-y-1' : ''}`}
     >
       <div className="flex">
         {/* Avatar */}
         <div className={`flex-shrink-0 relative overflow-hidden bg-neutral-100
                       ${isInternational ? 'w-28 h-32' : 'w-24 h-28'}`}>
-          <img 
-            src={member.image} 
+          <img
+            src={member.image}
             alt={member.name}
             className={`w-full h-full object-cover transition-all duration-300
                       ${isHovered ? 'scale-105' : isInternational ? '' : 'grayscale'}`}
@@ -703,9 +704,9 @@ const MarqueeCard = ({ member, index }) => {
             <div className="flex flex-wrap gap-1 mt-1">
               {member.certifications.slice(0, isInternational ? 3 : 2).map((cert, j) => (
                 <span key={j} className={`px-1.5 py-0.5 text-[10px]
-                                       ${isInternational 
-                                         ? 'bg-[#FF4D00]/10 text-[#FF4D00]' 
-                                         : 'bg-neutral-100 text-neutral-600'}`}>
+                                       ${isInternational
+                    ? 'bg-[#FF4D00]/10 text-[#FF4D00]'
+                    : 'bg-neutral-100 text-neutral-600'}`}>
                   {cert}
                 </span>
               ))}
@@ -732,8 +733,8 @@ const LocationsSection = () => {
   const [activeLocation, setActiveLocation] = useState(0);
 
   const locations = [
-    { 
-      name: 'Quận 1', 
+    {
+      name: 'Quận 1',
       label: 'Flagship',
       address: '123 Nguyễn Huệ, Quận 1, TP.HCM',
       phone: '028 1234 5678',
@@ -742,8 +743,8 @@ const LocationsSection = () => {
       mapUrl: 'https://maps.google.com/?q=123+Nguyen+Hue+Quan+1+HCMC',
       mapEmbed: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3919.4!2d106.7!3d10.77!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMTDCsDQ2JzEyLjAiTiAxMDbCsDQyJzAwLjAiRQ!5e0!3m2!1sen!2s!4v1234567890'
     },
-    { 
-      name: 'Quận 7', 
+    {
+      name: 'Quận 7',
       label: 'PMH Center',
       address: '456 Nguyễn Thị Thập, Quận 7, TP.HCM',
       phone: '028 2345 6789',
@@ -752,8 +753,8 @@ const LocationsSection = () => {
       mapUrl: 'https://maps.google.com/?q=456+Nguyen+Thi+Thap+Quan+7+HCMC',
       mapEmbed: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3920.0!2d106.7!3d10.73!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMTDCsDQzJzQ4LjAiTiAxMDbCsDQyJzAwLjAiRQ!5e0!3m2!1sen!2s!4v1234567890'
     },
-    { 
-      name: 'Bình Thạnh', 
+    {
+      name: 'Bình Thạnh',
       label: 'BT Campus',
       address: '789 Điện Biên Phủ, Bình Thạnh, TP.HCM',
       phone: '028 3456 7890',
@@ -769,7 +770,7 @@ const LocationsSection = () => {
   return (
     <section ref={ref} className="border-b border-neutral-900">
       <div className="max-w-[1600px] mx-auto">
-        
+
         {/* Section Header with Tabs */}
         <div className="grid lg:grid-cols-12 border-b border-neutral-200">
           <div className="lg:col-span-4 p-6 lg:p-12 lg:border-r border-neutral-200">
@@ -782,7 +783,7 @@ const LocationsSection = () => {
               3 địa điểm
             </h2>
           </div>
-          
+
           {/* Location Tabs */}
           <div className="lg:col-span-8 flex flex-col justify-end">
             <div className="flex border-t lg:border-t-0">
@@ -791,9 +792,9 @@ const LocationsSection = () => {
                   key={i}
                   onClick={() => setActiveLocation(i)}
                   className={`flex-1 p-4 lg:p-6 text-left transition-all duration-300 border-b-2
-                            ${activeLocation === i 
-                              ? 'bg-neutral-900 text-white border-[#FF4D00]' 
-                              : 'bg-white text-neutral-600 border-transparent hover:bg-neutral-50'}`}
+                            ${activeLocation === i
+                      ? 'bg-neutral-900 text-white border-[#FF4D00]'
+                      : 'bg-white text-neutral-600 border-transparent hover:bg-neutral-50'}`}
                 >
                   <span className="text-xs text-neutral-400 block mb-1">
                     {String(i + 1).padStart(2, '0')}
@@ -813,17 +814,17 @@ const LocationsSection = () => {
         {/* Active Location Content */}
         <div className={`grid lg:grid-cols-12 transform transition-all duration-500
                       ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          
+
           {/* Left: Image */}
           <div className="lg:col-span-5 lg:border-r border-neutral-200 relative overflow-hidden bg-neutral-100">
             {locations.map((loc, i) => (
-              <div 
+              <div
                 key={i}
                 className={`absolute inset-0 transition-all duration-500
                           ${activeLocation === i ? 'opacity-100 scale-100' : 'opacity-0 scale-105'}`}
               >
-                <img 
-                  src={loc.image} 
+                <img
+                  src={loc.image}
                   alt={`Cơ sở ${loc.name}`}
                   className="w-full h-full object-cover min-h-[350px]"
                 />
@@ -835,11 +836,11 @@ const LocationsSection = () => {
               </div>
             ))}
           </div>
-          
+
           {/* Middle: Info */}
           <div className="lg:col-span-4 p-6 lg:p-8 lg:border-r border-neutral-200 flex flex-col justify-between relative min-h-[350px]">
             {locations.map((loc, i) => (
-              <div 
+              <div
                 key={i}
                 className={`absolute inset-0 p-6 lg:p-8 flex flex-col justify-between transition-all duration-400
                           ${activeLocation === i ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}
@@ -848,7 +849,7 @@ const LocationsSection = () => {
                   <h3 className="text-2xl font-bold text-neutral-900 mb-6">
                     Cơ sở {loc.name}
                   </h3>
-                  
+
                   <div className="space-y-4">
                     <div className="flex items-start gap-3">
                       <MapPin className="w-5 h-5 text-[#FF4D00] mt-0.5 flex-shrink-0" />
@@ -886,14 +887,14 @@ const LocationsSection = () => {
             {/* Map Placeholder / Embed Area */}
             <div className="flex-1 relative overflow-hidden">
               {locations.map((loc, i) => (
-                <div 
+                <div
                   key={i}
                   className={`absolute inset-0 transition-all duration-500
                             ${activeLocation === i ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
                 >
                   {/* Static Map Preview */}
                   <div className="w-full h-full bg-neutral-200 flex items-center justify-center relative">
-                    <div 
+                    <div
                       className="absolute inset-0 opacity-50"
                       style={{
                         backgroundImage: `url('https://api.mapbox.com/styles/v1/mapbox/light-v10/static/106.7,10.77,13,0/400x350?access_token=placeholder')`,
@@ -914,7 +915,7 @@ const LocationsSection = () => {
                 </div>
               ))}
             </div>
-            
+
             {/* Google Maps Link Button */}
             <a
               href={current.mapUrl}
@@ -936,11 +937,10 @@ const LocationsSection = () => {
             <button
               key={i}
               onClick={() => setActiveLocation(i)}
-              className={`transition-all duration-300 ${
-                activeLocation === i 
-                  ? 'w-8 h-2 bg-[#FF4D00]' 
-                  : 'w-2 h-2 bg-neutral-300 hover:bg-neutral-400'
-              }`}
+              className={`transition-all duration-300 ${activeLocation === i
+                ? 'w-8 h-2 bg-[#FF4D00]'
+                : 'w-2 h-2 bg-neutral-300 hover:bg-neutral-400'
+                }`}
             />
           ))}
         </div>
@@ -986,7 +986,7 @@ const CTASection = () => {
               Đăng ký học thử miễn phí
               <ArrowRight className="w-5 h-5" />
             </Link>
-            
+
             {/* SECONDARY - Text link style */}
             <Link
               to="/contact"
@@ -1001,98 +1001,6 @@ const CTASection = () => {
   );
 };
 
-// ============================================
-// FOOTER COMPONENT - CLEANER WITH GAP NOT BORDERS
-// ============================================
-const Footer = () => {
-  return (
-    <footer className="bg-white border-t border-neutral-200">
-      <div className="max-w-[1600px] mx-auto">
-        {/* Main Footer - Using gap instead of borders */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-0 p-8 lg:p-12">
-          {/* Brand - Takes more space */}
-          <div className="lg:col-span-5 lg:pr-12">
-            <Link to="/" className="flex items-center gap-2 mb-6">
-              <img 
-                src={logoImage} 
-                alt="Skill Master" 
-                className="h-12 w-auto object-contain"
-              />
-            </Link>
-            <p className="text-neutral-600 leading-relaxed mb-6 max-w-sm">
-              Hệ thống đào tạo Anh ngữ và Tin học hàng đầu, đồng hành cùng 10,000+ học viên đạt mục tiêu.
-            </p>
-            <div className="flex items-center gap-4">
-              <span className="text-xs text-neutral-500 uppercase tracking-wider">Đối tác</span>
-              <div className="flex items-center gap-2 px-3 py-1 border border-neutral-200">
-                <Award className="w-4 h-4 text-[#FF4D00]" />
-                <span className="text-xs font-medium text-neutral-700">Cambridge</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Links - Compact columns */}
-          <div className="lg:col-span-2">
-            <h4 className="text-xs font-bold text-neutral-900 uppercase tracking-widest mb-4">Khóa học</h4>
-            <ul className="space-y-3">
-              {['IELTS Academic', 'TOEIC 4 Kỹ năng', 'Tin học VP', 'IC3 Digital'].map(item => (
-                <li key={item}>
-                  <a href="#" className="text-sm text-neutral-600 hover:text-neutral-900 transition-colors">
-                    {item}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="lg:col-span-2">
-            <h4 className="text-xs font-bold text-neutral-900 uppercase tracking-widest mb-4">Về chúng tôi</h4>
-            <ul className="space-y-3">
-              {['Giới thiệu', 'Đội ngũ', 'Blog', 'Tuyển dụng'].map(item => (
-                <li key={item}>
-                  <a href="#" className="text-sm text-neutral-600 hover:text-neutral-900 transition-colors">
-                    {item}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Contact - Highlighted */}
-          <div className="lg:col-span-3 lg:pl-8 lg:border-l border-neutral-200">
-            <h4 className="text-xs font-bold text-neutral-900 uppercase tracking-widest mb-4">Liên hệ</h4>
-            <ul className="space-y-3 text-sm">
-              <li className="flex items-start gap-2">
-                <MapPin className="w-4 h-4 text-neutral-400 mt-0.5 flex-shrink-0" />
-                <span className="text-neutral-600">123 Nguyễn Huệ, Q.1, TP.HCM</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-neutral-400" />
-                <span className="text-neutral-900 font-medium">0909 123 456</span>
-              </li>
-              <li className="text-neutral-600">contact@skillmaster.vn</li>
-            </ul>
-          </div>
-        </div>
-
-        {/* Bottom - Minimal */}
-        <div className="border-t border-neutral-100 px-8 lg:px-12 py-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p className="text-xs text-neutral-400">
-            © 2025 Skill Master. All rights reserved.
-          </p>
-          <div className="flex items-center gap-6">
-            <a href="#" className="text-xs text-neutral-400 hover:text-neutral-900 transition-colors">
-              Điều khoản
-            </a>
-            <a href="#" className="text-xs text-neutral-400 hover:text-neutral-900 transition-colors">
-              Bảo mật
-            </a>
-          </div>
-        </div>
-      </div>
-    </footer>
-  );
-};
 
 // ============================================
 // MAIN ABOUT PAGE COMPONENT
@@ -1100,6 +1008,10 @@ const Footer = () => {
 export const AboutPage = () => {
   return (
     <div className="min-h-screen bg-white antialiased">
+      <Helmet>
+        <title>Về chúng tôi | Skill Master - Hệ thống đào tạo Anh ngữ & Tin học</title>
+        <meta name="description" content="Tìm hiểu về Skill Master, sứ mệnh, giá trị cốt lõi và đội ngũ giảng viên chuyên nghiệp trong lĩnh vực đào tạo IELTS, TOEIC và Tin học văn phòng." />
+      </Helmet>
       <PublicHeader />
       <main>
         <PageHeader />
