@@ -5,7 +5,7 @@ import {
   MessageCircle, CheckCircle, ChevronDown, Sparkles,
   Clock, Users, Building2, Star
 } from 'lucide-react';
-import PublicHeader from '../../components/layout/public-header';
+import PublicHeader from '@/components/layout/public-header';
 import { Helmet } from 'react-helmet-async';
 import { Footer } from '@/pages/landing/components/footer';
 

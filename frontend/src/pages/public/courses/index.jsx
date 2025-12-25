@@ -16,7 +16,7 @@ import {
   Target,
   Award
 } from 'lucide-react';
-import PublicHeader from '../../components/layout/public-header';
+import PublicHeader from '@/components/layout/public-header';
 
 import { supabase } from '@/lib/supabaseClient';
 import logoImage from '@/assets/logo.png';

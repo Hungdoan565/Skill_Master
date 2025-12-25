@@ -4,7 +4,7 @@ import {
   ArrowRight, ArrowDown, GraduationCap, Briefcase, BookOpen,
   Target, Award, Users, CheckCircle, Clock, Star, Play, TrendingUp
 } from 'lucide-react';
-import PublicHeader from '../../components/layout/public-header';
+import PublicHeader from '@/components/layout/public-header';
 import { Helmet } from 'react-helmet-async';
 import { Footer } from '@/pages/landing/components/footer';
 

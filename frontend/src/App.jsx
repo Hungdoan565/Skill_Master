@@ -47,12 +47,12 @@ import {
 import { LoginPage } from '@/pages/auth/login-page';
 import { AuthPage } from '@/pages/auth/auth-page';
 import { LandingPage } from '@/pages/landing/landing-page';
-import { CoursesPage as PublicCoursesPage } from '@/pages/public/courses-page';
-import { CourseDetailPage } from '@/pages/public/course-detail-page';
-import { AboutPage } from '@/pages/public/about-page';
-import { BlogPage } from '@/pages/public/blog-page';
-import { ContactPage } from '@/pages/public/contact-page-new';
-import { RoadmapPage } from '@/pages/public/roadmap-page';
+import { CoursesPage as PublicCoursesPage } from '@/pages/public/courses';
+import { CourseDetailPage } from '@/pages/public/courses/detail';
+import { AboutPage } from '@/pages/public/about';
+import { BlogPage } from '@/pages/public/blog';
+import { ContactPage } from '@/pages/public/contact';
+import { RoadmapPage } from '@/pages/public/roadmap';
 import { ProtectedRoute, GuestRoute, TeacherRoute, StudentRoute, AdminRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/contexts/auth-context';
 
