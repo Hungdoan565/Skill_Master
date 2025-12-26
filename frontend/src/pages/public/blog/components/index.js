@@ -9,6 +9,13 @@ export { ArticleHero } from './ArticleHero';
 export { ArticleContent } from './ArticleContent';
 export { TableOfContents, useTableOfContents } from './TableOfContents';
 export { AuthorCard } from './AuthorCard';
+export {
+    ReadingTimeProgress,
+    CopyLinkButton,
+    PrintButton,
+    PostNavigation,
+    ArticleToolbar
+} from './ArticleToolbar';
 
 export { NewsletterSection } from './NewsletterSection';
 export { RelatedPosts } from './RelatedPosts';

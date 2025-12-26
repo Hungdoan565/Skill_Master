@@ -195,6 +195,100 @@ export const ArticleContent = ({ content, children }) => {
                 .article-content tr:nth-child(even) {
                     background: var(--article-bg-code);
                 }
+
+                /* ============================================ */
+                /* PRINT STYLES - CHỈ IN NỘI DUNG BÀI VIẾT */
+                /* ============================================ */
+                @media print {
+                    /* Ẩn tất cả ngoại trừ nội dung chính */
+                    body * {
+                        visibility: hidden;
+                    }
+
+                    /* Hiển thị article và các element bên trong */
+                    .print-article,
+                    .print-article * {
+                        visibility: visible;
+                    }
+
+                    /* Reset position để print ở đầu trang */
+                    .print-article {
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                        padding: 20mm;
+                    }
+
+                    /* Typography cho print */
+                    .article-content {
+                        font-size: 12pt;
+                        line-height: 1.6;
+                        color: #000;
+                    }
+
+                    .article-content h2 {
+                        font-size: 18pt;
+                        page-break-after: avoid;
+                        margin-top: 20pt;
+                    }
+
+                    .article-content h3 {
+                        font-size: 14pt;
+                        page-break-after: avoid;
+                    }
+
+                    .article-content p,
+                    .article-content li {
+                        font-size: 11pt;
+                        line-height: 1.6;
+                    }
+
+                    /* Tránh page break giữa các phần tử */
+                    .article-content h2,
+                    .article-content h3,
+                    .article-content h4,
+                    .article-content blockquote,
+                    .article-content pre,
+                    .article-content figure {
+                        page-break-inside: avoid;
+                    }
+
+                    /* Links - hiển thị URL */
+                    .article-content a[href]:after {
+                        content: " (" attr(href) ")";
+                        font-size: 9pt;
+                        color: #666;
+                    }
+
+                    /* Code blocks - border thay vì background */
+                    .article-content pre {
+                        background: white;
+                        border: 1pt solid #ccc;
+                        padding: 10pt;
+                        font-size: 9pt;
+                    }
+
+                    .article-content code {
+                        background: #f5f5f5;
+                        border: 1pt solid #ddd;
+                        padding: 2pt 4pt;
+                    }
+
+                    /* Images - fit to page */
+                    .article-content img {
+                        max-width: 100% !important;
+                        page-break-inside: avoid;
+                    }
+
+                    /* Blockquotes */
+                    .article-content blockquote {
+                        border-left: 3pt solid #333;
+                        background: #f9f9f9;
+                        padding: 10pt 15pt;
+                        font-style: italic;
+                    }
+                }
             `}</style>
         </article>
     );

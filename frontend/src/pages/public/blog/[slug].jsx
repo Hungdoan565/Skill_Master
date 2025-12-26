@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useEffect } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
 import PublicHeader from '@/components/layout/public-header';
 import { Footer } from '@/pages/landing/components/footer';
@@ -17,7 +17,9 @@ import {
     BackToTopButton,
     ReadingProgressBar,
     Breadcrumbs,
-    BlogSEO
+    BlogSEO,
+    ArticleToolbar,
+    PostNavigation
 } from './components';
 
 // Data & Hooks
@@ -53,6 +55,11 @@ const BlogDetailPage = () => {
 
     // Extract headings for TOC
     const { headings, activeId } = useTableOfContents(contentRef);
+
+    // Scroll to top when slug changes (navigation between posts)
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, [slug]);
 
     // 404 if post not found
     if (!post) {
@@ -117,9 +124,24 @@ const BlogDetailPage = () => {
                                 </div>
                             )}
 
-                            {/* Article Content - Dynamic based on slug */}
-                            <div ref={contentRef}>
-                                <ArticleContent content={articleContent} />
+                            {/* Print-friendly wrapper */}
+                            <div className="print-article">
+                                {/* Article Title for Print */}
+                                <h1 className="hidden print:block text-3xl font-bold text-zinc-900 mb-4">
+                                    {post.title}
+                                </h1>
+
+                                {/* Author info for Print */}
+                                <div className="hidden print:block text-sm text-zinc-600 mb-6 pb-4 border-b border-stone-200">
+                                    <p><strong>Tác giả:</strong> {post.author.name}</p>
+                                    <p><strong>Ngày đăng:</strong> {new Date(post.date).toLocaleDateString('vi-VN')}</p>
+                                    <p><strong>Thời gian đọc:</strong> {post.readTime} phút</p>
+                                </div>
+
+                                {/* Article Content - Dynamic based on slug */}
+                                <div ref={contentRef}>
+                                    <ArticleContent content={articleContent} />
+                                </div>
                             </div>
 
                             {/* Inline Share */}
@@ -139,6 +161,9 @@ const BlogDetailPage = () => {
                             <TableOfContents headings={headings} activeId={activeId} />
                         </aside>
                     </div>
+
+                    {/* Post Navigation (Next/Previous) */}
+                    <PostNavigation currentPost={post} allPosts={MOCK_POSTS} />
                 </div>
 
                 {/* Related Posts */}
@@ -160,6 +185,13 @@ const BlogDetailPage = () => {
 
             {/* Back to Top */}
             <BackToTopButton />
+
+            {/* Floating Article Toolbar */}
+            <ArticleToolbar
+                url={shareUrl}
+                totalMinutes={post.readTime}
+                progress={readingProgress}
+            />
         </div>
     );
 };
