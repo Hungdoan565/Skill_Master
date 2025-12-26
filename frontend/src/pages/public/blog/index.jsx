@@ -11,7 +11,7 @@ import {
     useInView, useReducedMotion, useReadingProgress, useBlogFilters
 } from './hooks/useBlogHooks';
 import {
-    BlogCard, CardSkeleton, FeaturedSection, NewsletterSection,
+    BlogCard, BlogCardV2, CardSkeletonV2, BentoFeaturedSection, NewsletterSection,
     BackToTopButton, ReadingProgressBar, Pagination, EmptyState,
     Breadcrumbs, SkipToContent, BlogListSEO
 } from './components';
@@ -309,8 +309,8 @@ export const BlogPage = () => {
                     resultCount={processedPosts.length}
                 />
 
-                {/* Featured Section (only on default view) */}
-                {isDefaultView && <FeaturedSection posts={featuredPosts} />}
+                {/* Bento Featured Section (only on default view) */}
+                {isDefaultView && <BentoFeaturedSection posts={featuredPosts} />}
 
                 {/* Popular Tags (only on default view) */}
                 {isDefaultView && (
@@ -331,10 +331,22 @@ export const BlogPage = () => {
                         )}
 
                         {paginatedPosts.length > 0 ? (
-                            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                {paginatedPosts.map((post, index) => (
-                                    <BlogCard key={post.id} post={post} index={index} />
-                                ))}
+                            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {paginatedPosts.map((post, index) => {
+                                    // Mixed sizes: every 6 posts pattern
+                                    // Index 0: large (spans 2 cols)
+                                    // Index 1,2: standard
+                                    // Index 3,4,5: standard
+                                    const isLarge = index % 6 === 0;
+                                    return (
+                                        <BlogCardV2
+                                            key={post.id}
+                                            post={post}
+                                            index={index}
+                                            size={isLarge ? 'large' : 'standard'}
+                                        />
+                                    );
+                                })}
                             </div>
                         ) : (
                             <EmptyState
