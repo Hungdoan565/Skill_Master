@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useEffect } from 'react';
+import React, { useRef, useMemo, useEffect, useState } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
 import PublicHeader from '@/components/layout/public-header';
 import { Footer } from '@/pages/landing/components/footer';
@@ -19,7 +19,10 @@ import {
     Breadcrumbs,
     BlogSEO,
     ArticleToolbar,
-    PostNavigation
+    PostNavigation,
+    ArticleSettingsPanel,
+    ReadingModeOverlay,
+    EstimatedTimeLeft
 } from './components';
 
 // Data & Hooks
@@ -34,6 +37,10 @@ const BlogDetailPage = () => {
     const { slug } = useParams();
     const contentRef = useRef(null);
     const readingProgress = useReadingProgress();
+
+    // Reading enhancements state
+    const [readingMode, setReadingMode] = useState(false);
+    const [fontSize, setFontSize] = useState({ bodySize: '18px', headingScale: 1 });
 
     // Find post by slug
     const post = useMemo(() =>
@@ -60,6 +67,13 @@ const BlogDetailPage = () => {
     useEffect(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }, [slug]);
+
+    // Apply font size to article
+    useEffect(() => {
+        if (contentRef.current) {
+            contentRef.current.style.setProperty('--article-font-size', fontSize.bodySize);
+        }
+    }, [fontSize]);
 
     // 404 if post not found
     if (!post) {
@@ -108,21 +122,39 @@ const BlogDetailPage = () => {
 
                         {/* Main Content (center) */}
                         <article className="flex-1 max-w-3xl mx-auto xl:mx-0">
-                            {/* Tags */}
-                            {post.tags && post.tags.length > 0 && (
-                                <div className="flex flex-wrap gap-2 mb-8">
-                                    {post.tags.map(tag => (
-                                        <span
-                                            key={tag}
-                                            className="px-4 py-2 bg-stone-100 text-zinc-600 text-sm 
-                                                font-medium rounded-full hover:bg-red-50 
-                                                hover:text-red-600 transition-colors cursor-pointer"
-                                        >
-                                            #{tag}
-                                        </span>
-                                    ))}
+                            {/* Tags & Settings Row */}
+                            <div className="flex items-start justify-between gap-4 mb-8">
+                                {/* Tags */}
+                                {post.tags && post.tags.length > 0 && (
+                                    <div className="flex flex-wrap gap-2">
+                                        {post.tags.map(tag => (
+                                            <span
+                                                key={tag}
+                                                className="px-4 py-2 bg-stone-100 text-zinc-600 text-sm 
+                                                    font-medium rounded-full hover:bg-red-50 
+                                                    hover:text-red-600 transition-colors cursor-pointer"
+                                            >
+                                                #{tag}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Settings Panel */}
+                                <div className="flex items-center gap-3 flex-shrink-0">
+                                    <EstimatedTimeLeft
+                                        totalMinutes={post.readTime}
+                                        progress={readingProgress}
+                                    />
+                                    <ArticleSettingsPanel
+                                        onSizeChange={setFontSize}
+                                        articleText={articleContent}
+                                        articleTitle={post.title}
+                                        readingMode={readingMode}
+                                        onReadingModeToggle={() => setReadingMode(!readingMode)}
+                                    />
                                 </div>
-                            )}
+                            </div>
 
                             {/* Print-friendly wrapper */}
                             <div className="print-article">
@@ -138,8 +170,11 @@ const BlogDetailPage = () => {
                                     <p><strong>Thời gian đọc:</strong> {post.readTime} phút</p>
                                 </div>
 
-                                {/* Article Content - Dynamic based on slug */}
-                                <div ref={contentRef}>
+                                {/* Article Content - Dynamic based on slug with font size */}
+                                <div
+                                    ref={contentRef}
+                                    style={{ fontSize: fontSize.bodySize }}
+                                >
                                     <ArticleContent content={articleContent} />
                                 </div>
                             </div>
@@ -192,8 +227,18 @@ const BlogDetailPage = () => {
                 totalMinutes={post.readTime}
                 progress={readingProgress}
             />
+
+            {/* Reading Mode Overlay */}
+            {readingMode && (
+                <ReadingModeOverlay
+                    post={post}
+                    content={articleContent}
+                    onClose={() => setReadingMode(false)}
+                />
+            )}
         </div>
     );
 };
 
 export default BlogDetailPage;
+

@@ -16,6 +16,14 @@ export {
     PostNavigation,
     ArticleToolbar
 } from './ArticleToolbar';
+export {
+    FontSizeToggle,
+    TextToSpeech,
+    ReadingModeToggle,
+    ReadingModeOverlay,
+    EstimatedTimeLeft,
+    ArticleSettingsPanel
+} from './ArticleEnhancements';
 
 export { NewsletterSection } from './NewsletterSection';
 export { RelatedPosts } from './RelatedPosts';
