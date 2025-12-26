@@ -27,7 +27,8 @@ import {
     EndOfArticleCTA,
     EmojiReactions,
     TagCloudWidget,
-    RecentPostsWidget
+    RecentPostsWidget,
+    AudioPlayer
 } from './components';
 
 // Data & Hooks
@@ -163,6 +164,12 @@ const BlogDetailPage = () => {
                                     />
                                 </div>
                             </div>
+
+                            {/* Audio Player */}
+                            <AudioPlayer
+                                content={articleContent}
+                                title={post.title}
+                            />
 
                             {/* Print-friendly wrapper */}
                             <div className="print-article">

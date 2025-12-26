@@ -1,8 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, Clock, Eye, ChevronLeft, Sparkles } from 'lucide-react';
+import { Calendar, Clock, Eye, ChevronLeft, Sparkles, Loader2 } from 'lucide-react';
 import { useInView, useReducedMotion } from '../hooks/useBlogHooks';
 import { formatDate, formatViews } from '../constants/blog-data';
+import { useViewCounter } from '../hooks/useStats';
 
 // ============================================
 // ARTICLE HERO SECTION
@@ -13,6 +14,7 @@ import { formatDate, formatViews } from '../constants/blog-data';
 export const ArticleHero = ({ post }) => {
     const [ref, isInView] = useInView();
     const prefersReducedMotion = useReducedMotion();
+    const { viewCount, isLoading: viewLoading } = useViewCounter(post?.slug);
 
     if (!post) return null;
 
@@ -106,12 +108,17 @@ export const ArticleHero = ({ post }) => {
                             <Clock className="w-4 h-4" />
                             {post.readTime} phút đọc
                         </span>
-                        {post.views && (
-                            <span className="flex items-center gap-2">
-                                <Eye className="w-4 h-4" />
-                                {formatViews(post.views)} lượt xem
-                            </span>
-                        )}
+                        {/* Dynamic View Counter */}
+                        <span className="flex items-center gap-2">
+                            <Eye className="w-4 h-4" />
+                            {viewLoading ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                                <span className="tabular-nums">
+                                    {formatViews(viewCount || post.views || 0)} lượt xem
+                                </span>
+                            )}
+                        </span>
                     </div>
                 </div>
             </div>

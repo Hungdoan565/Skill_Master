@@ -1,24 +1,22 @@
 import React, { useState } from 'react';
-import { Mail, ArrowRight, Loader2 } from 'lucide-react';
+import { Mail, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
 import { useInView } from '../hooks/useBlogHooks';
+import { useNewsletter } from '../hooks/useStats';
 
 // ============================================
 // NEWSLETTER CTA SECTION - MATCHING CTA STYLE
 // ============================================
 export const NewsletterSection = () => {
     const [email, setEmail] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isSuccess, setIsSuccess] = useState(false);
     const [ref, isInView] = useInView();
+    const { subscribe, isSubmitting, isSuccess, error, reset } = useNewsletter();
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        setIsSubmitting(true);
-        setTimeout(() => {
-            setIsSubmitting(false);
-            setIsSuccess(true);
+        const success = await subscribe(email, null, 'blog_detail');
+        if (success) {
             setEmail('');
-        }, 1500);
+        }
     };
 
     return (
@@ -49,37 +47,46 @@ export const NewsletterSection = () => {
                     </p>
 
                     {!isSuccess ? (
-                        <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-4 max-w-lg mx-auto">
-                            <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                placeholder="Nhập email của bạn..."
-                                required
-                                className="flex-1 px-6 py-4 bg-white/5 border-2 border-white/10 rounded-xl 
+                        <>
+                            <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-4 max-w-lg mx-auto">
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="Nhập email của bạn..."
+                                    required
+                                    className={`flex-1 px-6 py-4 bg-white/5 border-2 rounded-xl 
                                     text-white placeholder:text-stone-500 
-                                    focus:border-red-500 focus:outline-none transition-colors"
-                            />
-                            <button
-                                type="submit"
-                                disabled={isSubmitting}
-                                className="px-8 py-4 bg-gradient-to-r from-red-600 to-orange-600 
+                                    focus:border-red-500 focus:outline-none transition-colors
+                                    ${error ? 'border-red-500/50' : 'border-white/10'}`}
+                                />
+                                <button
+                                    type="submit"
+                                    disabled={isSubmitting}
+                                    className="px-8 py-4 bg-gradient-to-r from-red-600 to-orange-600 
                                     hover:from-red-500 hover:to-orange-500 
                                     text-white font-bold rounded-xl transition-all 
                                     shadow-lg shadow-red-900/20 
                                     flex items-center justify-center gap-2 group
                                     disabled:opacity-70 disabled:cursor-not-allowed whitespace-nowrap"
-                            >
-                                {isSubmitting ? (
-                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                ) : (
-                                    <>
-                                        Đăng ký
-                                        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                                    </>
-                                )}
-                            </button>
-                        </form>
+                                >
+                                    {isSubmitting ? (
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                    ) : (
+                                        <>
+                                            Đăng ký
+                                            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                        </>
+                                    )}
+                                </button>
+                            </form>
+                            {error && (
+                                <div className="flex items-center justify-center gap-2 mt-4 text-red-400 text-sm">
+                                    <AlertCircle className="w-4 h-4" />
+                                    <span>{error}</span>
+                                </div>
+                            )}
+                        </>
                     ) : (
                         <div className="py-8 text-center animate-in fade-in zoom-in duration-500">
                             <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -95,7 +102,7 @@ export const NewsletterSection = () => {
                     </p>
                 </div>
             </div>
-        </section>
+        </section >
     );
 };
 
