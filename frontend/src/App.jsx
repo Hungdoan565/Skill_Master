@@ -51,6 +51,7 @@ import { CoursesPage as PublicCoursesPage } from '@/pages/public/courses';
 import { CourseDetailPage } from '@/pages/public/courses/detail';
 import { AboutPage } from '@/pages/public/about';
 import { BlogPage } from '@/pages/public/blog';
+import BlogDetailPage from '@/pages/public/blog/[slug]';
 import { ContactPage } from '@/pages/public/contact';
 import { RoadmapPage } from '@/pages/public/roadmap';
 import { ProtectedRoute, GuestRoute, TeacherRoute, StudentRoute, AdminRoute } from '@/components/auth/protected-route';
@@ -469,6 +470,7 @@ function App() {
           <Route path="about" element={<AboutPage />} />
           <Route path="resources" element={<BlogPage />} />
           <Route path="blog" element={<BlogPage />} />
+          <Route path="blog/:slug" element={<BlogDetailPage />} />
           <Route path="contact" element={<ContactPage />} />
           <Route path="roadmap" element={<RoadmapPage />} />
           <Route path="roadmap/:slug" element={<RoadmapPage />} />
