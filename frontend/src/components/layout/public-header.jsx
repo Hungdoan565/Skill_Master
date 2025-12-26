@@ -21,7 +21,7 @@ const UserDropdown = () => {
   const dropdownRef = useRef(null);
 
   const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
-  const avatarUrl = profile?.avatar_url;
+  const avatarUrl = profile?.avatar_url || user?.user_metadata?.avatar_url || null;
   const roleCode = profile?.roles?.code;
 
   useEffect(() => {
@@ -106,9 +106,13 @@ const UserDropdown = () => {
         `}>
         <div className="px-4 py-3 border-b border-zinc-100">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-zinc-900 text-sm font-semibold text-white">
-              {getInitials(displayName)}
-            </div>
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={displayName} className="h-11 w-11 rounded-full object-cover" />
+            ) : (
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-zinc-900 text-sm font-semibold text-white">
+                {getInitials(displayName)}
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-zinc-900 truncate">{displayName}</p>
               <p className="text-xs text-zinc-500 truncate">{user?.email}</p>
@@ -232,8 +236,8 @@ const PublicHeader = ({ transparent = false }) => {
   const isTransparent = transparent && !scrolled && !mobileMenuOpen;
 
   const headerClasses = `fixed top-0 left-0 right-0 z-50 transition-all duration-500 border-b ${isTransparent
-      ? 'bg-transparent border-transparent text-white'
-      : 'bg-white/90 backdrop-blur-xl border-stone-200/50 text-zinc-900 shadow-sm'
+    ? 'bg-transparent border-transparent text-white'
+    : 'bg-white/90 backdrop-blur-xl border-stone-200/50 text-zinc-900 shadow-sm'
     }`;
 
   const navLinkClasses = `text-sm font-medium transition-colors duration-200 ${isTransparent ? 'text-white/80 hover:text-white' : 'text-zinc-600 hover:text-zinc-900'

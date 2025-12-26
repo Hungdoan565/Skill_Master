@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { API_URL } from '../utils/constants';
 
 export function useProfile() {
-    const { session, profile: authProfile, refreshProfile } = useAuth();
+    const { session, profile: authProfile, refreshProfile, setProfile: setProfileContext } = useAuth();
     const [profile, setProfile] = useState(authProfile);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -133,11 +133,20 @@ export function useProfile() {
 
             if (response.data?.success) {
                 const newAvatarUrl = response.data.data.avatar_url;
+
+                // 1. Update local hook state
                 setProfile(prev => ({ ...prev, avatar_url: newAvatarUrl }));
-                // Refresh auth context
+
+                // 2. Update auth context state directly for immediate UI sync
+                if (setProfileContext) {
+                    setProfileContext(prev => ({ ...prev, avatar_url: newAvatarUrl }));
+                }
+
+                // 3. Optional: Refresh auth context via re-fetch for absolute consistency
                 if (refreshProfile) {
                     await refreshProfile();
                 }
+
                 return { success: true, avatarUrl: newAvatarUrl };
             }
             return { success: false, message: response.data?.message || 'Lỗi không xác định' };

@@ -22,7 +22,9 @@ import {
     PostNavigation,
     ArticleSettingsPanel,
     ReadingModeOverlay,
-    EstimatedTimeLeft
+    EstimatedTimeLeft,
+    CommentsSection,
+    EndOfArticleCTA
 } from './components';
 
 // Data & Hooks
@@ -189,6 +191,12 @@ const BlogDetailPage = () => {
 
                             {/* Author Card */}
                             <AuthorCard author={post.author} />
+
+                            {/* Course CTA */}
+                            <EndOfArticleCTA category={post.category} />
+
+                            {/* Comments Section */}
+                            <CommentsSection postSlug={slug} />
                         </article>
 
                         {/* Table of Contents (right) */}

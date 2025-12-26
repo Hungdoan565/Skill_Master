@@ -31,16 +31,16 @@ export function AuthProvider({ children }) {
           avatar_url,
           role_id,
           center_id,
-          roles!inner (
-            id,
-            code,
-            name
-          ),
-          centers (
-            id,
-            name
-          )
-        `)
+                roles (
+                  id,
+                  code,
+                  name
+                ),
+                centers!users_center_id_fkey (
+                  id,
+                  name
+                )
+              `)
         .eq('id', userId)
         .single();
 
@@ -49,23 +49,30 @@ export function AuthProvider({ children }) {
         setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
       );
 
+
       const { data, error } = await Promise.race([
         profilePromise,
         timeoutPromise
       ]);
 
+      console.log('[AuthContext] Raw Supabase response:', { data, error });
+
       if (error) {
         console.error('[AuthContext] Error fetching profile:', error);
-        setProfile(null);
+        // Đừng set null ngay lập tức nếu chỉ là lỗi mạng/timeout
         return null;
       }
 
-      console.log('[AuthContext] Profile loaded:', data?.full_name, '| Role:', data?.roles?.code, '| Avatar:', data?.avatar_url);
+      if (!data) {
+        console.error('[AuthContext] No data returned from profile query');
+        return null;
+      }
+
+      console.log('[AuthContext] Profile loaded:', data?.full_name, '| Role:', data?.roles?.code, '| Avatar:', data?.avatar_url?.substring(0, 50));
       setProfile(data);
       return data;
     } catch (err) {
-      console.error('[AuthContext] Unexpected error:', err);
-      setProfile(null);
+      console.error('[AuthContext] Unexpected error during fetchUserProfile:', err);
       return null;
     }
   }, []);
@@ -103,12 +110,12 @@ export function AuthProvider({ children }) {
                 avatar_url,
                 role_id,
                 center_id,
-                roles!inner (
+                roles (
                   id,
                   code,
                   name
                 ),
-                centers (
+                centers!users_center_id_fkey (
                   id,
                   name
                 )
@@ -116,9 +123,9 @@ export function AuthProvider({ children }) {
               .eq('id', currentSession.user.id)
               .single();
 
-            // Timeout 10 giây thay vì 5
+            // Tăng timeout lên 30 giây cho Base64 nặng
             const timeoutPromise = new Promise((_, reject) =>
-              setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
+              setTimeout(() => reject(new Error('Profile fetch timeout')), 30000)
             );
 
             const { data: profileData, error: profileError } = await Promise.race([
@@ -128,14 +135,12 @@ export function AuthProvider({ children }) {
 
             if (profileError) {
               console.error('[AuthContext] Profile fetch error:', profileError);
-              setProfile(null);
-            } else {
-              console.log('[AuthContext] Profile loaded:', profileData?.full_name, '| Role:', profileData?.roles?.code);
+            } else if (profileData) {
+              console.log('[AuthContext] Profile loaded:', profileData?.full_name);
               if (mounted) setProfile(profileData);
             }
           } catch (profileErr) {
             console.error('[AuthContext] Profile fetch failed:', profileErr.message);
-            setProfile(null);
           }
         } else {
           // Không có session
@@ -188,12 +193,12 @@ export function AuthProvider({ children }) {
                 avatar_url,
                 role_id,
                 center_id,
-                roles!inner (
+                roles (
                   id,
                   code,
                   name
                 ),
-                centers (
+                centers!users_center_id_fkey (
                   id,
                   name
                 )
@@ -201,9 +206,9 @@ export function AuthProvider({ children }) {
               .eq('id', currentSession.user.id)
               .single();
 
-            // Timeout 10 giây
+            // Tăng timeout lên 30 giây cho Base64 nặng
             const timeoutPromise = new Promise((_, reject) =>
-              setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
+              setTimeout(() => reject(new Error('Profile fetch timeout')), 30000)
             );
 
             const { data: profileData, error: profileError } = await Promise.race([
@@ -213,14 +218,12 @@ export function AuthProvider({ children }) {
 
             if (profileError) {
               console.error('[AuthContext] SIGNED_IN - Profile fetch error:', profileError);
-              if (mounted) setProfile(null);
-            } else {
-              console.log('[AuthContext] SIGNED_IN - Profile loaded:', profileData?.full_name, '| Role:', profileData?.roles?.code);
+            } else if (profileData) {
+              console.log('[AuthContext] SIGNED_IN - Profile loaded:', profileData?.full_name);
               if (mounted) setProfile(profileData);
             }
           } catch (err) {
             console.error('[AuthContext] SIGNED_IN - Profile fetch failed:', err.message);
-            if (mounted) setProfile(null);
           }
         } else if (event === 'TOKEN_REFRESHED') {
           if (mounted) {
@@ -255,7 +258,11 @@ export function AuthProvider({ children }) {
   // Refresh profile (sau khi update avatar/info)
   const refreshProfile = useCallback(async () => {
     if (!user?.id) return null;
-    return await fetchUserProfile(user.id);
+    const freshProfile = await fetchUserProfile(user.id);
+    if (freshProfile) {
+      setProfile(freshProfile); // <<< BUG FIX: Actually update the state!
+    }
+    return freshProfile;
   }, [user, fetchUserProfile]);
 
   // Hàm tiện ích kiểm tra role
@@ -331,6 +338,7 @@ export function AuthProvider({ children }) {
     session,
     user,
     profile,
+    setProfile,
     initialized,
     isAuthenticated,
     signInWithEmail,

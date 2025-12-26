@@ -39,3 +39,9 @@ export {
     SkipToContent,
     SortDropdown
 } from './UIComponents';
+export { CommentsSection } from './CommentsSection';
+export {
+    InArticleCourseCTA,
+    SidebarCourseCTA,
+    EndOfArticleCTA
+} from './CourseCTA';

@@ -110,7 +110,10 @@ export function AdminHeader() {
 
   // Lấy thông tin từ profile (bảng users) hoặc fallback từ user metadata
   const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
-  const avatarUrl = profile?.avatar_url || user?.user_metadata?.avatar_url;
+
+  // Ưu tiên profile.avatar_url (snake_case) từ AuthContext/DB
+  const avatarUrl = profile?.avatar_url || user?.user_metadata?.avatar_url || null;
+
   const roleCode = profile?.roles?.code || (user?.email?.includes('admin') ? 'SUPER_ADMIN' : null);
   const userEmail = user?.email || '';
 
