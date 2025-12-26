@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronUp, ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Search, X, Check, SortAsc } from 'lucide-react';
 import { useScrollVisibility } from '../hooks/useBlogHooks';
 
 // ============================================
@@ -138,6 +138,75 @@ export const EmptyState = ({ searchTerm, activeFilter, onClear }) => (
         </button>
     </div>
 );
+
+// = ============================================
+// SORT DROPDOWN (CUSTOM SELECT)
+// ============================================
+export const SortDropdown = ({ options, value, onChange }) => {
+    const [isOpen, setIsOpen] = React.useState(false);
+    const dropdownRef = React.useRef(null);
+
+    const selectedOption = options.find(opt => opt.id === value) || options[0];
+
+    React.useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleSelect = (optionId) => {
+        onChange(optionId);
+        setIsOpen(false);
+    };
+
+    return (
+        <div className="relative" ref={dropdownRef}>
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className={`flex items-center gap-2 px-4 py-2 bg-stone-100 rounded-xl
+                    hover:bg-stone-200 transition-all duration-300
+                    ${isOpen ? 'ring-2 ring-red-500/20 bg-white border-stone-200 shadow-md' : 'border border-transparent'}
+                `}
+                aria-haspopup="listbox"
+                aria-expanded={isOpen}
+            >
+                <SortAsc className="w-4 h-4 text-zinc-400" />
+                <span className="text-sm font-medium text-zinc-600">{selectedOption.label}</span>
+                <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            <div className={`absolute right-0 mt-2 w-48 bg-white border border-stone-200 rounded-2xl shadow-xl z-50 overflow-hidden transition-all duration-300 origin-top-right
+                ${isOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}
+            `}>
+                <div
+                    className="py-2"
+                    role="listbox"
+                >
+                    {options.map((option) => (
+                        <button
+                            key={option.id}
+                            onClick={() => handleSelect(option.id)}
+                            className={`w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors
+                                ${value === option.id
+                                    ? 'bg-red-50 text-red-600 font-semibold'
+                                    : 'text-zinc-600 hover:bg-stone-50 hover:text-zinc-900'}
+                            `}
+                            role="option"
+                            aria-selected={value === option.id}
+                        >
+                            {option.label}
+                            {value === option.id && <Check className="w-4 h-4" />}
+                        </button>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
 
 // ============================================
 // BREADCRUMBS

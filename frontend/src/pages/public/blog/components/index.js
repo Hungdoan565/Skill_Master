@@ -10,11 +10,13 @@ export { NewsletterSection } from './NewsletterSection';
 export { RelatedPosts } from './RelatedPosts';
 export { SocialShare, FloatingSocialShare } from './SocialShare';
 export { BlogSEO, BlogListSEO } from './BlogSEO';
+export { BookmarkButton, BookmarkedPostsWidget } from './BookmarkButton';
 export {
     BackToTopButton,
     ReadingProgressBar,
     Pagination,
     EmptyState,
     Breadcrumbs,
-    SkipToContent
+    SkipToContent,
+    SortDropdown
 } from './UIComponents';

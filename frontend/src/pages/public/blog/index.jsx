@@ -10,10 +10,11 @@ import {
 import {
     useInView, useReducedMotion, useReadingProgress, useBlogFilters
 } from './hooks/useBlogHooks';
+import { useCountUp, useParallax, useBookmarks } from './hooks/useAdvancedHooks';
 import {
     BlogCard, BlogCardV2, CardSkeletonV2, BentoFeaturedSection, NewsletterSection,
     BackToTopButton, ReadingProgressBar, Pagination, EmptyState,
-    Breadcrumbs, SkipToContent, BlogListSEO
+    Breadcrumbs, SkipToContent, BlogListSEO, SortDropdown
 } from './components';
 
 // ============================================
@@ -29,6 +30,12 @@ import {
 const HeroSection = ({ totalPosts, totalCategories, searchTerm, onSearchChange, onClearSearch }) => {
     const [ref, isInView] = useInView();
     const prefersReducedMotion = useReducedMotion();
+    const parallaxOffset = useParallax(0.15, 50);
+
+    // Count-up animations
+    const animatedPosts = useCountUp(totalPosts, isInView, { duration: 1500 });
+    const animatedCategories = useCountUp(totalCategories, isInView, { duration: 1200 });
+    const animatedReads = useCountUp(15000, isInView, { duration: 2000 });
 
     return (
         <section className="relative pt-24 pb-16 lg:pt-32 lg:pb-24 overflow-hidden">
@@ -41,10 +48,14 @@ const HeroSection = ({ totalPosts, totalCategories, searchTerm, onSearchChange, 
                         backgroundSize: '60px 60px'
                     }}
                     aria-hidden="true" />
-                <div className="absolute top-0 right-0 w-[600px] h-[600px] 
-                    bg-gradient-to-br from-red-100 via-orange-50 to-transparent 
-                    rounded-full blur-3xl opacity-60"
-                    aria-hidden="true" />
+                {/* Parallax blob */}
+                <div
+                    className="absolute top-0 right-0 w-[600px] h-[600px] 
+                        bg-gradient-to-br from-red-100 via-orange-50 to-transparent 
+                        rounded-full blur-3xl opacity-60 transition-transform duration-100"
+                    style={{ transform: `translateY(${parallaxOffset}px)` }}
+                    aria-hidden="true"
+                />
             </div>
 
             <div className="relative max-w-[1400px] mx-auto px-6 lg:px-12">
@@ -106,20 +117,29 @@ const HeroSection = ({ totalPosts, totalCategories, searchTerm, onSearchChange, 
                         )}
                     </div>
 
-                    {/* Stats */}
+                    {/* Stats with Count-Up Animation */}
                     <div className="flex items-center justify-center gap-8 lg:gap-12 mt-12 pt-8 border-t border-stone-200">
                         <div className="text-center">
-                            <span className="block text-3xl lg:text-4xl font-bold text-zinc-900">{totalPosts}</span>
+                            <span className="block text-3xl lg:text-4xl font-bold text-zinc-900"
+                                style={{ fontVariantNumeric: 'tabular-nums' }}>
+                                {animatedPosts}
+                            </span>
                             <span className="text-sm text-zinc-500">Bài viết</span>
                         </div>
                         <div className="w-px h-12 bg-stone-200" aria-hidden="true" />
                         <div className="text-center">
-                            <span className="block text-3xl lg:text-4xl font-bold text-zinc-900">{totalCategories}</span>
+                            <span className="block text-3xl lg:text-4xl font-bold text-zinc-900"
+                                style={{ fontVariantNumeric: 'tabular-nums' }}>
+                                {animatedCategories}
+                            </span>
                             <span className="text-sm text-zinc-500">Chủ đề</span>
                         </div>
                         <div className="w-px h-12 bg-stone-200" aria-hidden="true" />
                         <div className="text-center">
-                            <span className="block text-3xl lg:text-4xl font-bold text-zinc-900">15k+</span>
+                            <span className="block text-3xl lg:text-4xl font-bold text-zinc-900"
+                                style={{ fontVariantNumeric: 'tabular-nums' }}>
+                                {animatedReads >= 1000 ? `${Math.floor(animatedReads / 1000)}k+` : animatedReads}
+                            </span>
                             <span className="text-sm text-zinc-500">Lượt đọc</span>
                         </div>
                     </div>
@@ -166,25 +186,16 @@ const FilterSection = ({ categories, activeFilter, onFilterChange, sortBy, onSor
                         ))}
                     </div>
 
-                    {/* Sort + Result Count */}
+                    {/* Sort Dropdown */}
                     <div className="flex items-center gap-4">
                         <span className="text-sm text-zinc-500" aria-live="polite">
                             {resultCount} kết quả
                         </span>
-                        <div className="flex items-center gap-2 px-4 py-2 bg-stone-100 rounded-xl">
-                            <SortAsc className="w-4 h-4 text-zinc-400" aria-hidden="true" />
-                            <label htmlFor="sort-select" className="sr-only">Sắp xếp theo</label>
-                            <select
-                                id="sort-select"
-                                value={sortBy}
-                                onChange={(e) => onSortChange(e.target.value)}
-                                className="text-sm text-zinc-600 bg-transparent border-0 focus:outline-none cursor-pointer"
-                            >
-                                {SORT_OPTIONS.map(opt => (
-                                    <option key={opt.id} value={opt.id}>{opt.label}</option>
-                                ))}
-                            </select>
-                        </div>
+                        <SortDropdown
+                            options={SORT_OPTIONS}
+                            value={sortBy}
+                            onChange={onSortChange}
+                        />
                     </div>
                 </div>
             </div>
@@ -333,11 +344,13 @@ export const BlogPage = () => {
                         {paginatedPosts.length > 0 ? (
                             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {paginatedPosts.map((post, index) => {
-                                    // Mixed sizes: every 6 posts pattern
-                                    // Index 0: large (spans 2 cols)
-                                    // Index 1,2: standard
-                                    // Index 3,4,5: standard
-                                    const isLarge = index % 6 === 0;
+                                    // Only use large cards when:
+                                    // 1. There are enough posts (at least 4)
+                                    // 2. We're on the "all" filter (not filtering by category)
+                                    // 3. It's the first card in each group of 6
+                                    const useLargeCards = paginatedPosts.length >= 4 && activeFilter === 'all';
+                                    const isLarge = useLargeCards && index % 6 === 0;
+
                                     return (
                                         <BlogCardV2
                                             key={post.id}
