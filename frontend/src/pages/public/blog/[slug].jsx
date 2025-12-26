@@ -24,7 +24,10 @@ import {
     ReadingModeOverlay,
     EstimatedTimeLeft,
     CommentsSection,
-    EndOfArticleCTA
+    EndOfArticleCTA,
+    EmojiReactions,
+    TagCloudWidget,
+    RecentPostsWidget
 } from './components';
 
 // Data & Hooks
@@ -93,7 +96,10 @@ const BlogDetailPage = () => {
             <BlogSEO post={post} />
 
             {/* Reading Progress */}
-            <ReadingProgressBar progress={readingProgress} />
+            <ReadingProgressBar
+                progress={readingProgress}
+                markers={headings}
+            />
 
             {/* Header */}
             <PublicHeader />
@@ -179,6 +185,9 @@ const BlogDetailPage = () => {
                                 >
                                     <ArticleContent content={articleContent} />
                                 </div>
+
+                                {/* Emoji Reactions */}
+                                <EmojiReactions postSlug={slug} />
                             </div>
 
                             {/* Inline Share */}
@@ -199,8 +208,10 @@ const BlogDetailPage = () => {
                             <CommentsSection postSlug={slug} />
                         </article>
 
-                        {/* Table of Contents (right) */}
-                        <aside className="hidden xl:block w-72 flex-shrink-0">
+                        {/* Sidebar (right) */}
+                        <aside className="hidden xl:block w-72 flex-shrink-0 space-y-8">
+                            <RecentPostsWidget posts={MOCK_POSTS} currentPostId={post.id} />
+                            <TagCloudWidget currentTags={post.tags} />
                             <TableOfContents headings={headings} activeId={activeId} />
                         </aside>
                     </div>

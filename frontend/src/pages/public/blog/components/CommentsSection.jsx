@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { supabase } from '@/lib/supabaseClient';
 import {
     MessageCircle,
     Heart,
@@ -703,22 +704,28 @@ export const CommentsSection = ({ postSlug }) => {
     const handleSubmitReport = async (reason, additionalInfo) => {
         try {
             setIsReporting(true);
-            // For now, just log the report (can be saved to database later)
-            console.log('Report submitted:', {
-                commentId: reportModal.commentId,
-                reason,
-                additionalInfo,
-                reportedBy: currentUser.id,
-                timestamp: new Date().toISOString()
-            });
-            // Simulate API delay
-            await new Promise(resolve => setTimeout(resolve, 500));
+
+            if (!isAuthenticated) {
+                alert('Vui lòng đăng nhập để gửi báo cáo!');
+                return;
+            }
+
+            const { error: reportError } = await supabase
+                .from('blog_comment_reports')
+                .insert({
+                    comment_id: reportModal.commentId,
+                    user_id: currentUser.id,
+                    reason,
+                    additional_info: additionalInfo
+                });
+
+            if (reportError) throw reportError;
+
             setReportModal({ isOpen: false, commentId: null });
-            // Show success message (using alert for now)
-            alert('✅ Cảm ơn bạn! Báo cáo của bạn đã được gửi.');
+            alert('✅ Cảm ơn bạn! Báo cáo của bạn đã được gửi cho ban quản trị.');
         } catch (err) {
             console.error('Report error:', err);
-            alert('Có lỗi xảy ra khi gửi báo cáo');
+            alert('Có lỗi xảy ra: ' + (err.message || 'Không thể gửi báo cáo'));
         } finally {
             setIsReporting(false);
         }

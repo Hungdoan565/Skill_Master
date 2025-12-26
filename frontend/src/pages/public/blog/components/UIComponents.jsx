@@ -29,20 +29,35 @@ export const BackToTopButton = () => {
 // ============================================
 // READING PROGRESS BAR
 // ============================================
-export const ReadingProgressBar = ({ progress }) => {
+export const ReadingProgressBar = ({ progress, markers = [] }) => {
     return (
         <div
-            className="fixed top-0 left-0 right-0 h-1 bg-stone-200 z-[60]"
+            className="fixed top-0 left-0 right-0 h-1.5 bg-stone-100 z-[60] overflow-hidden group"
             role="progressbar"
             aria-valuenow={Math.round(progress)}
             aria-valuemin="0"
             aria-valuemax="100"
             aria-label="Tiến trình đọc"
         >
+            {/* Markers */}
+            <div className="absolute inset-0 z-10 pointer-events-none">
+                {markers.map((marker, i) => (
+                    <div
+                        key={i}
+                        className="absolute top-0 bottom-0 w-px bg-zinc-900/10"
+                        style={{ left: `${marker.position}%` }}
+                    />
+                ))}
+            </div>
+
+            {/* Progress fill */}
             <div
-                className="h-full bg-gradient-to-r from-red-600 to-orange-500 transition-all duration-150 ease-out"
+                className="h-full bg-gradient-to-r from-red-600 via-orange-500 to-red-600 transition-all duration-150 ease-out relative z-20"
                 style={{ width: `${progress}%` }}
-            />
+            >
+                {/* Visual pulse at the end of progress */}
+                <div className="absolute top-0 right-0 bottom-0 w-8 bg-white/20 blur-sm animate-pulse" />
+            </div>
         </div>
     );
 };

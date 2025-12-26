@@ -17,7 +17,8 @@ export const TableOfContents = ({ headings = [], activeId }) => {
             className="hidden xl:block sticky top-24"
             aria-label="Mục lục bài viết"
         >
-            <div className="bg-stone-50 rounded-2xl p-6 border border-stone-200">
+            <div className="bg-stone-50 rounded-2xl p-6 border border-stone-200 
+                max-h-[calc(100vh-160px)] overflow-y-auto custom-scrollbar shadow-sm">
                 {/* Header */}
                 <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
@@ -87,22 +88,40 @@ export const useTableOfContents = (contentRef) => {
     useEffect(() => {
         if (!contentRef?.current) return;
 
-        // Extract headings
-        const elements = contentRef.current.querySelectorAll('h2, h3, h4');
-        const headingList = Array.from(elements).map((el, index) => {
-            // Generate ID if not exists
-            if (!el.id) {
-                el.id = `heading-${index}`;
-            }
-            return {
-                id: el.id,
-                text: el.textContent || '',
-                level: parseInt(el.tagName.charAt(1))
-            };
-        });
-        setHeadings(headingList);
+        const updateHeadings = () => {
+            if (!contentRef.current) return;
+            const elements = contentRef.current.querySelectorAll('h2, h3, h4');
+            const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
+
+            const headingList = Array.from(elements).map((el, index) => {
+                if (!el.id) {
+                    el.id = `heading-${index}`;
+                }
+
+                // Calculate position relative to document scroll
+                const rect = el.getBoundingClientRect();
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const absoluteTop = rect.top + scrollTop;
+                const position = totalHeight > 0 ? (absoluteTop / totalHeight) * 100 : 0;
+
+                return {
+                    id: el.id,
+                    text: el.textContent || '',
+                    level: parseInt(el.tagName.charAt(1)),
+                    position: Math.min(100, Math.max(0, position))
+                };
+            });
+            setHeadings(headingList);
+        };
+
+        // Initial update
+        updateHeadings();
+
+        // Update on resize
+        window.addEventListener('resize', updateHeadings);
 
         // Scroll spy
+        const elements = contentRef.current.querySelectorAll('h2, h3, h4');
         const observer = new IntersectionObserver(
             (entries) => {
                 entries.forEach((entry) => {
@@ -119,7 +138,10 @@ export const useTableOfContents = (contentRef) => {
 
         elements.forEach((el) => observer.observe(el));
 
-        return () => observer.disconnect();
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', updateHeadings);
+        };
     }, [contentRef]);
 
     return { headings, activeId };

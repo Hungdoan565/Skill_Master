@@ -45,3 +45,5 @@ export {
     SidebarCourseCTA,
     EndOfArticleCTA
 } from './CourseCTA';
+export { EmojiReactions } from './EmojiReactions';
+export { TagCloudWidget, RecentPostsWidget } from './SidebarWidgets';
