@@ -22,80 +22,8 @@ import {
 
 // Data & Hooks
 import { MOCK_POSTS, getRelatedPosts } from './constants/blog-data';
+import { getArticleContent } from './constants/article-content';
 import { useReadingProgress } from './hooks/useBlogHooks';
-
-// ============================================
-// MOCK ARTICLE CONTENT
-// ============================================
-const MOCK_ARTICLE_CONTENT = `
-<h2 id="gioi-thieu">Giới thiệu</h2>
-<p>
-    Trong bài viết này, chúng ta sẽ cùng tìm hiểu chi tiết về lộ trình học tập hiệu quả. Với kinh nghiệm nhiều năm 
-    giảng dạy, tôi đã tổng hợp những phương pháp học tập khoa học nhất giúp bạn đạt được mục tiêu.
-</p>
-
-<blockquote>
-    "Học không phải là việc ghi nhớ thông tin, mà là khơi dậy khả năng tư duy và sáng tạo." - Albert Einstein
-</blockquote>
-
-<h2 id="phuong-phap-hoc">Phương pháp học tập hiệu quả</h2>
-<p>
-    Việc học tập hiệu quả đòi hỏi sự kết hợp giữa lý thuyết và thực hành. Dưới đây là những bước quan trọng:
-</p>
-
-<h3 id="lap-ke-hoach">1. Lập kế hoạch học tập</h3>
-<p>
-    Đầu tiên, bạn cần xác định rõ mục tiêu học tập của mình. Mục tiêu cần cụ thể, đo lường được và có thời hạn rõ ràng.
-</p>
-<ul>
-    <li>Xác định điểm số mục tiêu</li>
-    <li>Phân bổ thời gian hợp lý cho từng kỹ năng</li>
-    <li>Theo dõi tiến độ học tập hàng tuần</li>
-</ul>
-
-<h3 id="tai-lieu-hoc">2. Chọn tài liệu phù hợp</h3>
-<p>
-    Tài liệu học tập đóng vai trò quan trọng trong quá trình ôn luyện. Hãy chọn những nguồn tài liệu uy tín và phù hợp với trình độ hiện tại.
-</p>
-
-<pre><code>// Ví dụ cấu trúc học tập theo tuần
-const weeklyPlan = {
-    monday: ['Vocabulary', 'Reading'],
-    tuesday: ['Listening', 'Speaking'],
-    wednesday: ['Writing Task 1'],
-    thursday: ['Grammar Review'],
-    friday: ['Full Practice Test']
-};</code></pre>
-
-<h3 id="luyen-tap">3. Luyện tập đều đặn</h3>
-<p>
-    Không có con đường tắt nào dẫn đến thành công. Việc luyện tập đều đặn mỗi ngày sẽ giúp bạn củng cố kiến thức và phát triển kỹ năng.
-</p>
-
-<figure>
-    <img src="https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=800" alt="Study plan" />
-    <figcaption>Lập kế hoạch học tập khoa học giúp tối ưu hiệu quả</figcaption>
-</figure>
-
-<h2 id="meo-hay">Mẹo hay khi học</h2>
-<p>
-    Dưới đây là một số mẹo nhỏ giúp bạn học tập hiệu quả hơn:
-</p>
-<ol>
-    <li><strong>Pomodoro Technique:</strong> Học 25 phút, nghỉ 5 phút</li>
-    <li><strong>Active Recall:</strong> Tự kiểm tra kiến thức thay vì đọc lại</li>
-    <li><strong>Spaced Repetition:</strong> Ôn tập theo chu kỳ tăng dần</li>
-    <li><strong>Mind Mapping:</strong> Sử dụng sơ đồ tư duy để ghi nhớ</li>
-</ol>
-
-<h2 id="ket-luan">Kết luận</h2>
-<p>
-    Học tập là một hành trình dài, đòi hỏi sự kiên trì và phương pháp đúng đắn. Hy vọng những chia sẻ trên sẽ giúp ích cho bạn trong quá trình chinh phục mục tiêu.
-</p>
-<p>
-    Nếu bạn có bất kỳ câu hỏi nào, hãy để lại bình luận bên dưới. Chúc bạn học tập hiệu quả!
-</p>
-`;
 
 // ============================================
 // BLOG DETAIL PAGE
@@ -108,6 +36,12 @@ const BlogDetailPage = () => {
     // Find post by slug
     const post = useMemo(() =>
         MOCK_POSTS.find(p => p.slug === slug),
+        [slug]
+    );
+
+    // Get article content for this post
+    const articleContent = useMemo(() =>
+        getArticleContent(slug),
         [slug]
     );
 
@@ -183,9 +117,9 @@ const BlogDetailPage = () => {
                                 </div>
                             )}
 
-                            {/* Article Content */}
+                            {/* Article Content - Dynamic based on slug */}
                             <div ref={contentRef}>
-                                <ArticleContent content={MOCK_ARTICLE_CONTENT} />
+                                <ArticleContent content={articleContent} />
                             </div>
 
                             {/* Inline Share */}
