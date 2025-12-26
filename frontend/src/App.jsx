@@ -54,6 +54,9 @@ import { BlogPage } from '@/pages/public/blog';
 import BlogDetailPage from '@/pages/public/blog/[slug]';
 import { ContactPage } from '@/pages/public/contact';
 import { RoadmapPage } from '@/pages/public/roadmap';
+import { AssessmentPage } from '@/pages/public/resources/assessment';
+import { QuizPage } from '@/pages/public/resources/assessment/[slug]/page';
+import { ResultPage } from '@/pages/public/resources/assessment/[slug]/result';
 import { ProtectedRoute, GuestRoute, TeacherRoute, StudentRoute, AdminRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/contexts/auth-context';
 
@@ -474,6 +477,11 @@ function App() {
           <Route path="contact" element={<ContactPage />} />
           <Route path="roadmap" element={<RoadmapPage />} />
           <Route path="roadmap/:slug" element={<RoadmapPage />} />
+
+          {/* Assessment/Placement Test Pages */}
+          <Route path="assessment" element={<AssessmentPage />} />
+          <Route path="assessment/:slug" element={<QuizPage />} />
+          <Route path="assessment/:slug/result" element={<ResultPage />} />
 
           {/* Public Courses Page - Standalone with its own header/footer */}
           <Route path="courses" element={<PublicCoursesPage />} />

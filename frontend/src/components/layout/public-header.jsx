@@ -323,7 +323,7 @@ const PublicHeader = ({ transparent = false }) => {
                 </DropdownSection>
                 <div className="border-t border-stone-100 my-1" />
                 <DropdownSection title="Kiểm tra">
-                  <DropdownItem icon={Target} title="Test trình độ" description="Đánh giá năng lực miễn phí" href="/resources#test" />
+                  <DropdownItem icon={Target} title="Test trình độ" description="Đánh giá năng lực miễn phí" href="/assessment" />
                   <DropdownItem icon={HelpCircle} title="Tư vấn lộ trình" description="1-1 với chuyên gia" href="/contact" />
                 </DropdownSection>
               </div>

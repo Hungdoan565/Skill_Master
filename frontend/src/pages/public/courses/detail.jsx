@@ -686,13 +686,44 @@ export const CourseDetailPage = () => {
         try {
             setLoading(true);
 
-            // Try to find by Slug first, then ID
+            // Try to find by Slug first
             let { data, error } = await supabase
                 .from('courses')
                 .select('*')
                 .eq('slug', id)
                 .single();
 
+            // If not found by slug, try by code
+            if (error && error.code === 'PGRST116') {
+                const { data: dataCode, error: errorCode } = await supabase
+                    .from('courses')
+                    .select('*')
+                    .ilike('code', id.replace(/-/g, '%'))
+                    .single();
+
+                if (!errorCode && dataCode) {
+                    data = dataCode;
+                    error = null;
+                }
+            }
+
+            // If still not found, try by title (fuzzy search)
+            if (error && error.code === 'PGRST116') {
+                const searchTerm = id.replace(/-/g, ' ');
+                const { data: dataTitle, error: errorTitle } = await supabase
+                    .from('courses')
+                    .select('*')
+                    .ilike('title', `%${searchTerm}%`)
+                    .limit(1)
+                    .single();
+
+                if (!errorTitle && dataTitle) {
+                    data = dataTitle;
+                    error = null;
+                }
+            }
+
+            // Finally try by UUID if it looks like one
             if (error && error.code === 'PGRST116') {
                 const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
                 if (isUUID) {
@@ -702,15 +733,14 @@ export const CourseDetailPage = () => {
                         .eq('id', id)
                         .single();
 
-                    if (errorId) throw errorId;
-                    data = dataId;
-                } else {
-                    throw error;
+                    if (!errorId && dataId) {
+                        data = dataId;
+                        error = null;
+                    }
                 }
-            } else if (error) {
-                throw error;
             }
 
+            if (error) throw error;
             setCourse(data);
         } catch (err) {
             console.error("Error fetching course:", err);
@@ -725,7 +755,7 @@ export const CourseDetailPage = () => {
             <div className="text-center">
                 <h1 className="text-4xl font-black mb-4">404</h1>
                 <p className="text-neutral-500 mb-8">Course Data Not Found</p>
-                <Link to="/courses" className={`px-6 py-3 text-white font-bold uppercase tracking-widest transition-colors ${theme?.primaryBg || 'bg-neutral-900'} ${theme?.primaryHover || 'hover:bg-amber-600'}`}>
+                <Link to="/courses" className="px-6 py-3 bg-neutral-900 hover:bg-[#FF4D00] text-white font-bold uppercase tracking-widest transition-colors">
                     Return Home
                 </Link>
             </div>

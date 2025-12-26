@@ -20,7 +20,7 @@ export function AuthProvider({ children }) {
     try {
       console.log('[AuthContext] Fetching profile for:', userId);
 
-      // Tăng timeout lên 10 giây và tối ưu query
+      // Profile query with avatar_url (cleaned up heavy Base64 already)
       const profilePromise = supabase
         .from('users')
         .select(`
@@ -31,22 +31,22 @@ export function AuthProvider({ children }) {
           avatar_url,
           role_id,
           center_id,
-                roles (
-                  id,
-                  code,
-                  name
-                ),
-                centers!users_center_id_fkey (
-                  id,
-                  name
-                )
-              `)
+          roles (
+            id,
+            code,
+            name
+          ),
+          centers!users_center_id_fkey (
+            id,
+            name
+          )
+        `)
         .eq('id', userId)
         .single();
 
-      // Tăng timeout lên 10 giây
+      // Fast timeout - 5 seconds
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
       );
 
 
@@ -123,9 +123,9 @@ export function AuthProvider({ children }) {
               .eq('id', currentSession.user.id)
               .single();
 
-            // Tăng timeout lên 30 giây cho Base64 nặng
+            // Fast timeout - 5 seconds
             const timeoutPromise = new Promise((_, reject) =>
-              setTimeout(() => reject(new Error('Profile fetch timeout')), 30000)
+              setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
             );
 
             const { data: profileData, error: profileError } = await Promise.race([
@@ -206,9 +206,9 @@ export function AuthProvider({ children }) {
               .eq('id', currentSession.user.id)
               .single();
 
-            // Tăng timeout lên 30 giây cho Base64 nặng
+            // Fast timeout - 5 seconds
             const timeoutPromise = new Promise((_, reject) =>
-              setTimeout(() => reject(new Error('Profile fetch timeout')), 30000)
+              setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
             );
 
             const { data: profileData, error: profileError } = await Promise.race([
