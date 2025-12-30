@@ -177,13 +177,22 @@ export function NewEnrollmentPage() {
         }
     }, [isSuperAdmin, getCenterId, selectedCenter]);
 
-    // Fetch data on mount and when center changes
+    // Fetch classes on mount and when center changes
     useEffect(() => {
         if (effectiveCenterId) {
-            fetchStudents(effectiveCenterId);
             fetchClasses(effectiveCenterId);
         }
-    }, [effectiveCenterId, fetchStudents, fetchClasses]);
+    }, [effectiveCenterId, fetchClasses]);
+
+    // Debounced server-side student search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (effectiveCenterId || isSuperAdmin()) {
+                fetchStudents(effectiveCenterId, studentSearch);
+            }
+        }, 400);
+        return () => clearTimeout(timer);
+    }, [studentSearch, effectiveCenterId, fetchStudents, isSuperAdmin]);
 
     // Handle pre-selected student
     useEffect(() => {
@@ -192,16 +201,8 @@ export function NewEnrollmentPage() {
         }
     }, [preSelectedStudentId, students]);
 
-    // Filter students
-    const filteredStudents = useMemo(() => {
-        if (!studentSearch) return students;
-        const term = studentSearch.toLowerCase();
-        return students.filter(s =>
-            s.full_name?.toLowerCase().includes(term) ||
-            s.email?.toLowerCase().includes(term) ||
-            s.phone?.includes(studentSearch)
-        );
-    }, [students, studentSearch]);
+    // Students are now server-filtered
+    const filteredStudents = students;
 
     // Filter classes
     const filteredClasses = useMemo(() => {

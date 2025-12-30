@@ -66,17 +66,24 @@ export function useEnrollments() {
         }
     }, []);
 
-    // Fetch students for selection
-    const fetchStudents = useCallback(async (centerId = null) => {
+    // Fetch students for selection (with server-side search support)
+    const fetchStudents = useCallback(async (centerId = null, search = '') => {
         try {
             const headers = await getAuthHeaders();
-            const params = new URLSearchParams();
-            if (centerId) params.append('center_id', centerId);
+            let url, params;
 
-            const response = await axios.get(
-                `${API_URL}/api/admin/students?${params}`,
-                { headers }
-            );
+            // Use search endpoint when query provided
+            if (search && search.trim().length >= 2) {
+                url = `${API_URL}/api/students/search`;
+                params = new URLSearchParams({ q: search, limit: 20 });
+            } else {
+                // Default: load recent students
+                url = `${API_URL}/api/admin/students`;
+                params = new URLSearchParams({ limit: 20 });
+                if (centerId) params.append('center_id', centerId);
+            }
+
+            const response = await axios.get(`${url}?${params}`, { headers });
 
             if (response.data?.success) {
                 setStudents(response.data.data || []);

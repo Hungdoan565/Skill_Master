@@ -211,16 +211,22 @@ app.get('/api/status', async (_req, res, next) => {
 // Query params: ?status=active để lọc theo trạng thái
 app.get('/api/courses', async (req, res, next) => {
   try {
-    const { status } = req.query;
+    const { status, search } = req.query;
 
     let query = supabase
       .from('courses')
       .select('*')
       .order('created_at', { ascending: false });
 
-    // Nếu có filter status
+    // Status filter
     if (status) {
       query = query.eq('status', status);
+    }
+
+    // Search filter
+    if (search && search.trim().length >= 2) {
+      const term = search.trim().toLowerCase();
+      query = query.or(`title.ilike.%${term}%,code.ilike.%${term}%`);
     }
 
     const { data, error } = await query;
@@ -948,7 +954,12 @@ app.post('/api/users/me/avatar', requireAuth, async (req, res, next) => {
 // Lấy danh sách nhân sự (Teacher, Manager)
 app.get('/api/admin/staff', requireAuth, async (req, res, next) => {
   try {
-    const { role, centerId } = req.query; // Filter theo role: TEACHER, CENTER_MANAGER
+    const { role, centerId, search, limit = 50, page = 1 } = req.query;
+
+    // Pagination
+    const pageNum = parseInt(page) || 1;
+    const limitNum = Math.min(parseInt(limit) || 50, 100);
+    const offset = (pageNum - 1) * limitNum;
 
     // ====== PERMISSION CHECK ======
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, centerId);
@@ -985,11 +996,11 @@ app.get('/api/admin/staff', requireAuth, async (req, res, next) => {
       if (roleData) {
         query = supabase
           .from('users')
-          .select(selectFields)
+          .select(selectFields, { count: 'exact' })
           .eq('role_id', roleData.id)
           .order('created_at', { ascending: false });
       } else {
-        return res.json({ success: true, data: [] });
+        return res.json({ success: true, data: [], pagination: { total: 0, page: pageNum, limit: limitNum } });
       }
     } else {
       // Lấy tất cả staff (không phải STUDENT và không phải SUPER_ADMIN vì SA không xuất hiện trong list nhân viên)
@@ -1000,19 +1011,16 @@ app.get('/api/admin/staff', requireAuth, async (req, res, next) => {
 
       const excludeRoleIds = excludeRoles?.map(r => r.id) || [];
 
-      console.log('📋 Fetching staff - excluding role_ids:', excludeRoleIds);
-
       if (excludeRoleIds.length > 0) {
         query = supabase
           .from('users')
-          .select(selectFields)
+          .select(selectFields, { count: 'exact' })
           .not('role_id', 'in', `(${excludeRoleIds.join(',')})`)
           .order('created_at', { ascending: false });
       } else {
-        // Fallback nếu không có role STUDENT
         query = supabase
           .from('users')
-          .select(selectFields)
+          .select(selectFields, { count: 'exact' })
           .order('created_at', { ascending: false });
       }
     }
@@ -1022,10 +1030,28 @@ app.get('/api/admin/staff', requireAuth, async (req, res, next) => {
       query = query.eq('center_id', effectiveCenterId);
     }
 
-    const { data, error } = await query;
+    // ====== SEARCH FILTER ======
+    if (search && search.trim().length >= 2) {
+      const term = search.trim().toLowerCase();
+      query = query.or(`full_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`);
+    }
+
+    // ====== PAGINATION ======
+    query = query.range(offset, offset + limitNum - 1);
+
+    const { data, error, count } = await query;
     if (error) throw error;
 
-    res.json({ success: true, data: data || [] });
+    res.json({
+      success: true,
+      data: data || [],
+      pagination: {
+        total: count || 0,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil((count || 0) / limitNum)
+      }
+    });
   } catch (error) {
     console.error('Error fetching staff:', error);
     next(error);
@@ -2166,6 +2192,48 @@ app.get('/api/roles', async (_req, res, next) => {
   }
 });
 
+// ============================================================
+// STUDENTS SEARCH API - For Invoice/Enrollment Quick Search
+// ============================================================
+app.get('/api/students/search', requireAuth, async (req, res, next) => {
+  try {
+    const { q, limit = 10 } = req.query;
+
+    if (!q || q.trim().length < 2) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const searchTerm = q.trim().toLowerCase();
+    const limitNum = Math.min(parseInt(limit) || 10, 50);
+
+    const { data: studentRole } = await supabase
+      .from('roles')
+      .select('id')
+      .eq('code', 'STUDENT')
+      .single();
+
+    if (!studentRole) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const { data: students, error } = await supabase
+      .from('users')
+      .select('id, full_name, email, phone, avatar_url')
+      .eq('role_id', studentRole.id)
+      .eq('status', 'active')
+      .or(`full_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`)
+      .order('full_name', { ascending: true })
+      .limit(limitNum);
+
+    if (error) throw error;
+
+    res.json({ success: true, data: students || [] });
+  } catch (error) {
+    console.error('Error searching students:', error);
+    next(error);
+  }
+});
+
 // Lấy danh sách học viên (STUDENT)
 app.get('/api/admin/students', requireAuth, async (req, res, next) => {
   try {
@@ -2689,7 +2757,7 @@ app.get('/api/centers', async (_req, res, next) => {
 app.get('/api/classes', requireAuth, async (req, res, next) => {
   console.time('⏱️ /api/classes');
   try {
-    const { status, course_id, teacher_id, centerId, date_start, date_end, minimal, limit, offset, smart_filter } = req.query;
+    const { status, course_id, teacher_id, centerId, date_start, date_end, minimal, limit, offset, smart_filter, search } = req.query;
 
     // Pagination & projection controls
     const pageLimit = Math.min(Number(limit) || 20, 100);
@@ -2777,6 +2845,12 @@ app.get('/api/classes', requireAuth, async (req, res, next) => {
     // ====== CENTER FILTER ======
     if (effectiveCenterId) {
       query = query.eq('center_id', effectiveCenterId);
+    }
+
+    // ====== SEARCH FILTER ======
+    if (search && search.trim().length >= 2) {
+      const term = search.trim().toLowerCase();
+      query = query.or(`name.ilike.%${term}%,code.ilike.%${term}%`);
     }
 
     // Pagination window

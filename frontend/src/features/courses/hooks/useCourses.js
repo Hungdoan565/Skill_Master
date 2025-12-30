@@ -16,20 +16,23 @@ export function useCourses(accessToken) {
   const [deletingId, setDeletingId] = useState(null);
   const [error, setError] = useState(null);
 
-  // Fetch danh sách courses
-  const fetchCourses = useCallback(async () => {
+  // Fetch danh sách courses (with server-side search support)
+  const fetchCourses = useCallback(async (search = '') => {
     if (!accessToken) return;
-    
+
     try {
       setLoading(true);
       setError(null);
-      
-      const response = await axios.get(`${API_URL}/api/courses`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
-      
+
+      const params = new URLSearchParams();
+      if (search && search.trim().length >= 2) params.append('search', search);
+
+      const queryStr = params.toString();
+      const response = await axios.get(
+        `${API_URL}/api/courses${queryStr ? `?${queryStr}` : ''}`,
+        { headers: { 'Authorization': `Bearer ${accessToken}` } }
+      );
+
       if (response.data?.success) {
         setCourses(response.data.data);
       }
@@ -50,7 +53,7 @@ export function useCourses(accessToken) {
           'Authorization': `Bearer ${accessToken}`
         }
       });
-      
+
       if (response.data.success) {
         // Optimistic update
         setCourses(prev => prev.filter(c => c.id !== courseId));
@@ -70,13 +73,13 @@ export function useCourses(accessToken) {
     return courses.filter((course) => {
       // Filter by status
       const matchStatus = !statusFilter || course.status === statusFilter;
-      
+
       // Filter by search term
       const term = searchTerm?.toLowerCase() || '';
-      const matchSearch = !term || 
+      const matchSearch = !term ||
         course.title?.toLowerCase().includes(term) ||
         course.code?.toLowerCase().includes(term);
-      
+
       return matchStatus && matchSearch;
     });
   }, [courses]);

@@ -27,13 +27,20 @@ export function useStaff() {
   const [loading, setLoading] = useState(true);
   const [centers, setCenters] = useState([]);
 
-  // Fetch staff list
-  const fetchStaff = useCallback(async (roleFilter = '') => {
+  // Fetch staff list (with server-side search support)
+  const fetchStaff = useCallback(async (roleFilter = '', search = '') => {
     try {
       setLoading(true);
       const headers = await getAuthHeaders();
-      const params = roleFilter ? `?role=${roleFilter}` : '';
-      const response = await axios.get(`${API_URL}/api/admin/staff${params}`, { headers });
+      const params = new URLSearchParams();
+      if (roleFilter) params.append('role', roleFilter);
+      if (search && search.trim().length >= 2) params.append('search', search);
+
+      const queryStr = params.toString();
+      const response = await axios.get(
+        `${API_URL}/api/admin/staff${queryStr ? `?${queryStr}` : ''}`,
+        { headers }
+      );
 
       if (response.data?.success) {
         setStaff(response.data.data);

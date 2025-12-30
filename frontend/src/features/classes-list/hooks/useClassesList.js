@@ -86,6 +86,8 @@ export function useClassesList() {
       if (serverFilters.teacherId) params.append('teacher_id', serverFilters.teacherId);
       if (serverFilters.centerId) params.append('centerId', serverFilters.centerId);
       if (serverFilters.smartFilter) params.append('smart_filter', serverFilters.smartFilter);
+      // Search filter (server-side)
+      if (serverFilters.search) params.append('search', serverFilters.search);
       // Date range filters (server-side for better performance)
       if (serverFilters.dateStart) params.append('date_start', serverFilters.dateStart);
       if (serverFilters.dateEnd) params.append('date_end', serverFilters.dateEnd);
