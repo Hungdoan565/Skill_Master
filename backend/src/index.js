@@ -13781,6 +13781,11 @@ app.get('/api/admin/enrollments', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
       query = query.eq('status', status);
     }
 
+    // ====== SEARCH FILTER ======
+    // Note: Supabase relationship filtering is limited, 
+    // so we filter in application layer after fetch
+    const searchTerm = search?.trim()?.toLowerCase();
+
     const offset = (page - 1) * limit;
     query = query.range(offset, offset + parseInt(limit) - 1);
 
@@ -13792,6 +13797,23 @@ app.get('/api/admin/enrollments', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
     let filteredData = data || [];
     if (effectiveCenterId) {
       filteredData = filteredData.filter(e => e.class?.centers?.id === effectiveCenterId);
+    }
+
+    // Apply search filter (application layer due to relationship complexity)
+    if (searchTerm) {
+      filteredData = filteredData.filter(e => {
+        const studentName = e.student?.full_name?.toLowerCase() || '';
+        const studentEmail = e.student?.email?.toLowerCase() || '';
+        const studentPhone = e.student?.phone || '';
+        const className = e.class?.name?.toLowerCase() || '';
+        const classCode = e.class?.code?.toLowerCase() || '';
+
+        return studentName.includes(searchTerm) ||
+          studentEmail.includes(searchTerm) ||
+          studentPhone.includes(searchTerm) ||
+          className.includes(searchTerm) ||
+          classCode.includes(searchTerm);
+      });
     }
 
     res.json({
@@ -14013,6 +14035,44 @@ app.delete('/api/admin/enrollments/:id', requireAuth, requireRole(['SUPER_ADMIN'
     });
   } catch (error) {
     console.error('Error deleting enrollment:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/enrollments/bulk-delete
+ * Bulk cancel enrollments (Soft delete -> status='dropped')
+ */
+app.post('/api/admin/enrollments/bulk-delete', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { ids } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Danh sách ghi danh không hợp lệ'
+      });
+    }
+
+    // Soft delete: update status to 'dropped'
+    const { data, error } = await supabase
+      .from('enrollments')
+      .update({
+        status: 'dropped',
+        updated_at: new Date().toISOString()
+      })
+      .in('id', ids)
+      .select();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: `Đã hủy ${data.length} ghi danh`,
+      data
+    });
+  } catch (error) {
+    console.error('Error bulk deleting enrollments:', error);
     next(error);
   }
 });

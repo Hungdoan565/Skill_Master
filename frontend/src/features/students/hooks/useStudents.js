@@ -22,13 +22,14 @@ export function useStudents() {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch students
-  const fetchStudents = useCallback(async (statusFilter = '') => {
+  // Fetch students (with server-side search support)
+  const fetchStudents = useCallback(async (statusFilter = '', search = '') => {
     try {
       setLoading(true);
       const headers = await getAuthHeaders();
       const params = new URLSearchParams();
       if (statusFilter) params.append('status', statusFilter);
+      if (search && search.trim().length >= 2) params.append('search', search.trim());
 
       const response = await axios.get(`${API_URL}/api/admin/students?${params}`, { headers });
       if (response.data?.success) {

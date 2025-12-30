@@ -52,7 +52,7 @@ const StatsCard = ({ icon: Icon, label, value, color }) => (
 );
 
 // Enrollment Row
-const EnrollmentRow = ({ enrollment, onView, onDelete, onViewInvoice }) => {
+const EnrollmentRow = ({ enrollment, onView, onDelete, onViewInvoice, selected, onSelect }) => {
     const [menuOpen, setMenuOpen] = useState(false);
     const statusConfig = getStatusConfig(enrollment.status);
     const paymentStatus = getEnrollmentPaymentStatus(enrollment);
@@ -71,7 +71,15 @@ const EnrollmentRow = ({ enrollment, onView, onDelete, onViewInvoice }) => {
     const remaining = calculateRemaining(tuition, discount, paid);
 
     return (
-        <tr className="hover:bg-slate-50 transition-colors">
+        <tr className={`hover:bg-slate-50 transition-colors ${selected ? 'bg-indigo-50/50' : ''}`}>
+            <td className="px-4 py-3 w-[50px]">
+                <input
+                    type="checkbox"
+                    checked={selected}
+                    onChange={() => onSelect(enrollment.id)}
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+            </td>
             <td className="px-4 py-3">
                 <div className="flex items-center gap-3">
                     <div className="h-9 w-9 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-semibold text-indigo-600">
@@ -208,6 +216,8 @@ export function EnrollmentsPage() {
     const [centers, setCenters] = useState([]);
     const [deleteModal, setDeleteModal] = useState({ isOpen: false, enrollment: null });
     const [currentPage, setCurrentPage] = useState(1);
+    const [selectedIds, setSelectedIds] = useState([]);
+    const [bulkDeleteModal, setBulkDeleteModal] = useState(false);
 
     const {
         enrollments,
@@ -215,6 +225,7 @@ export function EnrollmentsPage() {
         pagination,
         fetchEnrollments,
         deleteEnrollment,
+        deleteMultipleEnrollments,
         filterEnrollments,
     } = useEnrollments();
 
@@ -248,19 +259,31 @@ export function EnrollmentsPage() {
         }
     }, [isSuperAdmin]);
 
-    // Fetch enrollments
+    // Debounced search value
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+
+    // Debounce search term
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchTerm);
+        }, 400);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+
+    // Fetch enrollments (with server-side search)
     useEffect(() => {
         fetchEnrollments({
             status: statusFilter,
             centerId: effectiveCenterId,
+            search: debouncedSearch,
             page: currentPage,
             limit: 20,
         });
-    }, [fetchEnrollments, statusFilter, effectiveCenterId, currentPage]);
+    }, [fetchEnrollments, statusFilter, effectiveCenterId, debouncedSearch, currentPage]);
 
-    // Filter enrollments locally
+    // Filter by payment status only (search is now server-side)
     const filteredEnrollments = useMemo(() => {
-        let filtered = filterEnrollments(searchTerm);
+        let filtered = enrollments;
 
         // Filter by payment status
         if (paymentStatusFilter) {
@@ -278,7 +301,7 @@ export function EnrollmentsPage() {
         }
 
         return filtered;
-    }, [filterEnrollments, searchTerm, paymentStatusFilter]);
+    }, [enrollments, paymentStatusFilter]);
 
     // Stats
     const stats = useMemo(() => ({
@@ -298,6 +321,38 @@ export function EnrollmentsPage() {
         } catch (err) {
             console.error('Error deleting enrollment:', err);
             toast.error(err.message || 'Có lỗi xảy ra khi hủy ghi danh');
+        }
+    };
+
+    // Bulk Selection Handlers
+    const handleSelectAll = (e) => {
+        if (e.target.checked) {
+            const allIds = filteredEnrollments.map(e => e.id);
+            setSelectedIds(allIds);
+        } else {
+            setSelectedIds([]);
+        }
+    };
+
+    const handleSelectOne = (id) => {
+        setSelectedIds(prev =>
+            prev.includes(id)
+                ? prev.filter(pId => pId !== id)
+                : [...prev, id]
+        );
+    };
+
+    // Bulk Delete Handler
+    const handleBulkDelete = async () => {
+        if (selectedIds.length === 0) return;
+        try {
+            await deleteMultipleEnrollments(selectedIds);
+            setBulkDeleteModal(false);
+            setSelectedIds([]);
+            toast.success(`Đã hủy ${selectedIds.length} ghi danh thành công!`);
+        } catch (err) {
+            console.error('Error bulk deleting:', err);
+            toast.error(err.message || 'Có lỗi xảy ra khi hủy nhiều ghi danh');
         }
     };
 
@@ -389,6 +444,31 @@ export function EnrollmentsPage() {
                 </CardContent>
             </Card>
 
+            {/* Bulk Action Bar */}
+            {selectedIds.length > 0 && (
+                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+                    <div className="flex items-center gap-2">
+                        <span className="text-indigo-700 font-medium flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4" />
+                            Đã chọn {selectedIds.length} ghi danh
+                        </span>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-100"
+                            onClick={() => setSelectedIds([])}
+                        >
+                            Bỏ chọn
+                        </Button>
+                    </div>
+
+                    <Button variant="destructive" size="sm" onClick={() => setBulkDeleteModal(true)}>
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Hủy {selectedIds.length} ghi danh
+                    </Button>
+                </div>
+            )}
+
             {/* Table */}
             <Card>
                 <CardContent className="p-0">
@@ -412,6 +492,14 @@ export function EnrollmentsPage() {
                             <table className="w-full">
                                 <thead className="bg-slate-50 border-b">
                                     <tr>
+                                        <th className="px-4 py-3 w-[50px]">
+                                            <input
+                                                type="checkbox"
+                                                onChange={handleSelectAll}
+                                                checked={filteredEnrollments.length > 0 && selectedIds.length === filteredEnrollments.length}
+                                                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                            />
+                                        </th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                                             Học viên
                                         </th>
@@ -443,6 +531,8 @@ export function EnrollmentsPage() {
                                         <EnrollmentRow
                                             key={enrollment.id}
                                             enrollment={enrollment}
+                                            selected={selectedIds.includes(enrollment.id)}
+                                            onSelect={handleSelectOne}
                                             onView={(e) => navigate(`/admin/students/${e.student_id}`)}
                                             onDelete={(e) => setDeleteModal({ isOpen: true, enrollment: e })}
                                         />
@@ -505,6 +595,29 @@ export function EnrollmentsPage() {
                             </Button>
                             <Button variant="destructive" onClick={handleDelete}>
                                 Hủy ghi danh
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Bulk Delete Modal */}
+            {bulkDeleteModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 animate-in fade-in zoom-in-95">
+                        <h3 className="text-lg font-semibold text-slate-900">Xác nhận hủy hàng loạt</h3>
+                        <p className="text-slate-500 mt-2">
+                            Bạn có chắc chắn muốn hủy <strong>{selectedIds.length}</strong> ghi danh đã chọn không?
+                        </p>
+                        <div className="flex justify-end gap-3 mt-6">
+                            <Button
+                                variant="outline"
+                                onClick={() => setBulkDeleteModal(false)}
+                            >
+                                Hủy bỏ
+                            </Button>
+                            <Button variant="destructive" onClick={handleBulkDelete}>
+                                Xác nhận hủy ({selectedIds.length})
                             </Button>
                         </div>
                     </div>

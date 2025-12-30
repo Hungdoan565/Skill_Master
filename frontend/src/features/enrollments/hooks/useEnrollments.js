@@ -30,7 +30,7 @@ export function useEnrollments() {
         totalPages: 0
     });
 
-    // Fetch all enrollments
+    // Fetch all enrollments (with server-side search support)
     const fetchEnrollments = useCallback(async (filters = {}) => {
         try {
             setLoading(true);
@@ -41,6 +41,9 @@ export function useEnrollments() {
             if (filters.classId) params.append('class_id', filters.classId);
             if (filters.studentId) params.append('student_id', filters.studentId);
             if (filters.centerId) params.append('center_id', filters.centerId);
+            if (filters.search && filters.search.trim().length >= 2) {
+                params.append('search', filters.search.trim());
+            }
             if (filters.page) params.append('page', filters.page);
             if (filters.limit) params.append('limit', filters.limit);
 
@@ -185,6 +188,22 @@ export function useEnrollments() {
             return true;
         }
         throw new Error(response.data?.message || 'Có lỗi xảy ra khi xóa');
+    }, []);
+
+    // Delete multiple enrollments
+    const deleteMultipleEnrollments = useCallback(async (ids) => {
+        const headers = await getAuthHeaders();
+        const response = await axios.post(
+            `${API_URL}/api/admin/enrollments/bulk-delete`,
+            { ids },
+            { headers }
+        );
+
+        if (response.data?.success) {
+            setEnrollments(prev => prev.filter(e => !ids.includes(e.id)));
+            return response.data.message;
+        }
+        throw new Error(response.data?.message || 'Có lỗi xảy ra khi xóa nhiều ghi danh');
     }, []);
 
     // Filter enrollments locally
