@@ -3,11 +3,12 @@ import { Link } from 'react-router-dom';
 import {
   ArrowRight, ArrowUpRight, Phone, Mail, MapPin,
   MessageCircle, CheckCircle, ChevronDown, Sparkles,
-  Clock, Users, Building2, Star
+  Clock, Users, Building2, Star, AlertCircle
 } from 'lucide-react';
 import PublicHeader from '@/components/layout/public-header';
 import { Helmet } from 'react-helmet-async';
 import { Footer } from '@/pages/landing/components/footer';
+import { validateContactForm, isSpam, submitContactForm } from '@/utils/contactFormUtils';
 
 // Import logo
 import logoImage from '@/assets/logo.png';
@@ -60,18 +61,53 @@ const HeroSection = () => {
     name: '',
     email: '',
     phone: '',
-    message: ''
+    message: '',
+    honeypot: '' // Spam protection - hidden field
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
+  const [errors, setErrors] = useState({});
+  const [submitError, setSubmitError] = useState(null);
+
+  // Clear field error when user types
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: null }));
+    }
+    setSubmitError(null);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Spam check - if honeypot is filled, silently "succeed"
+    if (isSpam(formData.honeypot)) {
+      setSubmitted(true);
+      return;
+    }
+
+    // Validate form
+    const { isValid, errors: validationErrors } = validateContactForm(formData);
+    if (!isValid) {
+      setErrors(validationErrors);
+      return;
+    }
+
     setIsSubmitting(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    setSubmitError(null);
+
+    // Submit to backend
+    const result = await submitContactForm(formData, 'contact-hero');
+
     setIsSubmitting(false);
-    setSubmitted(true);
+
+    if (result.success) {
+      setSubmitted(true);
+    } else {
+      setSubmitError(result.error || 'Có lỗi xảy ra. Vui lòng thử lại.');
+    }
   };
 
   return (
@@ -132,6 +168,18 @@ const HeroSection = () => {
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Honeypot - Hidden from users, visible to bots */}
+                  <div className="absolute -left-[9999px]" aria-hidden="true">
+                    <input
+                      type="text"
+                      name="website"
+                      tabIndex={-1}
+                      autoComplete="off"
+                      value={formData.honeypot}
+                      onChange={(e) => handleInputChange('honeypot', e.target.value)}
+                    />
+                  </div>
+
                   {/* Name */}
                   <div>
                     <label className="block text-sm font-medium text-neutral-700 mb-2">
@@ -139,17 +187,25 @@ const HeroSection = () => {
                     </label>
                     <input
                       type="text"
-                      required
                       value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      onChange={(e) => handleInputChange('name', e.target.value)}
                       onFocus={() => setFocusedField('name')}
                       onBlur={() => setFocusedField(null)}
-                      className={`w-full px-4 py-3.5 bg-white border rounded-none transition-all
-                               ${focusedField === 'name'
-                          ? 'border-[#FF4D00] ring-2 ring-[#FF4D00]/20'
-                          : 'border-gray-200 hover:border-gray-300'}`}
+                      className={`w-full px-4 py-3.5 bg-white border rounded-xl transition-all
+                               ${errors.name
+                          ? 'border-red-400 ring-2 ring-red-100'
+                          : focusedField === 'name'
+                            ? 'border-[#FF4D00] ring-2 ring-[#FF4D00]/20'
+                            : 'border-gray-200 hover:border-gray-300'}`}
                       placeholder="Nguyễn Văn A"
+                      aria-invalid={errors.name ? 'true' : 'false'}
                     />
+                    {errors.name && (
+                      <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                        <AlertCircle className="w-4 h-4" />
+                        {errors.name}
+                      </p>
+                    )}
                   </div>
 
                   {/* Email & Phone - 2 columns */}
@@ -160,17 +216,25 @@ const HeroSection = () => {
                       </label>
                       <input
                         type="email"
-                        required
                         value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        onChange={(e) => handleInputChange('email', e.target.value)}
                         onFocus={() => setFocusedField('email')}
                         onBlur={() => setFocusedField(null)}
-                        className={`w-full px-4 py-3.5 bg-white border rounded-none transition-all
-                                 ${focusedField === 'email'
-                            ? 'border-[#FF4D00] ring-2 ring-[#FF4D00]/20'
-                            : 'border-gray-200 hover:border-gray-300'}`}
+                        className={`w-full px-4 py-3.5 bg-white border rounded-xl transition-all
+                                 ${errors.email
+                            ? 'border-red-400 ring-2 ring-red-100'
+                            : focusedField === 'email'
+                              ? 'border-[#FF4D00] ring-2 ring-[#FF4D00]/20'
+                              : 'border-gray-200 hover:border-gray-300'}`}
                         placeholder="email@example.com"
+                        aria-invalid={errors.email ? 'true' : 'false'}
                       />
+                      {errors.email && (
+                        <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                          <AlertCircle className="w-4 h-4" />
+                          {errors.email}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-neutral-700 mb-2">
@@ -178,17 +242,25 @@ const HeroSection = () => {
                       </label>
                       <input
                         type="tel"
-                        required
                         value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        onChange={(e) => handleInputChange('phone', e.target.value)}
                         onFocus={() => setFocusedField('phone')}
                         onBlur={() => setFocusedField(null)}
-                        className={`w-full px-4 py-3.5 bg-white border rounded-none transition-all
-                                 ${focusedField === 'phone'
-                            ? 'border-[#FF4D00] ring-2 ring-[#FF4D00]/20'
-                            : 'border-gray-200 hover:border-gray-300'}`}
+                        className={`w-full px-4 py-3.5 bg-white border rounded-xl transition-all
+                                 ${errors.phone
+                            ? 'border-red-400 ring-2 ring-red-100'
+                            : focusedField === 'phone'
+                              ? 'border-[#FF4D00] ring-2 ring-[#FF4D00]/20'
+                              : 'border-gray-200 hover:border-gray-300'}`}
                         placeholder="0901 234 567"
+                        aria-invalid={errors.phone ? 'true' : 'false'}
                       />
+                      {errors.phone && (
+                        <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                          <AlertCircle className="w-4 h-4" />
+                          {errors.phone}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -200,16 +272,27 @@ const HeroSection = () => {
                     <textarea
                       rows={4}
                       value={formData.message}
-                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                      onChange={(e) => handleInputChange('message', e.target.value)}
                       onFocus={() => setFocusedField('message')}
                       onBlur={() => setFocusedField(null)}
-                      className={`w-full px-4 py-3.5 bg-white border rounded-none transition-all resize-none
+                      className={`w-full px-4 py-3.5 bg-white border rounded-xl transition-all resize-none
                                ${focusedField === 'message'
                           ? 'border-[#FF4D00] ring-2 ring-[#FF4D00]/20'
                           : 'border-gray-200 hover:border-gray-300'}`}
                       placeholder="Bạn quan tâm đến khóa học nào? Mục tiêu của bạn là gì?"
                     />
                   </div>
+
+                  {/* Submit Error Message */}
+                  {submitError && (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-red-800 font-medium">Không thể gửi form</p>
+                        <p className="text-red-600 text-sm">{submitError}</p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Submit Button - Full Width, Orange */}
                   <button
@@ -358,314 +441,9 @@ const HeroSection = () => {
   );
 };
 
-// ============================================
-// CONTACT FORM - "PREMIUM EXPERIENCE"
-// Design: Warm background + Modern inputs + Clear hierarchy
-// ============================================
-const ContactFormSection = () => {
-  const [ref, isInView] = useInView();
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    interest: '',
-    message: ''
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [focusedField, setFocusedField] = useState(null);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setIsSubmitting(false);
-    setSubmitted(true);
-  };
-
-  return (
-    <section ref={ref} className="border-t border-neutral-900">
-      <div className="max-w-[1600px] mx-auto">
-        <div className="grid lg:grid-cols-12">
-
-          {/* Left - Section Label + Contact Methods */}
-          <div className="lg:col-span-4 lg:border-r border-neutral-200">
-
-            {/* Section Indicator */}
-            <div className="p-8 lg:p-12 border-b border-neutral-200">
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-[#FF4D00]" />
-                <span className="text-xs font-medium tracking-[0.3em] uppercase text-neutral-500">
-                  02 — Liên hệ
-                </span>
-              </div>
-            </div>
-
-            {/* Direct Contact Info */}
-            <div className={`p-8 lg:p-12 transform transition-all duration-700
-                          ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-
-              <h2 className="text-4xl lg:text-5xl font-bold text-neutral-900 tracking-tight mb-4">
-                Liên hệ
-                <br />
-                <span className="text-neutral-400">trực tiếp</span>
-              </h2>
-
-              <p className="text-neutral-500 mb-12 leading-relaxed">
-                Bạn có thể liên hệ qua các kênh dưới đây hoặc gửi tin nhắn qua form.
-              </p>
-
-              {/* Contact Items - Card Style */}
-              <div className="space-y-4">
-                <a
-                  href="tel:19001234"
-                  className="group block p-6 bg-neutral-900 text-white hover:bg-[#FF4D00] transition-colors"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Phone className="w-4 h-4 text-[#FF4D00] group-hover:text-white transition-colors" />
-                        <span className="text-xs uppercase tracking-widest text-neutral-400 group-hover:text-white/60 transition-colors">
-                          Hotline 24/7
-                        </span>
-                      </div>
-                      <p className="text-2xl font-bold">1900 1234</p>
-                    </div>
-                    <ArrowUpRight className="w-5 h-5 text-neutral-600 group-hover:text-white transition-colors" />
-                  </div>
-                </a>
-
-                <a
-                  href="mailto:info@skillmaster.edu.vn"
-                  className="group block p-6 border-2 border-neutral-200 hover:border-neutral-900 transition-colors"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Mail className="w-4 h-4 text-neutral-400" />
-                        <span className="text-xs uppercase tracking-widest text-neutral-400">
-                          Email
-                        </span>
-                      </div>
-                      <p className="text-lg text-neutral-900">info@skillmaster.edu.vn</p>
-                    </div>
-                    <ArrowUpRight className="w-5 h-5 text-neutral-300 group-hover:text-neutral-900 transition-colors" />
-                  </div>
-                </a>
-              </div>
-
-              {/* Working Hours */}
-              <div className="mt-12 pt-8 border-t border-neutral-200">
-                <p className="text-xs uppercase tracking-widest text-neutral-400 mb-4">
-                  Giờ làm việc
-                </p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 bg-neutral-50">
-                    <p className="text-xs text-neutral-400 mb-1">T2 — T6</p>
-                    <p className="font-medium text-neutral-900">08:00 — 21:00</p>
-                  </div>
-                  <div className="p-4 bg-neutral-50">
-                    <p className="text-xs text-neutral-400 mb-1">T7 — CN</p>
-                    <p className="font-medium text-neutral-900">08:00 — 18:00</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Social Links */}
-              <div className="mt-8">
-                <p className="text-xs uppercase tracking-widest text-neutral-400 mb-4">Social</p>
-                <div className="flex gap-2">
-                  {['Facebook', 'Zalo', 'LinkedIn'].map(social => (
-                    <a
-                      key={social}
-                      href="#"
-                      className="px-4 py-2 text-sm text-neutral-600 border border-neutral-200 
-                               hover:border-neutral-900 hover:text-neutral-900 transition-colors"
-                    >
-                      {social}
-                    </a>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right - Form with Warm Background */}
-          <div className="lg:col-span-8 p-8 lg:p-12 xl:p-16 bg-[#FAF9F7]">
-            {submitted ? (
-              <div className={`min-h-[600px] flex flex-col items-center justify-center text-center
-                            transform transition-all duration-500
-                            ${isInView ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
-                <div className="w-24 h-24 bg-[#FF4D00] flex items-center justify-center mb-8">
-                  <CheckCircle className="w-12 h-12 text-white" />
-                </div>
-                <h3 className="text-5xl font-bold text-neutral-900 mb-4">Đã gửi!</h3>
-                <p className="text-xl text-neutral-600 mb-2">
-                  Cảm ơn bạn đã liên hệ.
-                </p>
-                <p className="text-neutral-400 mb-8 max-w-sm">
-                  Chúng tôi sẽ phản hồi trong vòng 24 giờ làm việc.
-                </p>
-                <button
-                  onClick={() => setSubmitted(false)}
-                  className="group inline-flex items-center gap-2 text-neutral-500 hover:text-neutral-900 transition-colors"
-                >
-                  <span>Gửi tin nhắn khác</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className={`transform transition-all duration-700 delay-100
-                                                      ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-                {/* Form Header */}
-                <div className="flex items-start justify-between mb-12">
-                  <div>
-                    <h2 className="text-4xl lg:text-5xl font-bold text-neutral-900 tracking-tight mb-2">
-                      Gửi tin nhắn
-                    </h2>
-                    <p className="text-neutral-500">
-                      Điền thông tin và chúng tôi sẽ liên hệ trong 24h.
-                    </p>
-                  </div>
-                  <Sparkles className="w-6 h-6 text-[#FF4D00]" />
-                </div>
-
-                <div className="space-y-6">
-                  {/* Name & Email Row */}
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <div className="relative">
-                      <label className={`absolute left-4 transition-all duration-200 pointer-events-none
-                                      ${focusedField === 'name' || formData.name
-                          ? 'top-2 text-xs text-[#FF4D00]'
-                          : 'top-4 text-neutral-400'}`}>
-                        Họ tên <span className="text-[#FF4D00]">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.name}
-                        onFocus={() => setFocusedField('name')}
-                        onBlur={() => setFocusedField(null)}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className="w-full px-4 pt-7 pb-3 bg-white border-2 border-transparent
-                                 text-neutral-900 focus:border-neutral-900 focus:outline-none transition-colors"
-                      />
-                    </div>
-                    <div className="relative">
-                      <label className={`absolute left-4 transition-all duration-200 pointer-events-none
-                                      ${focusedField === 'email' || formData.email
-                          ? 'top-2 text-xs text-[#FF4D00]'
-                          : 'top-4 text-neutral-400'}`}>
-                        Email <span className="text-[#FF4D00]">*</span>
-                      </label>
-                      <input
-                        type="email"
-                        required
-                        value={formData.email}
-                        onFocus={() => setFocusedField('email')}
-                        onBlur={() => setFocusedField(null)}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        className="w-full px-4 pt-7 pb-3 bg-white border-2 border-transparent
-                                 text-neutral-900 focus:border-neutral-900 focus:outline-none transition-colors"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Phone & Interest Row */}
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <div className="relative">
-                      <label className={`absolute left-4 transition-all duration-200 pointer-events-none
-                                      ${focusedField === 'phone' || formData.phone
-                          ? 'top-2 text-xs text-[#FF4D00]'
-                          : 'top-4 text-neutral-400'}`}>
-                        Số điện thoại <span className="text-[#FF4D00]">*</span>
-                      </label>
-                      <input
-                        type="tel"
-                        required
-                        value={formData.phone}
-                        onFocus={() => setFocusedField('phone')}
-                        onBlur={() => setFocusedField(null)}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        className="w-full px-4 pt-7 pb-3 bg-white border-2 border-transparent
-                                 text-neutral-900 focus:border-neutral-900 focus:outline-none transition-colors"
-                      />
-                    </div>
-                    <div className="relative">
-                      <label className="absolute left-4 top-2 text-xs text-neutral-400 pointer-events-none">
-                        Quan tâm đến
-                      </label>
-                      <select
-                        value={formData.interest}
-                        onChange={(e) => setFormData({ ...formData, interest: e.target.value })}
-                        className="w-full px-4 pt-7 pb-3 bg-white border-2 border-transparent
-                                 text-neutral-900 focus:border-neutral-900 focus:outline-none 
-                                 transition-colors appearance-none cursor-pointer"
-                      >
-                        <option value="">Chọn chủ đề</option>
-                        <option value="ielts">IELTS</option>
-                        <option value="toeic">TOEIC</option>
-                        <option value="office">Tin học Văn phòng</option>
-                        <option value="trial">Học thử miễn phí</option>
-                        <option value="other">Khác</option>
-                      </select>
-                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-400 pointer-events-none" />
-                    </div>
-                  </div>
-
-                  {/* Message */}
-                  <div className="relative">
-                    <label className={`absolute left-4 transition-all duration-200 pointer-events-none
-                                    ${focusedField === 'message' || formData.message
-                        ? 'top-2 text-xs text-[#FF4D00]'
-                        : 'top-4 text-neutral-400'}`}>
-                      Lời nhắn
-                    </label>
-                    <textarea
-                      rows={4}
-                      value={formData.message}
-                      onFocus={() => setFocusedField('message')}
-                      onBlur={() => setFocusedField(null)}
-                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                      className="w-full px-4 pt-7 pb-3 bg-white border-2 border-transparent
-                               text-neutral-900 focus:border-neutral-900 focus:outline-none 
-                               transition-colors resize-none"
-                    />
-                  </div>
-
-                  {/* Submit Row */}
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4">
-                    <p className="text-sm text-neutral-400">
-                      <span className="text-[#FF4D00]">*</span> Bắt buộc • Thông tin được bảo mật
-                    </p>
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="group inline-flex items-center gap-4 px-8 py-4 bg-neutral-900 text-white
-                               hover:bg-[#FF4D00] transition-colors disabled:opacity-60"
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          <span className="font-medium">Đang gửi...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="font-medium">Gửi tin nhắn</span>
-                          <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-};
+// NOTE: ContactFormSection was removed as it was unused dead code.
+// The HeroSection now contains the main contact form with proper validation.
 
 // ============================================
 // LOCATIONS - "IMMERSIVE GALLERY" STYLE

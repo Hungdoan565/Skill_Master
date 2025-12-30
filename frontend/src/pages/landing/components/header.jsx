@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import logoImage from '@/assets/logo.png';
+import { ConsultationModal, BookingModal } from '@/components/common';
 
 // ============================================
 // DROPDOWN COMPONENTS
@@ -238,6 +239,8 @@ export const Header = () => {
     const [scrolled, setScrolled] = useState(false);
     const [openDropdown, setOpenDropdown] = useState(null);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [showConsultationModal, setShowConsultationModal] = useState(false);
+    const [showBookingModal, setShowBookingModal] = useState(false);
     const { isAuthenticated } = useAuth();
     const location = useLocation();
 
@@ -254,101 +257,122 @@ export const Header = () => {
     const closeDropdown = () => setOpenDropdown(null);
 
     return (
-        <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? 'bg-stone-50/80 backdrop-blur-xl border-b border-stone-200/50 shadow-sm' : 'bg-transparent'
-            }`}>
-            <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
-                <nav className="flex items-center justify-between h-24">
-                    {/* Logo */}
-                    <Link to="/" className="group flex items-center gap-2">
-                        <img src={logoImage} alt="Skill Master Logo" className="h-24 w-auto object-contain group-hover:scale-105 transition-transform duration-300" />
-                    </Link>
+        <>
+            <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? 'bg-stone-50/80 backdrop-blur-xl border-b border-stone-200/50 shadow-sm' : 'bg-transparent'
+                }`}>
+                <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
+                    <nav className="flex items-center justify-between h-24">
+                        {/* Logo */}
+                        <Link to="/" className="group flex items-center gap-2">
+                            <img src={logoImage} alt="Skill Master Logo" className="h-24 w-auto object-contain group-hover:scale-105 transition-transform duration-300" />
+                        </Link>
 
-                    {/* Desktop Navigation */}
-                    <div className="hidden lg:flex items-center gap-8">
-                        <NavDropdown label="Khóa học" isOpen={openDropdown === 'courses'} onToggle={() => handleDropdownToggle('courses')} onClose={closeDropdown}>
-                            <div className="w-[520px] p-2">
-                                <div className="grid grid-cols-2 gap-1">
-                                    <DropdownSection title="Tiếng Anh">
-                                        <DropdownItem icon={Globe} title="IELTS Academic" description="Luyện thi IELTS từ 5.0 - 8.0+" href="/courses" />
-                                        <DropdownItem icon={Award} title="TOEIC 4 kỹ năng" description="Đạt 650+ với giáo trình ETS" href="/courses" />
-                                        <DropdownItem icon={MessageCircle} title="Giao tiếp thực chiến" description="Tự tin nói tiếng Anh trong 3 tháng" href="/courses" />
-                                        <DropdownItem icon={Users} title="Tiếng Anh cho trẻ em" description="Chương trình Cambridge Kids" href="/courses" />
-                                    </DropdownSection>
-                                    <DropdownSection title="Tin học">
-                                        <DropdownItem icon={FileText} title="Tin học văn phòng" description="Word, Excel, PowerPoint chuẩn MOS" href="/courses" />
-                                        <DropdownItem icon={Layers} title="IC3 Digital Literacy" description="Chứng chỉ quốc tế về CNTT" href="/courses" />
-                                        <DropdownItem icon={Target} title="Excel nâng cao" description="Pivot, VBA, Dashboard chuyên sâu" href="/courses" />
-                                        <DropdownItem icon={BarChart3} title="Phân tích dữ liệu" description="Power BI, SQL cơ bản" href="/courses" />
+                        {/* Desktop Navigation */}
+                        <div className="hidden lg:flex items-center gap-8">
+                            <NavDropdown label="Khóa học" isOpen={openDropdown === 'courses'} onToggle={() => handleDropdownToggle('courses')} onClose={closeDropdown}>
+                                <div className="w-[520px] p-2">
+                                    <div className="grid grid-cols-2 gap-1">
+                                        <DropdownSection title="Tiếng Anh">
+                                            <DropdownItem icon={Globe} title="IELTS Academic" description="Luyện thi IELTS từ 5.0 - 8.0+" href="/courses" />
+                                            <DropdownItem icon={Award} title="TOEIC 4 kỹ năng" description="Đạt 650+ với giáo trình ETS" href="/courses" />
+                                            <DropdownItem icon={MessageCircle} title="Giao tiếp thực chiến" description="Tự tin nói tiếng Anh trong 3 tháng" href="/courses" />
+                                            <DropdownItem icon={Users} title="Tiếng Anh cho trẻ em" description="Chương trình Cambridge Kids" href="/courses" />
+                                        </DropdownSection>
+                                        <DropdownSection title="Tin học">
+                                            <DropdownItem icon={FileText} title="Tin học văn phòng" description="Word, Excel, PowerPoint chuẩn MOS" href="/courses" />
+                                            <DropdownItem icon={Layers} title="IC3 Digital Literacy" description="Chứng chỉ quốc tế về CNTT" href="/courses" />
+                                            <DropdownItem icon={Target} title="Excel nâng cao" description="Pivot, VBA, Dashboard chuyên sâu" href="/courses" />
+                                            <DropdownItem icon={BarChart3} title="Phân tích dữ liệu" description="Power BI, SQL cơ bản" href="/courses" />
+                                        </DropdownSection>
+                                    </div>
+                                    <Link to="/courses" className="block mt-2 mx-2 p-4 bg-gradient-to-r from-red-50 to-orange-50 rounded-xl border border-red-100 hover:border-red-200 transition-colors">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-sm font-semibold text-zinc-900">Xem tất cả khóa học</p>
+                                                <p className="text-xs text-zinc-500 mt-0.5">20+ khóa học đa dạng trình độ</p>
+                                            </div>
+                                            <ArrowRight className="w-5 h-5 text-red-600" />
+                                        </div>
+                                    </Link>
+                                </div>
+                            </NavDropdown>
+
+                            <NavDropdown label="Lộ trình" isOpen={openDropdown === 'roadmap'} onToggle={() => handleDropdownToggle('roadmap')} onClose={closeDropdown}>
+                                <div className="w-[320px] p-2">
+                                    <DropdownSection title="Theo mục tiêu">
+                                        <DropdownItem icon={GraduationCap} title="Du học & Định cư" description="IELTS 6.5+ trong 6 tháng" href="/roadmap/study-abroad" />
+                                        <DropdownItem icon={Target} title="Việc làm & Thăng tiến" description="TOEIC + Tin học văn phòng" href="/roadmap/career" />
+                                        <DropdownItem icon={BookMarked} title="Mất gốc tiếng Anh" description="Lấy lại căn bản sau 2 tháng" href="/roadmap/basic" />
                                     </DropdownSection>
                                 </div>
-                                <Link to="/courses" className="block mt-2 mx-2 p-4 bg-gradient-to-r from-red-50 to-orange-50 rounded-xl border border-red-100 hover:border-red-200 transition-colors">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-sm font-semibold text-zinc-900">Xem tất cả khóa học</p>
-                                            <p className="text-xs text-zinc-500 mt-0.5">20+ khóa học đa dạng trình độ</p>
-                                        </div>
-                                        <ArrowRight className="w-5 h-5 text-red-600" />
-                                    </div>
-                                </Link>
-                            </div>
-                        </NavDropdown>
+                            </NavDropdown>
 
-                        <NavDropdown label="Lộ trình" isOpen={openDropdown === 'roadmap'} onToggle={() => handleDropdownToggle('roadmap')} onClose={closeDropdown}>
-                            <div className="w-[320px] p-2">
-                                <DropdownSection title="Theo mục tiêu">
-                                    <DropdownItem icon={GraduationCap} title="Du học & Định cư" description="IELTS 6.5+ trong 6 tháng" href="/roadmap/study-abroad" />
-                                    <DropdownItem icon={Target} title="Việc làm & Thăng tiến" description="TOEIC + Tin học văn phòng" href="/roadmap/career" />
-                                    <DropdownItem icon={BookMarked} title="Mất gốc tiếng Anh" description="Lấy lại căn bản sau 2 tháng" href="/roadmap/basic" />
-                                </DropdownSection>
-                            </div>
-                        </NavDropdown>
+                            <Link to="/blog" className="text-sm font-medium text-zinc-500 hover:text-zinc-900 transition-colors">Tin tức</Link>
+                            <Link to="/about" className="text-sm font-medium text-zinc-500 hover:text-zinc-900 transition-colors">Về chúng tôi</Link>
+                        </div>
 
-                        <Link to="/blog" className="text-sm font-medium text-zinc-500 hover:text-zinc-900 transition-colors">Tin tức</Link>
-                        <Link to="/about" className="text-sm font-medium text-zinc-500 hover:text-zinc-900 transition-colors">Về chúng tôi</Link>
-                    </div>
+                        {/* Auth Buttons */}
+                        <div className="hidden lg:flex items-center gap-4">
+                            {isAuthenticated ? (
+                                <UserDropdown />
+                            ) : (
+                                <>
+                                    <Link to="/login" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 px-4 py-2 transition-colors">Đăng nhập</Link>
+                                    <button
+                                        onClick={() => setShowConsultationModal(true)}
+                                        className="inline-flex items-center justify-center px-5 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-full hover:bg-red-700 transition-all shadow-lg shadow-red-600/20 hover:shadow-xl hover:shadow-red-600/30"
+                                    >
+                                        Tư vấn miễn phí
+                                    </button>
+                                </>
+                            )}
+                        </div>
 
-                    {/* Auth Buttons */}
-                    <div className="hidden lg:flex items-center gap-4">
-                        {isAuthenticated ? (
-                            <UserDropdown />
-                        ) : (
-                            <>
-                                <Link to="/login" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 px-4 py-2 transition-colors">Đăng nhập</Link>
-                                <Link to="/register" className="inline-flex items-center justify-center px-5 py-2.5 bg-zinc-900 text-white text-sm font-semibold rounded-full hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-900/20 hover:shadow-xl hover:shadow-zinc-900/30">Đăng ký ngay</Link>
-                            </>
-                        )}
-                    </div>
-
-                    {/* Mobile Menu Button */}
-                    <button className="lg:hidden p-2 text-zinc-600 hover:bg-stone-100 rounded-lg" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-                        {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-                    </button>
-                </nav>
-            </div>
-
-            {/* Mobile Menu */}
-            {mobileMenuOpen && (
-                <div className="lg:hidden absolute top-24 left-0 right-0 bg-white border-t border-stone-200 p-6 shadow-xl animate-fade-in-down">
-                    <div className="flex flex-col gap-4">
-                        <Link to="/courses" className="font-medium text-lg text-zinc-900">Khóa học</Link>
-                        <Link to="/roadmap" className="font-medium text-lg text-zinc-900">Lộ trình</Link>
-                        <Link to="/blog" className="font-medium text-lg text-zinc-900">Tin tức</Link>
-                        <Link to="/about" className="font-medium text-lg text-zinc-900">Về chúng tôi</Link>
-                        <hr className="border-stone-100" />
-                        {isAuthenticated ? (
-                            <div className="flex flex-col gap-2">
-                                <Link to="/dashboard" className="px-4 py-3 bg-zinc-50 rounded-xl font-medium text-zinc-900">Vào Dashboard</Link>
-                                <Link to="/profile" className="px-4 py-3 bg-zinc-50 rounded-xl font-medium text-zinc-900">Hồ sơ cá nhân</Link>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-2 gap-4">
-                                <Link to="/login" className="flex items-center justify-center px-4 py-3 border border-stone-200 rounded-xl font-semibold text-zinc-700">Đăng nhập</Link>
-                                <Link to="/register" className="flex items-center justify-center px-4 py-3 bg-red-600 text-white rounded-xl font-semibold">Đăng ký</Link>
-                            </div>
-                        )}
-                    </div>
+                        {/* Mobile Menu Button */}
+                        <button className="lg:hidden p-2 text-zinc-600 hover:bg-stone-100 rounded-lg" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+                            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                        </button>
+                    </nav>
                 </div>
-            )}
-        </header>
+
+                {/* Mobile Menu */}
+                {mobileMenuOpen && (
+                    <div className="lg:hidden absolute top-24 left-0 right-0 bg-white border-t border-stone-200 p-6 shadow-xl animate-fade-in-down">
+                        <div className="flex flex-col gap-4">
+                            <Link to="/courses" className="font-medium text-lg text-zinc-900">Khóa học</Link>
+                            <Link to="/roadmap" className="font-medium text-lg text-zinc-900">Lộ trình</Link>
+                            <Link to="/blog" className="font-medium text-lg text-zinc-900">Tin tức</Link>
+                            <Link to="/about" className="font-medium text-lg text-zinc-900">Về chúng tôi</Link>
+                            <hr className="border-stone-100" />
+                            {isAuthenticated ? (
+                                <div className="flex flex-col gap-2">
+                                    <Link to="/dashboard" className="px-4 py-3 bg-zinc-50 rounded-xl font-medium text-zinc-900">Vào Dashboard</Link>
+                                    <Link to="/profile" className="px-4 py-3 bg-zinc-50 rounded-xl font-medium text-zinc-900">Hồ sơ cá nhân</Link>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-4">
+                                    <Link to="/login" className="flex items-center justify-center px-4 py-3 border border-stone-200 rounded-xl font-semibold text-zinc-700">Đăng nhập</Link>
+                                    <Link to="/register" className="flex items-center justify-center px-4 py-3 bg-red-600 text-white rounded-xl font-semibold">Đăng ký</Link>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </header>
+
+            {/* Consultation Modal */}
+            <ConsultationModal
+                isOpen={showConsultationModal}
+                onClose={() => setShowConsultationModal(false)}
+                source="landing_header"
+            />
+
+            {/* Booking Modal */}
+            <BookingModal
+                isOpen={showBookingModal}
+                onClose={() => setShowBookingModal(false)}
+                source="landing_header"
+            />
+        </>
     );
 };

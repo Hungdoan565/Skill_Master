@@ -208,11 +208,12 @@ const GoalsSection = () => {
             <div
               key={goal.id}
               className={`relative border-b lg:border-b-0 lg:border-r border-neutral-200 last:border-r-0
-                       transform transition-all duration-500
+                       transform transition-all duration-500 cursor-pointer
                        ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
               style={{ transitionDelay: `${100 + i * 100}ms` }}
               onMouseEnter={() => setHoveredGoal(goal.id)}
               onMouseLeave={() => setHoveredGoal(null)}
+              onClick={() => setHoveredGoal(hoveredGoal === goal.id ? null : goal.id)}
             >
               {/* Popular Badge */}
               {goal.popular && (
@@ -500,7 +501,7 @@ const LevelsSection = () => {
                   {/* CTA - Expandable */}
                   <div className={`overflow-hidden transition-all duration-300 pt-4 border-t border-neutral-100
                                ${activeLevel === level.id ? 'max-h-[80px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                    <Link to="/contact"
+                    <Link to="/resources/assessment"
                       className={`w-full py-3 text-center text-sm font-semibold uppercase tracking-wider
                                    block transition-colors duration-150
                                    ${level.color === 'advanced'
@@ -532,7 +533,7 @@ const LevelsSection = () => {
           <div className={`lg:col-span-4 p-6 lg:p-8
                         transform transition-all duration-500 delay-500
                         ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            <Link to="/contact"
+            <Link to="/resources/assessment"
               className="w-full flex items-center justify-center gap-2 py-4 bg-neutral-900 text-white 
                            text-sm font-semibold uppercase tracking-wider hover:bg-neutral-800 transition-colors">
               <Play className="w-4 h-4" />
