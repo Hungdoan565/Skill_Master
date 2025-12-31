@@ -110,6 +110,44 @@ export function useStudents() {
     );
   }, [students]);
 
+  // Transfer student to another center
+  const transferStudent = useCallback(async (studentId, data) => {
+    try {
+      const headers = await getAuthHeaders();
+      const response = await axios.put(
+        `${API_URL}/api/admin/students/${studentId}/transfer`,
+        data,
+        { headers }
+      );
+
+      if (response.data?.success) {
+        return response.data.data;
+      }
+
+      throw new Error(response.data?.message || 'Có lỗi xảy ra khi chuyển chi nhánh');
+    } catch (error) {
+      // Extract error message from backend response
+      const errorMessage = error.response?.data?.message || error.message || 'Có lỗi xảy ra khi chuyển chi nhánh';
+      console.error('Transfer error details:', error.response?.data);
+      throw new Error(errorMessage);
+    }
+  }, []);
+
+  // Fetch transfer history
+  const fetchTransferHistory = useCallback(async (studentId) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.get(
+      `${API_URL}/api/admin/students/${studentId}/transfer-history`,
+      { headers }
+    );
+
+    if (response.data?.success) {
+      return response.data.data;
+    }
+
+    throw new Error(response.data?.message || 'Không thể tải lịch sử chuyển');
+  }, []);
+
   return {
     students,
     loading,
@@ -117,6 +155,8 @@ export function useStudents() {
     fetchStudentDetail,
     updateStudent,
     promoteStudent,
+    transferStudent,
+    fetchTransferHistory,
     filterStudents,
   };
 }

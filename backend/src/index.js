@@ -15812,6 +15812,321 @@ app.get('/api/admin/support-tickets/stats', requireAuth, requireRole(['SUPER_ADM
 // ============================================================
 
 // ============================================================
+// STUDENT TRANSFER APIs - Chuyển học viên giữa chi nhánh
+// ============================================================
+
+/**
+ * PUT /api/admin/students/:id/transfer
+ * Chuyển học viên sang chi nhánh khác
+ * - Giữ nguyên lịch sử học tập (grades, attendance)
+ * - Cập nhật center_id của student
+ * - Tùy chọn: chuyển enrollments đang active hoặc close
+ * - Ghi log audit trail
+ */
+app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const {
+      target_center_id,
+      transfer_enrollments = false, // true = chuyển cả enrollment, false = close enrollment cũ
+      notes = ''
+    } = req.body;
+
+    console.log(`🔄 Student transfer initiated by ${req.user.email}: ${id} -> ${target_center_id}`);
+
+    // Validate required fields
+    if (!target_center_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng chọn chi nhánh đích'
+      });
+    }
+
+    // Get student info
+    const { data: student, error: studentError } = await supabase
+      .from('users')
+      .select(`
+        id, full_name, email, phone, center_id,
+        roles!users_role_id_fkey (code)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (studentError || !student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy học viên'
+      });
+    }
+
+    // Verify it's a student
+    if (student.roles?.code !== 'STUDENT') {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ có thể chuyển học viên (STUDENT role)'
+      });
+    }
+
+    const sourceCenterId = student.center_id;
+
+    // Check if already in target center
+    if (sourceCenterId === target_center_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Học viên đã thuộc chi nhánh này'
+      });
+    }
+
+    // Validate target center exists
+    const { data: targetCenter, error: centerError } = await supabase
+      .from('centers')
+      .select('id, name, code')
+      .eq('id', target_center_id)
+      .single();
+
+    if (centerError || !targetCenter) {
+      return res.status(400).json({
+        success: false,
+        message: 'Chi nhánh đích không tồn tại'
+      });
+    }
+
+    // Get source center name for logging
+    let sourceCenterName = 'Chưa có';
+    if (sourceCenterId) {
+      const { data: sourceCenter } = await supabase
+        .from('centers')
+        .select('name')
+        .eq('id', sourceCenterId)
+        .single();
+      sourceCenterName = sourceCenter?.name || 'Unknown';
+    }
+
+    // Get active enrollments
+    const { data: activeEnrollments } = await supabase
+      .from('enrollments')
+      .select(`
+        id, class_id, status, tuition_fee, paid_amount,
+        classes!enrollments_class_id_fkey (id, name, course_id, center_id)
+      `)
+      .eq('student_id', id)
+      .in('status', ['active', 'pending']);
+
+    // Start transaction-like operations
+    const transferResults = {
+      studentUpdated: false,
+      enrollmentsProcessed: 0,
+      enrollmentsClosed: 0,
+      errors: []
+    };
+
+    // 1. Update student's center_id
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({
+        center_id: target_center_id,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id);
+
+    if (updateError) {
+      throw updateError;
+    }
+    transferResults.studentUpdated = true;
+
+    // 2. Handle enrollments
+    if (activeEnrollments && activeEnrollments.length > 0) {
+      for (const enrollment of activeEnrollments) {
+        try {
+          if (transfer_enrollments) {
+            // Option A: Transfer enrollment (update notes, keep as-is)
+            // Note: The enrollment stays linked to old class, but student now belongs to new center
+            // Admin will need to manually enroll in new class at new center if needed
+            await supabase
+              .from('enrollments')
+              .update({
+                notes: `[TRANSFERRED] ${new Date().toISOString()} - Chuyển từ ${sourceCenterName} sang ${targetCenter.name}. ${notes}`,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', enrollment.id);
+            transferResults.enrollmentsProcessed++;
+          } else {
+            // Option B: Close old enrollments with transfer note
+            await supabase
+              .from('enrollments')
+              .update({
+                status: 'cancelled',
+                notes: `[TRANSFERRED OUT] ${new Date().toISOString()} - Học viên chuyển sang ${targetCenter.name}. ${notes}`,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', enrollment.id);
+            transferResults.enrollmentsClosed++;
+          }
+        } catch (enrollError) {
+          transferResults.errors.push({
+            enrollment_id: enrollment.id,
+            error: enrollError.message
+          });
+        }
+      }
+    }
+
+    // 3. Create audit log (try-catch as table might not exist)
+    try {
+      await supabase
+        .from('audit_logs')
+        .insert({
+          action: 'STUDENT_TRANSFER',
+          entity_type: 'users',
+          entity_id: id,
+          performed_by: req.user.id,
+          old_values: {
+            center_id: sourceCenterId,
+            center_name: sourceCenterName
+          },
+          new_values: {
+            center_id: target_center_id,
+            center_name: targetCenter.name
+          },
+          notes: notes || `Chuyển học viên ${student.full_name} từ ${sourceCenterName} sang ${targetCenter.name}`
+        });
+    } catch (auditError) {
+      console.log('Audit log skipped (table may not exist):', auditError.message);
+    }
+
+    // 4. Create notification for student
+    try {
+      await supabase
+        .from('notifications')
+        .insert({
+          user_id: id,
+          title: 'Thông báo chuyển chi nhánh',
+          message: `Bạn đã được chuyển từ ${sourceCenterName} sang ${targetCenter.name}.`,
+          type: 'system',
+          is_read: false
+        });
+    } catch (notifError) {
+      console.log('Notification skipped:', notifError.message);
+    }
+
+    console.log(`✅ Student ${student.full_name} transferred from ${sourceCenterName} to ${targetCenter.name}`);
+
+    res.json({
+      success: true,
+      message: `Đã chuyển học viên ${student.full_name} sang ${targetCenter.name}`,
+      data: {
+        student_id: id,
+        student_name: student.full_name,
+        from_center: sourceCenterName,
+        to_center: targetCenter.name,
+        results: transferResults
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error transferring student:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/students/:id/transfer-history
+ * Lấy lịch sử chuyển chi nhánh của học viên
+ */
+app.get('/api/admin/students/:id/transfer-history', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Get from audit_logs
+    const { data, error } = await supabase
+      .from('audit_logs')
+      .select(`
+        id, action, old_values, new_values, notes, created_at,
+        performed_by_user:users!audit_logs_performed_by_fkey (id, full_name)
+      `)
+      .eq('entity_type', 'users')
+      .eq('entity_id', id)
+      .eq('action', 'STUDENT_TRANSFER')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      // Table might not exist
+      return res.json({ success: true, data: [] });
+    }
+
+    res.json({ success: true, data: data || [] });
+  } catch (error) {
+    console.error('❌ Error fetching transfer history:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/transfers/stats
+ * Thống kê chuyển chi nhánh (dashboard)
+ */
+app.get('/api/admin/transfers/stats', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
+  try {
+    const { period = '30d' } = req.query;
+
+    // Calculate date range
+    const now = new Date();
+    let startDate = new Date();
+    if (period === '7d') startDate.setDate(now.getDate() - 7);
+    else if (period === '30d') startDate.setDate(now.getDate() - 30);
+    else if (period === '90d') startDate.setDate(now.getDate() - 90);
+    else startDate.setFullYear(now.getFullYear() - 1);
+
+    const { data, error } = await supabase
+      .from('audit_logs')
+      .select('old_values, new_values, created_at')
+      .eq('action', 'STUDENT_TRANSFER')
+      .gte('created_at', startDate.toISOString());
+
+    if (error) {
+      return res.json({
+        success: true,
+        data: {
+          totalTransfers: 0,
+          byCenter: {}
+        }
+      });
+    }
+
+    // Calculate stats
+    const stats = {
+      totalTransfers: data?.length || 0,
+      byCenter: {},
+      byMonth: {}
+    };
+
+    (data || []).forEach(transfer => {
+      // Count outgoing transfers by center
+      const fromCenter = transfer.old_values?.center_name || 'Unknown';
+      const toCenter = transfer.new_values?.center_name || 'Unknown';
+
+      if (!stats.byCenter[fromCenter]) stats.byCenter[fromCenter] = { out: 0, in: 0 };
+      if (!stats.byCenter[toCenter]) stats.byCenter[toCenter] = { out: 0, in: 0 };
+
+      stats.byCenter[fromCenter].out++;
+      stats.byCenter[toCenter].in++;
+
+      // Count by month
+      const month = transfer.created_at.substring(0, 7);
+      stats.byMonth[month] = (stats.byMonth[month] || 0) + 1;
+    });
+
+    res.json({ success: true, data: stats });
+  } catch (error) {
+    console.error('❌ Error fetching transfer stats:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// END STUDENT TRANSFER APIs
+// ============================================================
+
+// ============================================================
 // END NEW MODULE APIs
 // ============================================================
 

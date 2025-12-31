@@ -12,6 +12,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ColorAvatar } from './ColorAvatar';
 import { formatDate } from '../utils';
+import { useState } from 'react';
+import { useAuth } from '@/contexts/auth-context';
+import { useStudents } from '../hooks';
+import StudentTransferModal from './StudentTransferModal';
+import { Share2 } from 'lucide-react';
 
 // Status badges for enrollments
 const ENROLLMENT_STATUS = {
@@ -46,6 +51,25 @@ export function StudentDetailModal({
     // Merge student basic info với detailData từ API
     // detailData chứa enrollments, invoices, stats
     const studentData = detailData || student;
+
+    const { session } = useAuth();
+    const { transferStudent } = useStudents();
+    const [transferModal, setTransferModal] = useState({ isOpen: false, submitting: false });
+
+    // Handle transfer
+    const handleTransferSubmit = async (studentId, transferData) => {
+        setTransferModal(prev => ({ ...prev, submitting: true }));
+        try {
+            await transferStudent(studentId, transferData);
+            setTransferModal({ isOpen: false, submitting: false });
+            alert('✅ Chuyển chi nhánh thành công');
+            onClose(); // Close detail modal
+        } catch (err) {
+            console.error('Error transferring student:', err);
+            setTransferModal(prev => ({ ...prev, submitting: false }));
+            alert('❌ Lỗi: ' + (err.message || 'Không thể chuyển chi nhánh'));
+        }
+    };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -256,7 +280,26 @@ export function StudentDetailModal({
                             <Button variant="outline" onClick={onClose}>
                                 Đóng
                             </Button>
+                            {session?.user?.email?.includes('admin') && (
+                                <Button
+                                    className="ml-2 bg-white border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+                                    variant="outline"
+                                    onClick={() => setTransferModal({ isOpen: true, submitting: false })}
+                                >
+                                    <Share2 className="h-4 w-4 mr-2" />
+                                    Chuyển chi nhánh
+                                </Button>
+                            )}
                         </div>
+
+                        {/* Nested Transfer Modal */}
+                        <StudentTransferModal
+                            isOpen={transferModal.isOpen}
+                            onClose={() => setTransferModal({ isOpen: false, submitting: false })}
+                            student={studentData}
+                            onSubmit={handleTransferSubmit}
+                            submitting={transferModal.submitting}
+                        />
                     </>
                 ) : (
                     <div className="p-8 text-center text-slate-500">
@@ -264,7 +307,7 @@ export function StudentDetailModal({
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 }
 

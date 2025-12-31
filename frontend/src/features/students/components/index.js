@@ -12,3 +12,4 @@ export { PromoteModal } from './PromoteModal';
 export { LoadingState } from './LoadingState';
 export { StudentDetailModal } from './StudentDetailModal';
 export { EditStudentModal } from './EditStudentModal';
+export { StudentTransferModal } from './StudentTransferModal';

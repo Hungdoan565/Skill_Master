@@ -38,7 +38,8 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/auth-context';
 import { useStudents } from '../hooks';
 import { formatDate, getInitials, getGradient, STATUS_OPTIONS } from '../utils';
-import { EditStudentModal } from '../components';
+import { EditStudentModal, StudentTransferModal } from '../components';
+import { Share2 } from 'lucide-react'; // For transfer icon
 
 // Tab components
 const TabButton = ({ active, onClick, icon: Icon, label, count }) => (
@@ -545,8 +546,9 @@ export function StudentDetailPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [editModal, setEditModal] = useState({ isOpen: false, submitting: false });
+    const [transferModal, setTransferModal] = useState({ isOpen: false, submitting: false });
 
-    const { fetchStudentDetail, updateStudent } = useStudents();
+    const { fetchStudentDetail, updateStudent, transferStudent } = useStudents();
 
     // Fetch student data
     const loadStudent = useCallback(async () => {
@@ -585,6 +587,21 @@ export function StudentDetailPage() {
             console.error('Error updating student:', err);
             setEditModal(prev => ({ ...prev, submitting: false }));
             throw err;
+        }
+    };
+
+    // Handle transfer
+    const handleTransferSubmit = async (studentId, transferData) => {
+        setTransferModal(prev => ({ ...prev, submitting: true }));
+        try {
+            await transferStudent(studentId, transferData);
+            setTransferModal({ isOpen: false, submitting: false });
+            alert('✅ Chuyển chi nhánh thành công');
+            loadStudent(); // Refresh data to show new center
+        } catch (err) {
+            console.error('Error transferring student:', err);
+            setTransferModal(prev => ({ ...prev, submitting: false }));
+            alert('❌ Lỗi: ' + (err.message || 'Không thể chuyển chi nhánh'));
         }
     };
 
@@ -643,10 +660,22 @@ export function StudentDetailPage() {
                         <p className="text-slate-500">Xem và quản lý thông tin học viên</p>
                     </div>
                 </div>
-                <Button onClick={() => setEditModal({ isOpen: true, submitting: false })}>
-                    <Edit2 className="h-4 w-4 mr-2" />
-                    Chỉnh sửa
-                </Button>
+                <div className="flex items-center gap-2">
+                    {session?.user?.email?.includes('admin') && (
+                        <Button
+                            variant="outline"
+                            className="bg-white border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+                            onClick={() => setTransferModal({ isOpen: true, submitting: false })}
+                        >
+                            <Share2 className="h-4 w-4 mr-2" />
+                            Chuyển chi nhánh
+                        </Button>
+                    )}
+                    <Button onClick={() => setEditModal({ isOpen: true, submitting: false })}>
+                        <Edit2 className="h-4 w-4 mr-2" />
+                        Chỉnh sửa
+                    </Button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -751,6 +780,14 @@ export function StudentDetailPage() {
                 student={student}
                 onSubmit={handleEditSubmit}
                 submitting={editModal.submitting}
+            />
+            {/* Transfer Modal */}
+            <StudentTransferModal
+                isOpen={transferModal.isOpen}
+                onClose={() => setTransferModal({ isOpen: false, submitting: false })}
+                student={student}
+                onSubmit={handleTransferSubmit}
+                submitting={transferModal.submitting}
             />
         </div>
     );
