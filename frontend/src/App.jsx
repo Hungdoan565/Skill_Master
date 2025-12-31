@@ -535,6 +535,7 @@ function App() {
             <Route path="certificates/:id/print" element={<CertificatePrintPage />} />
             <Route path="certificates/:id/view" element={<CertificateViewPage />} />
             <Route path="support" element={<SupportPage />} />
+            <Route path="support-tickets" element={<SupportPage />} />
             <Route path="notifications" element={<AdminNotificationsPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="reports" element={<ReportsPage />} />

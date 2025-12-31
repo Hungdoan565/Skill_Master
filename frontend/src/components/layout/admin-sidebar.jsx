@@ -19,6 +19,7 @@ import {
   Award,
   Bell,
   TrendingUp,
+  Headphones,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -70,6 +71,7 @@ const menuGroups = [
       { label: 'Trung tâm', icon: Building2, path: '/admin/centers' },
       { label: 'Tài liệu', icon: FileText, path: '/admin/documents' },
       { label: 'Báo cáo', icon: BarChart3, path: '/admin/reports' },
+      { label: 'Hỗ trợ', icon: Headphones, path: '/admin/support' },
     ],
   },
 ];

@@ -15285,6 +15285,533 @@ app.get('/api/admin/documents/:id/stats', requireAuth, requireRole(['SUPER_ADMIN
 // ============================================================
 
 // ============================================================
+// SUPPORT TICKETS MANAGEMENT APIs
+// ============================================================
+
+/**
+ * GET /api/admin/support-tickets
+ * Lấy danh sách support tickets với filters
+ */
+app.get('/api/admin/support-tickets', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const { status, priority, category, center_id: queryCenterId, search, page = 1, limit = 50 } = req.query;
+
+    // Permission check with center filtering
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, queryCenterId);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    // Build query
+    let query = supabase
+      .from('support_tickets')
+      .select(`
+        *,
+        created_by_user:users!support_tickets_created_by_fkey (id, full_name, email, phone),
+        assigned_to_user:users!support_tickets_assigned_to_fkey (id, full_name, email),
+        classes!support_tickets_class_id_fkey (id, name),
+        enrollments!support_tickets_enrollment_id_fkey (id)
+      `)
+      .order('created_at', { ascending: false });
+
+    // Apply filters
+    if (effectiveCenterId) {
+      query = query.eq('center_id', effectiveCenterId);
+    }
+
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    if (priority) {
+      query = query.eq('priority', priority);
+    }
+
+    if (category) {
+      query = query.eq('category', category);
+    }
+
+    // Search by ticket number or subject
+    if (search && search.trim().length >= 2) {
+      const term = search.trim();
+      query = query.or(`ticket_number.ilike.%${term}%,subject.ilike.%${term}%`);
+    }
+
+    // Pagination
+    const pageNum = parseInt(page) || 1;
+    const limitNum = Math.min(parseInt(limit) || 50, 100);
+    const offset = (pageNum - 1) * limitNum;
+    query = query.range(offset, offset + limitNum - 1);
+
+    const { data, error, count } = await query;
+
+    if (error) throw error;
+
+    // Get message counts for each ticket
+    const ticketIds = (data || []).map(t => t.id);
+    let messageCounts = {};
+
+    if (ticketIds.length > 0) {
+      const { data: msgData } = await supabase
+        .from('ticket_messages')
+        .select('ticket_id')
+        .in('ticket_id', ticketIds);
+
+      if (msgData) {
+        msgData.forEach(m => {
+          messageCounts[m.ticket_id] = (messageCounts[m.ticket_id] || 0) + 1;
+        });
+      }
+    }
+
+    // Transform data for frontend compatibility
+    const transformedData = (data || []).map(ticket => ({
+      ...ticket,
+      students: ticket.created_by_user || null, // Frontend expects 'students' key
+      assigned_to: ticket.assigned_to_user || null,
+      message_count: messageCounts[ticket.id] || 0
+    }));
+
+    console.log(`🎫 Support tickets fetched: ${transformedData.length} items by ${req.user.email}`);
+
+    res.json({
+      success: true,
+      data: transformedData,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total: count || transformedData.length
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error fetching support tickets:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/support-tickets/:id
+ * Lấy chi tiết ticket kèm messages
+ */
+app.get('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Get ticket
+    const { data: ticket, error: ticketError } = await supabase
+      .from('support_tickets')
+      .select(`
+        *,
+        created_by_user:users!support_tickets_created_by_fkey (id, full_name, email, phone),
+        assigned_to_user:users!support_tickets_assigned_to_fkey (id, full_name, email),
+        resolved_by_user:users!support_tickets_resolved_by_fkey (id, full_name),
+        classes!support_tickets_class_id_fkey (id, name)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (ticketError) {
+      if (ticketError.code === 'PGRST116') {
+        return res.status(404).json({ success: false, message: 'Ticket không tồn tại' });
+      }
+      throw ticketError;
+    }
+
+    // Permission check
+    if (req.user.roleCode !== 'SUPER_ADMIN' && ticket.center_id && ticket.center_id !== req.user.centerId) {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền xem ticket này' });
+    }
+
+    // Get messages
+    let messagesQuery = supabase
+      .from('ticket_messages')
+      .select(`
+        *,
+        sender:users!ticket_messages_sender_id_fkey (id, full_name, email, roles!users_role_id_fkey (code))
+      `)
+      .eq('ticket_id', id)
+      .order('created_at', { ascending: true });
+
+    // If user is student (ticket creator), hide internal messages
+    if (req.user.id === ticket.created_by && req.user.roleCode === 'STUDENT') {
+      messagesQuery = messagesQuery.eq('is_internal', false);
+    }
+
+    const { data: messages, error: msgError } = await messagesQuery;
+
+    if (msgError) throw msgError;
+
+    res.json({
+      success: true,
+      data: {
+        ...ticket,
+        students: ticket.created_by_user || null,
+        assigned_to: ticket.assigned_to_user || null,
+        resolved_by: ticket.resolved_by_user || null,
+        messages: messages || []
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error fetching support ticket:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/support-tickets
+ * Tạo ticket mới (admin tạo thay cho student)
+ */
+app.post('/api/admin/support-tickets', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const {
+      subject,
+      description,
+      category = 'general',
+      priority = 'normal',
+      student_id, // ID of student the ticket is for
+      class_id,
+      enrollment_id
+    } = req.body;
+
+    // Validate required fields
+    if (!subject) {
+      return res.status(400).json({ success: false, message: 'Tiêu đề là bắt buộc' });
+    }
+
+    // Validate category
+    const validCategories = ['general', 'technical', 'billing', 'course', 'other'];
+    if (!validCategories.includes(category)) {
+      return res.status(400).json({
+        success: false,
+        message: `Danh mục không hợp lệ. Cho phép: ${validCategories.join(', ')}`
+      });
+    }
+
+    // Validate priority
+    const validPriorities = ['low', 'normal', 'high', 'urgent'];
+    if (!validPriorities.includes(priority)) {
+      return res.status(400).json({
+        success: false,
+        message: `Độ ưu tiên không hợp lệ. Cho phép: ${validPriorities.join(', ')}`
+      });
+    }
+
+    // Generate ticket number
+    const { data: ticketNumber, error: numError } = await supabase
+      .rpc('generate_ticket_number');
+
+    if (numError) throw numError;
+
+    // Determine center_id
+    let centerId = req.user.centerId;
+    if (req.user.roleCode === 'SUPER_ADMIN' && req.body.center_id) {
+      centerId = req.body.center_id;
+    }
+
+    // Create ticket
+    const ticketData = {
+      ticket_number: ticketNumber,
+      subject: subject.trim(),
+      category,
+      priority,
+      status: 'open',
+      created_by: student_id || req.user.id, // Use student_id if provided, else current user
+      assigned_to: req.user.roleCode !== 'STUDENT' ? req.user.id : null, // Auto-assign to staff
+      center_id: centerId,
+      class_id: class_id || null,
+      enrollment_id: enrollment_id || null
+    };
+
+    const { data, error } = await supabase
+      .from('support_tickets')
+      .insert([ticketData])
+      .select(`
+        *,
+        created_by_user:users!support_tickets_created_by_fkey (id, full_name, email),
+        assigned_to_user:users!support_tickets_assigned_to_fkey (id, full_name, email)
+      `)
+      .single();
+
+    if (error) throw error;
+
+    // Create initial message if description provided
+    if (description && description.trim()) {
+      await supabase
+        .from('ticket_messages')
+        .insert({
+          ticket_id: data.id,
+          message: description.trim(),
+          sender_id: student_id || req.user.id,
+          is_internal: false
+        });
+    }
+
+    console.log(`🎫 Support ticket created: ${ticketNumber} by ${req.user.email}`);
+
+    res.status(201).json({
+      success: true,
+      message: 'Tạo ticket thành công',
+      data: {
+        ...data,
+        students: data.created_by_user || null,
+        assigned_to: data.assigned_to_user || null,
+        message_count: description ? 1 : 0
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error creating support ticket:', error);
+    next(error);
+  }
+});
+
+/**
+ * PUT /api/admin/support-tickets/:id
+ * Cập nhật ticket (status, assignment, resolution)
+ */
+app.put('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const {
+      status,
+      priority,
+      category,
+      assigned_to,
+      resolution_notes
+    } = req.body;
+
+    // Get existing ticket
+    const { data: existingTicket, error: fetchError } = await supabase
+      .from('support_tickets')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !existingTicket) {
+      return res.status(404).json({ success: false, message: 'Ticket không tồn tại' });
+    }
+
+    // Permission check
+    const isSuperAdmin = req.user.roleCode === 'SUPER_ADMIN';
+    const isSameCenter = existingTicket.center_id === req.user.centerId;
+    const isAssigned = existingTicket.assigned_to === req.user.id;
+
+    if (!isSuperAdmin && !isSameCenter && !isAssigned) {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền sửa ticket này' });
+    }
+
+    // Build update object
+    const updateData = { updated_at: new Date().toISOString() };
+
+    if (status !== undefined) {
+      const validStatuses = ['open', 'in_progress', 'waiting', 'resolved', 'closed'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: `Trạng thái không hợp lệ. Cho phép: ${validStatuses.join(', ')}`
+        });
+      }
+      updateData.status = status;
+
+      // Set resolved info if resolving/closing
+      if ((status === 'resolved' || status === 'closed') && !existingTicket.resolved_at) {
+        updateData.resolved_at = new Date().toISOString();
+        updateData.resolved_by = req.user.id;
+      }
+    }
+
+    if (priority !== undefined) {
+      const validPriorities = ['low', 'normal', 'high', 'urgent'];
+      if (!validPriorities.includes(priority)) {
+        return res.status(400).json({
+          success: false,
+          message: `Độ ưu tiên không hợp lệ. Cho phép: ${validPriorities.join(', ')}`
+        });
+      }
+      updateData.priority = priority;
+    }
+
+    if (category !== undefined) {
+      const validCategories = ['general', 'technical', 'billing', 'course', 'other'];
+      if (!validCategories.includes(category)) {
+        return res.status(400).json({
+          success: false,
+          message: `Danh mục không hợp lệ. Cho phép: ${validCategories.join(', ')}`
+        });
+      }
+      updateData.category = category;
+    }
+
+    if (assigned_to !== undefined) {
+      updateData.assigned_to = assigned_to || null;
+      // Auto-change status to in_progress when assigned
+      if (assigned_to && existingTicket.status === 'open') {
+        updateData.status = 'in_progress';
+      }
+    }
+
+    if (resolution_notes !== undefined) {
+      updateData.resolution_notes = resolution_notes?.trim() || null;
+    }
+
+    const { data, error } = await supabase
+      .from('support_tickets')
+      .update(updateData)
+      .eq('id', id)
+      .select(`
+        *,
+        created_by_user:users!support_tickets_created_by_fkey (id, full_name, email),
+        assigned_to_user:users!support_tickets_assigned_to_fkey (id, full_name, email)
+      `)
+      .single();
+
+    if (error) throw error;
+
+    console.log(`✏️ Support ticket updated: ${data.ticket_number} by ${req.user.email}`);
+
+    res.json({
+      success: true,
+      message: 'Cập nhật ticket thành công',
+      data: {
+        ...data,
+        students: data.created_by_user || null,
+        assigned_to: data.assigned_to_user || null
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error updating support ticket:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /api/support-tickets/:id/messages
+ * Gửi tin nhắn reply vào ticket
+ */
+app.post('/api/support-tickets/:id/messages', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { message, is_internal = false, attachment_url, attachment_name } = req.body;
+
+    // Validate message
+    if (!message || !message.trim()) {
+      return res.status(400).json({ success: false, message: 'Nội dung tin nhắn là bắt buộc' });
+    }
+
+    // Get ticket
+    const { data: ticket, error: ticketError } = await supabase
+      .from('support_tickets')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (ticketError || !ticket) {
+      return res.status(404).json({ success: false, message: 'Ticket không tồn tại' });
+    }
+
+    // Permission check: Must be ticket creator, assignee, or admin
+    const isCreator = ticket.created_by === req.user.id;
+    const isAssignee = ticket.assigned_to === req.user.id;
+    const isAdmin = ['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER'].includes(req.user.roleCode);
+
+    if (!isCreator && !isAssignee && !isAdmin) {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền gửi tin nhắn trong ticket này' });
+    }
+
+    // Only staff can send internal notes
+    const actualIsInternal = is_internal && isAdmin;
+
+    // Create message
+    const { data, error } = await supabase
+      .from('ticket_messages')
+      .insert({
+        ticket_id: id,
+        message: message.trim(),
+        sender_id: req.user.id,
+        is_internal: actualIsInternal,
+        attachment_url: attachment_url || null,
+        attachment_name: attachment_name || null
+      })
+      .select(`
+        *,
+        sender:users!ticket_messages_sender_id_fkey (id, full_name, email, roles!users_role_id_fkey (code))
+      `)
+      .single();
+
+    if (error) throw error;
+
+    // Update ticket's updated_at and status
+    const ticketUpdate = { updated_at: new Date().toISOString() };
+
+    // If staff replies, set to in_progress. If user replies, set to open (if was waiting)
+    if (isAdmin && ticket.status === 'open') {
+      ticketUpdate.status = 'in_progress';
+    } else if (isCreator && ticket.status === 'waiting') {
+      ticketUpdate.status = 'open';
+    }
+
+    await supabase
+      .from('support_tickets')
+      .update(ticketUpdate)
+      .eq('id', id);
+
+    console.log(`💬 Message sent to ticket ${ticket.ticket_number} by ${req.user.email}${actualIsInternal ? ' (internal)' : ''}`);
+
+    res.status(201).json({
+      success: true,
+      message: 'Gửi tin nhắn thành công',
+      data
+    });
+  } catch (error) {
+    console.error('❌ Error sending ticket message:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/support-tickets/stats
+ * Thống kê tickets (dashboard)
+ */
+app.get('/api/admin/support-tickets/stats', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { center_id: queryCenterId } = req.query;
+    const { effectiveCenterId } = getEffectiveCenterId(req.user, queryCenterId);
+
+    let query = supabase.from('support_tickets').select('status, priority, category');
+
+    if (effectiveCenterId) {
+      query = query.eq('center_id', effectiveCenterId);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    // Calculate stats
+    const stats = {
+      total: data?.length || 0,
+      byStatus: {},
+      byPriority: {},
+      byCategory: {}
+    };
+
+    (data || []).forEach(t => {
+      stats.byStatus[t.status] = (stats.byStatus[t.status] || 0) + 1;
+      stats.byPriority[t.priority] = (stats.byPriority[t.priority] || 0) + 1;
+      stats.byCategory[t.category] = (stats.byCategory[t.category] || 0) + 1;
+    });
+
+    res.json({ success: true, data: stats });
+  } catch (error) {
+    console.error('❌ Error fetching ticket stats:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// END SUPPORT TICKETS MANAGEMENT APIs
+// ============================================================
+
+// ============================================================
 // END NEW MODULE APIs
 // ============================================================
 
