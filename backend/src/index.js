@@ -14799,6 +14799,492 @@ app.post('/api/notifications/send-bulk', requireAuth, requireRole(['SUPER_ADMIN'
 // ============================================================
 
 // ============================================================
+// DOCUMENTS MANAGEMENT APIs
+// ============================================================
+
+/**
+ * GET /api/admin/documents
+ * Lấy danh sách tài liệu với filters
+ * Query params: type, course_id, class_id, center_id, search
+ */
+app.get('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const { type, course_id, class_id, center_id: queryCenterId, search, page = 1, limit = 50 } = req.query;
+
+    // Permission check with center filtering
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, queryCenterId);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    // Build query
+    let query = supabase
+      .from('documents')
+      .select(`
+        *,
+        courses!documents_course_id_fkey (id, title, code),
+        classes!documents_class_id_fkey (id, name),
+        uploaded_by_user:users!documents_uploaded_by_fkey (id, full_name, email)
+      `)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false });
+
+    // Apply filters
+    if (effectiveCenterId) {
+      query = query.eq('center_id', effectiveCenterId);
+    }
+
+    if (type) {
+      query = query.eq('type', type);
+    }
+
+    if (course_id) {
+      query = query.eq('course_id', course_id);
+    }
+
+    if (class_id) {
+      query = query.eq('class_id', class_id);
+    }
+
+    // Full-text search using search_vector or simple ILIKE
+    if (search && search.trim().length >= 2) {
+      const term = search.trim();
+      query = query.or(`title.ilike.%${term}%,description.ilike.%${term}%,file_name.ilike.%${term}%`);
+    }
+
+    // Pagination
+    const pageNum = parseInt(page) || 1;
+    const limitNum = Math.min(parseInt(limit) || 50, 100);
+    const offset = (pageNum - 1) * limitNum;
+    query = query.range(offset, offset + limitNum - 1);
+
+    const { data, error, count } = await query;
+
+    if (error) throw error;
+
+    // Transform data for frontend compatibility
+    const transformedData = (data || []).map(doc => ({
+      ...doc,
+      courses: doc.courses || null,
+      classes: doc.classes || null,
+      uploaded_by: doc.uploaded_by_user || null
+    }));
+
+    console.log(`📄 Documents fetched: ${transformedData.length} items by ${req.user.email}`);
+
+    res.json({
+      success: true,
+      data: transformedData,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total: count || transformedData.length
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error fetching documents:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/documents/:id
+ * Lấy chi tiết một tài liệu
+ */
+app.get('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const { data, error } = await supabase
+      .from('documents')
+      .select(`
+        *,
+        courses!documents_course_id_fkey (id, title, code),
+        classes!documents_class_id_fkey (id, name),
+        uploaded_by_user:users!documents_uploaded_by_fkey (id, full_name, email)
+      `)
+      .eq('id', id)
+      .is('deleted_at', null)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({ success: false, message: 'Tài liệu không tồn tại' });
+      }
+      throw error;
+    }
+
+    // Permission check: only allow access to documents in user's center (except SUPER_ADMIN)
+    if (req.user.roleCode !== 'SUPER_ADMIN' && data.center_id && data.center_id !== req.user.centerId) {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền xem tài liệu này' });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        ...data,
+        courses: data.courses || null,
+        classes: data.classes || null,
+        uploaded_by: data.uploaded_by_user || null
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error fetching document:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/documents
+ * Tạo tài liệu mới
+ * Body: title, file_url, file_name, description?, type?, course_id?, class_id?, file_size?, file_type?, is_public?
+ */
+app.post('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const {
+      title,
+      description,
+      file_url,
+      file_name,
+      file_size,
+      file_type,
+      course_id,
+      class_id,
+      type = 'material',
+      is_public = false,
+      tags = []
+    } = req.body;
+
+    // Validate required fields
+    if (!title || !file_url || !file_name) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tiêu đề, URL file và tên file là bắt buộc'
+      });
+    }
+
+    // Validate document type
+    const validTypes = ['lesson', 'exercise', 'exam', 'reference', 'material', 'assignment', 'resource', 'video', 'audio', 'image', 'other'];
+    if (!validTypes.includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: `Loại tài liệu không hợp lệ. Cho phép: ${validTypes.join(', ')}`
+      });
+    }
+
+    // Determine center_id
+    let centerId = req.user.centerId;
+    if (req.user.roleCode === 'SUPER_ADMIN' && req.body.center_id) {
+      centerId = req.body.center_id;
+    }
+
+    // If class_id provided, verify it exists and get its center_id
+    if (class_id) {
+      const { data: classData, error: classError } = await supabase
+        .from('classes')
+        .select('id, center_id')
+        .eq('id', class_id)
+        .single();
+
+      if (classError || !classData) {
+        return res.status(400).json({ success: false, message: 'Lớp học không tồn tại' });
+      }
+
+      // Use class's center_id if not SUPER_ADMIN
+      if (req.user.roleCode !== 'SUPER_ADMIN') {
+        centerId = classData.center_id;
+      }
+    }
+
+    // Create document
+    const documentData = {
+      title: title.trim(),
+      description: description?.trim() || null,
+      file_url,
+      file_name,
+      file_size: file_size || null,
+      file_type: file_type || null,
+      course_id: course_id || null,
+      class_id: class_id || null,
+      center_id: centerId,
+      type,
+      is_public,
+      tags: Array.isArray(tags) ? tags : [],
+      uploaded_by: req.user.id,
+      download_count: 0,
+      view_count: 0,
+      version: 1
+    };
+
+    const { data, error } = await supabase
+      .from('documents')
+      .insert([documentData])
+      .select(`
+        *,
+        courses!documents_course_id_fkey (id, title, code),
+        classes!documents_class_id_fkey (id, name),
+        uploaded_by_user:users!documents_uploaded_by_fkey (id, full_name, email)
+      `)
+      .single();
+
+    if (error) throw error;
+
+    console.log(`📄 Document created: "${title}" by ${req.user.email}`);
+
+    res.status(201).json({
+      success: true,
+      message: 'Tạo tài liệu thành công',
+      data: {
+        ...data,
+        courses: data.courses || null,
+        classes: data.classes || null,
+        uploaded_by: data.uploaded_by_user || null
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error creating document:', error);
+    next(error);
+  }
+});
+
+/**
+ * PUT /api/admin/documents/:id
+ * Cập nhật tài liệu
+ */
+app.put('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const {
+      title,
+      description,
+      file_url,
+      file_name,
+      file_size,
+      file_type,
+      course_id,
+      class_id,
+      type,
+      is_public,
+      tags
+    } = req.body;
+
+    // Get existing document
+    const { data: existingDoc, error: fetchError } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('id', id)
+      .is('deleted_at', null)
+      .single();
+
+    if (fetchError || !existingDoc) {
+      return res.status(404).json({ success: false, message: 'Tài liệu không tồn tại' });
+    }
+
+    // Permission check: only owner, center_manager of same center, or super_admin can update
+    const isOwner = existingDoc.uploaded_by === req.user.id;
+    const isSameCenter = existingDoc.center_id === req.user.centerId;
+    const isSuperAdmin = req.user.roleCode === 'SUPER_ADMIN';
+    const isCenterManager = req.user.roleCode === 'CENTER_MANAGER' && isSameCenter;
+
+    if (!isOwner && !isSuperAdmin && !isCenterManager) {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền sửa tài liệu này' });
+    }
+
+    // Validate type if provided
+    if (type) {
+      const validTypes = ['lesson', 'exercise', 'exam', 'reference', 'material', 'assignment', 'resource', 'video', 'audio', 'image', 'other'];
+      if (!validTypes.includes(type)) {
+        return res.status(400).json({
+          success: false,
+          message: `Loại tài liệu không hợp lệ. Cho phép: ${validTypes.join(', ')}`
+        });
+      }
+    }
+
+    // Build update object (only include provided fields)
+    const updateData = { updated_at: new Date().toISOString() };
+
+    if (title !== undefined) updateData.title = title.trim();
+    if (description !== undefined) updateData.description = description?.trim() || null;
+    if (file_url !== undefined) updateData.file_url = file_url;
+    if (file_name !== undefined) updateData.file_name = file_name;
+    if (file_size !== undefined) updateData.file_size = file_size;
+    if (file_type !== undefined) updateData.file_type = file_type;
+    if (course_id !== undefined) updateData.course_id = course_id || null;
+    if (class_id !== undefined) updateData.class_id = class_id || null;
+    if (type !== undefined) updateData.type = type;
+    if (is_public !== undefined) updateData.is_public = is_public;
+    if (tags !== undefined) updateData.tags = Array.isArray(tags) ? tags : [];
+
+    // Increment version if file changed
+    if (file_url && file_url !== existingDoc.file_url) {
+      updateData.version = (existingDoc.version || 1) + 1;
+    }
+
+    const { data, error } = await supabase
+      .from('documents')
+      .update(updateData)
+      .eq('id', id)
+      .select(`
+        *,
+        courses!documents_course_id_fkey (id, title, code),
+        classes!documents_class_id_fkey (id, name),
+        uploaded_by_user:users!documents_uploaded_by_fkey (id, full_name, email)
+      `)
+      .single();
+
+    if (error) throw error;
+
+    console.log(`✏️ Document updated: "${data.title}" by ${req.user.email}`);
+
+    res.json({
+      success: true,
+      message: 'Cập nhật tài liệu thành công',
+      data: {
+        ...data,
+        courses: data.courses || null,
+        classes: data.classes || null,
+        uploaded_by: data.uploaded_by_user || null
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error updating document:', error);
+    next(error);
+  }
+});
+
+/**
+ * DELETE /api/admin/documents/:id
+ * Xóa tài liệu (soft delete)
+ */
+app.delete('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Get existing document
+    const { data: existingDoc, error: fetchError } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('id', id)
+      .is('deleted_at', null)
+      .single();
+
+    if (fetchError || !existingDoc) {
+      return res.status(404).json({ success: false, message: 'Tài liệu không tồn tại' });
+    }
+
+    // Permission check
+    const isOwner = existingDoc.uploaded_by === req.user.id;
+    const isSameCenter = existingDoc.center_id === req.user.centerId;
+    const isSuperAdmin = req.user.roleCode === 'SUPER_ADMIN';
+    const isCenterManager = req.user.roleCode === 'CENTER_MANAGER' && isSameCenter;
+
+    if (!isOwner && !isSuperAdmin && !isCenterManager) {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền xóa tài liệu này' });
+    }
+
+    // Soft delete
+    const { error } = await supabase
+      .from('documents')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (error) throw error;
+
+    console.log(`🗑️ Document deleted: "${existingDoc.title}" by ${req.user.email}`);
+
+    res.json({
+      success: true,
+      message: 'Xóa tài liệu thành công'
+    });
+  } catch (error) {
+    console.error('❌ Error deleting document:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/documents/:id/download
+ * Ghi nhận download event
+ */
+app.post('/api/admin/documents/:id/download', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Verify document exists
+    const { data: doc, error: docError } = await supabase
+      .from('documents')
+      .select('id, center_id, title')
+      .eq('id', id)
+      .is('deleted_at', null)
+      .single();
+
+    if (docError || !doc) {
+      return res.status(404).json({ success: false, message: 'Tài liệu không tồn tại' });
+    }
+
+    // Record download (trigger will auto-increment download_count)
+    const { error } = await supabase
+      .from('document_downloads')
+      .insert({
+        document_id: id,
+        user_id: req.user.id,
+        center_id: doc.center_id,
+        ip_address: req.ip || req.headers['x-forwarded-for'] || 'unknown',
+        user_agent: req.headers['user-agent'] || 'unknown'
+      });
+
+    if (error) {
+      console.error('Download tracking error:', error);
+      // Don't fail the request, just log
+    }
+
+    console.log(`📥 Document downloaded: "${doc.title}" by ${req.user.email}`);
+
+    res.json({
+      success: true,
+      message: 'Download tracked'
+    });
+  } catch (error) {
+    console.error('❌ Error tracking download:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/documents/:id/stats
+ * Lấy thống kê download của tài liệu
+ */
+app.get('/api/admin/documents/:id/stats', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Get document stats using the helper function
+    const { data, error } = await supabase
+      .rpc('get_document_download_stats', { doc_id: id });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: data?.[0] || {
+        total_downloads: 0,
+        unique_users: 0,
+        downloads_this_month: 0,
+        downloads_this_week: 0
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error fetching document stats:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// END DOCUMENTS MANAGEMENT APIs
+// ============================================================
+
+// ============================================================
 // END NEW MODULE APIs
 // ============================================================
 
