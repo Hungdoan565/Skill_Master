@@ -55,3 +55,8 @@ export { RevenueBarChart } from './RevenueBarChart';
 export { DistributionDonut } from './DistributionDonut';
 export { EnrollmentsTable } from './EnrollmentsTable';
 
+// Enhancement Widgets
+export { GoalProgressWidget } from './GoalProgressWidget';
+export { TopTeachersWidget } from './TopTeachersWidget';
+
+
