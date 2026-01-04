@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '../hooks';
+import { useStaff } from '@/features/staff/hooks';
 import { DollarSign, Users, BookOpen, AlertTriangle, RefreshCw, Download } from 'lucide-react';
 
 // New V2 Components
@@ -15,6 +16,8 @@ import { StatCard } from '../components/StatCard';
 import { RevenueBarChart } from '../components/RevenueBarChart';
 import { DistributionDonut } from '../components/DistributionDonut';
 import { EnrollmentsTable } from '../components/EnrollmentsTable';
+import { GoalProgressWidget } from '../components/GoalProgressWidget';
+import { TopTeachersWidget } from '../components/TopTeachersWidget';
 
 // Existing Components
 import {
@@ -69,9 +72,18 @@ export function DashboardPage() {
     clearError
   } = useDashboard(accessToken, selectedCenterId);
 
+  // Fetch staff for TopTeachersWidget
+  const {
+    staff,
+    loading: staffLoading,
+    fetchStaff
+  } = useStaff();
+
   useEffect(() => {
     fetchDashboardData();
-  }, [fetchDashboardData, selectedCenterId]);
+    // Fetch all staff (no role filter at API level)
+    fetchStaff();
+  }, [fetchDashboardData, fetchStaff, selectedCenterId]);
 
   const userName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Admin';
 
@@ -91,6 +103,19 @@ export function DashboardPage() {
     student_name: student.name || student.full_name,
     status: 'paid' // Default status, should come from API
   }));
+
+  // Transform staff to teachers format for TopTeachersWidget
+  const teachers = staff
+    .filter(member => member.roles?.code === 'TEACHER' && member.status === 'active')
+    .map((member, index) => ({
+      id: member.id,
+      name: member.full_name,
+      subject: member.centers?.name || 'Giáo viên',
+      students: Math.floor(Math.random() * 30) + 15, // Mock for now
+      rating: parseFloat((4.5 + Math.random() * 0.4).toFixed(1)) // Mock rating 4.5-4.9 as number
+    }))
+    .sort((a, b) => b.students - a.students)
+    .slice(0, 5);
 
   return (
     <div className="min-h-screen bg-background">
@@ -186,6 +211,18 @@ export function DashboardPage() {
             loading={loading}
             onClick={() => navigate('/admin/invoices?status=overdue')}
           />
+        </div>
+
+        {/* ========== GOAL + TOP TEACHERS ROW ========== */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+          <GoalProgressWidget
+            revenueGoal={200000000}
+            studentsGoal={50}
+            currentRevenue={getValue(revenue) || 0}
+            currentStudents={getValue(newStudents) || 0}
+            loading={loading}
+          />
+          <TopTeachersWidget teachers={teachers} loading={staffLoading} />
         </div>
 
         {/* ========== CHARTS ROW ========== */}
