@@ -1,45 +1,58 @@
 /**
- * DashboardPage Component
- * Trang tổng quan admin - UPGRADED version
- * - Thêm error handling
- * - Thêm widgets mới (Payment, Today Schedule)
- * - Thêm center selector cho SUPER_ADMIN
- * - Responsive layout cải tiến
- * - Date range filtering
- * - Export functionality
- * - Activity stream (optional)
- * - PERFORMANCE: Centralized data fetching with caching
+ * DashboardPage V2
+ * Complete redesign based on Dribbble references
+ * Layout: KPI Row → Charts Row → Table + Widgets Row
  */
 
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '../hooks';
-import { useClassesList } from '@/features/classes-list/hooks/useClassesList';
-import { exportDashboardToCSV } from '../utils';
+import { DollarSign, Users, BookOpen, AlertTriangle, RefreshCw, Download } from 'lucide-react';
+
+// New V2 Components
+import { StatCard } from '../components/StatCard';
+import { RevenueBarChart } from '../components/RevenueBarChart';
+import { DistributionDonut } from '../components/DistributionDonut';
+import { EnrollmentsTable } from '../components/EnrollmentsTable';
+
+// Existing Components
 import {
-  DashboardHeader,
-  StatsSection,
-  ChartsSection,
-  RecentStudentsList,
-  QuickActionsCard,
-  PaymentOverviewCard,
-  TodayScheduleCard,
-  ClassInsightsCard,
-  ErrorAlert,
   CenterSelector,
   DateRangeSelector,
-  GettingStartedCard
+  TodayScheduleCard,
+  QuickActionsCard,
+  ErrorAlert
 } from '../components';
 import { ActionableAlertsWidget } from '../components/ActionableAlertsWidget';
+import { exportDashboardToCSV } from '../utils';
+
+// Helpers
+const getValue = (val) => {
+  if (val === null || val === undefined) return 0;
+  if (typeof val === 'object' && val.value !== undefined) return val.value;
+  return val;
+};
+
+const getFormatted = (val) => {
+  if (val === null || val === undefined) return '0đ';
+  if (typeof val === 'object' && val.formatted !== undefined) return val.formatted;
+  return val;
+};
+
+const getTrend = (val) => {
+  if (val === null || val === undefined) return undefined;
+  if (typeof val === 'object' && val.trend !== undefined) return val.trend;
+  return undefined;
+};
 
 export function DashboardPage() {
+  const navigate = useNavigate();
   const { user, session, profile, isSuperAdmin } = useAuth();
   const accessToken = session?.access_token;
 
-  // State for center filtering (SUPER_ADMIN only)
   const [selectedCenterId, setSelectedCenterId] = useState(null);
   const [selectedDateRange, setSelectedDateRange] = useState('this_month');
-  const [dateRangeValues, setDateRangeValues] = useState(null);
 
   const {
     loading,
@@ -56,154 +69,152 @@ export function DashboardPage() {
     clearError
   } = useDashboard(accessToken, selectedCenterId);
 
-  // Use centralized classes data hook - for ClassInsightsCard
-  const {
-    classes,
-    loading: classesLoading,
-    fetchClasses,
-    refreshClasses
-  } = useClassesList();
-
-  // Fetch data on mount and when center changes
   useEffect(() => {
     fetchDashboardData();
-    // Fetch classes with centerId filter
-    fetchClasses({ centerId: selectedCenterId });
-  }, [fetchDashboardData, fetchClasses, selectedCenterId]);
+  }, [fetchDashboardData, selectedCenterId]);
 
-  // Get user name for greeting
-  const userName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0];
+  const userName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Admin';
 
-  // Handle center change
-  const handleCenterChange = (centerId) => {
-    setSelectedCenterId(centerId);
-  };
-
-  // Handle date range change
-  const handleDateRangeChange = (rangeId, rangeValues) => {
-    setSelectedDateRange(rangeId);
-    setDateRangeValues(rangeValues);
-    // Will trigger re-fetch via useEffect when implemented
-  };
-
-  // Handle export
   const handleExport = () => {
-    const exportData = {
-      stats,
-      revenueChart,
-      courseDistribution,
-      recentStudents,
-      paymentOverview,
-      todaySchedule
-    };
-    exportDashboardToCSV(exportData);
+    exportDashboardToCSV({ stats, revenueChart, courseDistribution, recentStudents, paymentOverview, todaySchedule });
   };
 
-  // Handle refresh all data
-  const handleRefreshAll = () => {
-    refresh();
-    refreshClasses({ centerId: selectedCenterId });
-  };
+  // Stats data
+  const revenue = stats?.revenue;
+  const newStudents = stats?.newStudents;
+  const activeClasses = stats?.activeClasses;
+  const debt = stats?.debt;
+
+  // Transform recent students for table
+  const enrollmentsData = (recentStudents || []).map(student => ({
+    ...student,
+    student_name: student.name || student.full_name,
+    status: 'paid' // Default status, should come from API
+  }));
 
   return (
-    <div className="min-h-screen bg-gray-50/50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header with Center Selector and Date Range */}
-        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-8">
-          <DashboardHeader
-            userName={userName}
-            onRefresh={handleRefreshAll}
-            onExport={handleExport}
-            refreshing={refreshing}
-          />
+    <div className="min-h-screen bg-background">
+      <div className="max-w-[1600px] mx-auto p-6 lg:p-8 space-y-6">
 
-          {/* Filters - Center Selector and Date Range */}
+        {/* ========== HEADER ========== */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          {/* Left: Welcome */}
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-bold text-foreground">
+              Xin chào, {userName} 👋
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Đây là tổng quan hoạt động của trung tâm hôm nay
+            </p>
+          </div>
+
+          {/* Right: Actions */}
           <div className="flex flex-wrap items-center gap-3">
             <DateRangeSelector
               selectedRange={selectedDateRange}
-              onRangeChange={handleDateRangeChange}
+              onRangeChange={(rangeId) => setSelectedDateRange(rangeId)}
             />
 
             {isSuperAdmin?.() && (
               <CenterSelector
                 selectedCenterId={selectedCenterId}
-                onCenterChange={handleCenterChange}
+                onCenterChange={setSelectedCenterId}
                 accessToken={accessToken}
               />
             )}
+
+            <button
+              onClick={() => refresh()}
+              disabled={refreshing}
+              className="p-2.5 rounded-xl bg-card border border-border hover:bg-muted transition-colors disabled:opacity-50"
+              title="Làm mới dữ liệu"
+            >
+              <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
+            </button>
+
+            <button
+              onClick={handleExport}
+              className="p-2.5 rounded-xl bg-card border border-border hover:bg-muted transition-colors"
+              title="Xuất báo cáo"
+            >
+              <Download size={18} />
+            </button>
           </div>
         </div>
 
         {/* Error Alert */}
-        <ErrorAlert
-          message={error}
-          onRetry={refresh}
-          onDismiss={clearError}
-        />
+        <ErrorAlert message={error} onRetry={refresh} onDismiss={clearError} />
 
-        {/* Getting Started Card - Chỉ hiện khi là admin mới */}
-        {stats && (
-          <div className="mb-8">
-            <GettingStartedCard
-              completedSteps={{
-                hasCenter: stats?.summary?.totalCenters > 0,
-                hasStaff: stats?.summary?.totalTeachers > 0,
-                hasCourses: stats?.summary?.totalCourses > 0,
-                hasClasses: (stats?.activeClasses?.value || 0) > 0,
-                hasStudents: (stats?.newStudents?.value || 0) > 0,
-              }}
-            />
-          </div>
-        )}
-
-        {/* Stats Section */}
-        <div className="mb-8">
-          <StatsSection stats={stats} loading={loading} />
-        </div>
-
-        {/* Charts Section */}
-        <div className="mb-8">
-          <ChartsSection
-            revenueData={revenueChart}
-            distributionData={courseDistribution}
+        {/* ========== KPI ROW ========== */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
+          <StatCard
+            title="Tổng doanh thu"
+            value={getFormatted(revenue)}
+            trend={getTrend(revenue)}
+            trendLabel="so với tháng trước"
+            icon={DollarSign}
+            iconColor="orange"
             loading={loading}
+            onClick={() => navigate('/admin/invoices?status=paid')}
           />
-        </div>
-
-        {/* Middle Section: Payment Overview + Today Schedule + Class Insights */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <PaymentOverviewCard
-            data={paymentOverview}
+          <StatCard
+            title="Học viên ghi danh"
+            value={getValue(newStudents)}
+            trend={getTrend(newStudents)}
+            trendLabel="so với tháng trước"
+            icon={Users}
+            iconColor="emerald"
             loading={loading}
+            onClick={() => navigate('/admin/students')}
           />
-          <TodayScheduleCard
-            data={todaySchedule}
+          <StatCard
+            title="Lớp đang hoạt động"
+            value={getValue(activeClasses)}
+            trend={getTrend(activeClasses)}
+            icon={BookOpen}
+            iconColor="blue"
             loading={loading}
+            onClick={() => navigate('/admin/classes?status=active')}
           />
-          <ClassInsightsCard
-            classes={classes}
-            loading={classesLoading}
-            onRefresh={() => refreshClasses({ centerId: selectedCenterId })}
+          <StatCard
+            title="Công nợ cần thu"
+            value={getFormatted(debt)}
+            trend={undefined}
+            trendLabel={`${paymentOverview?.counts?.overdue || 0} hóa đơn quá hạn`}
+            icon={AlertTriangle}
+            iconColor="red"
+            loading={loading}
+            onClick={() => navigate('/admin/invoices?status=overdue')}
           />
         </div>
 
-        {/* 🔥 NEW: Actionable Alerts Widget */}
-        <div className="mb-8">
-          <ActionableAlertsWidget centerId={selectedCenterId} />
-        </div>
-
-        {/* Bottom Section: Recent Students + Quick Actions */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* ========== CHARTS ROW ========== */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
           <div className="lg:col-span-2">
-            <RecentStudentsList
-              students={recentStudents}
-              loading={loading}
-            />
+            <RevenueBarChart data={revenueChart} loading={loading} />
           </div>
-          <div>
+          <div className="lg:col-span-1">
+            <DistributionDonut data={courseDistribution} loading={loading} />
+          </div>
+        </div>
+
+        {/* ========== TABLE + WIDGETS ROW ========== */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+          {/* Enrollments Table - 2 columns */}
+          <div className="lg:col-span-2">
+            <EnrollmentsTable data={enrollmentsData} loading={loading} />
+          </div>
+
+          {/* Right Column - Schedule + Quick Actions */}
+          <div className="lg:col-span-1 space-y-4 lg:space-y-6">
+            <TodayScheduleCard data={todaySchedule} loading={loading} />
             <QuickActionsCard />
           </div>
         </div>
+
+        {/* ========== ALERTS ROW ========== */}
+        <ActionableAlertsWidget centerId={selectedCenterId} />
+
       </div>
     </div>
   );

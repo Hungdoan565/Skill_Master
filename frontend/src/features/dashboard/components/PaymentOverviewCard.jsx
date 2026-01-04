@@ -1,10 +1,6 @@
-/**
- * PaymentOverviewCard Component
- * Hiển thị tổng quan thanh toán & hóa đơn
- */
-
-import { Receipt, AlertTriangle, Clock, CheckCircle, ChevronRight } from 'lucide-react';
+import { Receipt, AlertTriangle, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { MultiCircularProgress } from './CircularProgress';
 
 export function PaymentOverviewCard({ data, loading = false }) {
     const navigate = useNavigate();
@@ -14,12 +10,10 @@ export function PaymentOverviewCard({ data, loading = false }) {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                 <div className="animate-pulse">
                     <div className="h-5 w-32 bg-gray-200 rounded mb-4" />
-                    <div className="grid grid-cols-2 gap-4">
-                        {[...Array(4)].map((_, i) => (
-                            <div key={i} className="p-3 bg-gray-50 rounded-lg">
-                                <div className="h-4 w-20 bg-gray-200 rounded mb-2" />
-                                <div className="h-6 w-16 bg-gray-200 rounded" />
-                            </div>
+                    <div className="h-40 bg-gray-50 rounded-xl mb-4" />
+                    <div className="space-y-3">
+                        {[...Array(3)].map((_, i) => (
+                            <div key={i} className="h-12 bg-gray-50 rounded-xl" />
                         ))}
                     </div>
                 </div>
@@ -30,88 +24,111 @@ export function PaymentOverviewCard({ data, loading = false }) {
     if (!data) return null;
 
     const { counts, amounts, overdueAlert } = data;
+    const total = counts?.total || 1; // Avoid divide by zero
 
-    const items = [
+    const progressItems = [
         {
-            label: 'Đã thanh toán',
-            count: counts?.paid || 0,
-            amount: amounts?.totalPaidFormatted || '0đ',
-            icon: CheckCircle,
+            label: 'Đã hoàn tất',
+            value: Math.round(((counts?.paid || 0) / total) * 100),
+            sublabel: counts?.paid + ' hóa đơn',
+            color: 'green'
+        },
+        {
+            label: 'Chờ xử lý',
+            value: Math.round(((counts?.pending || 0) / total) * 100),
+            sublabel: counts?.pending + ' hóa đơn',
+            color: 'blue'
+        },
+        {
+            label: 'Quá hạn',
+            value: Math.round(((counts?.overdue || 0) / total) * 100),
+            sublabel: counts?.overdue + ' hóa đơn',
+            color: 'red'
+        }
+    ];
+
+    const statsItems = [
+        {
+            label: 'Tổng tiền đã thu',
+            value: amounts?.totalPaidFormatted || '0đ',
             color: 'text-emerald-600',
             bgColor: 'bg-emerald-50'
         },
         {
-            label: 'Chờ thanh toán',
-            count: counts?.pending || 0,
-            amount: amounts?.totalPendingFormatted || '0đ',
-            icon: Clock,
+            label: 'Tiền đang chờ',
+            value: amounts?.totalPendingFormatted || '0đ',
             color: 'text-blue-600',
             bgColor: 'bg-blue-50'
         },
         {
-            label: 'Quá hạn',
-            count: counts?.overdue || 0,
-            amount: amounts?.totalOverdueFormatted || '0đ',
-            icon: AlertTriangle,
+            label: 'Tiền quá hạn',
+            value: amounts?.totalOverdueFormatted || '0đ',
             color: 'text-red-600',
-            bgColor: 'bg-red-50',
-            alert: true
+            bgColor: 'bg-red-50'
         }
     ];
 
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col h-full hover:shadow-md transition-shadow">
             {/* Header */}
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-100">
                         <Receipt size={20} className="text-white" />
                     </div>
                     <div>
-                        <h3 className="font-semibold text-gray-900">Thanh toán</h3>
-                        <p className="text-xs text-gray-500">{counts?.total || 0} hóa đơn</p>
+                        <h3 className="text-base font-bold text-gray-900">Tình trạng thu phí</h3>
+                        <p className="text-xs text-gray-400 font-medium">Tổng {counts?.total || 0} hóa đơn</p>
                     </div>
                 </div>
                 <button
                     onClick={() => navigate('/admin/invoices')}
-                    className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                    className="p-1.5 hover:bg-gray-50 rounded-lg transition-colors text-gray-400 hover:text-indigo-600"
                 >
-                    Chi tiết
-                    <ChevronRight size={16} />
+                    <ChevronRight size={20} />
                 </button>
+            </div>
+
+            {/* Visual Progress Section */}
+            <div className="bg-gray-50/50 rounded-2xl p-4 mb-6 ring-1 ring-gray-100/50">
+                <MultiCircularProgress items={progressItems} size={70} />
             </div>
 
             {/* Alert Banner */}
             {overdueAlert && (
-                <div className="flex items-center gap-2 p-3 mb-4 bg-red-50 border border-red-100 rounded-lg">
+                <div className="flex items-center gap-2 p-3 mb-6 bg-red-50 border border-red-100 rounded-xl animate-in fade-in slide-in-from-top-2">
                     <AlertTriangle size={16} className="text-red-500" />
-                    <span className="text-sm text-red-700 font-medium">
-                        Có {counts?.overdue || 0} hóa đơn quá hạn cần xử lý
+                    <span className="text-xs text-red-700 font-bold">
+                        {counts?.overdue || 0} hóa đơn quá hạn cần lưu ý!
                     </span>
                 </div>
             )}
 
-            {/* Stats Grid */}
-            <div className="space-y-3">
-                {items.map((item, index) => (
+            {/* List Stats */}
+            <div className="space-y-3 mt-auto">
+                {statsItems.map((item, index) => (
                     <div
                         key={index}
-                        className={`flex items-center justify-between p-3 rounded-xl ${item.bgColor} ${item.alert && counts?.overdue > 0 ? 'ring-1 ring-red-200' : ''
-                            }`}
+                        className="flex items-center justify-between p-3 rounded-xl border border-transparent hover:border-gray-100 hover:bg-gray-50/50 transition-all group"
                     >
-                        <div className="flex items-center gap-3">
-                            <item.icon size={18} className={item.color} />
-                            <span className="text-sm font-medium text-gray-700">{item.label}</span>
-                        </div>
+                        <span className="text-sm font-medium text-gray-500">{item.label}</span>
                         <div className="text-right">
-                            <p className={`text-sm font-bold ${item.color}`}>{item.amount}</p>
-                            <p className="text-xs text-gray-500">{item.count} hóa đơn</p>
+                            <p className={`text-sm font-heavy ${item.color} tabular-nums`}>{item.value}</p>
                         </div>
                     </div>
                 ))}
             </div>
+
+            {/* Actions */}
+            <button
+                onClick={() => navigate('/admin/invoices')}
+                className="mt-6 w-full py-2.5 bg-gray-900 text-white rounded-xl text-sm font-bold hover:bg-gray-800 transition-colors shadow-sm"
+            >
+                Quản lý hóa đơn
+            </button>
         </div>
     );
 }
 
 export default PaymentOverviewCard;
+

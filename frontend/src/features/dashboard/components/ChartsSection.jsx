@@ -1,11 +1,6 @@
-/**
- * ChartsSection Component
- * Section chứa các biểu đồ - clean design
- */
-
 import { MoreHorizontal } from 'lucide-react';
-import { SimpleAreaChart } from './SimpleAreaChart';
-import { SimplePieChart } from './SimplePieChart';
+import { ModernAreaChart } from './ModernAreaChart';
+import { ModernPieChart } from './ModernPieChart';
 
 export function ChartsSection({ revenueData = [], distributionData = [], loading = false }) {
   if (loading) {
@@ -28,38 +23,43 @@ export function ChartsSection({ revenueData = [], distributionData = [], loading
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
       {/* Revenue Chart */}
-      <div className="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <div className="flex items-start justify-between mb-6">
+      <div className="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col">
+        <div className="flex items-start justify-between mb-8">
           <div>
-            <h3 className="font-semibold text-gray-900">Doanh thu theo tháng</h3>
-            <p className="text-sm text-gray-500 mt-0.5">12 tháng gần nhất</p>
+            <h3 className="text-lg font-bold text-gray-900 tracking-tight">Cân đối tài chính</h3>
+            <p className="text-sm text-gray-400 mt-0.5 font-medium">Doanh thu 12 tháng gần nhất</p>
           </div>
-          <button className="p-2 hover:bg-gray-50 rounded-lg transition-colors -mr-2 -mt-1">
-            <MoreHorizontal size={18} className="text-gray-400" />
+          <button className="p-2 hover:bg-gray-50 rounded-xl transition-colors -mr-2 -mt-1 ring-1 ring-transparent active:ring-gray-100">
+            <MoreHorizontal size={20} className="text-gray-400" />
           </button>
         </div>
-        <SimpleAreaChart 
-          data={revenueData} 
-          dataKey="revenue" 
-          height={280}
-        />
+        <div className="flex-1 min-h-[300px]">
+          <ModernAreaChart
+            data={revenueData}
+            dataKey="revenue"
+            height={300}
+          />
+        </div>
       </div>
 
       {/* Distribution Chart */}
-      <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <div className="flex items-start justify-between mb-6">
+      <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col">
+        <div className="flex items-start justify-between mb-8">
           <div>
-            <h3 className="font-semibold text-gray-900">Phân bố học viên</h3>
-            <p className="text-sm text-gray-500 mt-0.5">Theo khóa học</p>
+            <h3 className="text-lg font-bold text-gray-900 tracking-tight">Thị phần khóa học</h3>
+            <p className="text-sm text-gray-400 mt-0.5 font-medium">Số lượng học viên theo loại</p>
           </div>
-          <button className="p-2 hover:bg-gray-50 rounded-lg transition-colors -mr-2 -mt-1">
-            <MoreHorizontal size={18} className="text-gray-400" />
+          <button className="p-2 hover:bg-gray-50 rounded-xl transition-colors -mr-2 -mt-1">
+            <MoreHorizontal size={20} className="text-gray-400" />
           </button>
         </div>
-        <SimplePieChart data={distributionData} />
+        <div className="flex-1">
+          <ModernPieChart data={distributionData} />
+        </div>
       </div>
     </div>
   );
 }
 
 export default ChartsSection;
+

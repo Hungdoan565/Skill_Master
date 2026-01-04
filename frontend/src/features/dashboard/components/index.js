@@ -48,3 +48,10 @@ export { ClassInsightsCard } from './ClassInsightsCard';
 export { ErrorAlert } from './ErrorAlert';
 export { CenterSelector } from './CenterSelector';
 export { DateRangeSelector } from './DateRangeSelector';
+
+// V2 Components
+export { StatCard } from './StatCard';
+export { RevenueBarChart } from './RevenueBarChart';
+export { DistributionDonut } from './DistributionDonut';
+export { EnrollmentsTable } from './EnrollmentsTable';
+

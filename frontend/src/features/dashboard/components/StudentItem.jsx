@@ -8,7 +8,7 @@ import { Calendar } from 'lucide-react';
 export function StudentItem({ student }) {
   // Get name from either 'name' or 'full_name' field
   const studentName = student.name || student.full_name;
-  
+
   // Generate avatar from name
   const getInitials = (name) => {
     if (!name || name === 'N/A') return '?';
@@ -35,8 +35,8 @@ export function StudentItem({ student }) {
   return (
     <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors">
       {/* Avatar - solid orange */}
-      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center">
-        <span className="text-sm font-semibold text-white">
+      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center ring-1 ring-indigo-100">
+        <span className="text-sm font-bold text-indigo-600">
           {hasName ? getInitials(studentName) : '?'}
         </span>
       </div>

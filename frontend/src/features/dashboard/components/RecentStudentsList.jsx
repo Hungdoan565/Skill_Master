@@ -36,9 +36,10 @@ export function RecentStudentsList({ students = [], loading = false }) {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center">
-            <Users size={20} className="text-white" />
+          <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center ring-1 ring-orange-100">
+            <Users size={20} className="text-orange-600" />
           </div>
+
           <div>
             <h3 className="font-semibold text-gray-900">Sinh viên mới</h3>
             <p className="text-xs text-gray-500">Đăng ký gần đây</p>
