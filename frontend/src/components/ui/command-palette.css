@@ -1,0 +1,111 @@
+/* Command Palette Styles */
+/* Sử dụng CSS variables theo Design System: Swiss Minimalism */
+
+[cmdk-root] {
+  --cmdk-accent: #5856d6; /* Primary Indigo */
+}
+
+[cmdk-dialog] {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+}
+
+[cmdk-input] {
+  font-family: "Space Grotesk", system-ui, sans-serif;
+}
+
+/* Command Item styles */
+.command-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  margin: 2px 0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+}
+
+.command-item:hover,
+.command-item[data-selected="true"] {
+  background: linear-gradient(135deg, #f8f7ff 0%, #f0f0ff 100%);
+  outline: none;
+}
+
+.command-item[data-selected="true"] {
+  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+}
+
+.command-item[data-selected="true"] svg:last-child {
+  color: #5856d6;
+  transform: translateX(4px);
+}
+
+/* Group heading styles */
+[cmdk-group-heading] {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #71717a;
+  padding: 8px 12px 4px;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+}
+
+/* Empty state */
+[cmdk-empty] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  color: #71717a;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+}
+
+/* Keyboard shortcuts */
+.command-item kbd {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 11px;
+  padding: 2px 6px;
+  background: #f4f4f5;
+  border: 1px solid #e4e4e7;
+  border-radius: 4px;
+  color: #71717a;
+}
+
+/* Scrollbar styling */
+[cmdk-list]::-webkit-scrollbar {
+  width: 8px;
+}
+
+[cmdk-list]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[cmdk-list]::-webkit-scrollbar-thumb {
+  background: #e4e4e7;
+  border-radius: 4px;
+}
+
+[cmdk-list]::-webkit-scrollbar-thumb:hover {
+  background: #d4d4d8;
+}
+
+/* Animation */
+@keyframes command-fade-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+.command-palette-dialog > div:last-child {
+  animation: command-fade-in 0.15s ease-out;
+}
