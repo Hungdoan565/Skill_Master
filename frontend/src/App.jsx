@@ -86,12 +86,12 @@ const PlaceholderPage = ({ title, description }) => (
 // Role Badge Component
 const RoleBadge = ({ roleCode }) => {
   const roleConfig = {
-    SUPER_ADMIN: { label: 'Super Admin', color: 'bg-red-100 text-red-700' },
-    CENTER_MANAGER: { label: 'Quản lý', color: 'bg-purple-100 text-purple-700' },
-    TEACHER: { label: 'Giáo viên', color: 'bg-blue-100 text-blue-700' },
-    STUDENT: { label: 'Học viên', color: 'bg-green-100 text-green-700' },
+    SUPER_ADMIN: { label: 'Super Admin', color: 'bg-red-500/10 text-red-700 ring-1 ring-inset ring-red-600/20' },
+    CENTER_MANAGER: { label: 'Quản lý', color: 'bg-purple-500/10 text-purple-700 ring-1 ring-inset ring-purple-600/20' },
+    TEACHER: { label: 'Giáo viên', color: 'bg-blue-500/10 text-blue-700 ring-1 ring-inset ring-blue-600/20' },
+    STUDENT: { label: 'Học viên', color: 'bg-green-500/10 text-green-700 ring-1 ring-inset ring-green-600/20' },
   };
-  const config = roleConfig[roleCode] || { label: 'User', color: 'bg-gray-100 text-gray-700' };
+  const config = roleConfig[roleCode] || { label: 'User', color: 'bg-gray-500/10 text-gray-700 ring-1 ring-inset ring-gray-600/20' };
   return (
     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${config.color}`}>
       {config.label}
@@ -203,11 +203,12 @@ const UserDropdown = ({ user, profile, displayName, avatarUrl, roleCode, onLogou
         <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* Dropdown Menu */}
+      {/* Dropdown Menu - Landing Page Style */}
       <div
         className={`
-          absolute right-0 top-full mt-2 w-72 origin-top-right
-          rounded-xl border border-slate-200 bg-white py-2 shadow-xl shadow-slate-200/50
+          absolute right-0 top-full mt-2 w-64 origin-top-right
+          rounded-2xl border border-zinc-200/80 bg-white py-2 
+          shadow-xl shadow-zinc-200/50
           transition-all duration-200 ease-out z-50
           ${isOpen
             ? 'opacity-100 scale-100 translate-y-0 visible'
@@ -216,51 +217,54 @@ const UserDropdown = ({ user, profile, displayName, avatarUrl, roleCode, onLogou
         `}
       >
         {/* User Info Header */}
-        <div className="px-4 py-3 border-b border-slate-100">
+        <div className="px-4 py-3 border-b border-zinc-100">
           <div className="flex items-center gap-3">
             {avatarUrl ? (
-              <img src={avatarUrl} alt={displayName} className="h-12 w-12 rounded-full object-cover ring-2 ring-slate-100" />
+              <img src={avatarUrl} alt={displayName} className="h-11 w-11 rounded-full object-cover" />
             ) : (
-              <div className={`flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br ${getGradient(displayName)} text-sm font-semibold text-white ring-2 ring-slate-100`}>
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-zinc-900 text-sm font-semibold text-white">
                 {getInitials(displayName)}
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-900 truncate">{displayName}</p>
-              <p className="text-xs text-slate-500 truncate">{user?.email}</p>
-              <div className="mt-1">
-                {roleCode && <RoleBadge roleCode={roleCode} />}
-              </div>
+              <p className="text-sm font-semibold text-zinc-900 truncate">{displayName}</p>
+              <p className="text-xs text-zinc-500 truncate">{user?.email}</p>
             </div>
           </div>
+          {roleCode && (
+            <span className={`mt-2 inline-block text-[10px] font-medium px-2 py-0.5 rounded-full ${getRoleColor()}`}>
+              {getRoleLabel()}
+            </span>
+          )}
         </div>
+      </div>
 
-        {/* Menu Items */}
-        <div className="py-1">
-          {menuItems.map((item, index) => (
-            <div key={item.label}>
-              {item.divider && <div className="my-1 border-t border-slate-100" />}
-              <button
-                onClick={item.action}
-                className={`
-                  w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors duration-150
+      {/* Menu Items */}
+      <div className="py-1">
+        {menuItems.filter(item => !['Trợ giúp'].includes(item.label)).map((item, index) => (
+          <div key={item.label}>
+            {item.divider && <div className="my-1 mx-3 border-t border-zinc-100" />}
+            <button
+              onClick={item.action}
+              className={`
+                  w-full flex items-center gap-3 px-4 py-2.5 text-sm
+                  transition-colors duration-150
                   ${item.danger
-                    ? 'text-red-600 hover:bg-red-50'
-                    : item.highlight
-                      ? 'text-indigo-600 hover:bg-indigo-50 font-medium'
-                      : 'text-slate-700 hover:bg-slate-50'
-                  }
+                  ? 'text-red-600 hover:bg-red-50'
+                  : item.highlight
+                    ? 'text-indigo-600 hover:bg-indigo-50'
+                    : 'text-zinc-700 hover:bg-zinc-50'
+                }
                 `}
-              >
-                <item.icon className={`h-4 w-4 ${item.danger ? 'text-red-500' : item.highlight ? 'text-indigo-500' : 'text-slate-400'}`} />
-                <span>{item.label}</span>
-                {item.highlight && (
-                  <span className="ml-auto text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded">Admin</span>
-                )}
-              </button>
-            </div>
-          ))}
-        </div>
+            >
+              <item.icon className={`h-4 w-4 ${item.danger ? 'text-red-500' : item.highlight ? 'text-indigo-500' : 'text-slate-400'}`} />
+              <span>{item.label}</span>
+              {item.highlight && (
+                <span className="ml-auto text-[10px] bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded">Admin</span>
+              )}
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -484,124 +488,124 @@ function App() {
         <BrowserRouter>
           <Routes>
             {/* Landing Page - Standalone with its own header/footer */}
-          <Route index element={<LandingPage />} />
+            <Route index element={<LandingPage />} />
 
-          {/* Public Pages - Lazy loaded with Suspense */}
-          <Route path="about" element={<Suspense fallback={<PageLoader />}><AboutPage /></Suspense>} />
-          <Route path="resources" element={<Suspense fallback={<PageLoader />}><BlogPage /></Suspense>} />
-          <Route path="blog" element={<Suspense fallback={<PageLoader />}><BlogPage /></Suspense>} />
-          <Route path="blog/:slug" element={<Suspense fallback={<PageLoader />}><BlogDetailPage /></Suspense>} />
-          <Route path="contact" element={<Suspense fallback={<PageLoader />}><ContactPage /></Suspense>} />
-          <Route path="roadmap" element={<Suspense fallback={<PageLoader />}><RoadmapPage /></Suspense>} />
-          <Route path="roadmap/:slug" element={<Suspense fallback={<PageLoader />}><RoadmapPage /></Suspense>} />
+            {/* Public Pages - Lazy loaded with Suspense */}
+            <Route path="about" element={<Suspense fallback={<PageLoader />}><AboutPage /></Suspense>} />
+            <Route path="resources" element={<Suspense fallback={<PageLoader />}><BlogPage /></Suspense>} />
+            <Route path="blog" element={<Suspense fallback={<PageLoader />}><BlogPage /></Suspense>} />
+            <Route path="blog/:slug" element={<Suspense fallback={<PageLoader />}><BlogDetailPage /></Suspense>} />
+            <Route path="contact" element={<Suspense fallback={<PageLoader />}><ContactPage /></Suspense>} />
+            <Route path="roadmap" element={<Suspense fallback={<PageLoader />}><RoadmapPage /></Suspense>} />
+            <Route path="roadmap/:slug" element={<Suspense fallback={<PageLoader />}><RoadmapPage /></Suspense>} />
 
-          {/* Assessment/Placement Test Pages - Lazy loaded */}
-          <Route path="assessment" element={<Suspense fallback={<PageLoader />}><AssessmentPage /></Suspense>} />
-          <Route path="assessment/:slug" element={<Suspense fallback={<PageLoader />}><QuizPage /></Suspense>} />
-          <Route path="assessment/:slug/result" element={<Suspense fallback={<PageLoader />}><ResultPage /></Suspense>} />
+            {/* Assessment/Placement Test Pages - Lazy loaded */}
+            <Route path="assessment" element={<Suspense fallback={<PageLoader />}><AssessmentPage /></Suspense>} />
+            <Route path="assessment/:slug" element={<Suspense fallback={<PageLoader />}><QuizPage /></Suspense>} />
+            <Route path="assessment/:slug/result" element={<Suspense fallback={<PageLoader />}><ResultPage /></Suspense>} />
 
-          {/* Public Courses Page - Standalone with its own header/footer */}
-          <Route path="courses" element={<PublicCoursesPage />} />
-          <Route path="courses/:id" element={<CourseDetailPage />} />
+            {/* Public Courses Page - Standalone with its own header/footer */}
+            <Route path="courses" element={<PublicCoursesPage />} />
+            <Route path="courses/:id" element={<CourseDetailPage />} />
 
-          {/* Public Certificate Verification - No login required */}
-          <Route path="verify-certificate" element={<PublicCertificateVerification />} />
-          <Route path="certificates/:id/view" element={<CertificateViewPage />} />
-          <Route path="certificates/:id/print" element={<CertificatePrintPage />} />
-
-          {/* Auth Pages - Chỉ cho phép khi CHƯA đăng nhập */}
-          <Route path="login" element={
-            <GuestRoute>
-              <AuthPage />
-            </GuestRoute>
-          } />
-          <Route path="register" element={
-            <GuestRoute>
-              <AuthPage />
-            </GuestRoute>
-          } />
-
-          {/* Protected Admin Routes - Chỉ SUPER_ADMIN và CENTER_MANAGER */}
-          <Route path="admin" element={
-            <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'CENTER_MANAGER']}>
-              <AdminLayout />
-            </ProtectedRoute>
-          }>
-            <Route index element={<DashboardPage />} />
-            <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="courses" element={<CoursesPage />} />
-            <Route path="classes" element={<ClassesPage />} />
-            <Route path="classes/:id" element={<ClassDetailPage />} />
-            <Route path="schedule" element={<SchedulePage />} />
-            <Route path="students" element={<StudentsPage />} />
-            <Route path="students/:id" element={<StudentDetailPage />} />
-            <Route path="enrollments" element={<EnrollmentsPage />} />
-            <Route path="enrollments/new" element={<NewEnrollmentPage />} />
-            <Route path="invoices" element={<InvoicesPage />} />
-            <Route path="grades" element={<GradesPage />} />
-            <Route path="payroll" element={<PayrollPage />} />
-            <Route path="staff" element={<StaffPage />} />
-            <Route path="centers" element={<CentersPage />} />
-            <Route path="centers/:id" element={<CenterDetailPage />} />
-            <Route path="rooms" element={<RoomsPage />} />
-            <Route path="documents" element={<DocumentsPage />} />
-            <Route path="certificates" element={<CertificatesPage />} />
-            <Route path="certificates/list" element={<CertificateListPage />} />
-            <Route path="certificates/bulk-print" element={<CertificateBulkPrintPage />} />
-            <Route path="certificates/type/:id" element={<CertificateTypeDetailPage />} />
-            <Route path="certificates/:id/print" element={<CertificatePrintPage />} />
+            {/* Public Certificate Verification - No login required */}
+            <Route path="verify-certificate" element={<PublicCertificateVerification />} />
             <Route path="certificates/:id/view" element={<CertificateViewPage />} />
-            <Route path="support" element={<SupportPage />} />
-            <Route path="support-tickets" element={<SupportPage />} />
-            <Route path="notifications" element={<AdminNotificationsPage />} />
-            <Route path="settings" element={<SettingsPage />} />
-            <Route path="reports" element={<ReportsPage />} />
-            <Route path="reports/revenue" element={<RevenueReportPage />} />
-            <Route path="reports/enrollment" element={<EnrollmentReportPage />} />
-            <Route path="reports/attendance" element={<AttendanceReportPage />} />
-            <Route path="reports/grades" element={<GradesReportPage />} />
-            <Route path="reports/staff" element={<StaffReportPage />} />
-            <Route path="reports/courses" element={<CoursesReportPage />} />
-          </Route>
+            <Route path="certificates/:id/print" element={<CertificatePrintPage />} />
 
-          {/* Teacher Routes - Chỉ TEACHER (và Admin cũng vào được) */}
-          <Route path="teacher" element={
-            <ProtectedRoute allowedRoles={['TEACHER', 'SUPER_ADMIN', 'CENTER_MANAGER']}>
-              <TeacherLayout />
-            </ProtectedRoute>
-          }>
-            <Route index element={<TeacherDashboardPage />} />
-            <Route path="dashboard" element={<TeacherDashboardPage />} />
-            <Route path="schedule" element={<TeacherSchedulePage />} />
-            <Route path="classes" element={<TeacherClassesPage />} />
-            <Route path="classes/:id" element={<PlaceholderPage title="Giáo viên • Chi tiết lớp học" />} />
-            <Route path="classes/:id/attendance" element={<PlaceholderPage title="Giáo viên • Điểm danh" />} />
-            <Route path="classes/:id/gradebook" element={<PlaceholderPage title="Giáo viên • Sổ điểm" />} />
-            <Route path="payroll" element={<TeacherPayrollPage />} />
-            <Route path="availability" element={<TeacherAvailabilityPage />} />
-            <Route path="leave-requests" element={<PlaceholderPage title="Giáo viên • Đơn xin nghỉ" description="Quản lý đơn xin nghỉ phép" />} />
-            <Route path="attendance" element={<PlaceholderPage title="Giáo viên • Điểm danh nhanh" />} />
-            <Route path="profile" element={<PlaceholderPage title="Giáo viên • Thông tin cá nhân" />} />
-            <Route path="settings" element={<PlaceholderPage title="Giáo viên • Cài đặt" />} />
-          </Route>
+            {/* Auth Pages - Chỉ cho phép khi CHƯA đăng nhập */}
+            <Route path="login" element={
+              <GuestRoute>
+                <AuthPage />
+              </GuestRoute>
+            } />
+            <Route path="register" element={
+              <GuestRoute>
+                <AuthPage />
+              </GuestRoute>
+            } />
 
-          {/* Student Routes - Chỉ STUDENT */}
-          <Route path="student" element={
-            <ProtectedRoute allowedRoles={['STUDENT']}>
-              <StudentLayout />
-            </ProtectedRoute>
-          }>
-            <Route path="schedule" element={<PlaceholderPage title="Student • Schedule" />} />
-            <Route path="results" element={<PlaceholderPage title="Student • Results" />} />
-            <Route path="tuition" element={<PlaceholderPage title="Student • Tuition" />} />
-            <Route path="materials" element={<PlaceholderPage title="Student • Materials" />} />
-          </Route>
+            {/* Protected Admin Routes - Chỉ SUPER_ADMIN và CENTER_MANAGER */}
+            <Route path="admin" element={
+              <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'CENTER_MANAGER']}>
+                <AdminLayout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<DashboardPage />} />
+              <Route path="dashboard" element={<DashboardPage />} />
+              <Route path="courses" element={<CoursesPage />} />
+              <Route path="classes" element={<ClassesPage />} />
+              <Route path="classes/:id" element={<ClassDetailPage />} />
+              <Route path="schedule" element={<SchedulePage />} />
+              <Route path="students" element={<StudentsPage />} />
+              <Route path="students/:id" element={<StudentDetailPage />} />
+              <Route path="enrollments" element={<EnrollmentsPage />} />
+              <Route path="enrollments/new" element={<NewEnrollmentPage />} />
+              <Route path="invoices" element={<InvoicesPage />} />
+              <Route path="grades" element={<GradesPage />} />
+              <Route path="payroll" element={<PayrollPage />} />
+              <Route path="staff" element={<StaffPage />} />
+              <Route path="centers" element={<CentersPage />} />
+              <Route path="centers/:id" element={<CenterDetailPage />} />
+              <Route path="rooms" element={<RoomsPage />} />
+              <Route path="documents" element={<DocumentsPage />} />
+              <Route path="certificates" element={<CertificatesPage />} />
+              <Route path="certificates/list" element={<CertificateListPage />} />
+              <Route path="certificates/bulk-print" element={<CertificateBulkPrintPage />} />
+              <Route path="certificates/type/:id" element={<CertificateTypeDetailPage />} />
+              <Route path="certificates/:id/print" element={<CertificatePrintPage />} />
+              <Route path="certificates/:id/view" element={<CertificateViewPage />} />
+              <Route path="support" element={<SupportPage />} />
+              <Route path="support-tickets" element={<SupportPage />} />
+              <Route path="notifications" element={<AdminNotificationsPage />} />
+              <Route path="settings" element={<SettingsPage />} />
+              <Route path="reports" element={<ReportsPage />} />
+              <Route path="reports/revenue" element={<RevenueReportPage />} />
+              <Route path="reports/enrollment" element={<EnrollmentReportPage />} />
+              <Route path="reports/attendance" element={<AttendanceReportPage />} />
+              <Route path="reports/grades" element={<GradesReportPage />} />
+              <Route path="reports/staff" element={<StaffReportPage />} />
+              <Route path="reports/courses" element={<CoursesReportPage />} />
+            </Route>
 
-          <Route path="*" element={<PlaceholderPage title="404" description="Page not found" />} />
-        </Routes>
-      </BrowserRouter>
-    </ToastProvider>
-  </ErrorBoundary>
+            {/* Teacher Routes - Chỉ TEACHER (và Admin cũng vào được) */}
+            <Route path="teacher" element={
+              <ProtectedRoute allowedRoles={['TEACHER', 'SUPER_ADMIN', 'CENTER_MANAGER']}>
+                <TeacherLayout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<TeacherDashboardPage />} />
+              <Route path="dashboard" element={<TeacherDashboardPage />} />
+              <Route path="schedule" element={<TeacherSchedulePage />} />
+              <Route path="classes" element={<TeacherClassesPage />} />
+              <Route path="classes/:id" element={<PlaceholderPage title="Giáo viên • Chi tiết lớp học" />} />
+              <Route path="classes/:id/attendance" element={<PlaceholderPage title="Giáo viên • Điểm danh" />} />
+              <Route path="classes/:id/gradebook" element={<PlaceholderPage title="Giáo viên • Sổ điểm" />} />
+              <Route path="payroll" element={<TeacherPayrollPage />} />
+              <Route path="availability" element={<TeacherAvailabilityPage />} />
+              <Route path="leave-requests" element={<PlaceholderPage title="Giáo viên • Đơn xin nghỉ" description="Quản lý đơn xin nghỉ phép" />} />
+              <Route path="attendance" element={<PlaceholderPage title="Giáo viên • Điểm danh nhanh" />} />
+              <Route path="profile" element={<PlaceholderPage title="Giáo viên • Thông tin cá nhân" />} />
+              <Route path="settings" element={<PlaceholderPage title="Giáo viên • Cài đặt" />} />
+            </Route>
+
+            {/* Student Routes - Chỉ STUDENT */}
+            <Route path="student" element={
+              <ProtectedRoute allowedRoles={['STUDENT']}>
+                <StudentLayout />
+              </ProtectedRoute>
+            }>
+              <Route path="schedule" element={<PlaceholderPage title="Student • Schedule" />} />
+              <Route path="results" element={<PlaceholderPage title="Student • Results" />} />
+              <Route path="tuition" element={<PlaceholderPage title="Student • Tuition" />} />
+              <Route path="materials" element={<PlaceholderPage title="Student • Materials" />} />
+            </Route>
+
+            <Route path="*" element={<PlaceholderPage title="404" description="Page not found" />} />
+          </Routes>
+        </BrowserRouter>
+      </ToastProvider>
+    </ErrorBoundary>
   );
 }
 

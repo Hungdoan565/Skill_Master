@@ -11,7 +11,7 @@ export function AdminLayout() {
       {/* Main content area */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Header - z-index cao để dropdown không bị đè */}
-        <div className="relative z-50">
+        <div className="relative z-[100]">
           <AdminHeader />
         </div>
 

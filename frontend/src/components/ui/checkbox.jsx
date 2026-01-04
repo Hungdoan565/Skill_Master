@@ -6,18 +6,35 @@ import * as React from "react";
 import { Check, Minus } from "lucide-react";
 
 const Checkbox = React.forwardRef(
-    ({ className = "", checked, indeterminate, onCheckedChange, ...props }, ref) => {
+    ({ className = "", checked, indeterminate, onCheckedChange, disabled, ...props }, ref) => {
+        const inputRef = React.useRef(null);
+
+        // Forward ref to input
+        React.useImperativeHandle(ref, () => inputRef.current);
+
         const handleChange = (e) => {
+            if (disabled) return;
             onCheckedChange?.(e.target.checked);
         };
 
+        const handleClick = (e) => {
+            // Prevent double-firing when clicking directly on input
+            if (e.target === inputRef.current) return;
+            if (disabled) return;
+            inputRef.current?.click();
+        };
+
         return (
-            <div className="relative inline-flex items-center justify-center">
+            <div
+                className={`relative inline-flex items-center justify-center ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                onClick={handleClick}
+            >
                 <input
                     type="checkbox"
-                    ref={ref}
+                    ref={inputRef}
                     checked={checked}
                     onChange={handleChange}
+                    disabled={disabled}
                     className="sr-only peer"
                     {...props}
                 />
@@ -28,7 +45,7 @@ const Checkbox = React.forwardRef(
             peer-disabled:cursor-not-allowed peer-disabled:opacity-50
             ${checked || indeterminate ? 'bg-red-500 border-red-500 text-white' : 'bg-white'}
             ${className}
-            transition-colors cursor-pointer flex items-center justify-center
+            transition-colors flex items-center justify-center
           `}
                 >
                     {checked && !indeterminate && (

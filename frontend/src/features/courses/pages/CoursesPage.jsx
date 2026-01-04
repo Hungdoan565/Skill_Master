@@ -11,6 +11,7 @@ import {
   CardHeader,
 } from '@/components/ui/card';
 import { useAuth } from '@/contexts/auth-context';
+import { useDebounce } from '@/hooks/useDebounce';
 
 // Feature imports
 import { useCourses } from '../hooks';
@@ -89,13 +90,18 @@ export function CoursesPage() {
     setSelectedIds([]);
   }, [courses]);
 
+  // Debounced search for better performance
+  const debouncedSearch = useDebounce(searchTerm, 300);
+
   // Advanced filtering & sorting
   const filteredAndSortedCourses = useMemo(() => {
-    let result = filterCourses(searchTerm, statusFilter);
+    let result = filterCourses(debouncedSearch, statusFilter);
 
-    // Category filter
+    // Category filter (case-insensitive)
     if (categoryFilter) {
-      result = result.filter(c => c.category === categoryFilter);
+      result = result.filter(c =>
+        c.category?.toLowerCase() === categoryFilter.toLowerCase()
+      );
     }
 
     // Price range filter
@@ -131,7 +137,14 @@ export function CoursesPage() {
     });
 
     return result;
-  }, [courses, searchTerm, statusFilter, categoryFilter, priceRange, sortBy, filterCourses]);
+  }, [courses, debouncedSearch, statusFilter, categoryFilter, priceRange, sortBy, filterCourses]);
+
+  // Clear selection when filters change
+  useEffect(() => {
+    if (categoryFilter || priceRange.min || priceRange.max || statusFilter) {
+      setSelectedIds([]);
+    }
+  }, [categoryFilter, priceRange, statusFilter]);
 
   // Clear all filters
   const handleClearFilters = useCallback(() => {
@@ -271,6 +284,7 @@ export function CoursesPage() {
             onPriceRangeChange={setPriceRange}
             totalCount={filteredAndSortedCourses.length}
             onClearFilters={handleClearFilters}
+            courses={courses}
           />
         </CardHeader>
         <CardContent>
