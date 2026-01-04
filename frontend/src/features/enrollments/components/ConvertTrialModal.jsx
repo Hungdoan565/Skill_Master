@@ -1,0 +1,214 @@
+/**
+ * ConvertTrialModal Component
+ * 
+ * Modal để chuyển đổi học thử thành đăng ký chính thức
+ * ✅ Uses React Hook Form + Zod validation
+ */
+
+import { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Loader2, ArrowUpRight, CreditCard } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { convertTrialSchema } from '@/lib/validations';
+import { useEnrollments } from '../hooks';
+import { toast } from 'sonner';
+
+// Format currency VND
+const formatCurrency = (amount) => {
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+    maximumFractionDigits: 0
+  }).format(amount || 0);
+};
+
+export function ConvertTrialModal({
+  isOpen,
+  onClose,
+  enrollment,
+  onSuccess,
+}) {
+  const { convertTrialEnrollment } = useEnrollments();
+  const [submitting, setSubmitting] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    watch,
+    reset,
+    formState: { errors }
+  } = useForm({
+    resolver: zodResolver(convertTrialSchema),
+    defaultValues: {
+      tuition_fee: 0,
+      discount_amount: 0,
+    }
+  });
+
+  // Watch values for real-time calculation
+  const tuitionFee = watch('tuition_fee') || 0;
+  const discountAmount = watch('discount_amount') || 0;
+  const finalAmount = Math.max(0, tuitionFee - discountAmount);
+
+  // Reset form when modal opens
+  useEffect(() => {
+    if (isOpen && enrollment) {
+      reset({
+        tuition_fee: enrollment.class?.course?.tuition_fee || 0,
+        discount_amount: 0,
+      });
+    }
+  }, [isOpen, enrollment, reset]);
+
+  // Handle form submission
+  const onSubmit = async (data) => {
+    try {
+      setSubmitting(true);
+      const result = await convertTrialEnrollment(enrollment.id, data);
+      toast.success(result.message || 'Đã chuyển đổi thành công');
+      onSuccess?.();
+      handleClose();
+    } catch (error) {
+      toast.error(error.message || 'Có lỗi xảy ra');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Handle close
+  const handleClose = () => {
+    reset();
+    onClose();
+  };
+
+  if (!enrollment) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[450px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <ArrowUpRight className="h-5 w-5 text-green-500" />
+            Chuyển đổi học thử
+          </DialogTitle>
+          <DialogDescription>
+            Chuyển đổi từ học thử sang đăng ký chính thức với học phí
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Enrollment Info */}
+        <div className="p-3 bg-slate-50 rounded-lg space-y-2">
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-slate-600">Học viên:</span>
+            <span className="font-medium">{enrollment.student_name}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-slate-600">Lớp:</span>
+            <span className="font-medium">{enrollment.class_name}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-slate-600">Trạng thái:</span>
+            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+              Học thử
+            </Badge>
+          </div>
+          {enrollment.days_remaining > 0 && (
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-slate-600">Còn lại:</span>
+              <span className="text-sm text-amber-600">{enrollment.days_remaining} ngày</span>
+            </div>
+          )}
+        </div>
+
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {/* Tuition Fee */}
+          <div className="space-y-2">
+            <Label htmlFor="tuition_fee">
+              Học phí <span className="text-red-500">*</span>
+            </Label>
+            <div className="relative">
+              <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                id="tuition_fee"
+                type="number"
+                className="pl-10"
+                placeholder="5000000"
+                {...register('tuition_fee', { valueAsNumber: true })}
+              />
+            </div>
+            {errors.tuition_fee && (
+              <p className="text-xs text-red-500">{errors.tuition_fee.message}</p>
+            )}
+          </div>
+
+          {/* Discount Amount */}
+          <div className="space-y-2">
+            <Label htmlFor="discount_amount">Giảm giá</Label>
+            <Input
+              id="discount_amount"
+              type="number"
+              placeholder="0"
+              {...register('discount_amount', { valueAsNumber: true })}
+            />
+            {errors.discount_amount && (
+              <p className="text-xs text-red-500">{errors.discount_amount.message}</p>
+            )}
+          </div>
+
+          {/* Summary */}
+          <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-green-700">Học phí:</span>
+              <span className="font-medium">{formatCurrency(tuitionFee)}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-green-700">Giảm giá:</span>
+              <span className="text-red-500">-{formatCurrency(discountAmount)}</span>
+            </div>
+            <div className="border-t border-green-200 mt-2 pt-2 flex justify-between items-center">
+              <span className="text-sm font-semibold text-green-800">Thành tiền:</span>
+              <span className="text-lg font-bold text-green-600">{formatCurrency(finalAmount)}</span>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose}>
+              Hủy
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={submitting}
+              className="bg-green-500 hover:bg-green-600"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Đang xử lý...
+                </>
+              ) : (
+                <>
+                  <ArrowUpRight className="mr-2 h-4 w-4" />
+                  Chuyển đổi
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export default ConvertTrialModal;

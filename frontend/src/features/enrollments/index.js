@@ -6,6 +6,15 @@
 export { EnrollmentsPage } from './pages';
 export { NewEnrollmentPage } from './pages';
 
+// Components
+export { 
+  TableSkeleton, 
+  StatsCardSkeleton,
+  TrialEnrollmentModal,
+  ConvertTrialModal,
+  WaitingListModal,
+} from './components';
+
 // Hooks
 export { useEnrollments } from './hooks';
 

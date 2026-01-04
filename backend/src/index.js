@@ -2271,6 +2271,11 @@ app.get('/api/admin/students', requireAuth, async (req, res, next) => {
         status,
         center_id,
         created_at,
+        parent_name,
+        parent_phone,
+        parent_email,
+        parent_relationship,
+        date_of_birth,
         roles (
           id,
           code,
@@ -2287,25 +2292,10 @@ app.get('/api/admin/students', requireAuth, async (req, res, next) => {
     }
 
     // ====== CENTER FILTER ======
-    // Học viên có thể học ở nhiều center qua enrollments, nên cần filter khác
-    // Lấy học viên có enrollment tại center này
+    // CENTER_MANAGER: chỉ hiển thị học viên thuộc center của mình
+    // SUPER_ADMIN: nếu có centerId trong query thì filter, không thì hiển thị tất cả
     if (effectiveCenterId) {
-      // Lấy danh sách student_id đang học tại center này
-      const { data: enrolledStudents } = await supabase
-        .from('enrollments')
-        .select('student_id, classes!inner(center_id)')
-        .eq('classes.center_id', effectiveCenterId)
-        .eq('status', 'active')
-        .limit(1000); // Limit enrollments query
-
-      const studentIds = [...new Set((enrolledStudents || []).map(e => e.student_id))];
-
-      if (studentIds.length > 0) {
-        query = query.in('id', studentIds);
-      } else {
-        // Không có học viên nào tại center này
-        return res.json({ success: true, data: [], pagination: { total: 0, page: pageNum, limit: limitNum } });
-      }
+      query = query.eq('center_id', effectiveCenterId);
     }
 
     const { data, error, count } = await query;
@@ -2357,6 +2347,11 @@ app.get('/api/admin/students/:id', requireAuth, async (req, res, next) => {
         status,
         created_at,
         updated_at,
+        parent_name,
+        parent_phone,
+        parent_email,
+        parent_relationship,
+        date_of_birth,
         roles (id, code, name)
       `)
       .eq('id', id)
@@ -2500,7 +2495,16 @@ app.get('/api/admin/students/:id', requireAuth, async (req, res, next) => {
 app.put('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { full_name, phone, status } = req.body;
+    const { 
+      full_name, 
+      phone, 
+      status,
+      parent_name,
+      parent_phone,
+      parent_email,
+      parent_relationship,
+      date_of_birth
+    } = req.body;
 
     console.log(`✏️ Admin ${req.user.email} đang cập nhật học viên: ${id}`);
 
@@ -2540,11 +2544,17 @@ app.put('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
         full_name,
         phone: phone || null,
         status: status || 'active',
+        parent_name: parent_name || null,
+        parent_phone: parent_phone || null,
+        parent_email: parent_email || null,
+        parent_relationship: parent_relationship || null,
+        date_of_birth: date_of_birth || null,
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
       .select(`
         id, email, full_name, phone, avatar_url, status, created_at, updated_at,
+        parent_name, parent_phone, parent_email, parent_relationship, date_of_birth,
         roles (id, code, name)
       `)
       .single();
@@ -8161,8 +8171,9 @@ app.get('/api/invoices/statistics', requireAuth, async (req, res, next) => {
         countOverdue++;
       }
 
-      if (paidAmount > 0) {
-        const paidDate = inv.paid_at ? new Date(inv.paid_at) : new Date(inv.created_at);
+      // Monthly revenue: CHỈ tính invoices có paid_at trong tháng hiện tại
+      if (inv.paid_at) {
+        const paidDate = new Date(inv.paid_at);
         if (paidDate >= firstDayOfMonth && paidDate <= lastDayOfMonth) {
           monthlyRevenue += paidAmount;
         }
@@ -14073,6 +14084,591 @@ app.post('/api/admin/enrollments/bulk-delete', requireAuth, requireRole(['SUPER_
     });
   } catch (error) {
     console.error('Error bulk deleting enrollments:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// TRIAL ENROLLMENT APIs
+// ============================================================
+
+/**
+ * GET /api/admin/enrollments/trials
+ * List active trial enrollments (from view)
+ */
+app.get('/api/admin/enrollments/trials', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { centerId, classId, status = 'active', limit = '50', page = '1' } = req.query;
+
+    const pageNum = parseInt(page) || 1;
+    const limitNum = Math.min(parseInt(limit) || 50, 100);
+    const offset = (pageNum - 1) * limitNum;
+
+    // Permission check
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, centerId);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    // Query active_trial_enrollments view
+    let query = supabase
+      .from('active_trial_enrollments')
+      .select('*', { count: 'exact' })
+      .order('trial_expires_at', { ascending: true })
+      .range(offset, offset + limitNum - 1);
+
+    // Filter by status
+    if (status === 'active') {
+      query = query.eq('is_expired', false);
+    } else if (status === 'expired') {
+      query = query.eq('is_expired', true);
+    }
+
+    // Filter by class
+    if (classId) {
+      query = query.eq('class_id', classId);
+    }
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: data || [],
+      pagination: {
+        total: count || 0,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil((count || 0) / limitNum)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching trial enrollments:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/enrollments/trial
+ * Create a trial enrollment (no invoice)
+ */
+app.post('/api/admin/enrollments/trial', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { student_id, class_id, notes } = req.body;
+
+    if (!student_id || !class_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Học viên và lớp học là bắt buộc'
+      });
+    }
+
+    // Check if student exists
+    const { data: student, error: studentError } = await supabase
+      .from('users')
+      .select('id, full_name, email')
+      .eq('id', student_id)
+      .single();
+
+    if (studentError || !student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy học viên'
+      });
+    }
+
+    // Check if class exists and has capacity
+    const { data: classData, error: classError } = await supabase
+      .from('classes')
+      .select('id, name, code, max_students, status')
+      .eq('id', class_id)
+      .single();
+
+    if (classError || !classData) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy lớp học'
+      });
+    }
+
+    // Check current enrollment count
+    const { count: currentCount } = await supabase
+      .from('enrollments')
+      .select('id', { count: 'exact', head: true })
+      .eq('class_id', class_id)
+      .in('status', ['active', 'pending']);
+
+    if (currentCount >= classData.max_students) {
+      return res.status(400).json({
+        success: false,
+        message: `Lớp ${classData.name} đã đầy (${currentCount}/${classData.max_students}). Vui lòng thêm vào danh sách chờ.`
+      });
+    }
+
+    // Check if already enrolled or has active trial
+    const { data: existingEnrollment } = await supabase
+      .from('enrollments')
+      .select('id, status, enrollment_type')
+      .eq('student_id', student_id)
+      .eq('class_id', class_id)
+      .in('status', ['active', 'pending'])
+      .single();
+
+    if (existingEnrollment) {
+      const typeText = existingEnrollment.enrollment_type === 'trial' ? 'học thử' : 'chính thức';
+      return res.status(400).json({
+        success: false,
+        message: `Học viên đã đăng ký ${typeText} lớp này rồi`
+      });
+    }
+
+    // Create trial enrollment (trigger will auto-set trial_expires_at)
+    const { data: enrollment, error: insertError } = await supabase
+      .from('enrollments')
+      .insert({
+        student_id,
+        class_id,
+        enrollment_type: 'trial',
+        status: 'active',
+        tuition_fee: 0,
+        discount_amount: 0,
+        paid_amount: 0,
+        notes: notes || 'Đăng ký học thử',
+        enrolled_at: new Date().toISOString()
+      })
+      .select(`
+        id,
+        student_id,
+        class_id,
+        enrollment_type,
+        status,
+        trial_expires_at,
+        enrolled_at,
+        notes
+      `)
+      .single();
+
+    if (insertError) throw insertError;
+
+    console.log(`✅ Trial enrollment created: ${student.full_name} -> ${classData.name}`);
+
+    res.status(201).json({
+      success: true,
+      message: `Đã đăng ký học thử cho ${student.full_name} vào lớp ${classData.name}`,
+      data: {
+        ...enrollment,
+        student_name: student.full_name,
+        student_email: student.email,
+        class_name: classData.name,
+        class_code: classData.code
+      }
+    });
+  } catch (error) {
+    console.error('Error creating trial enrollment:', error);
+    next(error);
+  }
+});
+
+/**
+ * PUT /api/admin/enrollments/:id/convert-trial
+ * Convert trial enrollment to regular (paid) enrollment
+ */
+app.put('/api/admin/enrollments/:id/convert-trial', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { tuition_fee, discount_amount = 0 } = req.body;
+
+    if (!tuition_fee || tuition_fee <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Học phí là bắt buộc và phải > 0'
+      });
+    }
+
+    // Check enrollment exists and is trial
+    const { data: enrollment, error: checkError } = await supabase
+      .from('enrollments')
+      .select(`
+        id, enrollment_type, is_trial_converted, status,
+        student:users!student_id(id, full_name),
+        class:classes!class_id(id, name, code)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (checkError || !enrollment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy đăng ký'
+      });
+    }
+
+    if (enrollment.enrollment_type !== 'trial') {
+      return res.status(400).json({
+        success: false,
+        message: 'Đăng ký này không phải học thử'
+      });
+    }
+
+    if (enrollment.is_trial_converted) {
+      return res.status(400).json({
+        success: false,
+        message: 'Đăng ký học thử này đã được chuyển đổi rồi'
+      });
+    }
+
+    // Call DB function to convert
+    const { data: result, error: rpcError } = await supabase
+      .rpc('convert_trial_to_regular', {
+        p_enrollment_id: id,
+        p_tuition_fee: tuition_fee,
+        p_discount_amount: discount_amount
+      });
+
+    if (rpcError) {
+      console.error('RPC Error:', rpcError);
+      return res.status(400).json({
+        success: false,
+        message: rpcError.message || 'Lỗi khi chuyển đổi đăng ký'
+      });
+    }
+
+    console.log(`✅ Trial converted: ${enrollment.student?.full_name} -> ${enrollment.class?.name}`);
+
+    res.json({
+      success: true,
+      message: `Đã chuyển đổi học thử thành đăng ký chính thức`,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error converting trial enrollment:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/trial-statistics
+ * Get trial enrollment statistics with conversion rate
+ */
+app.get('/api/admin/trial-statistics', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { centerId, startDate, endDate } = req.query;
+
+    // Permission check
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, centerId);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    // Call DB function
+    const { data: stats, error: rpcError } = await supabase
+      .rpc('get_trial_statistics', {
+        p_center_id: effectiveCenterId || null,
+        p_start_date: startDate || null,
+        p_end_date: endDate || null
+      });
+
+    if (rpcError) {
+      console.error('RPC Error:', rpcError);
+      // Fallback to manual calculation if function doesn't exist
+      const { data: trials, error: queryError } = await supabase
+        .from('enrollments')
+        .select('id, enrollment_type, is_trial_converted, status')
+        .eq('enrollment_type', 'trial');
+
+      if (queryError) throw queryError;
+
+      const total = trials?.length || 0;
+      const converted = trials?.filter(t => t.is_trial_converted).length || 0;
+      const active = trials?.filter(t => t.status === 'active' && !t.is_trial_converted).length || 0;
+
+      return res.json({
+        success: true,
+        data: {
+          total_trials: total,
+          converted,
+          active,
+          expired: total - converted - active,
+          conversion_rate: total > 0 ? Math.round((converted / total) * 100) : 0
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    console.error('Error fetching trial statistics:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// WAITING LIST APIs
+// ============================================================
+
+/**
+ * GET /api/admin/waiting-list
+ * List waiting list entries (from view)
+ */
+app.get('/api/admin/waiting-list', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { centerId, classId, status, limit = '50', page = '1' } = req.query;
+
+    const pageNum = parseInt(page) || 1;
+    const limitNum = Math.min(parseInt(limit) || 50, 100);
+    const offset = (pageNum - 1) * limitNum;
+
+    // Permission check
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, centerId);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    // Query active_waiting_list view
+    let query = supabase
+      .from('active_waiting_list')
+      .select('*', { count: 'exact' })
+      .order('class_id')
+      .order('queue_position', { ascending: true })
+      .range(offset, offset + limitNum - 1);
+
+    // Filter by center
+    if (effectiveCenterId) {
+      query = query.eq('center_id', effectiveCenterId);
+    }
+
+    // Filter by class
+    if (classId) {
+      query = query.eq('class_id', classId);
+    }
+
+    // Filter by status
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: data || [],
+      pagination: {
+        total: count || 0,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil((count || 0) / limitNum)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching waiting list:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/waiting-list
+ * Add student to waiting list
+ */
+app.post('/api/admin/waiting-list', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { student_id, class_id, priority = 0, notes } = req.body;
+
+    if (!student_id || !class_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Học viên và lớp học là bắt buộc'
+      });
+    }
+
+    // Call DB function
+    const { data: result, error: rpcError } = await supabase
+      .rpc('add_to_waiting_list', {
+        p_student_id: student_id,
+        p_class_id: class_id,
+        p_priority: priority,
+        p_notes: notes || null
+      });
+
+    if (rpcError) {
+      // Parse error message for user-friendly display
+      const errorMsg = rpcError.message || 'Lỗi khi thêm vào danh sách chờ';
+      
+      if (errorMsg.includes('not full')) {
+        return res.status(400).json({
+          success: false,
+          message: 'Lớp học chưa đầy. Học viên có thể đăng ký trực tiếp.'
+        });
+      }
+      if (errorMsg.includes('already enrolled')) {
+        return res.status(400).json({
+          success: false,
+          message: 'Học viên đã đăng ký lớp này rồi'
+        });
+      }
+      if (errorMsg.includes('already on the waiting list')) {
+        return res.status(400).json({
+          success: false,
+          message: 'Học viên đã có trong danh sách chờ'
+        });
+      }
+
+      return res.status(400).json({
+        success: false,
+        message: errorMsg
+      });
+    }
+
+    console.log(`✅ Added to waiting list: ${result.student_name} -> ${result.class_name}`);
+
+    res.status(201).json({
+      success: true,
+      message: result.message || 'Đã thêm vào danh sách chờ',
+      data: result
+    });
+  } catch (error) {
+    console.error('Error adding to waiting list:', error);
+    next(error);
+  }
+});
+
+/**
+ * PUT /api/admin/waiting-list/:classId/notify
+ * Notify next students in queue when slots available
+ */
+app.put('/api/admin/waiting-list/:classId/notify', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { classId } = req.params;
+    const { slots = 1 } = req.body;
+
+    // Call DB function
+    const { data: result, error: rpcError } = await supabase
+      .rpc('notify_next_in_queue', {
+        p_class_id: classId,
+        p_slots_available: Math.max(1, parseInt(slots) || 1)
+      });
+
+    if (rpcError) {
+      return res.status(400).json({
+        success: false,
+        message: rpcError.message || 'Lỗi khi thông báo'
+      });
+    }
+
+    console.log(`✅ Notified ${result.notified_count} students for class ${classId}`);
+
+    res.json({
+      success: true,
+      message: result.message || `Đã thông báo ${result.notified_count} học viên`,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error notifying waiting list:', error);
+    next(error);
+  }
+});
+
+/**
+ * PUT /api/admin/waiting-list/:id/complete
+ * Mark waiting list entry as enrolled or cancelled
+ */
+app.put('/api/admin/waiting-list/:id/complete', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status, reason } = req.body;
+
+    if (!status || !['enrolled', 'cancelled'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Trạng thái phải là "enrolled" hoặc "cancelled"'
+      });
+    }
+
+    // Call DB function
+    const { data: result, error: rpcError } = await supabase
+      .rpc('complete_waiting_list_entry', {
+        p_waiting_list_id: id,
+        p_new_status: status,
+        p_reason: reason || null
+      });
+
+    if (rpcError) {
+      return res.status(400).json({
+        success: false,
+        message: rpcError.message || 'Lỗi khi cập nhật trạng thái'
+      });
+    }
+
+    const statusText = status === 'enrolled' ? 'đã ghi danh' : 'đã hủy';
+    console.log(`✅ Waiting list entry ${id} marked as ${status}`);
+
+    res.json({
+      success: true,
+      message: `Đã cập nhật trạng thái: ${statusText}`,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error completing waiting list entry:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/waiting-list/statistics
+ * Get waiting list statistics
+ */
+app.get('/api/admin/waiting-list/statistics', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { centerId, startDate, endDate } = req.query;
+
+    // Permission check
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, centerId);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    // Call DB function
+    const { data: stats, error: rpcError } = await supabase
+      .rpc('get_waiting_list_statistics', {
+        p_center_id: effectiveCenterId || null,
+        p_start_date: startDate || null,
+        p_end_date: endDate || null
+      });
+
+    if (rpcError) {
+      console.error('RPC Error:', rpcError);
+      // Fallback to manual calculation
+      const { data: entries, error: queryError } = await supabase
+        .from('waiting_list')
+        .select('id, status');
+
+      if (queryError) throw queryError;
+
+      const total = entries?.length || 0;
+      const waiting = entries?.filter(e => e.status === 'waiting').length || 0;
+      const enrolled = entries?.filter(e => e.status === 'enrolled').length || 0;
+
+      return res.json({
+        success: true,
+        data: {
+          total,
+          waiting,
+          notified: entries?.filter(e => e.status === 'notified').length || 0,
+          enrolled,
+          cancelled: entries?.filter(e => e.status === 'cancelled').length || 0,
+          expired: entries?.filter(e => e.status === 'expired').length || 0
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    console.error('Error fetching waiting list statistics:', error);
     next(error);
   }
 });

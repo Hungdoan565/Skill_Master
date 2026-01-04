@@ -11,6 +11,7 @@ import {
 import { ChevronDown, LogOut, User, Settings, HelpCircle, LayoutDashboard } from 'lucide-react';
 import { AdminLayout } from '@/layouts/admin-layout';
 import { ToastProvider } from '@/components/ui/toast';
+import { ErrorBoundary } from '@/components/errors/ErrorBoundary';
 // REFACTORED: Import từ feature modules thay vì file monolithic
 import { InvoicesPage } from '@/features/invoices';
 import { ClassDetailPage } from '@/features/classes';
@@ -478,10 +479,11 @@ const StudentLayout = () => (
 
 function App() {
   return (
-    <ToastProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Landing Page - Standalone with its own header/footer */}
+    <ErrorBoundary>
+      <ToastProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Landing Page - Standalone with its own header/footer */}
           <Route index element={<LandingPage />} />
 
           {/* Public Pages - Lazy loaded with Suspense */}
@@ -599,6 +601,7 @@ function App() {
         </Routes>
       </BrowserRouter>
     </ToastProvider>
+  </ErrorBoundary>
   );
 }
 

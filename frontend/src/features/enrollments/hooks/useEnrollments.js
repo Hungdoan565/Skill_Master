@@ -206,6 +206,203 @@ export function useEnrollments() {
         throw new Error(response.data?.message || 'Có lỗi xảy ra khi xóa nhiều ghi danh');
     }, []);
 
+    // ============================================
+    // TRIAL ENROLLMENT METHODS
+    // ============================================
+
+    // Fetch trial enrollments
+    const fetchTrialEnrollments = useCallback(async (filters = {}) => {
+        try {
+            setLoading(true);
+            const headers = await getAuthHeaders();
+            const params = new URLSearchParams();
+
+            if (filters.centerId) params.append('centerId', filters.centerId);
+            if (filters.classId) params.append('classId', filters.classId);
+            if (filters.status) params.append('status', filters.status);
+            if (filters.page) params.append('page', filters.page);
+            if (filters.limit) params.append('limit', filters.limit);
+
+            const response = await axios.get(
+                `${API_URL}/api/admin/enrollments/trials?${params}`,
+                { headers }
+            );
+
+            if (response.data?.success) {
+                return {
+                    data: response.data.data || [],
+                    pagination: response.data.pagination
+                };
+            }
+            return { data: [], pagination: null };
+        } catch (error) {
+            console.error('Error fetching trial enrollments:', error);
+            return { data: [], pagination: null };
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    // Create trial enrollment
+    const createTrialEnrollment = useCallback(async (data) => {
+        const headers = await getAuthHeaders();
+        const response = await axios.post(
+            `${API_URL}/api/admin/enrollments/trial`,
+            data,
+            { headers }
+        );
+
+        if (response.data?.success) {
+            return response.data;
+        }
+        throw new Error(response.data?.message || 'Có lỗi xảy ra khi đăng ký học thử');
+    }, []);
+
+    // Convert trial to regular enrollment
+    const convertTrialEnrollment = useCallback(async (enrollmentId, data) => {
+        const headers = await getAuthHeaders();
+        const response = await axios.put(
+            `${API_URL}/api/admin/enrollments/${enrollmentId}/convert-trial`,
+            data,
+            { headers }
+        );
+
+        if (response.data?.success) {
+            return response.data;
+        }
+        throw new Error(response.data?.message || 'Có lỗi xảy ra khi chuyển đổi học thử');
+    }, []);
+
+    // Get trial statistics
+    const getTrialStatistics = useCallback(async (filters = {}) => {
+        try {
+            const headers = await getAuthHeaders();
+            const params = new URLSearchParams();
+            if (filters.centerId) params.append('centerId', filters.centerId);
+            if (filters.startDate) params.append('startDate', filters.startDate);
+            if (filters.endDate) params.append('endDate', filters.endDate);
+
+            const response = await axios.get(
+                `${API_URL}/api/admin/trial-statistics?${params}`,
+                { headers }
+            );
+
+            if (response.data?.success) {
+                return response.data.data;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error fetching trial statistics:', error);
+            return null;
+        }
+    }, []);
+
+    // ============================================
+    // WAITING LIST METHODS
+    // ============================================
+
+    // Fetch waiting list
+    const fetchWaitingList = useCallback(async (filters = {}) => {
+        try {
+            setLoading(true);
+            const headers = await getAuthHeaders();
+            const params = new URLSearchParams();
+
+            if (filters.centerId) params.append('centerId', filters.centerId);
+            if (filters.classId) params.append('classId', filters.classId);
+            if (filters.status) params.append('status', filters.status);
+            if (filters.page) params.append('page', filters.page);
+            if (filters.limit) params.append('limit', filters.limit);
+
+            const response = await axios.get(
+                `${API_URL}/api/admin/waiting-list?${params}`,
+                { headers }
+            );
+
+            if (response.data?.success) {
+                return {
+                    data: response.data.data || [],
+                    pagination: response.data.pagination
+                };
+            }
+            return { data: [], pagination: null };
+        } catch (error) {
+            console.error('Error fetching waiting list:', error);
+            return { data: [], pagination: null };
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    // Add to waiting list
+    const addToWaitingList = useCallback(async (data) => {
+        const headers = await getAuthHeaders();
+        const response = await axios.post(
+            `${API_URL}/api/admin/waiting-list`,
+            data,
+            { headers }
+        );
+
+        if (response.data?.success) {
+            return response.data;
+        }
+        throw new Error(response.data?.message || 'Có lỗi xảy ra khi thêm vào danh sách chờ');
+    }, []);
+
+    // Notify next in waiting list queue
+    const notifyWaitingList = useCallback(async (classId, slots = 1) => {
+        const headers = await getAuthHeaders();
+        const response = await axios.put(
+            `${API_URL}/api/admin/waiting-list/${classId}/notify`,
+            { slots },
+            { headers }
+        );
+
+        if (response.data?.success) {
+            return response.data;
+        }
+        throw new Error(response.data?.message || 'Có lỗi xảy ra khi thông báo');
+    }, []);
+
+    // Complete waiting list entry (enrolled or cancelled)
+    const completeWaitingListEntry = useCallback(async (entryId, status, reason = null) => {
+        const headers = await getAuthHeaders();
+        const response = await axios.put(
+            `${API_URL}/api/admin/waiting-list/${entryId}/complete`,
+            { status, reason },
+            { headers }
+        );
+
+        if (response.data?.success) {
+            return response.data;
+        }
+        throw new Error(response.data?.message || 'Có lỗi xảy ra khi cập nhật trạng thái');
+    }, []);
+
+    // Get waiting list statistics
+    const getWaitingListStatistics = useCallback(async (filters = {}) => {
+        try {
+            const headers = await getAuthHeaders();
+            const params = new URLSearchParams();
+            if (filters.centerId) params.append('centerId', filters.centerId);
+            if (filters.startDate) params.append('startDate', filters.startDate);
+            if (filters.endDate) params.append('endDate', filters.endDate);
+
+            const response = await axios.get(
+                `${API_URL}/api/admin/waiting-list/statistics?${params}`,
+                { headers }
+            );
+
+            if (response.data?.success) {
+                return response.data.data;
+            }
+            return null;
+        } catch (error) {
+            console.error('Error fetching waiting list statistics:', error);
+            return null;
+        }
+    }, []);
+
     // Filter enrollments locally
     const filterEnrollments = useCallback((searchTerm) => {
         if (!searchTerm) return enrollments;
@@ -224,6 +421,7 @@ export function useEnrollments() {
         classes,
         loading,
         pagination,
+        // Core methods
         fetchEnrollments,
         fetchStudents,
         fetchClasses,
@@ -232,6 +430,17 @@ export function useEnrollments() {
         updateEnrollmentStatus,
         deleteEnrollment,
         filterEnrollments,
+        // Trial methods
+        fetchTrialEnrollments,
+        createTrialEnrollment,
+        convertTrialEnrollment,
+        getTrialStatistics,
+        // Waiting list methods
+        fetchWaitingList,
+        addToWaitingList,
+        notifyWaitingList,
+        completeWaitingListEntry,
+        getWaitingListStatistics,
     };
 }
 

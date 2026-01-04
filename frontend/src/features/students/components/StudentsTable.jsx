@@ -1,107 +1,134 @@
 /**
- * StudentsTable Component
- * Bảng danh sách học viên
+ * StudentsTable Component (Refactored)
+ * 
+ * Bảng danh sách học viên - sử dụng DataTable component
+ * ✅ Pagination, sorting, empty states
+ * ✅ Consistent với các modules khác
  */
 
-import { Mail, Phone, Calendar, AlertCircle } from 'lucide-react';
+import { useMemo } from 'react';
+import { Mail, Phone, Eye, Edit, UserCog } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { DataTable } from '@/components/ui/data-table';
 import { ColorAvatar } from './ColorAvatar';
-import { ActionMenu } from './ActionMenu';
 import { formatDate } from '../utils';
 
-export function StudentsTable({ students = [], onViewDetails, onEdit, onPromote }) {
-  if (students.length === 0) {
-    return (
-      <div className="flex h-40 flex-col items-center justify-center gap-2">
-        <AlertCircle className="h-10 w-10 text-slate-300" />
-        <p className="text-muted-foreground">
-          Không tìm thấy học viên phù hợp
-        </p>
-      </div>
-    );
-  }
+export function StudentsTable({ 
+  students = [], 
+  loading = false,
+  onViewDetails, 
+  onEdit, 
+  onPromote 
+}) {
+  // Define columns for DataTable
+  const columns = useMemo(() => [
+    {
+      key: 'full_name',
+      label: 'Học viên',
+      sortable: true,
+      render: (_, student) => (
+        <div className="flex items-center gap-3">
+          <ColorAvatar
+            name={student.full_name}
+            avatarUrl={student.avatar_url}
+          />
+          <div>
+            <p className="font-medium text-slate-900">
+              {student.full_name || 'Chưa cập nhật'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              ID: {student.id.slice(0, 8)}...
+            </p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'email',
+      label: 'Liên hệ',
+      sortable: true,
+      render: (_, student) => (
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 text-sm text-slate-600">
+            <Mail className="h-3.5 w-3.5 text-slate-400" />
+            {student.email}
+          </div>
+          {student.phone && (
+            <div className="flex items-center gap-1.5 text-sm text-slate-600">
+              <Phone className="h-3.5 w-3.5 text-slate-400" />
+              {student.phone}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'Trạng thái',
+      sortable: true,
+      render: (value) => (
+        <Badge variant={value === 'active' ? 'success' : 'secondary'}>
+          {value === 'active' ? 'Hoạt động' : 'Ngừng'}
+        </Badge>
+      ),
+    },
+    {
+      key: 'created_at',
+      label: 'Ngày đăng ký',
+      sortable: true,
+      render: (value) => (
+        <span className="text-sm text-muted-foreground">
+          {formatDate(value)}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      label: '',
+      align: 'right',
+      render: (_, student) => (
+        <div className="flex items-center justify-end gap-1">
+          <button
+            onClick={(e) => { e.stopPropagation(); onViewDetails(student); }}
+            className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            title="Xem chi tiết"
+          >
+            <Eye className="h-4 w-4" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onEdit(student); }}
+            className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            title="Chỉnh sửa"
+          >
+            <Edit className="h-4 w-4" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onPromote(student); }}
+            className="p-2 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+            title="Nâng cấp vai trò"
+          >
+            <UserCog className="h-4 w-4" />
+          </button>
+        </div>
+      ),
+    },
+  ], [onViewDetails, onEdit, onPromote]);
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full">
-        <thead>
-          <tr className="border-b text-left text-sm font-medium text-muted-foreground">
-            <th className="pb-3 pr-4">Học viên</th>
-            <th className="pb-3 pr-4">Liên hệ</th>
-            <th className="pb-3 pr-4">Trạng thái</th>
-            <th className="pb-3 pr-4">Ngày đăng ký</th>
-            <th className="pb-3 text-right">Hành động</th>
-          </tr>
-        </thead>
-        <tbody>
-          {students.map((student) => (
-            <tr
-              key={student.id}
-              className="border-b last:border-0 hover:bg-slate-50 transition-colors"
-            >
-              {/* Avatar + Name */}
-              <td className="py-4 pr-4">
-                <div className="flex items-center gap-3">
-                  <ColorAvatar
-                    name={student.full_name}
-                    avatarUrl={student.avatar_url}
-                  />
-                  <div>
-                    <p className="font-medium text-slate-900">
-                      {student.full_name || 'Chưa cập nhật'}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      ID: {student.id.slice(0, 8)}...
-                    </p>
-                  </div>
-                </div>
-              </td>
-
-              {/* Contact */}
-              <td className="py-4 pr-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-1.5 text-sm text-slate-600">
-                    <Mail className="h-3.5 w-3.5 text-slate-400" />
-                    {student.email}
-                  </div>
-                  {student.phone && (
-                    <div className="flex items-center gap-1.5 text-sm text-slate-600">
-                      <Phone className="h-3.5 w-3.5 text-slate-400" />
-                      {student.phone}
-                    </div>
-                  )}
-                </div>
-              </td>
-
-              {/* Status */}
-              <td className="py-4 pr-4">
-                <Badge variant={student.status === 'active' ? 'success' : 'secondary'}>
-                  {student.status === 'active' ? 'Hoạt động' : 'Ngừng'}
-                </Badge>
-              </td>
-
-              {/* Created Date */}
-              <td className="py-4 pr-4">
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <Calendar className="h-3.5 w-3.5" />
-                  {formatDate(student.created_at)}
-                </div>
-              </td>
-
-              {/* Actions */}
-              <td className="py-4 text-right">
-                <ActionMenu
-                  student={student}
-                  onViewDetails={onViewDetails}
-                  onEdit={onEdit}
-                  onPromote={onPromote}
-                />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <DataTable
+      columns={columns}
+      data={students}
+      loading={loading}
+      rowKey="id"
+      pagination
+      pageSize={20}
+      pageSizeOptions={[10, 20, 50, 100]}
+      emptyVariant="search"
+      emptyTitle="Không tìm thấy học viên"
+      emptyDescription="Không có học viên nào phù hợp với bộ lọc của bạn"
+      onRowClick={(row) => onViewDetails(row)}
+      rowClassName="cursor-pointer"
+    />
   );
 }
 

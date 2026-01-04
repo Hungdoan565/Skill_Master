@@ -148,16 +148,14 @@ export function StudentsPage() {
         </CardHeader>
 
         <CardContent>
-          {loading ? (
-            <LoadingState />
-          ) : (
-            <StudentsTable
-              students={filteredStudents}
-              onViewDetails={handleViewDetails}
-              onEdit={handleEditClick}
-              onPromote={handlePromoteClick}
-            />
-          )}
+          {/* DataTable handles loading state internally */}
+          <StudentsTable
+            students={filteredStudents}
+            loading={loading}
+            onViewDetails={handleViewDetails}
+            onEdit={handleEditClick}
+            onPromote={handlePromoteClick}
+          />
         </CardContent>
       </Card>
 

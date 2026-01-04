@@ -3,6 +3,7 @@ import {
   HeroSection, StatsSection, CoursesSection, MethodSection,
   TeacherCarousel, TestimonialsSection, FAQSection, CTASection
 } from './sections';
+import { Header, Footer } from './components';
 import { faqs } from './constants/landing-data';
 
 // ============================================

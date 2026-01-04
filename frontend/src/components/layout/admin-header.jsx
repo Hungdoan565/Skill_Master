@@ -155,24 +155,24 @@ export function AdminHeader() {
   ];
 
   return (
-    <header className="flex h-16 items-center justify-between border-b border-stone-200/60 bg-white/80 backdrop-blur-sm px-6">
+    <header className="flex h-16 items-center justify-between border-b border-border bg-card/80 backdrop-blur-sm px-6">
       {/* Search - Enhanced with glassmorphism feel */}
       <div className="relative w-96">
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-2 text-zinc-400">
+        <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-2 text-muted-foreground">
           <Search className="h-4 w-4" />
         </div>
         <input
           type="search"
           placeholder="Tìm kiếm học viên, khóa học..."
-          className="w-full h-10 pl-10 pr-4 rounded-xl border border-stone-200 bg-stone-50/50 
-                     text-sm text-zinc-900 placeholder:text-zinc-400
-                     focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500/30
+          className="w-full h-10 pl-10 pr-4 rounded-xl border border-input bg-muted/50 
+                     text-sm text-foreground placeholder:text-muted-foreground
+                     focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30
                      transition-all duration-200"
         />
         {/* Keyboard shortcut hint */}
         <div className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1">
-          <kbd className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-stone-100 border border-stone-200 
-                         text-[10px] font-medium text-zinc-500">
+          <kbd className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-muted border border-border 
+                         text-[10px] font-medium text-muted-foreground">
             <Command className="h-2.5 w-2.5" />
             K
           </kbd>
@@ -183,20 +183,20 @@ export function AdminHeader() {
       <div className="flex items-center gap-3">
         {/* Notifications - Enhanced */}
         <button className="relative flex h-10 w-10 items-center justify-center rounded-xl 
-                          bg-stone-50 border border-stone-200/60 text-zinc-600
-                          hover:bg-stone-100 hover:text-zinc-900 hover:border-stone-300
+                          bg-muted border border-border text-muted-foreground
+                          hover:bg-accent hover:text-foreground hover:border-border
                           transition-all duration-200 group">
           <Bell className="h-5 w-5 transition-transform group-hover:scale-105" />
           {/* Notification badge - more prominent */}
           <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center 
-                          rounded-full bg-red-500 text-[10px] font-bold text-white
-                          ring-2 ring-white shadow-sm">
+                          rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground
+                          ring-2 ring-card shadow-sm">
             3
           </span>
         </button>
 
         {/* Divider */}
-        <div className="h-8 w-px bg-stone-200" />
+        <div className="h-8 w-px bg-border" />
 
         {/* User Info - Dropdown */}
         <div className="relative" ref={dropdownRef}>
@@ -205,20 +205,20 @@ export function AdminHeader() {
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             className={`
               flex items-center gap-3 rounded-xl px-2 py-1.5 transition-all duration-200
-              hover:bg-stone-100 cursor-pointer border border-transparent
-              ${isDropdownOpen ? 'bg-stone-100 border-stone-200' : ''}
+              hover:bg-accent cursor-pointer border border-transparent
+              ${isDropdownOpen ? 'bg-accent border-border' : ''}
             `}
           >
             <UserAvatar name={displayName} avatarUrl={avatarUrl} />
             <div className="text-left hidden sm:block">
-              <p className="text-sm font-semibold text-zinc-900">{displayName}</p>
+              <p className="text-sm font-semibold text-foreground">{displayName}</p>
               <div className="flex items-center gap-1.5">
                 {roleCode && <RoleBadge roleCode={roleCode} />}
               </div>
             </div>
             <ChevronDown
               className={`
-                h-4 w-4 text-zinc-400 hidden sm:block transition-transform duration-200
+                h-4 w-4 text-muted-foreground hidden sm:block transition-transform duration-200
                 ${isDropdownOpen ? 'rotate-180' : ''}
               `}
             />
@@ -228,8 +228,8 @@ export function AdminHeader() {
           <div
             className={`
               absolute right-0 top-full mt-2 w-72 origin-top-right
-              rounded-2xl border border-stone-200/80 bg-white py-2 
-              shadow-xl shadow-stone-900/5
+              rounded-2xl border border-border bg-popover py-2 
+              shadow-xl shadow-foreground/5
               transition-all duration-200 ease-out z-50
               ${isDropdownOpen
                 ? 'opacity-100 scale-100 translate-y-0 visible'
@@ -238,12 +238,12 @@ export function AdminHeader() {
             `}
           >
             {/* User Info Header */}
-            <div className="px-4 py-3 border-b border-stone-100">
+            <div className="px-4 py-3 border-b border-border">
               <div className="flex items-center gap-3">
                 <UserAvatar name={displayName} avatarUrl={avatarUrl} size="lg" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-zinc-900 truncate">{displayName}</p>
-                  <p className="text-xs text-zinc-500 truncate">{userEmail}</p>
+                  <p className="text-sm font-semibold text-foreground truncate">{displayName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
                   <div className="mt-1.5">
                     {roleCode && <RoleBadge roleCode={roleCode} />}
                   </div>
@@ -255,22 +255,22 @@ export function AdminHeader() {
             <div className="py-1 px-2">
               {dropdownItems.map((item, index) => (
                 <div key={item.label}>
-                  {item.divider && <div className="my-2 mx-2 border-t border-stone-100" />}
+                  {item.divider && <div className="my-2 mx-2 border-t border-border" />}
                   <button
                     onClick={item.action}
                     className={`
                       w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-150
                       ${item.danger
-                        ? 'text-red-600 hover:bg-red-50'
-                        : 'text-zinc-700 hover:bg-stone-50'
+                        ? 'text-destructive hover:bg-destructive/10'
+                        : 'text-popover-foreground hover:bg-accent'
                       }
                     `}
                   >
                     <div className={`
                       flex h-8 w-8 items-center justify-center rounded-lg transition-colors
-                      ${item.danger ? 'bg-red-50' : 'bg-stone-100'}
+                      ${item.danger ? 'bg-destructive/10' : 'bg-muted'}
                     `}>
-                      <item.icon className={`h-4 w-4 ${item.danger ? 'text-red-500' : 'text-zinc-500'}`} />
+                      <item.icon className={`h-4 w-4 ${item.danger ? 'text-destructive' : 'text-muted-foreground'}`} />
                     </div>
                     <span className="font-medium">{item.label}</span>
                   </button>
