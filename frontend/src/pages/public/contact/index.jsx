@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { SmartImage } from '@/components/common';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight, ArrowUpRight, Phone, Mail, MapPin,
@@ -6,7 +7,7 @@ import {
   Clock, Users, Building2, Star, AlertCircle
 } from 'lucide-react';
 import PublicHeader from '@/components/layout/public-header';
-import { Helmet } from 'react-helmet-async';
+import { SEOHead } from '@/components/common';
 import { Footer } from '@/pages/landing/components/footer';
 import { validateContactForm, isSpam, submitContactForm } from '@/utils/contactFormUtils';
 
@@ -556,10 +557,12 @@ const LocationsSection = () => {
               <div className="relative group">
                 {/* Main Image */}
                 <div className="aspect-[4/3] lg:aspect-auto lg:h-full relative overflow-hidden">
-                  <img
+                  <SmartImage
                     src={loc.image}
                     alt={`Skill Master ${loc.name}`}
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    containerClassName="w-full h-full"
+                    aspectRatio="aspect-video"
                   />
 
                   {/* Image Overlay on Hover - Shows Map */}
@@ -992,10 +995,10 @@ const CTASection = () => {
 export const ContactPage = () => {
   return (
     <div className="min-h-screen bg-white antialiased">
-      <Helmet>
-        <title>Liên hệ | Skill Master - Tư vấn lộ trình học tập</title>
-        <meta name="description" content="Liên hệ với Skill Master để được tư vấn lộ trình học IELTS, TOEIC và Tin học văn phòng cá nhân hóa. Chúng tôi luôn sẵn sàng hỗ trợ bạn." />
-      </Helmet>
+      <SEOHead
+        title="Liên hệ"
+        description="Liên hệ với Skill Master để được tư vấn lộ trình học IELTS, TOEIC và Tin học văn phòng cá nhân hóa. Chúng tôi luôn sẵn sàng hỗ trợ bạn."
+      />
       <PublicHeader />
       <main>
         <HeroSection />

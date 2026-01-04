@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, Clock, Eye, ChevronLeft, Sparkles, Loader2 } from 'lucide-react';
+import { SmartImage } from '@/components/common';
 import { useInView, useReducedMotion } from '../hooks/useBlogHooks';
 import { formatDate, formatViews } from '../constants/blog-data';
 import { useViewCounter } from '../hooks/useStats';
@@ -22,11 +23,13 @@ export const ArticleHero = ({ post }) => {
         <section className="relative min-h-[60vh] lg:min-h-[70vh] flex items-end overflow-hidden">
             {/* Background Image */}
             <div className="absolute inset-0">
-                <img
+                <SmartImage
                     src={post.thumbnail}
                     alt={post.title}
-                    className={`w-full h-full object-cover transition-transform duration-1000
+                    className={`transition-transform duration-1000
                         ${isInView && !prefersReducedMotion ? 'scale-100' : 'scale-105'}`}
+                    fit="cover"
+                    priority
                 />
                 {/* Gradient Overlays */}
                 <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-zinc-900/60 to-transparent" />
@@ -84,10 +87,12 @@ export const ArticleHero = ({ post }) => {
                 <div className="flex flex-wrap items-center gap-6 lg:gap-8">
                     {/* Author */}
                     <div className="flex items-center gap-4">
-                        <img
+                        <SmartImage
                             src={post.author.avatar}
                             alt={post.author.name}
-                            className="w-14 h-14 rounded-full border-2 border-white/30 object-cover"
+                            className="rounded-full border-2 border-white/30"
+                            containerClassName="w-14 h-14"
+                            fit="cover"
                         />
                         <div>
                             <p className="text-white font-semibold text-lg">{post.author.name}</p>

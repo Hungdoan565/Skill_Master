@@ -1,4 +1,5 @@
 import React from 'react';
+import { SmartImage } from '@/components/common';
 import { Link } from 'react-router-dom';
 import { Clock, ArrowUpRight, TrendingUp, Sparkles } from 'lucide-react';
 import { useInView } from '../hooks/useBlogHooks';
@@ -93,11 +94,12 @@ const MainFeaturedCard = ({ post }) => {
                 min-h-[400px] lg:min-h-[500px] bg-zinc-900"
         >
             {/* Background Image */}
-            <img
+            <SmartImage
                 src={post.thumbnail}
                 alt={post.title}
                 className="absolute inset-0 w-full h-full object-cover 
                     group-hover:scale-105 transition-transform duration-700 ease-out"
+                containerClassName="absolute inset-0 w-full h-full"
             />
 
             {/* Gradient Overlay */}
@@ -141,11 +143,13 @@ const MainFeaturedCard = ({ post }) => {
                 {/* Author & Meta */}
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <img
+                        <SmartImage
                             src={post.author.avatar}
                             alt={post.author.name}
-                            className="w-12 h-12 rounded-full border-2 border-white/30 
-                                group-hover:border-red-500/50 transition-colors"
+                            className="w-full h-full object-cover"
+                            containerClassName="w-12 h-12 rounded-full border-2 border-white/30 
+                                group-hover:border-red-500/50 transition-colors bg-white/10 shrink-0"
+                            aspectRatio="aspect-square"
                         />
                         <div>
                             <p className="text-white font-semibold">{post.author.name}</p>
@@ -183,11 +187,12 @@ const SideFeaturedCard = ({ post, index }) => {
             style={{ transitionDelay: `${index * 100}ms` }}
         >
             {/* Background Image */}
-            <img
+            <SmartImage
                 src={post.thumbnail}
                 alt={post.title}
                 className="absolute inset-0 w-full h-full object-cover 
                     group-hover:scale-105 transition-transform duration-500"
+                containerClassName="absolute inset-0 w-full h-full"
             />
 
             {/* Gradient */}
@@ -232,12 +237,12 @@ const WideCard = ({ post }) => {
                 bg-gradient-to-r from-stone-100 to-stone-50 border border-stone-200
                 hover:shadow-xl hover:shadow-stone-200/50 transition-all duration-500"
         >
-            {/* Image */}
             <div className="lg:w-1/3 aspect-[16/9] lg:aspect-auto overflow-hidden">
-                <img
+                <SmartImage
                     src={post.thumbnail}
                     alt={post.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    containerClassName="w-full h-full"
                 />
             </div>
 
@@ -259,10 +264,12 @@ const WideCard = ({ post }) => {
                 </p>
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <img
+                        <SmartImage
                             src={post.author.avatar}
                             alt={post.author.name}
-                            className="w-10 h-10 rounded-full border-2 border-white shadow-sm"
+                            className="w-full h-full object-cover"
+                            containerClassName="w-10 h-10 rounded-full border-2 border-white shadow-sm bg-white shrink-0"
+                            aspectRatio="aspect-square"
                         />
                         <div>
                             <p className="text-sm font-semibold text-zinc-900">{post.author.name}</p>

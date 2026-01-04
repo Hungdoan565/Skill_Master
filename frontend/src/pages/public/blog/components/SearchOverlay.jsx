@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, TrendingUp, Clock, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { SmartImage } from '@/components/common';
 import { MOCK_POSTS, formatDate } from '../constants/blog-data';
 
 // ============================================
@@ -102,10 +103,12 @@ export const SearchOverlay = ({ isOpen, onClose }) => {
                                     className="group flex gap-4 p-3 rounded-2xl hover:bg-stone-50 transition-all border border-transparent hover:border-stone-100"
                                 >
                                     <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
-                                        <img
+                                        <SmartImage
                                             src={post.thumbnail}
                                             alt=""
-                                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                            className="group-hover:scale-110 transition-transform duration-500"
+                                            aspectRatio="1/1"
+                                            fit="cover"
                                         />
                                     </div>
                                     <div className="flex-1 min-w-0">

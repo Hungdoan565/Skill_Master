@@ -1,4 +1,5 @@
 import React from 'react';
+import { SmartImage } from '@/components/common';
 import { Link } from 'react-router-dom';
 import { Calendar, Clock, Eye, ArrowRight, Sparkles } from 'lucide-react';
 import { useInView, useReducedMotion } from '../hooks/useBlogHooks';
@@ -23,11 +24,12 @@ export const BlogCard = ({ post, index }) => {
             <Link to={`/blog/${post.slug}`} className="block">
                 {/* Image */}
                 <div className="relative aspect-[16/10] overflow-hidden">
-                    <img
+                    <SmartImage
                         src={post.thumbnail}
                         alt={post.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                        loading="lazy"
+                        containerClassName="w-full h-full"
+                        aspectRatio="aspect-video"
                     />
                     {/* Category Badge */}
                     <div className="absolute top-4 left-4">
@@ -96,10 +98,12 @@ export const BlogCard = ({ post, index }) => {
                     {/* Author + Arrow */}
                     <div className="flex items-center justify-between pt-5 border-t border-stone-100">
                         <div className="flex items-center gap-3">
-                            <img
+                            <SmartImage
                                 src={post.author.avatar}
                                 alt={post.author.name}
-                                className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm"
+                                className="w-full h-full object-cover"
+                                containerClassName="w-10 h-10 rounded-full border-2 border-white shadow-sm overflow-hidden shrink-0"
+                                aspectRatio="aspect-square"
                             />
                             <div>
                                 <p className="text-sm font-semibold text-zinc-900">{post.author.name}</p>

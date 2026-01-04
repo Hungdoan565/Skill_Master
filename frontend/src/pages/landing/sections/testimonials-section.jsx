@@ -1,4 +1,5 @@
 import React from 'react';
+import { SmartImage } from '@/components/common';
 import { useInView } from '../hooks/use-in-view';
 import { testimonials } from '../constants/landing-data';
 
@@ -52,11 +53,12 @@ export const TestimonialsSection = () => {
 
                             {/* Author */}
                             <div className="mt-6 pt-6 border-t border-stone-200 flex items-center gap-4">
-                                <img
+                                <SmartImage
                                     src={testimonial.image}
                                     alt={testimonial.author}
-                                    className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm"
-                                    loading="lazy"
+                                    className="w-full h-full object-cover"
+                                    containerClassName="w-12 h-12 rounded-full border-2 border-white shadow-sm overflow-hidden"
+                                    aspectRatio="aspect-square"
                                 />
                                 <div>
                                     <p className="font-semibold text-zinc-900">{testimonial.author}</p>

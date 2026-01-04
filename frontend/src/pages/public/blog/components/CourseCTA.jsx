@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { SmartImage } from '@/components/common';
 import {
     Sparkles,
     ArrowRight,
@@ -120,10 +121,11 @@ export const InArticleCourseCTA = ({ category }) => {
             <div className="relative flex flex-col lg:flex-row">
                 {/* Image */}
                 <div className="lg:w-2/5 h-48 lg:h-auto relative">
-                    <img
+                    <SmartImage
                         src={course.image}
                         alt={course.title}
-                        className="w-full h-full object-cover"
+                        fit="cover"
+                        priority
                     />
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent to-stone-900/80 
                         hidden lg:block" />

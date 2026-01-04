@@ -5,7 +5,7 @@ import {
   Target, Award, Users, CheckCircle, Clock, Star, Play, TrendingUp
 } from 'lucide-react';
 import PublicHeader from '@/components/layout/public-header';
-import { Helmet } from 'react-helmet-async';
+import { SEOHead } from '@/components/common';
 import { Footer } from '@/pages/landing/components/footer';
 
 // Import logo
@@ -748,10 +748,10 @@ const CTASection = () => {
 export const RoadmapPage = () => {
   return (
     <div className="min-h-screen bg-white antialiased">
-      <Helmet>
-        <title>Lộ trình học tập | Skill Master - Định hướng thành công</title>
-        <meta name="description" content="Khám phá lộ trình học tập tối ưu cho IELTS, TOEIC và Tin học quốc tế tại Skill Master. Từ mất gốc đến thành thạo với phương pháp học hiện đại." />
-      </Helmet>
+      <SEOHead
+        title="Lộ trình học tập"
+        description="Khám phá lộ trình học tập tối ưu cho IELTS, TOEIC và Tin học quốc tế tại Skill Master. Từ mất gốc đến thành thạo với phương pháp học hiện đại."
+      />
       <PublicHeader />
       <main>
         <PageHeader />

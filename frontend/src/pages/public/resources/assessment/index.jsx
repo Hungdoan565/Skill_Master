@@ -4,7 +4,7 @@ import {
     Globe, Briefcase, Monitor, Clock, Users, ArrowRight,
     CheckCircle, Star, Play, Sparkles, Target
 } from 'lucide-react';
-import { Helmet } from 'react-helmet-async';
+import { SEOHead } from '@/components/common';
 import PublicHeader from '@/components/layout/public-header';
 import { Footer } from '@/pages/landing/components/footer';
 import { supabase } from '@/lib/supabaseClient';
@@ -419,10 +419,10 @@ export const AssessmentPage = () => {
 
     return (
         <div className="min-h-screen bg-white">
-            <Helmet>
-                <title>Kiểm tra Trình độ | Skill Master - Đánh giá năng lực miễn phí</title>
-                <meta name="description" content="Làm bài test miễn phí để đánh giá trình độ tiếng Anh hoặc tin học. Nhận kết quả ngay và gợi ý khóa học phù hợp." />
-            </Helmet>
+            <SEOHead
+                title="Kiểm tra Trình độ"
+                description="Làm bài test miễn phí để đánh giá trình độ tiếng Anh hoặc tin học. Nhận kết quả ngay và gợi ý khóa học phù hợp."
+            />
 
             <PublicHeader />
 

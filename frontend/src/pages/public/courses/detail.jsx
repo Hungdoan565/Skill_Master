@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Helmet } from 'react-helmet-async';
+import { SEOHead } from '@/components/common';
 import { Footer } from '@/pages/landing/components/footer';
 import { supabase } from '@/lib/supabaseClient';
 import {
@@ -775,13 +775,27 @@ export const CourseDetailPage = () => {
 
     return (
         <div className={`min-h-screen bg-white antialiased font-sans ${theme.selection}`}>
-            <Helmet>
-                <title>{course?.title ? `${course.title} | Lộ trình Skill Master` : 'Chi tiết khóa học | Skill Master'}</title>
-                <meta name="description" content={course?.description ? `${course.description.substring(0, 150)}...` : 'Thông tin chi tiết về khóa học tại Skill Master. Đăng ký ngay để nhận ưu đãi.'} />
-                <meta property="og:title" content={course?.title ? `${course.title} | Skill Master` : 'Chi tiết khóa học | Skill Master'} />
-                <meta property="og:description" content={course?.description || 'Thông tin chi tiết về khóa học tại Skill Master.'} />
-                <meta property="og:type" content="website" />
-            </Helmet>
+            <SEOHead
+                title={course.title}
+                description={course.description}
+                schema={{
+                    '@context': 'https://schema.org',
+                    '@type': 'Course',
+                    'name': course.title,
+                    'description': course.description,
+                    'provider': {
+                        '@type': 'Organization',
+                        'name': 'Skill Master',
+                        'sameAs': 'https://skillmaster.vn'
+                    },
+                    'courseCode': course.code,
+                    'offers': {
+                        '@type': 'Offer',
+                        'price': course.price,
+                        'priceCurrency': 'VND'
+                    }
+                }}
+            />
             <PublicHeader />
 
             <main className="pt-20">

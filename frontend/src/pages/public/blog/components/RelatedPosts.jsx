@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { SmartImage } from '@/components/common';
 import { ArrowRight, Clock, Calendar } from 'lucide-react';
 import { formatDate } from '../constants/blog-data';
 
@@ -41,12 +42,12 @@ export const RelatedPosts = ({ posts, currentCategory }) => {
                                 hover:-translate-y-1 transition-all duration-300"
                         >
                             <div className="aspect-[16/10] overflow-hidden">
-                                <img
+                                <SmartImage
                                     src={post.thumbnail}
                                     alt={post.title}
-                                    className="w-full h-full object-cover 
-                                        group-hover:scale-105 transition-transform duration-500"
-                                    loading="lazy"
+                                    className="group-hover:scale-105 transition-transform duration-500"
+                                    aspectRatio="16/10"
+                                    fit="cover"
                                 />
                             </div>
                             <div className="p-5">

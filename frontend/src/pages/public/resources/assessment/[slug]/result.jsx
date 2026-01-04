@@ -6,7 +6,7 @@ import {
     Loader2, Home, Star, ChevronRight, ChevronLeft, List, Eye,
     Lightbulb, Check, X
 } from 'lucide-react';
-import { Helmet } from 'react-helmet-async';
+import { SEOHead } from '@/components/common';
 import { supabase } from '@/lib/supabaseClient';
 
 // ============================================
@@ -578,9 +578,10 @@ export const ResultPage = () => {
 
     return (
         <div className="min-h-screen bg-neutral-50">
-            <Helmet>
-                <title>Kết quả bài test | Skill Master</title>
-            </Helmet>
+            <SEOHead
+                title="Kết quả bài test"
+                noindex
+            />
 
             {/* Header */}
             <header className="bg-white border-b border-neutral-200">

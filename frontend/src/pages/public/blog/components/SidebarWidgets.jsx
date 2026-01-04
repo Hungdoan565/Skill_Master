@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { SmartImage } from '@/components/common';
 import { Tag, Clock, TrendingUp, ChevronRight } from 'lucide-react';
 import { POPULAR_TAGS, formatDate } from '../constants/blog-data';
 
@@ -68,11 +69,12 @@ export const RecentPostsWidget = ({ posts, currentPostId }) => {
                         className="group flex gap-4 items-start"
                     >
                         <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
-                            <img
+                            <SmartImage
                                 src={post.thumbnail}
                                 alt={post.title}
-                                className="w-full h-full object-cover transition-transform duration-500 
-                                    group-hover:scale-110"
+                                className="transition-transform duration-500 group-hover:scale-110"
+                                aspectRatio="1/1"
+                                fit="cover"
                             />
                         </div>
                         <div className="flex-1 min-w-0">

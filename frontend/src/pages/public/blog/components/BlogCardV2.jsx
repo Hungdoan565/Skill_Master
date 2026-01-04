@@ -1,4 +1,5 @@
 import React from 'react';
+import { SmartImage } from '@/components/common';
 import { Link } from 'react-router-dom';
 import { Calendar, Clock, Eye, ArrowUpRight, Sparkles, Bookmark } from 'lucide-react';
 import { useInView, useReducedMotion } from '../hooks/useBlogHooks';
@@ -35,13 +36,14 @@ const StandardCard = React.forwardRef(({ post, index, isInView, prefersReducedMo
         <Link to={`/blog/${post.slug}`} className="block">
             {/* Image Container */}
             <div className="relative aspect-[16/10] overflow-hidden">
-                <img
+                <SmartImage
                     src={post.thumbnail}
                     alt={post.title}
                     className="w-full h-full object-cover 
                         group-hover:scale-110 group-hover:rotate-1 
                         transition-transform duration-700 ease-out"
-                    loading="lazy"
+                    containerClassName="w-full h-full"
+                    aspectRatio="aspect-video"
                 />
 
                 {/* Gradient Overlay on Hover */}
@@ -115,11 +117,13 @@ const StandardCard = React.forwardRef(({ post, index, isInView, prefersReducedMo
                 <div className="flex items-center justify-between pt-5 border-t border-stone-100">
                     <div className="flex items-center gap-3 
                         group-hover:-translate-x-1 transition-transform duration-300">
-                        <img
+                        <SmartImage
                             src={post.author.avatar}
                             alt={post.author.name}
-                            className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm
-                                group-hover:border-red-500/50 transition-colors"
+                            className="w-full h-full object-cover"
+                            containerClassName="w-10 h-10 rounded-full border-2 border-white shadow-sm
+                                group-hover:border-red-500/50 transition-colors bg-white shrink-0"
+                            aspectRatio="aspect-square"
                         />
                         <div>
                             <p className="text-sm font-semibold text-zinc-900">{post.author.name}</p>
@@ -153,12 +157,13 @@ const LargeCard = React.forwardRef(({ post, index, isInView, prefersReducedMotio
         <Link to={`/blog/${post.slug}`} className="flex flex-col lg:flex-row">
             {/* Image - 60% width on desktop */}
             <div className="lg:w-3/5 aspect-[16/10] lg:aspect-auto overflow-hidden">
-                <img
+                <SmartImage
                     src={post.thumbnail}
                     alt={post.title}
                     className="w-full h-full object-cover 
                         group-hover:scale-105 transition-transform duration-700"
-                    loading="lazy"
+                    containerClassName="w-full h-full"
+                    aspectRatio="aspect-video"
                 />
             </div>
 
@@ -210,10 +215,12 @@ const LargeCard = React.forwardRef(({ post, index, isInView, prefersReducedMotio
                 {/* Author */}
                 <div className="flex items-center justify-between pt-6 border-t border-stone-100">
                     <div className="flex items-center gap-3">
-                        <img
+                        <SmartImage
                             src={post.author.avatar}
                             alt={post.author.name}
-                            className="w-12 h-12 rounded-full border-2 border-white shadow-md"
+                            className="w-full h-full object-cover"
+                            containerClassName="w-12 h-12 rounded-full border-2 border-white shadow-md bg-white shrink-0"
+                            aspectRatio="aspect-square"
                         />
                         <div>
                             <p className="font-semibold text-zinc-900">{post.author.name}</p>
@@ -246,12 +253,13 @@ const CompactCard = React.forwardRef(({ post, index, isInView, prefersReducedMot
         <Link to={`/blog/${post.slug}`} className="flex gap-4 w-full">
             {/* Thumbnail */}
             <div className="w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden">
-                <img
+                <SmartImage
                     src={post.thumbnail}
                     alt={post.title}
                     className="w-full h-full object-cover 
                         group-hover:scale-110 transition-transform duration-500"
-                    loading="lazy"
+                    containerClassName="w-full h-full rounded-lg"
+                    aspectRatio="aspect-square"
                 />
             </div>
 

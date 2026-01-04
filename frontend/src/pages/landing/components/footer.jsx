@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SmartImage } from '@/components/common';
 import { Link } from 'react-router-dom';
 import {
     Facebook, Youtube, Instagram, Linkedin,
@@ -59,7 +60,13 @@ export const Footer = () => {
                     {/* Brand Column */}
                     <div className="lg:col-span-4 space-y-6">
                         <Link to="/" className="inline-block group">
-                            <img src={logoImage} alt="Skill Master Logo" className="h-16 w-auto object-contain brightness-0 invert opacity-50 group-hover:opacity-100 transition-all duration-300" />
+                            <SmartImage
+                                src={logoImage}
+                                alt="Skill Master Logo"
+                                className="w-full h-full object-contain brightness-0 invert opacity-50 group-hover:opacity-100 transition-all duration-300"
+                                containerClassName="h-16 w-auto bg-transparent"
+                                aspectRatio="aspect-auto"
+                            />
                         </Link>
                         <p className="text-stone-400 leading-relaxed max-w-sm">
                             Hệ thống đào tạo Anh ngữ & Tin học chuẩn quốc tế.

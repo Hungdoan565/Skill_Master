@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, Suspense, lazy } from 'react';
 import axios from 'axios';
 import {
   BrowserRouter,
@@ -49,16 +49,31 @@ import { AuthPage } from '@/pages/auth/auth-page';
 import { LandingPage } from '@/pages/landing/landing-page';
 import { CoursesPage as PublicCoursesPage } from '@/pages/public/courses';
 import { CourseDetailPage } from '@/pages/public/courses/detail';
-import { AboutPage } from '@/pages/public/about';
-import { BlogPage } from '@/pages/public/blog';
-import BlogDetailPage from '@/pages/public/blog/[slug]';
-import { ContactPage } from '@/pages/public/contact';
-import { RoadmapPage } from '@/pages/public/roadmap';
-import { AssessmentPage } from '@/pages/public/resources/assessment';
-import { QuizPage } from '@/pages/public/resources/assessment/[slug]/page';
-import { ResultPage } from '@/pages/public/resources/assessment/[slug]/result';
 import { ProtectedRoute, GuestRoute, TeacherRoute, StudentRoute, AdminRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/contexts/auth-context';
+
+// ============================================
+// LAZY LOADED COMPONENTS (Code Splitting)
+// ============================================
+// Heavy public pages loaded on-demand for better initial bundle
+const AboutPage = lazy(() => import('@/pages/public/about').then(m => ({ default: m.AboutPage })));
+const BlogPage = lazy(() => import('@/pages/public/blog').then(m => ({ default: m.BlogPage })));
+const BlogDetailPage = lazy(() => import('@/pages/public/blog/[slug]'));
+const ContactPage = lazy(() => import('@/pages/public/contact').then(m => ({ default: m.ContactPage })));
+const RoadmapPage = lazy(() => import('@/pages/public/roadmap').then(m => ({ default: m.RoadmapPage })));
+const AssessmentPage = lazy(() => import('@/pages/public/resources/assessment').then(m => ({ default: m.AssessmentPage })));
+const QuizPage = lazy(() => import('@/pages/public/resources/assessment/[slug]/page').then(m => ({ default: m.QuizPage })));
+const ResultPage = lazy(() => import('@/pages/public/resources/assessment/[slug]/result').then(m => ({ default: m.ResultPage })));
+
+// Loading fallback component
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center bg-white">
+    <div className="flex flex-col items-center gap-4">
+      <div className="w-10 h-10 border-4 border-zinc-200 border-t-red-600 rounded-full animate-spin" />
+      <p className="text-zinc-500 text-sm font-medium">Đang tải...</p>
+    </div>
+  </div>
+);
 
 const PlaceholderPage = ({ title, description }) => (
   <div className="p-6">
@@ -469,19 +484,19 @@ function App() {
           {/* Landing Page - Standalone with its own header/footer */}
           <Route index element={<LandingPage />} />
 
-          {/* Public Pages - Standalone with their own header/footer */}
-          <Route path="about" element={<AboutPage />} />
-          <Route path="resources" element={<BlogPage />} />
-          <Route path="blog" element={<BlogPage />} />
-          <Route path="blog/:slug" element={<BlogDetailPage />} />
-          <Route path="contact" element={<ContactPage />} />
-          <Route path="roadmap" element={<RoadmapPage />} />
-          <Route path="roadmap/:slug" element={<RoadmapPage />} />
+          {/* Public Pages - Lazy loaded with Suspense */}
+          <Route path="about" element={<Suspense fallback={<PageLoader />}><AboutPage /></Suspense>} />
+          <Route path="resources" element={<Suspense fallback={<PageLoader />}><BlogPage /></Suspense>} />
+          <Route path="blog" element={<Suspense fallback={<PageLoader />}><BlogPage /></Suspense>} />
+          <Route path="blog/:slug" element={<Suspense fallback={<PageLoader />}><BlogDetailPage /></Suspense>} />
+          <Route path="contact" element={<Suspense fallback={<PageLoader />}><ContactPage /></Suspense>} />
+          <Route path="roadmap" element={<Suspense fallback={<PageLoader />}><RoadmapPage /></Suspense>} />
+          <Route path="roadmap/:slug" element={<Suspense fallback={<PageLoader />}><RoadmapPage /></Suspense>} />
 
-          {/* Assessment/Placement Test Pages */}
-          <Route path="assessment" element={<AssessmentPage />} />
-          <Route path="assessment/:slug" element={<QuizPage />} />
-          <Route path="assessment/:slug/result" element={<ResultPage />} />
+          {/* Assessment/Placement Test Pages - Lazy loaded */}
+          <Route path="assessment" element={<Suspense fallback={<PageLoader />}><AssessmentPage /></Suspense>} />
+          <Route path="assessment/:slug" element={<Suspense fallback={<PageLoader />}><QuizPage /></Suspense>} />
+          <Route path="assessment/:slug/result" element={<Suspense fallback={<PageLoader />}><ResultPage /></Suspense>} />
 
           {/* Public Courses Page - Standalone with its own header/footer */}
           <Route path="courses" element={<PublicCoursesPage />} />

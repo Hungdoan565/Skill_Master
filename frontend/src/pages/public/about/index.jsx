@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { SmartImage, SEOHead } from '@/components/common';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight, MapPin, Phone, Award, Navigation
 } from 'lucide-react';
 import PublicHeader from '@/components/layout/public-header';
-import { Helmet } from 'react-helmet-async';
 import { Footer } from '@/pages/landing/components/footer';
 
 // Import logo
@@ -1428,11 +1428,11 @@ const CTASection = () => {
 // ============================================
 export const AboutPage = () => {
   return (
-    <div className="min-h-screen bg-white antialiased">
-      <Helmet>
-        <title>Về chúng tôi | Skill Master - Hệ thống đào tạo Anh ngữ & Tin học</title>
-        <meta name="description" content="Tìm hiểu về Skill Master, sứ mệnh, giá trị cốt lõi và đội ngũ giảng viên chuyên nghiệp trong lĩnh vực đào tạo IELTS, TOEIC và Tin học văn phòng." />
-      </Helmet>
+    <div className="min-h-screen bg-white">
+      <SEOHead
+        title="Về chúng tôi"
+        description="Skill Master - Hệ thống đào tạo Anh ngữ & Tin học chuẩn quốc tế. Tìm hiểu về tầm nhìn, sứ mệnh và đội ngũ chuyên gia của chúng tôi."
+      />
       <PublicHeader />
       <main>
         <PageHeader />

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SmartImage } from '@/components/common';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Play, BookOpen, Clock, CheckCircle2, Award, Star, TrendingUp, FileText, Brain } from 'lucide-react';
 import { useInView } from '../hooks/use-in-view';
@@ -124,13 +125,14 @@ export const HeroSection = () => {
                             ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
                                 <div className="flex -space-x-3">
                                     {studentAvatars.map((avatar, i) => (
-                                        <img
+                                        <SmartImage
                                             key={i}
                                             src={avatar}
                                             alt={`Học viên ${i + 1}`}
                                             className="w-10 h-10 rounded-full border-2 border-white shadow-sm 
-                               object-cover hover:scale-110 hover:z-10 transition-transform"
-                                            loading="lazy"
+                               object-cover group-hover:scale-110 group-hover:z-10 transition-transform"
+                                            containerClassName="w-10 h-10 rounded-full border-2 border-white shadow-sm overflow-hidden"
+                                            aspectRatio="aspect-square"
                                         />
                                     ))}
                                 </div>
@@ -245,10 +247,12 @@ export const HeroSection = () => {
 
                                         {/* Instructor & Next Class */}
                                         <div className="flex items-center gap-4 p-4 bg-zinc-900 rounded-2xl">
-                                            <img
+                                            <SmartImage
                                                 src={heroCourseCard.instructor.avatar}
                                                 alt={heroCourseCard.instructor.name}
-                                                className="w-12 h-12 rounded-full object-cover border-2 border-white/20"
+                                                className="w-full h-full object-cover"
+                                                containerClassName="w-12 h-12 rounded-full border-2 border-white/20 shrink-0"
+                                                aspectRatio="aspect-square"
                                             />
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-sm font-medium text-white">{heroCourseCard.instructor.name}</p>

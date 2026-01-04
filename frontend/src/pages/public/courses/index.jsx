@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Helmet } from 'react-helmet-async';
+import { SEOHead } from '@/components/common';
 import { Footer } from '@/pages/landing/components/footer';
 import {
   ArrowRight,
@@ -550,14 +550,12 @@ export const CoursesPage = () => {
 
   return (
     <div className="min-h-screen bg-white antialiased">
-      <Helmet>
-        <title>Lộ trình học tiếng Anh & Tin học chuẩn quốc tế | Skill Master</title>
-        <meta name="description" content="Khám phá các khóa học Tiếng Anh (IELTS, TOEIC) và Tin học văn phòng chuẩn quốc tế tại Skill Master. Đào tạo chất lượng cao, cam kết đầu ra bằng văn bản." />
-        <meta name="keywords" content="khóa học ielts, luyện thi toeic, tin học văn phòng, skill master, học tiếng anh, học tin học, lộ trình học tập" />
-        <meta property="og:title" content="Lộ trình học tiếng Anh & Tin học chuẩn quốc tế | Skill Master" />
-        <meta property="og:description" content="Đào tạo chất lượng cao, cam kết đầu ra với các khóa học IELTS, TOEIC và Tin học văn phòng." />
-        <link rel="canonical" href="https://skillmaster.vn/courses" />
-      </Helmet>
+      <SEOHead
+        title="Lộ trình học tiếng Anh & Tin học chuẩn quốc tế"
+        description="Khám phá các khóa học Tiếng Anh (IELTS, TOEIC) và Tin học văn phòng chuẩn quốc tế tại Skill Master. Đào tạo chất lượng cao, cam kết đầu ra bằng văn bản."
+        keywords="khóa học ielts, luyện thi toeic, tin học văn phòng, skill master, học tiếng anh, học tin học, lộ trình học tập"
+        canonical="https://skillmaster.vn/courses"
+      />
       <PublicHeader />
       <main>
         <PageHeader

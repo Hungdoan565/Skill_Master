@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { SmartImage } from '@/components/common';
 import { useInView } from '../hooks/useBlogHooks';
 import { formatDate } from '../constants/blog-data';
 
@@ -37,11 +38,12 @@ export const FeaturedSection = ({ posts }) => {
                         to={`/blog/${mainPost.slug}`}
                         className="group relative rounded-3xl overflow-hidden aspect-[4/3] lg:aspect-auto lg:row-span-2"
                     >
-                        <img
+                        <SmartImage
                             src={mainPost.thumbnail}
                             alt={mainPost.title}
-                            className="absolute inset-0 w-full h-full object-cover 
-                                group-hover:scale-105 transition-transform duration-700"
+                            className="group-hover:scale-105 transition-transform duration-700"
+                            fit="cover"
+                            priority
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-zinc-900/90 via-zinc-900/40 to-transparent" />
                         <div className="absolute bottom-0 left-0 right-0 p-8">
@@ -55,10 +57,12 @@ export const FeaturedSection = ({ posts }) => {
                             </h3>
                             <p className="text-white/70 mb-4 line-clamp-2">{mainPost.excerpt}</p>
                             <div className="flex items-center gap-4">
-                                <img
+                                <SmartImage
                                     src={mainPost.author.avatar}
                                     alt={mainPost.author.name}
-                                    className="w-10 h-10 rounded-full border-2 border-white/30"
+                                    className="rounded-full border-2 border-white/30"
+                                    containerClassName="w-10 h-10"
+                                    fit="cover"
                                 />
                                 <div>
                                     <p className="text-white font-medium">{mainPost.author.name}</p>
@@ -79,11 +83,12 @@ export const FeaturedSection = ({ posts }) => {
                                     transition-all duration-300"
                             >
                                 <div className="w-32 h-24 flex-shrink-0 rounded-xl overflow-hidden">
-                                    <img
+                                    <SmartImage
                                         src={post.thumbnail}
                                         alt={post.title}
-                                        className="w-full h-full object-cover 
-                                            group-hover:scale-105 transition-transform duration-500"
+                                        className="group-hover:scale-105 transition-transform duration-500"
+                                        aspectRatio="4/3"
+                                        fit="cover"
                                     />
                                 </div>
                                 <div className="flex-1 min-w-0">

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { SmartImage } from '@/components/common';
 import { Twitter, Linkedin, Mail, Globe, ArrowRight } from 'lucide-react';
 
 // ============================================
@@ -19,11 +20,12 @@ export const AuthorCard = ({ author, postCount = 12 }) => {
             <div className="flex flex-col md:flex-row gap-8 items-start">
                 {/* Avatar */}
                 <div className="flex-shrink-0">
-                    <img
+                    <SmartImage
                         src={author.avatar}
                         alt={author.name}
-                        className="w-24 h-24 md:w-32 md:h-32 rounded-2xl object-cover 
-                            border-4 border-white shadow-xl shadow-stone-200/50"
+                        className="rounded-2xl border-4 border-white shadow-xl shadow-stone-200/50"
+                        containerClassName="w-24 h-24 md:w-32 md:h-32"
+                        fit="cover"
                     />
                 </div>
 

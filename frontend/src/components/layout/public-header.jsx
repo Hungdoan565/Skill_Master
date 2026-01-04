@@ -11,7 +11,7 @@ import {
 import { useAuth } from '../../contexts/auth-context';
 import logoImage from '@/assets/logo.png';
 import { SearchOverlay } from '@/pages/public/blog/components/SearchOverlay';
-import { ConsultationModal, BookingModal } from '@/components/common';
+import { ConsultationModal, BookingModal, SmartImage } from '@/components/common';
 
 // ============================================
 // USER DROPDOWN
@@ -87,7 +87,13 @@ const UserDropdown = () => {
         `}
       >
         {avatarUrl ? (
-          <img src={avatarUrl} alt={displayName} className="h-9 w-9 rounded-full object-cover ring-2 ring-white shadow-sm" />
+          <SmartImage
+            src={avatarUrl}
+            alt={displayName}
+            className="w-full h-full object-cover"
+            containerClassName="h-9 w-9 rounded-full ring-2 ring-white shadow-sm overflow-hidden"
+            aspectRatio="aspect-square"
+          />
         ) : (
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-900 text-sm font-semibold text-white ring-2 ring-white shadow-sm">
             {getInitials(displayName)}
@@ -109,7 +115,13 @@ const UserDropdown = () => {
         <div className="px-4 py-3 border-b border-zinc-100">
           <div className="flex items-center gap-3">
             {avatarUrl ? (
-              <img src={avatarUrl} alt={displayName} className="h-11 w-11 rounded-full object-cover" />
+              <SmartImage
+                src={avatarUrl}
+                alt={displayName}
+                className="w-full h-full object-cover"
+                containerClassName="h-11 w-11 rounded-full overflow-hidden"
+                aspectRatio="aspect-square"
+              />
             ) : (
               <div className="flex h-11 w-11 items-center justify-center rounded-full bg-zinc-900 text-sm font-semibold text-white">
                 {getInitials(displayName)}
@@ -254,10 +266,13 @@ const PublicHeader = ({ transparent = false }) => {
         <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
           <nav className="flex items-center justify-between h-24">
             <Link to="/" className="group flex items-center gap-2">
-              <img
+              <SmartImage
                 src={logoImage}
                 alt="Skill Master"
-                className={`h-24 w-auto object-contain group-hover:scale-105 transition-transform duration-300 ${isTransparent ? 'brightness-0 invert opacity-90' : ''}`}
+                className={`w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 ${isTransparent ? 'brightness-0 invert opacity-90' : ''}`}
+                containerClassName="h-24 w-auto bg-transparent"
+                aspectRatio="aspect-auto"
+                priority={true}
               />
             </Link>
 

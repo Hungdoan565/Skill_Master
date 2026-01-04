@@ -4,9 +4,10 @@ import {
     Clock, ChevronLeft, ChevronRight, Check, AlertTriangle,
     Send, Loader2, Home, RotateCcw, Flag
 } from 'lucide-react';
-import { Helmet } from 'react-helmet-async';
+import { SEOHead } from '@/components/common';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/auth-context';
+import SmartImage from '@/components/common/SmartImage';
 
 // ============================================
 // QUIZ PAGE - Test Taking Interface
@@ -210,7 +211,7 @@ const QuestionCard = ({ question, selectedAnswer, onAnswer }) => {
                         {question.media_url.includes('audio') ? (
                             <audio controls src={question.media_url} className="w-full" />
                         ) : (
-                            <img
+                            <SmartImage
                                 src={question.media_url}
                                 alt="Question media"
                                 className="max-w-full h-auto rounded border border-neutral-200"
@@ -674,9 +675,10 @@ export const QuizPage = () => {
 
     return (
         <div className="min-h-screen bg-white flex flex-col select-none">
-            <Helmet>
-                <title>{test?.title || 'Làm bài test'} | Skill Master</title>
-            </Helmet>
+            <SEOHead
+                title={test?.title || 'Làm bài test'}
+                noindex
+            />
 
             {/* Header */}
             <header className="flex-shrink-0 bg-white border-b border-neutral-200">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { SmartImage } from '@/components/common';
 import { Star, ChevronLeft, ChevronRight, Users } from 'lucide-react';
 import { useInView } from '../hooks/use-in-view';
 import { teachers } from '../constants/landing-data';
@@ -109,12 +110,13 @@ export const TeacherCarousel = () => {
                             >
                                 {/* Avatar with Real Photo */}
                                 <div className="relative w-28 h-28 mx-auto">
-                                    <img
+                                    <SmartImage
                                         src={teacher.image}
                                         alt={teacher.name}
                                         className="w-full h-full rounded-full object-cover border-4 border-white
                              shadow-lg group-hover:scale-105 transition-transform duration-300"
-                                        loading="lazy"
+                                        containerClassName="w-full h-full rounded-full"
+                                        aspectRatio="aspect-square"
                                     />
                                     {/* Online indicator */}
                                     <div className="absolute bottom-1 right-1 w-5 h-5 bg-green-500 rounded-full
