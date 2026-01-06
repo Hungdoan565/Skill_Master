@@ -20,18 +20,18 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { useSearchParams } from 'react-router-dom';
-import { Download, RefreshCw, Plus } from 'lucide-react';
+import { Download, RefreshCw, Plus, FileText, ArrowLeftRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-// Feature imports - Clean và dễ đọc
+// Feature imports
 import {
   InvoiceStats,
   InvoiceFilters,
   InvoiceTable,
   PaymentModal,
   InvoiceDetailModal,
+  TransactionsTab,
   Toast,
-  // New modals
   CreateInvoiceModal,
   EditInvoiceModal,
   CancelInvoiceModal,
@@ -41,7 +41,8 @@ import {
 import {
   useInvoices,
   useInvoiceStats,
-  usePayment
+  usePayment,
+  useTransactions
 } from '../hooks';
 
 import { API_URL } from '../utils/constants';
@@ -72,9 +73,13 @@ export function InvoicesPage() {
     refresh: refreshStats
   } = useInvoiceStats();
 
+  // Transactions Tab hook
+  const transactions = useTransactions();
+
   // ============================================
   // LOCAL STATE - UI only
   // ============================================
+  const [activeTab, setActiveTab] = useState('invoices'); // 'invoices' | 'transactions'
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   // Invoice Detail Modal
@@ -86,7 +91,7 @@ export function InvoicesPage() {
 
   // New modals state
   const [createModal, setCreateModal] = useState(false);
-  const [createModalData, setCreateModalData] = useState(null); // Pre-fill data từ URL
+  const [createModalData, setCreateModalData] = useState(null);
   const [editModal, setEditModal] = useState({ isOpen: false, invoice: null });
   const [cancelModal, setCancelModal] = useState({ isOpen: false, invoice: null });
   const [refundModal, setRefundModal] = useState({ isOpen: false, invoice: null });
@@ -248,6 +253,8 @@ export function InvoicesPage() {
 
       if (result.success) {
         setDetailModal({ isOpen: true, invoice: result.data, loading: false });
+        // Fetch payments for this invoice
+        payment.fetchPayments(invoice.id);
       } else {
         throw new Error(result.message);
       }
@@ -256,7 +263,7 @@ export function InvoicesPage() {
       showToast('Lỗi khi tải chi tiết hóa đơn', 'error');
       setDetailModal({ isOpen: false, invoice: null, loading: false });
     }
-  }, [session?.access_token, showToast]);
+  }, [session?.access_token, showToast, payment]);
 
   const handleCloseDetail = useCallback(() => {
     setDetailModal({ isOpen: false, invoice: null, loading: false });
@@ -288,35 +295,86 @@ export function InvoicesPage() {
           canExport={invoices.length > 0}
         />
 
-        {/* KPI Stats */}
-        <InvoiceStats
-          statistics={statistics}
-          loading={loadingStats}
-          onStatusClick={handleStatusClick}
-          onOverdueClick={handleOverdueClick}
-          onMonthlyRevenueClick={handleMonthlyRevenueClick}
-        />
+        {/* Tab Navigation */}
+        <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => setActiveTab('invoices')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'invoices'
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+          >
+            <FileText className="w-4 h-4" />
+            Hóa đơn
+          </button>
+          <button
+            onClick={() => setActiveTab('transactions')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === 'transactions'
+              ? 'bg-primary text-primary-foreground shadow-sm'
+              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+          >
+            <ArrowLeftRight className="w-4 h-4" />
+            Giao dịch
+            {transactions.summary?.totalPending > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full text-xs bg-amber-500 text-white">
+                {transactions.summary.totalPending}
+              </span>
+            )}
+          </button>
+        </div>
 
-        {/* Filters */}
-        <InvoiceFilters
-          filters={filters}
-          onFilterChange={handleFilterChange}
-          onReset={resetFilters}
-          hasActiveFilters={hasActiveFilters}
-        />
+        {/* Tab Content */}
+        {activeTab === 'invoices' ? (
+          <>
+            {/* KPI Stats */}
+            <InvoiceStats
+              statistics={statistics}
+              loading={loadingStats}
+              onStatusClick={handleStatusClick}
+              onOverdueClick={handleOverdueClick}
+              onMonthlyRevenueClick={handleMonthlyRevenueClick}
+            />
 
-        {/* Data Table */}
-        <InvoiceTable
-          invoices={invoices}
-          loading={loading}
-          pagination={pagination}
-          onPageChange={handlePageChange}
-          onViewDetail={handleViewDetail}
-          onPayment={payment.openPayment}
-          onEdit={handleEdit}
-          onCancel={handleCancel}
-          onRefund={handleRefund}
-        />
+            {/* Filters */}
+            <InvoiceFilters
+              filters={filters}
+              onFilterChange={handleFilterChange}
+              onReset={resetFilters}
+              hasActiveFilters={hasActiveFilters}
+            />
+
+            {/* Data Table */}
+            <InvoiceTable
+              invoices={invoices}
+              loading={loading}
+              pagination={pagination}
+              onPageChange={handlePageChange}
+              onViewDetail={handleViewDetail}
+              onPayment={payment.openPayment}
+              onEdit={handleEdit}
+              onCancel={handleCancel}
+              onRefund={handleRefund}
+            />
+          </>
+        ) : (
+          /* Transactions Tab */
+          <TransactionsTab
+            transactions={transactions.transactions}
+            loading={transactions.loading}
+            summary={transactions.summary}
+            pagination={transactions.pagination}
+            filters={transactions.filters}
+            selectedIds={transactions.selectedIds}
+            onFilterChange={transactions.handleFilterChange}
+            onResetFilters={transactions.resetFilters}
+            onPageChange={transactions.handlePageChange}
+            onToggleSelect={transactions.toggleSelect}
+            onSelectAll={transactions.selectAll}
+            onBulkVerify={transactions.bulkVerify}
+            onRefresh={transactions.fetchTransactions}
+          />
+        )}
 
         {/* Payment Modal */}
         <PaymentModal
@@ -335,6 +393,11 @@ export function InvoicesPage() {
           invoice={detailModal.invoice}
           loading={detailModal.loading}
           onClose={handleCloseDetail}
+          payments={payment.payments}
+          loadingPayments={payment.loadingPayments}
+          onVerifyPayment={payment.verifyPayment}
+          onRejectPayment={payment.rejectPayment}
+          onRefreshPayments={() => detailModal.invoice && payment.fetchPayments(detailModal.invoice.id)}
         />
 
         {/* Create Invoice Modal */}

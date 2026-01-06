@@ -30,30 +30,27 @@ export function CourseAnalyticsModal({ isOpen, onClose, course, accessToken }) {
                     headers: { Authorization: `Bearer ${accessToken}` }
                 }
             );
-            setStats(response.data?.data || generateMockStats());
+            setStats(response.data?.data || getPlaceholderStats());
         } catch (err) {
             console.error('Error fetching analytics:', err);
-            // Fallback to mock data for demo
-            setStats(generateMockStats());
+            // Fallback to placeholder data when API fails
+            setStats(getPlaceholderStats());
         } finally {
             setLoading(false);
         }
     }, [course?.id, accessToken]);
 
-    // Generate mock stats for demo
-    const generateMockStats = () => ({
-        totalClasses: Math.floor(Math.random() * 10) + 1,
-        activeClasses: Math.floor(Math.random() * 5) + 1,
-        totalStudents: Math.floor(Math.random() * 100) + 10,
-        totalRevenue: (Math.floor(Math.random() * 100) + 20) * 1000000,
-        completionRate: Math.floor(Math.random() * 30) + 70,
-        avgClassSize: Math.floor(Math.random() * 10) + 5,
-        recentEnrollments: Math.floor(Math.random() * 20) + 5,
-        monthlyTrend: [
-            { month: 'T10', students: Math.floor(Math.random() * 20) + 5 },
-            { month: 'T11', students: Math.floor(Math.random() * 20) + 5 },
-            { month: 'T12', students: Math.floor(Math.random() * 20) + 5 },
-        ]
+    // Placeholder stats when API fails - no fake data
+    const getPlaceholderStats = () => ({
+        totalClasses: 0,
+        activeClasses: 0,
+        totalStudents: 0,
+        totalRevenue: 0,
+        completionRate: 0,
+        avgClassSize: 0,
+        recentEnrollments: 0,
+        monthlyTrend: [],
+        isPlaceholder: true // Flag to show "no data" message
     });
 
     useEffect(() => {

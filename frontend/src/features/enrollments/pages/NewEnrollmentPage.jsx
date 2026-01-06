@@ -94,7 +94,7 @@ const ClassSelectItem = ({ classItem, selected, onClick }) => {
                     </div>
                     <p className="text-sm text-slate-500 mt-1">{classItem.courses?.title || 'N/A'}</p>
                     <div className="flex items-center gap-4 mt-2 text-xs text-slate-400">
-                        <span>GV: {classItem.teachers?.full_name || 'N/A'}</span>
+                        <span>GV: {classItem.teacher?.full_name || classItem.teachers?.full_name || classItem.users?.full_name || 'Chưa phân công'}</span>
                         <span>•</span>
                         <span>{formatDate(classItem.start_date)} - {formatDate(classItem.end_date)}</span>
                     </div>
@@ -251,9 +251,17 @@ export function NewEnrollmentPage() {
         setError(null);
 
         try {
-            // 🔥 UPDATED: Removed create_invoice option - always create draft invoice
-            await createBulkEnrollment(selectedClass, selectedStudents);
-            setSuccess(`Đã ghi danh ${selectedStudents.length} học viên thành công! Hóa đơn đã tạo ở trạng thái Draft.`);
+            // 🔥 UPDATED: Use API response message which includes invoice count
+            const result = await createBulkEnrollment(selectedClass, selectedStudents);
+
+            // Show success message from API (includes invoice count)
+            const successMsg = result?.message || `Đã ghi danh ${selectedStudents.length} học viên thành công!`;
+            setSuccess(successMsg);
+
+            // Warn if some invoices failed
+            if (result?.invoice_errors?.length > 0) {
+                console.warn('Some invoices failed:', result.invoice_errors);
+            }
 
             // Reset và redirect sau 2s
             setTimeout(() => {

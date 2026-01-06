@@ -13,9 +13,9 @@
  */
 
 import { useState } from 'react';
-import { 
-  X, Receipt, DollarSign, Banknote, QrCode, 
-  Smartphone, Copy, Check, Loader2, CheckCircle2 
+import {
+  X, Receipt, DollarSign, Banknote, QrCode,
+  Smartphone, Copy, Check, Loader2, CheckCircle2, Upload
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BANK_CONFIG } from '../utils/constants';
@@ -50,14 +50,14 @@ export function PaymentModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/50" 
-        onClick={() => !processing && onClose()} 
+      <div
+        className="absolute inset-0 bg-black/50"
+        onClick={() => !processing && onClose()}
       />
-      
+
       {/* Modal */}
       <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
-        
+
         {/* Header */}
         <div className="bg-linear-to-r from-emerald-500 to-teal-600 px-4 py-3 text-white shrink-0">
           <div className="flex items-center justify-between">
@@ -72,7 +72,7 @@ export function PaymentModal({
                 <p className="text-xs text-emerald-100">{invoice.invoice_code}</p>
               </div>
             </div>
-            <button 
+            <button
               onClick={onClose}
               disabled={processing}
               className="p-1 hover:bg-white/20 rounded-lg transition-colors"
@@ -84,7 +84,7 @@ export function PaymentModal({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
-          
+
           {/* Payment Summary */}
           <div className="px-4 py-2 flex gap-2 border-b border-slate-100">
             <SummaryBox label="Tổng" value={invoice.final_amount || 0} variant="default" />
@@ -94,7 +94,7 @@ export function PaymentModal({
 
           {/* Form */}
           <div className="px-4 py-3 space-y-3">
-            
+
             {/* Amount Input */}
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">
@@ -118,7 +118,7 @@ export function PaymentModal({
                   VNĐ
                 </span>
               </div>
-              
+
               {/* Quick amount buttons */}
               <div className="flex flex-wrap gap-1.5 mt-1.5">
                 {remaining > 0 && (
@@ -168,6 +168,8 @@ export function PaymentModal({
                   amount={formData.amount}
                   copied={copied}
                   onCopy={handleCopy}
+                  bankProofUrl={formData.bankProofUrl}
+                  onUploadProof={(url) => onFormChange('bankProofUrl', url)}
                 />
               )}
             </div>
@@ -276,70 +278,153 @@ function PaymentMethodButton({ icon: Icon, label, selected, onClick }) {
   );
 }
 
-function VietQRSection({ invoice, amount, copied, onCopy }) {
+function VietQRSection({ invoice, amount, copied, onCopy, bankProofUrl, onUploadProof }) {
   const parsedAmount = parseInt(amount.toString().replace(/[^0-9]/g, '')) || 0;
   const studentName = invoice.student?.full_name?.split(' ').pop() || '';
   const transferContent = `HP ${studentName} ${invoice.invoice_code || ''}`;
-  
+  const [copiedField, setCopiedField] = useState(null);
+
   const qrUrl = `https://img.vietqr.io/image/${BANK_CONFIG.bankId}-${BANK_CONFIG.accountNo}-${BANK_CONFIG.template}.png?amount=${parsedAmount}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(BANK_CONFIG.accountName)}`;
 
+  const handleCopyField = (field, value) => {
+    navigator.clipboard.writeText(value);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file && onUploadProof) {
+      // Convert to base64 for demo (in production: upload to Supabase Storage)
+      const reader = new FileReader();
+      reader.onload = () => {
+        onUploadProof(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   return (
-    <div className="mt-3 p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-100 animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <div className="flex gap-3">
-        {/* QR Code */}
-        <div className="flex-shrink-0 bg-white p-2 rounded-lg shadow-sm border border-blue-100">
-          <img 
+    <div className="mt-3 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100 animate-in fade-in slide-in-from-bottom-2 duration-300">
+
+      {/* QR Code - LARGE 300x300 */}
+      <div className="flex justify-center mb-4">
+        <div className="bg-white p-3 rounded-xl shadow-md border border-blue-100">
+          <img
             src={qrUrl}
             alt="VietQR Code"
-            className="w-28 h-28 object-contain"
+            className="w-72 h-72 object-contain"
           />
         </div>
-        
-        {/* Bank Info */}
-        <div className="flex-1 flex flex-col justify-between text-xs">
-          <div>
-            <div className="flex items-center gap-1 mb-1">
-              <Smartphone className="w-3 h-3 text-blue-600" />
-              <span className="font-medium text-blue-700">VietQR</span>
-            </div>
-            <p className="text-slate-500">
-              NH: <span className="font-semibold text-slate-700">{BANK_CONFIG.bankId}</span>
-            </p>
-            <p className="text-slate-500">
-              STK: <span className="font-semibold text-slate-700">{BANK_CONFIG.accountNo}</span>
-            </p>
-            <p className="text-slate-500 truncate">
-              CTK: <span className="font-semibold text-slate-700">{BANK_CONFIG.accountName}</span>
-            </p>
-          </div>
-          
-          {/* Transfer Content */}
-          <div className="mt-2">
-            <p className="text-slate-500 mb-0.5">Nội dung CK:</p>
-            <div className="flex items-center gap-1 bg-white rounded border border-blue-200 p-1">
-              <code className="flex-1 text-xs font-mono text-blue-700 truncate">
-                {transferContent}
-              </code>
-              <button
-                onClick={onCopy}
-                className={`
-                  p-1 rounded transition-colors
-                  ${copied ? 'bg-emerald-100 text-emerald-600' : 'hover:bg-blue-100 text-blue-600'}
-                `}
-              >
-                {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-              </button>
-            </div>
-          </div>
-          
-          {/* Amount Display */}
-          <div className="mt-2 px-2 py-1 bg-emerald-100 rounded text-center">
-            <p className="text-xs font-bold text-emerald-700">
-              {parsedAmount.toLocaleString('vi-VN')}đ
-            </p>
-          </div>
+      </div>
+
+      {/* Bank Info với Copy Buttons */}
+      <div className="space-y-2 text-sm">
+        <div className="flex items-center gap-1 justify-center mb-2">
+          <Smartphone className="w-4 h-4 text-blue-600" />
+          <span className="font-semibold text-blue-700">VietQR - Quét mã để thanh toán</span>
+        </div>
+
+        {/* Bank Name */}
+        <BankInfoRow
+          label="Ngân hàng"
+          value={BANK_CONFIG.bankId}
+          onCopy={() => handleCopyField('bank', BANK_CONFIG.bankId)}
+          copied={copiedField === 'bank'}
+        />
+
+        {/* Account Number */}
+        <BankInfoRow
+          label="Số tài khoản"
+          value={BANK_CONFIG.accountNo}
+          onCopy={() => handleCopyField('stk', BANK_CONFIG.accountNo)}
+          copied={copiedField === 'stk'}
+        />
+
+        {/* Account Name */}
+        <BankInfoRow
+          label="Chủ tài khoản"
+          value={BANK_CONFIG.accountName}
+          onCopy={() => handleCopyField('name', BANK_CONFIG.accountName)}
+          copied={copiedField === 'name'}
+        />
+
+        {/* Transfer Content */}
+        <BankInfoRow
+          label="Nội dung CK"
+          value={transferContent}
+          onCopy={() => handleCopyField('content', transferContent)}
+          copied={copiedField === 'content'}
+          highlight
+        />
+
+        {/* Amount */}
+        <div className="mt-3 px-4 py-2 bg-emerald-100 rounded-lg text-center">
+          <p className="text-lg font-bold text-emerald-700">
+            {parsedAmount.toLocaleString('vi-VN')}đ
+          </p>
         </div>
       </div>
+
+      {/* Upload Screenshot Section */}
+      <div className="mt-4 pt-4 border-t border-blue-200">
+        <label className="block text-xs font-medium text-slate-700 mb-2">
+          📤 Upload ảnh xác nhận chuyển khoản <span className="text-red-500">*</span>
+        </label>
+
+        {bankProofUrl ? (
+          <div className="relative">
+            <img
+              src={bankProofUrl}
+              alt="Bank proof"
+              className="w-full max-h-48 object-contain rounded-lg border border-blue-200"
+            />
+            <button
+              onClick={() => onUploadProof?.(null)}
+              className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        ) : (
+          <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-blue-300 rounded-lg cursor-pointer bg-white hover:bg-blue-50 transition-colors">
+            <div className="flex flex-col items-center justify-center pt-2">
+              <Upload className="w-6 h-6 text-blue-400 mb-1" />
+              <p className="text-xs text-slate-500">Kéo thả hoặc click để chọn ảnh</p>
+            </div>
+            <input
+              type="file"
+              className="hidden"
+              accept="image/*"
+              onChange={handleFileUpload}
+            />
+          </label>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Helper component for bank info rows with copy button
+function BankInfoRow({ label, value, onCopy, copied, highlight = false }) {
+  return (
+    <div className={`flex items-center justify-between px-3 py-2 rounded-lg ${highlight ? 'bg-yellow-50 border border-yellow-200' : 'bg-white'}`}>
+      <div className="flex-1 min-w-0">
+        <span className="text-xs text-slate-500">{label}:</span>
+        <p className={`font-semibold truncate ${highlight ? 'text-blue-700 font-mono' : 'text-slate-800'}`}>
+          {value}
+        </p>
+      </div>
+      <button
+        onClick={onCopy}
+        className={`ml-2 p-2 rounded-lg transition-colors ${copied
+          ? 'bg-emerald-100 text-emerald-600'
+          : 'hover:bg-blue-100 text-blue-600'
+          }`}
+        title={copied ? 'Đã copy!' : 'Click để copy'}
+      >
+        {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+      </button>
     </div>
   );
 }

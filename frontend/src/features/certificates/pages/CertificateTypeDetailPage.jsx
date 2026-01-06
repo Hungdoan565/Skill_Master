@@ -285,9 +285,59 @@ export function CertificateTypeDetailPage() {
         navigate(`/certificates/${certificate.id}/print`);
     };
 
-    const handleExportExcel = () => {
-        // TODO: Implement Excel export
-        console.log('Export Excel');
+    const handleExportExcel = async () => {
+        if (!filteredCertificates || filteredCertificates.length === 0) return;
+
+        const timestamp = new Date().toISOString().split('T')[0];
+        const filename = `chung-chi_${type.name.replace(/\s+/g, '-')}_${timestamp}`;
+
+        // Define columns
+        const columns = [
+            { label: 'Mã chứng chỉ', accessor: (c) => c.certificate_number },
+            { label: 'Học viên', accessor: (c) => c.student_name || c.students?.full_name || '' },
+            { label: 'Lớp', accessor: (c) => c.classes?.name || '' },
+            { label: 'Điểm', accessor: (c) => c.scores?.overall || c.scores?.total || c.scores?.grade || '' },
+            { label: 'Ngày thi', accessor: (c) => c.exam_date || '' },
+            { label: 'Ngày cấp', accessor: (c) => c.issued_at || '' },
+            { label: 'Trạng thái', accessor: (c) => c.status === 'issued' ? 'Đã cấp' : 'Thu hồi' },
+        ];
+
+        try {
+            // Try Excel export with xlsx
+            const XLSX = await import('xlsx');
+            const worksheetData = [
+                columns.map(col => col.label),
+                ...filteredCertificates.map(item => columns.map(col => col.accessor(item) ?? ''))
+            ];
+
+            const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Certificates');
+            XLSX.writeFile(workbook, `${filename}.xlsx`);
+        } catch (error) {
+            // Fallback to CSV
+            console.warn('XLSX not available, exporting as CSV');
+            const headers = columns.map(col => col.label).join(',');
+            const rows = filteredCertificates.map(item =>
+                columns.map(col => {
+                    let value = col.accessor(item);
+                    if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+                        value = `"${value.replace(/"/g, '""')}"`;
+                    }
+                    return value ?? '';
+                }).join(',')
+            );
+            const csvContent = [headers, ...rows].join('\n');
+            const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${filename}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        }
     };
 
     if (loading && !typeDetail) {

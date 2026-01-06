@@ -435,6 +435,8 @@ export function CertificatesPage() {
     // Stats
     const stats = useMemo(() => {
         const totalIssued = certificateTypes.reduce((sum, t) => sum + (t.stats?.total || 0), 0);
+        // Calculate last 30 days from API stats
+        const last30Days = certificateTypes.reduce((sum, t) => sum + (t.stats?.last_30_days || 0), 0);
         const topType = [...certificateTypes].sort((a, b) =>
             (b.stats?.total || 0) - (a.stats?.total || 0)
         )[0];
@@ -442,7 +444,7 @@ export function CertificatesPage() {
         return {
             totalTypes: certificateTypes.length,
             totalIssued,
-            last30Days: 0, // TODO: Calculate from API
+            last30Days,
             topType: topType?.name
         };
     }, [certificateTypes]);
@@ -576,8 +578,8 @@ export function CertificatesPage() {
                         <button
                             onClick={() => setShowOnlyWithStudents(!showOnlyWithStudents)}
                             className={`flex items-center gap-2 px-3 py-2 border rounded-lg text-sm font-medium transition-colors ${showOnlyWithStudents
-                                    ? 'bg-green-50 border-green-200 text-green-700'
-                                    : 'bg-white text-slate-600 hover:bg-slate-50'
+                                ? 'bg-green-50 border-green-200 text-green-700'
+                                : 'bg-white text-slate-600 hover:bg-slate-50'
                                 }`}
                             title={showOnlyWithStudents ? 'Hiện tất cả' : 'Chỉ hiện chứng chỉ có học viên'}
                         >

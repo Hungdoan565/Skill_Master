@@ -19,3 +19,6 @@ export { ImportModal } from './ImportModal';
 
 // Phase 2.3: Class Templates
 export { ClassTemplateModal } from './ClassTemplateModal';
+
+// Pagination
+export { TablePagination } from './TablePagination';

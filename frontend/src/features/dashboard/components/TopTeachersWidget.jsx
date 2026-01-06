@@ -99,7 +99,7 @@ function TeacherRow({ rank, teacher, maxStudents, isLast }) {
                     {teacher.rating && (
                         <div className="flex items-center justify-end gap-1 text-xs">
                             <Star size={11} className="text-amber-500" fill="currentColor" />
-                            <span className="text-amber-600 font-semibold">{teacher.rating.toFixed(1)}</span>
+                            <span className="text-amber-600 font-semibold">{Number(teacher.rating).toFixed(1)}</span>
                         </div>
                     )}
                 </div>
@@ -148,7 +148,7 @@ export function TopTeachersWidget({ teachers = [], loading = false }) {
 
     const maxStudents = Math.max(...displayTeachers.map(t => t.students || 0));
     const totalStudents = displayTeachers.reduce((sum, t) => sum + (t.students || 0), 0);
-    const avgRating = displayTeachers.reduce((sum, t) => sum + (t.rating || 0), 0) / displayTeachers.length;
+    const avgRating = displayTeachers.reduce((sum, t) => sum + (Number(t.rating) || 0), 0) / displayTeachers.length;
 
     if (loading) {
         return (

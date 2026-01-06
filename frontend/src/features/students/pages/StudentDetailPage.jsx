@@ -102,10 +102,10 @@ const ClassesTab = ({ enrollments = [] }) => {
                             </Link>
                             <div className="flex items-center gap-2 mt-1 text-sm text-slate-500">
                                 <span>{enrollment.classes?.courses?.title || 'N/A'}</span>
-                                {enrollment.classes?.teachers?.full_name && (
+                                {(enrollment.classes?.teacher?.full_name || enrollment.classes?.teachers?.full_name || enrollment.classes?.users?.full_name) && (
                                     <>
                                         <span>•</span>
-                                        <span>GV: {enrollment.classes.teachers.full_name}</span>
+                                        <span>GV: {enrollment.classes.teacher?.full_name || enrollment.classes.teachers?.full_name || enrollment.classes.users?.full_name}</span>
                                     </>
                                 )}
                             </div>

@@ -105,16 +105,17 @@ export function DashboardPage() {
   }));
 
   // Transform staff to teachers format for TopTeachersWidget
+  // Note: student_count and rating should come from API in future
   const teachers = staff
     .filter(member => member.roles?.code === 'TEACHER' && member.status === 'active')
-    .map((member, index) => ({
+    .map((member) => ({
       id: member.id,
       name: member.full_name,
       subject: member.centers?.name || 'Giáo viên',
-      students: Math.floor(Math.random() * 30) + 15, // Mock for now
-      rating: parseFloat((4.5 + Math.random() * 0.4).toFixed(1)) // Mock rating 4.5-4.9 as number
+      // Use real data from API if available, otherwise show N/A
+      students: member.student_count ?? member.class_count ?? '-',
+      rating: member.avg_rating ?? '-'
     }))
-    .sort((a, b) => b.students - a.students)
     .slice(0, 5);
 
   return (

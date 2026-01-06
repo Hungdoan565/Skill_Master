@@ -4,13 +4,14 @@
 
 import { useNavigate } from 'react-router-dom';
 import {
-  Clock, Calendar as CalendarIcon, Users, Eye, Pencil, Trash2, BookOpen, Plus, AlertCircle, AlertTriangle, DollarSign, TrendingUp, MoreVertical
+  Clock, Calendar as CalendarIcon, Users, Eye, Pencil, Trash2, BookOpen, Plus, AlertCircle, AlertTriangle, DollarSign, TrendingUp, MoreVertical, Copy
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -32,6 +33,7 @@ export function ClassesTable({
   onToggleSelectAll,
   onEdit,
   onDelete,
+  onClone,
   onOpenModal
 }) {
   const navigate = useNavigate();
@@ -177,6 +179,7 @@ export function ClassesTable({
               onNavigate={() => navigate(`/admin/classes/${cls.id}`)}
               onEdit={() => onEdit(cls)}
               onDelete={() => onDelete(cls)}
+              onClone={() => onClone && onClone(cls)}
             />
           ))}
         </tbody>
@@ -186,7 +189,7 @@ export function ClassesTable({
 }
 
 // Row component
-function ClassRow({ cls, isSelected, onToggleSelect, onNavigate, onEdit, onDelete }) {
+function ClassRow({ cls, isSelected, onToggleSelect, onNavigate, onEdit, onDelete, onClone }) {
   const navigate = useNavigate();
   const statusCfg = STATUS_CONFIG[cls.status] || STATUS_CONFIG.upcoming;
   const categoryCfg = CATEGORY_COLORS[cls.courses?.category] || CATEGORY_COLORS.default;
@@ -430,6 +433,11 @@ function ClassRow({ cls, isSelected, onToggleSelect, onNavigate, onEdit, onDelet
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => navigate(`/admin/classes/${cls.id}/students`)}>
                 👥 Học viên
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onClone}>
+                <Copy className="h-3 w-3 mr-2" />
+                Sao chép lớp
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onEdit}>
                 <Pencil className="h-3 w-3 mr-2" />

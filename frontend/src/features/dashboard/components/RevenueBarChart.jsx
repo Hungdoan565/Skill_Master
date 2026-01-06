@@ -67,10 +67,12 @@ export function RevenueBarChart({ data = [], previousData = [], loading = false,
     }
 
     // Transform and merge data
+    // Note: previousData should come from API for real comparison
     const chartData = data.map((item, index) => ({
         name: item.label || item.month,
         current: item.revenue || 0,
-        previous: previousData[index]?.revenue || Math.round((item.revenue || 0) * (0.7 + Math.random() * 0.5)), // Mock previous if not provided
+        // Only show previous if real data provided, no mock
+        previous: previousData[index]?.revenue || null,
     }));
 
     return (

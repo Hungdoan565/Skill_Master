@@ -1,17 +1,18 @@
 /**
  * CourseFilters Component - Thanh tìm kiếm và lọc nâng cao
- * Updated: Added dynamic price presets, improved styling
+ * Updated: Migrated to Shadcn Select for Dark Mode support
  */
 
 import { useState, useMemo } from 'react';
 import { Search, Filter, SlidersHorizontal, ArrowUpDown, X, DollarSign } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { CATEGORIES } from '../utils';
 
 // Status options for dropdown
 const STATUS_OPTIONS = [
-    { value: '', label: 'Tất cả trạng thái' },
+    { value: 'all', label: 'Tất cả trạng thái' },
     { value: 'active', label: 'Đang tuyển sinh' },
     { value: 'inactive', label: 'Tạm ngưng' },
     { value: 'draft', label: 'Nháp' },
@@ -38,40 +39,6 @@ const DEFAULT_PRICE_RANGES = [
     { label: 'Trên 10 triệu', min: 10000000, max: '' },
 ];
 
-// Styled Select Component
-function StyledSelect({ value, onChange, options, icon: Icon, className = '' }) {
-    return (
-        <div className="relative">
-            {Icon && (
-                <Icon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-            )}
-            <select
-                value={value}
-                onChange={onChange}
-                className={`
-                    h-10 rounded-lg border border-input bg-card text-sm 
-                    font-medium text-foreground
-                    shadow-sm transition-all duration-200
-                    focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary
-                    hover:border-primary/50 hover:bg-accent/50
-                    appearance-none cursor-pointer
-                    ${Icon ? 'pl-10 pr-8' : 'px-3 pr-8'}
-                    ${className}
-                `}
-                style={{
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
-                    backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'right 8px center',
-                }}
-            >
-                {options.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-            </select>
-        </div>
-    );
-}
-
 export function CourseFilters({
     searchTerm,
     onSearchChange,
@@ -85,10 +52,10 @@ export function CourseFilters({
     onPriceRangeChange,
     totalCount,
     onClearFilters,
-    courses = [] // Accept courses for dynamic price extraction
+    courses = []
 }) {
     const [showAdvanced, setShowAdvanced] = useState(false);
-    const [selectedPricePreset, setSelectedPricePreset] = useState('');
+    const [selectedPricePreset, setSelectedPricePreset] = useState('0');
 
     // Generate dynamic price ranges from actual course data
     const priceRanges = useMemo(() => {
@@ -103,7 +70,6 @@ export function CourseFilters({
 
         const minPrice = prices[0];
         const maxPrice = prices[prices.length - 1];
-        const midPrice = Math.floor((minPrice + maxPrice) / 2);
 
         // Create smart ranges based on actual data
         const ranges = [
@@ -113,7 +79,6 @@ export function CourseFilters({
         // Add unique price points as quick filters
         const uniquePrices = [...new Set(prices)];
         if (uniquePrices.length <= 5) {
-            // If few unique prices, show them directly
             uniquePrices.forEach(price => {
                 ranges.push({
                     label: formatPrice(price),
@@ -122,7 +87,6 @@ export function CourseFilters({
                 });
             });
         } else {
-            // Generate ranges
             if (minPrice < 5000000) {
                 ranges.push({ label: 'Dưới 5 triệu', min: 0, max: 5000000 });
             }
@@ -149,11 +113,10 @@ export function CourseFilters({
     }
 
     // Handle price preset change
-    const handlePricePresetChange = (e) => {
-        const presetIndex = e.target.value;
+    const handlePricePresetChange = (presetIndex) => {
         setSelectedPricePreset(presetIndex);
 
-        if (presetIndex === '' || presetIndex === '0') {
+        if (presetIndex === '0') {
             onPriceRangeChange?.({ min: '', max: '' });
         } else {
             const preset = priceRanges[parseInt(presetIndex)];
@@ -165,6 +128,14 @@ export function CourseFilters({
             }
         }
     };
+
+    // Handle status change - convert 'all' to empty string for filter logic
+    const handleStatusChange = (value) => {
+        onStatusChange?.(value === 'all' ? '' : value);
+    };
+
+    // Get display value for status - convert empty to 'all' for Select
+    const statusDisplayValue = statusFilter || 'all';
 
     return (
         <div className="space-y-4">
@@ -184,20 +155,38 @@ export function CourseFilters({
                     </div>
 
                     {/* Status Filter */}
-                    <StyledSelect
-                        value={statusFilter}
-                        onChange={(e) => onStatusChange?.(e.target.value)}
-                        options={STATUS_OPTIONS}
-                        icon={Filter}
-                    />
+                    <div className="relative">
+                        <Select value={statusDisplayValue} onValueChange={handleStatusChange}>
+                            <SelectTrigger className="w-[180px]">
+                                <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
+                                <SelectValue placeholder="Trạng thái" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {STATUS_OPTIONS.map(opt => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
 
                     {/* Sort */}
-                    <StyledSelect
-                        value={sortBy}
-                        onChange={(e) => onSortChange?.(e.target.value)}
-                        options={SORT_OPTIONS}
-                        icon={ArrowUpDown}
-                    />
+                    <div className="relative">
+                        <Select value={sortBy} onValueChange={(v) => onSortChange?.(v)}>
+                            <SelectTrigger className="w-[180px]">
+                                <ArrowUpDown className="h-4 w-4 mr-2 text-muted-foreground" />
+                                <SelectValue placeholder="Sắp xếp" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {SORT_OPTIONS.map(opt => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
 
                     {/* Advanced Filters Toggle */}
                     <Button
@@ -219,7 +208,7 @@ export function CourseFilters({
                             variant="ghost"
                             size="sm"
                             onClick={() => {
-                                setSelectedPricePreset('');
+                                setSelectedPricePreset('0');
                                 onClearFilters?.();
                             }}
                             className="text-red-500 hover:text-red-600 hover:bg-red-50"
@@ -242,30 +231,44 @@ export function CourseFilters({
                         {/* Category Filter */}
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-foreground">Danh mục</label>
-                            <StyledSelect
-                                value={categoryFilter}
-                                onChange={(e) => onCategoryChange?.(e.target.value)}
-                                options={[
-                                    { value: '', label: 'Tất cả danh mục' },
-                                    ...CATEGORIES
-                                ]}
-                                className="w-full"
-                            />
+                            <div className="relative">
+                                <Select
+                                    value={categoryFilter || 'all'}
+                                    onValueChange={(v) => onCategoryChange?.(v === 'all' ? '' : v)}
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Tất cả danh mục" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Tất cả danh mục</SelectItem>
+                                        {CATEGORIES.map(cat => (
+                                            <SelectItem key={cat.value} value={cat.value}>
+                                                {cat.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
 
                         {/* Price Range Preset */}
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-foreground">Mức học phí</label>
-                            <StyledSelect
-                                value={selectedPricePreset}
-                                onChange={handlePricePresetChange}
-                                options={priceRanges.map((range, idx) => ({
-                                    value: idx.toString(),
-                                    label: range.label
-                                }))}
-                                icon={DollarSign}
-                                className="w-full"
-                            />
+                            <div className="relative">
+                                <Select value={selectedPricePreset} onValueChange={handlePricePresetChange}>
+                                    <SelectTrigger className="w-full">
+                                        <DollarSign className="h-4 w-4 mr-2 text-muted-foreground" />
+                                        <SelectValue placeholder="Chọn mức giá" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {priceRanges.map((range, idx) => (
+                                            <SelectItem key={idx} value={idx.toString()}>
+                                                {range.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
 
                         {/* Custom Price Min */}
@@ -278,7 +281,7 @@ export function CourseFilters({
                                     placeholder="VD: 5000000"
                                     value={priceRange.min}
                                     onChange={(e) => {
-                                        setSelectedPricePreset(''); // Clear preset when manual input
+                                        setSelectedPricePreset('0');
                                         onPriceRangeChange?.({ ...priceRange, min: e.target.value });
                                     }}
                                     className="pl-10 bg-card"
@@ -296,7 +299,7 @@ export function CourseFilters({
                                     placeholder="VD: 15000000"
                                     value={priceRange.max}
                                     onChange={(e) => {
-                                        setSelectedPricePreset(''); // Clear preset when manual input
+                                        setSelectedPricePreset('0');
                                         onPriceRangeChange?.({ ...priceRange, max: e.target.value });
                                     }}
                                     className="pl-10 bg-card"

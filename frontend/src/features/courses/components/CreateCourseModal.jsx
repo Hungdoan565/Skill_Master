@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { useCourseForm } from '../hooks';
 import { CATEGORIES, LEVELS, COURSE_STATUS } from '../utils';
 import { exportCourseToJson, importCourseFromJson } from '../utils/importExport';
@@ -269,17 +270,23 @@ export function CreateCourseModal({ isOpen, onClose, onSuccess, accessToken, ini
                                             <Label htmlFor="category" className="text-sm font-medium">
                                                 Danh mục <span className="text-red-500">*</span>
                                             </Label>
-                                            <select
-                                                id="category"
-                                                name="category"
-                                                value={formData.category}
-                                                onChange={handleChange}
-                                                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-                                            >
-                                                {CATEGORIES.map(cat => (
-                                                    <option key={cat.value} value={cat.value}>{cat.label}</option>
-                                                ))}
-                                            </select>
+                                            <div className="relative">
+                                                <Select
+                                                    value={formData.category}
+                                                    onValueChange={(value) => setFieldValue('category', value)}
+                                                >
+                                                    <SelectTrigger className="w-full">
+                                                        <SelectValue placeholder="Chọn danh mục" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {CATEGORIES.map(cat => (
+                                                            <SelectItem key={cat.value} value={cat.value}>
+                                                                {cat.label}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
                                         </div>
 
                                         {/* Trình độ */}
@@ -287,17 +294,23 @@ export function CreateCourseModal({ isOpen, onClose, onSuccess, accessToken, ini
                                             <Label htmlFor="level" className="text-sm font-medium">
                                                 Trình độ
                                             </Label>
-                                            <select
-                                                id="level"
-                                                name="level"
-                                                value={formData.level}
-                                                onChange={handleChange}
-                                                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-                                            >
-                                                {LEVELS.map(lv => (
-                                                    <option key={lv.value} value={lv.value}>{lv.label}</option>
-                                                ))}
-                                            </select>
+                                            <div className="relative">
+                                                <Select
+                                                    value={formData.level}
+                                                    onValueChange={(value) => setFieldValue('level', value)}
+                                                >
+                                                    <SelectTrigger className="w-full">
+                                                        <SelectValue placeholder="Chọn trình độ" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {LEVELS.map(lv => (
+                                                            <SelectItem key={lv.value} value={lv.value}>
+                                                                {lv.label}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
                                         </div>
 
                                         {/* Học phí */}

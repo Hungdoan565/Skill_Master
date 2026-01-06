@@ -7,29 +7,44 @@
  * @param {Object} invoice - Data hóa đơn chi tiết
  * @param {boolean} loading - Đang tải data
  * @param {function} onClose - Handler đóng modal
+ * @param {Array} payments - Danh sách payments từ API
+ * @param {boolean} loadingPayments - Loading payments
+ * @param {function} onVerifyPayment - Handler verify bank transfer
+ * @param {function} onRejectPayment - Handler reject bank transfer
+ * @param {function} onRefreshPayments - Refresh payments list
  */
 
+import { useState } from 'react';
 import { X, FileText, Users, Building2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from './StatusBadge';
+import { PaymentHistorySection } from './PaymentHistorySection';
+import { ReceiptModal } from './ReceiptModal';
 import { formatDate } from '../utils/formatters';
 
 export function InvoiceDetailModal({
   isOpen,
   invoice,
   loading,
-  onClose
+  onClose,
+  payments = [],
+  loadingPayments = false,
+  onVerifyPayment,
+  onRejectPayment,
+  onRefreshPayments
 }) {
+  const [receiptModal, setReceiptModal] = useState({ isOpen: false, payment: null });
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      
+
       {/* Modal */}
       <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
-        
+
         {/* Header */}
         <div className="bg-linear-to-r from-zinc-700 to-zinc-800 px-4 py-3 text-white shrink-0">
           <div className="flex items-center justify-between">
@@ -39,8 +54,8 @@ export function InvoiceDetailModal({
               </div>
               <h3 className="text-sm font-semibold">Chi tiết hóa đơn</h3>
             </div>
-            <button 
-              onClick={onClose} 
+            <button
+              onClick={onClose}
               className="p-1 hover:bg-white/20 rounded-lg transition-colors"
             >
               <X className="w-4 h-4" />
@@ -56,7 +71,7 @@ export function InvoiceDetailModal({
             </div>
           ) : invoice ? (
             <div className="space-y-4">
-              
+
               {/* Invoice Info */}
               <div className="p-4 bg-zinc-50 rounded-lg">
                 <div className="flex items-center justify-between mb-3">
@@ -122,19 +137,16 @@ export function InvoiceDetailModal({
                 </div>
               </div>
 
-              {/* Payment History */}
-              {invoice.payments && invoice.payments.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-semibold text-zinc-700 mb-2">
-                    Lịch sử thanh toán
-                  </h4>
-                  <div className="space-y-2">
-                    {invoice.payments.map((payment) => (
-                      <PaymentHistoryItem key={payment.id} payment={payment} />
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Payment History - Using new PaymentHistorySection */}
+              <PaymentHistorySection
+                invoiceId={invoice.id}
+                payments={payments}
+                loading={loadingPayments}
+                onVerify={onVerifyPayment}
+                onReject={onRejectPayment}
+                onRefresh={onRefreshPayments}
+                onPrintReceipt={(payment) => setReceiptModal({ isOpen: true, payment })}
+              />
             </div>
           ) : (
             <div className="flex items-center justify-center h-48 text-zinc-500">
@@ -150,6 +162,14 @@ export function InvoiceDetailModal({
           </Button>
         </div>
       </div>
+
+      {/* Receipt Modal */}
+      <ReceiptModal
+        isOpen={receiptModal.isOpen}
+        invoice={invoice}
+        payment={receiptModal.payment}
+        onClose={() => setReceiptModal({ isOpen: false, payment: null })}
+      />
     </div>
   );
 }

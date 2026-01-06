@@ -9,9 +9,9 @@
 // BANK CONFIG - VietQR
 // ============================================
 export const BANK_CONFIG = {
-  bankId: 'MB',
-  accountNo: '0971268268',
-  accountName: 'NGUYEN VAN A',
+  bankId: 'VCB',  // Vietcombank
+  accountNo: '1029849106',
+  accountName: 'DOAN VINH HUNG',
   template: 'compact2'
 };
 

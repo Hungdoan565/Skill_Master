@@ -7,6 +7,7 @@ import { checkScheduleConflict } from './lib/schedule-conflict.js';
 import { generateClassSessions, regenerateClassSessions } from './lib/session-generator.js';
 import {
   createEnrollmentWithDraftInvoice,
+  createDraftInvoice,
   confirmInvoice,
   voidDraftInvoice
 } from './services/enrollmentService.js';
@@ -2495,9 +2496,9 @@ app.get('/api/admin/students/:id', requireAuth, async (req, res, next) => {
 app.put('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { 
-      full_name, 
-      phone, 
+    const {
+      full_name,
+      phone,
       status,
       parent_name,
       parent_phone,
@@ -8398,10 +8399,10 @@ app.post('/api/invoices/:id/payments', requireAuth, async (req, res, next) => {
       });
     }
 
-    // Kiểm tra invoice tồn tại
+    // Kiểm tra invoice tồn tại - bao gồm invoice_code để auto-verify
     const { data: invoice, error: invoiceError } = await supabase
       .from('invoices')
-      .select('id, final_amount, paid_amount, status')
+      .select('id, invoice_code, final_amount, paid_amount, status')
       .eq('id', id)
       .single();
 
@@ -8426,7 +8427,56 @@ app.post('/api/invoices/:id/payments', requireAuth, async (req, res, next) => {
       });
     }
 
-    // Thêm payment (trigger sẽ tự cập nhật invoice)
+    // ============================================
+    // AUTO-VERIFY LOGIC (Reconciliation Key)
+    // ============================================
+    // Bank transfer can be auto-verified if:
+    // 1. Transfer content/notes contains invoice_code (e.g., INV-20251221-0001)
+    // 2. Amount >= remaining amount
+
+    let verificationStatus = 'pending';
+    let autoVerified = false;
+    let verificationNote = '';
+
+    if (payment_method === 'cash') {
+      // Cash: always auto-verify
+      verificationStatus = 'verified';
+      autoVerified = true;
+    } else if (payment_method === 'bank_transfer') {
+      // Bank transfer: check for reconciliation key match
+      const transferContent = `${notes || ''} ${reference_code || ''}`.toUpperCase();
+      const invoiceCode = (invoice.invoice_code || '').toUpperCase();
+
+      // Check if transfer content contains invoice code
+      const hasInvoiceCode = invoiceCode && transferContent.includes(invoiceCode);
+
+      // Calculate remaining amount
+      const remaining = (invoice.final_amount || 0) - (invoice.paid_amount || 0);
+      const paymentAmount = parseFloat(amount);
+
+      // Check if amount is acceptable (>= 95% of remaining OR exact match)
+      const amountMatch = paymentAmount >= remaining * 0.95;
+
+      if (hasInvoiceCode && amountMatch) {
+        // AUTO-VERIFY: Content matches invoice code + amount is correct
+        verificationStatus = 'verified';
+        autoVerified = true;
+        verificationNote = `Tự động xác nhận: Mã ${invoiceCode} khớp, số tiền đúng`;
+        console.log(`[AUTO-VERIFY] Invoice ${invoiceCode} - Amount matched`);
+      } else if (hasInvoiceCode) {
+        // Has invoice code but amount mismatch - still auto-verify but note it
+        verificationStatus = 'verified';
+        autoVerified = true;
+        verificationNote = `Tự động xác nhận: Mã ${invoiceCode} khớp, thanh toán 1 phần`;
+        console.log(`[AUTO-VERIFY] Invoice ${invoiceCode} - Partial payment`);
+      } else {
+        // No match - pending manual review
+        verificationStatus = 'pending';
+        console.log(`[PENDING] Invoice ${invoiceCode} - No match in: ${transferContent}`);
+      }
+    }
+
+    // Insert payment
     const { data: payment, error: paymentError } = await supabase
       .from('payments')
       .insert({
@@ -8434,8 +8484,12 @@ app.post('/api/invoices/:id/payments', requireAuth, async (req, res, next) => {
         amount: parseFloat(amount),
         payment_method,
         reference_code,
-        notes,
-        received_by: userId
+        notes: verificationNote ? `${notes || ''}\n[SYS] ${verificationNote}` : notes,
+        received_by: userId,
+        bank_proof_url: req.body.bank_proof_url || null,
+        verification_status: verificationStatus,
+        verified_by: autoVerified ? userId : null,
+        verified_at: autoVerified ? new Date().toISOString() : null
       })
       .select()
       .single();
@@ -8449,17 +8503,328 @@ app.post('/api/invoices/:id/payments', requireAuth, async (req, res, next) => {
       .eq('id', id)
       .single();
 
+    // Response message based on verification status
+    let responseMessage;
+    if (payment_method === 'cash') {
+      responseMessage = 'Thanh toán tiền mặt thành công';
+    } else if (autoVerified) {
+      responseMessage = 'Chuyển khoản đã được tự động xác nhận';
+    } else {
+      responseMessage = 'Đã ghi nhận chuyển khoản. Chờ xác nhận thủ công.';
+    }
+
     res.json({
       success: true,
-      message: 'Thanh toán thành công',
+      message: responseMessage,
       data: {
         payment,
-        invoice: updatedInvoice
+        invoice: updatedInvoice,
+        requires_verification: !autoVerified,
+        auto_verified: autoVerified
       }
     });
 
   } catch (error) {
     console.error('Error adding payment:', error);
+    next(error);
+  }
+});
+
+// GET /api/invoices/:id/payments - Lấy danh sách thanh toán của hóa đơn
+app.get('/api/invoices/:id/payments', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const { data: payments, error } = await supabase
+      .from('payments')
+      .select(`
+        *,
+        received_by_user:received_by(id, full_name),
+        verified_by_user:verified_by(id, full_name)
+      `)
+      .eq('invoice_id', id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: payments || []
+    });
+  } catch (error) {
+    console.error('Error fetching payments:', error);
+    next(error);
+  }
+});
+
+// PATCH /api/payments/:id/verify - Admin xác nhận chuyển khoản
+app.patch('/api/payments/:id/verify', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+
+    // Get payment
+    const { data: payment, error: fetchError } = await supabase
+      .from('payments')
+      .select('*, invoice:invoice_id(id, status)')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !payment) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy thanh toán' });
+    }
+
+    if (payment.verification_status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: `Thanh toán này đã ${payment.verification_status === 'verified' ? 'được xác nhận' : 'bị từ chối'}`
+      });
+    }
+
+    // Update to verified (trigger will update invoice)
+    const { data: updated, error: updateError } = await supabase
+      .from('payments')
+      .update({
+        verification_status: 'verified',
+        verified_by: userId,
+        verified_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    // Get updated invoice
+    const { data: invoice } = await supabase
+      .from('invoices')
+      .select('*')
+      .eq('id', payment.invoice_id)
+      .single();
+
+    res.json({
+      success: true,
+      message: 'Đã xác nhận thanh toán chuyển khoản',
+      data: { payment: updated, invoice }
+    });
+  } catch (error) {
+    console.error('Error verifying payment:', error);
+    next(error);
+  }
+});
+
+// PATCH /api/payments/:id/reject - Admin từ chối chuyển khoản
+app.patch('/api/payments/:id/reject', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    const userId = req.user?.id;
+
+    if (!reason) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập lý do từ chối' });
+    }
+
+    // Get payment
+    const { data: payment, error: fetchError } = await supabase
+      .from('payments')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !payment) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy thanh toán' });
+    }
+
+    if (payment.verification_status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: `Thanh toán này đã ${payment.verification_status === 'verified' ? 'được xác nhận' : 'bị từ chối'}`
+      });
+    }
+
+    // Update to rejected
+    const { data: updated, error: updateError } = await supabase
+      .from('payments')
+      .update({
+        verification_status: 'rejected',
+        verified_by: userId,
+        verified_at: new Date().toISOString(),
+        rejection_reason: reason
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    res.json({
+      success: true,
+      message: 'Đã từ chối thanh toán',
+      data: updated
+    });
+  } catch (error) {
+    console.error('Error rejecting payment:', error);
+    next(error);
+  }
+});
+
+// GET /api/payments/pending - Lấy danh sách chuyển khoản chờ xác nhận
+app.get('/api/payments/pending', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { data: payments, error } = await supabase
+      .from('payments')
+      .select(`
+        *,
+        invoice:invoice_id(
+          id, invoice_code, final_amount, paid_amount,
+          student:student_id(id, full_name, email, phone)
+        ),
+        received_by_user:received_by(id, full_name)
+      `)
+      .eq('verification_status', 'pending')
+      .eq('payment_method', 'bank_transfer')
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: payments || [],
+      count: payments?.length || 0
+    });
+  } catch (error) {
+    console.error('Error fetching pending payments:', error);
+    next(error);
+  }
+});
+
+// ============================================
+// GET /api/transactions - Full transactions list (Tab Giao dịch)
+// ============================================
+app.get('/api/transactions', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const {
+      status,       // all | pending | verified | rejected
+      method,       // all | cash | bank_transfer
+      dateStart,
+      dateEnd,
+      search,
+      page = 1,
+      limit = 20
+    } = req.query;
+
+    // Build query
+    let query = supabase
+      .from('payments')
+      .select(`
+        *,
+        invoice:invoice_id(
+          id, invoice_code, final_amount, paid_amount, status,
+          student:student_id(id, full_name, email, phone),
+          class:class_id(id, name)
+        ),
+        received_by_user:received_by(id, full_name),
+        verified_by_user:verified_by(id, full_name)
+      `, { count: 'exact' });
+
+    // Filter by verification status
+    if (status && status !== 'all') {
+      query = query.eq('verification_status', status);
+    }
+
+    // Filter by payment method
+    if (method && method !== 'all') {
+      query = query.eq('payment_method', method);
+    }
+
+    // Filter by date range
+    if (dateStart) {
+      query = query.gte('created_at', `${dateStart}T00:00:00`);
+    }
+    if (dateEnd) {
+      query = query.lte('created_at', `${dateEnd}T23:59:59`);
+    }
+
+    // Order and paginate
+    const from = (page - 1) * limit;
+    const to = from + parseInt(limit) - 1;
+
+    query = query
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    const { data: transactions, error, count } = await query;
+
+    if (error) throw error;
+
+    // Get summary stats
+    const { data: stats } = await supabase
+      .from('payments')
+      .select('verification_status, amount')
+      .eq('payment_method', 'bank_transfer');
+
+    const summary = {
+      totalPending: stats?.filter(s => s.verification_status === 'pending').length || 0,
+      totalVerified: stats?.filter(s => s.verification_status === 'verified').length || 0,
+      totalRejected: stats?.filter(s => s.verification_status === 'rejected').length || 0,
+      pendingAmount: stats?.filter(s => s.verification_status === 'pending').reduce((sum, s) => sum + parseFloat(s.amount || 0), 0) || 0
+    };
+
+    res.json({
+      success: true,
+      data: transactions || [],
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limit)
+      },
+      summary
+    });
+  } catch (error) {
+    console.error('Error fetching transactions:', error);
+    next(error);
+  }
+});
+
+// PATCH /api/transactions/bulk-verify - Bulk verify transactions
+app.patch('/api/transactions/bulk-verify', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { paymentIds } = req.body;
+    const userId = req.user?.id;
+
+    if (!paymentIds || !Array.isArray(paymentIds) || paymentIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng chọn ít nhất một giao dịch'
+      });
+    }
+
+    // Update all selected payments
+    const { data: updated, error } = await supabase
+      .from('payments')
+      .update({
+        verification_status: 'verified',
+        verified_by: userId,
+        verified_at: new Date().toISOString()
+      })
+      .in('id', paymentIds)
+      .eq('verification_status', 'pending')
+      .select();
+
+    if (error) throw error;
+
+    // Trigger invoice updates for each payment
+    // (The database trigger should handle this, but we can force refresh)
+
+    res.json({
+      success: true,
+      message: `Đã xác nhận ${updated?.length || 0} giao dịch`,
+      data: updated,
+      count: updated?.length || 0
+    });
+  } catch (error) {
+    console.error('Error bulk verifying transactions:', error);
     next(error);
   }
 });
@@ -13911,7 +14276,7 @@ app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN'
     // Check class capacity
     const { data: classData, error: classError } = await supabase
       .from('classes')
-      .select('id, max_students, code, name')
+      .select('id, max_students, code, name, courses(price)')
       .eq('id', class_id)
       .single();
 
@@ -13974,14 +14339,47 @@ app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN'
 
     if (error) throw error;
 
+    // 🔥 NEW: Create draft invoices for each enrollment
+    const invoiceResults = [];
+    const invoiceErrors = [];
+
+    for (const enrollment of data) {
+      try {
+        const invoiceResult = await createDraftInvoice(supabase, {
+          student_id: enrollment.student_id,
+          enrollment_id: enrollment.id,
+          class_id: enrollment.class_id,
+          class_name: classData.name,
+          tuition_fee: enrollment.tuition_fee || classData.courses?.price || 0,
+          discount_amount: 0,
+          paid_amount: 0,
+          description: `Học phí lớp ${classData.name}`,
+          created_by: req.user?.id
+        });
+
+        if (invoiceResult.data) {
+          invoiceResults.push(invoiceResult.data);
+        } else if (invoiceResult.error) {
+          invoiceErrors.push({ student_id: enrollment.student_id, error: invoiceResult.error });
+        }
+      } catch (invoiceErr) {
+        console.error(`Failed to create invoice for enrollment ${enrollment.id}:`, invoiceErr);
+        invoiceErrors.push({ student_id: enrollment.student_id, error: invoiceErr.message });
+      }
+    }
+
+    console.log(`✅ Batch enrollment: ${data.length} enrolled, ${invoiceResults.length} invoices created`);
+
     res.status(201).json({
       success: true,
       data: {
         enrolled: data.length,
         skipped: student_ids.length - newStudentIds.length,
-        total: student_ids.length
+        total: student_ids.length,
+        invoices_created: invoiceResults.length,
+        invoice_errors: invoiceErrors.length > 0 ? invoiceErrors : undefined
       },
-      message: `Đã ghi danh ${data.length} học viên thành công`
+      message: `Đã ghi danh ${data.length} học viên và tạo ${invoiceResults.length} hóa đơn draft`
     });
   } catch (error) {
     console.error('Error batch enrollment:', error);
@@ -14495,7 +14893,7 @@ app.post('/api/admin/waiting-list', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     if (rpcError) {
       // Parse error message for user-friendly display
       const errorMsg = rpcError.message || 'Lỗi khi thêm vào danh sách chờ';
-      
+
       if (errorMsg.includes('not full')) {
         return res.status(400).json({
           success: false,

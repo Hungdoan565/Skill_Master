@@ -11,6 +11,10 @@ export { InvoiceTable } from './InvoiceTable';
 export { InvoiceFilters } from './InvoiceFilters';
 export { InvoiceStats } from './InvoiceStats';
 export { PaymentModal } from './PaymentModal';
+export { PaymentHistorySection } from './PaymentHistorySection';
+export { ReceiptTemplate } from './ReceiptTemplate';
+export { ReceiptModal } from './ReceiptModal';
+export { TransactionsTab } from './TransactionsTab';
 export { InvoiceDetailModal } from './InvoiceDetailModal';
 export { Toast } from './Toast';
 

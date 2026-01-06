@@ -99,13 +99,15 @@ export function useEnrollments() {
         }
     }, []);
 
-    // Fetch classes for selection
+    // Fetch classes for selection - get classes that are enrollable
     const fetchClasses = useCallback(async (centerId = null) => {
         try {
             const headers = await getAuthHeaders();
             const params = new URLSearchParams();
             if (centerId) params.append('centerId', centerId);
-            params.append('status', 'active'); // Only active classes
+            // Don't filter by status - let backend return all enrollable classes
+            // Or filter for multiple acceptable statuses
+            // The backend should handle which classes are available for enrollment
 
             const response = await axios.get(
                 `${API_URL}/api/classes?${params}`,
@@ -113,8 +115,14 @@ export function useEnrollments() {
             );
 
             if (response.data?.success) {
-                setClasses(response.data.data || []);
-                return response.data.data;
+                // Filter out completed/cancelled classes on frontend as backup
+                const enrollableClasses = (response.data.data || []).filter(c =>
+                    c.status !== 'cancelled' &&
+                    c.status !== 'completed' &&
+                    c.status !== 'archived'
+                );
+                setClasses(enrollableClasses);
+                return enrollableClasses;
             }
             return [];
         } catch (error) {
@@ -142,7 +150,7 @@ export function useEnrollments() {
     const createBulkEnrollment = useCallback(async (classId, studentIds, options = {}) => {
         const headers = await getAuthHeaders();
         const response = await axios.post(
-            `${API_URL}/api/admin/enrollments/bulk`,
+            `${API_URL}/api/admin/enrollments/batch`,
             {
                 class_id: classId,
                 student_ids: studentIds,
@@ -152,7 +160,11 @@ export function useEnrollments() {
         );
 
         if (response.data?.success) {
-            return response.data.data;
+            // Return both data and message for frontend display
+            return {
+                ...response.data.data,
+                message: response.data.message
+            };
         }
         throw new Error(response.data?.message || 'Có lỗi xảy ra khi ghi danh hàng loạt');
     }, []);

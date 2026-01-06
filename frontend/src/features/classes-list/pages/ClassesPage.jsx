@@ -21,9 +21,18 @@ import {
   AdvancedFiltersDrawer,
   FilterChips,
   ExportButton,
-  ImportModal
+  ImportModal,
+  TablePagination
 } from '../components';
-import { STATUS_CONFIG } from '../utils';
+import { STATUS_CONFIG, API_URL } from '../utils';
+import { supabase } from '@/lib/supabaseClient';
+
+// Helper: Get auth headers for API calls
+const getAuthHeaders = async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error('Chưa đăng nhập');
+  return { Authorization: `Bearer ${session.access_token}` };
+};
 
 export function ClassesPage() {
   // State
@@ -41,6 +50,11 @@ export function ClassesPage() {
   });
   const [deleting, setDeleting] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkStatusLoading, setBulkStatusLoading] = useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   // Advanced Filters Hook
   const {
@@ -126,6 +140,32 @@ export function ClassesPage() {
     return filterClasses(filters);
   }, [filterClasses, filters]);
 
+  // Paginated classes - client-side pagination
+  const paginatedClasses = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredClasses.slice(startIndex, startIndex + pageSize);
+  }, [filteredClasses, currentPage, pageSize]);
+
+  const totalPages = Math.ceil(filteredClasses.length / pageSize);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
+
+  // Handle page change
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    // Scroll to top of table
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Handle page size change
+  const handlePageSizeChange = (newSize) => {
+    setPageSize(newSize);
+    setCurrentPage(1); // Reset to first page
+  };
+
   // Check if user is SUPER_ADMIN (simplified check)
   const isSuperAdmin = useMemo(() => {
     // This should ideally come from auth context
@@ -147,6 +187,36 @@ export function ClassesPage() {
     setModalOpen(false);
     resetForm();
     clearFormError();
+  };
+
+  // Clone class - pre-fill form with existing class data
+  const handleCloneClass = (classItem) => {
+    if (!classItem) return;
+
+    // Load class data but mark as new (not editing)
+    loadClassData(classItem);
+
+    // Reset fields that should be different for clone
+    const today = new Date().toISOString().split('T')[0];
+    updateField('code', `${classItem.code}_COPY`);
+    updateField('name', `${classItem.name} (Bản sao)`);
+    updateField('start_date', '');
+    updateField('end_date', '');
+    updateField('status', 'upcoming');
+
+    // Clear editing state so it creates a new class
+    resetForm(classItem.center_id);
+    loadClassData({
+      ...classItem,
+      id: undefined, // Remove ID so it creates new
+      code: `${classItem.code}_COPY`,
+      name: `${classItem.name} (Bản sao)`,
+      start_date: '',
+      end_date: '',
+      status: 'upcoming'
+    });
+
+    setModalOpen(true);
   };
 
   // Form submit
@@ -197,17 +267,62 @@ export function ClassesPage() {
   };
 
   // Bulk export
-  const handleBulkExport = () => {
+  const handleBulkExport = async () => {
     const selectedClasses = classes.filter(cls => selectedIds.includes(cls.id));
-    // Reuse ExportButton logic
-    console.log('Exporting selected classes:', selectedClasses);
-    // TODO: Implement export logic
+    if (selectedClasses.length === 0) return;
+
+    // Import export utility
+    const { exportSelectedClasses } = await import('../utils/export');
+    exportSelectedClasses(selectedClasses);
+
+    // Clear selection after export
+    clearSelection();
   };
 
-  // Bulk notify
+  // Bulk notify - Navigate to notifications page with selected classes
   const handleBulkNotify = () => {
-    console.log('Sending notifications to selected classes:', selectedIds);
-    // TODO: Implement notification logic
+    if (selectedIds.length === 0) return;
+
+    // Store selected class IDs in sessionStorage for notifications page
+    sessionStorage.setItem('notifyClassIds', JSON.stringify(selectedIds));
+
+    // Navigate to notifications page
+    window.location.href = '/admin/notifications?source=classes';
+  };
+
+  // Bulk status change
+  const handleBulkStatusChange = async (newStatus) => {
+    if (selectedIds.length === 0) return;
+
+    setBulkStatusLoading(true);
+    try {
+      // Update each selected class status via API
+      const headers = await getAuthHeaders();
+
+      await Promise.all(
+        selectedIds.map(id =>
+          fetch(`${API_URL}/api/admin/classes/${id}`, {
+            method: 'PUT',
+            headers: {
+              ...headers,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ status: newStatus })
+          })
+        )
+      );
+
+      // Refresh list after update
+      await fetchClasses();
+      clearSelection();
+
+      // Show success message (could use toast here)
+      console.log(`Đã cập nhật ${selectedIds.length} lớp sang trạng thái: ${newStatus}`);
+    } catch (error) {
+      console.error('Error updating class statuses:', error);
+    } finally {
+      setBulkStatusLoading(false);
+    }
   };
 
   return (
@@ -312,21 +427,37 @@ export function ClassesPage() {
             onBulkDelete={() => setBulkDeleteModal({ isOpen: true, error: null })}
             onBulkExport={handleBulkExport}
             onBulkNotify={handleBulkNotify}
+            onBulkStatusChange={handleBulkStatusChange}
+            bulkStatusLoading={bulkStatusLoading}
           />
 
           {/* Classes Table */}
           <ClassesTable
-            classes={filteredClasses}
+            classes={paginatedClasses}
             loading={loading}
             searchTerm={filters.search}
             statusFilter={filters.status}
             selectedIds={selectedIds}
             onToggleSelect={toggleSelectItem}
-            onToggleSelectAll={() => toggleSelectAll(filteredClasses)}
+            onToggleSelectAll={() => toggleSelectAll(paginatedClasses)}
             onEdit={openModal}
             onDelete={(cls) => setDeleteModal({ isOpen: true, classItem: cls, error: null })}
+            onClone={handleCloneClass}
             onOpenModal={() => openModal()}
           />
+
+          {/* Pagination */}
+          {!loading && filteredClasses.length > 0 && (
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              pageSize={pageSize}
+              totalItems={filteredClasses.length}
+              onPageChange={handlePageChange}
+              onPageSizeChange={handlePageSizeChange}
+              className="border-t"
+            />
+          )}
         </CardContent>
       </Card>
 

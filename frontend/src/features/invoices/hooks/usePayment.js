@@ -5,7 +5,9 @@
  * Bao gồm:
  * - State của form thanh toán
  * - Validation
- * - Submit payment
+ * - Submit payment với bank proof upload
+ * - Verify/Reject bank transfers
+ * - Payment history
  */
 
 import { useState, useCallback } from 'react';
@@ -15,15 +17,18 @@ import { parseCurrency } from '../utils/formatters';
 
 export function usePayment({ onSuccess, onError }) {
   const { session } = useAuth();
-  
+
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
   const [processing, setProcessing] = useState(false);
-  
+  const [payments, setPayments] = useState([]);
+  const [loadingPayments, setLoadingPayments] = useState(false);
+
   const [formData, setFormData] = useState({
     amount: '',
     method: 'cash',
-    notes: ''
+    notes: '',
+    bankProofUrl: null // NEW: For bank transfer screenshot
   });
 
   /**
@@ -31,12 +36,13 @@ export function usePayment({ onSuccess, onError }) {
    */
   const openPayment = useCallback((invoice) => {
     const remaining = (invoice.final_amount || 0) - (invoice.paid_amount || 0);
-    
+
     setSelectedInvoice(invoice);
     setFormData({
       amount: remaining > 0 ? remaining.toString() : '',
       method: 'cash',
-      notes: ''
+      notes: '',
+      bankProofUrl: null
     });
     setIsOpen(true);
   }, []);
@@ -47,7 +53,7 @@ export function usePayment({ onSuccess, onError }) {
   const closePayment = useCallback(() => {
     setIsOpen(false);
     setSelectedInvoice(null);
-    setFormData({ amount: '', method: 'cash', notes: '' });
+    setFormData({ amount: '', method: 'cash', notes: '', bankProofUrl: null });
   }, []);
 
   /**
@@ -58,6 +64,28 @@ export function usePayment({ onSuccess, onError }) {
   }, []);
 
   /**
+   * Fetch payment history for invoice
+   */
+  const fetchPayments = useCallback(async (invoiceId) => {
+    if (!session?.access_token || !invoiceId) return;
+
+    setLoadingPayments(true);
+    try {
+      const res = await fetch(`${API_URL}/api/invoices/${invoiceId}/payments`, {
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      });
+      const result = await res.json();
+      if (result.success) {
+        setPayments(result.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching payments:', err);
+    } finally {
+      setLoadingPayments(false);
+    }
+  }, [session?.access_token]);
+
+  /**
    * Submit thanh toán
    */
   const submitPayment = useCallback(async () => {
@@ -66,7 +94,7 @@ export function usePayment({ onSuccess, onError }) {
     }
 
     const amount = parseCurrency(formData.amount);
-    
+
     // Validation
     if (amount <= 0) {
       onError?.('Số tiền phải lớn hơn 0');
@@ -79,8 +107,14 @@ export function usePayment({ onSuccess, onError }) {
       return { success: false, message: 'Số tiền vượt quá số nợ' };
     }
 
+    // Bank transfer requires proof
+    if (formData.method === 'bank_transfer' && !formData.bankProofUrl) {
+      onError?.('Vui lòng upload ảnh xác nhận chuyển khoản');
+      return { success: false, message: 'Thiếu ảnh xác nhận' };
+    }
+
     setProcessing(true);
-    
+
     try {
       const res = await fetch(`${API_URL}/api/invoices/${selectedInvoice.id}/payments`, {
         method: 'POST',
@@ -91,16 +125,20 @@ export function usePayment({ onSuccess, onError }) {
         body: JSON.stringify({
           amount,
           payment_method: formData.method,
-          notes: formData.notes
+          notes: formData.notes,
+          bank_proof_url: formData.bankProofUrl
         })
       });
 
       const result = await res.json();
-      
+
       if (result.success) {
-        onSuccess?.(`Đã thu ${amount.toLocaleString()}đ thành công!`);
+        const message = result.requires_verification
+          ? 'Đã ghi nhận chuyển khoản. Chờ Admin xác nhận.'
+          : `Đã thu ${amount.toLocaleString()}đ thành công!`;
+        onSuccess?.(message);
         closePayment();
-        return { success: true };
+        return { success: true, data: result.data };
       } else {
         onError?.(result.message || 'Lỗi khi thanh toán');
         return { success: false, message: result.message };
@@ -115,9 +153,64 @@ export function usePayment({ onSuccess, onError }) {
   }, [selectedInvoice, formData, session?.access_token, onSuccess, onError, closePayment]);
 
   /**
+   * Verify bank transfer payment (Admin only)
+   */
+  const verifyPayment = useCallback(async (paymentId) => {
+    if (!session?.access_token) return { success: false };
+
+    try {
+      const res = await fetch(`${API_URL}/api/payments/${paymentId}/verify`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`
+        }
+      });
+      const result = await res.json();
+      if (result.success) {
+        onSuccess?.('Đã xác nhận thanh toán');
+        return { success: true, data: result.data };
+      }
+      onError?.(result.message);
+      return { success: false, message: result.message };
+    } catch (err) {
+      onError?.('Lỗi khi xác nhận');
+      return { success: false };
+    }
+  }, [session?.access_token, onSuccess, onError]);
+
+  /**
+   * Reject bank transfer payment (Admin only)
+   */
+  const rejectPayment = useCallback(async (paymentId, reason) => {
+    if (!session?.access_token || !reason) return { success: false };
+
+    try {
+      const res = await fetch(`${API_URL}/api/payments/${paymentId}/reject`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ reason })
+      });
+      const result = await res.json();
+      if (result.success) {
+        onSuccess?.('Đã từ chối thanh toán');
+        return { success: true };
+      }
+      onError?.(result.message);
+      return { success: false, message: result.message };
+    } catch (err) {
+      onError?.('Lỗi khi từ chối');
+      return { success: false };
+    }
+  }, [session?.access_token, onSuccess, onError]);
+
+  /**
    * Tính toán số tiền còn lại
    */
-  const remainingAmount = selectedInvoice 
+  const remainingAmount = selectedInvoice
     ? (selectedInvoice.final_amount || 0) - (selectedInvoice.paid_amount || 0)
     : 0;
 
@@ -128,13 +221,19 @@ export function usePayment({ onSuccess, onError }) {
     processing,
     formData,
     remainingAmount,
-    
+    payments,
+    loadingPayments,
+
     // Actions
     openPayment,
     closePayment,
     updateFormData,
-    submitPayment
+    submitPayment,
+    fetchPayments,
+    verifyPayment,
+    rejectPayment
   };
 }
 
 export default usePayment;
+
