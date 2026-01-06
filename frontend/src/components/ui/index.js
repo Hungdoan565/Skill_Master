@@ -33,3 +33,12 @@ export { EmptyState, TableEmptyState, CardEmptyState } from './empty-state';
 export { DataTable } from './data-table';
 export { ThemeToggle, ThemeToggleSimple } from './theme-toggle';
 export { KeyboardShortcutsDialog } from './keyboard-shortcuts-dialog';
+export {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetBody,
+  SheetFooter
+} from './sheet';

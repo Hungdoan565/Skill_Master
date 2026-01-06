@@ -14,30 +14,30 @@ import { Search, Calendar, X, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { STATUS_OPTIONS } from '../utils/constants';
 
-export function InvoiceFilters({ 
-  filters, 
-  onFilterChange, 
-  onReset, 
-  hasActiveFilters 
+export function InvoiceFilters({
+  filters,
+  onFilterChange,
+  onReset,
+  hasActiveFilters
 }) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-stone-200/60 p-4 mb-6">
-      <div className="flex flex-wrap items-center gap-4">
-        
+    <div className="px-4 py-3 border-b border-border">
+      <div className="flex flex-wrap items-center gap-3">
+
         {/* Search Input */}
-        <div className="flex-1 min-w-[250px]">
+        <div className="flex-1 min-w-[200px] max-w-md">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Tìm mã hóa đơn, tên học viên, SĐT..."
+              placeholder="Tìm mã hóa đơn, tên học viên..."
               value={filters.search}
               onChange={(e) => onFilterChange('search', e.target.value)}
               className="
-                w-full h-10 pl-10 pr-4 rounded-lg 
-                border border-zinc-200 text-sm 
-                focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500
-                placeholder:text-zinc-400
+                w-full h-9 pl-9 pr-3 rounded-lg 
+                bg-muted/50 border border-border text-sm text-foreground
+                focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
+                placeholder:text-muted-foreground
               "
             />
           </div>
@@ -48,10 +48,10 @@ export function InvoiceFilters({
           value={filters.status}
           onChange={(e) => onFilterChange('status', e.target.value)}
           className="
-            h-10 px-3 rounded-lg 
-            border border-zinc-200 text-sm text-zinc-700 
-            focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500
-            bg-white cursor-pointer
+            h-9 px-3 rounded-lg text-sm
+            bg-muted/50 border border-border text-foreground
+            focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
+            cursor-pointer
           "
         >
           {STATUS_OPTIONS.map(option => (
@@ -65,40 +65,40 @@ export function InvoiceFilters({
         <button
           onClick={() => onFilterChange('overdueOnly', !filters.overdueOnly)}
           className={`
-            h-10 px-3 rounded-lg border text-sm font-medium 
-            flex items-center gap-2 transition-colors
-            ${filters.overdueOnly 
-              ? 'bg-red-50 border-red-300 text-red-700' 
-              : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50'
+            h-9 px-3 rounded-lg border text-sm font-medium 
+            flex items-center gap-1.5 transition-colors
+            ${filters.overdueOnly
+              ? 'bg-red-100 dark:bg-red-900/30 border-red-300 dark:border-red-800 text-red-700 dark:text-red-300'
+              : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted'
             }
           `}
         >
-          <AlertTriangle className="w-4 h-4" />
+          <AlertTriangle className="w-3.5 h-3.5" />
           Quá hạn
         </button>
 
         {/* Date Range */}
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-zinc-400" />
+        <div className="flex items-center gap-1.5">
+          <Calendar className="w-4 h-4 text-muted-foreground" />
           <input
             type="date"
             value={filters.dateStart}
             onChange={(e) => onFilterChange('dateStart', e.target.value)}
             className="
-              h-10 px-3 rounded-lg 
-              border border-zinc-200 text-sm 
-              focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500
+              h-9 px-2 rounded-lg text-sm
+              bg-muted/50 border border-border text-foreground
+              focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
             "
           />
-          <span className="text-zinc-400">—</span>
+          <span className="text-muted-foreground text-xs">—</span>
           <input
             type="date"
             value={filters.dateEnd}
             onChange={(e) => onFilterChange('dateEnd', e.target.value)}
             className="
-              h-10 px-3 rounded-lg 
-              border border-zinc-200 text-sm 
-              focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500
+              h-9 px-2 rounded-lg text-sm
+              bg-muted/50 border border-border text-foreground
+              focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
             "
           />
         </div>
@@ -109,9 +109,9 @@ export function InvoiceFilters({
             variant="ghost"
             size="sm"
             onClick={onReset}
-            className="text-zinc-500 hover:text-zinc-700"
+            className="h-9 text-muted-foreground hover:text-foreground"
           >
-            <X className="w-4 h-4 mr-1" />
+            <X className="w-3.5 h-3.5 mr-1" />
             Xóa lọc
           </Button>
         )}

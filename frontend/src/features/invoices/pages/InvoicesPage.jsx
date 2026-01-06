@@ -25,7 +25,7 @@ import { Button } from '@/components/ui/button';
 
 // Feature imports
 import {
-  InvoiceStats,
+  SlimStatBar,
   InvoiceFilters,
   InvoiceTable,
   PaymentModal,
@@ -283,8 +283,8 @@ export function InvoicesPage() {
   // RENDER - Clean JSX
   // ============================================
   return (
-    <div className="min-h-screen bg-stone-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-background">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
         {/* Header */}
         <PageHeader
@@ -326,9 +326,9 @@ export function InvoicesPage() {
 
         {/* Tab Content */}
         {activeTab === 'invoices' ? (
-          <>
-            {/* KPI Stats */}
-            <InvoiceStats
+          <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+            {/* Slim KPI Stats Bar */}
+            <SlimStatBar
               statistics={statistics}
               loading={loadingStats}
               onStatusClick={handleStatusClick}
@@ -356,7 +356,7 @@ export function InvoicesPage() {
               onCancel={handleCancel}
               onRefund={handleRefund}
             />
-          </>
+          </div>
         ) : (
           /* Transactions Tab */
           <TransactionsTab

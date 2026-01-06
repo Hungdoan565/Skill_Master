@@ -24,9 +24,9 @@ const Dialog = ({ open, onOpenChange, children }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
+      {/* Backdrop - SOLID dark overlay, no blur */}
       <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+        className="fixed inset-0 bg-black/60"
         onClick={() => onOpenChange?.(false)}
       />
       {/* Content wrapper */}
@@ -39,7 +39,10 @@ const DialogContent = React.forwardRef(({ className, children, ...props }, ref) 
   <div
     ref={ref}
     className={cn(
-      'relative max-h-[90vh] overflow-y-auto bg-white rounded-lg shadow-lg p-6 w-full max-w-lg',
+      // SOLID background - no transparency!
+      'relative max-h-[90vh] overflow-y-auto rounded-lg shadow-2xl p-6 w-full max-w-lg',
+      'bg-white dark:bg-zinc-950',
+      'border border-zinc-200 dark:border-zinc-800',
       className
     )}
     {...props}

@@ -10,6 +10,7 @@ export { StatCard } from './StatCard';
 export { InvoiceTable } from './InvoiceTable';
 export { InvoiceFilters } from './InvoiceFilters';
 export { InvoiceStats } from './InvoiceStats';
+export { SlimStatBar } from './SlimStatBar';
 export { PaymentModal } from './PaymentModal';
 export { PaymentHistorySection } from './PaymentHistorySection';
 export { ReceiptTemplate } from './ReceiptTemplate';
