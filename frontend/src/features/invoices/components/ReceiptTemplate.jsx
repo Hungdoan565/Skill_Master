@@ -9,6 +9,7 @@
  */
 
 import { BANK_CONFIG, PAYMENT_METHOD_LABELS } from '../utils/constants';
+import logoImage from '@/assets/logo.png';
 
 // ============================================
 // UTILITY: Number to Vietnamese Words
@@ -110,9 +111,11 @@ export function ReceiptTemplate({ invoice, payment }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4mm', borderBottom: '2px solid #16a34a', paddingBottom: '3mm' }}>
                 {/* Left: Logo & Company */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '3mm' }}>
-                    <div style={{ width: '12mm', height: '12mm', background: '#16a34a', borderRadius: '2mm', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '10pt' }}>
-                        SM
-                    </div>
+                    <img
+                        src={logoImage}
+                        alt="Skill Master Academy"
+                        style={{ width: '12mm', height: '12mm', objectFit: 'contain' }}
+                    />
                     <div>
                         <div style={{ fontWeight: 'bold', fontSize: '12pt' }}>Skill Master Academy</div>
                         <div style={{ fontSize: '8pt', color: '#666' }}>
