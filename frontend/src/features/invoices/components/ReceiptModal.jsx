@@ -191,9 +191,8 @@ export function ReceiptModal({ isOpen, invoice, payment, onClose }) {
 
                 {/* Content - Scrollable */}
                 <div className="flex-1 overflow-y-auto bg-gray-100 p-4">
-                    <div className="shadow-lg rounded-lg overflow-hidden">
+                    <div ref={receiptRef} className="shadow-lg rounded-lg overflow-hidden">
                         <ReceiptTemplate
-                            ref={receiptRef}
                             invoice={invoice}
                             payment={payment}
                         />

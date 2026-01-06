@@ -1,261 +1,249 @@
 /**
- * ReceiptTemplate Component
+ * ReceiptTemplate V2 - Best Practices Edition
  * 
- * Template biên nhận thanh toán PDF-ready.
- * Có thể in trực tiếp hoặc export PDF.
- * 
- * @param {Object} invoice - Thông tin hóa đơn
- * @param {Object} payment - Thông tin thanh toán
- * @param {Object} centerInfo - Thông tin trung tâm
+ * Professional payment receipt following industry standards:
+ * - Single A5 page (landscape)
+ * - Itemized breakdown
+ * - Dual signature fields
+ * - Compact layout
  */
 
-import { forwardRef } from 'react';
-import { Building2, Phone, Mail, MapPin, CheckCircle2 } from 'lucide-react';
-import { formatDate, formatCurrency } from '../utils/formatters';
 import { BANK_CONFIG, PAYMENT_METHOD_LABELS } from '../utils/constants';
 
-// Default center info - should be passed from parent or fetched
-const DEFAULT_CENTER_INFO = {
-    name: 'Skill Master Academy',
-    address: 'Số 123, Đường ABC, Quận XYZ, TP. Hồ Chí Minh',
-    phone: '0909 123 456',
-    email: 'contact@skillmaster.vn',
-    taxCode: '0123456789'
-};
+// ============================================
+// UTILITY: Number to Vietnamese Words
+// ============================================
+function numberToVietnameseWords(num) {
+    if (!num || num === 0) return 'Không đồng';
 
-export const ReceiptTemplate = forwardRef(function ReceiptTemplate({
-    invoice,
-    payment,
-    centerInfo = DEFAULT_CENTER_INFO
-}, ref) {
-    if (!invoice || !payment) {
-        return (
-            <div className="p-8 text-center text-muted-foreground">
-                Không có dữ liệu để hiển thị
-            </div>
-        );
+    const units = ['', 'nghìn', 'triệu', 'tỷ'];
+    const digits = ['không', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
+
+    const readThreeDigits = (n) => {
+        if (n === 0) return '';
+        let result = '';
+        const hundreds = Math.floor(n / 100);
+        const tens = Math.floor((n % 100) / 10);
+        const ones = n % 10;
+
+        if (hundreds > 0) result += digits[hundreds] + ' trăm ';
+        if (tens > 0) {
+            if (tens === 1) result += 'mười ';
+            else result += digits[tens] + ' mươi ';
+        } else if (hundreds > 0 && ones > 0) {
+            result += 'lẻ ';
+        }
+        if (ones > 0) {
+            if (tens > 1 && ones === 1) result += 'mốt';
+            else if (tens > 0 && ones === 5) result += 'lăm';
+            else result += digits[ones];
+        }
+        return result.trim();
+    };
+
+    let result = '';
+    let unitIndex = 0;
+    let n = Math.abs(Math.floor(num));
+
+    while (n > 0) {
+        const chunk = n % 1000;
+        if (chunk > 0) {
+            const chunkText = readThreeDigits(chunk);
+            result = chunkText + (units[unitIndex] ? ' ' + units[unitIndex] : '') + ' ' + result;
+        }
+        n = Math.floor(n / 1000);
+        unitIndex++;
     }
 
-    const remaining = (invoice.final_amount || 0) - (invoice.paid_amount || 0);
+    result = result.trim();
+    result = result.charAt(0).toUpperCase() + result.slice(1) + ' đồng';
+    return result;
+}
+
+// ============================================
+// MAIN COMPONENT
+// ============================================
+export function ReceiptTemplate({ invoice, payment }) {
+    if (!invoice || !payment) return null;
+
+    const paymentDate = new Date(payment.created_at);
+    const formattedDate = paymentDate.toLocaleDateString('vi-VN');
+    const formattedTime = paymentDate.toLocaleTimeString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+
+    // Calculate amounts
+    const totalAmount = invoice.final_amount || 0;
+    const previousPaid = (invoice.paid_amount || 0) - payment.amount;
+    const thisPayment = payment.amount || 0;
+    const remaining = totalAmount - (invoice.paid_amount || 0);
 
     return (
-        <div
-            ref={ref}
-            className="bg-white w-[210mm] min-h-[148mm] mx-auto p-8 print:p-6 font-sans text-sm"
-            style={{
-                fontFamily: "'Inter', 'Roboto', sans-serif",
-                color: '#1a1a1a'
-            }}
-        >
-            {/* Header */}
-            <div className="flex items-start justify-between border-b-2 border-emerald-600 pb-4 mb-6">
-                <div className="flex items-center gap-3">
-                    <div className="w-14 h-14 bg-emerald-600 rounded-xl flex items-center justify-center">
-                        <Building2 className="w-8 h-8 text-white" />
+        <div className="receipt-container">
+            {/* Custom print styles */}
+            <style>{`
+        .receipt-container {
+          width: 210mm;
+          min-height: 148mm;
+          max-height: 148mm;
+          padding: 8mm;
+          font-family: 'Times New Roman', serif;
+          font-size: 11pt;
+          background: white;
+          color: #000;
+          box-sizing: border-box;
+          overflow: hidden;
+        }
+        @media print {
+          .receipt-container {
+            width: 210mm;
+            height: 148mm;
+            margin: 0;
+            padding: 8mm;
+            page-break-inside: avoid;
+          }
+        }
+      `}</style>
+
+            {/* Header Row */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4mm', borderBottom: '2px solid #16a34a', paddingBottom: '3mm' }}>
+                {/* Left: Logo & Company */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '3mm' }}>
+                    <div style={{ width: '12mm', height: '12mm', background: '#16a34a', borderRadius: '2mm', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', fontSize: '10pt' }}>
+                        SM
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold text-emerald-700">{centerInfo.name}</h1>
-                        <div className="flex items-center gap-4 text-xs text-gray-500 mt-1">
-                            <span className="flex items-center gap-1">
-                                <Phone className="w-3 h-3" /> {centerInfo.phone}
-                            </span>
-                            <span className="flex items-center gap-1">
-                                <Mail className="w-3 h-3" /> {centerInfo.email}
-                            </span>
-                        </div>
-                        <div className="flex items-center gap-1 text-xs text-gray-500">
-                            <MapPin className="w-3 h-3" /> {centerInfo.address}
+                        <div style={{ fontWeight: 'bold', fontSize: '12pt' }}>Skill Master Academy</div>
+                        <div style={{ fontSize: '8pt', color: '#666' }}>
+                            📞 {BANK_CONFIG.hotline || '0909 123 456'} | 📧 contact@skillmaster.vn
                         </div>
                     </div>
                 </div>
-                <div className="text-right">
-                    <h2 className="text-lg font-bold text-gray-800">BIÊN NHẬN</h2>
-                    <p className="text-xs text-gray-500">Payment Receipt</p>
-                    <div className="mt-2 px-3 py-1.5 bg-emerald-50 rounded-lg border border-emerald-200">
-                        <p className="font-mono font-bold text-emerald-700">
-                            #{payment.id?.slice(0, 8).toUpperCase() || 'N/A'}
-                        </p>
+
+                {/* Right: Receipt Title */}
+                <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '14pt', fontWeight: 'bold', color: '#16a34a' }}>PHIẾU THU</div>
+                    <div style={{ fontSize: '9pt', color: '#666' }}>Payment Receipt</div>
+                    <div style={{ fontSize: '10pt', fontFamily: 'monospace', marginTop: '1mm' }}>
+                        #{invoice.invoice_code}
                     </div>
                 </div>
             </div>
 
-            {/* Invoice & Payment Info */}
-            <div className="grid grid-cols-2 gap-6 mb-6">
-                {/* Left: Student & Invoice Info */}
-                <div className="space-y-3">
-                    <InfoRow label="Mã hóa đơn" value={invoice.invoice_code} mono />
-                    <InfoRow label="Học viên" value={invoice.student?.full_name} bold />
-                    <InfoRow label="Email" value={invoice.student?.email} />
-                    <InfoRow label="SĐT" value={invoice.student?.phone} />
-                    <InfoRow label="Lớp học" value={invoice.class?.name} />
-                    <InfoRow label="Khóa học" value={invoice.class?.course?.title} />
+            {/* Info Grid: 2 columns */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4mm', marginBottom: '4mm' }}>
+                {/* Left Column: Student Info */}
+                <div style={{ background: '#f8f8f8', padding: '3mm', borderRadius: '2mm', fontSize: '10pt' }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: '2mm', color: '#16a34a' }}>THÔNG TIN HỌC VIÊN</div>
+                    <InfoRow label="Họ tên" value={invoice.student?.full_name || '—'} />
+                    <InfoRow label="SĐT" value={invoice.student?.phone || '—'} />
+                    <InfoRow label="Email" value={invoice.student?.email || '—'} />
                 </div>
 
-                {/* Right: Payment Details */}
-                <div className="space-y-3">
-                    <InfoRow label="Ngày thanh toán" value={formatDate(payment.created_at || payment.payment_date)} />
-                    <InfoRow
-                        label="Phương thức"
-                        value={PAYMENT_METHOD_LABELS[payment.payment_method] || payment.payment_method}
-                    />
-                    {payment.payment_method === 'bank_transfer' && (
-                        <>
-                            <InfoRow label="Ngân hàng" value={BANK_CONFIG.bankId} />
-                            <InfoRow label="STK" value={BANK_CONFIG.accountNo} />
-                            <InfoRow label="Chủ TK" value={BANK_CONFIG.accountName} />
-                        </>
-                    )}
-                    {payment.reference_code && (
-                        <InfoRow label="Mã GD" value={payment.reference_code} mono />
-                    )}
+                {/* Right Column: Course Info */}
+                <div style={{ background: '#f8f8f8', padding: '3mm', borderRadius: '2mm', fontSize: '10pt' }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: '2mm', color: '#16a34a' }}>THÔNG TIN KHÓA HỌC</div>
+                    <InfoRow label="Lớp" value={invoice.class?.name || '—'} />
+                    <InfoRow label="Khóa học" value={invoice.class?.course?.name || '—'} />
+                    <InfoRow label="Thời gian" value={`${invoice.class?.start_date ? new Date(invoice.class.start_date).toLocaleDateString('vi-VN') : '—'} - ${invoice.class?.end_date ? new Date(invoice.class.end_date).toLocaleDateString('vi-VN') : '—'}`} />
                 </div>
             </div>
 
-            {/* Amount Summary */}
-            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-5 border border-emerald-100 mb-6">
-                <div className="grid grid-cols-4 gap-4 text-center">
-                    <AmountBox label="Tổng tiền" amount={invoice.final_amount} />
-                    <AmountBox label="Đã đóng trước" amount={(invoice.paid_amount || 0) - (payment.amount || 0)} />
-                    <AmountBox label="Số tiền lần này" amount={payment.amount} highlight />
-                    <AmountBox label="Còn nợ" amount={remaining} danger={remaining > 0} />
-                </div>
-            </div>
+            {/* Payment Table */}
+            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '3mm', fontSize: '10pt' }}>
+                <thead>
+                    <tr style={{ background: '#16a34a', color: 'white' }}>
+                        <th style={{ padding: '2mm', textAlign: 'left', borderRadius: '2mm 0 0 0' }}>Diễn giải</th>
+                        <th style={{ padding: '2mm', textAlign: 'right', width: '25%' }}>Số tiền</th>
+                        <th style={{ padding: '2mm', textAlign: 'center', width: '20%', borderRadius: '0 2mm 0 0' }}>Ghi chú</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style={{ borderBottom: '1px solid #ddd' }}>
+                        <td style={{ padding: '2mm' }}>Học phí khóa {invoice.class?.course?.name || 'học'}</td>
+                        <td style={{ padding: '2mm', textAlign: 'right' }}>{totalAmount.toLocaleString()}đ</td>
+                        <td style={{ padding: '2mm', textAlign: 'center', color: '#666' }}>Tổng</td>
+                    </tr>
+                    {previousPaid > 0 && (
+                        <tr style={{ borderBottom: '1px solid #ddd' }}>
+                            <td style={{ padding: '2mm' }}>Đã thanh toán trước</td>
+                            <td style={{ padding: '2mm', textAlign: 'right', color: '#16a34a' }}>-{previousPaid.toLocaleString()}đ</td>
+                            <td style={{ padding: '2mm', textAlign: 'center', color: '#666' }}>Đã đóng</td>
+                        </tr>
+                    )}
+                    <tr style={{ background: '#e8f5e9', fontWeight: 'bold' }}>
+                        <td style={{ padding: '2mm' }}>
+                            💳 Thanh toán lần này ({PAYMENT_METHOD_LABELS[payment.payment_method] || payment.payment_method})
+                        </td>
+                        <td style={{ padding: '2mm', textAlign: 'right', color: '#16a34a', fontSize: '11pt' }}>
+                            {thisPayment.toLocaleString()}đ
+                        </td>
+                        <td style={{ padding: '2mm', textAlign: 'center' }}>
+                            {formattedDate}
+                        </td>
+                    </tr>
+                    {remaining > 0 && (
+                        <tr style={{ borderTop: '2px solid #16a34a' }}>
+                            <td style={{ padding: '2mm', fontWeight: 'bold' }}>CÒN NỢ</td>
+                            <td style={{ padding: '2mm', textAlign: 'right', color: '#dc2626', fontWeight: 'bold' }}>
+                                {remaining.toLocaleString()}đ
+                            </td>
+                            <td></td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
 
-            {/* Amount in Words */}
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                <p className="text-xs text-gray-500 mb-1">Bằng chữ:</p>
-                <p className="font-medium text-gray-800 italic">
-                    {numberToVietnameseWords(payment.amount || 0)} đồng
-                </p>
+            {/* Amount in words */}
+            <div style={{ background: '#fffbeb', padding: '2mm 3mm', borderRadius: '2mm', marginBottom: '3mm', fontSize: '10pt', border: '1px solid #fbbf24' }}>
+                <strong>Bằng chữ:</strong> {numberToVietnameseWords(thisPayment)}
             </div>
 
             {/* Notes */}
             {payment.notes && (
-                <div className="mb-6">
-                    <p className="text-xs text-gray-500 mb-1">Ghi chú:</p>
-                    <p className="text-gray-700">{payment.notes}</p>
+                <div style={{ fontSize: '9pt', color: '#666', marginBottom: '3mm' }}>
+                    <strong>Ghi chú:</strong> {payment.notes}
                 </div>
             )}
 
-            {/* Footer */}
-            <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                <div className="text-xs text-gray-400">
-                    <p>Mã số thuế: {centerInfo.taxCode}</p>
-                    <p>Biên nhận này có giá trị pháp lý.</p>
-                </div>
-                <div className="text-center">
-                    <div className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center mb-2">
-                        <span className="text-xs text-gray-400">Đã xác nhận</span>
-                    </div>
-                    <p className="text-xs text-gray-500">Thu ngân</p>
-                </div>
+            {/* Signature Row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10mm', marginTop: '4mm' }}>
+                <SignatureBox title="Thu ngân" subtitle="(Ký, ghi rõ họ tên)" name={payment.received_by_user?.full_name} />
+                <SignatureBox title="Học viên / Phụ huynh" subtitle="(Ký, ghi rõ họ tên)" />
             </div>
 
-            {/* Status Stamp */}
-            {payment.verification_status === 'verified' && (
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-[-15deg] opacity-10 pointer-events-none">
-                    <div className="flex items-center gap-2 text-emerald-600">
-                        <CheckCircle2 className="w-20 h-20" />
-                        <span className="text-6xl font-bold">ĐÃ THANH TOÁN</span>
-                    </div>
-                </div>
-            )}
+            {/* Footer */}
+            <div style={{ marginTop: '4mm', paddingTop: '2mm', borderTop: '1px solid #ddd', display: 'flex', justifyContent: 'space-between', fontSize: '8pt', color: '#999' }}>
+                <span>📍 Số 123, Đường ABC, Quận XYZ, TP. Hồ Chí Minh</span>
+                <span>In lúc: {formattedDate} {formattedTime}</span>
+            </div>
         </div>
     );
-});
+}
 
 // ============================================
 // SUB-COMPONENTS
 // ============================================
 
-function InfoRow({ label, value, mono = false, bold = false }) {
+function InfoRow({ label, value }) {
     return (
-        <div className="flex justify-between items-center">
-            <span className="text-gray-500">{label}:</span>
-            <span className={`text-gray-800 ${mono ? 'font-mono' : ''} ${bold ? 'font-semibold' : ''}`}>
-                {value || '—'}
-            </span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1mm' }}>
+            <span style={{ color: '#666' }}>{label}:</span>
+            <span style={{ fontWeight: '500', maxWidth: '60%', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</span>
         </div>
     );
 }
 
-function AmountBox({ label, amount, highlight = false, danger = false }) {
-    let colorClass = 'text-gray-800';
-    if (highlight) colorClass = 'text-emerald-700';
-    if (danger) colorClass = 'text-red-600';
-
+function SignatureBox({ title, subtitle, name }) {
     return (
-        <div>
-            <p className={`text-xs ${danger ? 'text-red-500' : highlight ? 'text-emerald-600' : 'text-gray-500'}`}>
-                {label}
-            </p>
-            <p className={`text-lg font-bold ${colorClass}`}>
-                {formatCurrency(amount || 0)}
-            </p>
+        <div style={{ textAlign: 'center' }}>
+            <div style={{ fontWeight: 'bold', fontSize: '10pt' }}>{title}</div>
+            <div style={{ fontSize: '8pt', color: '#999', marginBottom: '8mm' }}>{subtitle}</div>
+            <div style={{ borderBottom: '1px dashed #ccc', height: '8mm' }}></div>
+            {name && <div style={{ fontSize: '9pt', marginTop: '1mm' }}>{name}</div>}
         </div>
     );
-}
-
-// ============================================
-// UTILITIES
-// ============================================
-
-/**
- * Chuyển số thành chữ tiếng Việt
- */
-function numberToVietnameseWords(num) {
-    if (num === 0) return 'Không';
-
-    const units = ['', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
-    const positions = ['', 'nghìn', 'triệu', 'tỷ'];
-
-    const parseThreeDigits = (n) => {
-        const hundred = Math.floor(n / 100);
-        const ten = Math.floor((n % 100) / 10);
-        const unit = n % 10;
-
-        let result = '';
-
-        if (hundred > 0) {
-            result += units[hundred] + ' trăm ';
-        }
-
-        if (ten > 1) {
-            result += units[ten] + ' mươi ';
-            if (unit === 1) result += 'mốt';
-            else if (unit === 5) result += 'lăm';
-            else if (unit > 0) result += units[unit];
-        } else if (ten === 1) {
-            result += 'mười ';
-            if (unit === 5) result += 'lăm';
-            else if (unit > 0) result += units[unit];
-        } else if (unit > 0 && hundred > 0) {
-            result += 'lẻ ' + units[unit];
-        } else if (unit > 0) {
-            result += units[unit];
-        }
-
-        return result.trim();
-    };
-
-    if (num >= 1e12) return 'Số quá lớn';
-
-    const parts = [];
-    let remaining = num;
-    let position = 0;
-
-    while (remaining > 0) {
-        const chunk = remaining % 1000;
-        if (chunk > 0) {
-            const words = parseThreeDigits(chunk);
-            parts.unshift(words + (positions[position] ? ' ' + positions[position] : ''));
-        }
-        remaining = Math.floor(remaining / 1000);
-        position++;
-    }
-
-    const result = parts.join(' ').trim();
-    return result.charAt(0).toUpperCase() + result.slice(1);
 }
 
 export default ReceiptTemplate;
