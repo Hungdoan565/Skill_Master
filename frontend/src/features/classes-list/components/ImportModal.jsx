@@ -216,16 +216,16 @@ export function ImportModal({
             <div className="absolute inset-0 bg-black/50" onClick={handleClose} />
 
             {/* Modal */}
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="relative bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-slate-200">
+                <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-indigo-100 rounded-lg">
-                            <Upload className="w-5 h-5 text-indigo-600" />
+                        <div className="p-2 bg-indigo-100 dark:bg-indigo-900 rounded-lg">
+                            <Upload className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                         </div>
                         <div>
-                            <h2 className="text-lg font-semibold">Import lớp học</h2>
-                            <p className="text-sm text-slate-500">Tải lên file Excel/CSV để tạo nhiều lớp</p>
+                            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Import lớp học</h2>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">Tải lên file Excel/CSV để tạo nhiều lớp</p>
                         </div>
                     </div>
                     <Button variant="ghost" size="icon" onClick={handleClose}>
@@ -239,12 +239,12 @@ export function ImportModal({
                     {step === 'upload' && (
                         <div className="space-y-6">
                             {/* Template Download */}
-                            <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
+                            <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
                                 <div className="flex items-center gap-3">
-                                    <Info className="w-5 h-5 text-blue-600" />
+                                    <Info className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                                     <div>
-                                        <p className="font-medium text-blue-900">Tải template mẫu</p>
-                                        <p className="text-sm text-blue-700">
+                                        <p className="font-medium text-blue-900 dark:text-blue-100">Tải template mẫu</p>
+                                        <p className="text-sm text-blue-700 dark:text-blue-300">
                                             Sử dụng template để đảm bảo đúng định dạng
                                         </p>
                                     </div>
@@ -257,14 +257,14 @@ export function ImportModal({
 
                             {/* File Upload */}
                             <div
-                                className="border-2 border-dashed border-slate-200 rounded-lg p-8 text-center hover:border-indigo-400 hover:bg-slate-50 transition-colors cursor-pointer"
+                                className="border-2 border-dashed border-slate-200 dark:border-slate-600 rounded-lg p-8 text-center hover:border-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                                 onClick={() => fileInputRef.current?.click()}
                             >
                                 <FileSpreadsheet className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                                <p className="font-medium text-slate-700">
+                                <p className="font-medium text-slate-700 dark:text-slate-200">
                                     Kéo thả file hoặc click để chọn
                                 </p>
-                                <p className="text-sm text-slate-500 mt-1">
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                                     Hỗ trợ: .xlsx, .xls, .csv, .json
                                 </p>
                                 <input
@@ -278,17 +278,17 @@ export function ImportModal({
 
                             {/* Column Requirements */}
                             <div>
-                                <h3 className="font-medium mb-3">Các cột dữ liệu</h3>
+                                <h3 className="font-medium mb-3 text-slate-900 dark:text-slate-100">Các cột dữ liệu</h3>
                                 <div className="grid grid-cols-2 gap-2">
                                     {IMPORT_COLUMNS.map(col => (
                                         <div key={col.key} className="flex items-center gap-2 text-sm">
-                                            <span className={`w-2 h-2 rounded-full ${col.required ? 'bg-red-500' : 'bg-slate-300'}`} />
-                                            <span className="text-slate-700">{col.label}</span>
+                                            <span className={`w-2 h-2 rounded-full ${col.required ? 'bg-red-500' : 'bg-slate-300 dark:bg-slate-600'}`} />
+                                            <span className="text-slate-700 dark:text-slate-200">{col.label}</span>
                                             {col.required && <span className="text-xs text-red-500">*</span>}
                                         </div>
                                     ))}
                                 </div>
-                                <p className="text-xs text-slate-500 mt-2">* Bắt buộc</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">* Bắt buộc</p>
                             </div>
                         </div>
                     )}
@@ -297,11 +297,11 @@ export function ImportModal({
                     {step === 'preview' && (
                         <div className="space-y-4">
                             {/* File Info */}
-                            <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-                                <FileText className="w-5 h-5 text-slate-600" />
+                            <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700 rounded-lg">
+                                <FileText className="w-5 h-5 text-slate-600 dark:text-slate-300" />
                                 <div className="flex-1">
-                                    <p className="font-medium text-sm">{file?.name}</p>
-                                    <p className="text-xs text-slate-500">{previewData.length} bản ghi</p>
+                                    <p className="font-medium text-sm text-slate-900 dark:text-slate-100">{file?.name}</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">{previewData.length} bản ghi</p>
                                 </div>
                                 <Button variant="ghost" size="sm" onClick={resetModal}>
                                     Chọn file khác
@@ -310,19 +310,19 @@ export function ImportModal({
 
                             {/* Validation Errors */}
                             {validationErrors.length > 0 && (
-                                <div className="p-4 bg-red-50 rounded-lg">
-                                    <div className="flex items-center gap-2 text-red-700 font-medium mb-2">
+                                <div className="p-4 bg-red-50 dark:bg-red-900/30 rounded-lg">
+                                    <div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-medium mb-2">
                                         <AlertCircle className="w-5 h-5" />
                                         <span>{validationErrors.length} lỗi cần sửa</span>
                                     </div>
                                     <div className="max-h-32 overflow-y-auto space-y-1">
                                         {validationErrors.slice(0, 10).map((error, i) => (
-                                            <p key={i} className="text-sm text-red-600">
+                                            <p key={i} className="text-sm text-red-600 dark:text-red-400">
                                                 Dòng {error.row}: {error.message}
                                             </p>
                                         ))}
                                         {validationErrors.length > 10 && (
-                                            <p className="text-sm text-red-600">
+                                            <p className="text-sm text-red-600 dark:text-red-400">
                                                 ... và {validationErrors.length - 10} lỗi khác
                                             </p>
                                         )}
@@ -332,25 +332,25 @@ export function ImportModal({
 
                             {/* Preview Table */}
                             <div>
-                                <h3 className="font-medium mb-2">Xem trước dữ liệu</h3>
-                                <div className="border border-slate-200 rounded-lg overflow-x-auto">
+                                <h3 className="font-medium mb-2 text-slate-900 dark:text-slate-100">Xem trước dữ liệu</h3>
+                                <div className="border border-slate-200 dark:border-slate-600 rounded-lg overflow-x-auto">
                                     <table className="w-full text-sm">
-                                        <thead className="bg-slate-50">
+                                        <thead className="bg-slate-50 dark:bg-slate-700">
                                             <tr>
-                                                <th className="p-2 text-left font-medium text-slate-600">#</th>
+                                                <th className="p-2 text-left font-medium text-slate-600 dark:text-slate-300">#</th>
                                                 {IMPORT_COLUMNS.slice(0, 6).map(col => (
-                                                    <th key={col.key} className="p-2 text-left font-medium text-slate-600">
+                                                    <th key={col.key} className="p-2 text-left font-medium text-slate-600 dark:text-slate-300">
                                                         {col.label}
                                                     </th>
                                                 ))}
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-slate-100">
+                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-600">
                                             {previewData.slice(0, 5).map((row, i) => (
-                                                <tr key={i} className="hover:bg-slate-50">
-                                                    <td className="p-2 text-slate-500">{i + 1}</td>
+                                                <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-700">
+                                                    <td className="p-2 text-slate-500 dark:text-slate-400">{i + 1}</td>
                                                     {IMPORT_COLUMNS.slice(0, 6).map(col => (
-                                                        <td key={col.key} className="p-2">
+                                                        <td key={col.key} className="p-2 text-slate-900 dark:text-slate-100">
                                                             {row[col.key] || row[col.label] || '-'}
                                                         </td>
                                                     ))}
@@ -359,7 +359,7 @@ export function ImportModal({
                                         </tbody>
                                     </table>
                                     {previewData.length > 5 && (
-                                        <p className="text-center text-sm text-slate-500 py-2 bg-slate-50">
+                                        <p className="text-center text-sm text-slate-500 dark:text-slate-400 py-2 bg-slate-50 dark:bg-slate-700">
                                             ... và {previewData.length - 5} bản ghi khác
                                         </p>
                                     )}
@@ -374,28 +374,28 @@ export function ImportModal({
                             {importResult.success > 0 ? (
                                 <>
                                     <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                                    <h3 className="text-xl font-semibold text-slate-900">Import thành công!</h3>
-                                    <p className="text-slate-600 mt-2">
+                                    <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Import thành công!</h3>
+                                    <p className="text-slate-600 dark:text-slate-300 mt-2">
                                         Đã tạo <strong>{importResult.success}</strong> lớp học
                                         {importResult.failed > 0 && (
-                                            <>, <span className="text-red-600">{importResult.failed} thất bại</span></>
+                                            <>, <span className="text-red-600 dark:text-red-400">{importResult.failed} thất bại</span></>
                                         )}
                                     </p>
                                 </>
                             ) : (
                                 <>
                                     <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-                                    <h3 className="text-xl font-semibold text-slate-900">Import thất bại</h3>
-                                    <p className="text-slate-600 mt-2">
+                                    <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Import thất bại</h3>
+                                    <p className="text-slate-600 dark:text-slate-300 mt-2">
                                         Không thể tạo lớp học. Vui lòng kiểm tra lại dữ liệu.
                                     </p>
                                 </>
                             )}
 
                             {importResult.errors?.length > 0 && (
-                                <div className="mt-4 p-4 bg-red-50 rounded-lg text-left max-h-48 overflow-y-auto">
+                                <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/30 rounded-lg text-left max-h-48 overflow-y-auto">
                                     {importResult.errors.map((error, i) => (
-                                        <p key={i} className="text-sm text-red-600">
+                                        <p key={i} className="text-sm text-red-600 dark:text-red-400">
                                             {error.row ? `Dòng ${error.row}: ` : ''}{error.message}
                                         </p>
                                     ))}
@@ -406,7 +406,7 @@ export function ImportModal({
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-end gap-2 p-4 border-t border-slate-200 bg-slate-50">
+                <div className="flex items-center justify-end gap-2 p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
                     <Button variant="outline" onClick={handleClose}>
                         {step === 'result' ? 'Đóng' : 'Hủy'}
                     </Button>

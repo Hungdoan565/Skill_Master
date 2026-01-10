@@ -8,6 +8,7 @@ import { Plus, BarChart3, Upload } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { useToast } from '@/components/ui/toast';
 
 // Feature imports
 import { useClassesList, useClassForm, useFormOptions, useAdvancedFilters } from '../hooks';
@@ -26,6 +27,7 @@ import {
 } from '../components';
 import { STATUS_CONFIG, API_URL } from '../utils';
 import { supabase } from '@/lib/supabaseClient';
+import { useAuth } from '@/contexts/auth-context';
 
 // Helper: Get auth headers for API calls
 const getAuthHeaders = async () => {
@@ -35,6 +37,12 @@ const getAuthHeaders = async () => {
 };
 
 export function ClassesPage() {
+  // Toast notifications
+  const { toast } = useToast();
+
+  // Auth context for role check
+  const { isSuperAdmin: checkIsSuperAdmin } = useAuth();
+
   // State
   const [modalOpen, setModalOpen] = useState(false);
   const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
@@ -166,12 +174,10 @@ export function ClassesPage() {
     setCurrentPage(1); // Reset to first page
   };
 
-  // Check if user is SUPER_ADMIN (simplified check)
+  // Check if user is SUPER_ADMIN from auth context
   const isSuperAdmin = useMemo(() => {
-    // This should ideally come from auth context
-    // For now, show center filter if there are multiple centers
-    return centers.length > 1;
-  }, [centers]);
+    return checkIsSuperAdmin?.() || false;
+  }, [checkIsSuperAdmin]);
 
   // Modal handlers
   const openModal = (classItem = null) => {
@@ -193,19 +199,10 @@ export function ClassesPage() {
   const handleCloneClass = (classItem) => {
     if (!classItem) return;
 
-    // Load class data but mark as new (not editing)
-    loadClassData(classItem);
-
-    // Reset fields that should be different for clone
-    const today = new Date().toISOString().split('T')[0];
-    updateField('code', `${classItem.code}_COPY`);
-    updateField('name', `${classItem.name} (Bản sao)`);
-    updateField('start_date', '');
-    updateField('end_date', '');
-    updateField('status', 'upcoming');
-
-    // Clear editing state so it creates a new class
+    // First reset form with center_id, then load cloned data
     resetForm(classItem.center_id);
+
+    // Load class data with modified fields for clone
     loadClassData({
       ...classItem,
       id: undefined, // Remove ID so it creates new
@@ -241,9 +238,11 @@ export function ClassesPage() {
     try {
       await deleteClass(deleteModal.classItem.id);
       setDeleteModal({ isOpen: false, classItem: null, error: null });
+      toast.success(`Đã xóa lớp "${deleteModal.classItem.name}" thành công`);
     } catch (error) {
       const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra khi xóa lớp học';
       setDeleteModal(prev => ({ ...prev, error: errorMessage }));
+      toast.error(errorMessage);
     } finally {
       setDeleting(false);
     }
@@ -258,9 +257,11 @@ export function ClassesPage() {
     try {
       await deleteMultipleClasses(selectedIds);
       setBulkDeleteModal({ isOpen: false, error: null });
+      toast.success(`Đã xóa ${selectedIds.length} lớp học thành công`);
     } catch (error) {
       const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra khi xóa. Một số lớp có thể có học viên đang ghi danh.';
       setBulkDeleteModal(prev => ({ ...prev, error: errorMessage }));
+      toast.error(errorMessage);
     } finally {
       setBulkDeleting(false);
     }
@@ -271,12 +272,17 @@ export function ClassesPage() {
     const selectedClasses = classes.filter(cls => selectedIds.includes(cls.id));
     if (selectedClasses.length === 0) return;
 
-    // Import export utility
-    const { exportSelectedClasses } = await import('../utils/export');
-    exportSelectedClasses(selectedClasses);
+    try {
+      // Import export utility
+      const { exportSelectedClasses } = await import('../utils/export');
+      exportSelectedClasses(selectedClasses);
 
-    // Clear selection after export
-    clearSelection();
+      // Clear selection after export
+      clearSelection();
+      toast.success(`Đã xuất ${selectedClasses.length} lớp học thành công`);
+    } catch (error) {
+      toast.error('Có lỗi xảy ra khi xuất dữ liệu');
+    }
   };
 
   // Bulk notify - Navigate to notifications page with selected classes
@@ -285,6 +291,7 @@ export function ClassesPage() {
 
     // Store selected class IDs in sessionStorage for notifications page
     sessionStorage.setItem('notifyClassIds', JSON.stringify(selectedIds));
+    toast.info(`Đang chuyển đến trang thông báo với ${selectedIds.length} lớp đã chọn`);
 
     // Navigate to notifications page
     window.location.href = '/admin/notifications?source=classes';
@@ -293,6 +300,13 @@ export function ClassesPage() {
   // Bulk status change
   const handleBulkStatusChange = async (newStatus) => {
     if (selectedIds.length === 0) return;
+
+    const statusLabels = {
+      upcoming: 'Sắp mở',
+      ongoing: 'Đang học',
+      completed: 'Đã kết thúc',
+      cancelled: 'Đã hủy'
+    };
 
     setBulkStatusLoading(true);
     try {
@@ -314,14 +328,54 @@ export function ClassesPage() {
 
       // Refresh list after update
       await fetchClasses();
+      const count = selectedIds.length;
       clearSelection();
 
-      // Show success message (could use toast here)
-      console.log(`Đã cập nhật ${selectedIds.length} lớp sang trạng thái: ${newStatus}`);
+      toast.success(`Đã cập nhật ${count} lớp sang trạng thái "${statusLabels[newStatus] || newStatus}"`);
     } catch (error) {
       console.error('Error updating class statuses:', error);
+      toast.error('Có lỗi xảy ra khi cập nhật trạng thái');
     } finally {
       setBulkStatusLoading(false);
+    }
+  };
+
+  // Import classes handler
+  const handleImportClasses = async (classesData) => {
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(`${API_URL}/api/admin/classes/import`, {
+        method: 'POST',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ classes: classesData })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Import thất bại');
+      }
+
+      // Refresh list after import
+      await fetchClasses();
+
+      const successCount = result.data?.created || classesData.length;
+      if (successCount > 0) {
+        toast.success(`Đã import ${successCount} lớp học thành công`);
+      }
+
+      return {
+        success: successCount,
+        failed: result.data?.failed || 0,
+        errors: result.data?.errors || []
+      };
+    } catch (error) {
+      console.error('Import error:', error);
+      toast.error(error.message || 'Có lỗi xảy ra khi import');
+      throw error;
     }
   };
 
@@ -533,13 +587,7 @@ export function ClassesPage() {
       <ImportModal
         isOpen={importModalOpen}
         onClose={() => setImportModalOpen(false)}
-        onImportSuccess={() => {
-          setImportModalOpen(false);
-          fetchClasses();
-        }}
-        courses={courses}
-        teachers={teachers}
-        centers={centers}
+        onImport={handleImportClasses}
       />
     </div>
   );

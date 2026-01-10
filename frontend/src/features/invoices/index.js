@@ -8,8 +8,9 @@
  * import { useInvoices, StatusBadge } from '@/features/invoices';
  */
 
-// Main Page
+// Main Pages
 export { InvoicesPage } from './pages/InvoicesPage';
+export { OverdueDashboardPage } from './pages/OverdueDashboardPage';
 
 // Components
 export * from './components';

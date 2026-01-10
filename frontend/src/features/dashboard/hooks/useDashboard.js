@@ -11,12 +11,22 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { API_URL } from '../utils';
 import { cache, CACHE_KEYS, CACHE_TTL } from '@/lib/cache';
 
+// Format date for API (YYYY-MM-DD)
+const formatDateForAPI = (date) => {
+  if (!date) return null;
+  if (date instanceof Date) {
+    return date.toISOString().split('T')[0];
+  }
+  return date;
+};
+
 /**
  * Hook quản lý dashboard data
  * @param {string} accessToken - Token xác thực
  * @param {string} centerId - Optional center ID for filtering
+ * @param {Object} dateRange - Optional date range { start: Date, end: Date }
  */
-export function useDashboard(accessToken, centerId = null) {
+export function useDashboard(accessToken, centerId = null, dateRange = null) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -33,8 +43,8 @@ export function useDashboard(accessToken, centerId = null) {
   const [todaySchedule, setTodaySchedule] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  // Cache key based on centerId
-  const cacheKey = CACHE_KEYS.dashboard(centerId);
+  // Cache key based on centerId and dateRange
+  const cacheKey = `dashboard_${centerId || 'all'}_${dateRange?.start ? formatDateForAPI(dateRange.start) : 'default'}_${dateRange?.end ? formatDateForAPI(dateRange.end) : 'default'}`;
 
   // Cleanup on unmount
   useEffect(() => {
@@ -48,17 +58,26 @@ export function useDashboard(accessToken, centerId = null) {
     'Authorization': `Bearer ${accessToken}`
   }), [accessToken]);
 
-  // Build query string with optional centerId
+  // Build query string with optional centerId and dateRange
   const buildQuery = useCallback((params = {}) => {
     const query = new URLSearchParams();
     if (centerId) query.append('centerId', centerId);
+
+    // Add date range params
+    if (dateRange?.start) {
+      query.append('startDate', formatDateForAPI(dateRange.start));
+    }
+    if (dateRange?.end) {
+      query.append('endDate', formatDateForAPI(dateRange.end));
+    }
+
     Object.entries(params).forEach(([key, value]) => {
       if (value !== null && value !== undefined) {
         query.append(key, value);
       }
     });
     return query.toString() ? `?${query.toString()}` : '';
-  }, [centerId]);
+  }, [centerId, dateRange]);
 
   // Apply cached data to state
   const applyCachedData = useCallback((cachedData) => {

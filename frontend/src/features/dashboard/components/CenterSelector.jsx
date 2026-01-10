@@ -61,7 +61,7 @@ export function CenterSelector({
 
     if (loading) {
         return (
-            <div className="animate-pulse h-10 w-48 bg-gray-100 rounded-lg" />
+            <div className="animate-pulse h-10 w-48 bg-muted rounded-lg" />
         );
     }
 
@@ -73,34 +73,34 @@ export function CenterSelector({
         <div className="relative" ref={dropdownRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors min-w-[180px]"
+                className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg text-sm font-medium text-foreground hover:bg-muted hover:border-border transition-colors min-w-[180px]"
             >
-                <Building2 size={16} className="text-gray-500" />
+                <Building2 size={16} className="text-muted-foreground" />
                 <span className="flex-1 text-left truncate">{displayName}</span>
                 <ChevronDown
                     size={16}
-                    className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                    className={`text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`}
                 />
             </button>
 
             {isOpen && (
-                <div className="absolute z-50 mt-1 w-64 bg-white border border-gray-200 rounded-xl shadow-lg py-1 max-h-64 overflow-auto">
+                <div className="absolute z-50 mt-1 w-64 bg-card border border-border rounded-xl shadow-lg py-1 max-h-64 overflow-auto">
                     {showAllOption && (
                         <button
                             onClick={() => {
                                 onCenterChange(null);
                                 setIsOpen(false);
                             }}
-                            className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors ${!selectedCenterId ? 'bg-orange-50 text-orange-700' : 'text-gray-700'
+                            className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted transition-colors ${!selectedCenterId ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400' : 'text-foreground'
                                 }`}
                         >
-                            <Building2 size={16} className={!selectedCenterId ? 'text-orange-500' : 'text-gray-400'} />
+                            <Building2 size={16} className={!selectedCenterId ? 'text-orange-500 dark:text-orange-400' : 'text-muted-foreground'} />
                             <span className="flex-1 text-left">Tất cả trung tâm</span>
-                            {!selectedCenterId && <Check size={16} className="text-orange-500" />}
+                            {!selectedCenterId && <Check size={16} className="text-orange-500 dark:text-orange-400" />}
                         </button>
                     )}
 
-                    <div className="border-t border-gray-100 my-1" />
+                    <div className="border-t border-border my-1" />
 
                     {centers.map((center) => (
                         <button
@@ -109,13 +109,13 @@ export function CenterSelector({
                                 onCenterChange(center.id);
                                 setIsOpen(false);
                             }}
-                            className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors ${selectedCenterId === center.id ? 'bg-orange-50 text-orange-700' : 'text-gray-700'
+                            className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted transition-colors ${selectedCenterId === center.id ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400' : 'text-foreground'
                                 }`}
                         >
-                            <div className={`w-2 h-2 rounded-full ${selectedCenterId === center.id ? 'bg-orange-500' : 'bg-gray-300'
+                            <div className={`w-2 h-2 rounded-full ${selectedCenterId === center.id ? 'bg-orange-500 dark:bg-orange-400' : 'bg-muted-foreground/30'
                                 }`} />
                             <span className="flex-1 text-left truncate">{center.name}</span>
-                            {selectedCenterId === center.id && <Check size={16} className="text-orange-500" />}
+                            {selectedCenterId === center.id && <Check size={16} className="text-orange-500 dark:text-orange-400" />}
                         </button>
                     ))}
                 </div>

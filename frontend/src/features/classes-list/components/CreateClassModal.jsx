@@ -39,7 +39,7 @@ function ConflictConfirmModal({ isOpen, onClose, onConfirm, messages }) {
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="bg-linear-to-r from-amber-500 to-amber-600 px-6 py-4">
+        <div className="bg-gradient-to-r from-amber-500 to-amber-600 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/20 rounded-lg">

@@ -4,12 +4,19 @@
  * Layout: KPI Row → Charts Row → Table + Widgets Row
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '../hooks';
-import { useStaff } from '@/features/staff/hooks';
 import { DollarSign, Users, BookOpen, AlertTriangle, RefreshCw, Download } from 'lucide-react';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+// Default goals (fallback if settings not available)
+const DEFAULT_GOALS = {
+  revenueGoal: 200000000,
+  studentsGoal: 50
+};
 
 // New V2 Components
 import { StatCard } from '../components/StatCard';
@@ -56,6 +63,21 @@ export function DashboardPage() {
 
   const [selectedCenterId, setSelectedCenterId] = useState(null);
   const [selectedDateRange, setSelectedDateRange] = useState('this_month');
+  const [dateRange, setDateRange] = useState(() => {
+    // Initialize with this_month dates
+    const now = new Date();
+    return {
+      start: new Date(now.getFullYear(), now.getMonth(), 1),
+      end: now
+    };
+  });
+
+  const handleDateRangeChange = useCallback((rangeId, dates) => {
+    setSelectedDateRange(rangeId);
+    if (dates) {
+      setDateRange(dates);
+    }
+  }, []);
 
   const {
     loading,
@@ -70,25 +92,91 @@ export function DashboardPage() {
     fetchDashboardData,
     refresh,
     clearError
-  } = useDashboard(accessToken, selectedCenterId);
+  } = useDashboard(accessToken, selectedCenterId, dateRange);
 
-  // Fetch staff for TopTeachersWidget
-  const {
-    staff,
-    loading: staffLoading,
-    fetchStaff
-  } = useStaff();
+  // State for top teachers
+  const [topTeachers, setTopTeachers] = useState([]);
+  const [teachersLoading, setTeachersLoading] = useState(true);
+
+  // State for dashboard goals (from settings)
+  const [goals, setGoals] = useState(DEFAULT_GOALS);
+
+  // Fetch dashboard goals from settings
+  const fetchGoals = useCallback(async () => {
+    if (!accessToken) return;
+
+    try {
+      const centerParam = selectedCenterId ? `?centerId=${selectedCenterId}` : '';
+      const response = await fetch(
+        `${API_URL}/api/admin/settings/dashboard_goals${centerParam}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      const data = await response.json();
+
+      if (data.success && data.data?.value) {
+        setGoals({
+          revenueGoal: data.data.value.revenueGoal || DEFAULT_GOALS.revenueGoal,
+          studentsGoal: data.data.value.studentsGoal || DEFAULT_GOALS.studentsGoal
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard goals:', error);
+      // Keep default goals on error
+    }
+  }, [accessToken, selectedCenterId]);
+
+  // Fetch top teachers
+  const fetchTopTeachers = useCallback(async () => {
+    if (!accessToken) return;
+
+    try {
+      setTeachersLoading(true);
+      const centerParam = selectedCenterId ? `?centerId=${selectedCenterId}` : '';
+      const response = await fetch(
+        `${API_URL}/api/dashboard/teacher-performance${centerParam}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      const data = await response.json();
+
+      if (data.success) {
+        // Transform to widget format
+        const teachers = data.data.map(t => ({
+          id: t.id,
+          name: t.name,
+          subject: t.subject,
+          students: t.student_count,
+          rating: null // No rating system yet
+        }));
+        setTopTeachers(teachers);
+      }
+    } catch (error) {
+      console.error('Error fetching top teachers:', error);
+      setTopTeachers([]);
+    } finally {
+      setTeachersLoading(false);
+    }
+  }, [accessToken, selectedCenterId]);
 
   useEffect(() => {
     fetchDashboardData();
-    // Fetch all staff (no role filter at API level)
-    fetchStaff();
-  }, [fetchDashboardData, fetchStaff, selectedCenterId]);
+    fetchTopTeachers();
+    fetchGoals();
+  }, [fetchDashboardData, fetchTopTeachers, fetchGoals, selectedCenterId, dateRange]);
 
   const userName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Admin';
 
   const handleExport = () => {
-    exportDashboardToCSV({ stats, revenueChart, courseDistribution, recentStudents, paymentOverview, todaySchedule });
+    exportDashboardToCSV({ stats, revenueChart, courseDistribution, recentStudents, paymentOverview, todaySchedule }, dateRange);
   };
 
   // Stats data
@@ -101,22 +189,8 @@ export function DashboardPage() {
   const enrollmentsData = (recentStudents || []).map(student => ({
     ...student,
     student_name: student.name || student.full_name,
-    status: 'paid' // Default status, should come from API
+    status: student.status || 'pending' // Use status from API
   }));
-
-  // Transform staff to teachers format for TopTeachersWidget
-  // Note: student_count and rating should come from API in future
-  const teachers = staff
-    .filter(member => member.roles?.code === 'TEACHER' && member.status === 'active')
-    .map((member) => ({
-      id: member.id,
-      name: member.full_name,
-      subject: member.centers?.name || 'Giáo viên',
-      // Use real data from API if available, otherwise show N/A
-      students: member.student_count ?? member.class_count ?? '-',
-      rating: member.avg_rating ?? '-'
-    }))
-    .slice(0, 5);
 
   return (
     <div className="min-h-screen bg-background">
@@ -138,7 +212,7 @@ export function DashboardPage() {
           <div className="flex flex-wrap items-center gap-3">
             <DateRangeSelector
               selectedRange={selectedDateRange}
-              onRangeChange={(rangeId) => setSelectedDateRange(rangeId)}
+              onRangeChange={handleDateRangeChange}
             />
 
             {isSuperAdmin?.() && (
@@ -217,13 +291,13 @@ export function DashboardPage() {
         {/* ========== GOAL + TOP TEACHERS ROW ========== */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
           <GoalProgressWidget
-            revenueGoal={200000000}
-            studentsGoal={50}
+            revenueGoal={goals.revenueGoal}
+            studentsGoal={goals.studentsGoal}
             currentRevenue={getValue(revenue) || 0}
             currentStudents={getValue(newStudents) || 0}
             loading={loading}
           />
-          <TopTeachersWidget teachers={teachers} loading={staffLoading} />
+          <TopTeachersWidget teachers={topTeachers} loading={teachersLoading} />
         </div>
 
         {/* ========== CHARTS ROW ========== */}

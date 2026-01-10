@@ -96,7 +96,7 @@ function TeacherRow({ rank, teacher, maxStudents, isLast }) {
                         <Users size={14} className="text-primary" />
                         {teacher.students || 0}
                     </div>
-                    {teacher.rating && (
+                {teacher.rating != null && teacher.rating !== '-' && (
                         <div className="flex items-center justify-end gap-1 text-xs">
                             <Star size={11} className="text-amber-500" fill="currentColor" />
                             <span className="text-amber-600 font-semibold">{Number(teacher.rating).toFixed(1)}</span>
@@ -137,18 +137,17 @@ function SummaryCard({ icon: Icon, label, value, color }) {
 export function TopTeachersWidget({ teachers = [], loading = false }) {
     const navigate = useNavigate();
 
-    // Mock data if empty
-    const displayTeachers = teachers.length > 0 ? teachers : [
-        { id: 1, name: 'Nguyễn Văn A', subject: 'IELTS Speaking', students: 45, rating: 4.9 },
-        { id: 2, name: 'Trần Thị B', subject: 'TOEIC Listening', students: 38, rating: 4.8 },
-        { id: 3, name: 'Lê Văn C', subject: 'Korean TOPIK', students: 32, rating: 4.7 },
-        { id: 4, name: 'Phạm Thị D', subject: 'IT Fundamentals', students: 28, rating: 4.6 },
-        { id: 5, name: 'Hoàng Văn E', subject: 'IELTS Writing', students: 25, rating: 4.5 },
-    ];
+    // Use provided teachers, no mock data fallback
+    const displayTeachers = teachers || [];
 
-    const maxStudents = Math.max(...displayTeachers.map(t => t.students || 0));
+    const maxStudents = displayTeachers.length > 0
+        ? Math.max(...displayTeachers.map(t => t.students || 0))
+        : 0;
     const totalStudents = displayTeachers.reduce((sum, t) => sum + (t.students || 0), 0);
-    const avgRating = displayTeachers.reduce((sum, t) => sum + (Number(t.rating) || 0), 0) / displayTeachers.length;
+    const validRatings = displayTeachers.filter(t => t.rating != null && t.rating !== '-');
+    const avgRating = validRatings.length > 0
+        ? validRatings.reduce((sum, t) => sum + Number(t.rating), 0) / validRatings.length
+        : 0;
 
     if (loading) {
         return (
@@ -165,6 +164,28 @@ export function TopTeachersWidget({ teachers = [], loading = false }) {
                             </div>
                         </div>
                     ))}
+                </div>
+            </div>
+        );
+    }
+
+    // Empty state when no teachers
+    if (displayTeachers.length === 0) {
+        return (
+            <div className="bg-card rounded-2xl p-6 shadow-sm border border-border">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
+                        <Trophy size={22} className="text-white" />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-foreground">Top Giáo viên</h3>
+                        <p className="text-sm text-muted-foreground">Theo số học viên</p>
+                    </div>
+                </div>
+                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                    <Users size={40} className="mb-3 opacity-50" />
+                    <p className="text-sm font-medium">Chưa có dữ liệu giáo viên</p>
+                    <p className="text-xs mt-1">Giáo viên sẽ hiển thị khi có lớp học</p>
                 </div>
             </div>
         );
@@ -203,7 +224,7 @@ export function TopTeachersWidget({ teachers = [], loading = false }) {
                     <SummaryCard
                         icon={Star}
                         label="Đánh giá TB"
-                        value={avgRating.toFixed(1)}
+                        value={avgRating > 0 ? avgRating.toFixed(1) : 'N/A'}
                         color="#f59e0b"
                     />
                     <SummaryCard

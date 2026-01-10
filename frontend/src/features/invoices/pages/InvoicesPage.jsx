@@ -19,8 +19,8 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { useSearchParams } from 'react-router-dom';
-import { Download, RefreshCw, Plus, FileText, ArrowLeftRight } from 'lucide-react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { Download, RefreshCw, Plus, FileText, ArrowLeftRight, CreditCard, Upload, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 // Feature imports
@@ -35,7 +35,9 @@ import {
   CreateInvoiceModal,
   EditInvoiceModal,
   CancelInvoiceModal,
-  RefundInvoiceModal
+  RefundInvoiceModal,
+  BulkPaymentModal,
+  PaymentImportModal
 } from '../components';
 
 import {
@@ -51,6 +53,7 @@ import { exportInvoicesToExcel } from '../utils/exportExcel';
 export function InvoicesPage() {
   const { session } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   // ============================================
   // HOOKS - Data & Logic
@@ -95,6 +98,13 @@ export function InvoicesPage() {
   const [editModal, setEditModal] = useState({ isOpen: false, invoice: null });
   const [cancelModal, setCancelModal] = useState({ isOpen: false, invoice: null });
   const [refundModal, setRefundModal] = useState({ isOpen: false, invoice: null });
+
+  // Bulk payment & import modals
+  const [bulkPaymentModal, setBulkPaymentModal] = useState({ isOpen: false, invoices: [] });
+  const [importModal, setImportModal] = useState(false);
+
+  // Selected invoices for bulk actions
+  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState([]);
 
   // ============================================
   // TOAST HELPERS
@@ -242,6 +252,40 @@ export function InvoicesPage() {
     setRefundModal({ isOpen: true, invoice });
   }, []);
 
+  // Bulk payment handler
+  const handleBulkPayment = useCallback(() => {
+    const selectedInvoices = invoices.filter(inv =>
+      selectedInvoiceIds.includes(inv.id) &&
+      !['paid', 'cancelled', 'refunded'].includes(inv.status)
+    );
+    if (selectedInvoices.length === 0) {
+      showToast('Vui lòng chọn ít nhất 1 hóa đơn chưa thanh toán', 'error');
+      return;
+    }
+    setBulkPaymentModal({ isOpen: true, invoices: selectedInvoices });
+  }, [invoices, selectedInvoiceIds, showToast]);
+
+  // Toggle invoice selection
+  const handleToggleSelect = useCallback((invoiceId) => {
+    setSelectedInvoiceIds(prev =>
+      prev.includes(invoiceId)
+        ? prev.filter(id => id !== invoiceId)
+        : [...prev, invoiceId]
+    );
+  }, []);
+
+  // Select all invoices
+  const handleSelectAll = useCallback((checked) => {
+    if (checked) {
+      const unpaidIds = invoices
+        .filter(inv => !['paid', 'cancelled', 'refunded'].includes(inv.status))
+        .map(inv => inv.id);
+      setSelectedInvoiceIds(unpaidIds);
+    } else {
+      setSelectedInvoiceIds([]);
+    }
+  }, [invoices]);
+
   const handleViewDetail = useCallback(async (invoice) => {
     setDetailModal({ isOpen: true, invoice: null, loading: true });
 
@@ -291,8 +335,13 @@ export function InvoicesPage() {
           onRefresh={handleRefresh}
           onExport={handleExport}
           onCreate={() => setCreateModal(true)}
+          onBulkPayment={handleBulkPayment}
+          onImport={() => setImportModal(true)}
+          onViewOverdue={() => navigate('/admin/invoices/overdue')}
           loading={loading}
           canExport={invoices.length > 0}
+          selectedCount={selectedInvoiceIds.length}
+          overdueCount={statistics?.overdue || 0}
         />
 
         {/* Tab Navigation */}
@@ -355,6 +404,9 @@ export function InvoicesPage() {
               onEdit={handleEdit}
               onCancel={handleCancel}
               onRefund={handleRefund}
+              selectedIds={selectedInvoiceIds}
+              onToggleSelect={handleToggleSelect}
+              onSelectAll={handleSelectAll}
             />
           </div>
         ) : (
@@ -435,6 +487,27 @@ export function InvoicesPage() {
           onSuccess={handleModalSuccess}
         />
 
+        {/* Bulk Payment Modal */}
+        <BulkPaymentModal
+          isOpen={bulkPaymentModal.isOpen}
+          selectedInvoices={bulkPaymentModal.invoices}
+          onClose={() => {
+            setBulkPaymentModal({ isOpen: false, invoices: [] });
+            setSelectedInvoiceIds([]);
+          }}
+          onSuccess={(message) => {
+            handleModalSuccess(message);
+            setSelectedInvoiceIds([]);
+          }}
+        />
+
+        {/* Payment Import Modal */}
+        <PaymentImportModal
+          isOpen={importModal}
+          onClose={() => setImportModal(false)}
+          onSuccess={handleModalSuccess}
+        />
+
         {/* Toast Notification */}
         <Toast
           show={toast.show}
@@ -451,17 +524,64 @@ export function InvoicesPage() {
 // ============================================
 // PAGE HEADER - Simple sub-component
 // ============================================
-function PageHeader({ onRefresh, onExport, onCreate, loading, canExport }) {
+function PageHeader({
+  onRefresh,
+  onExport,
+  onCreate,
+  onBulkPayment,
+  onImport,
+  onViewOverdue,
+  loading,
+  canExport,
+  selectedCount = 0,
+  overdueCount = 0
+}) {
   return (
     <div className="mb-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900">Quản lý Hóa đơn</h1>
-          <p className="text-sm text-zinc-500 mt-1">
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Quản lý Hóa đơn</h1>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
             Theo dõi công nợ và thanh toán học phí
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {/* Overdue Dashboard Button */}
+          {overdueCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onViewOverdue}
+              className="gap-2 border-red-300 text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400"
+            >
+              <AlertTriangle className="w-4 h-4" />
+              Quá hạn ({overdueCount})
+            </Button>
+          )}
+
+          {/* Bulk Payment Button */}
+          {selectedCount > 0 && (
+            <Button
+              size="sm"
+              onClick={onBulkPayment}
+              className="gap-2 bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              <CreditCard className="w-4 h-4" />
+              Thu tiền ({selectedCount})
+            </Button>
+          )}
+
+          {/* Import Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onImport}
+            className="gap-2"
+          >
+            <Upload className="w-4 h-4" />
+            Import
+          </Button>
+
           <Button
             variant="outline"
             size="sm"

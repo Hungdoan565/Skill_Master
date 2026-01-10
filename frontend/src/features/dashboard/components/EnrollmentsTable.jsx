@@ -14,6 +14,11 @@ const STATUS_STYLES = {
         text: 'text-emerald-700 dark:text-emerald-400',
         label: 'Đã thanh toán'
     },
+    partial: {
+        bg: 'bg-blue-100 dark:bg-blue-900/30',
+        text: 'text-blue-700 dark:text-blue-400',
+        label: 'Thanh toán một phần'
+    },
     pending: {
         bg: 'bg-amber-100 dark:bg-amber-900/30',
         text: 'text-amber-700 dark:text-amber-400',

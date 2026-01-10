@@ -33,8 +33,16 @@ export function InvoiceTable({
   onPayment,
   onEdit,
   onCancel,
-  onRefund
+  onRefund,
+  selectedIds = [],
+  onToggleSelect,
+  onSelectAll
 }) {
+
+  // Check if all unpaid invoices are selected
+  const unpaidInvoices = invoices?.filter(inv => !['paid', 'cancelled', 'refunded'].includes(inv.status)) || [];
+  const allSelected = unpaidInvoices.length > 0 && unpaidInvoices.every(inv => selectedIds.includes(inv.id));
+  const someSelected = selectedIds.length > 0 && !allSelected;
 
   // ============================================
   // LOADING STATE
@@ -73,6 +81,21 @@ export function InvoiceTable({
           {/* Sticky Header */}
           <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
             <tr className="border-b border-border">
+              {/* Checkbox column */}
+              {onToggleSelect && (
+                <th className="px-3 py-2.5 text-center w-10">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    ref={el => {
+                      if (el) el.indeterminate = someSelected;
+                    }}
+                    onChange={(e) => onSelectAll?.(e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                    title="Chọn tất cả hóa đơn chưa thanh toán"
+                  />
+                </th>
+              )}
               <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
                 Mã hóa đơn
               </th>
@@ -110,6 +133,9 @@ export function InvoiceTable({
                 onEdit={onEdit}
                 onCancel={onCancel}
                 onRefund={onRefund}
+                isSelected={selectedIds.includes(invoice.id)}
+                onToggleSelect={onToggleSelect}
+                showCheckbox={!!onToggleSelect}
               />
             ))}
           </tbody>
@@ -128,7 +154,7 @@ export function InvoiceTable({
 // ============================================
 // TABLE ROW - Compact, Dark Mode Compatible
 // ============================================
-function InvoiceTableRow({ invoice, onViewDetail, onPayment, onEdit, onCancel, onRefund }) {
+function InvoiceTableRow({ invoice, onViewDetail, onPayment, onEdit, onCancel, onRefund, isSelected, onToggleSelect, showCheckbox }) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
 
@@ -137,6 +163,7 @@ function InvoiceTableRow({ invoice, onViewDetail, onPayment, onEdit, onCancel, o
   const canEdit = invoice.status !== 'paid' && invoice.status !== 'cancelled' && invoice.status !== 'refunded';
   const canCancel = invoice.status !== 'cancelled' && invoice.status !== 'refunded';
   const canRefund = invoice.status !== 'cancelled' && invoice.status !== 'refunded' && invoice.paid_amount > 0;
+  const canSelect = canPay; // Only unpaid invoices can be selected for bulk payment
 
   // Check if overdue
   const isOverdue = invoice.due_date &&
@@ -169,8 +196,24 @@ function InvoiceTableRow({ invoice, onViewDetail, onPayment, onEdit, onCancel, o
   return (
     <tr className={cn(
       'hover:bg-muted/50 transition-colors',
-      isOverdue && 'bg-red-50/50 dark:bg-red-950/20'
+      isOverdue && 'bg-red-50/50 dark:bg-red-950/20',
+      isSelected && 'bg-primary/5 dark:bg-primary/10'
     )}>
+      {/* Checkbox column */}
+      {showCheckbox && (
+        <td className="px-3 py-2 text-center">
+          {canSelect ? (
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => onToggleSelect?.(invoice.id)}
+              className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+            />
+          ) : (
+            <span className="w-4 h-4 inline-block" />
+          )}
+        </td>
+      )}
       {/* Invoice Code - Monospace, No Wrap, Click to Copy */}
       <td className="px-3 py-2">
         <div className="flex items-center gap-1.5">

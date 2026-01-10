@@ -422,16 +422,16 @@ function ClassRow({ cls, isSelected, onToggleSelect, onNavigate, onEdit, onDelet
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => navigate(`/admin/classes/${cls.id}/attendance`)}>
+              <DropdownMenuItem onClick={() => navigate(`/admin/classes/${cls.id}?tab=schedule`)}>
                 📋 Điểm danh
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate(`/admin/classes/${cls.id}/grades`)}>
+              <DropdownMenuItem onClick={() => navigate(`/admin/classes/${cls.id}?tab=grades`)}>
                 📊 Nhập điểm
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate(`/admin/classes/${cls.id}/sessions`)}>
+              <DropdownMenuItem onClick={() => navigate(`/admin/classes/${cls.id}?tab=schedule`)}>
                 📅 Xem lịch
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate(`/admin/classes/${cls.id}/students`)}>
+              <DropdownMenuItem onClick={() => navigate(`/admin/classes/${cls.id}?tab=students`)}>
                 👥 Học viên
               </DropdownMenuItem>
               <DropdownMenuSeparator />

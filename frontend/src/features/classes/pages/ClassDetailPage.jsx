@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/button';
 import { Loader2, AlertCircle, ArrowLeft, Users, Calendar, GraduationCap, UserPlus, Mail, FileText, Copy, TrendingUp, BarChart3, FolderOpen, Keyboard } from 'lucide-react';
@@ -56,10 +56,22 @@ import { useState } from 'react';
 export function ClassDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { session } = useAuth();
 
-  // Active tab state
-  const [activeTab, setActiveTab] = useState('students');
+  // Get initial tab from URL query param or default to 'students'
+  const initialTab = searchParams.get('tab') || 'students';
+
+  // Active tab state - initialize from URL
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  // Update activeTab when URL changes
+  useEffect(() => {
+    const tabFromUrl = searchParams.get('tab');
+    if (tabFromUrl && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [searchParams]);
 
   // Keyboard shortcuts
   const { showHelp, setShowHelp } = useKeyboardShortcuts(activeTab);

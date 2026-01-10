@@ -57,7 +57,7 @@ export function DeleteClassModal({
       {/* Modal */}
       <div className="relative w-full max-w-md mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Header with danger styling */}
-        <div className="bg-linear-to-r from-red-500 to-red-600 px-6 py-4">
+        <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/20 rounded-lg">
@@ -100,7 +100,7 @@ export function DeleteClassModal({
             <div className="space-y-3">
               {/* Class name & code */}
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-linear-to-br from-red-100 to-red-200 flex items-center justify-center ring-2 ring-red-200">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-red-100 to-red-200 flex items-center justify-center ring-2 ring-red-200">
                   <span className="text-lg font-bold text-red-500">
                     {classItem.name?.charAt(0) || 'L'}
                   </span>

@@ -42,8 +42,8 @@ export function QuickActionsCard() {
   ];
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-      <h3 className="font-semibold text-gray-900 mb-4">Thao tác nhanh</h3>
+    <div className="bg-card rounded-2xl shadow-sm border border-border p-6">
+      <h3 className="font-semibold text-foreground mb-4">Thao tác nhanh</h3>
       <div className="space-y-2">
         {actions.map((action, index) => (
           <QuickAction

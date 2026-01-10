@@ -68,6 +68,40 @@ function getEffectiveCenterId(user, requestedCenterId = null) {
   };
 }
 
+// ============ ATTENDANCE EDIT WINDOW ============
+
+/**
+ * Check if current time is within 24-hour edit window after session ends
+ * @param {string} sessionDate - YYYY-MM-DD
+ * @param {string} sessionEndTime - HH:MM
+ * @returns {Object} { canEdit: boolean, hoursRemaining: number, message: string }
+ */
+function isWithinEditWindow(sessionDate, sessionEndTime) {
+  const sessionEnd = new Date(`${sessionDate}T${sessionEndTime}:00`);
+  const now = new Date();
+  const hoursSinceEnd = (now - sessionEnd) / (1000 * 60 * 60);
+
+  // Allow editing before session starts (for pre-marking)
+  if (hoursSinceEnd < 0) {
+    return { canEdit: true, hoursRemaining: 24, message: 'Buổi học chưa kết thúc' };
+  }
+
+  // Allow editing up to 24 hours after session ends
+  if (hoursSinceEnd <= 24) {
+    return {
+      canEdit: true,
+      hoursRemaining: Math.round((24 - hoursSinceEnd) * 10) / 10,
+      message: `Còn ${Math.round((24 - hoursSinceEnd) * 10) / 10} giờ để chỉnh sửa`
+    };
+  }
+
+  return {
+    canEdit: false,
+    hoursRemaining: 0,
+    message: 'Đã quá 24 giờ, không thể chỉnh sửa. Liên hệ Admin để override.'
+  };
+}
+
 // ============ UTILITY FUNCTIONS ============
 
 /**
@@ -4813,6 +4847,252 @@ app.post('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, r
   }
 });
 
+/**
+ * POST /api/admin/attendance/override
+ * Admin override attendance (bypasses 24h window, requires reason)
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER only
+ *
+ * Body: {
+ *   sessionId: UUID,
+ *   attendances: [{ student_id, status, notes }],
+ *   override_reason: string (REQUIRED)
+ * }
+ */
+app.post('/api/admin/attendance/override', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { sessionId, attendances, override_reason } = req.body;
+    const adminId = req.user.id;
+    const userRole = req.user.roleCode;
+    const userCenterId = req.user.centerId;
+
+    // Validate override_reason
+    if (!override_reason || typeof override_reason !== 'string' || override_reason.trim().length < 10) {
+      console.log(`⚠️ Admin ${req.user.email} override bị từ chối: lý do không hợp lệ`);
+      return res.status(400).json({
+        success: false,
+        message: 'Lý do override phải có ít nhất 10 ký tự'
+      });
+    }
+
+    // Validate sessionId
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu sessionId'
+      });
+    }
+
+    // Validate attendances array
+    if (!attendances || !Array.isArray(attendances) || attendances.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cần truyền mảng attendances'
+      });
+    }
+
+    // Get session with class info for center check
+    const { data: session, error: sessionError } = await supabase
+      .from('sessions')
+      .select(`
+        id,
+        is_locked,
+        session_date,
+        class_id,
+        classes (
+          id,
+          center_id
+        )
+      `)
+      .eq('id', sessionId)
+      .single();
+
+    if (sessionError || !session) {
+      console.log(`⚠️ Admin ${req.user.email} override session không tồn tại: ${sessionId}`);
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy buổi học'
+      });
+    }
+
+    // CENTER_MANAGER can only override for their center's classes
+    if (userRole === 'CENTER_MANAGER') {
+      const classCenterId = session.classes?.center_id;
+      if (classCenterId !== userCenterId) {
+        console.log(`⛔ CENTER_MANAGER ${req.user.email} bị chặn override session ${sessionId} - không thuộc center của họ`);
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn chỉ có thể override điểm danh cho các lớp thuộc trung tâm của mình'
+        });
+      }
+    }
+
+    console.log(`🔐 Admin ${req.user.email} (${userRole}) override điểm danh session ${sessionId} - Lý do: ${override_reason.substring(0, 50)}...`);
+
+    // Process attendance overrides (bypass is_locked and 24h window)
+    const results = [];
+    const errors = [];
+    const now = new Date().toISOString();
+
+    for (const att of attendances) {
+      // Validate status
+      const validStatuses = ['present', 'absent', 'late', 'excused'];
+      if (att.status && !validStatuses.includes(att.status)) {
+        errors.push({
+          student_id: att.student_id,
+          error: `Trạng thái không hợp lệ: ${att.status}. Chỉ chấp nhận: ${validStatuses.join(', ')}`
+        });
+        continue;
+      }
+
+      // Upsert attendance with override fields
+      const { data, error } = await supabase
+        .from('attendance')
+        .upsert({
+          session_id: sessionId,
+          student_id: att.student_id,
+          status: att.status || 'present',
+          check_in_time: att.status === 'present' ? now : null,
+          notes: att.notes || null,
+          overridden_by: adminId,
+          overridden_at: now,
+          override_reason: override_reason.trim(),
+          updated_at: now
+        }, {
+          onConflict: 'session_id,student_id'
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.log(`⚠️ Lỗi override attendance cho student ${att.student_id}: ${error.message}`);
+        errors.push({
+          student_id: att.student_id,
+          error: error.message
+        });
+      } else if (data) {
+        results.push(data);
+
+        // Log to attendance_audit with action='overridden'
+        await supabase
+          .from('attendance_audit')
+          .insert({
+            attendance_id: data.id,
+            session_id: sessionId,
+            student_id: att.student_id,
+            action: 'overridden',
+            new_values: data,
+            changed_by: adminId,
+            changed_at: now,
+            override_reason: override_reason.trim()
+          });
+      }
+    }
+
+    console.log(`📝 Override hoàn tất: ${results.length} thành công, ${errors.length} lỗi`);
+
+    res.json({
+      success: true,
+      message: `Đã override điểm danh cho ${results.length} học viên`,
+      data: results,
+      errors: errors.length > 0 ? errors : undefined
+    });
+  } catch (error) {
+    console.error('❌ Error in attendance override:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/attendance/audit/:sessionId
+ * Get audit history for a session's attendance
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.get('/api/admin/attendance/audit/:sessionId', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { sessionId } = req.params;
+    const userRole = req.user.roleCode;
+    const userCenterId = req.user.centerId;
+
+    // Validate sessionId exists and check center permission for CENTER_MANAGER
+    const { data: session, error: sessionError } = await supabase
+      .from('sessions')
+      .select(`
+        id,
+        classes (
+          id,
+          center_id
+        )
+      `)
+      .eq('id', sessionId)
+      .single();
+
+    if (sessionError || !session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy buổi học'
+      });
+    }
+
+    // CENTER_MANAGER can only view audit for their center's classes
+    if (userRole === 'CENTER_MANAGER') {
+      const classCenterId = session.classes?.center_id;
+      if (classCenterId !== userCenterId) {
+        console.log(`⛔ CENTER_MANAGER ${req.user.email} bị chặn xem audit session ${sessionId} - không thuộc center của họ`);
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn chỉ có thể xem audit cho các lớp thuộc trung tâm của mình'
+        });
+      }
+    }
+
+    console.log(`🔐 Admin ${req.user.email} xem audit điểm danh session ${sessionId}`);
+
+    // Get audit history for this session
+    const { data: auditLogs, error: auditError } = await supabase
+      .from('attendance_audit')
+      .select(`
+        id,
+        attendance_id,
+        session_id,
+        student_id,
+        action,
+        old_values,
+        new_values,
+        changed_by,
+        changed_at,
+        override_reason,
+        ip_address,
+        user_agent,
+        changed_by_user:users!attendance_audit_changed_by_fkey (
+          id,
+          full_name,
+          email
+        ),
+        student:users!attendance_audit_student_id_fkey (
+          id,
+          full_name,
+          email
+        )
+      `)
+      .eq('session_id', sessionId)
+      .order('changed_at', { ascending: false });
+
+    if (auditError) {
+      console.error('❌ Error fetching attendance audit:', auditError);
+      throw auditError;
+    }
+
+    res.json({
+      success: true,
+      data: auditLogs || [],
+      message: `Tìm thấy ${auditLogs?.length || 0} bản ghi audit`
+    });
+  } catch (error) {
+    console.error('❌ Error in attendance audit:', error);
+    next(error);
+  }
+});
+
 // ============ ROOM MANAGEMENT APIs ============
 
 // Lấy danh sách phòng học
@@ -6846,44 +7126,90 @@ app.post('/api/courses/:id/grade-structures', requireAuth, async (req, res, next
 // GET /api/dashboard/stats - Lấy thống kê tổng quan
 app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
   try {
-    console.log(`📊 Dashboard stats requested by ${req.user.email}`);
+    const { centerId, startDate, endDate } = req.query;
+    const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
+
+    console.log(`📊 Dashboard stats requested by ${req.user.email} | Center: ${effectiveCenterId || 'ALL'}`);
 
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();
-    const firstDayOfMonth = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
-    const lastMonth = currentMonth === 1 ? 12 : currentMonth - 1;
-    const lastMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
-    const firstDayOfLastMonth = `${lastMonthYear}-${String(lastMonth).padStart(2, '0')}-01`;
-    const lastDayOfLastMonth = new Date(currentYear, currentMonth - 1, 0).toISOString().split('T')[0];
+
+    // Use provided dates or default to current month
+    let periodStart, periodEnd, prevStart, prevEnd;
+    if (startDate && endDate) {
+      periodStart = startDate;
+      periodEnd = endDate;
+
+      // Calculate previous period
+      const startDateObj = new Date(startDate);
+      const endDateObj = new Date(endDate);
+      const periodDays = Math.ceil((endDateObj - startDateObj) / (1000 * 60 * 60 * 24)) + 1;
+
+      const prevPeriodEnd = new Date(startDateObj);
+      prevPeriodEnd.setDate(prevPeriodEnd.getDate() - 1);
+      const prevPeriodStart = new Date(prevPeriodEnd);
+      prevPeriodStart.setDate(prevPeriodStart.getDate() - periodDays + 1);
+
+      prevStart = prevPeriodStart.toISOString().split('T')[0];
+      prevEnd = prevPeriodEnd.toISOString().split('T')[0];
+    } else {
+      // Default to current month
+      periodStart = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+      periodEnd = now.toISOString().split('T')[0];
+
+      const lastMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+      const lastMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+      prevStart = `${lastMonthYear}-${String(lastMonth).padStart(2, '0')}-01`;
+      prevEnd = new Date(currentYear, currentMonth - 1, 0).toISOString().split('T')[0];
+    }
 
     // 1. Tổng doanh thu = Tổng paid_amount từ enrollments (thực thu)
     // Cách 1: Từ bảng payments (nếu có)
-    const { data: paymentsThisMonth } = await supabase
+    let paymentsThisMonthQuery = supabase
       .from('payments')
-      .select('amount')
-      .gte('payment_date', firstDayOfMonth)
+      .select('amount, class:classes!inner(center_id)')
+      .gte('payment_date', `${periodStart}T00:00:00`)
+      .lte('payment_date', `${periodEnd}T23:59:59`)
       .eq('status', 'completed');
+
+    if (effectiveCenterId) {
+      paymentsThisMonthQuery = paymentsThisMonthQuery.eq('classes.center_id', effectiveCenterId);
+    }
+
+    const { data: paymentsThisMonth } = await paymentsThisMonthQuery;
 
     const revenueFromPayments = paymentsThisMonth?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
 
     // Cách 2: Từ bảng enrollments (paid_amount) - TỔNG DOANH THU THỰC TẾ
-    const { data: enrollmentsData } = await supabase
+    let enrollmentsDataQuery = supabase
       .from('enrollments')
-      .select('paid_amount');
+      .select('paid_amount, classes!inner(center_id)');
+
+    if (effectiveCenterId) {
+      enrollmentsDataQuery = enrollmentsDataQuery.eq('classes.center_id', effectiveCenterId);
+    }
+
+    const { data: enrollmentsData } = await enrollmentsDataQuery;
 
     const revenueFromEnrollments = enrollmentsData?.reduce((sum, e) => sum + (e.paid_amount || 0), 0) || 0;
 
     // Lấy số lớn hơn (hoặc cộng cả 2 nếu payments là chi tiết từng lần đóng)
     const totalRevenueThisMonth = Math.max(revenueFromPayments, revenueFromEnrollments);
 
-    // 2. Doanh thu tháng trước (để tính trend) - dùng payments nếu có
-    const { data: paymentsLastMonth } = await supabase
+    // 2. Doanh thu kỳ trước (để tính trend) - dùng payments nếu có
+    let paymentsLastMonthQuery = supabase
       .from('payments')
-      .select('amount')
-      .gte('payment_date', firstDayOfLastMonth)
-      .lte('payment_date', lastDayOfLastMonth)
+      .select('amount, class:classes!inner(center_id)')
+      .gte('payment_date', `${prevStart}T00:00:00`)
+      .lte('payment_date', `${prevEnd}T23:59:59`)
       .eq('status', 'completed');
+
+    if (effectiveCenterId) {
+      paymentsLastMonthQuery = paymentsLastMonthQuery.eq('classes.center_id', effectiveCenterId);
+    }
+
+    const { data: paymentsLastMonth } = await paymentsLastMonthQuery;
 
     const totalRevenueLastMonth = paymentsLastMonth?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
 
@@ -6892,40 +7218,71 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
       ? Math.round(((totalRevenueThisMonth - totalRevenueLastMonth) / totalRevenueLastMonth) * 100)
       : (totalRevenueThisMonth > 0 ? 100 : 0);
 
-    // 3. Số học viên mới trong tháng (enrollments mới)
-    const { count: newStudentsThisMonth } = await supabase
+    // 3. Số học viên mới trong kỳ (enrollments mới)
+    let newStudentsThisMonthQuery = supabase
       .from('enrollments')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', firstDayOfMonth);
+      .select('*, classes!inner(center_id)', { count: 'exact', head: true })
+      .gte('created_at', `${periodStart}T00:00:00`)
+      .lte('created_at', `${periodEnd}T23:59:59`);
 
-    const { count: newStudentsLastMonth } = await supabase
+    if (effectiveCenterId) {
+      newStudentsThisMonthQuery = newStudentsThisMonthQuery.eq('classes.center_id', effectiveCenterId);
+    }
+
+    const { count: newStudentsThisMonth } = await newStudentsThisMonthQuery;
+
+    let newStudentsLastMonthQuery = supabase
       .from('enrollments')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', firstDayOfLastMonth)
-      .lte('created_at', lastDayOfLastMonth);
+      .select('*, classes!inner(center_id)', { count: 'exact', head: true })
+      .gte('created_at', `${prevStart}T00:00:00`)
+      .lte('created_at', `${prevEnd}T23:59:59`);
+
+    if (effectiveCenterId) {
+      newStudentsLastMonthQuery = newStudentsLastMonthQuery.eq('classes.center_id', effectiveCenterId);
+    }
+
+    const { count: newStudentsLastMonth } = await newStudentsLastMonthQuery;
 
     const studentsTrend = newStudentsLastMonth > 0
       ? Math.round(((newStudentsThisMonth - newStudentsLastMonth) / newStudentsLastMonth) * 100)
       : (newStudentsThisMonth > 0 ? 100 : 0);
 
     // 4. Số lớp đang hoạt động (ongoing HOẶC upcoming)
-    const { count: ongoingClasses } = await supabase
+    let ongoingClassesQuery = supabase
       .from('classes')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'ongoing');
 
-    const { count: upcomingClasses } = await supabase
+    if (effectiveCenterId) {
+      ongoingClassesQuery = ongoingClassesQuery.eq('center_id', effectiveCenterId);
+    }
+
+    const { count: ongoingClasses } = await ongoingClassesQuery;
+
+    let upcomingClassesQuery = supabase
       .from('classes')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'upcoming');
 
+    if (effectiveCenterId) {
+      upcomingClassesQuery = upcomingClassesQuery.eq('center_id', effectiveCenterId);
+    }
+
+    const { count: upcomingClasses } = await upcomingClassesQuery;
+
     const activeClasses = (ongoingClasses || 0) + (upcomingClasses || 0);
 
     // 5. Công nợ (Tổng tiền còn nợ từ enrollments)
-    const { data: debtData } = await supabase
+    let debtDataQuery = supabase
       .from('enrollments')
-      .select('tuition_fee, paid_amount')
+      .select('tuition_fee, paid_amount, classes!inner(center_id)')
       .gt('tuition_fee', 0);
+
+    if (effectiveCenterId) {
+      debtDataQuery = debtDataQuery.eq('classes.center_id', effectiveCenterId);
+    }
+
+    const { data: debtData } = await debtDataQuery;
 
     const totalDebt = debtData?.reduce((sum, e) => {
       const remaining = (e.tuition_fee || 0) - (e.paid_amount || 0);
@@ -6938,10 +7295,16 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
       .select('*', { count: 'exact', head: true });
 
     // 7. Tổng số học viên (unique students có enrollment)
-    const { data: uniqueStudents } = await supabase
+    let uniqueStudentsQuery = supabase
       .from('enrollments')
-      .select('student_id')
+      .select('student_id, classes!inner(center_id)')
       .not('student_id', 'is', null);
+
+    if (effectiveCenterId) {
+      uniqueStudentsQuery = uniqueStudentsQuery.eq('classes.center_id', effectiveCenterId);
+    }
+
+    const { data: uniqueStudents } = await uniqueStudentsQuery;
 
     const totalStudents = new Set(uniqueStudents?.map(e => e.student_id)).size;
 
@@ -6953,13 +7316,13 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
           formatted: formatCurrency(totalRevenueThisMonth),
           trend: revenueTrend,
           trendUp: revenueTrend >= 0,
-          description: `Doanh thu tháng ${currentMonth}/${currentYear}`
+          description: `Doanh thu ${periodStart} - ${periodEnd}`
         },
         newStudents: {
           value: newStudentsThisMonth || 0,
           trend: studentsTrend,
           trendUp: studentsTrend >= 0,
-          description: 'Ghi danh trong tháng'
+          description: 'Ghi danh trong kỳ'
         },
         activeClasses: {
           value: activeClasses || 0,
@@ -6976,8 +7339,11 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
         },
         period: {
           month: currentMonth,
-          year: currentYear
-        }
+          year: currentYear,
+          startDate: periodStart,
+          endDate: periodEnd
+        },
+        centerId: effectiveCenterId
       }
     });
 
@@ -7004,21 +7370,29 @@ function formatCurrency(amount) {
 // GET /api/dashboard/revenue-chart - Biểu đồ doanh thu theo tháng (OPTIMIZED - single query)
 app.get('/api/dashboard/revenue-chart', requireAuth, async (req, res, next) => {
   try {
-    const { centerId } = req.query;
+    const { centerId, startDate, endDate } = req.query;
 
     // Permission check for CENTER_MANAGER
     const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
 
-    // Calculate date range for last 12 months
-    const now = new Date();
-    const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-    const startDate = twelveMonthsAgo.toISOString().split('T')[0];
+    // Use provided dates or default to last 12 months
+    let queryStartDate, queryEndDate;
+    if (startDate) {
+      queryStartDate = startDate;
+      queryEndDate = endDate || new Date().toISOString().split('T')[0];
+    } else {
+      const now = new Date();
+      const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+      queryStartDate = twelveMonthsAgo.toISOString().split('T')[0];
+      queryEndDate = now.toISOString().split('T')[0];
+    }
 
     // OPTIMIZED: Single query instead of 12 separate queries
     let query = supabase
       .from('enrollments')
       .select('paid_amount, created_at, classes!inner(center_id)')
-      .gte('created_at', `${startDate}T00:00:00`)
+      .gte('created_at', `${queryStartDate}T00:00:00`)
+      .lte('created_at', `${queryEndDate}T23:59:59`)
       .not('paid_amount', 'is', null);
 
     // Filter by center if specified
@@ -7033,17 +7407,22 @@ app.get('/api/dashboard/revenue-chart', requireAuth, async (req, res, next) => {
     // Group by month in JavaScript (more efficient than N queries)
     const monthlyRevenue = {};
 
-    // Initialize all 12 months with 0
-    for (let i = 0; i < 12; i++) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    // Initialize months based on date range
+    const startDateObj = new Date(queryStartDate);
+    const endDateObj = new Date(queryEndDate);
+
+    // Generate all months in the range
+    let currentDate = new Date(startDateObj.getFullYear(), startDateObj.getMonth(), 1);
+    while (currentDate <= endDateObj) {
+      const key = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
       monthlyRevenue[key] = {
-        month: `T${date.getMonth() + 1}`,
-        monthNum: date.getMonth() + 1,
-        year: date.getFullYear(),
+        month: `T${currentDate.getMonth() + 1}`,
+        monthNum: currentDate.getMonth() + 1,
+        year: currentDate.getFullYear(),
         revenue: 0,
         enrollmentCount: 0
       };
+      currentDate.setMonth(currentDate.getMonth() + 1);
     }
 
     // Aggregate data by month
@@ -7084,9 +7463,10 @@ app.get('/api/dashboard/revenue-chart', requireAuth, async (req, res, next) => {
 // GET /api/dashboard/recent-students - Học viên ghi danh gần đây
 app.get('/api/dashboard/recent-students', requireAuth, async (req, res, next) => {
   try {
-    const { limit = 5 } = req.query;
+    const { limit = 5, centerId } = req.query;
+    const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('enrollments')
       .select(`
         id,
@@ -7094,13 +7474,19 @@ app.get('/api/dashboard/recent-students', requireAuth, async (req, res, next) =>
         users!enrollments_student_id_fkey (
           id, full_name, email, avatar_url
         ),
-        classes (
-          id, code, name,
+        classes!inner (
+          id, code, name, center_id,
           courses (id, title)
         )
       `)
       .order('created_at', { ascending: false })
       .limit(parseInt(limit));
+
+    if (effectiveCenterId) {
+      query = query.eq('classes.center_id', effectiveCenterId);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw error;
 
@@ -7160,14 +7546,34 @@ app.get('/api/dashboard/recent-students', requireAuth, async (req, res, next) =>
 // GET /api/dashboard/course-distribution - Phân bố học viên theo khóa học
 app.get('/api/dashboard/course-distribution', requireAuth, async (req, res, next) => {
   try {
-    const { data, error } = await supabase
+    const { centerId, startDate, endDate } = req.query;
+    const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
+
+    let query = supabase
       .from('enrollments')
       .select(`
-        classes (
+        created_at,
+        classes!inner (
+          center_id,
           courses (id, title)
         )
       `)
       .in('status', ['active', 'completed']);
+
+    // Add date filter if provided
+    if (startDate) {
+      query = query.gte('created_at', `${startDate}T00:00:00`);
+    }
+    if (endDate) {
+      query = query.lte('created_at', `${endDate}T23:59:59`);
+    }
+
+    // Add center filter
+    if (effectiveCenterId) {
+      query = query.eq('classes.center_id', effectiveCenterId);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw error;
 
@@ -7359,16 +7765,13 @@ app.get('/api/dashboard/attendance-overview', requireAuth, async (req, res, next
   }
 });
 
-// GET /api/dashboard/teacher-performance - Hiệu suất giáo viên
+// GET /api/dashboard/teacher-performance - Top teachers with student count
 app.get('/api/dashboard/teacher-performance', requireAuth, async (req, res, next) => {
   try {
     const { centerId, limit = 5 } = req.query;
     const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
 
-    // Get current month range
-    const now = new Date();
-    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    console.log(`📊 Teacher performance requested | Center: ${effectiveCenterId || 'ALL'}`);
 
     // Get teacher role
     const { data: teacherRole } = await supabase
@@ -7381,10 +7784,13 @@ app.get('/api/dashboard/teacher-performance', requireAuth, async (req, res, next
       return res.json({ success: true, data: [] });
     }
 
-    // Query teachers
+    // Query teachers with center info
     let teachersQuery = supabase
       .from('users')
-      .select('id, full_name, email, avatar_url, center_id')
+      .select(`
+        id, full_name, email, avatar_url, center_id,
+        centers!users_center_id_fkey (name)
+      `)
       .eq('role_id', teacherRole.id)
       .eq('status', 'active');
 
@@ -7395,48 +7801,96 @@ app.get('/api/dashboard/teacher-performance', requireAuth, async (req, res, next
     const { data: teachers, error: teachersError } = await teachersQuery;
     if (teachersError) throw teachersError;
 
-    // Get sessions for each teacher this month
-    const teacherStats = await Promise.all(
-      (teachers || []).map(async (teacher) => {
-        // Count completed sessions
-        const { count: sessionsCount } = await supabase
-          .from('sessions')
-          .select('*, classes!inner(teacher_id)', { count: 'exact', head: true })
-          .eq('classes.teacher_id', teacher.id)
-          .eq('status', 'completed')
-          .gte('session_date', firstDayOfMonth)
-          .lte('session_date', lastDayOfMonth);
+    if (!teachers || teachers.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
 
-        // Count active classes
-        const { count: classesCount } = await supabase
-          .from('classes')
-          .select('*', { count: 'exact', head: true })
-          .eq('teacher_id', teacher.id)
-          .in('status', ['ongoing', 'upcoming']);
+    // Get all teacher IDs
+    const teacherIds = teachers.map(t => t.id);
 
-        return {
-          id: teacher.id,
-          name: teacher.full_name,
-          email: teacher.email,
-          avatar_url: teacher.avatar_url,
-          sessionsCompleted: sessionsCount || 0,
-          activeClasses: classesCount || 0
-        };
-      })
-    );
+    // Batch query: Get all active classes for these teachers
+    const { data: allClasses } = await supabase
+      .from('classes')
+      .select(`
+        id, teacher_id,
+        courses (title)
+      `)
+      .in('teacher_id', teacherIds)
+      .in('status', ['ongoing', 'upcoming']);
 
-    // Sort by sessions completed and limit
+    // Batch query: Get all enrollments for these classes
+    const classIds = (allClasses || []).map(c => c.id);
+    let enrollmentCounts = {};
+
+    if (classIds.length > 0) {
+      const { data: enrollments } = await supabase
+        .from('enrollments')
+        .select('class_id, student_id')
+        .in('class_id', classIds)
+        .eq('status', 'active');
+
+      // Count unique students per class
+      const classStudents = {};
+      (enrollments || []).forEach(e => {
+        if (!classStudents[e.class_id]) {
+          classStudents[e.class_id] = new Set();
+        }
+        classStudents[e.class_id].add(e.student_id);
+      });
+
+      // Aggregate by teacher
+      (allClasses || []).forEach(cls => {
+        if (!enrollmentCounts[cls.teacher_id]) {
+          enrollmentCounts[cls.teacher_id] = {
+            studentIds: new Set(),
+            classCount: 0,
+            courses: []
+          };
+        }
+        enrollmentCounts[cls.teacher_id].classCount++;
+        if (cls.courses?.title) {
+          enrollmentCounts[cls.teacher_id].courses.push(cls.courses.title);
+        }
+        // Add students from this class
+        const students = classStudents[cls.id];
+        if (students) {
+          students.forEach(sid => enrollmentCounts[cls.teacher_id].studentIds.add(sid));
+        }
+      });
+    }
+
+    // Build result
+    const teacherStats = teachers.map(teacher => {
+      const stats = enrollmentCounts[teacher.id] || { studentIds: new Set(), classCount: 0, courses: [] };
+
+      // Get most common course as subject
+      const courseCounts = {};
+      stats.courses.forEach(c => {
+        courseCounts[c] = (courseCounts[c] || 0) + 1;
+      });
+      const topCourse = Object.entries(courseCounts)
+        .sort((a, b) => b[1] - a[1])[0];
+
+      return {
+        id: teacher.id,
+        name: teacher.full_name,
+        email: teacher.email,
+        avatar_url: teacher.avatar_url,
+        subject: topCourse ? topCourse[0] : (teacher.centers?.name || 'Giáo viên'),
+        student_count: stats.studentIds.size,
+        class_count: stats.classCount,
+        center_name: teacher.centers?.name
+      };
+    });
+
+    // Sort by student count descending
     const topTeachers = teacherStats
-      .sort((a, b) => b.sessionsCompleted - a.sessionsCompleted)
+      .sort((a, b) => b.student_count - a.student_count)
       .slice(0, parseInt(limit));
 
     res.json({
       success: true,
-      data: topTeachers,
-      period: {
-        month: now.getMonth() + 1,
-        year: now.getFullYear()
-      }
+      data: topTeachers
     });
 
   } catch (error) {
@@ -7517,22 +7971,96 @@ app.get('/api/dashboard/today-schedule', requireAuth, async (req, res, next) => 
 // GET /api/dashboard/all - Unified API cho tất cả dashboard data (reduce API calls)
 app.get('/api/dashboard/all', requireAuth, async (req, res, next) => {
   try {
-    const { centerId } = req.query;
+    const { centerId, startDate, endDate } = req.query;
     const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
 
-    console.log(`📊 Dashboard ALL requested by ${req.user.email} | Center: ${effectiveCenterId || 'ALL'}`);
+    console.log(`📊 Dashboard ALL requested by ${req.user.email} | Center: ${effectiveCenterId || 'ALL'} | Period: ${startDate || 'default'} to ${endDate || 'default'}`);
 
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();
-    const firstDayOfMonth = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
-    const lastMonth = currentMonth === 1 ? 12 : currentMonth - 1;
-    const lastMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
-    const firstDayOfLastMonth = `${lastMonthYear}-${String(lastMonth).padStart(2, '0')}-01`;
-    const lastDayOfLastMonth = new Date(currentYear, currentMonth - 1, 0).toISOString().split('T')[0];
+
+    // Use provided dates or default to current month
+    let periodStart, periodEnd;
+    if (startDate && endDate) {
+      periodStart = startDate;
+      periodEnd = endDate;
+    } else {
+      periodStart = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+      periodEnd = now.toISOString().split('T')[0];
+    }
+
+    // Calculate previous period for trend comparison
+    const startDateObj = new Date(periodStart);
+    const endDateObj = new Date(periodEnd);
+    const periodDays = Math.ceil((endDateObj - startDateObj) / (1000 * 60 * 60 * 24)) + 1;
+
+    const prevPeriodEnd = new Date(startDateObj);
+    prevPeriodEnd.setDate(prevPeriodEnd.getDate() - 1);
+    const prevPeriodStart = new Date(prevPeriodEnd);
+    prevPeriodStart.setDate(prevPeriodStart.getDate() - periodDays + 1);
+
+    const prevStart = prevPeriodStart.toISOString().split('T')[0];
+    const prevEnd = prevPeriodEnd.toISOString().split('T')[0];
+
     const today = now.toISOString().split('T')[0];
 
     // ============ PARALLEL QUERIES ============
+    // Build queries with center filtering at database level
+    let enrollmentsQuery = supabase.from('enrollments')
+      .select('tuition_fee, paid_amount, student_id, classes!inner(center_id)');
+
+    let enrollmentsThisMonthQuery = supabase.from('enrollments')
+      .select('*, classes!inner(center_id)', { count: 'exact', head: true })
+      .gte('created_at', `${periodStart}T00:00:00`)
+      .lte('created_at', `${periodEnd}T23:59:59`);
+
+    let enrollmentsLastMonthQuery = supabase.from('enrollments')
+      .select('*, classes!inner(center_id)', { count: 'exact', head: true })
+      .gte('created_at', `${prevStart}T00:00:00`)
+      .lte('created_at', `${prevEnd}T23:59:59`);
+
+    let classesQuery = supabase.from('classes')
+      .select('id, status, center_id')
+      .in('status', ['ongoing', 'upcoming']);
+
+    let invoicesQuery = supabase.from('invoices')
+      .select('status, final_amount, paid_amount, due_date, class:classes!inner(center_id)')
+      .not('status', 'eq', 'cancelled');
+
+    let recentEnrollmentsQuery = supabase.from('enrollments')
+      .select(`
+        id, created_at, tuition_fee, paid_amount, status,
+        users!enrollments_student_id_fkey (id, full_name, email, avatar_url),
+        classes!inner (id, code, name, center_id, courses (id, title))
+      `)
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    let todaySessionsQuery = supabase.from('sessions')
+      .select(`
+        id, start_time, end_time, status,
+        classes!inner (
+          id, code, name, center_id,
+          courses (title),
+          users!classes_teacher_id_fkey (full_name),
+          rooms (name)
+        )
+      `)
+      .eq('session_date', today)
+      .order('start_time', { ascending: true });
+
+    // Apply center filter if needed
+    if (effectiveCenterId) {
+      enrollmentsQuery = enrollmentsQuery.eq('classes.center_id', effectiveCenterId);
+      enrollmentsThisMonthQuery = enrollmentsThisMonthQuery.eq('classes.center_id', effectiveCenterId);
+      enrollmentsLastMonthQuery = enrollmentsLastMonthQuery.eq('classes.center_id', effectiveCenterId);
+      classesQuery = classesQuery.eq('center_id', effectiveCenterId);
+      invoicesQuery = invoicesQuery.eq('classes.center_id', effectiveCenterId);
+      recentEnrollmentsQuery = recentEnrollmentsQuery.eq('classes.center_id', effectiveCenterId);
+      todaySessionsQuery = todaySessionsQuery.eq('classes.center_id', effectiveCenterId);
+    }
+
     const [
       enrollmentsResult,
       enrollmentsThisMonthResult,
@@ -7543,71 +8071,19 @@ app.get('/api/dashboard/all', requireAuth, async (req, res, next) => {
       recentEnrollmentsResult,
       todaySessionsResult
     ] = await Promise.all([
-      // All enrollments for debt calculation
-      supabase.from('enrollments').select('tuition_fee, paid_amount, student_id'),
-
-      // This month enrollments count
-      supabase.from('enrollments')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', firstDayOfMonth),
-
-      // Last month enrollments count
-      supabase.from('enrollments')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', firstDayOfLastMonth)
-        .lte('created_at', lastDayOfLastMonth),
-
-      // Classes for active count
-      supabase.from('classes')
-        .select('id, status, center_id')
-        .in('status', ['ongoing', 'upcoming']),
-
-      // Invoices for payment overview
-      supabase.from('invoices')
-        .select('status, final_amount, paid_amount, due_date, class:classes(center_id)')
-        .not('status', 'eq', 'cancelled'),
-
-      // Courses count
+      enrollmentsQuery,
+      enrollmentsThisMonthQuery,
+      enrollmentsLastMonthQuery,
+      classesQuery,
+      invoicesQuery,
+      // Courses count (no center filter needed - courses are global)
       supabase.from('courses').select('*', { count: 'exact', head: true }),
-
-      // Recent enrollments
-      supabase.from('enrollments')
-        .select(`
-          id, created_at,
-          users!enrollments_student_id_fkey (id, full_name, email, avatar_url),
-          classes (id, code, name, courses (id, title))
-        `)
-        .order('created_at', { ascending: false })
-        .limit(5),
-
-      // Today sessions
-      supabase.from('sessions')
-        .select(`
-          id, start_time, end_time, status,
-          classes!inner (
-            id, code, name, center_id,
-            courses (title),
-            users!classes_teacher_id_fkey (full_name),
-            rooms (name)
-          )
-        `)
-        .eq('session_date', today)
-        .order('start_time', { ascending: true })
+      recentEnrollmentsQuery,
+      todaySessionsQuery
     ]);
 
     // ============ PROCESS DATA ============
-    // Filter by center if needed
-    const filterByCenter = (data, centerField = 'center_id') => {
-      if (!effectiveCenterId || !data) return data;
-      return data.filter(item => {
-        const itemCenterId = typeof centerField === 'function'
-          ? centerField(item)
-          : (centerField.includes('.')
-            ? centerField.split('.').reduce((o, k) => o?.[k], item)
-            : item[centerField]);
-        return itemCenterId === effectiveCenterId;
-      });
-    };
+    // Note: Center filtering is now done at database level in queries above
 
     // Enrollments data
     const enrollments = enrollmentsResult.data || [];
@@ -7628,12 +8104,12 @@ app.get('/api/dashboard/all', requireAuth, async (req, res, next) => {
       ? Math.round(((enrollmentsThisMonth - enrollmentsLastMonth) / enrollmentsLastMonth) * 100)
       : (enrollmentsThisMonth > 0 ? 100 : 0);
 
-    // Active classes (filter by center)
-    const classes = filterByCenter(classesResult.data || []);
+    // Active classes (already filtered by center at database level)
+    const classes = classesResult.data || [];
     const activeClasses = classes.length;
 
-    // Invoice stats (filter by center)
-    const invoices = filterByCenter(invoicesResult.data || [], item => item.class?.center_id);
+    // Invoice stats (already filtered by center at database level)
+    const invoices = invoicesResult.data || [];
     let paidInvoices = 0, pendingInvoices = 0, overdueInvoices = 0;
     let totalPaid = 0, totalPending = 0, totalOverdue = 0;
 
@@ -7664,6 +8140,18 @@ app.get('/api/dashboard/all', requireAuth, async (req, res, next) => {
       else if (hours > 0) timeAgo = `${hours} giờ trước`;
       else if (minutes > 0) timeAgo = `${minutes} phút trước`;
 
+      // Calculate payment status from enrollment data
+      const tuitionFee = e.tuition_fee || 0;
+      const paidAmount = e.paid_amount || 0;
+      let paymentStatus = 'pending';
+      if (e.status === 'cancelled' || e.status === 'dropped') {
+        paymentStatus = 'cancelled';
+      } else if (tuitionFee > 0 && paidAmount >= tuitionFee) {
+        paymentStatus = 'paid';
+      } else if (paidAmount > 0 && paidAmount < tuitionFee) {
+        paymentStatus = 'partial';
+      }
+
       return {
         id: e.id,
         name: e.users?.full_name || 'N/A',
@@ -7672,7 +8160,10 @@ app.get('/api/dashboard/all', requireAuth, async (req, res, next) => {
         course: e.classes?.courses?.title || e.classes?.name || 'N/A',
         class_code: e.classes?.code,
         time: timeAgo,
-        created_at: e.created_at  // ✅ ADD created_at for date display
+        created_at: e.created_at,
+        status: paymentStatus,
+        tuition_fee: tuitionFee,
+        paid_amount: paidAmount
       };
     });
 
@@ -7697,13 +8188,13 @@ app.get('/api/dashboard/all', requireAuth, async (req, res, next) => {
           revenue: {
             value: totalPaid,
             formatted: formatCurrency(totalPaid),
-            description: `Doanh thu tháng ${currentMonth}/${currentYear}`
+            description: `Doanh thu ${periodStart} - ${periodEnd}`
           },
           newStudents: {
             value: enrollmentsThisMonth,
             trend: studentsTrend,
             trendUp: studentsTrend >= 0,
-            description: 'Ghi danh trong tháng'
+            description: 'Ghi danh trong kỳ'
           },
           activeClasses: {
             value: activeClasses,
@@ -7748,7 +8239,9 @@ app.get('/api/dashboard/all', requireAuth, async (req, res, next) => {
         period: {
           month: currentMonth,
           year: currentYear,
-          today
+          today,
+          startDate: periodStart,
+          endDate: periodEnd
         },
         centerId: effectiveCenterId
       }
@@ -9121,6 +9614,697 @@ app.post('/api/invoices/:id/void', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
     next(error);
   }
 });
+
+/**
+ * POST /api/admin/invoices/bulk-payment
+ * Process bulk payment for multiple invoices
+ * Body: {
+ *   invoice_ids: [uuid, uuid, ...],
+ *   payment_method: 'cash' | 'bank_transfer' | 'card' | 'momo' | 'vnpay',
+ *   reference_code: string (optional, for bank transfers),
+ *   notes: string (optional)
+ * }
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.post('/api/admin/invoices/bulk-payment', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { invoice_ids, payment_method, reference_code, notes } = req.body;
+    const userId = req.user?.id;
+
+    console.log('💳 Bulk payment request:', { invoice_ids, payment_method, userId });
+
+    // Validate invoice_ids
+    if (!invoice_ids || !Array.isArray(invoice_ids) || invoice_ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng chọn ít nhất một hóa đơn để thanh toán'
+      });
+    }
+
+    // Validate payment_method
+    const validMethods = ['cash', 'bank_transfer', 'card', 'momo', 'vnpay'];
+    if (!payment_method || !validMethods.includes(payment_method)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phương thức thanh toán không hợp lệ'
+      });
+    }
+
+    const results = {
+      processed: 0,
+      skipped: 0,
+      failed: 0,
+      details: []
+    };
+
+    // Process each invoice
+    for (const invoiceId of invoice_ids) {
+      try {
+        // Get current invoice with remaining amount
+        const { data: invoice, error: invoiceError } = await supabase
+          .from('invoices')
+          .select('id, invoice_code, final_amount, paid_amount, status, student_id')
+          .eq('id', invoiceId)
+          .single();
+
+        if (invoiceError || !invoice) {
+          results.failed++;
+          results.details.push({
+            invoice_id: invoiceId,
+            status: 'failed',
+            reason: 'Không tìm thấy hóa đơn'
+          });
+          console.log(`❌ Invoice ${invoiceId}: Not found`);
+          continue;
+        }
+
+        // Skip if already paid
+        if (invoice.status === 'paid') {
+          results.skipped++;
+          results.details.push({
+            invoice_id: invoiceId,
+            invoice_code: invoice.invoice_code,
+            status: 'skipped',
+            reason: 'Hóa đơn đã thanh toán đủ'
+          });
+          console.log(`⏭️ Invoice ${invoice.invoice_code}: Already paid, skipping`);
+          continue;
+        }
+
+        // Skip if cancelled or refunded
+        if (invoice.status === 'cancelled' || invoice.status === 'refunded') {
+          results.skipped++;
+          results.details.push({
+            invoice_id: invoiceId,
+            invoice_code: invoice.invoice_code,
+            status: 'skipped',
+            reason: `Hóa đơn đã ${invoice.status === 'cancelled' ? 'hủy' : 'hoàn tiền'}`
+          });
+          console.log(`⏭️ Invoice ${invoice.invoice_code}: ${invoice.status}, skipping`);
+          continue;
+        }
+
+        // Calculate remaining amount
+        const remainingAmount = (invoice.final_amount || 0) - (invoice.paid_amount || 0);
+
+        if (remainingAmount <= 0) {
+          results.skipped++;
+          results.details.push({
+            invoice_id: invoiceId,
+            invoice_code: invoice.invoice_code,
+            status: 'skipped',
+            reason: 'Không còn số tiền cần thanh toán'
+          });
+          continue;
+        }
+
+        // Determine verification status
+        const verificationStatus = payment_method === 'cash' ? 'verified' : 'pending';
+        const autoVerified = payment_method === 'cash';
+
+        // Create payment record for remaining amount
+        const { data: payment, error: paymentError } = await supabase
+          .from('payments')
+          .insert({
+            invoice_id: invoiceId,
+            amount: remainingAmount,
+            payment_method,
+            reference_code: reference_code || null,
+            notes: notes ? `[Bulk Payment] ${notes}` : '[Bulk Payment]',
+            received_by: userId,
+            verification_status: verificationStatus,
+            verified_by: autoVerified ? userId : null,
+            verified_at: autoVerified ? new Date().toISOString() : null
+          })
+          .select()
+          .single();
+
+        if (paymentError) {
+          results.failed++;
+          results.details.push({
+            invoice_id: invoiceId,
+            invoice_code: invoice.invoice_code,
+            status: 'failed',
+            reason: paymentError.message
+          });
+          console.log(`❌ Invoice ${invoice.invoice_code}: Payment error - ${paymentError.message}`);
+          continue;
+        }
+
+        // Get updated invoice (trigger should have updated paid_amount and status)
+        const { data: updatedInvoice } = await supabase
+          .from('invoices')
+          .select('id, invoice_code, final_amount, paid_amount, status')
+          .eq('id', invoiceId)
+          .single();
+
+        results.processed++;
+        results.details.push({
+          invoice_id: invoiceId,
+          invoice_code: invoice.invoice_code,
+          status: 'processed',
+          payment_id: payment.id,
+          amount_paid: remainingAmount,
+          new_status: updatedInvoice?.status || 'paid',
+          requires_verification: !autoVerified
+        });
+        console.log(`✅ Invoice ${invoice.invoice_code}: Paid ${remainingAmount.toLocaleString()}đ`);
+
+      } catch (err) {
+        results.failed++;
+        results.details.push({
+          invoice_id: invoiceId,
+          status: 'failed',
+          reason: err.message
+        });
+        console.error(`❌ Invoice ${invoiceId}: Error - ${err.message}`);
+      }
+    }
+
+    console.log(`💳 Bulk payment complete: ${results.processed} processed, ${results.skipped} skipped, ${results.failed} failed`);
+
+    res.json({
+      success: true,
+      message: `Đã xử lý ${results.processed} hóa đơn${results.skipped > 0 ? `, bỏ qua ${results.skipped}` : ''}${results.failed > 0 ? `, lỗi ${results.failed}` : ''}`,
+      data: results
+    });
+
+  } catch (error) {
+    console.error('❌ Error processing bulk payment:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/invoices/overdue
+ * Get list of overdue invoices with student contact info
+ * Query: ?centerId=xxx&daysOverdue=7&page=1&limit=20
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.get('/api/admin/invoices/overdue', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const {
+      centerId,
+      daysOverdue = 7,
+      page = 1,
+      limit = 20
+    } = req.query;
+
+    const userRole = req.user.roleCode;
+    const userCenterId = req.user.centerId;
+
+    // Determine effective center ID based on role
+    let effectiveCenterId = centerId;
+    if (userRole !== 'SUPER_ADMIN') {
+      if (!userCenterId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn chưa được gán vào trung tâm nào.'
+        });
+      }
+      effectiveCenterId = userCenterId;
+    }
+
+    const minDaysOverdue = parseInt(daysOverdue) || 7;
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 20;
+    const offset = (pageNum - 1) * limitNum;
+
+    console.log('📋 Fetching overdue invoices:', { effectiveCenterId, minDaysOverdue, pageNum, limitNum });
+
+    // Build query for overdue invoices
+    let query = supabase
+      .from('invoices')
+      .select(`
+        id,
+        invoice_code,
+        invoice_type,
+        amount,
+        discount_amount,
+        final_amount,
+        paid_amount,
+        status,
+        due_date,
+        created_at,
+        student:users!invoices_student_id_fkey (
+          id,
+          full_name,
+          email,
+          phone
+        ),
+        class:classes (
+          id,
+          code,
+          name,
+          center_id,
+          course:courses (
+            id,
+            title
+          )
+        )
+      `, { count: 'exact' })
+      .in('status', ['unpaid', 'partial'])
+      .lt('due_date', new Date().toISOString().split('T')[0]);
+
+    // Filter by center if specified
+    if (effectiveCenterId) {
+      query = query.eq('class.center_id', effectiveCenterId);
+    }
+
+    // Execute query with pagination
+    const { data: invoices, error, count } = await query
+      .order('due_date', { ascending: true })
+      .range(offset, offset + limitNum - 1);
+
+    if (error) throw error;
+
+    // Calculate days overdue and filter by minimum days
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const overdueInvoices = (invoices || [])
+      .map(invoice => {
+        const dueDate = new Date(invoice.due_date);
+        dueDate.setHours(0, 0, 0, 0);
+        const daysOverdueCalc = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
+
+        return {
+          ...invoice,
+          days_overdue: daysOverdueCalc,
+          remaining_amount: (invoice.final_amount || 0) - (invoice.paid_amount || 0)
+        };
+      })
+      .filter(invoice => invoice.days_overdue >= minDaysOverdue)
+      .filter(invoice => !effectiveCenterId || invoice.class?.center_id === effectiveCenterId);
+
+    // Get last payment date for each invoice
+    const invoiceIds = overdueInvoices.map(inv => inv.id);
+
+    let lastPayments = {};
+    if (invoiceIds.length > 0) {
+      const { data: payments } = await supabase
+        .from('payments')
+        .select('invoice_id, payment_date')
+        .in('invoice_id', invoiceIds)
+        .order('payment_date', { ascending: false });
+
+      if (payments) {
+        payments.forEach(p => {
+          if (!lastPayments[p.invoice_id]) {
+            lastPayments[p.invoice_id] = p.payment_date;
+          }
+        });
+      }
+    }
+
+    // Add last payment date to results
+    const resultsWithPayments = overdueInvoices
+      .map(invoice => ({
+        ...invoice,
+        last_payment_date: lastPayments[invoice.id] || null
+      }))
+      .sort((a, b) => b.days_overdue - a.days_overdue);
+
+    console.log(`📋 Found ${resultsWithPayments.length} overdue invoices (>= ${minDaysOverdue} days)`);
+
+    res.json({
+      success: true,
+      data: resultsWithPayments,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total: resultsWithPayments.length,
+        totalPages: Math.ceil(resultsWithPayments.length / limitNum)
+      },
+      summary: {
+        total_overdue: resultsWithPayments.length,
+        total_amount: resultsWithPayments.reduce((sum, inv) => sum + (inv.remaining_amount || 0), 0),
+        avg_days_overdue: resultsWithPayments.length > 0
+          ? Math.round(resultsWithPayments.reduce((sum, inv) => sum + inv.days_overdue, 0) / resultsWithPayments.length)
+          : 0
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching overdue invoices:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// PAYMENT IMPORT APIs
+// ============================================================
+
+/**
+ * POST /api/admin/payments/import/parse
+ * Parse uploaded bank statement file
+ * Body: { fileData: base64, fileType: 'csv'|'xlsx', bankFormat: 'vcb'|'tcb'|'bidv'|'generic' }
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.post('/api/admin/payments/import/parse',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { fileData, fileType, bankFormat } = req.body;
+
+      if (!fileData || !fileType) {
+        return res.status(400).json({
+          success: false,
+          message: 'File data và file type là bắt buộc'
+        });
+      }
+
+      // Import the service
+      const { parseBankStatement } = await import('./services/paymentImportService.js');
+
+      // Convert base64 to buffer
+      const base64Data = fileData.replace(/^data:.*?;base64,/, '');
+      const fileBuffer = Buffer.from(base64Data, 'base64');
+
+      const transactions = await parseBankStatement(fileBuffer, fileType, bankFormat || 'generic');
+
+      console.log(`📄 Parsed ${transactions.length} transactions from bank statement`);
+
+      res.json({
+        success: true,
+        data: {
+          transactions,
+          count: transactions.length
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error parsing bank statement:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /api/admin/payments/import/match
+ * Match parsed transactions with invoices
+ * Body: { transactions: Array }
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.post('/api/admin/payments/import/match',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { transactions } = req.body;
+
+      if (!transactions || !Array.isArray(transactions)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Transactions array là bắt buộc'
+        });
+      }
+
+      const { matchTransactionsWithInvoices } = await import('./services/paymentImportService.js');
+
+      const result = await matchTransactionsWithInvoices(transactions, supabase);
+
+      console.log(`🔍 Matched ${result.summary.matched} of ${result.summary.total} transactions`);
+
+      res.json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      console.error('❌ Error matching transactions:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /api/admin/payments/import/apply
+ * Apply matched payments to invoices
+ * Body: { matches: Array }
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.post('/api/admin/payments/import/apply',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { matches } = req.body;
+
+      if (!matches || !Array.isArray(matches)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Matches array là bắt buộc'
+        });
+      }
+
+      const { applyMatchedPayments } = await import('./services/paymentImportService.js');
+
+      const result = await applyMatchedPayments(matches, supabase, req.user.id);
+
+      console.log(`💳 Applied ${result.applied} payments, ${result.failed} failed, ${result.skipped} skipped`);
+
+      res.json({
+        success: true,
+        data: result,
+        message: `Đã áp dụng ${result.applied} thanh toán thành công`
+      });
+    } catch (error) {
+      console.error('❌ Error applying payments:', error);
+      next(error);
+    }
+  }
+);
+
+// ============================================================
+// CALL LIST APIs
+// ============================================================
+
+/**
+ * GET /api/admin/call-list
+ * Get payment call list
+ * Query: ?status=pending&priority=high&page=1&limit=20
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.get('/api/admin/call-list',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { status, priority, assignedTo, page = 1, limit = 20 } = req.query;
+
+      let query = supabase
+        .from('payment_call_list')
+        .select(`
+          *,
+          student:users!payment_call_list_student_id_fkey(id, full_name, email, phone),
+          invoice:invoices!payment_call_list_invoice_id_fkey(id, invoice_code, final_amount, paid_amount, due_date),
+          assigned:users!payment_call_list_assigned_to_fkey(id, full_name)
+        `, { count: 'exact' });
+
+      if (status) query = query.eq('status', status);
+      if (priority) query = query.eq('priority', priority);
+      if (assignedTo) query = query.eq('assigned_to', assignedTo);
+
+      const offset = (parseInt(page) - 1) * parseInt(limit);
+      query = query.range(offset, offset + parseInt(limit) - 1)
+                   .order('priority', { ascending: false })
+                   .order('days_overdue', { ascending: false });
+
+      const { data, error, count } = await query;
+
+      if (error) throw error;
+
+      res.json({
+        success: true,
+        data: {
+          items: data,
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: count,
+            totalPages: Math.ceil(count / parseInt(limit))
+          }
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error fetching call list:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /api/admin/call-list
+ * Add invoice to call list
+ * Body: { invoiceId, priority, notes }
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.post('/api/admin/call-list',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { invoiceId, priority = 'normal', notes } = req.body;
+
+      if (!invoiceId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invoice ID là bắt buộc'
+        });
+      }
+
+      // Get invoice details
+      const { data: invoice, error: invoiceError } = await supabase
+        .from('invoices')
+        .select('id, student_id, final_amount, paid_amount, due_date')
+        .eq('id', invoiceId)
+        .single();
+
+      if (invoiceError || !invoice) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy hóa đơn'
+        });
+      }
+
+      const daysOverdue = Math.floor((new Date() - new Date(invoice.due_date)) / (1000 * 60 * 60 * 24));
+      const amountDue = invoice.final_amount - invoice.paid_amount;
+
+      const { data, error } = await supabase
+        .from('payment_call_list')
+        .upsert({
+          invoice_id: invoiceId,
+          student_id: invoice.student_id,
+          priority,
+          days_overdue: daysOverdue,
+          amount_due: amountDue,
+          call_notes: notes,
+          status: 'pending'
+        }, { onConflict: 'invoice_id' })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      console.log(`📞 Added invoice ${invoiceId} to call list`);
+
+      res.json({
+        success: true,
+        data,
+        message: 'Đã thêm vào danh sách gọi điện'
+      });
+    } catch (error) {
+      console.error('❌ Error adding to call list:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * PATCH /api/admin/call-list/:id
+ * Update call list item
+ * Body: { status, priority, callNotes, nextCallDate, assignedTo }
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.patch('/api/admin/call-list/:id',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const { status, priority, callNotes, nextCallDate, assignedTo } = req.body;
+
+      const updates = {};
+      if (status) {
+        updates.status = status;
+        if (status === 'called') {
+          updates.last_call_at = new Date().toISOString();
+          updates.call_count = supabase.rpc('increment_call_count', { row_id: id });
+        }
+        if (status === 'paid' || status === 'escalated') {
+          updates.resolved_at = new Date().toISOString();
+        }
+      }
+      if (priority) updates.priority = priority;
+      if (callNotes !== undefined) updates.call_notes = callNotes;
+      if (nextCallDate) updates.next_call_date = nextCallDate;
+      if (assignedTo) updates.assigned_to = assignedTo;
+
+      // Handle call_count increment separately
+      if (status === 'called') {
+        await supabase.rpc('increment', {
+          table_name: 'payment_call_list',
+          column_name: 'call_count',
+          row_id: id
+        }).catch(() => {
+          // If RPC doesn't exist, do manual increment
+        });
+
+        // Manual increment fallback
+        const { data: current } = await supabase
+          .from('payment_call_list')
+          .select('call_count')
+          .eq('id', id)
+          .single();
+
+        updates.call_count = (current?.call_count || 0) + 1;
+        updates.last_call_at = new Date().toISOString();
+      }
+
+      const { data, error } = await supabase
+        .from('payment_call_list')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      console.log(`📞 Updated call list item ${id}: status=${status}`);
+
+      res.json({
+        success: true,
+        data,
+        message: 'Đã cập nhật'
+      });
+    } catch (error) {
+      console.error('❌ Error updating call list:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * DELETE /api/admin/call-list/:id
+ * Remove from call list
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.delete('/api/admin/call-list/:id',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+
+      const { error } = await supabase
+        .from('payment_call_list')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      console.log(`🗑️ Removed call list item ${id}`);
+
+      res.json({
+        success: true,
+        message: 'Đã xóa khỏi danh sách'
+      });
+    } catch (error) {
+      console.error('❌ Error removing from call list:', error);
+      next(error);
+    }
+  }
+);
 
 // ============================================================
 // END INVOICES APIs
@@ -11050,7 +12234,7 @@ app.post('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, n
     // Verify teacher owns this session
     const { data: session, error: sessionError } = await supabase
       .from('sessions')
-      .select('id, teacher_id, class_id, is_locked')
+      .select('id, teacher_id, class_id, is_locked, session_date, end_time')
       .eq('id', sessionId)
       .single();
 
@@ -11062,11 +12246,25 @@ app.post('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, n
       return res.status(403).json({ success: false, message: 'Bạn không có quyền điểm danh buổi học này' });
     }
 
+    // 🕐 Check 24-hour edit window
+    const editWindow = isWithinEditWindow(session.session_date, session.end_time);
+    if (!editWindow.canEdit) {
+      console.log(`⏰ Teacher ${req.user.email} bị chặn điểm danh session ${sessionId}: ${editWindow.message}`);
+      return res.status(403).json({
+        success: false,
+        message: editWindow.message,
+        editWindow: {
+          canEdit: false,
+          hoursRemaining: 0
+        }
+      });
+    }
+
     if (session.is_locked) {
       return res.status(400).json({ success: false, message: 'Buổi học đã khóa sổ, không thể điểm danh' });
     }
 
-    console.log(`📋 Teacher ${req.user.email} điểm danh ${attendances.length} học viên cho session ${sessionId}`);
+    console.log(`📋 Teacher ${req.user.email} điểm danh ${attendances.length} học viên cho session ${sessionId} (còn ${editWindow.hoursRemaining}h để chỉnh sửa)`);
 
     // Upsert attendance records
     const results = [];
@@ -11104,6 +12302,637 @@ app.post('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, n
     });
   } catch (error) {
     console.error('Error marking attendance:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/teacher/sessions/:id/edit-status
+ * Check if teacher can edit attendance for this session
+ */
+app.get('/api/teacher/sessions/:id/edit-status', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+    const { id: sessionId } = req.params;
+
+    // Get session info
+    const { data: session, error: sessionError } = await supabase
+      .from('sessions')
+      .select('id, teacher_id, class_id, is_locked, session_date, end_time, status')
+      .eq('id', sessionId)
+      .single();
+
+    if (sessionError || !session) {
+      console.log(`❌ Session ${sessionId} không tồn tại`);
+      return res.status(404).json({ success: false, message: 'Không tìm thấy buổi học' });
+    }
+
+    if (session.teacher_id !== teacherId) {
+      console.log(`⛔ Teacher ${req.user.email} không có quyền xem edit-status của session ${sessionId}`);
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền xem thông tin buổi học này' });
+    }
+
+    // Check edit window
+    const editWindow = isWithinEditWindow(session.session_date, session.end_time);
+
+    // Determine final canEdit status (must pass both edit window AND not locked)
+    const canEdit = editWindow.canEdit && !session.is_locked;
+
+    let finalMessage = editWindow.message;
+    if (session.is_locked) {
+      finalMessage = 'Buổi học đã khóa sổ, không thể chỉnh sửa';
+    }
+
+    console.log(`🔍 Edit status check: session ${sessionId} - canEdit: ${canEdit}, isLocked: ${session.is_locked}, editWindow: ${editWindow.canEdit}`);
+
+    res.json({
+      success: true,
+      data: {
+        canEdit,
+        hoursRemaining: editWindow.hoursRemaining,
+        message: finalMessage,
+        isLocked: session.is_locked,
+        sessionStatus: session.status,
+        sessionDate: session.session_date,
+        endTime: session.end_time
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error checking edit status:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// TEACHER GRADES APIs
+// ============================================================
+
+/**
+ * GET /api/teacher/classes/:id/grades
+ * Get all grades for a class (teacher's class only)
+ * Query params: ?gradeStructureId=xxx&studentId=xxx
+ * 🔒 TEACHER (own class), SUPER_ADMIN, CENTER_MANAGER
+ */
+app.get('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.roleCode;
+    const { id: classId } = req.params;
+    const { gradeStructureId, studentId } = req.query;
+
+    console.log(`📝 GET grades for class ${classId} by ${req.user.email}`);
+
+    // Get class info with course
+    const { data: classData, error: classError } = await supabase
+      .from('classes')
+      .select('id, name, code, teacher_id, course_id, center_id')
+      .eq('id', classId)
+      .single();
+
+    if (classError || !classData) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+    }
+
+    // Check permission: teacher owns class OR admin
+    const isAdmin = ['SUPER_ADMIN', 'CENTER_MANAGER'].includes(userRole);
+    if (!isAdmin && classData.teacher_id !== userId) {
+      return res.status(403).json({ success: false, message: 'Không có quyền truy cập lớp này' });
+    }
+
+    // Get grade structures for this course
+    const { data: gradeStructures, error: structError } = await supabase
+      .from('grade_structures')
+      .select('id, name, weight, max_score, order_index, description')
+      .eq('course_id', classData.course_id)
+      .order('order_index', { ascending: true });
+
+    if (structError) throw structError;
+
+    // Get enrolled students
+    const { data: enrollments, error: enrollError } = await supabase
+      .from('enrollments')
+      .select(`
+        id,
+        student_id,
+        student:users!enrollments_student_id_fkey (id, full_name, email, avatar_url)
+      `)
+      .eq('class_id', classId)
+      .eq('status', 'active');
+
+    if (enrollError) throw enrollError;
+
+    // Build grades query
+    let gradesQuery = supabase
+      .from('grades')
+      .select('id, enrollment_id, grade_structure_id, score, notes, graded_by, graded_at, is_locked, locked_at, locked_by')
+      .in('enrollment_id', enrollments?.map(e => e.id) || []);
+
+    if (gradeStructureId) {
+      gradesQuery = gradesQuery.eq('grade_structure_id', gradeStructureId);
+    }
+
+    const { data: grades, error: gradesError } = await gradesQuery;
+    if (gradesError) throw gradesError;
+
+    // Build response with students and their grades
+    const studentsWithGrades = enrollments?.map(enrollment => {
+      const studentGrades = grades?.filter(g => g.enrollment_id === enrollment.id) || [];
+
+      // Calculate weighted average
+      let totalWeight = 0;
+      let weightedSum = 0;
+
+      studentGrades.forEach(g => {
+        const structure = gradeStructures?.find(s => s.id === g.grade_structure_id);
+        if (g.score !== null && structure) {
+          const normalized = (g.score / structure.max_score) * 10;
+          weightedSum += normalized * structure.weight;
+          totalWeight += structure.weight;
+        }
+      });
+
+      const finalGrade = totalWeight > 0 ? (weightedSum / totalWeight).toFixed(2) : null;
+
+      return {
+        enrollment_id: enrollment.id,
+        student_id: enrollment.student_id,
+        student: enrollment.student,
+        grades: studentGrades,
+        finalGrade: finalGrade ? parseFloat(finalGrade) : null
+      };
+    }) || [];
+
+    // Filter by studentId if provided
+    let filteredStudents = studentsWithGrades;
+    if (studentId) {
+      filteredStudents = studentsWithGrades.filter(s => s.student_id === studentId);
+    }
+
+    // Calculate class summary
+    const allFinalGrades = studentsWithGrades
+      .map(s => s.finalGrade)
+      .filter(g => g !== null);
+
+    const summary = {
+      totalStudents: studentsWithGrades.length,
+      gradedStudents: allFinalGrades.length,
+      classAverage: allFinalGrades.length > 0
+        ? (allFinalGrades.reduce((a, b) => a + b, 0) / allFinalGrades.length).toFixed(2)
+        : null,
+      highest: allFinalGrades.length > 0 ? Math.max(...allFinalGrades) : null,
+      lowest: allFinalGrades.length > 0 ? Math.min(...allFinalGrades) : null
+    };
+
+    // Check lock status per grade structure
+    const lockStatus = {};
+    gradeStructures?.forEach(gs => {
+      const structureGrades = grades?.filter(g => g.grade_structure_id === gs.id) || [];
+      const lockedGrade = structureGrades.find(g => g.is_locked);
+      lockStatus[gs.id] = {
+        isLocked: !!lockedGrade,
+        lockedAt: lockedGrade?.locked_at,
+        lockedBy: lockedGrade?.locked_by
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        class: classData,
+        gradeStructures: gradeStructures || [],
+        students: filteredStudents,
+        summary,
+        lockStatus
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error fetching grades:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /api/teacher/classes/:id/grades
+ * Save/update grades for students (teacher's class only)
+ * Body: { gradeStructureId, grades: [{ enrollment_id, score, notes }] }
+ * 🔒 TEACHER (own class only)
+ */
+app.post('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+    const { id: classId } = req.params;
+    const { gradeStructureId, grades } = req.body;
+
+    console.log(`📝 POST grades for class ${classId} by ${req.user.email}`);
+
+    // Validate input
+    if (!gradeStructureId) {
+      return res.status(400).json({ success: false, message: 'Thiếu gradeStructureId' });
+    }
+    if (!grades || !Array.isArray(grades) || grades.length === 0) {
+      return res.status(400).json({ success: false, message: 'Thiếu danh sách điểm' });
+    }
+
+    // Verify teacher owns this class
+    const { data: classData, error: classError } = await supabase
+      .from('classes')
+      .select('id, teacher_id, course_id')
+      .eq('id', classId)
+      .single();
+
+    if (classError || !classData) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+    }
+
+    if (classData.teacher_id !== teacherId) {
+      console.log(`⛔ Teacher ${req.user.email} không có quyền chấm điểm lớp ${classId}`);
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền chấm điểm lớp này' });
+    }
+
+    // Verify grade structure belongs to this course
+    const { data: gradeStructure, error: structError } = await supabase
+      .from('grade_structures')
+      .select('id, name, max_score, course_id')
+      .eq('id', gradeStructureId)
+      .single();
+
+    if (structError || !gradeStructure || gradeStructure.course_id !== classData.course_id) {
+      return res.status(400).json({ success: false, message: 'Cấu trúc điểm không hợp lệ cho khóa học này' });
+    }
+
+    // Check if grades are locked for this structure
+    const { data: existingGrades } = await supabase
+      .from('grades')
+      .select('id, is_locked')
+      .eq('grade_structure_id', gradeStructureId)
+      .in('enrollment_id', grades.map(g => g.enrollment_id));
+
+    const lockedGrade = existingGrades?.find(g => g.is_locked);
+    if (lockedGrade) {
+      console.log(`🔒 Grades locked for structure ${gradeStructureId}`);
+      return res.status(403).json({
+        success: false,
+        message: 'Điểm đã bị khóa, không thể chỉnh sửa. Liên hệ Admin để mở khóa.'
+      });
+    }
+
+    // Upsert grades
+    const upsertData = grades.map(g => ({
+      enrollment_id: g.enrollment_id,
+      grade_structure_id: gradeStructureId,
+      score: g.score !== undefined && g.score !== '' ? parseFloat(g.score) : null,
+      notes: g.notes || null,
+      graded_by: teacherId,
+      graded_at: new Date().toISOString()
+    }));
+
+    const { data: savedGrades, error: saveError } = await supabase
+      .from('grades')
+      .upsert(upsertData, {
+        onConflict: 'enrollment_id,grade_structure_id',
+        ignoreDuplicates: false
+      })
+      .select();
+
+    if (saveError) throw saveError;
+
+    console.log(`✅ Saved ${savedGrades?.length || 0} grades for class ${classId}, structure ${gradeStructure.name}`);
+
+    res.json({
+      success: true,
+      message: `Đã lưu ${savedGrades?.length || 0} điểm thành công`,
+      data: savedGrades
+    });
+  } catch (error) {
+    console.error('❌ Error saving grades:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/teacher/classes/:id/grades/summary
+ * Get grade summary for a class
+ * 🔒 TEACHER (own class), SUPER_ADMIN, CENTER_MANAGER
+ */
+app.get('/api/teacher/classes/:id/grades/summary', requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.roleCode;
+    const { id: classId } = req.params;
+
+    // Get class info
+    const { data: classData, error: classError } = await supabase
+      .from('classes')
+      .select('id, name, teacher_id, course_id')
+      .eq('id', classId)
+      .single();
+
+    if (classError || !classData) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+    }
+
+    // Check permission
+    const isAdmin = ['SUPER_ADMIN', 'CENTER_MANAGER'].includes(userRole);
+    if (!isAdmin && classData.teacher_id !== userId) {
+      return res.status(403).json({ success: false, message: 'Không có quyền truy cập lớp này' });
+    }
+
+    // Get grade structures
+    const { data: gradeStructures } = await supabase
+      .from('grade_structures')
+      .select('id, name, weight, max_score')
+      .eq('course_id', classData.course_id)
+      .order('order_index');
+
+    // Get enrollments
+    const { data: enrollments } = await supabase
+      .from('enrollments')
+      .select('id, student_id')
+      .eq('class_id', classId)
+      .eq('status', 'active');
+
+    // Get all grades
+    const { data: grades } = await supabase
+      .from('grades')
+      .select('enrollment_id, grade_structure_id, score')
+      .in('enrollment_id', enrollments?.map(e => e.id) || []);
+
+    // Calculate stats per grade structure
+    const structureStats = gradeStructures?.map(gs => {
+      const structureGrades = grades?.filter(g => g.grade_structure_id === gs.id && g.score !== null) || [];
+      const scores = structureGrades.map(g => g.score);
+
+      return {
+        id: gs.id,
+        name: gs.name,
+        weight: gs.weight,
+        maxScore: gs.max_score,
+        count: scores.length,
+        average: scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2) : null,
+        highest: scores.length > 0 ? Math.max(...scores) : null,
+        lowest: scores.length > 0 ? Math.min(...scores) : null
+      };
+    }) || [];
+
+    // Calculate final grades for distribution
+    const finalGrades = enrollments?.map(enrollment => {
+      let totalWeight = 0;
+      let weightedSum = 0;
+
+      gradeStructures?.forEach(gs => {
+        const grade = grades?.find(g => g.enrollment_id === enrollment.id && g.grade_structure_id === gs.id);
+        if (grade?.score !== null && grade?.score !== undefined) {
+          const normalized = (grade.score / gs.max_score) * 10;
+          weightedSum += normalized * gs.weight;
+          totalWeight += gs.weight;
+        }
+      });
+
+      return totalWeight > 0 ? weightedSum / totalWeight : null;
+    }).filter(g => g !== null) || [];
+
+    // Grade distribution (A: 9-10, B: 8-9, C: 7-8, D: 5-7, F: <5)
+    const distribution = {
+      A: finalGrades.filter(g => g >= 9).length,
+      B: finalGrades.filter(g => g >= 8 && g < 9).length,
+      C: finalGrades.filter(g => g >= 7 && g < 8).length,
+      D: finalGrades.filter(g => g >= 5 && g < 7).length,
+      F: finalGrades.filter(g => g < 5).length
+    };
+
+    res.json({
+      success: true,
+      data: {
+        totalStudents: enrollments?.length || 0,
+        gradedStudents: finalGrades.length,
+        classAverage: finalGrades.length > 0
+          ? (finalGrades.reduce((a, b) => a + b, 0) / finalGrades.length).toFixed(2)
+          : null,
+        highest: finalGrades.length > 0 ? Math.max(...finalGrades).toFixed(2) : null,
+        lowest: finalGrades.length > 0 ? Math.min(...finalGrades).toFixed(2) : null,
+        passRate: finalGrades.length > 0
+          ? ((finalGrades.filter(g => g >= 5).length / finalGrades.length) * 100).toFixed(1)
+          : null,
+        structureStats,
+        distribution
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error fetching grade summary:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /api/teacher/classes/:id/grades/lock
+ * Lock grades for a class (prevents further editing)
+ * Body: { gradeStructureId, reason }
+ * 🔒 TEACHER (own class), SUPER_ADMIN, CENTER_MANAGER
+ */
+app.post('/api/teacher/classes/:id/grades/lock', requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.roleCode;
+    const { id: classId } = req.params;
+    const { gradeStructureId, reason } = req.body;
+
+    console.log(`🔒 Lock grades request for class ${classId}, structure ${gradeStructureId}`);
+
+    if (!gradeStructureId) {
+      return res.status(400).json({ success: false, message: 'Thiếu gradeStructureId' });
+    }
+
+    // Get class info
+    const { data: classData, error: classError } = await supabase
+      .from('classes')
+      .select('id, teacher_id')
+      .eq('id', classId)
+      .single();
+
+    if (classError || !classData) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+    }
+
+    // Check permission
+    const isAdmin = ['SUPER_ADMIN', 'CENTER_MANAGER'].includes(userRole);
+    if (!isAdmin && classData.teacher_id !== userId) {
+      return res.status(403).json({ success: false, message: 'Không có quyền khóa điểm lớp này' });
+    }
+
+    // Get enrollments for this class
+    const { data: enrollments } = await supabase
+      .from('enrollments')
+      .select('id')
+      .eq('class_id', classId)
+      .eq('status', 'active');
+
+    // Update grades to locked
+    const { data: lockedGrades, error: lockError } = await supabase
+      .from('grades')
+      .update({
+        is_locked: true,
+        locked_at: new Date().toISOString(),
+        locked_by: userId,
+        lock_reason: reason || 'Khóa điểm bởi giáo viên'
+      })
+      .eq('grade_structure_id', gradeStructureId)
+      .in('enrollment_id', enrollments?.map(e => e.id) || [])
+      .select();
+
+    if (lockError) throw lockError;
+
+    console.log(`✅ Locked ${lockedGrades?.length || 0} grades for class ${classId}`);
+
+    res.json({
+      success: true,
+      message: `Đã khóa ${lockedGrades?.length || 0} điểm thành công`,
+      data: { lockedCount: lockedGrades?.length || 0 }
+    });
+  } catch (error) {
+    console.error('❌ Error locking grades:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/grades/unlock
+ * Admin unlock grades (requires reason)
+ * Body: { classId, gradeStructureId, reason }
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER only
+ */
+app.post('/api/admin/grades/unlock', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { classId, gradeStructureId, reason } = req.body;
+
+    console.log(`🔓 Admin unlock grades: class ${classId}, structure ${gradeStructureId}`);
+
+    if (!classId || !gradeStructureId) {
+      return res.status(400).json({ success: false, message: 'Thiếu classId hoặc gradeStructureId' });
+    }
+    if (!reason || reason.length < 10) {
+      return res.status(400).json({ success: false, message: 'Lý do mở khóa phải có ít nhất 10 ký tự' });
+    }
+
+    // Get enrollments for this class
+    const { data: enrollments } = await supabase
+      .from('enrollments')
+      .select('id')
+      .eq('class_id', classId)
+      .eq('status', 'active');
+
+    // Update grades to unlocked
+    const { data: unlockedGrades, error: unlockError } = await supabase
+      .from('grades')
+      .update({
+        is_locked: false,
+        locked_at: null,
+        locked_by: null,
+        lock_reason: null
+      })
+      .eq('grade_structure_id', gradeStructureId)
+      .in('enrollment_id', enrollments?.map(e => e.id) || [])
+      .select();
+
+    if (unlockError) throw unlockError;
+
+    // Log to audit
+    await supabase.from('grade_audit').insert({
+      class_id: classId,
+      grade_structure_id: gradeStructureId,
+      action: 'unlocked',
+      changed_by: userId,
+      reason: reason,
+      new_values: { is_locked: false, unlocked_count: unlockedGrades?.length || 0 }
+    });
+
+    console.log(`✅ Admin unlocked ${unlockedGrades?.length || 0} grades`);
+
+    res.json({
+      success: true,
+      message: `Đã mở khóa ${unlockedGrades?.length || 0} điểm thành công`,
+      data: { unlockedCount: unlockedGrades?.length || 0 }
+    });
+  } catch (error) {
+    console.error('❌ Error unlocking grades:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/grades/override
+ * Admin override grades (bypasses lock)
+ * Body: { classId, gradeStructureId, grades: [...], override_reason }
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER only
+ */
+app.post('/api/admin/grades/override', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { classId, gradeStructureId, grades, override_reason } = req.body;
+
+    console.log(`⚠️ Admin override grades: class ${classId}, structure ${gradeStructureId}`);
+
+    // Validate
+    if (!classId || !gradeStructureId) {
+      return res.status(400).json({ success: false, message: 'Thiếu classId hoặc gradeStructureId' });
+    }
+    if (!override_reason || override_reason.length < 10) {
+      return res.status(400).json({ success: false, message: 'Lý do override phải có ít nhất 10 ký tự' });
+    }
+    if (!grades || !Array.isArray(grades) || grades.length === 0) {
+      return res.status(400).json({ success: false, message: 'Thiếu danh sách điểm' });
+    }
+
+    // Get old values for audit
+    const { data: oldGrades } = await supabase
+      .from('grades')
+      .select('*')
+      .eq('grade_structure_id', gradeStructureId)
+      .in('enrollment_id', grades.map(g => g.enrollment_id));
+
+    // Upsert grades with override info
+    const upsertData = grades.map(g => ({
+      enrollment_id: g.enrollment_id,
+      grade_structure_id: gradeStructureId,
+      score: g.score !== undefined && g.score !== '' ? parseFloat(g.score) : null,
+      notes: g.notes || null,
+      graded_by: userId,
+      graded_at: new Date().toISOString(),
+      override_reason: override_reason,
+      overridden_by: userId,
+      overridden_at: new Date().toISOString()
+    }));
+
+    const { data: savedGrades, error: saveError } = await supabase
+      .from('grades')
+      .upsert(upsertData, {
+        onConflict: 'enrollment_id,grade_structure_id',
+        ignoreDuplicates: false
+      })
+      .select();
+
+    if (saveError) throw saveError;
+
+    // Log to audit
+    await supabase.from('grade_audit').insert({
+      class_id: classId,
+      grade_structure_id: gradeStructureId,
+      action: 'overridden',
+      changed_by: userId,
+      reason: override_reason,
+      old_values: { grades: oldGrades },
+      new_values: { grades: savedGrades }
+    });
+
+    console.log(`✅ Admin overrode ${savedGrades?.length || 0} grades`);
+
+    res.json({
+      success: true,
+      message: `Đã override ${savedGrades?.length || 0} điểm thành công`,
+      data: savedGrades
+    });
+  } catch (error) {
+    console.error('❌ Error overriding grades:', error);
     next(error);
   }
 });
@@ -17122,6 +18951,498 @@ app.get('/api/admin/transfers/stats', requireAuth, requireRole(['SUPER_ADMIN']),
 
 // ============================================================
 // END NEW MODULE APIs
+// ============================================================
+
+// ============================================================
+// STUDENT PORTAL APIs
+// ============================================================
+
+/**
+ * GET /api/student/dashboard
+ * Get student dashboard overview
+ * Returns: today's classes, recent grades, upcoming payments, notifications
+ * 🔒 STUDENT only (uses req.user.id)
+ */
+app.get('/api/student/dashboard',
+  requireAuth,
+  requireRole(['STUDENT']),
+  async (req, res, next) => {
+    try {
+      const studentId = req.user.id;
+      const today = new Date().toISOString().split('T')[0];
+      const dayOfWeek = new Date().getDay() || 7; // 1-7, Sunday = 7
+      const dayNumber = dayOfWeek + 1; // Convert to 2-8 format (2=Monday, 8=Sunday)
+
+      // 1. Get enrolled classes
+      const { data: enrollments } = await supabase
+        .from('enrollments')
+        .select(`
+          id, status,
+          class:classes(
+            id, name, code, schedule, start_date, end_date, room,
+            course:courses(id, title),
+            teacher:users!classes_teacher_id_fkey(id, full_name)
+          )
+        `)
+        .eq('student_id', studentId)
+        .eq('status', 'active');
+
+      // 2. Filter today's classes based on schedule
+      const todayClasses = (enrollments || [])
+        .filter(e => e.class?.schedule?.some(s => s.day === dayNumber))
+        .map(e => ({
+          ...e.class,
+          todaySchedule: e.class.schedule.find(s => s.day === dayNumber)
+        }))
+        .sort((a, b) => (a.todaySchedule?.start || '').localeCompare(b.todaySchedule?.start || ''));
+
+      // 3. Get recent grades (last 5)
+      const { data: recentGrades } = await supabase
+        .from('grades')
+        .select(`
+          id, score, grade_type, created_at, notes,
+          class:classes(id, name, code)
+        `)
+        .eq('student_id', studentId)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      // 4. Get upcoming/unpaid invoices
+      const { data: unpaidInvoices } = await supabase
+        .from('invoices')
+        .select('id, invoice_code, final_amount, paid_amount, due_date, status')
+        .eq('student_id', studentId)
+        .in('status', ['pending', 'partial', 'overdue'])
+        .order('due_date', { ascending: true })
+        .limit(3);
+
+      // 5. Get attendance rate
+      const { data: attendanceStats } = await supabase
+        .from('attendance')
+        .select('status')
+        .eq('student_id', studentId);
+
+      const totalSessions = attendanceStats?.length || 0;
+      const presentSessions = attendanceStats?.filter(a => a.status === 'present').length || 0;
+      const attendanceRate = totalSessions > 0 ? Math.round((presentSessions / totalSessions) * 100) : 0;
+
+      // 6. Calculate average grade
+      const { data: allGrades } = await supabase
+        .from('grades')
+        .select('score')
+        .eq('student_id', studentId);
+
+      const avgGrade = allGrades?.length > 0
+        ? (allGrades.reduce((sum, g) => sum + (g.score || 0), 0) / allGrades.length).toFixed(1)
+        : null;
+
+      console.log(`📊 Student dashboard loaded for ${studentId}`);
+
+      res.json({
+        success: true,
+        data: {
+          todayClasses,
+          recentGrades: recentGrades || [],
+          unpaidInvoices: unpaidInvoices || [],
+          stats: {
+            totalClasses: enrollments?.length || 0,
+            attendanceRate,
+            avgGrade,
+            unpaidAmount: (unpaidInvoices || []).reduce((sum, inv) =>
+              sum + (inv.final_amount - inv.paid_amount), 0)
+          }
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error fetching student dashboard:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/student/schedule
+ * Get student's class schedule
+ * Query: ?view=week|month&date=2026-01-10&classId=xxx
+ * 🔒 STUDENT only
+ */
+app.get('/api/student/schedule',
+  requireAuth,
+  requireRole(['STUDENT']),
+  async (req, res, next) => {
+    try {
+      const studentId = req.user.id;
+      const { view = 'week', date, classId } = req.query;
+
+      // Get enrolled classes
+      let query = supabase
+        .from('enrollments')
+        .select(`
+          id,
+          class:classes(
+            id, name, code, schedule, start_date, end_date, room,
+            course:courses(id, title, color),
+            teacher:users!classes_teacher_id_fkey(id, full_name)
+          )
+        `)
+        .eq('student_id', studentId)
+        .eq('status', 'active');
+
+      if (classId) {
+        query = query.eq('class_id', classId);
+      }
+
+      const { data: enrollments, error } = await query;
+      if (error) throw error;
+
+      // Generate schedule events based on view
+      const baseDate = date ? new Date(date) : new Date();
+      const events = [];
+
+      for (const enrollment of enrollments || []) {
+        const cls = enrollment.class;
+        if (!cls?.schedule) continue;
+
+        for (const scheduleItem of cls.schedule) {
+          // scheduleItem: { day: 2, start: '18:00', end: '20:00' }
+          // day: 2=Monday, 3=Tuesday, ..., 8=Sunday
+
+          events.push({
+            classId: cls.id,
+            className: cls.name,
+            classCode: cls.code,
+            courseTitle: cls.course?.title,
+            courseColor: cls.course?.color || '#3b82f6',
+            teacherName: cls.teacher?.full_name,
+            room: cls.room,
+            dayOfWeek: scheduleItem.day,
+            startTime: scheduleItem.start,
+            endTime: scheduleItem.end,
+            startDate: cls.start_date,
+            endDate: cls.end_date
+          });
+        }
+      }
+
+      // Sort by day and time
+      events.sort((a, b) => {
+        if (a.dayOfWeek !== b.dayOfWeek) return a.dayOfWeek - b.dayOfWeek;
+        return a.startTime.localeCompare(b.startTime);
+      });
+
+      console.log(`📅 Student schedule loaded: ${events.length} events`);
+
+      res.json({
+        success: true,
+        data: {
+          events,
+          classes: (enrollments || []).map(e => ({
+            id: e.class?.id,
+            name: e.class?.name,
+            code: e.class?.code
+          }))
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error fetching student schedule:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/student/grades
+ * Get all student grades with statistics
+ * Query: ?classId=xxx
+ * 🔒 STUDENT only
+ */
+app.get('/api/student/grades',
+  requireAuth,
+  requireRole(['STUDENT']),
+  async (req, res, next) => {
+    try {
+      const studentId = req.user.id;
+      const { classId } = req.query;
+
+      let query = supabase
+        .from('grades')
+        .select(`
+          id, score, grade_type, weight, notes, created_at, is_locked,
+          class:classes(id, name, code, course:courses(id, title))
+        `)
+        .eq('student_id', studentId)
+        .order('created_at', { ascending: false });
+
+      if (classId) {
+        query = query.eq('class_id', classId);
+      }
+
+      const { data: grades, error } = await query;
+      if (error) throw error;
+
+      // Calculate statistics per class
+      const classStats = {};
+      for (const grade of grades || []) {
+        const cid = grade.class?.id;
+        if (!cid) continue;
+
+        if (!classStats[cid]) {
+          classStats[cid] = {
+            classId: cid,
+            className: grade.class.name,
+            classCode: grade.class.code,
+            courseTitle: grade.class.course?.title,
+            grades: [],
+            totalScore: 0,
+            totalWeight: 0
+          };
+        }
+        classStats[cid].grades.push(grade);
+        classStats[cid].totalScore += (grade.score || 0) * (grade.weight || 1);
+        classStats[cid].totalWeight += (grade.weight || 1);
+      }
+
+      // Calculate weighted average per class
+      const classSummaries = Object.values(classStats).map(cs => ({
+        ...cs,
+        avgScore: cs.totalWeight > 0 ? (cs.totalScore / cs.totalWeight).toFixed(2) : null,
+        gradeCount: cs.grades.length
+      }));
+
+      // Overall statistics
+      const allScores = (grades || []).map(g => g.score).filter(s => s != null);
+      const overallAvg = allScores.length > 0
+        ? (allScores.reduce((a, b) => a + b, 0) / allScores.length).toFixed(2)
+        : null;
+
+      console.log(`📝 Student grades loaded: ${grades?.length || 0} grades`);
+
+      res.json({
+        success: true,
+        data: {
+          grades: grades || [],
+          classSummaries,
+          statistics: {
+            totalGrades: grades?.length || 0,
+            overallAverage: overallAvg,
+            highestScore: allScores.length > 0 ? Math.max(...allScores) : null,
+            lowestScore: allScores.length > 0 ? Math.min(...allScores) : null
+          }
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error fetching student grades:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/student/attendance
+ * Get student attendance history
+ * Query: ?classId=xxx&startDate=xxx&endDate=xxx
+ * 🔒 STUDENT only
+ */
+app.get('/api/student/attendance',
+  requireAuth,
+  requireRole(['STUDENT']),
+  async (req, res, next) => {
+    try {
+      const studentId = req.user.id;
+      const { classId, startDate, endDate } = req.query;
+
+      let query = supabase
+        .from('attendance')
+        .select(`
+          id, status, notes, check_in_time, created_at,
+          session:sessions(
+            id, session_date, start_time, end_time,
+            class:classes(id, name, code, course:courses(id, title))
+          )
+        `)
+        .eq('student_id', studentId)
+        .order('created_at', { ascending: false });
+
+      const { data: attendance, error } = await query;
+      if (error) throw error;
+
+      // Filter by class if specified
+      let filtered = attendance || [];
+      if (classId) {
+        filtered = filtered.filter(a => a.session?.class?.id === classId);
+      }
+
+      // Filter by date range
+      if (startDate) {
+        filtered = filtered.filter(a => a.session?.session_date >= startDate);
+      }
+      if (endDate) {
+        filtered = filtered.filter(a => a.session?.session_date <= endDate);
+      }
+
+      // Calculate statistics
+      const total = filtered.length;
+      const present = filtered.filter(a => a.status === 'present').length;
+      const absent = filtered.filter(a => a.status === 'absent').length;
+      const late = filtered.filter(a => a.status === 'late').length;
+      const excused = filtered.filter(a => a.status === 'excused').length;
+
+      // Group by class for per-class stats
+      const classAttendance = {};
+      for (const record of filtered) {
+        const cid = record.session?.class?.id;
+        if (!cid) continue;
+
+        if (!classAttendance[cid]) {
+          classAttendance[cid] = {
+            classId: cid,
+            className: record.session.class.name,
+            classCode: record.session.class.code,
+            total: 0,
+            present: 0,
+            absent: 0,
+            late: 0,
+            excused: 0
+          };
+        }
+        classAttendance[cid].total++;
+        classAttendance[cid][record.status]++;
+      }
+
+      const classSummaries = Object.values(classAttendance).map(ca => ({
+        ...ca,
+        attendanceRate: ca.total > 0 ? Math.round(((ca.present + ca.late) / ca.total) * 100) : 0
+      }));
+
+      console.log(`📋 Student attendance loaded: ${filtered.length} records`);
+
+      res.json({
+        success: true,
+        data: {
+          records: filtered,
+          classSummaries,
+          statistics: {
+            total,
+            present,
+            absent,
+            late,
+            excused,
+            attendanceRate: total > 0 ? Math.round(((present + late) / total) * 100) : 0
+          }
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error fetching student attendance:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/student/invoices
+ * Get student invoices and payment history
+ * Query: ?status=pending|paid|all
+ * 🔒 STUDENT only
+ */
+app.get('/api/student/invoices',
+  requireAuth,
+  requireRole(['STUDENT']),
+  async (req, res, next) => {
+    try {
+      const studentId = req.user.id;
+      const { status } = req.query;
+
+      let query = supabase
+        .from('invoices')
+        .select(`
+          id, invoice_code, invoice_type, amount, discount_amount, final_amount,
+          paid_amount, status, due_date, description, created_at,
+          class:classes(id, name, code, course:courses(id, title)),
+          payments(id, amount, payment_method, payment_date, status, reference_code)
+        `)
+        .eq('student_id', studentId)
+        .order('created_at', { ascending: false });
+
+      if (status && status !== 'all') {
+        if (status === 'unpaid') {
+          query = query.in('status', ['pending', 'partial', 'overdue']);
+        } else {
+          query = query.eq('status', status);
+        }
+      }
+
+      const { data: invoices, error } = await query;
+      if (error) throw error;
+
+      // Calculate totals
+      const totalAmount = (invoices || []).reduce((sum, inv) => sum + (inv.final_amount || 0), 0);
+      const totalPaid = (invoices || []).reduce((sum, inv) => sum + (inv.paid_amount || 0), 0);
+      const totalRemaining = totalAmount - totalPaid;
+
+      console.log(`💰 Student invoices loaded: ${invoices?.length || 0} invoices`);
+
+      res.json({
+        success: true,
+        data: {
+          invoices: invoices || [],
+          summary: {
+            totalInvoices: invoices?.length || 0,
+            totalAmount,
+            totalPaid,
+            totalRemaining,
+            unpaidCount: (invoices || []).filter(i => ['pending', 'partial', 'overdue'].includes(i.status)).length
+          }
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error fetching student invoices:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/student/certificates
+ * Get student's issued certificates
+ * 🔒 STUDENT only
+ */
+app.get('/api/student/certificates',
+  requireAuth,
+  requireRole(['STUDENT']),
+  async (req, res, next) => {
+    try {
+      const studentId = req.user.id;
+
+      const { data: certificates, error } = await supabase
+        .from('certificates')
+        .select(`
+          id, certificate_code, issue_date, expiry_date, status, pdf_url, metadata,
+          class:classes(id, name, code, course:courses(id, title, level)),
+          issued_by:users!certificates_issued_by_fkey(id, full_name)
+        `)
+        .eq('student_id', studentId)
+        .order('issue_date', { ascending: false });
+
+      if (error) throw error;
+
+      console.log(`🎓 Student certificates loaded: ${certificates?.length || 0} certificates`);
+
+      res.json({
+        success: true,
+        data: {
+          certificates: certificates || [],
+          count: certificates?.length || 0
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error fetching student certificates:', error);
+      next(error);
+    }
+  }
+);
+
+// ============================================================
+// END STUDENT PORTAL APIs
 // ============================================================
 
 app.use((err, _req, res, _next) => {

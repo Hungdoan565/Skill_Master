@@ -13,7 +13,7 @@ import { AdminLayout } from '@/layouts/admin-layout';
 import { ToastProvider } from '@/components/ui/toast';
 import { ErrorBoundary } from '@/components/errors/ErrorBoundary';
 // REFACTORED: Import từ feature modules thay vì file monolithic
-import { InvoicesPage } from '@/features/invoices';
+import { InvoicesPage, OverdueDashboardPage } from '@/features/invoices';
 import { ClassDetailPage } from '@/features/classes';
 import { CoursesPage } from '@/features/courses';
 import { ClassesPage } from '@/features/classes-list';
@@ -36,6 +36,12 @@ import AdminNotificationsPage from '@/features/notifications/AdminNotificationsP
 import { TeacherSchedulePage } from '@/features/teacher-schedule';
 import { TeacherClassesPage } from '@/features/teacher-classes';
 import { TeacherAvailabilityPage } from '@/features/teacher-availability';
+import {
+  TeacherClassDetailPage,
+  TeacherAttendancePage,
+  TeacherQuickAttendancePage
+} from '@/features/teacher-attendance';
+import { TeacherGradebookPage } from '@/features/teacher-gradebook';
 import {
   ReportsPage,
   RevenueReportPage,
@@ -542,6 +548,7 @@ function App() {
               <Route path="enrollments" element={<EnrollmentsPage />} />
               <Route path="enrollments/new" element={<NewEnrollmentPage />} />
               <Route path="invoices" element={<InvoicesPage />} />
+              <Route path="invoices/overdue" element={<OverdueDashboardPage />} />
               <Route path="grades" element={<GradesPage />} />
               <Route path="payroll" element={<PayrollPage />} />
               <Route path="staff" element={<StaffPage />} />
@@ -578,13 +585,13 @@ function App() {
               <Route path="dashboard" element={<TeacherDashboardPage />} />
               <Route path="schedule" element={<TeacherSchedulePage />} />
               <Route path="classes" element={<TeacherClassesPage />} />
-              <Route path="classes/:id" element={<PlaceholderPage title="Giáo viên • Chi tiết lớp học" />} />
-              <Route path="classes/:id/attendance" element={<PlaceholderPage title="Giáo viên • Điểm danh" />} />
-              <Route path="classes/:id/gradebook" element={<PlaceholderPage title="Giáo viên • Sổ điểm" />} />
+              <Route path="classes/:id" element={<TeacherClassDetailPage />} />
+              <Route path="classes/:id/attendance" element={<TeacherAttendancePage />} />
+              <Route path="classes/:id/gradebook" element={<TeacherGradebookPage />} />
               <Route path="payroll" element={<TeacherPayrollPage />} />
               <Route path="availability" element={<TeacherAvailabilityPage />} />
               <Route path="leave-requests" element={<PlaceholderPage title="Giáo viên • Đơn xin nghỉ" description="Quản lý đơn xin nghỉ phép" />} />
-              <Route path="attendance" element={<PlaceholderPage title="Giáo viên • Điểm danh nhanh" />} />
+              <Route path="attendance" element={<TeacherQuickAttendancePage />} />
               <Route path="profile" element={<PlaceholderPage title="Giáo viên • Thông tin cá nhân" />} />
               <Route path="settings" element={<PlaceholderPage title="Giáo viên • Cài đặt" />} />
             </Route>

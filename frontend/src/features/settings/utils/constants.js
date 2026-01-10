@@ -10,7 +10,8 @@ export const SETTING_KEYS = {
     GRADE_CONFIG: 'grade_config',
     PAYROLL_CONFIG: 'payroll_config',
     SYSTEM_CONFIG: 'system_config',
-    SECURITY_CONFIG: 'security_config'
+    SECURITY_CONFIG: 'security_config',
+    DASHBOARD_GOALS: 'dashboard_goals'
 };
 
 // Default values
@@ -68,6 +69,12 @@ export const DEFAULT_SECURITY_CONFIG = {
     enableActivityLog: true,
     notifyNewDevice: true,
     allowMultipleSessions: true
+};
+
+// Dashboard goals default config
+export const DEFAULT_DASHBOARD_GOALS = {
+    revenueGoal: 200000000,  // 200 million VND
+    studentsGoal: 50         // 50 new students
 };
 
 // Bank options

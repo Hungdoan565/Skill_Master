@@ -185,27 +185,27 @@ export function ExportButton({
             </Button>
 
             {isOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-slate-200 z-50">
+                <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 z-50">
                     {/* Export Format Options */}
-                    <div className="p-2 border-b border-slate-100">
-                        <p className="text-xs font-medium text-slate-500 px-2 py-1">Định dạng xuất</p>
+                    <div className="p-2 border-b border-slate-100 dark:border-slate-700">
+                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400 px-2 py-1">Định dạng xuất</p>
                         <button
                             onClick={() => handleExport('excel')}
-                            className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-md"
+                            className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-md"
                         >
                             <FileSpreadsheet className="w-4 h-4 text-green-600" />
                             <span>Excel (.xlsx)</span>
                         </button>
                         <button
                             onClick={() => handleExport('csv')}
-                            className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-md"
+                            className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-md"
                         >
                             <FileText className="w-4 h-4 text-blue-600" />
                             <span>CSV (.csv)</span>
                         </button>
                         <button
                             onClick={() => handleExport('json')}
-                            className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-md"
+                            className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-md"
                         >
                             <FileText className="w-4 h-4 text-amber-600" />
                             <span>JSON (.json)</span>
@@ -216,25 +216,25 @@ export function ExportButton({
                     <div className="p-2">
                         <button
                             onClick={() => setShowColumnSelector(!showColumnSelector)}
-                            className="w-full text-left px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-md"
+                            className="w-full text-left px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-md"
                         >
                             {showColumnSelector ? 'Ẩn' : 'Chọn'} cột xuất ({selectedColumns.length}/{columns.length})
                         </button>
 
                         {showColumnSelector && (
-                            <div className="mt-2 max-h-48 overflow-y-auto border-t border-slate-100 pt-2">
+                            <div className="mt-2 max-h-48 overflow-y-auto border-t border-slate-100 dark:border-slate-700 pt-2">
                                 {columns.map(col => (
                                     <label
                                         key={col.key}
-                                        className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-slate-50 cursor-pointer"
+                                        className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer"
                                     >
                                         <input
                                             type="checkbox"
                                             checked={selectedColumns.includes(col.key)}
                                             onChange={() => toggleColumn(col.key)}
-                                            className="rounded border-slate-300"
+                                            className="rounded border-slate-300 dark:border-slate-600"
                                         />
-                                        <span className="text-slate-700">{col.label}</span>
+                                        <span className="text-slate-700 dark:text-slate-200">{col.label}</span>
                                     </label>
                                 ))}
                             </div>
@@ -242,7 +242,7 @@ export function ExportButton({
                     </div>
 
                     {/* Info */}
-                    <div className="px-4 py-2 bg-slate-50 text-xs text-slate-500 border-t border-slate-100 rounded-b-lg">
+                    <div className="px-4 py-2 bg-slate-50 dark:bg-slate-900 text-xs text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-700 rounded-b-lg">
                         Xuất {data.length} bản ghi
                     </div>
                 </div>
