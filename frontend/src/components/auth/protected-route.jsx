@@ -40,14 +40,15 @@ export function ProtectedRoute({
   }
 
   // 3. Đã đăng nhập nhưng chưa có profile (DB chưa setup hoặc lỗi fetch)
-  // Cho phép admin email đi qua, hiển thị warning cho user khác
+  // Only allow strict domain-based fallback for admin routes (security fix)
   if (!profile) {
-    // Kiểm tra nếu là admin email -> cho phép vào admin routes
-    const isAdminEmail = user?.email?.includes('admin') || user?.email?.endsWith('@skillmaster.edu.vn');
+    // SECURITY: Only allow @skillmaster.edu.vn domain as fallback
+    // Removed: user?.email?.includes('admin') - too permissive
+    const isKnownAdminDomain = user?.email?.endsWith('@skillmaster.edu.vn');
     const isAdminRoute = allowedRoles.includes('SUPER_ADMIN') || allowedRoles.includes('CENTER_MANAGER');
     
-    if (isAdminEmail && isAdminRoute) {
-      console.log('[ProtectedRoute] No profile but admin email detected - allowing access');
+    if (isKnownAdminDomain && isAdminRoute) {
+      console.log('[ProtectedRoute] No profile but trusted admin domain - allowing access temporarily');
       return children ? children : <Outlet />;
     }
     

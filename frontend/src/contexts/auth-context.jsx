@@ -322,11 +322,12 @@ export function AuthProvider({ children }) {
       }
     }
 
-    // Không có profile nhưng có user - fallback dựa vào email
+    // Không có profile nhưng có user - fallback dựa vào email domain (strict)
     if (user?.email) {
-      // Admin email -> admin dashboard
-      if (user.email.includes('admin') || user.email.endsWith('@skillmaster.edu.vn')) {
-        console.log('[AuthContext] getRedirectPath: No profile, but admin email detected -> /admin/dashboard');
+      // SECURITY: Only allow @skillmaster.edu.vn domain as fallback
+      // Removed: user.email.includes('admin') - too permissive
+      if (user.email.endsWith('@skillmaster.edu.vn')) {
+        console.log('[AuthContext] getRedirectPath: No profile, but trusted admin domain -> /admin/dashboard');
         return '/admin/dashboard';
       }
     }

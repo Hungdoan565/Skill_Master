@@ -8,7 +8,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth-context';
 import { useDashboard } from '../hooks';
-import { DollarSign, Users, BookOpen, AlertTriangle, RefreshCw, Download } from 'lucide-react';
+import { DollarSign, Users, BookOpen, AlertTriangle, RefreshCw, Download, Building2 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -58,11 +58,26 @@ const getTrend = (val) => {
 
 export function DashboardPage() {
   const navigate = useNavigate();
-  const { user, session, profile, isSuperAdmin } = useAuth();
+  const { user, session, profile, isSuperAdmin, isManager, getCenterId } = useAuth();
   const accessToken = session?.access_token;
 
-  const [selectedCenterId, setSelectedCenterId] = useState(null);
+  // For CENTER_MANAGER: auto-set to their assigned center
+  const managerCenterId = getCenterId?.();
+  const [selectedCenterId, setSelectedCenterId] = useState(() => {
+    // CENTER_MANAGER should always see their own center
+    if (isManager?.()) {
+      return managerCenterId;
+    }
+    return null; // SUPER_ADMIN starts with "All Centers"
+  });
   const [selectedDateRange, setSelectedDateRange] = useState('this_month');
+
+  // Sync selectedCenterId when manager's center changes (e.g., after profile load)
+  useEffect(() => {
+    if (isManager?.() && managerCenterId && selectedCenterId !== managerCenterId) {
+      setSelectedCenterId(managerCenterId);
+    }
+  }, [isManager, managerCenterId, selectedCenterId]);
   const [dateRange, setDateRange] = useState(() => {
     // Initialize with this_month dates
     const now = new Date();
@@ -204,7 +219,12 @@ export function DashboardPage() {
               Xin chào, {userName} 👋
             </h1>
             <p className="text-muted-foreground mt-1">
-              Đây là tổng quan hoạt động của trung tâm hôm nay
+              {isSuperAdmin?.()
+                ? selectedCenterId
+                  ? 'Đang xem dữ liệu của trung tâm đã chọn'
+                  : 'Đây là tổng quan hoạt động của toàn hệ thống'
+                : `Đây là tổng quan hoạt động của trung tâm ${profile?.centers?.name || 'của bạn'}`
+              }
             </p>
           </div>
 
@@ -221,6 +241,14 @@ export function DashboardPage() {
                 onCenterChange={setSelectedCenterId}
                 accessToken={accessToken}
               />
+            )}
+
+            {/* CENTER_MANAGER: Show their center as a badge (read-only) */}
+            {isManager?.() && profile?.centers?.name && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-orange-50 border border-orange-200 text-orange-700">
+                <Building2 size={16} />
+                <span className="text-sm font-medium">{profile.centers.name}</span>
+              </div>
             )}
 
             <button
