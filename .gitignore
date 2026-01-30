@@ -30,3 +30,5 @@ auggie_shell.ps1
 auggie_shell.sh
 .agent/
 conductor/
+.opencode/
+.github/
