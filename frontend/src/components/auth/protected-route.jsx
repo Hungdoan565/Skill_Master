@@ -97,6 +97,10 @@ export function ProtectedRoute({
         message = 'Trang này dành cho giáo viên và quản trị viên. Bạn là học viên nên không có quyền truy cập.';
         redirectPath = '/student/schedule';
         break;
+      case 'PARENT':
+        message = 'Trang này không dành cho phụ huynh. Vui lòng quay về trang quản lý con em.';
+        redirectPath = '/parent/dashboard';
+        break;
       case 'TEACHER':
         message = 'Trang này chỉ dành cho quản trị viên. Bạn là giáo viên nên không có quyền truy cập.';
         redirectPath = '/teacher/schedule';
@@ -179,6 +183,20 @@ export function AdminRoute({ children }) {
   return (
     <ProtectedRoute 
       allowedRoles={['SUPER_ADMIN', 'CENTER_MANAGER']} 
+      redirectTo="/login"
+    >
+      {children}
+    </ProtectedRoute>
+  );
+}
+
+/**
+ * ParentRoute - Route dành cho Parent (phụ huynh)
+ */
+export function ParentRoute({ children }) {
+  return (
+    <ProtectedRoute 
+      allowedRoles={['PARENT']} 
       redirectTo="/login"
     >
       {children}

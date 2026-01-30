@@ -20,6 +20,10 @@ import {
   StudentPayment,
   StudentCertificates
 } from '@/features/student-portal';
+import {
+  ParentDashboard,
+  ParentChildDetail
+} from '@/features/parent-portal';
 import { ToastProvider } from '@/components/ui/toast';
 import { ErrorBoundary } from '@/components/errors/ErrorBoundary';
 // REFACTORED: Import từ feature modules thay vì file monolithic
@@ -66,7 +70,7 @@ import { AuthPage } from '@/pages/auth/auth-page';
 import { LandingPage } from '@/pages/landing/landing-page';
 import { CoursesPage as PublicCoursesPage } from '@/pages/public/courses';
 import { CourseDetailPage } from '@/pages/public/courses/detail';
-import { ProtectedRoute, GuestRoute, TeacherRoute, StudentRoute, AdminRoute } from '@/components/auth/protected-route';
+import { ProtectedRoute, GuestRoute, TeacherRoute, StudentRoute, AdminRoute, ParentRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/contexts/auth-context';
 
 // ============================================
@@ -106,6 +110,7 @@ const RoleBadge = ({ roleCode }) => {
     CENTER_MANAGER: { label: 'Quản lý', color: 'bg-purple-500/10 text-purple-700 ring-1 ring-inset ring-purple-600/20' },
     TEACHER: { label: 'Giáo viên', color: 'bg-blue-500/10 text-blue-700 ring-1 ring-inset ring-blue-600/20' },
     STUDENT: { label: 'Học viên', color: 'bg-green-500/10 text-green-700 ring-1 ring-inset ring-green-600/20' },
+    PARENT: { label: 'Phụ huynh', color: 'bg-amber-500/10 text-amber-700 ring-1 ring-inset ring-amber-600/20' },
   };
   const config = roleConfig[roleCode] || { label: 'User', color: 'bg-gray-500/10 text-gray-700 ring-1 ring-inset ring-gray-600/20' };
   return (
@@ -122,7 +127,7 @@ const UserDropdown = ({ user, profile, displayName, avatarUrl, roleCode, onLogou
   const navigate = useNavigate();
 
   // Kiểm tra có dashboard không
-  const hasDashboard = roleCode && ['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER'].includes(roleCode);
+  const hasDashboard = roleCode && ['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER', 'PARENT'].includes(roleCode);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -485,6 +490,132 @@ const TeacherLayout = () => {
   );
 };
 
+const ParentLayout = () => {
+  const { user, profile, signOut } = useAuth();
+  const navigate = useNavigate();
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/');
+  };
+
+  const navItems = [
+    { path: '/parent', label: 'Tổng quan', icon: '🏠' },
+    { path: '/parent/children', label: 'Con em', icon: '👶' },
+  ];
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <div className="flex items-center gap-3">
+              <Link to="/parent" className="flex items-center gap-2">
+                <span className="text-2xl">🎓</span>
+                <span className="font-bold text-xl text-gray-900">Skill Master</span>
+              </Link>
+              <span className="px-2 py-1 text-xs font-medium bg-amber-100 text-amber-700 rounded-full">
+                Phụ huynh
+              </span>
+            </div>
+
+            {/* Navigation */}
+            <nav className="hidden md:flex items-center gap-1">
+              {navItems.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                >
+                  <span>{item.icon}</span>
+                  <span>{item.label}</span>
+                </Link>
+              ))}
+            </nav>
+
+            {/* User Menu */}
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white font-medium text-sm">
+                  {profile?.full_name?.charAt(0) || 'P'}
+                </div>
+                <span className="hidden sm:block text-sm font-medium text-gray-700">
+                  {profile?.full_name || 'Phụ huynh'}
+                </span>
+                <ChevronDown className="h-4 w-4 text-gray-500" />
+              </button>
+
+              {showUserMenu && (
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <p className="font-medium text-gray-900">{profile?.full_name}</p>
+                    <p className="text-sm text-gray-500">{user?.email}</p>
+                  </div>
+                  <Link
+                    to="/parent/profile"
+                    className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    <User className="h-4 w-4" />
+                    Thông tin cá nhân
+                  </Link>
+                  <div className="border-t border-gray-100 mt-2 pt-2">
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Đăng xuất
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Navigation */}
+        <div className="md:hidden border-t border-gray-200 px-4 py-2 overflow-x-auto">
+          <nav className="flex items-center gap-1">
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-600 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors whitespace-nowrap"
+              >
+                <span>{item.icon}</span>
+                <span>{item.label}</span>
+              </Link>
+            ))}
+          </nav>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main>
+        <Outlet />
+      </main>
+    </div>
+  );
+};
+
 function App() {
   return (
     <ErrorBoundary>
@@ -609,6 +740,19 @@ function App() {
               <Route path="payment" element={<StudentPayment />} />
               <Route path="certificates" element={<StudentCertificates />} />
               <Route path="support" element={<PlaceholderPage title="Học viên • Hỗ trợ" description="Liên hệ hỗ trợ" />} />
+            </Route>
+
+            {/* Parent Routes - Chỉ PARENT */}
+            <Route path="parent" element={
+              <ProtectedRoute allowedRoles={['PARENT']}>
+                <ParentLayout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<ParentDashboard />} />
+              <Route path="dashboard" element={<ParentDashboard />} />
+              <Route path="children" element={<ParentDashboard />} />
+              <Route path="child/:studentId" element={<ParentChildDetail />} />
+              <Route path="profile" element={<PlaceholderPage title="Phụ huynh • Thông tin cá nhân" />} />
             </Route>
 
             <Route path="*" element={<PlaceholderPage title="404" description="Page not found" />} />

@@ -297,6 +297,10 @@ export function AuthProvider({ children }) {
     return profile?.roles?.code === 'STUDENT';
   }, [profile]);
 
+  const isParent = useCallback(() => {
+    return profile?.roles?.code === 'PARENT';
+  }, [profile]);
+
   // Hàm lấy redirect path dựa trên role
   const getRedirectPath = useCallback(() => {
     const roleCode = profile?.roles?.code;
@@ -311,6 +315,8 @@ export function AuthProvider({ children }) {
           return '/teacher/schedule';
         case 'STUDENT':
           return '/student/schedule';
+        case 'PARENT':
+          return '/parent/dashboard';
         default:
           return '/';
       }
@@ -352,6 +358,7 @@ export function AuthProvider({ children }) {
     getCenterId,
     isTeacher,
     isStudent,
+    isParent,
     getRedirectPath,
   };
 

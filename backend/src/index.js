@@ -19916,6 +19916,599 @@ app.get('/api/payment-config',
 // END SYSTEM SETTINGS APIs
 // ============================================================
 
+// ============================================================
+// PARENT PORTAL APIs
+// ============================================================
+
+/**
+ * GET /api/parent/dashboard
+ * Get parent dashboard with children overview
+ * 🔒 PARENT only
+ */
+app.get('/api/parent/dashboard',
+  requireAuth,
+  requireRole(['PARENT']),
+  async (req, res, next) => {
+    try {
+      const parentId = req.user.id;
+
+      // Get linked children
+      const { data: links, error: linksError } = await supabase
+        .from('parent_student_links')
+        .select(`
+          id,
+          relationship,
+          is_primary,
+          can_pay,
+          can_view_academics,
+          student:users!parent_student_links_student_id_fkey(
+            id, full_name, email, phone, avatar_url, date_of_birth,
+            center:centers(id, name)
+          )
+        `)
+        .eq('parent_id', parentId)
+        .eq('status', 'active');
+
+      if (linksError) throw linksError;
+
+      // Get summary for each child
+      const childrenSummary = await Promise.all((links || []).map(async (link) => {
+        const studentId = link.student.id;
+
+        // Get active enrollments
+        const { data: enrollments } = await supabase
+          .from('enrollments')
+          .select(`
+            id, status,
+            class:classes(id, name, code, start_date, end_date, status)
+          `)
+          .eq('student_id', studentId)
+          .eq('status', 'active');
+
+        // Get unpaid invoices count
+        const { data: unpaidInvoices } = await supabase
+          .from('invoices')
+          .select('id, final_amount, paid_amount')
+          .eq('student_id', studentId)
+          .in('status', ['unpaid', 'partial', 'overdue']);
+
+        const unpaidTotal = (unpaidInvoices || []).reduce((sum, inv) => 
+          sum + (inv.final_amount - inv.paid_amount), 0);
+
+        // Calculate age
+        const dob = link.student.date_of_birth;
+        const age = dob ? Math.floor((Date.now() - new Date(dob).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : null;
+
+        return {
+          linkId: link.id,
+          studentId,
+          studentName: link.student.full_name,
+          studentEmail: link.student.email,
+          studentPhone: link.student.phone,
+          avatarUrl: link.student.avatar_url,
+          dateOfBirth: link.student.date_of_birth,
+          age,
+          relationship: link.relationship,
+          isPrimary: link.is_primary,
+          canPay: link.can_pay,
+          canViewAcademics: link.can_view_academics,
+          centerName: link.student.center?.name,
+          stats: {
+            activeClasses: (enrollments || []).length,
+            unpaidInvoices: (unpaidInvoices || []).length,
+            unpaidAmount: unpaidTotal
+          }
+        };
+      }));
+
+      console.log(`👨‍👩‍👧 Parent dashboard loaded: ${childrenSummary.length} children`);
+
+      res.json({
+        success: true,
+        data: {
+          children: childrenSummary,
+          totalChildren: childrenSummary.length
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error fetching parent dashboard:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/parent/children
+ * Get list of linked children
+ * 🔒 PARENT only
+ */
+app.get('/api/parent/children',
+  requireAuth,
+  requireRole(['PARENT']),
+  async (req, res, next) => {
+    try {
+      const parentId = req.user.id;
+
+      const { data: links, error } = await supabase
+        .from('parent_student_links')
+        .select(`
+          id,
+          relationship,
+          is_primary,
+          can_pay,
+          can_view_academics,
+          student:users!parent_student_links_student_id_fkey(
+            id, full_name, email, phone, avatar_url, date_of_birth, status,
+            center:centers(id, name)
+          )
+        `)
+        .eq('parent_id', parentId)
+        .eq('status', 'active')
+        .order('is_primary', { ascending: false });
+
+      if (error) throw error;
+
+      const children = (links || []).map(link => ({
+        linkId: link.id,
+        studentId: link.student.id,
+        studentName: link.student.full_name,
+        studentEmail: link.student.email,
+        studentPhone: link.student.phone,
+        avatarUrl: link.student.avatar_url,
+        dateOfBirth: link.student.date_of_birth,
+        status: link.student.status,
+        relationship: link.relationship,
+        isPrimary: link.is_primary,
+        canPay: link.can_pay,
+        canViewAcademics: link.can_view_academics,
+        centerName: link.student.center?.name
+      }));
+
+      res.json({
+        success: true,
+        data: { children }
+      });
+    } catch (error) {
+      console.error('❌ Error fetching parent children:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/parent/child/:studentId/schedule
+ * Get schedule for a linked child
+ * 🔒 PARENT only (must have link to student)
+ */
+app.get('/api/parent/child/:studentId/schedule',
+  requireAuth,
+  requireRole(['PARENT']),
+  async (req, res, next) => {
+    try {
+      const parentId = req.user.id;
+      const { studentId } = req.params;
+
+      // Verify parent has access to this student
+      const { data: link, error: linkError } = await supabase
+        .from('parent_student_links')
+        .select('id, can_view_academics')
+        .eq('parent_id', parentId)
+        .eq('student_id', studentId)
+        .eq('status', 'active')
+        .single();
+
+      if (linkError || !link) {
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn không có quyền xem thông tin học viên này'
+        });
+      }
+
+      // Get enrolled classes
+      const { data: enrollments, error } = await supabase
+        .from('enrollments')
+        .select(`
+          id,
+          class:classes(
+            id, name, code, schedule, start_date, end_date, room,
+            course:courses(id, title, color),
+            teacher:users!classes_teacher_id_fkey(id, full_name)
+          )
+        `)
+        .eq('student_id', studentId)
+        .eq('status', 'active');
+
+      if (error) throw error;
+
+      // Generate schedule events
+      const events = [];
+      for (const enrollment of enrollments || []) {
+        const cls = enrollment.class;
+        if (!cls?.schedule) continue;
+
+        for (const scheduleItem of cls.schedule) {
+          events.push({
+            classId: cls.id,
+            className: cls.name,
+            classCode: cls.code,
+            courseTitle: cls.course?.title,
+            courseColor: cls.course?.color || '#3b82f6',
+            teacherName: cls.teacher?.full_name,
+            room: cls.room,
+            dayOfWeek: scheduleItem.day,
+            startTime: scheduleItem.start,
+            endTime: scheduleItem.end,
+            startDate: cls.start_date,
+            endDate: cls.end_date
+          });
+        }
+      }
+
+      events.sort((a, b) => {
+        if (a.dayOfWeek !== b.dayOfWeek) return a.dayOfWeek - b.dayOfWeek;
+        return a.startTime.localeCompare(b.startTime);
+      });
+
+      console.log(`📅 Parent viewing child schedule: ${events.length} events`);
+
+      res.json({
+        success: true,
+        data: {
+          events,
+          classes: (enrollments || []).map(e => ({
+            id: e.class?.id,
+            name: e.class?.name,
+            code: e.class?.code,
+            courseTitle: e.class?.course?.title
+          }))
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error fetching child schedule:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/parent/child/:studentId/grades
+ * Get grades for a linked child
+ * 🔒 PARENT only (must have link with can_view_academics=true)
+ */
+app.get('/api/parent/child/:studentId/grades',
+  requireAuth,
+  requireRole(['PARENT']),
+  async (req, res, next) => {
+    try {
+      const parentId = req.user.id;
+      const { studentId } = req.params;
+
+      // Verify parent has access with academic viewing permission
+      const { data: link, error: linkError } = await supabase
+        .from('parent_student_links')
+        .select('id, can_view_academics')
+        .eq('parent_id', parentId)
+        .eq('student_id', studentId)
+        .eq('status', 'active')
+        .single();
+
+      if (linkError || !link) {
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn không có quyền xem thông tin học viên này'
+        });
+      }
+
+      if (!link.can_view_academics) {
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn không có quyền xem điểm của học viên này'
+        });
+      }
+
+      // Get grades
+      const { data: grades, error } = await supabase
+        .from('grades')
+        .select(`
+          id, score, grade_type, assessment_date, notes,
+          class:classes(id, name, code, course:courses(id, title))
+        `)
+        .eq('student_id', studentId)
+        .order('assessment_date', { ascending: false });
+
+      if (error) throw error;
+
+      // Group by class
+      const gradesByClass = {};
+      for (const grade of grades || []) {
+        const classId = grade.class?.id;
+        if (!classId) continue;
+        
+        if (!gradesByClass[classId]) {
+          gradesByClass[classId] = {
+            classId,
+            className: grade.class.name,
+            classCode: grade.class.code,
+            courseTitle: grade.class.course?.title,
+            grades: []
+          };
+        }
+        gradesByClass[classId].grades.push({
+          id: grade.id,
+          score: grade.score,
+          gradeType: grade.grade_type,
+          assessmentDate: grade.assessment_date,
+          notes: grade.notes
+        });
+      }
+
+      console.log(`📊 Parent viewing child grades: ${grades?.length || 0} grades`);
+
+      res.json({
+        success: true,
+        data: {
+          gradesByClass: Object.values(gradesByClass),
+          totalGrades: grades?.length || 0
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error fetching child grades:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/parent/child/:studentId/attendance
+ * Get attendance for a linked child
+ * 🔒 PARENT only (must have link with can_view_academics=true)
+ */
+app.get('/api/parent/child/:studentId/attendance',
+  requireAuth,
+  requireRole(['PARENT']),
+  async (req, res, next) => {
+    try {
+      const parentId = req.user.id;
+      const { studentId } = req.params;
+      const { classId } = req.query;
+
+      // Verify parent has access
+      const { data: link, error: linkError } = await supabase
+        .from('parent_student_links')
+        .select('id, can_view_academics')
+        .eq('parent_id', parentId)
+        .eq('student_id', studentId)
+        .eq('status', 'active')
+        .single();
+
+      if (linkError || !link) {
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn không có quyền xem thông tin học viên này'
+        });
+      }
+
+      if (!link.can_view_academics) {
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn không có quyền xem điểm danh của học viên này'
+        });
+      }
+
+      // Get enrollments first
+      let enrollmentsQuery = supabase
+        .from('enrollments')
+        .select('id, class:classes(id, name, code)')
+        .eq('student_id', studentId)
+        .eq('status', 'active');
+
+      if (classId) {
+        enrollmentsQuery = enrollmentsQuery.eq('class_id', classId);
+      }
+
+      const { data: enrollments, error: enrollError } = await enrollmentsQuery;
+      if (enrollError) throw enrollError;
+
+      const enrollmentIds = (enrollments || []).map(e => e.id);
+
+      // Get attendance records
+      const { data: attendance, error } = await supabase
+        .from('attendance')
+        .select(`
+          id, session_date, session_number, status, notes,
+          enrollment:enrollments(
+            id,
+            class:classes(id, name, code)
+          )
+        `)
+        .in('enrollment_id', enrollmentIds)
+        .order('session_date', { ascending: false });
+
+      if (error) throw error;
+
+      // Calculate stats
+      const total = attendance?.length || 0;
+      const present = (attendance || []).filter(a => a.status === 'present').length;
+      const absent = (attendance || []).filter(a => a.status === 'absent').length;
+      const late = (attendance || []).filter(a => a.status === 'late').length;
+      const excused = (attendance || []).filter(a => a.status === 'excused').length;
+      const attendanceRate = total > 0 ? Math.round((present + late) / total * 100) : 0;
+
+      console.log(`📋 Parent viewing child attendance: ${total} records`);
+
+      res.json({
+        success: true,
+        data: {
+          attendance: (attendance || []).map(a => ({
+            id: a.id,
+            sessionDate: a.session_date,
+            sessionNumber: a.session_number,
+            status: a.status,
+            notes: a.notes,
+            className: a.enrollment?.class?.name,
+            classCode: a.enrollment?.class?.code
+          })),
+          stats: {
+            total,
+            present,
+            absent,
+            late,
+            excused,
+            attendanceRate
+          },
+          classes: (enrollments || []).map(e => ({
+            id: e.class?.id,
+            name: e.class?.name,
+            code: e.class?.code
+          }))
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error fetching child attendance:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/parent/child/:studentId/invoices
+ * Get invoices for a linked child
+ * 🔒 PARENT only (must have link with can_pay=true)
+ */
+app.get('/api/parent/child/:studentId/invoices',
+  requireAuth,
+  requireRole(['PARENT']),
+  async (req, res, next) => {
+    try {
+      const parentId = req.user.id;
+      const { studentId } = req.params;
+      const { status } = req.query;
+
+      // Verify parent has access with payment permission
+      const { data: link, error: linkError } = await supabase
+        .from('parent_student_links')
+        .select('id, can_pay')
+        .eq('parent_id', parentId)
+        .eq('student_id', studentId)
+        .eq('status', 'active')
+        .single();
+
+      if (linkError || !link) {
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn không có quyền xem thông tin học viên này'
+        });
+      }
+
+      if (!link.can_pay) {
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn không có quyền xem hóa đơn của học viên này'
+        });
+      }
+
+      // Get invoices
+      let query = supabase
+        .from('invoices')
+        .select(`
+          id, invoice_number, type, status, issue_date, due_date,
+          subtotal, discount_amount, final_amount, paid_amount, notes,
+          class:classes(id, name, code, course:courses(id, title)),
+          center:centers(id, name)
+        `)
+        .eq('student_id', studentId)
+        .order('issue_date', { ascending: false });
+
+      if (status) {
+        query = query.eq('status', status);
+      }
+
+      const { data: invoices, error } = await query;
+      if (error) throw error;
+
+      // Calculate summary
+      const totalAmount = (invoices || []).reduce((sum, inv) => sum + (inv.final_amount || 0), 0);
+      const totalPaid = (invoices || []).reduce((sum, inv) => sum + (inv.paid_amount || 0), 0);
+      const unpaidCount = (invoices || []).filter(i => ['unpaid', 'partial'].includes(i.status)).length;
+
+      console.log(`💰 Parent viewing child invoices: ${invoices?.length || 0} invoices`);
+
+      res.json({
+        success: true,
+        data: {
+          invoices: invoices || [],
+          summary: {
+            totalInvoices: invoices?.length || 0,
+            totalAmount,
+            totalPaid,
+            totalRemaining: totalAmount - totalPaid,
+            unpaidCount
+          }
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error fetching child invoices:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/parent/payment-config
+ * Get bank config for parent payment
+ * 🔒 PARENT only
+ */
+app.get('/api/parent/payment-config',
+  requireAuth,
+  requireRole(['PARENT']),
+  async (req, res, next) => {
+    try {
+      const { centerId } = req.query;
+
+      // Try center-specific config first
+      let centerSetting = null;
+      if (centerId) {
+        const { data } = await supabase
+          .from('system_settings')
+          .select('value')
+          .eq('key', 'bank_config')
+          .eq('center_id', centerId)
+          .single();
+        centerSetting = data;
+      }
+
+      // Fallback to global config
+      const { data: globalSetting } = await supabase
+        .from('system_settings')
+        .select('value')
+        .eq('key', 'bank_config')
+        .is('center_id', null)
+        .single();
+
+      const config = centerSetting?.value || globalSetting?.value || null;
+
+      if (!config) {
+        return res.status(404).json({
+          success: false,
+          message: 'Chưa cấu hình ngân hàng thanh toán'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: config
+      });
+    } catch (error) {
+      console.error('❌ Error fetching parent payment config:', error);
+      next(error);
+    }
+  }
+);
+
+// ============================================================
+// END PARENT PORTAL APIs
+// ============================================================
+
 // Test endpoint không cần auth
 app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'Backend is running', time: new Date().toISOString() });
