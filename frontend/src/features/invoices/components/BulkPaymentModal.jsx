@@ -3,6 +3,10 @@
  * 
  * Modal thanh toán hàng loạt cho nhiều hóa đơn cùng lúc.
  * 
+ * ADMIN CONTEXT: This is for admin to RECORD payments, NOT to pay.
+ * Admin does NOT need to see QR code - they just record the payment method.
+ * QR codes are for students/parents in their self-payment portal.
+ * 
  * @param {boolean} isOpen - Trạng thái modal
  * @param {function} onClose - Handler đóng modal
  * @param {Array} selectedInvoices - Danh sách hóa đơn đã chọn
@@ -15,11 +19,8 @@ import {
   Receipt,
   Loader2,
   Banknote,
-  QrCode,
   CreditCard,
   Smartphone,
-  Copy,
-  Check,
   CheckCircle2,
   AlertCircle,
   FileText,
@@ -29,12 +30,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/auth-context';
-import { BANK_CONFIG, API_URL } from '../utils/constants';
+import { API_URL } from '../utils/constants';
 import { formatCurrency, formatMoney } from '../utils/formatters';
 
 const PAYMENT_METHODS = [
   { value: 'cash', label: 'Tiền mặt', icon: Banknote },
-  { value: 'bank_transfer', label: 'Chuyển khoản', icon: QrCode },
+  { value: 'bank_transfer', label: 'Chuyển khoản', icon: CreditCard },
   { value: 'card', label: 'Thẻ', icon: CreditCard },
   { value: 'momo', label: 'MoMo', icon: Smartphone },
   { value: 'vnpay', label: 'VNPay', icon: CreditCard }
@@ -46,11 +47,11 @@ export function BulkPaymentModal({ isOpen, onClose, selectedInvoices = [], onSuc
   const [includedIds, setIncludedIds] = useState(new Set());
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [referenceCode, setReferenceCode] = useState('');
+  const [transferDate, setTransferDate] = useState(new Date().toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
-  const [copied, setCopied] = useState(false);
   const [showInvoiceList, setShowInvoiceList] = useState(true);
 
   useEffect(() => {
@@ -58,6 +59,7 @@ export function BulkPaymentModal({ isOpen, onClose, selectedInvoices = [], onSuc
       setIncludedIds(new Set(selectedInvoices.map(inv => inv.id)));
       setPaymentMethod('cash');
       setReferenceCode('');
+      setTransferDate(new Date().toISOString().split('T')[0]);
       setNotes('');
       setError('');
       setResult(null);
@@ -93,23 +95,6 @@ export function BulkPaymentModal({ isOpen, onClose, selectedInvoices = [], onSuc
     } else {
       setIncludedIds(new Set(selectedInvoices.map(inv => inv.id)));
     }
-  };
-
-  const generateTransferContent = () => {
-    const count = includedInvoices.length;
-    return `TT ${count} HD ${new Date().toLocaleDateString('vi-VN').replace(/\//g, '')}`;
-  };
-
-  const qrUrl = useMemo(() => {
-    if (paymentMethod !== 'bank_transfer' || totalAmount <= 0) return '';
-    const content = generateTransferContent();
-    return `https://img.vietqr.io/image/${BANK_CONFIG.bankId}-${BANK_CONFIG.accountNo}-${BANK_CONFIG.template}.png?amount=${totalAmount}&addInfo=${encodeURIComponent(content)}&accountName=${encodeURIComponent(BANK_CONFIG.accountName)}`;
-  }, [paymentMethod, totalAmount, includedInvoices.length]);
-
-  const handleCopy = (text) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleSubmit = async () => {
@@ -331,28 +316,45 @@ export function BulkPaymentModal({ isOpen, onClose, selectedInvoices = [], onSuc
             </div>
           </div>
 
-          {/* VietQR for Bank Transfer */}
-          {paymentMethod === 'bank_transfer' && totalAmount > 0 && (
-            <VietQRSection
-              qrUrl={qrUrl}
-              bankConfig={BANK_CONFIG}
-              transferContent={generateTransferContent()}
-              onCopy={handleCopy}
-              copied={copied}
-            />
-          )}
-
-          {/* Reference Code */}
+          {/* Bank Transfer Info - Only for Bank Transfer */}
           {paymentMethod === 'bank_transfer' && (
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Mã tham chiếu / Mã giao dịch
-              </label>
-              <Input
-                value={referenceCode}
-                onChange={(e) => setReferenceCode(e.target.value)}
-                placeholder="Nhập mã giao dịch ngân hàng..."
-              />
+            <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-800 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-blue-700 dark:text-blue-300">
+                <CreditCard className="w-4 h-4" />
+                Thông tin chuyển khoản
+              </div>
+              
+              {/* Reference Number */}
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">
+                  Mã giao dịch / Số tham chiếu
+                </label>
+                <Input
+                  value={referenceCode}
+                  onChange={(e) => setReferenceCode(e.target.value)}
+                  placeholder="VD: FT24012345678..."
+                  className="font-mono"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Nhập mã giao dịch từ sao kê ngân hàng (không bắt buộc)
+                </p>
+              </div>
+
+              {/* Transfer Date */}
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">
+                  Ngày chuyển khoản
+                </label>
+                <Input
+                  type="date"
+                  value={transferDate}
+                  onChange={(e) => setTransferDate(e.target.value)}
+                />
+              </div>
+
+              <div className="text-xs text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/50 p-2 rounded-lg">
+                💡 Ghi chú: QR thanh toán chỉ hiển thị cho học viên/phụ huynh khi họ tự thanh toán online.
+              </div>
             </div>
           )}
 
@@ -400,64 +402,6 @@ export function BulkPaymentModal({ isOpen, onClose, selectedInvoices = [], onSuc
           </Button>
         </div>
       </div>
-    </div>
-  );
-}
-
-function VietQRSection({ qrUrl, bankConfig, transferContent, onCopy, copied }) {
-  return (
-    <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-xl border border-blue-200 dark:border-blue-800 space-y-4">
-      <div className="flex justify-center">
-        <div className="bg-white p-3 rounded-xl shadow-md">
-          <img src={qrUrl} alt="VietQR Code" className="w-48 h-48 object-contain" />
-        </div>
-      </div>
-
-      <div className="flex items-center justify-center gap-1 text-sm">
-        <Smartphone className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-        <span className="font-semibold text-blue-700 dark:text-blue-300">
-          VietQR - Quét mã để thanh toán
-        </span>
-      </div>
-
-      <div className="space-y-2 text-sm">
-        <BankInfoRow label="Ngân hàng" value={bankConfig.bankId} />
-        <BankInfoRow label="Số tài khoản" value={bankConfig.accountNo} onCopy={() => onCopy(bankConfig.accountNo)} copied={copied} />
-        <BankInfoRow label="Chủ tài khoản" value={bankConfig.accountName} />
-        <BankInfoRow label="Nội dung CK" value={transferContent} onCopy={() => onCopy(transferContent)} copied={copied} highlight />
-      </div>
-    </div>
-  );
-}
-
-function BankInfoRow({ label, value, onCopy, copied, highlight = false }) {
-  return (
-    <div className={`flex items-center justify-between px-3 py-2 rounded-lg ${
-      highlight
-        ? 'bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800'
-        : 'bg-white dark:bg-slate-800'
-    }`}>
-      <div className="flex-1 min-w-0">
-        <span className="text-xs text-muted-foreground">{label}:</span>
-        <p className={`text-sm font-semibold truncate ${
-          highlight ? 'text-blue-700 dark:text-blue-300 font-mono' : 'text-foreground'
-        }`}>
-          {value}
-        </p>
-      </div>
-      {onCopy && (
-        <button
-          onClick={onCopy}
-          className={`ml-2 p-1.5 rounded-md transition-colors ${
-            copied
-              ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600'
-              : 'hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-600'
-          }`}
-          title={copied ? 'Đã copy!' : 'Click để copy'}
-        >
-          {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-        </button>
-      )}
     </div>
   );
 }

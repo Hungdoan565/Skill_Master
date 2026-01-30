@@ -19693,6 +19693,229 @@ app.use((err, _req, res, _next) => {
   });
 });
 
+// ============================================================
+// SYSTEM SETTINGS APIs
+// ============================================================
+
+/**
+ * GET /api/settings/bank-config
+ * Get bank configuration for payment (Admin view)
+ * Query: ?centerId=xxx (optional for SUPER_ADMIN)
+ * 🔒 ADMIN/MANAGER only
+ */
+app.get('/api/settings/bank-config',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { centerId } = req.query;
+      const { effectiveCenterId, error } = getEffectiveCenterId(req.user, centerId);
+      if (error) {
+        return res.status(403).json({ success: false, message: error });
+      }
+
+      // Try to get center-specific config first
+      let centerSetting = null;
+      if (effectiveCenterId) {
+        const { data } = await supabase
+          .from('system_settings')
+          .select('id, value, description, updated_at, updated_by')
+          .eq('key', 'bank_config')
+          .eq('center_id', effectiveCenterId)
+          .single();
+        centerSetting = data;
+      }
+
+      // Fallback to global config
+      const { data: globalSetting } = await supabase
+        .from('system_settings')
+        .select('id, value, description, updated_at, updated_by')
+        .eq('key', 'bank_config')
+        .is('center_id', null)
+        .single();
+
+      const setting = centerSetting || globalSetting;
+      
+      if (!setting) {
+        return res.json({
+          success: true,
+          data: null,
+          message: 'Chưa cấu hình ngân hàng thanh toán'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: {
+          ...setting.value,
+          scope: centerSetting ? 'center' : 'global',
+          settingId: setting.id,
+          updatedAt: setting.updated_at
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error fetching bank config:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * PUT /api/settings/bank-config
+ * Update bank configuration
+ * Body: { bankId, accountNo, accountName, template?, centerId? }
+ * 🔒 ADMIN/MANAGER only
+ */
+app.put('/api/settings/bank-config',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { bankId, accountNo, accountName, template = 'compact2', centerId } = req.body;
+
+      // Validate required fields
+      if (!bankId || !accountNo || !accountName) {
+        return res.status(400).json({
+          success: false,
+          message: 'Vui lòng điền đầy đủ thông tin ngân hàng (bankId, accountNo, accountName)'
+        });
+      }
+
+      // Permission check
+      const userRole = req.user.roleCode;
+      const userCenterId = req.user.centerId;
+
+      // CENTER_MANAGER can only update their own center's config
+      if (userRole === 'CENTER_MANAGER') {
+        if (centerId && centerId !== userCenterId) {
+          return res.status(403).json({
+            success: false,
+            message: 'Bạn chỉ có thể cập nhật cấu hình của trung tâm mình'
+          });
+        }
+        // Force centerId to be the manager's center (no global update allowed)
+        req.body.centerId = userCenterId;
+      }
+
+      const targetCenterId = req.body.centerId || null;
+      const configValue = { bankId, accountNo, accountName, template };
+
+      // Upsert: insert or update
+      const { data: existing } = await supabase
+        .from('system_settings')
+        .select('id')
+        .eq('key', 'bank_config')
+        .is('center_id', targetCenterId)
+        .single();
+
+      let result;
+      if (existing) {
+        // Update existing
+        const { data, error } = await supabase
+          .from('system_settings')
+          .update({
+            value: configValue,
+            updated_by: req.user.id,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existing.id)
+          .select()
+          .single();
+        
+        if (error) throw error;
+        result = data;
+      } else {
+        // Insert new
+        const { data, error } = await supabase
+          .from('system_settings')
+          .insert({
+            key: 'bank_config',
+            center_id: targetCenterId,
+            value: configValue,
+            description: 'Cấu hình ngân hàng nhận thanh toán VietQR',
+            updated_by: req.user.id
+          })
+          .select()
+          .single();
+        
+        if (error) throw error;
+        result = data;
+      }
+
+      console.log(`✅ Bank config updated by ${req.user.email} - scope: ${targetCenterId ? 'center' : 'global'}`);
+
+      res.json({
+        success: true,
+        message: 'Đã cập nhật cấu hình ngân hàng',
+        data: {
+          ...result.value,
+          scope: targetCenterId ? 'center' : 'global',
+          settingId: result.id
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error updating bank config:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/payment-config
+ * Public endpoint to get bank config for any authenticated user
+ * Used by BulkPaymentModal and other admin components
+ * 🔒 Any authenticated user
+ */
+app.get('/api/payment-config',
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      const userCenterId = req.user.centerId;
+
+      // Try center-specific config first
+      let centerSetting = null;
+      if (userCenterId) {
+        const { data } = await supabase
+          .from('system_settings')
+          .select('value')
+          .eq('key', 'bank_config')
+          .eq('center_id', userCenterId)
+          .single();
+        centerSetting = data;
+      }
+
+      // Fallback to global config
+      const { data: globalSetting } = await supabase
+        .from('system_settings')
+        .select('value')
+        .eq('key', 'bank_config')
+        .is('center_id', null)
+        .single();
+
+      const config = centerSetting?.value || globalSetting?.value || null;
+
+      if (!config) {
+        return res.status(404).json({
+          success: false,
+          message: 'Chưa cấu hình ngân hàng thanh toán'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: config
+      });
+    } catch (error) {
+      console.error('❌ Error fetching payment config:', error);
+      next(error);
+    }
+  }
+);
+
+// ============================================================
+// END SYSTEM SETTINGS APIs
+// ============================================================
+
 // Test endpoint không cần auth
 app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'Backend is running', time: new Date().toISOString() });

@@ -2,18 +2,20 @@
  * Invoice Constants
  * 
  * Tập trung tất cả các hằng số liên quan đến module Invoices.
- * Khi cần thay đổi (ví dụ: đổi ngân hàng), chỉ sửa ở đây.
  */
 
 // ============================================
-// BANK CONFIG - VietQR
+// BANK CONFIG - MOVED TO DATABASE
 // ============================================
-export const BANK_CONFIG = {
-  bankId: 'VCB',  // Vietcombank
-  accountNo: '1029849106',
-  accountName: 'DOAN VINH HUNG',
-  template: 'compact2'
-};
+// IMPORTANT: Bank configuration is now stored in system_settings table
+// and fetched via API endpoints:
+// - GET /api/payment-config (for any authenticated user)
+// - GET /api/settings/bank-config (for admin view)
+// - PUT /api/settings/bank-config (for admin update)
+// - GET /api/student/payment-config (for student self-payment)
+//
+// See: database/17_system_settings.sql for table schema
+// ============================================
 
 // ============================================
 // INVOICE STATUS OPTIONS

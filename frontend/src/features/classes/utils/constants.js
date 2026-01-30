@@ -5,13 +5,18 @@
 // API Base URL
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-// VietQR Bank Configuration
-export const BANK_CONFIG = {
-  bankId: 'VCB',              // Mã ngân hàng (MB, VCB, TCB, ACB, TPB...)
-  accountNo: '1029849106',   // Số tài khoản nhận tiền
-  accountName: 'SKILL MASTER EDU',  // Tên chủ tài khoản
-  template: 'compact2'       // Template QR: compact, compact2, qr_only, print
-};
+// ============================================
+// BANK CONFIG - MOVED TO DATABASE
+// ============================================
+// IMPORTANT: Bank configuration is now stored in system_settings table
+// and fetched via API endpoints:
+// - GET /api/payment-config (for any authenticated user)
+// - GET /api/settings/bank-config (for admin view)  
+// - PUT /api/settings/bank-config (for admin update)
+// - GET /api/student/payment-config (for student self-payment)
+//
+// See: database/17_system_settings.sql for table schema
+// ============================================
 
 // Day names mapping (2 = Monday, 8 = Sunday)
 export const DAY_NAMES = {
