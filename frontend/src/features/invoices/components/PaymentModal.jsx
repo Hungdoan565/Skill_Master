@@ -4,17 +4,24 @@
  * REDESIGNED: Drawer/Sheet that slides from right side.
  * Allows admin to see invoice table in background while processing payment.
  * 
+ * ADMIN CONTEXT ONLY:
+ * - This modal is for ADMIN to RECORD payments collected from students
+ * - Admin does NOT pay - admin COLLECTS payment
+ * - NO QR code shown (QR is for student/parent self-payment)
+ * - Admin can record payment method (cash/transfer) and reference number
+ * 
  * Features:
  * - Sheet/Drawer pattern (not modal)
- * - VietQR integration with large QR code
+ * - Payment method selection (cash/bank transfer)
+ * - Reference number field for bank transfers
  * - Auto-format currency input
  * - Dark mode compatible
  */
 
 import { useState, useEffect } from 'react';
 import {
-  Receipt, DollarSign, Banknote, QrCode,
-  Smartphone, Copy, Check, Loader2, CheckCircle2, Upload, X
+  Receipt, DollarSign, Banknote, CreditCard,
+  Loader2, CheckCircle2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,7 +33,6 @@ import {
   SheetBody,
   SheetFooter
 } from '@/components/ui/sheet';
-import { BANK_CONFIG } from '../utils/constants';
 import { formatCurrency, parseCurrency } from '../utils/formatters';
 import { cn } from '@/lib/utils';
 
@@ -39,9 +45,6 @@ export function PaymentModal({
   onFormChange,
   onSubmit
 }) {
-  const [copied, setCopied] = useState(false);
-  const [copiedField, setCopiedField] = useState(null);
-
   // Lock body scroll when open
   useEffect(() => {
     if (isOpen) {
@@ -57,7 +60,6 @@ export function PaymentModal({
   if (!isOpen || !invoice) return null;
 
   const remaining = (invoice.final_amount || 0) - (invoice.paid_amount || 0);
-  const parsedAmount = parseCurrency(formData.amount?.toString() || '0');
 
   // Quick amount buttons
   const quickAmounts = [
@@ -65,28 +67,6 @@ export function PaymentModal({
     { label: '1tr', value: 1000000 },
     { label: '2tr', value: 2000000 },
   ].filter(item => item.value <= remaining && item.value > 0);
-
-  const handleCopyField = (field, value) => {
-    navigator.clipboard.writeText(value);
-    setCopiedField(field);
-    setTimeout(() => setCopiedField(null), 2000);
-  };
-
-  const handleFileUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        onFormChange('bankProofUrl', reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  // Generate VietQR URL
-  const studentName = invoice.student?.full_name?.split(' ').pop() || '';
-  const transferContent = `HP ${studentName} ${invoice.invoice_code || ''}`;
-  const qrUrl = `https://img.vietqr.io/image/${BANK_CONFIG.bankId}-${BANK_CONFIG.accountNo}-${BANK_CONFIG.template}.png?amount=${parsedAmount}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(BANK_CONFIG.accountName)}`;
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !processing && !open && onClose()}>
@@ -178,7 +158,7 @@ export function PaymentModal({
                 onClick={() => onFormChange('method', 'cash')}
               />
               <PaymentMethodButton
-                icon={QrCode}
+                icon={CreditCard}
                 label="Chuyển khoản"
                 selected={formData.method === 'bank_transfer'}
                 onClick={() => onFormChange('method', 'bank_transfer')}
@@ -186,96 +166,55 @@ export function PaymentModal({
             </div>
           </div>
 
-          {/* VietQR Section - Only for Bank Transfer */}
-          {formData.method === 'bank_transfer' && parsedAmount > 0 && (
-            <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-xl border border-blue-200 dark:border-blue-800 space-y-4">
-
-              {/* QR Code - Large 280x280 */}
-              <div className="flex justify-center">
-                <div className="bg-white p-3 rounded-xl shadow-md">
-                  <img
-                    src={qrUrl}
-                    alt="VietQR Code"
-                    className="w-[280px] h-[280px] object-contain"
-                  />
-                </div>
+          {/* Bank Transfer Reference - Only for Bank Transfer */}
+          {formData.method === 'bank_transfer' && (
+            <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-800 space-y-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-blue-700 dark:text-blue-300">
+                <CreditCard className="w-4 h-4" />
+                Thông tin chuyển khoản
               </div>
-
-              <div className="flex items-center justify-center gap-1 text-sm">
-                <Smartphone className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span className="font-semibold text-blue-700 dark:text-blue-300">
-                  VietQR - Quét mã để thanh toán
-                </span>
-              </div>
-
-              {/* Bank Info */}
-              <div className="space-y-1.5">
-                <BankInfoRow
-                  label="Ngân hàng"
-                  value={BANK_CONFIG.bankId}
-                  onCopy={() => handleCopyField('bank', BANK_CONFIG.bankId)}
-                  copied={copiedField === 'bank'}
+              
+              {/* Reference Number */}
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">
+                  Mã giao dịch / Số tham chiếu
+                </label>
+                <input
+                  type="text"
+                  value={formData.referenceNumber || ''}
+                  onChange={(e) => onFormChange('referenceNumber', e.target.value)}
+                  placeholder="VD: FT24012345678..."
+                  className="
+                    w-full h-10 px-3 rounded-lg 
+                    bg-background border border-input text-sm font-mono
+                    focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
+                    placeholder:text-muted-foreground
+                  "
                 />
-                <BankInfoRow
-                  label="Số tài khoản"
-                  value={BANK_CONFIG.accountNo}
-                  onCopy={() => handleCopyField('stk', BANK_CONFIG.accountNo)}
-                  copied={copiedField === 'stk'}
-                />
-                <BankInfoRow
-                  label="Chủ tài khoản"
-                  value={BANK_CONFIG.accountName}
-                  onCopy={() => handleCopyField('name', BANK_CONFIG.accountName)}
-                  copied={copiedField === 'name'}
-                />
-                <BankInfoRow
-                  label="Nội dung CK"
-                  value={transferContent}
-                  onCopy={() => handleCopyField('content', transferContent)}
-                  copied={copiedField === 'content'}
-                  highlight
-                />
-              </div>
-
-              {/* Amount Display */}
-              <div className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900/40 rounded-lg text-center">
-                <p className="text-lg font-bold font-mono tabular-nums text-emerald-700 dark:text-emerald-300">
-                  {parsedAmount.toLocaleString('vi-VN')}đ
+                <p className="text-xs text-muted-foreground mt-1">
+                  Nhập mã giao dịch từ sao kê ngân hàng (không bắt buộc)
                 </p>
               </div>
 
-              {/* Upload Proof */}
-              <div className="pt-3 border-t border-blue-200 dark:border-blue-700">
-                <label className="block text-xs font-medium text-foreground mb-2">
-                  📤 Upload ảnh xác nhận chuyển khoản <span className="text-destructive">*</span>
+              {/* Transfer Date */}
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">
+                  Ngày chuyển khoản
                 </label>
+                <input
+                  type="date"
+                  value={formData.transferDate || new Date().toISOString().split('T')[0]}
+                  onChange={(e) => onFormChange('transferDate', e.target.value)}
+                  className="
+                    w-full h-10 px-3 rounded-lg 
+                    bg-background border border-input text-sm
+                    focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
+                  "
+                />
+              </div>
 
-                {formData.bankProofUrl ? (
-                  <div className="relative">
-                    <img
-                      src={formData.bankProofUrl}
-                      alt="Bank proof"
-                      className="w-full max-h-40 object-contain rounded-lg border"
-                    />
-                    <button
-                      onClick={() => onFormChange('bankProofUrl', null)}
-                      className="absolute top-2 right-2 p-1 bg-destructive text-destructive-foreground rounded-full hover:bg-destructive/90"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ) : (
-                  <label className="flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-blue-300 dark:border-blue-600 rounded-lg cursor-pointer bg-background hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors">
-                    <Upload className="w-5 h-5 text-blue-400 mb-1" />
-                    <p className="text-xs text-muted-foreground">Kéo thả hoặc click để chọn</p>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      onChange={handleFileUpload}
-                    />
-                  </label>
-                )}
+              <div className="text-xs text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/50 p-2 rounded-lg">
+                💡 Ghi chú: QR thanh toán chỉ hiển thị cho học viên/phụ huynh khi họ tự thanh toán online.
               </div>
             </div>
           )}
@@ -376,39 +315,6 @@ function PaymentMethodButton({ icon: Icon, label, selected, onClick }) {
       <Icon className="w-4 h-4" />
       <span className="font-medium">{label}</span>
     </button>
-  );
-}
-
-function BankInfoRow({ label, value, onCopy, copied, highlight = false }) {
-  return (
-    <div className={cn(
-      'flex items-center justify-between px-3 py-1.5 rounded-lg',
-      highlight
-        ? 'bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800'
-        : 'bg-background'
-    )}>
-      <div className="flex-1 min-w-0">
-        <span className="text-[11px] text-muted-foreground">{label}:</span>
-        <p className={cn(
-          'text-sm font-semibold truncate',
-          highlight ? 'text-blue-700 dark:text-blue-300 font-mono' : 'text-foreground'
-        )}>
-          {value}
-        </p>
-      </div>
-      <button
-        onClick={onCopy}
-        className={cn(
-          'ml-2 p-1.5 rounded-md transition-colors',
-          copied
-            ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600'
-            : 'hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-600'
-        )}
-        title={copied ? 'Đã copy!' : 'Click để copy'}
-      >
-        {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-      </button>
-    </div>
   );
 }
 
