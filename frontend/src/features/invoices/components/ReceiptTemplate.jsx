@@ -8,7 +8,7 @@
  * - Compact layout
  */
 
-import { BANK_CONFIG, PAYMENT_METHOD_LABELS } from '../utils/constants';
+import { PAYMENT_METHOD_LABELS } from '../utils/constants';
 import logoImage from '@/assets/logo.png';
 
 // ============================================
@@ -118,8 +118,8 @@ export function ReceiptTemplate({ invoice, payment }) {
                     />
                     <div>
                         <div style={{ fontWeight: 'bold', fontSize: '12pt' }}>Skill Master Academy</div>
-                        <div style={{ fontSize: '8pt', color: '#666' }}>
-                            📞 {BANK_CONFIG.hotline || '0909 123 456'} | 📧 contact@skillmaster.vn
+<div style={{ fontSize: '8pt', color: '#666' }}>
+                            📞 0909 123 456 | 📧 contact@skillmaster.vn
                         </div>
                     </div>
                 </div>
