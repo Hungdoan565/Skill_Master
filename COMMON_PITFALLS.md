@@ -372,4 +372,73 @@ toast.error(messages[error.status] || 'Có lỗi');
 
 ---
 
-*Total: 25 bug patterns | 11 phases | 50+ checklist items*
+## 🎭 ROLE-BASED UX INCONSISTENCIES
+
+> **Chi tiết xem:** [docs/ROLE_UX_ISSUES.md](./docs/ROLE_UX_ISSUES.md)
+
+### ROLE #1: QR Code Logic Mismatch
+```jsx
+// ❌ WRONG: Admin PaymentModal shows QR for admin to scan
+// Admin là người THU tiền, không phải người CHUYỂN tiền
+<VietQRSection qrUrl={...} /> // Trong PaymentModal.jsx
+
+// ✅ CORRECT: QR chỉ nên hiển thị cho Student/Parent
+// Student/Parent quét QR → Chuyển tiền → Upload proof
+// Admin chỉ cần form xác nhận đã thu tiền
+```
+**Locations:** `PaymentModal.jsx`, `BulkPaymentModal.jsx`
+
+### ROLE #2: Missing Parent Role
+```jsx
+// ❌ MISSING: Không có isParent() trong auth-context
+const isParent = () => profile?.roles?.code === 'PARENT';
+
+// ❌ MISSING: Không có ParentRoute
+export function ParentRoute({ children }) {
+  return <ProtectedRoute allowedRoles={['PARENT']}>{children}</ProtectedRoute>;
+}
+```
+**Impact:** 1/5 user groups chưa được implement
+
+### ROLE #3: Dashboard Not Role-Aware
+```jsx
+// ❌ PROBLEM: CENTER_MANAGER thấy UI giống SUPER_ADMIN
+{isSuperAdmin?.() && <CenterSelector />}
+
+// ✅ BETTER: Differentiate by role
+{isSuperAdmin?.() && <CenterSelector />}
+{isManager?.() && <SingleCenterHeader centerId={user.centerId} />}
+```
+
+### ROLE #4: Admin Can Access Teacher Pages
+```jsx
+// ⚠️ BY DESIGN but can cause confusion
+allowedRoles={['TEACHER', 'SUPER_ADMIN', 'CENTER_MANAGER']}
+// Admin vào trang teacher thấy UI design cho teacher workflow
+```
+
+### ROLE #5: Email-Based Role Detection (INSECURE)
+```jsx
+// ❌ DANGEROUS: Email không = database role
+const isAdminEmail = user?.email?.includes('admin');
+if (isAdminEmail && isAdminRoute) return children; // BYPASS!
+
+// ✅ ALWAYS use database role
+const isAdmin = profile?.roles?.code === 'SUPER_ADMIN';
+```
+
+---
+
+### ✅ ROLE-BASED CHECKLIST
+
+| Check | Question |
+|-------|----------|
+| [ ] | Component có check role trước khi render sensitive UI? |
+| [ ] | QR/Payment flow đúng logic thực tế? (ai trả tiền, ai thu tiền) |
+| [ ] | Dashboard hiển thị phù hợp với role? |
+| [ ] | Admin features không bị exposed cho non-admin? |
+| [ ] | Email-based detection đã được loại bỏ? |
+
+---
+
+*Total: 25 bug patterns | 11 phases | 5 role issues | 50+ checklist items*

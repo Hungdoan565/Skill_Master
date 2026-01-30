@@ -1,24 +1,28 @@
 /**
  * InvoiceFilters Component
- * 
+ *
  * Pure Component cho thanh lọc hóa đơn.
- * Bao gồm: Search, Status filter, Overdue filter, Date range, Clear button
- * 
- * @param {Object} filters - { search, status, dateStart, dateEnd, overdueOnly }
+ * Bao gồm: Search, Status filter, Overdue filter, Date range, Center filter (Super Admin), Invoice Type filter
+ *
+ * @param {Object} filters - { search, status, dateStart, dateEnd, overdueOnly, centerId, invoiceType }
  * @param {function} onFilterChange - Handler thay đổi filter
  * @param {function} onReset - Handler reset filters
  * @param {boolean} hasActiveFilters - Có filter đang active không
+ * @param {boolean} isSuperAdmin - User có phải Super Admin không
+ * @param {Array} centers - Danh sách centers (cho Super Admin)
  */
 
-import { Search, Calendar, X, AlertTriangle } from 'lucide-react';
+import { Search, Calendar, X, AlertTriangle, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { STATUS_OPTIONS } from '../utils/constants';
+import { STATUS_OPTIONS, INVOICE_TYPE_OPTIONS } from '../utils/constants';
 
 export function InvoiceFilters({
   filters,
   onFilterChange,
   onReset,
-  hasActiveFilters
+  hasActiveFilters,
+  isSuperAdmin = false,
+  centers = []
 }) {
   return (
     <div className="px-4 py-3 border-b border-border">
@@ -34,7 +38,7 @@ export function InvoiceFilters({
               value={filters.search}
               onChange={(e) => onFilterChange('search', e.target.value)}
               className="
-                w-full h-9 pl-9 pr-3 rounded-lg 
+                w-full h-9 pl-9 pr-3 rounded-lg
                 bg-muted/50 border border-border text-sm text-foreground
                 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
                 placeholder:text-muted-foreground
@@ -42,6 +46,30 @@ export function InvoiceFilters({
             />
           </div>
         </div>
+
+        {/* Center Filter - Only for Super Admin */}
+        {isSuperAdmin && centers.length > 0 && (
+          <div className="flex items-center gap-1.5">
+            <Building2 className="w-4 h-4 text-muted-foreground" />
+            <select
+              value={filters.centerId || ''}
+              onChange={(e) => onFilterChange('centerId', e.target.value)}
+              className="
+                h-9 px-3 rounded-lg text-sm
+                bg-muted/50 border border-border text-foreground
+                focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
+                cursor-pointer min-w-[160px]
+              "
+            >
+              <option value="">Tất cả trung tâm</option>
+              {centers.map(center => (
+                <option key={center.id} value={center.id}>
+                  {center.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Status Filter */}
         <select
@@ -61,11 +89,29 @@ export function InvoiceFilters({
           ))}
         </select>
 
+        {/* Invoice Type Filter */}
+        <select
+          value={filters.invoiceType || 'all'}
+          onChange={(e) => onFilterChange('invoiceType', e.target.value)}
+          className="
+            h-9 px-3 rounded-lg text-sm
+            bg-muted/50 border border-border text-foreground
+            focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
+            cursor-pointer
+          "
+        >
+          {INVOICE_TYPE_OPTIONS.map(option => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+
         {/* Overdue Filter */}
         <button
           onClick={() => onFilterChange('overdueOnly', !filters.overdueOnly)}
           className={`
-            h-9 px-3 rounded-lg border text-sm font-medium 
+            h-9 px-3 rounded-lg border text-sm font-medium
             flex items-center gap-1.5 transition-colors
             ${filters.overdueOnly
               ? 'bg-red-100 dark:bg-red-900/30 border-red-300 dark:border-red-800 text-red-700 dark:text-red-300'

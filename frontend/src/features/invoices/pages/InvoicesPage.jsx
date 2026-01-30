@@ -51,9 +51,12 @@ import { API_URL } from '../utils/constants';
 import { exportInvoicesToExcel } from '../utils/exportExcel';
 
 export function InvoicesPage() {
-  const { session } = useAuth();
+  const { session, isSuperAdmin } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  // Centers state for Super Admin filter
+  const [centers, setCenters] = useState([]);
 
   // ============================================
   // HOOKS - Data & Logic
@@ -117,6 +120,28 @@ export function InvoicesPage() {
   const closeToast = useCallback(() => {
     setToast({ show: false, message: '', type: 'success' });
   }, []);
+
+  // ============================================
+  // FETCH CENTERS FOR SUPER ADMIN
+  // ============================================
+  useEffect(() => {
+    if (isSuperAdmin()) {
+      const fetchCenters = async () => {
+        try {
+          const response = await fetch(`${API_URL}/api/centers`, {
+            headers: { Authorization: `Bearer ${session?.access_token}` }
+          });
+          const result = await response.json();
+          if (result.success) {
+            setCenters(result.data || []);
+          }
+        } catch (err) {
+          console.error('Error fetching centers:', err);
+        }
+      };
+      fetchCenters();
+    }
+  }, [isSuperAdmin, session?.access_token]);
 
   // ============================================
   // AUTO-OPEN CREATE MODAL FROM URL
@@ -391,6 +416,8 @@ export function InvoicesPage() {
               onFilterChange={handleFilterChange}
               onReset={resetFilters}
               hasActiveFilters={hasActiveFilters}
+              isSuperAdmin={isSuperAdmin()}
+              centers={centers}
             />
 
             {/* Data Table */}

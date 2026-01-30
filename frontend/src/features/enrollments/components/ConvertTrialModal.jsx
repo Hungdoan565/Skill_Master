@@ -1,14 +1,15 @@
 /**
  * ConvertTrialModal Component
- * 
+ *
  * Modal để chuyển đổi học thử thành đăng ký chính thức
  * ✅ Uses React Hook Form + Zod validation
+ * ✅ Auto-creates Invoice after conversion
  */
 
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2, ArrowUpRight, CreditCard } from 'lucide-react';
+import { Loader2, ArrowUpRight, CreditCard, Calendar, FileText, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,6 +35,13 @@ const formatCurrency = (amount) => {
   }).format(amount || 0);
 };
 
+// Get default due date (7 days from now)
+const getDefaultDueDate = () => {
+  const date = new Date();
+  date.setDate(date.getDate() + 7);
+  return date.toISOString().split('T')[0];
+};
+
 export function ConvertTrialModal({
   isOpen,
   onClose,
@@ -42,6 +50,7 @@ export function ConvertTrialModal({
 }) {
   const { convertTrialEnrollment } = useEnrollments();
   const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState(null); // Store conversion result
 
   const {
     register,
@@ -54,12 +63,15 @@ export function ConvertTrialModal({
     defaultValues: {
       tuition_fee: 0,
       discount_amount: 0,
+      due_date: getDefaultDueDate(),
+      create_invoice: true
     }
   });
 
   // Watch values for real-time calculation
   const tuitionFee = watch('tuition_fee') || 0;
   const discountAmount = watch('discount_amount') || 0;
+  const createInvoice = watch('create_invoice');
   const finalAmount = Math.max(0, tuitionFee - discountAmount);
 
   // Reset form when modal opens
@@ -68,7 +80,10 @@ export function ConvertTrialModal({
       reset({
         tuition_fee: enrollment.class?.course?.tuition_fee || 0,
         discount_amount: 0,
+        due_date: getDefaultDueDate(),
+        create_invoice: true
       });
+      setResult(null);
     }
   }, [isOpen, enrollment, reset]);
 
@@ -76,10 +91,16 @@ export function ConvertTrialModal({
   const onSubmit = async (data) => {
     try {
       setSubmitting(true);
-      const result = await convertTrialEnrollment(enrollment.id, data);
-      toast.success(result.message || 'Đã chuyển đổi thành công');
-      onSuccess?.();
-      handleClose();
+      const response = await convertTrialEnrollment(enrollment.id, data);
+
+      if (response.data?.invoice) {
+        setResult(response.data);
+        toast.success(response.message || 'Đã chuyển đổi và tạo hóa đơn thành công');
+      } else {
+        toast.success(response.message || 'Đã chuyển đổi thành công');
+        onSuccess?.();
+        handleClose();
+      }
     } catch (error) {
       toast.error(error.message || 'Có lỗi xảy ra');
     } finally {
@@ -90,10 +111,89 @@ export function ConvertTrialModal({
   // Handle close
   const handleClose = () => {
     reset();
+    setResult(null);
     onClose();
   };
 
+  // Handle done after viewing result
+  const handleDone = () => {
+    onSuccess?.();
+    handleClose();
+  };
+
   if (!enrollment) return null;
+
+  // Show success result with invoice info
+  if (result?.invoice) {
+    return (
+      <Dialog open={isOpen} onOpenChange={handleClose}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-green-600">
+              <CheckCircle className="h-5 w-5" />
+              Chuyển đổi thành công!
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Success Message */}
+            <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-center">
+              <p className="text-green-700 font-medium">
+                Đã chuyển đổi học thử thành đăng ký chính thức
+              </p>
+            </div>
+
+            {/* Invoice Info */}
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-3">
+              <div className="flex items-center gap-2 text-blue-700 font-medium">
+                <FileText className="h-4 w-4" />
+                Hóa đơn đã tạo
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Mã hóa đơn:</span>
+                  <span className="font-mono font-medium">{result.invoice.invoice_code}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Số tiền:</span>
+                  <span className="font-medium text-blue-600">{formatCurrency(result.invoice.final_amount)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Hạn thanh toán:</span>
+                  <span>{new Date(result.invoice.due_date).toLocaleDateString('vi-VN')}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600">Trạng thái:</span>
+                  <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                    Chưa thanh toán
+                  </Badge>
+                </div>
+              </div>
+            </div>
+
+            {/* Student & Class Info */}
+            <div className="p-3 bg-slate-50 rounded-lg space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-600">Học viên:</span>
+                <span className="font-medium">{enrollment.student_name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-600">Lớp:</span>
+                <span className="font-medium">{enrollment.class_name}</span>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button onClick={handleDone} className="w-full bg-green-500 hover:bg-green-600">
+              <CheckCircle className="mr-2 h-4 w-4" />
+              Hoàn tất
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -183,12 +283,44 @@ export function ConvertTrialModal({
             </div>
           </div>
 
+          {/* Invoice Options */}
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-3">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="create_invoice"
+                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                {...register('create_invoice')}
+              />
+              <Label htmlFor="create_invoice" className="text-sm font-medium text-blue-700 cursor-pointer">
+                Tự động tạo hóa đơn
+              </Label>
+            </div>
+
+            {createInvoice && (
+              <div className="space-y-2 pl-6">
+                <Label htmlFor="due_date" className="text-sm text-blue-600">
+                  Hạn thanh toán
+                </Label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    id="due_date"
+                    type="date"
+                    className="pl-10"
+                    {...register('due_date')}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
           <DialogFooter>
             <Button type="button" variant="outline" onClick={handleClose}>
               Hủy
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={submitting}
               className="bg-green-500 hover:bg-green-600"
             >
@@ -200,7 +332,7 @@ export function ConvertTrialModal({
               ) : (
                 <>
                   <ArrowUpRight className="mr-2 h-4 w-4" />
-                  Chuyển đổi
+                  Chuyển đổi {createInvoice && '& Tạo HĐ'}
                 </>
               )}
             </Button>

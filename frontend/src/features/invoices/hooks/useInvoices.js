@@ -32,7 +32,9 @@ export function useInvoices() {
     status: 'all',
     dateStart: '',
     dateEnd: '',
-    overdueOnly: false
+    overdueOnly: false,
+    centerId: '',
+    invoiceType: 'all'
   });
   
   // Debounced search (để không gọi API mỗi keystroke)
@@ -97,6 +99,12 @@ export function useInvoices() {
       if (filters.overdueOnly) {
         params.append('overdue', 'true');
       }
+      if (filters.centerId) {
+        params.append('centerId', filters.centerId);
+      }
+      if (filters.invoiceType && filters.invoiceType !== 'all') {
+        params.append('invoiceType', filters.invoiceType);
+      }
 
       const res = await fetch(`${API_URL}/api/invoices?${params}`, {
         headers: { 
@@ -128,12 +136,12 @@ export function useInvoices() {
     } finally {
       setLoading(false);
     }
-  }, [session?.access_token, pagination.page, pagination.limit, filters.status, debouncedSearch, filters.dateStart, filters.dateEnd, filters.overdueOnly]);
+  }, [session?.access_token, pagination.page, pagination.limit, filters.status, debouncedSearch, filters.dateStart, filters.dateEnd, filters.overdueOnly, filters.centerId, filters.invoiceType]);
 
   // ============================================
   // HANDLERS
   // ============================================
-  
+
   /**
    * Thay đổi trang
    */
@@ -163,7 +171,9 @@ export function useInvoices() {
       status: 'all',
       dateStart: '',
       dateEnd: '',
-      overdueOnly: false
+      overdueOnly: false,
+      centerId: '',
+      invoiceType: 'all'
     });
     setPagination(prev => ({ ...prev, page: 1 }));
   }, []);
@@ -184,7 +194,9 @@ export function useInvoices() {
       filters.dateStart !== '' ||
       filters.dateEnd !== '' ||
       filters.search !== '' ||
-      filters.overdueOnly === true
+      filters.overdueOnly === true ||
+      filters.centerId !== '' ||
+      filters.invoiceType !== 'all'
     );
   }, [filters]);
 

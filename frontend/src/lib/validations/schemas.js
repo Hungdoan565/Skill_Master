@@ -277,6 +277,13 @@ export const convertTrialSchema = z.object({
     .min(0, 'Giảm giá không được âm')
     .optional()
     .default(0),
+  due_date: z
+    .string()
+    .optional(),
+  create_invoice: z
+    .boolean()
+    .optional()
+    .default(true),
 });
 
 // ============================================

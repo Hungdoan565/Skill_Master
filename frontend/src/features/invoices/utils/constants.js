@@ -53,6 +53,26 @@ export const PAYMENT_METHOD_LABELS = {
 };
 
 // ============================================
+// INVOICE TYPES
+// ============================================
+export const INVOICE_TYPES = {
+  TUITION: 'tuition',
+  BOOK: 'book',
+  UNIFORM: 'uniform',
+  EXAM: 'exam',
+  OTHER: 'other'
+};
+
+export const INVOICE_TYPE_OPTIONS = [
+  { value: 'all', label: 'Tất cả loại' },
+  { value: 'tuition', label: 'Học phí' },
+  { value: 'book', label: 'Giáo trình/Sách' },
+  { value: 'uniform', label: 'Đồng phục' },
+  { value: 'exam', label: 'Phí thi' },
+  { value: 'other', label: 'Phí khác' }
+];
+
+// ============================================
 // PAGINATION DEFAULTS
 // ============================================
 export const DEFAULT_PAGE_SIZE = 10;

@@ -17,6 +17,20 @@ import {
   getEligibleStudentsForCertificates
 } from './services/certificateService.js';
 
+// Lazy import for enrollment notifications (requires Redis)
+let enrollmentNotifications = null;
+async function getEnrollmentNotifications() {
+  if (enrollmentNotifications === null) {
+    try {
+      enrollmentNotifications = await import('./jobs/enrollmentNotification.job.js');
+    } catch (err) {
+      console.warn('⚠️ Enrollment notifications not available (Redis may not be running):', err.message);
+      enrollmentNotifications = false;
+    }
+  }
+  return enrollmentNotifications || null;
+}
+
 dotenv.config();
 
 const app = express();
@@ -8412,7 +8426,7 @@ app.get('/api/dashboard/alerts', requireAuth, async (req, res, next) => {
 // ============================================================
 
 // GET /api/invoices - Danh sách hóa đơn (với filters, pagination)
-app.get('/api/invoices', requireAuth, async (req, res, next) => {
+app.get('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const {
       page = 1,
@@ -8422,6 +8436,7 @@ app.get('/api/invoices', requireAuth, async (req, res, next) => {
       startDate,
       endDate,
       centerId,
+      invoiceType,  // tuition | book | uniform | exam | other
       overdue,  // 'true' để lọc HD quá hạn
       sortBy = 'created_at',
       sortOrder = 'desc'
@@ -8459,6 +8474,7 @@ app.get('/api/invoices', requireAuth, async (req, res, next) => {
       .select(`
         id,
         invoice_code,
+        invoice_type,
         student_id,
         class_id,
         enrollment_id,
@@ -8493,6 +8509,11 @@ app.get('/api/invoices', requireAuth, async (req, res, next) => {
     // Filter by status
     if (status && status !== 'all') {
       query = query.eq('status', status);
+    }
+
+    // Filter by invoice type
+    if (invoiceType && invoiceType !== 'all') {
+      query = query.eq('invoice_type', invoiceType);
     }
 
     // Filter by date range
@@ -8586,7 +8607,7 @@ app.get('/api/invoices', requireAuth, async (req, res, next) => {
 });
 
 // GET /api/invoices/statistics - Thống kê hóa đơn
-app.get('/api/invoices/statistics', requireAuth, async (req, res, next) => {
+app.get('/api/invoices/statistics', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { centerId } = req.query;
 
@@ -8697,7 +8718,7 @@ app.get('/api/invoices/statistics', requireAuth, async (req, res, next) => {
 });
 
 // GET /api/invoices/:id - Chi tiết hóa đơn
-app.get('/api/invoices/:id', requireAuth, async (req, res, next) => {
+app.get('/api/invoices/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -8879,11 +8900,13 @@ app.post('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAG
 });
 
 // POST /api/invoices/:id/payments - Thêm thanh toán cho hóa đơn
-app.post('/api/invoices/:id/payments', requireAuth, async (req, res, next) => {
+app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'STUDENT']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { amount, payment_method = 'cash', reference_code, notes } = req.body;
     const userId = req.user?.id;
+    const userRole = req.user?.roleCode;
+    const userCenterId = req.user?.centerId;
 
     if (!amount || amount <= 0) {
       return res.status(400).json({
@@ -8895,7 +8918,16 @@ app.post('/api/invoices/:id/payments', requireAuth, async (req, res, next) => {
     // Kiểm tra invoice tồn tại - bao gồm invoice_code để auto-verify
     const { data: invoice, error: invoiceError } = await supabase
       .from('invoices')
-      .select('id, invoice_code, final_amount, paid_amount, status')
+      .select(`
+        id,
+        invoice_code,
+        final_amount,
+        paid_amount,
+        status,
+        student_id,
+        class:classes ( id, center_id ),
+        student:users!invoices_student_id_fkey ( id, center_id )
+      `)
       .eq('id', id)
       .single();
 
@@ -8921,6 +8953,47 @@ app.post('/api/invoices/:id/payments', requireAuth, async (req, res, next) => {
     }
 
     // ============================================
+    // PERMISSION CHECK
+    // ============================================
+    if (userRole === 'STUDENT') {
+      if (invoice.student_id !== userId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Báº¡n khÃ´ng cÃ³ quyá»n thanh toÃ¡n hÃ³a Ä‘Æ¡n nÃ y'
+        });
+      }
+
+      if (payment_method !== 'bank_transfer') {
+        return res.status(400).json({
+          success: false,
+          message: 'Há»c viÃªn chá»‰ cÃ³ thá»ƒ thanh toÃ¡n báº±ng chuyá»ƒn khoáº£n'
+        });
+      }
+
+      if (!req.body.bank_proof_url) {
+        return res.status(400).json({
+          success: false,
+          message: 'Vui lÃ²ng táº£i lÃªn áº£nh minh chá»©ng chuyá»ƒn khoáº£n'
+        });
+      }
+    } else if (userRole === 'CENTER_MANAGER') {
+      if (!userCenterId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Báº¡n chÆ°a Ä‘Æ°á»£c gÃ¡n vÃ o trung tÃ¢m nÃ o.'
+        });
+      }
+
+      const invoiceCenterId = invoice.class?.center_id || invoice.student?.center_id || null;
+      if (invoiceCenterId && invoiceCenterId !== userCenterId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Báº¡n khÃ´ng cÃ³ quyá»n thao tÃ¡c hÃ³a Ä‘Æ¡n cá»§a trung tÃ¢m khÃ¡c.'
+        });
+      }
+    }
+
+    // ============================================
     // AUTO-VERIFY LOGIC (Reconciliation Key)
     // ============================================
     // Bank transfer can be auto-verified if:
@@ -8936,7 +9009,12 @@ app.post('/api/invoices/:id/payments', requireAuth, async (req, res, next) => {
       verificationStatus = 'verified';
       autoVerified = true;
     } else if (payment_method === 'bank_transfer') {
-      // Bank transfer: check for reconciliation key match
+      if (userRole === 'STUDENT') {
+        // Student transfers must be verified by staff
+        verificationStatus = 'pending';
+        autoVerified = false;
+      } else {
+        // Bank transfer: check for reconciliation key match
       const transferContent = `${notes || ''} ${reference_code || ''}`.toUpperCase();
       const invoiceCode = (invoice.invoice_code || '').toUpperCase();
 
@@ -8967,6 +9045,7 @@ app.post('/api/invoices/:id/payments', requireAuth, async (req, res, next) => {
         verificationStatus = 'pending';
         console.log(`[PENDING] Invoice ${invoiceCode} - No match in: ${transferContent}`);
       }
+    }
     }
 
     // Insert payment
@@ -9024,7 +9103,7 @@ app.post('/api/invoices/:id/payments', requireAuth, async (req, res, next) => {
 });
 
 // GET /api/invoices/:id/payments - Lấy danh sách thanh toán của hóa đơn
-app.get('/api/invoices/:id/payments', requireAuth, async (req, res, next) => {
+app.get('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -16067,6 +16146,33 @@ app.post('/api/admin/enrollments', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
       });
     }
 
+    // Send welcome email notification (async, don't wait)
+    if (result.enrollment) {
+      try {
+        // Fetch full enrollment data for notification
+        const { data: enrollmentData } = await supabase
+          .from('enrollments')
+          .select(`
+            id,
+            student:users!student_id(id, full_name, email),
+            class:classes!class_id(id, name, course:courses(title))
+          `)
+          .eq('id', result.enrollment.id)
+          .single();
+
+        if (enrollmentData) {
+          const notifModule = await getEnrollmentNotifications();
+          if (notifModule) {
+            notifModule.sendEnrollmentWelcome(enrollmentData).catch(err => {
+              console.warn('⚠️ Failed to queue enrollment welcome notification:', err.message);
+            });
+          }
+        }
+      } catch (notifError) {
+        console.warn('⚠️ Error sending enrollment welcome notification:', notifError.message);
+      }
+    }
+
     res.status(201).json({
       success: true,
       data: result.enrollment,
@@ -16499,11 +16605,13 @@ app.post('/api/admin/enrollments/trial', requireAuth, requireRole(['SUPER_ADMIN'
 /**
  * PUT /api/admin/enrollments/:id/convert-trial
  * Convert trial enrollment to regular (paid) enrollment
+ * ✅ Auto-creates Invoice after conversion
  */
 app.put('/api/admin/enrollments/:id/convert-trial', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { tuition_fee, discount_amount = 0 } = req.body;
+    const { tuition_fee, discount_amount = 0, due_date, create_invoice = true } = req.body;
+    const userId = req.user?.id;
 
     if (!tuition_fee || tuition_fee <= 0) {
       return res.status(400).json({
@@ -16516,9 +16624,9 @@ app.put('/api/admin/enrollments/:id/convert-trial', requireAuth, requireRole(['S
     const { data: enrollment, error: checkError } = await supabase
       .from('enrollments')
       .select(`
-        id, enrollment_type, is_trial_converted, status,
-        student:users!student_id(id, full_name),
-        class:classes!class_id(id, name, code)
+        id, enrollment_type, is_trial_converted, status, student_id, class_id,
+        student:users!student_id(id, full_name, email),
+        class:classes!class_id(id, name, code, center_id)
       `)
       .eq('id', id)
       .single();
@@ -16562,10 +16670,63 @@ app.put('/api/admin/enrollments/:id/convert-trial', requireAuth, requireRole(['S
 
     console.log(`✅ Trial converted: ${enrollment.student?.full_name} -> ${enrollment.class?.name}`);
 
+    // Auto-create Invoice if requested
+    let invoice = null;
+    if (create_invoice) {
+      const finalAmount = tuition_fee - discount_amount;
+      const invoiceCode = `INV-${Date.now().toString(36).toUpperCase()}`;
+      const defaultDueDate = due_date || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 7 days from now
+
+      const { data: newInvoice, error: invoiceError } = await supabase
+        .from('invoices')
+        .insert({
+          invoice_code: invoiceCode,
+          invoice_type: 'tuition',
+          student_id: enrollment.student_id,
+          class_id: enrollment.class_id,
+          enrollment_id: id,
+          amount: tuition_fee,
+          discount_amount: discount_amount,
+          final_amount: finalAmount,
+          paid_amount: 0,
+          status: 'unpaid',
+          description: `Học phí - ${enrollment.class?.name || 'N/A'} - Chuyển đổi từ học thử`,
+          due_date: defaultDueDate,
+          created_by: userId
+        })
+        .select()
+        .single();
+
+      if (invoiceError) {
+        console.error('❌ Error creating invoice after trial conversion:', invoiceError);
+        // Don't fail the whole operation, just log the error
+      } else {
+        invoice = newInvoice;
+        console.log(`✅ Invoice created: ${invoiceCode} - ${finalAmount.toLocaleString('vi-VN')}đ`);
+      }
+    }
+
+    // Send email notification (async, don't wait)
+    try {
+      const notifModule = await getEnrollmentNotifications();
+      if (notifModule) {
+        notifModule.sendTrialConvertedNotification(enrollment, invoice).catch(err => {
+          console.warn('⚠️ Failed to queue trial converted notification:', err.message);
+        });
+      }
+    } catch (notifError) {
+      console.warn('⚠️ Error sending trial converted notification:', notifError.message);
+    }
+
     res.json({
       success: true,
-      message: `Đã chuyển đổi học thử thành đăng ký chính thức`,
-      data: result
+      message: invoice
+        ? `Đã chuyển đổi học thử và tạo hóa đơn ${invoice.invoice_code}`
+        : `Đã chuyển đổi học thử thành đăng ký chính thức`,
+      data: {
+        ...result,
+        invoice: invoice
+      }
     });
   } catch (error) {
     console.error('Error converting trial enrollment:', error);
@@ -19339,6 +19500,62 @@ app.get('/api/student/attendance',
 );
 
 /**
+ * GET /api/student/payment-config
+ * Get bank config for student payments (VietQR)
+ * 🔒 STUDENT only
+ */
+app.get('/api/student/payment-config',
+  requireAuth,
+  requireRole(['STUDENT']),
+  async (req, res, next) => {
+    try {
+      const { effectiveCenterId, error } = getEffectiveCenterId(req.user, null);
+      if (error) {
+        return res.status(403).json({ success: false, message: error });
+      }
+
+      let centerSetting = null;
+      if (effectiveCenterId) {
+        const { data } = await supabase
+          .from('system_settings')
+          .select('value')
+          .eq('key', 'bank_config')
+          .eq('center_id', effectiveCenterId)
+          .single();
+        centerSetting = data;
+      }
+
+      const { data: globalSetting } = await supabase
+        .from('system_settings')
+        .select('value')
+        .eq('key', 'bank_config')
+        .is('center_id', null)
+        .single();
+
+      const config = centerSetting?.value || globalSetting?.value || null;
+
+      if (!config) {
+        return res.status(404).json({
+          success: false,
+          message: 'ChÆ°a cáº¥u hÃ¬nh ngÃ¢n hÃ ng thanh toÃ¡n'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: {
+          ...config,
+          scope: centerSetting?.value ? 'center' : 'global'
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching payment config:', error);
+      next(error);
+    }
+  }
+);
+
+/**
  * GET /api/student/invoices
  * Get student invoices and payment history
  * Query: ?status=pending|paid|all
@@ -19363,9 +19580,19 @@ app.get('/api/student/invoices',
         .eq('student_id', studentId)
         .order('created_at', { ascending: false });
 
+      const today = new Date().toISOString().split('T')[0];
+
       if (status && status !== 'all') {
-        if (status === 'unpaid') {
-          query = query.in('status', ['pending', 'partial', 'overdue']);
+        if (status === 'pending') {
+          query = query
+            .in('status', ['unpaid', 'partial'])
+            .gte('due_date', today);
+        } else if (status === 'overdue') {
+          query = query
+            .in('status', ['unpaid', 'partial'])
+            .lt('due_date', today);
+        } else if (status === 'unpaid') {
+          query = query.in('status', ['unpaid', 'partial']);
         } else {
           query = query.eq('status', status);
         }
@@ -19378,6 +19605,12 @@ app.get('/api/student/invoices',
       const totalAmount = (invoices || []).reduce((sum, inv) => sum + (inv.final_amount || 0), 0);
       const totalPaid = (invoices || []).reduce((sum, inv) => sum + (inv.paid_amount || 0), 0);
       const totalRemaining = totalAmount - totalPaid;
+      const overdueCount = (invoices || []).filter(i =>
+        i.due_date &&
+        i.due_date < today &&
+        !['paid', 'cancelled', 'refunded'].includes(i.status)
+      ).length;
+      const unpaidCount = (invoices || []).filter(i => ['unpaid', 'partial'].includes(i.status)).length;
 
       console.log(`💰 Student invoices loaded: ${invoices?.length || 0} invoices`);
 
@@ -19390,7 +19623,11 @@ app.get('/api/student/invoices',
             totalAmount,
             totalPaid,
             totalRemaining,
-            unpaidCount: (invoices || []).filter(i => ['pending', 'partial', 'overdue'].includes(i.status)).length
+            unpaidCount,
+            // Alias fields for current UI
+            paidAmount: totalPaid,
+            unpaidAmount: totalRemaining,
+            overdueCount
           }
         }
       });
@@ -19462,6 +19699,54 @@ app.get('/api/health', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, async () => {
   console.log(`Backend running on port ${PORT}`);
+
+  // Start job scheduler (requires Redis)
+  try {
+    const { startJobScheduler } = await import('./jobs/index.js');
+    await startJobScheduler();
+    console.log('✅ Job scheduler started successfully');
+  } catch (err) {
+    console.warn('⚠️ Job scheduler not started (Redis may not be running):', err.message);
+  }
 });
+
+// Graceful shutdown handler
+let isShuttingDown = false;
+let shutdownTimeout = null;
+
+const gracefulShutdown = async (signal) => {
+  if (isShuttingDown) {
+    console.log(`Shutdown already in progress, ignoring ${signal}`);
+    return;
+  }
+  isShuttingDown = true;
+
+  console.log(`\n${signal} received. Starting graceful shutdown...`);
+
+  server.close(async () => {
+    console.log('HTTP server closed');
+
+    try {
+      const { stopJobScheduler } = await import('./jobs/index.js');
+      await stopJobScheduler();
+    } catch (err) {
+      console.warn('⚠️ Error stopping job scheduler:', err.message);
+    }
+
+    if (shutdownTimeout) {
+      clearTimeout(shutdownTimeout);
+    }
+    process.exit(0);
+  });
+
+  // Force exit after 10 seconds if graceful shutdown fails
+  shutdownTimeout = setTimeout(() => {
+    console.error('Forced shutdown after timeout');
+    process.exit(1);
+  }, 10000);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));

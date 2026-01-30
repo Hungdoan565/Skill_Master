@@ -10,6 +10,16 @@ import {
 } from 'react-router-dom';
 import { ChevronDown, LogOut, User, Settings, HelpCircle, LayoutDashboard } from 'lucide-react';
 import { AdminLayout } from '@/layouts/admin-layout';
+import { StudentLayout } from '@/layouts/student-layout';
+import {
+  StudentDashboard,
+  StudentSchedule,
+  StudentGrades,
+  StudentAttendance,
+  StudentTuition,
+  StudentPayment,
+  StudentCertificates
+} from '@/features/student-portal';
 import { ToastProvider } from '@/components/ui/toast';
 import { ErrorBoundary } from '@/components/errors/ErrorBoundary';
 // REFACTORED: Import từ feature modules thay vì file monolithic
@@ -475,18 +485,6 @@ const TeacherLayout = () => {
   );
 };
 
-const StudentLayout = () => (
-  <div style={{ padding: 16 }}>
-    <nav style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-      <Link to="schedule">Schedule</Link>
-      <Link to="results">Results</Link>
-      <Link to="tuition">Tuition</Link>
-      <Link to="materials">Materials</Link>
-    </nav>
-    <Outlet />
-  </div>
-);
-
 function App() {
   return (
     <ErrorBoundary>
@@ -602,10 +600,15 @@ function App() {
                 <StudentLayout />
               </ProtectedRoute>
             }>
-              <Route path="schedule" element={<PlaceholderPage title="Student • Schedule" />} />
-              <Route path="results" element={<PlaceholderPage title="Student • Results" />} />
-              <Route path="tuition" element={<PlaceholderPage title="Student • Tuition" />} />
-              <Route path="materials" element={<PlaceholderPage title="Student • Materials" />} />
+              <Route index element={<StudentDashboard />} />
+              <Route path="dashboard" element={<StudentDashboard />} />
+              <Route path="schedule" element={<StudentSchedule />} />
+              <Route path="grades" element={<StudentGrades />} />
+              <Route path="attendance" element={<StudentAttendance />} />
+              <Route path="tuition" element={<StudentTuition />} />
+              <Route path="payment" element={<StudentPayment />} />
+              <Route path="certificates" element={<StudentCertificates />} />
+              <Route path="support" element={<PlaceholderPage title="Học viên • Hỗ trợ" description="Liên hệ hỗ trợ" />} />
             </Route>
 
             <Route path="*" element={<PlaceholderPage title="404" description="Page not found" />} />

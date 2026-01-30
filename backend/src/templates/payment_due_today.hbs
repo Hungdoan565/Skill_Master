@@ -1,0 +1,109 @@
+{{!-- Payment Due Today: Invoice is due today --}}
+{{!-- Subject: Hóa đơn đến hạn thanh toán hôm nay --}}
+
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+  <tr>
+    <td>
+      <h2 style="margin: 0 0 20px; color: #1f2937; font-size: 22px; font-weight: 600;">
+        Xin chào {{studentName}}! 👋
+      </h2>
+      
+      <p style="margin: 0 0 20px; color: #4b5563; font-size: 15px; line-height: 1.7;">
+        {{centerName}} xin thông báo hóa đơn của bạn <strong>đến hạn thanh toán hôm nay</strong>.
+      </p>
+      
+      <!-- Urgent Notice -->
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #fef2f2; border: 2px solid #fecaca; border-radius: 8px; margin-bottom: 25px;">
+        <tr>
+          <td style="padding: 20px; text-align: center;">
+            <span style="font-size: 40px;">⚠️</span>
+            <h3 style="margin: 10px 0 5px; color: #dc2626; font-size: 18px; font-weight: 700;">
+              HÓA ĐƠN ĐẾN HẠN HÔM NAY
+            </h3>
+            <p style="margin: 0; color: #991b1b; font-size: 14px;">
+              Vui lòng thanh toán ngay để tránh phát sinh phí trễ hạn
+            </p>
+          </td>
+        </tr>
+      </table>
+      
+      <!-- Invoice Details Box -->
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; margin-bottom: 25px;">
+        <tr>
+          <td style="padding: 20px;">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+              <tr>
+                <td style="padding-bottom: 12px; border-bottom: 1px dashed #fdba74;">
+                  <span style="color: #9a3412; font-weight: 600; font-size: 14px;">📋 THÔNG TIN HÓA ĐƠN</span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding-top: 15px;">
+                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                    <tr>
+                      <td style="padding: 8px 0; color: #78350f; font-size: 14px;">Mã hóa đơn:</td>
+                      <td style="padding: 8px 0; color: #1f2937; font-size: 14px; font-weight: 600; text-align: right;">{{invoiceCode}}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 0; color: #78350f; font-size: 14px;">Nội dung:</td>
+                      <td style="padding: 8px 0; color: #1f2937; font-size: 14px; text-align: right;">{{description}}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 0; color: #78350f; font-size: 14px;">Số tiền cần thanh toán:</td>
+                      <td style="padding: 8px 0; color: #dc2626; font-size: 20px; font-weight: 700; text-align: right;">{{amount}} VNĐ</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 0; color: #78350f; font-size: 14px;">Hạn thanh toán:</td>
+                      <td style="padding: 8px 0; color: #dc2626; font-size: 14px; font-weight: 600; text-align: right;">{{dueDate}} (Hôm nay)</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+      
+      <!-- Payment Instructions -->
+      <h3 style="margin: 0 0 15px; color: #1f2937; font-size: 16px; font-weight: 600;">
+        💳 Hướng dẫn thanh toán
+      </h3>
+      
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f9fafb; border-radius: 8px; margin-bottom: 25px;">
+        <tr>
+          <td style="padding: 20px;">
+            <p style="margin: 0 0 10px; color: #4b5563; font-size: 14px; line-height: 1.7;">
+              <strong>Cách 1:</strong> Thanh toán trực tiếp tại trung tâm<br>
+              <strong>Cách 2:</strong> Chuyển khoản ngân hàng<br>
+              <strong>Cách 3:</strong> Thanh toán qua cổng thanh toán trực tuyến
+            </p>
+            <p style="margin: 15px 0 0; color: #6b7280; font-size: 13px; font-style: italic;">
+              * Nội dung chuyển khoản: <strong>{{invoiceCode}} - {{studentName}}</strong>
+            </p>
+          </td>
+        </tr>
+      </table>
+      
+      <!-- CTA Button -->
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+        <tr>
+          <td style="text-align: center; padding: 10px 0 20px;">
+            <a href="#" style="display: inline-block; background-color: #dc2626; color: #ffffff; padding: 14px 35px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
+              Thanh toán ngay
+            </a>
+          </td>
+        </tr>
+      </table>
+      
+      <p style="margin: 0; color: #6b7280; font-size: 14px; line-height: 1.7;">
+        Nếu bạn đã thanh toán, vui lòng bỏ qua email này. Nếu cần hỗ trợ, đừng ngần ngại liên hệ với chúng tôi.
+      </p>
+      
+      <p style="margin: 25px 0 0; color: #1f2937; font-size: 14px;">
+        Trân trọng,<br>
+        <strong style="color: #f97316;">{{centerName}}</strong>
+      </p>
+    </td>
+  </tr>
+</table>
+

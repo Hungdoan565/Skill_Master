@@ -1,0 +1,125 @@
+{{!-- Enrollment Welcome: Welcome email for new enrollment --}}
+{{!-- Subject: Chào mừng bạn đến với lớp học mới! --}}
+
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+  <tr>
+    <td>
+      <h2 style="margin: 0 0 20px; color: #1f2937; font-size: 22px; font-weight: 600;">
+        Xin chào {{studentName}}! 🎉
+      </h2>
+      
+      <p style="margin: 0 0 20px; color: #4b5563; font-size: 15px; line-height: 1.7;">
+        Chúc mừng bạn đã đăng ký thành công! {{centerName}} rất vui được chào đón bạn tham gia lớp học mới.
+      </p>
+      
+      <!-- Welcome Banner -->
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); border-radius: 8px; margin-bottom: 25px;">
+        <tr>
+          <td style="padding: 30px; text-align: center;">
+            <span style="font-size: 50px;">🎓</span>
+            <h3 style="margin: 10px 0 5px; color: #ffffff; font-size: 20px; font-weight: 700;">
+              CHÀO MỪNG BẠN ĐẾN VỚI SKILL MASTER!
+            </h3>
+            <p style="margin: 0; color: rgba(255,255,255,0.9); font-size: 14px;">
+              Hành trình học tập của bạn bắt đầu từ đây
+            </p>
+          </td>
+        </tr>
+      </table>
+      
+      <!-- Class Information Box -->
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; margin-bottom: 25px;">
+        <tr>
+          <td style="padding: 20px;">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+              <tr>
+                <td style="padding-bottom: 12px; border-bottom: 1px dashed #fdba74;">
+                  <span style="color: #9a3412; font-weight: 600; font-size: 14px;">📚 THÔNG TIN LỚP HỌC</span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding-top: 15px;">
+                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                    <tr>
+                      <td style="padding: 10px 0; color: #78350f; font-size: 14px; vertical-align: top; width: 40%;">Khóa học:</td>
+                      <td style="padding: 10px 0; color: #1f2937; font-size: 14px; font-weight: 600; text-align: right;">{{courseName}}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 10px 0; color: #78350f; font-size: 14px; vertical-align: top;">Lớp:</td>
+                      <td style="padding: 10px 0; color: #f97316; font-size: 16px; font-weight: 700; text-align: right;">{{className}}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 10px 0; color: #78350f; font-size: 14px; vertical-align: top;">Ngày khai giảng:</td>
+                      <td style="padding: 10px 0; color: #1f2937; font-size: 14px; font-weight: 600; text-align: right;">{{startDate}}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 10px 0; color: #78350f; font-size: 14px; vertical-align: top;">Lịch học:</td>
+                      <td style="padding: 10px 0; color: #1f2937; font-size: 14px; text-align: right;">{{schedule}}</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+      
+      <!-- Location Information -->
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; margin-bottom: 25px;">
+        <tr>
+          <td style="padding: 20px;">
+            <p style="margin: 0 0 10px; color: #065f46; font-weight: 600; font-size: 14px;">
+              📍 ĐỊA ĐIỂM HỌC
+            </p>
+            <p style="margin: 0 0 5px; color: #1f2937; font-size: 15px; font-weight: 600;">
+              {{centerName}}
+            </p>
+            <p style="margin: 0; color: #4b5563; font-size: 14px; line-height: 1.6;">
+              {{centerAddress}}
+            </p>
+          </td>
+        </tr>
+      </table>
+      
+      <!-- Preparation Tips -->
+      <h3 style="margin: 0 0 15px; color: #1f2937; font-size: 16px; font-weight: 600;">
+        📝 Chuẩn bị trước khi đến lớp
+      </h3>
+      
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f9fafb; border-radius: 8px; margin-bottom: 25px;">
+        <tr>
+          <td style="padding: 20px;">
+            <ul style="margin: 0; padding-left: 20px; color: #4b5563; font-size: 14px; line-height: 2;">
+              <li>Đến trước giờ học 10-15 phút để làm quen với môi trường</li>
+              <li>Mang theo vở ghi chép và dụng cụ học tập cần thiết</li>
+              <li>Chuẩn bị tinh thần tích cực và sẵn sàng học hỏi</li>
+              <li>Liên hệ trung tâm nếu có bất kỳ thắc mắc nào</li>
+            </ul>
+          </td>
+        </tr>
+      </table>
+      
+      <!-- Encouragement Message -->
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #fef3c7; border-left: 4px solid #f97316; border-radius: 0 8px 8px 0; margin-bottom: 25px;">
+        <tr>
+          <td style="padding: 15px 20px;">
+            <p style="margin: 0; color: #92400e; font-size: 14px; line-height: 1.6;">
+              💪 <strong>Chúng tôi tin tưởng vào bạn!</strong> Hành trình học tập có thể có những thử thách, nhưng với sự nỗ lực và kiên trì, bạn sẽ đạt được mục tiêu của mình. Đội ngũ giảng viên luôn sẵn sàng hỗ trợ bạn!
+            </p>
+          </td>
+        </tr>
+      </table>
+      
+      <p style="margin: 0; color: #6b7280; font-size: 14px; line-height: 1.7;">
+        Nếu bạn có bất kỳ câu hỏi nào, đừng ngần ngại liên hệ với chúng tôi. Chúng tôi luôn sẵn sàng hỗ trợ bạn!
+      </p>
+      
+      <p style="margin: 25px 0 0; color: #1f2937; font-size: 14px;">
+        Chúc bạn học tập vui vẻ và hiệu quả!<br><br>
+        Trân trọng,<br>
+        <strong style="color: #f97316;">{{centerName}}</strong>
+      </p>
+    </td>
+  </tr>
+</table>
+

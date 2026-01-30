@@ -20,6 +20,7 @@ import {
   Bell,
   TrendingUp,
   Headphones,
+  AlertTriangle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -52,6 +53,7 @@ const menuGroups = [
       { label: 'Học viên', icon: Users, path: '/admin/students' },
       { label: 'Ghi danh', icon: UserPlus, path: '/admin/enrollments' },
       { label: 'Hóa đơn', icon: Receipt, path: '/admin/invoices' },
+      { label: 'Công nợ quá hạn', icon: AlertTriangle, path: '/admin/invoices/overdue', variant: 'destructive' },
       { label: 'Chứng chỉ', icon: Award, path: '/admin/certificates' },
     ],
   },
