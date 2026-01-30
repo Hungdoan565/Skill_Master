@@ -84,8 +84,9 @@ export function AdminSidebar() {
   return (
     <aside className="flex h-screen w-72 flex-col bg-zinc-950 text-white">
       {/* Logo - Premium feel with glow effect */}
-      <Link
+<Link
         to="/"
+        aria-label="Về trang chủ Skill Master"
         className="relative flex h-20 items-center gap-3 px-5 transition-all group overflow-hidden"
       >
         {/* Subtle gradient glow on hover */}
@@ -137,7 +138,7 @@ export function AdminSidebar() {
                     to={isComingSoon ? '#' : item.path}
                     onClick={isComingSoon ? (e) => e.preventDefault() : undefined}
                     className={cn(
-                      'group/item flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                      'group/item flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-500/50',
                       isComingSoon
                         ? 'text-zinc-600 cursor-not-allowed opacity-60'
                         : isActive

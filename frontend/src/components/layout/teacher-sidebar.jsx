@@ -46,10 +46,11 @@ export function TeacherSidebar() {
   const location = useLocation();
 
   return (
-    <aside className="flex h-screen w-64 flex-col bg-zinc-950 text-white">
+    <aside className="flex h-screen w-72 flex-col bg-zinc-950 text-white">
       {/* Logo */}
       <Link
         to="/"
+        aria-label="Về trang chủ Skill Master"
         className="relative flex h-20 items-center gap-3 px-5 transition-all group overflow-hidden"
       >
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/0 via-blue-600/5 to-indigo-500/0 
@@ -102,7 +103,7 @@ export function TeacherSidebar() {
                     key={item.path}
                     to={item.path}
                     className={cn(
-                      'group/item flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                      'group/item flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50',
                       isActive
                         ? 'bg-gradient-to-r from-blue-600 to-indigo-500 text-white shadow-lg shadow-blue-600/25'
                         : 'text-zinc-400 hover:bg-zinc-800/80 hover:text-white'
