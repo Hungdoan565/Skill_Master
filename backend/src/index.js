@@ -7402,12 +7402,12 @@ app.get('/api/dashboard/revenue-chart', requireAuth, async (req, res, next) => {
     }
 
     // OPTIMIZED: Single query instead of 12 separate queries
+    // Note: Include all enrollments, handle NULL paid_amount in JS
     let query = supabase
       .from('enrollments')
-      .select('paid_amount, created_at, classes!inner(center_id)')
+      .select('paid_amount, tuition_fee, created_at, classes!inner(center_id)')
       .gte('created_at', `${queryStartDate}T00:00:00`)
-      .lte('created_at', `${queryEndDate}T23:59:59`)
-      .not('paid_amount', 'is', null);
+      .lte('created_at', `${queryEndDate}T23:59:59`);
 
     // Filter by center if specified
     if (effectiveCenterId) {
@@ -7462,6 +7462,8 @@ app.get('/api/dashboard/revenue-chart', requireAuth, async (req, res, next) => {
         revenue: m.revenue,
         formatted: formatCurrency(m.revenue)
       }));
+
+    console.log(`📊 Revenue chart: Found ${data?.length || 0} enrollments, Generated ${months.length} months of data`);
 
     res.json({
       success: true,
@@ -8181,8 +8183,8 @@ app.get('/api/dashboard/all', requireAuth, async (req, res, next) => {
       };
     });
 
-    // Today schedule (filter by center)
-    const todaySessions = filterByCenter(todaySessionsResult.data || [], item => item.classes?.center_id)
+    // Today schedule (already filtered by center at database level)
+    const todaySessions = (todaySessionsResult.data || [])
       .map(s => ({
         id: s.id,
         time: `${s.start_time?.slice(0, 5)} - ${s.end_time?.slice(0, 5)}`,
