@@ -266,19 +266,19 @@ export function StudentGrades() {
         <StatCard
           icon={Award}
           label="Điểm TB"
-          value={statistics.overallAverage?.toFixed(1) || 'N/A'}
+          value={statistics.overallAverage ?? 'N/A'}
           color="blue"
         />
         <StatCard
           icon={TrendingUp}
           label="Điểm cao nhất"
-          value={statistics.highestScore?.toFixed(1) || 'N/A'}
+          value={statistics.highestScore ?? 'N/A'}
           color="green"
         />
         <StatCard
           icon={TrendingDown}
           label="Điểm thấp nhất"
-          value={statistics.lowestScore?.toFixed(1) || 'N/A'}
+          value={statistics.lowestScore ?? 'N/A'}
           color="red"
         />
       </div>
