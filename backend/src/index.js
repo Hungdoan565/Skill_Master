@@ -19158,12 +19158,28 @@ app.get('/api/student/dashboard',
         .eq('status', 'active');
 
       // 2. Filter today's classes based on schedule
+      // Helper to parse schedule (may be JSON string or array)
+      const parseSchedule = (schedule) => {
+        if (!schedule) return [];
+        if (Array.isArray(schedule)) return schedule;
+        if (typeof schedule === 'string') {
+          try { return JSON.parse(schedule); } catch { return []; }
+        }
+        return [];
+      };
+      
       const todayClasses = (enrollments || [])
-        .filter(e => e.class?.schedule?.some(s => s.day === dayNumber))
-        .map(e => ({
-          ...e.class,
-          todaySchedule: e.class.schedule.find(s => s.day === dayNumber)
-        }))
+        .filter(e => {
+          const schedule = parseSchedule(e.class?.schedule);
+          return schedule.some(s => s.day === dayNumber);
+        })
+        .map(e => {
+          const schedule = parseSchedule(e.class?.schedule);
+          return {
+            ...e.class,
+            todaySchedule: schedule.find(s => s.day === dayNumber)
+          };
+        })
         .sort((a, b) => (a.todaySchedule?.start || '').localeCompare(b.todaySchedule?.start || ''));
 
       // 3. Get recent grades (last 5)
