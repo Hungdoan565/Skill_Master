@@ -112,7 +112,7 @@ function GradeItem({ grade }) {
       </div>
       <div className="text-right">
         <div className={cn('text-xl font-bold', scoreColor)}>
-          {score !== null && score !== undefined ? score.toFixed(1) : 'N/A'}
+          {score != null ? Number(score).toFixed(1) : 'N/A'}
         </div>
         {grade.notes && (
           <p className="text-xs text-muted-foreground max-w-[150px] truncate" title={grade.notes}>
@@ -142,7 +142,7 @@ function ClassGradeCard({ classSummary }) {
           </div>
           <div className="text-right">
             <div className={cn('text-2xl font-bold', avgColor)}>
-              {classSummary.avgScore !== null ? classSummary.avgScore.toFixed(1) : 'N/A'}
+              {classSummary.avgScore ?? 'N/A'}
             </div>
             <div className="text-sm text-muted-foreground">Điểm TB</div>
           </div>
