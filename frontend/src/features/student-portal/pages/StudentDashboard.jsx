@@ -182,7 +182,7 @@ export function StudentDashboard() {
         />
         <StatCard
           icon={CreditCard}
-          label="Công nợ"
+          label="Học phí còn lại"
           value={formatCurrency(stats.unpaidAmount)}
           color={stats.unpaidAmount > 0 ? 'red' : 'green'}
         />
@@ -242,7 +242,7 @@ export function StudentDashboard() {
                   Bạn có {unpaidInvoices.length} hóa đơn chưa thanh toán
                 </p>
                 <p className="text-sm text-amber-600 dark:text-amber-400">
-                  Tổng công nợ: {formatCurrency(stats.unpaidAmount)}
+                  Học phí còn lại: {formatCurrency(stats.unpaidAmount)}
                 </p>
               </div>
             </div>

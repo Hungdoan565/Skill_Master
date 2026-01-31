@@ -45,7 +45,7 @@ export function exportDashboardToCSV(data, dateRange = null) {
   csv += `Tổng doanh thu,${escapeCSVField(stats?.revenue?.formatted || '0đ')}\n`;
   csv += `Học viên ghi danh,${stats?.newStudents?.value || 0}\n`;
   csv += `Lớp hoạt động,${stats?.activeClasses?.value || 0}\n`;
-  csv += `Công nợ cần thu,${escapeCSVField(stats?.debt?.formatted || '0đ')}\n\n`;
+  csv += `Học phí chưa thu,${escapeCSVField(stats?.debt?.formatted || '0đ')}\n\n`;
 
   // Payment overview
   if (paymentOverview) {

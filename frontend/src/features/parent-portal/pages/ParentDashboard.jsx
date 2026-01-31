@@ -101,7 +101,7 @@ export function ParentDashboard() {
         />
         <StatCard
           icon={CreditCard}
-          label="Tổng công nợ"
+          label="Học phí còn lại"
           value={formatCurrency(stats.totalUnpaid || 0)}
           color={(stats.totalUnpaid || 0) > 0 ? 'red' : 'green'}
         />
