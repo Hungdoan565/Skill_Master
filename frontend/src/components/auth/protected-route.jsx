@@ -32,9 +32,10 @@ export function ProtectedRoute({
     );
   }
 
-  // 2. Chưa đăng nhập -> redirect về login
-  if (!user) {
-    console.log('[ProtectedRoute] No user, redirecting to login');
+  // 2. Chưa đăng nhập hoặc đang logout -> redirect về login
+  // FIXED: Check cả isAuthenticated để tránh race condition khi logout
+  if (!user || !isAuthenticated) {
+    console.log('[ProtectedRoute] No user or not authenticated, redirecting to login');
     const returnUrl = encodeURIComponent(location.pathname + location.search);
     return <Navigate to={`${redirectTo}?redirectTo=${returnUrl}`} replace />;
   }
