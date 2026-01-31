@@ -182,7 +182,7 @@ const ClassDetailModal = ({ isOpen, onClose, event }) => {
 };
 
 export function StudentSchedule() {
-  const [classFilter, setClassFilter] = useState('');
+  const [classFilter, setClassFilter] = useState('all');
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
 
@@ -195,11 +195,11 @@ export function StudentSchedule() {
     return monday;
   });
 
-  const { events, classes, loading, error, refresh } = useStudentSchedule(classFilter || null);
+  const { events, classes, loading, error, refresh } = useStudentSchedule(classFilter !== 'all' ? classFilter : null);
 
   const filteredEvents = useMemo(() => {
     if (!events) return [];
-    if (!classFilter) return events;
+    if (!classFilter || classFilter === 'all') return events;
     return events.filter(e => e.classId === classFilter);
   }, [events, classFilter]);
 
@@ -308,7 +308,7 @@ export function StudentSchedule() {
               <SelectValue placeholder="Tất cả lớp" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Tất cả lớp</SelectItem>
+              <SelectItem value="all">Tất cả lớp</SelectItem>
               {classes?.map(c => (
                 <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
               ))}

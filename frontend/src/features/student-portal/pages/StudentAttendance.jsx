@@ -125,7 +125,7 @@ function ClassSummaryCard({ summary }) {
           </div>
           <div className="text-right">
             <div className={cn('text-2xl font-bold', rateColor)}>
-              {summary.attendanceRate?.toFixed(0) || 0}%
+              {typeof summary.attendanceRate === 'number' ? summary.attendanceRate.toFixed(0) : (summary.attendanceRate || 0)}%
             </div>
             <div className="text-sm text-muted-foreground">Tỷ lệ</div>
           </div>
@@ -167,13 +167,13 @@ function EmptyState() {
 
 export function StudentAttendance() {
   const { records, classSummaries, statistics, loading, error, refresh } = useStudentAttendance();
-  const [classFilter, setClassFilter] = useState('');
+  const [classFilter, setClassFilter] = useState('all');
 
-  const filteredRecords = classFilter
+  const filteredRecords = classFilter && classFilter !== 'all'
     ? records.filter(r => r.class_id === classFilter)
     : records;
 
-  const filteredSummaries = classFilter
+  const filteredSummaries = classFilter && classFilter !== 'all'
     ? classSummaries.filter(cs => cs.classId === classFilter)
     : classSummaries;
 
@@ -228,7 +228,7 @@ export function StudentAttendance() {
               <SelectValue placeholder="Tất cả lớp" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Tất cả lớp</SelectItem>
+              <SelectItem value="all">Tất cả lớp</SelectItem>
               {uniqueClasses.map((cls) => (
                 <SelectItem key={cls.id} value={cls.id}>
                   {cls.name}
@@ -268,7 +268,7 @@ export function StudentAttendance() {
         <StatCard
           icon={Percent}
           label="Tỷ lệ chuyên cần"
-          value={`${stats.attendanceRate?.toFixed(0) || 0}%`}
+          value={`${typeof stats.attendanceRate === 'number' ? stats.attendanceRate.toFixed(0) : (stats.attendanceRate || 0)}%`}
           color="blue"
         />
       </div>
