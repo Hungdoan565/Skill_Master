@@ -8903,7 +8903,7 @@ app.post('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAG
 app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'STUDENT']), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { amount, payment_method = 'cash', reference_code, notes } = req.body;
+    const { amount, payment_method = 'cash', reference_code, notes, transfer_date } = req.body;
     const userId = req.user?.id;
     const userRole = req.user?.roleCode;
     const userCenterId = req.user?.centerId;
@@ -9048,21 +9048,28 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
     }
     }
 
-    // Insert payment
+    // Insert payment with audit trail fields
+    const paymentData = {
+      invoice_id: id,
+      amount: parseFloat(amount),
+      payment_method,
+      reference_code: reference_code || null,
+      notes: verificationNote ? `${notes || ''}\n[SYS] ${verificationNote}` : notes,
+      received_by: userId,
+      bank_proof_url: req.body.bank_proof_url || null,
+      verification_status: verificationStatus,
+      verified_by: autoVerified ? userId : null,
+      verified_at: autoVerified ? new Date().toISOString() : null
+    };
+
+    // Use transfer_date if provided (for bank transfers), otherwise use current timestamp
+    if (transfer_date && payment_method === 'bank_transfer') {
+      paymentData.payment_date = new Date(transfer_date).toISOString();
+    }
+
     const { data: payment, error: paymentError } = await supabase
       .from('payments')
-      .insert({
-        invoice_id: id,
-        amount: parseFloat(amount),
-        payment_method,
-        reference_code,
-        notes: verificationNote ? `${notes || ''}\n[SYS] ${verificationNote}` : notes,
-        received_by: userId,
-        bank_proof_url: req.body.bank_proof_url || null,
-        verification_status: verificationStatus,
-        verified_by: autoVerified ? userId : null,
-        verified_at: autoVerified ? new Date().toISOString() : null
-      })
+      .insert(paymentData)
       .select()
       .single();
 

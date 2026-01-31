@@ -28,7 +28,9 @@ export function usePayment({ onSuccess, onError }) {
     amount: '',
     method: 'cash',
     notes: '',
-    bankProofUrl: null // NEW: For bank transfer screenshot
+    bankProofUrl: null, // For bank transfer screenshot
+    referenceNumber: '', // Bank transaction reference code
+    transferDate: new Date().toISOString().split('T')[0] // Date of bank transfer
   });
 
   /**
@@ -42,7 +44,9 @@ export function usePayment({ onSuccess, onError }) {
       amount: remaining > 0 ? remaining.toString() : '',
       method: 'cash',
       notes: '',
-      bankProofUrl: null
+      bankProofUrl: null,
+      referenceNumber: '',
+      transferDate: new Date().toISOString().split('T')[0]
     });
     setIsOpen(true);
   }, []);
@@ -53,7 +57,14 @@ export function usePayment({ onSuccess, onError }) {
   const closePayment = useCallback(() => {
     setIsOpen(false);
     setSelectedInvoice(null);
-    setFormData({ amount: '', method: 'cash', notes: '', bankProofUrl: null });
+    setFormData({ 
+      amount: '', 
+      method: 'cash', 
+      notes: '', 
+      bankProofUrl: null,
+      referenceNumber: '',
+      transferDate: new Date().toISOString().split('T')[0]
+    });
   }, []);
 
   /**
@@ -107,27 +118,38 @@ export function usePayment({ onSuccess, onError }) {
       return { success: false, message: 'Số tiền vượt quá số nợ' };
     }
 
-    // Bank transfer requires proof
-    if (formData.method === 'bank_transfer' && !formData.bankProofUrl) {
-      onError?.('Vui lòng upload ảnh xác nhận chuyển khoản');
-      return { success: false, message: 'Thiếu ảnh xác nhận' };
-    }
+    // Bank transfer: proof is optional for admin (they just record, not pay)
+    // Removed: bank_proof_url requirement check for admin
+    // Students would use a different flow with proof upload
 
     setProcessing(true);
 
     try {
+      // Build payload with audit fields
+      const payload = {
+        amount,
+        payment_method: formData.method,
+        notes: formData.notes || undefined,
+        bank_proof_url: formData.bankProofUrl || undefined
+      };
+
+      // Include reference_code and transfer_date for bank transfers
+      if (formData.method === 'bank_transfer') {
+        if (formData.referenceNumber?.trim()) {
+          payload.reference_code = formData.referenceNumber.trim();
+        }
+        if (formData.transferDate) {
+          payload.transfer_date = formData.transferDate;
+        }
+      }
+
       const res = await fetch(`${API_URL}/api/invoices/${selectedInvoice.id}/payments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({
-          amount,
-          payment_method: formData.method,
-          notes: formData.notes,
-          bank_proof_url: formData.bankProofUrl
-        })
+        body: JSON.stringify(payload)
       });
 
       const result = await res.json();
