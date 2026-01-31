@@ -10,7 +10,7 @@ import Handlebars from 'handlebars';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { redisConnection, emailQueue, isRedisAvailable } from './scheduler.js';
+import { getRedisConnectionInstance, getEmailQueue, isRedisAvailable } from './scheduler.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -180,7 +180,7 @@ function getEmailWorker() {
     'email',
     processEmailJob,
     {
-      connection: redisConnection,
+      connection: getRedisConnectionInstance(),
       concurrency: 5
     }
   );
@@ -214,7 +214,12 @@ async function sendEmail(to, subject, template, data) {
     console.warn('⚠️ Redis not available. Email not queued:', to, subject);
     return null;
   }
-  const job = await emailQueue.add('send-email', { to, subject, template, data });
+  const queue = getEmailQueue();
+  if (!queue) {
+    console.warn('⚠️ Email queue not available:', to, subject);
+    return null;
+  }
+  const job = await queue.add('send-email', { to, subject, template, data });
   return job;
 }
 

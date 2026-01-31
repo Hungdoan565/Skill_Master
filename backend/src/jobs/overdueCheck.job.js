@@ -13,7 +13,7 @@
  */
 import { Worker } from 'bullmq';
 import { supabase } from '../lib/db.js';
-import { redisConnection, isRedisAvailable } from './scheduler.js';
+import { getRedisConnectionInstance, isRedisAvailable } from './scheduler.js';
 
 // Lazy-initialized worker
 let _overdueCheckWorker = null;
@@ -171,7 +171,7 @@ function getOverdueCheckWorker() {
       }
     },
     {
-      connection: redisConnection,
+      connection: getRedisConnectionInstance(),
       concurrency: 1
     }
   );

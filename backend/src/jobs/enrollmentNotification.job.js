@@ -10,7 +10,7 @@
  * NOTE: Requires Redis to be available for email queuing
  */
 import { supabase } from '../lib/db.js';
-import { emailQueue, isRedisAvailable } from './scheduler.js';
+import { getEmailQueue, isRedisAvailable } from './scheduler.js';
 
 export const ENROLLMENT_EVENTS = {
   CREATED: 'enrollment_created',
@@ -60,7 +60,13 @@ export async function queueEnrollmentNotification(eventType, data) {
     .replace('{className}', className || 'N/A')
     .replace('{courseName}', courseName || 'N/A');
 
-  const job = await emailQueue.add('send-enrollment-notification', {
+  const queue = getEmailQueue();
+  if (!queue) {
+    console.warn('⚠️ Email queue not available for enrollment notification');
+    return null;
+  }
+
+  const job = await queue.add('send-enrollment-notification', {
     to: studentEmail,
     subject,
     template: templateConfig.template,

@@ -14,7 +14,7 @@
  */
 import { Worker } from 'bullmq';
 import { supabase } from '../lib/db.js';
-import { emailQueue, redisConnection, isRedisAvailable } from './scheduler.js';
+import { getEmailQueue, getRedisConnectionInstance, isRedisAvailable } from './scheduler.js';
 
 // Lazy-initialized worker
 let _paymentReminderWorker = null;
@@ -84,7 +84,13 @@ async function queueEmailReminder(invoice, reminderType, student) {
     [REMINDER_TYPES.OVERDUE_7_DAYS]: `[Skill Master] THÔNG BÁO CUỐI - Hóa đơn ${invoice.invoice_code} quá hạn 7 ngày`
   };
 
-  await emailQueue.add('send-payment-reminder', {
+  const queue = getEmailQueue();
+  if (!queue) {
+    console.warn('⚠️ Email queue not available for payment reminder');
+    return;
+  }
+
+  await queue.add('send-payment-reminder', {
     to: student.email,
     subject: subjectMap[reminderType],
     template: templateMap[reminderType],
@@ -271,7 +277,7 @@ function getPaymentReminderWorker() {
       }
     },
     {
-      connection: redisConnection,
+      connection: getRedisConnectionInstance(),
       concurrency: 1
     }
   );

@@ -18,51 +18,61 @@ const REDIS_PASSWORD = process.env.REDIS_PASSWORD || undefined;
 // Track Redis availability
 let redisAvailable = false;
 let redisErrorLogged = false;
+let redisConnection = null;
 
-// Create Redis connection with lazy connect
-const redisConnection = new IORedis({
-  host: REDIS_HOST,
-  port: REDIS_PORT,
-  password: REDIS_PASSWORD,
-  maxRetriesPerRequest: null,
-  enableReadyCheck: false,
-  lazyConnect: true, // Don't connect immediately
-  retryStrategy: (times) => {
-    // Only retry 3 times, then give up
-    if (times > 3) {
-      if (!redisErrorLogged) {
-        console.warn('⚠️ Redis not available. Job scheduler disabled. Backend will continue without background jobs.');
-        redisErrorLogged = true;
-      }
-      return null; // Stop retrying
-    }
-    return Math.min(times * 200, 1000); // Retry with backoff
-  }
-});
-
-redisConnection.on('connect', () => {
-  redisAvailable = true;
-  redisErrorLogged = false;
-  console.log('📡 Redis connected for job scheduler');
-});
-
-redisConnection.on('error', (err) => {
-  redisAvailable = false;
-  // Only log error once to avoid spam
-  if (!redisErrorLogged) {
-    console.warn('⚠️ Redis connection error:', err.message);
-    console.warn('   Job scheduler will be disabled. Backend continues normally.');
-    redisErrorLogged = true;
-  }
-});
-
-redisConnection.on('close', () => {
-  redisAvailable = false;
-});
+// Lazy-initialized queues
+let _paymentReminderQueue = null;
+let _overdueCheckQueue = null;
+let _emailQueue = null;
 
 // Helper to check if Redis is available
 export function isRedisAvailable() {
   return redisAvailable;
+}
+
+// Create Redis connection lazily
+function getRedisConnection() {
+  if (redisConnection) return redisConnection;
+
+  redisConnection = new IORedis({
+    host: REDIS_HOST,
+    port: REDIS_PORT,
+    password: REDIS_PASSWORD,
+    maxRetriesPerRequest: null,
+    enableReadyCheck: false,
+    lazyConnect: true,
+    retryStrategy: (times) => {
+      if (times > 3) {
+        if (!redisErrorLogged) {
+          console.warn('⚠️ Redis not available. Job scheduler disabled. Backend will continue without background jobs.');
+          redisErrorLogged = true;
+        }
+        return null;
+      }
+      return Math.min(times * 200, 1000);
+    }
+  });
+
+  redisConnection.on('connect', () => {
+    redisAvailable = true;
+    redisErrorLogged = false;
+    console.log('📡 Redis connected for job scheduler');
+  });
+
+  redisConnection.on('error', (err) => {
+    redisAvailable = false;
+    if (!redisErrorLogged) {
+      console.warn('⚠️ Redis connection error:', err.message);
+      console.warn('   Job scheduler will be disabled. Backend continues normally.');
+      redisErrorLogged = true;
+    }
+  });
+
+  redisConnection.on('close', () => {
+    redisAvailable = false;
+  });
+
+  return redisConnection;
 }
 
 // Try to connect to Redis (non-blocking)
@@ -70,7 +80,8 @@ export async function tryConnectRedis() {
   if (redisAvailable) return true;
 
   try {
-    await redisConnection.connect();
+    const conn = getRedisConnection();
+    await conn.connect();
     return true;
   } catch (err) {
     // Error already logged by event handler
@@ -78,54 +89,70 @@ export async function tryConnectRedis() {
   }
 }
 
-export const paymentReminderQueue = new Queue('payment-reminder', {
-  connection: redisConnection,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: 'exponential',
-      delay: 1000
-    },
-    removeOnComplete: 100,
-    removeOnFail: 50
-  }
-});
+// Lazy queue getters - only create when Redis is available
+function getQueue(name, queueRef, setQueue) {
+  if (queueRef) return queueRef;
+  if (!redisAvailable) return null;
 
-export const overdueCheckQueue = new Queue('overdue-check', {
-  connection: redisConnection,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: 'exponential',
-      delay: 1000
-    },
-    removeOnComplete: 100,
-    removeOnFail: 50
-  }
-});
+  const queue = new Queue(name, {
+    connection: getRedisConnection(),
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: {
+        type: 'exponential',
+        delay: name === 'email' ? 2000 : 1000
+      },
+      removeOnComplete: 100,
+      removeOnFail: 50
+    }
+  });
 
-export const emailQueue = new Queue('email', {
-  connection: redisConnection,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: 'exponential',
-      delay: 2000
-    },
-    removeOnComplete: 100,
-    removeOnFail: 50
+  return queue;
+}
+
+// Queue getters
+export function getPaymentReminderQueue() {
+  if (!_paymentReminderQueue && redisAvailable) {
+    _paymentReminderQueue = getQueue('payment-reminder', _paymentReminderQueue);
   }
-});
+  return _paymentReminderQueue;
+}
+
+export function getOverdueCheckQueue() {
+  if (!_overdueCheckQueue && redisAvailable) {
+    _overdueCheckQueue = getQueue('overdue-check', _overdueCheckQueue);
+  }
+  return _overdueCheckQueue;
+}
+
+export function getEmailQueue() {
+  if (!_emailQueue && redisAvailable) {
+    _emailQueue = getQueue('email', _emailQueue);
+  }
+  return _emailQueue;
+}
+
+// Legacy exports for backward compatibility (will be null until Redis connects)
+export { redisConnection };
+export const paymentReminderQueue = null; // Use getPaymentReminderQueue() instead
+export const overdueCheckQueue = null;    // Use getOverdueCheckQueue() instead
+export const emailQueue = null;           // Use getEmailQueue() instead
 
 export async function scheduleRecurringJobs() {
-  // Check Redis availability first
   if (!redisAvailable) {
     console.warn('⚠️ Redis not available. Skipping job scheduling.');
     return { success: false, error: 'Redis not available' };
   }
 
   try {
-    await paymentReminderQueue.upsertJobScheduler(
+    const reminderQueue = getPaymentReminderQueue();
+    const overdueQueue = getOverdueCheckQueue();
+
+    if (!reminderQueue || !overdueQueue) {
+      return { success: false, error: 'Queues not available' };
+    }
+
+    await reminderQueue.upsertJobScheduler(
       'daily-payment-reminder',
       { pattern: '0 9 * * *' },
       {
@@ -135,7 +162,7 @@ export async function scheduleRecurringJobs() {
     );
     console.log('✅ Payment reminder job scheduled: Daily at 9:00 AM');
 
-    await overdueCheckQueue.upsertJobScheduler(
+    await overdueQueue.upsertJobScheduler(
       'daily-overdue-check',
       { pattern: '0 10 * * *' },
       {
@@ -153,11 +180,12 @@ export async function scheduleRecurringJobs() {
 }
 
 export async function triggerPaymentReminder() {
-  if (!redisAvailable) {
+  const queue = getPaymentReminderQueue();
+  if (!queue) {
     console.warn('⚠️ Redis not available. Cannot trigger payment reminder.');
     return null;
   }
-  const job = await paymentReminderQueue.add('manual-payment-reminder', {
+  const job = await queue.add('manual-payment-reminder', {
     triggeredAt: new Date().toISOString(),
     manual: true
   });
@@ -165,11 +193,12 @@ export async function triggerPaymentReminder() {
 }
 
 export async function triggerOverdueCheck() {
-  if (!redisAvailable) {
+  const queue = getOverdueCheckQueue();
+  if (!queue) {
     console.warn('⚠️ Redis not available. Cannot trigger overdue check.');
     return null;
   }
-  const job = await overdueCheckQueue.add('manual-overdue-check', {
+  const job = await queue.add('manual-overdue-check', {
     triggeredAt: new Date().toISOString(),
     manual: true
   });
@@ -187,10 +216,24 @@ export async function getQueueStats() {
     };
   }
 
+  const reminderQueue = getPaymentReminderQueue();
+  const overdueQueue = getOverdueCheckQueue();
+  const mailQueue = getEmailQueue();
+
+  if (!reminderQueue || !overdueQueue || !mailQueue) {
+    return {
+      available: false,
+      message: 'Queues not initialized',
+      paymentReminder: null,
+      overdueCheck: null,
+      email: null
+    };
+  }
+
   const [reminderStats, overdueStats, emailStats] = await Promise.all([
-    paymentReminderQueue.getJobCounts(),
-    overdueCheckQueue.getJobCounts(),
-    emailQueue.getJobCounts()
+    reminderQueue.getJobCounts(),
+    overdueQueue.getJobCounts(),
+    mailQueue.getJobCounts()
   ]);
 
   return {
@@ -201,5 +244,7 @@ export async function getQueueStats() {
   };
 }
 
-export { redisConnection };
-
+// Export getter for redis connection
+export function getRedisConnectionInstance() {
+  return redisConnection;
+}

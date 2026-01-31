@@ -3,10 +3,10 @@
  * Central export for all background jobs
  */
 export {
-  redisConnection,
-  paymentReminderQueue,
-  overdueCheckQueue,
-  emailQueue,
+  getPaymentReminderQueue,
+  getOverdueCheckQueue,
+  getEmailQueue,
+  getRedisConnectionInstance,
   scheduleRecurringJobs,
   triggerPaymentReminder,
   triggerOverdueCheck,
@@ -26,7 +26,7 @@ export {
   sendEnrollmentCancelledNotification
 } from './enrollmentNotification.job.js';
 
-import { scheduleRecurringJobs, redisConnection, tryConnectRedis, isRedisAvailable } from './scheduler.js';
+import { scheduleRecurringJobs, getRedisConnectionInstance, tryConnectRedis, isRedisAvailable } from './scheduler.js';
 
 let workersStarted = false;
 
@@ -103,8 +103,9 @@ export async function stopJobScheduler() {
     ]);
 
     // Close Redis connection
-    if (redisConnection && redisConnection.status === 'ready') {
-      await redisConnection.quit();
+    const conn = getRedisConnectionInstance();
+    if (conn && conn.status === 'ready') {
+      await conn.quit();
       console.log('   Redis connection closed');
     }
 
@@ -113,4 +114,3 @@ export async function stopJobScheduler() {
     console.error('❌ Error stopping job scheduler:', error.message);
   }
 }
-
