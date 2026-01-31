@@ -19479,6 +19479,8 @@ app.get('/api/student/attendance',
       const studentId = req.user.id;
       const { classId, startDate, endDate } = req.query;
 
+      // attendance table uses enrollment_id, not student_id directly
+      // Schema: attendance.enrollment_id -> enrollments.id, enrollments.student_id -> users
       let query = supabase
         .from('attendance')
         .select(`
@@ -19486,18 +19488,24 @@ app.get('/api/student/attendance',
           session:sessions(
             id, session_date, start_time, end_time,
             class:classes(id, name, code, course:courses(id, title))
+          ),
+          enrollment:enrollments!inner(
+            id, student_id,
+            class:classes(id, name, code)
           )
         `)
-        .eq('student_id', studentId)
+        .eq('enrollment.student_id', studentId)
         .order('created_at', { ascending: false });
 
       const { data: attendance, error } = await query;
       if (error) throw error;
 
-      // Filter by class if specified
+      // Filter by class if specified (use enrollment's class_id or session's class_id)
       let filtered = attendance || [];
       if (classId) {
-        filtered = filtered.filter(a => a.session?.class?.id === classId);
+        filtered = filtered.filter(a => 
+          a.session?.class?.id === classId || a.enrollment?.class?.id === classId
+        );
       }
 
       // Filter by date range
@@ -19515,17 +19523,19 @@ app.get('/api/student/attendance',
       const late = filtered.filter(a => a.status === 'late').length;
       const excused = filtered.filter(a => a.status === 'excused').length;
 
-      // Group by class for per-class stats
+      // Group by class for per-class stats (use session's class OR enrollment's class as fallback)
       const classAttendance = {};
       for (const record of filtered) {
-        const cid = record.session?.class?.id;
+        const cid = record.session?.class?.id || record.enrollment?.class?.id;
+        const cname = record.session?.class?.name || record.enrollment?.class?.name;
+        const ccode = record.session?.class?.code || record.enrollment?.class?.code;
         if (!cid) continue;
 
         if (!classAttendance[cid]) {
           classAttendance[cid] = {
             classId: cid,
-            className: record.session.class.name,
-            classCode: record.session.class.code,
+            className: cname,
+            classCode: ccode,
             total: 0,
             present: 0,
             absent: 0,
@@ -19539,7 +19549,27 @@ app.get('/api/student/attendance',
 
       const classSummaries = Object.values(classAttendance).map(ca => ({
         ...ca,
+        presentCount: ca.present,
+        absentCount: ca.absent,
+        lateCount: ca.late,
+        excusedCount: ca.excused,
+        totalSessions: ca.total,
         attendanceRate: ca.total > 0 ? Math.round(((ca.present + ca.late) / ca.total) * 100) : 0
+      }));
+
+      // Transform records for frontend (add class_id and class_name at top level)
+      const transformedRecords = filtered.map(r => ({
+        id: r.id,
+        status: r.status,
+        notes: r.notes,
+        check_in_time: r.check_in_time,
+        created_at: r.created_at,
+        session_date: r.session?.session_date,
+        class_id: r.session?.class?.id || r.enrollment?.class?.id,
+        class_name: r.session?.class?.name || r.enrollment?.class?.name,
+        class_code: r.session?.class?.code || r.enrollment?.class?.code,
+        course_title: r.session?.class?.course?.title,
+        session: r.session
       }));
 
       console.log(`📋 Student attendance loaded: ${filtered.length} records`);
@@ -19547,14 +19577,14 @@ app.get('/api/student/attendance',
       res.json({
         success: true,
         data: {
-          records: filtered,
+          records: transformedRecords,
           classSummaries,
           statistics: {
-            total,
-            present,
-            absent,
-            late,
-            excused,
+            totalSessions: total,
+            presentCount: present,
+            absentCount: absent,
+            lateCount: late,
+            excusedCount: excused,
             attendanceRate: total > 0 ? Math.round(((present + late) / total) * 100) : 0
           }
         }
