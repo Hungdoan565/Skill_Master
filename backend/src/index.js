@@ -8978,9 +8978,39 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
       if (invoice.student_id !== userId) {
         return res.status(403).json({
           success: false,
-          message: 'Báº¡n khÃ´ng cÃ³ quyá»n thanh toÃ¡n hÃ³a Ä‘Æ¡n nÃ y'
+          message: 'Bạn không có quyền thanh toán hóa đơn này'
         });
       }
+
+      if (payment_method !== 'bank_transfer') {
+        return res.status(400).json({
+          success: false,
+          message: 'Học viên chỉ có thể thanh toán bằng chuyển khoản'
+        });
+      }
+
+      if (!req.body.bank_proof_url) {
+        return res.status(400).json({
+          success: false,
+          message: 'Vui lòng tải lên ảnh minh chứng chuyển khoản'
+        });
+      }
+    } else if (userRole === 'CENTER_MANAGER') {
+      if (!userCenterId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn chưa được gán vào trung tâm nào.'
+        });
+      }
+
+      const invoiceCenterId = invoice.class?.center_id || invoice.student?.center_id || null;
+      if (invoiceCenterId && invoiceCenterId !== userCenterId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn không có quyền thao tác hóa đơn của trung tâm khác.'
+        });
+      }
+    }
 
       if (payment_method !== 'bank_transfer') {
         return res.status(400).json({
