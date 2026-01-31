@@ -183,9 +183,9 @@ export function StudentGrades() {
     refresh
   } = useStudentGrades();
 
-  const [classFilter, setClassFilter] = useState('');
+  const [classFilter, setClassFilter] = useState('all');
 
-  const filteredSummaries = classFilter
+  const filteredSummaries = classFilter && classFilter !== 'all'
     ? classSummaries.filter(cs => cs.classId === classFilter)
     : classSummaries;
 
@@ -238,7 +238,7 @@ export function StudentGrades() {
               <SelectValue placeholder="Tất cả lớp" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Tất cả lớp</SelectItem>
+              <SelectItem value="all">Tất cả lớp</SelectItem>
               {uniqueClasses.map((cls) => (
                 <SelectItem key={cls.id} value={cls.id}>
                   {cls.name}
