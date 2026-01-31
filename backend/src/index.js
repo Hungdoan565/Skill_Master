@@ -19622,12 +19622,24 @@ app.get('/api/student/payment-config',
         centerSetting = data;
       }
 
-      const { data: globalSetting } = await supabase
+      // Try to get global setting (center_id IS NULL)
+      const { data: globalSetting, error: globalError } = await supabase
         .from('system_settings')
         .select('value')
         .eq('key', 'bank_config')
         .is('center_id', null)
-        .single();
+        .maybeSingle();
+
+      if (globalError) {
+        console.error('Error fetching global bank_config:', globalError);
+      }
+
+      // Debug log
+      console.log('📦 Payment config lookup:', {
+        effectiveCenterId,
+        centerSetting: centerSetting?.value ? 'found' : 'not found',
+        globalSetting: globalSetting?.value ? 'found' : 'not found'
+      });
 
       const config = centerSetting?.value || globalSetting?.value || null;
 
