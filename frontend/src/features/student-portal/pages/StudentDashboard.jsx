@@ -177,7 +177,7 @@ export function StudentDashboard() {
         <StatCard
           icon={Award}
           label="Điểm trung bình"
-          value={stats.avgGrade?.toFixed(1) || 'N/A'}
+          value={stats.avgGrade ?? 'N/A'}
           color="blue"
         />
         <StatCard
