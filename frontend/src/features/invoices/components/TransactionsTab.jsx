@@ -119,7 +119,7 @@ export function TransactionsTab({
                             size="sm"
                             onClick={handleBulkVerify}
                             disabled={bulkLoading}
-                            className="bg-emerald-600 hover:bg-emerald-700"
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white"
                         >
                             {bulkLoading ? (
                                 <Loader2 className="w-4 h-4 mr-1 animate-spin" />
