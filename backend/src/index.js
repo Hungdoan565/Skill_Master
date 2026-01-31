@@ -19634,7 +19634,7 @@ app.get('/api/student/payment-config',
       if (!config) {
         return res.status(404).json({
           success: false,
-          message: 'ChÆ°a cáº¥u hÃ¬nh ngÃ¢n hÃ ng thanh toÃ¡n'
+          message: 'Chưa cấu hình thông tin ngân hàng thanh toán'
         });
       }
 

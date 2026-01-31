@@ -1,5 +1,5 @@
 /**
- * StudentPayment Page - Trang thanh toan va QR cho hoc vien/phu huynh
+ * StudentPayment Page - Trang thanh toán và QR cho học viên/phụ huynh
  */
 
 import { useMemo, useEffect, useState } from 'react';
@@ -13,7 +13,9 @@ import {
   Upload,
   X,
   Receipt,
-  ArrowRight
+  ArrowRight,
+  CheckCircle2,
+  Wallet
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,9 +49,16 @@ const getRemaining = (invoice) => {
   return Math.max(total - paid, 0);
 };
 
-const getTransferContent = (invoice) => {
-  if (!invoice) return '';
-  return invoice.invoice_code ? `HP ${invoice.invoice_code}` : `HP ${invoice.id?.slice(0, 6) || ''}`;
+// Generate transfer content for multiple invoices
+const getTransferContent = (invoices) => {
+  if (!invoices || invoices.length === 0) return '';
+  if (invoices.length === 1) {
+    const inv = invoices[0];
+    return inv.invoice_code ? `HP ${inv.invoice_code}` : `HP ${inv.id?.slice(0, 6) || ''}`;
+  }
+  // Multiple invoices: HP INV1 INV2 INV3
+  const codes = invoices.map(inv => inv.invoice_code || inv.id?.slice(0, 6)).join(' ');
+  return `HP ${codes}`;
 };
 
 export function StudentPayment() {
@@ -60,8 +69,8 @@ export function StudentPayment() {
   const [searchParams] = useSearchParams();
 
   const [selectedIds, setSelectedIds] = useState([]);
-  const [activeId, setActiveId] = useState(null);
-  const [amountInput, setAmountInput] = useState('');
+  const [paymentMode, setPaymentMode] = useState('combined'); // 'combined' or 'individual'
+  const [customAmount, setCustomAmount] = useState('');
   const [notes, setNotes] = useState('');
   const [bankProofUrl, setBankProofUrl] = useState(null);
   const [copiedField, setCopiedField] = useState(null);
@@ -77,51 +86,67 @@ export function StudentPayment() {
     [unpaidInvoices, selectedIds]
   );
 
-  const activeInvoice = useMemo(() => {
-    if (!selectedInvoices.length) return null;
-    return selectedInvoices.find(inv => inv.id === activeId) || selectedInvoices[0];
-  }, [selectedInvoices, activeId]);
-
   const totalSelectedAmount = useMemo(
     () => selectedInvoices.reduce((sum, inv) => sum + getRemaining(inv), 0),
     [selectedInvoices]
   );
 
-  useEffect(() => {
-    if (activeInvoice) {
-      setAmountInput(getRemaining(activeInvoice).toString());
-      setBankProofUrl(null);
-      setNotes('');
-    }
-  }, [activeInvoice?.id]);
+  // Payment amount (custom or total)
+  const paymentAmount = useMemo(() => {
+    const custom = parseCurrency(customAmount);
+    return custom > 0 ? custom : totalSelectedAmount;
+  }, [customAmount, totalSelectedAmount]);
 
+  // Transfer content for QR
+  const transferContent = useMemo(
+    () => getTransferContent(selectedInvoices),
+    [selectedInvoices]
+  );
+
+  // QR URL generation
+  const qrUrl = useMemo(() => {
+    if (!selectedInvoices.length || !config?.bankId || !config?.accountNo || paymentAmount <= 0) {
+      return '';
+    }
+    return `https://img.vietqr.io/image/${config.bankId}-${config.accountNo}-${config.template || 'compact2'}.png?amount=${paymentAmount}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(config.accountName || '')}`;
+  }, [selectedInvoices.length, config, paymentAmount, transferContent]);
+
+  // Preselect from URL
   useEffect(() => {
     const preselectId = searchParams.get('invoice_id');
     if (!preselectId || selectedIds.length > 0) return;
     const exists = unpaidInvoices.find(inv => inv.id === preselectId);
     if (exists) {
       setSelectedIds([preselectId]);
-      setActiveId(preselectId);
     }
   }, [searchParams, unpaidInvoices, selectedIds.length]);
+
+  // Reset custom amount when selection changes
+  useEffect(() => {
+    setCustomAmount('');
+    setBankProofUrl(null);
+  }, [selectedIds.length]);
 
   const toggleSelect = (invoice) => {
     setSelectedIds(prev => {
       const exists = prev.includes(invoice.id);
-      const next = exists ? prev.filter(id => id !== invoice.id) : [...prev, invoice.id];
-      if (!exists) {
-        setActiveId(invoice.id);
-      } else if (activeId === invoice.id) {
-        setActiveId(next[0] || null);
-      }
-      return next;
+      return exists ? prev.filter(id => id !== invoice.id) : [...prev, invoice.id];
     });
+  };
+
+  const selectAll = () => {
+    setSelectedIds(unpaidInvoices.map(inv => inv.id));
+  };
+
+  const clearSelection = () => {
+    setSelectedIds([]);
   };
 
   const handleCopy = (field, value) => {
     if (!value) return;
     navigator.clipboard.writeText(value);
     setCopiedField(field);
+    toast.success('Đã sao chép vào clipboard');
     setTimeout(() => setCopiedField(null), 2000);
   };
 
@@ -136,68 +161,65 @@ export function StudentPayment() {
   };
 
   const handleSubmit = async () => {
-    if (!activeInvoice) return;
-    const amount = parseCurrency(amountInput);
-    const remaining = getRemaining(activeInvoice);
-    if (!amount || amount <= 0) {
-      toast.error('Vui long nhap so tien thanh toan');
+    if (!selectedInvoices.length) return;
+    
+    if (paymentAmount <= 0) {
+      toast.error('Vui lòng nhập số tiền thanh toán hợp lệ');
       return;
     }
-    if (amount > remaining) {
-      toast.error(`So tien vuot qua so no (${formatMoney(remaining)})`);
+    if (paymentAmount > totalSelectedAmount) {
+      toast.error(`Số tiền vượt quá tổng nợ (${formatMoney(totalSelectedAmount)})`);
       return;
     }
     if (!bankProofUrl) {
-      toast.error('Vui long tai len anh minh chung chuyen khoan');
+      toast.error('Vui lòng tải lên ảnh minh chứng chuyển khoản');
       return;
     }
 
     setSubmitting(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/invoices/${activeInvoice.id}/payments`, {
+      // For combined payment, we distribute proportionally or pay first invoice first
+      const firstInvoice = selectedInvoices[0];
+      
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/invoices/${firstInvoice.id}/payments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session?.access_token}`
         },
         body: JSON.stringify({
-          amount,
+          amount: paymentAmount,
           payment_method: 'bank_transfer',
-          notes: notes ? `${getTransferContent(activeInvoice)}\n${notes}` : getTransferContent(activeInvoice),
-          bank_proof_url: bankProofUrl
+          notes: notes ? `${transferContent}\n${notes}` : transferContent,
+          bank_proof_url: bankProofUrl,
+          // Include all invoice IDs for batch processing
+          invoice_ids: selectedInvoices.map(inv => inv.id)
         })
       });
       const result = await res.json();
       if (result.success) {
-        toast.success('Da gui xac nhan chuyen khoan. Trung tam se xac minh som.');
+        toast.success('Đã gửi xác nhận chuyển khoản. Trung tâm sẽ xác minh sớm.');
         refresh();
         setSelectedIds([]);
-        setActiveId(null);
-        setAmountInput('');
+        setCustomAmount('');
         setNotes('');
         setBankProofUrl(null);
       } else {
-        toast.error(result.message || 'Co loi xay ra khi gui thanh toan');
+        toast.error(result.message || 'Có lỗi xảy ra khi gửi thanh toán');
       }
     } catch (err) {
-      toast.error('Khong the gui thanh toan luc nay');
+      toast.error('Không thể gửi thanh toán lúc này');
     } finally {
       setSubmitting(false);
     }
   };
-
-  const parsedAmount = parseCurrency(amountInput);
-  const transferContent = activeInvoice ? getTransferContent(activeInvoice) : '';
-  const qrUrl = activeInvoice && config?.bankId && config?.accountNo
-    ? `https://img.vietqr.io/image/${config.bankId}-${config.accountNo}-${config.template || 'compact2'}.png?amount=${parsedAmount}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(config.accountName || '')}`
-    : '';
 
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
-          <p className="mt-4 text-muted-foreground">Dang tai hoa don...</p>
+          <p className="mt-4 text-muted-foreground">Đang tải hóa đơn...</p>
         </div>
       </div>
     );
@@ -208,21 +230,21 @@ export function StudentPayment() {
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center p-6 bg-destructive/10 rounded-xl max-w-md">
           <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-destructive mb-2">Da co loi xay ra</h2>
+          <h2 className="text-lg font-semibold text-destructive mb-2">Đã có lỗi xảy ra</h2>
           <p className="text-destructive/80 mb-4">{error}</p>
-          <Button onClick={refresh}>Thu lai</Button>
+          <Button onClick={refresh}>Thử lại</Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold">Thanh toan hoc phi</h1>
+        <h1 className="text-2xl font-bold">Thanh toán học phí</h1>
         <p className="text-muted-foreground">
-          Chon hoa don, quet QR va gui minh chung chuyen khoan.
+          Chọn hóa đơn, quét mã QR và gửi minh chứng chuyển khoản.
         </p>
       </div>
 
@@ -230,10 +252,24 @@ export function StudentPayment() {
         {/* Invoice List */}
         <Card className="lg:col-span-3">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Receipt className="h-5 w-5" />
-              Hoa don chua thanh toan
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Receipt className="h-5 w-5" />
+                Hóa đơn chưa thanh toán
+              </CardTitle>
+              {unpaidInvoices.length > 0 && (
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={selectAll}>
+                    Chọn tất cả
+                  </Button>
+                  {selectedIds.length > 0 && (
+                    <Button variant="ghost" size="sm" onClick={clearSelection}>
+                      Bỏ chọn
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {unpaidInvoices.length > 0 ? (
@@ -241,41 +277,48 @@ export function StudentPayment() {
                 {unpaidInvoices.map((invoice) => {
                   const remaining = getRemaining(invoice);
                   const isOverdue = invoice.due_date && invoice.due_date < new Date().toISOString().split('T')[0];
+                  const isSelected = selectedIds.includes(invoice.id);
                   return (
                     <div
                       key={invoice.id}
                       className={cn(
-                        'flex items-center gap-3 p-4 rounded-lg border transition-colors cursor-pointer',
-                        selectedIds.includes(invoice.id) ? 'border-emerald-500 bg-emerald-50/40' : 'hover:bg-muted/50'
+                        'flex items-center gap-3 p-4 rounded-lg border transition-all cursor-pointer',
+                        isSelected 
+                          ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/20 shadow-sm' 
+                          : 'hover:bg-muted/50 hover:border-muted-foreground/20'
                       )}
                       onClick={() => toggleSelect(invoice)}
                     >
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(invoice.id)}
-                        onChange={() => toggleSelect(invoice)}
-                        className="h-4 w-4 rounded border-muted-foreground"
-                      />
+                      <div className={cn(
+                        'flex items-center justify-center w-5 h-5 rounded border-2 transition-colors',
+                        isSelected 
+                          ? 'bg-emerald-500 border-emerald-500' 
+                          : 'border-muted-foreground/30'
+                      )}>
+                        {isSelected && <Check className="h-3 w-3 text-white" />}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="font-medium truncate">{invoice.invoice_code || `HD-${invoice.id.slice(0, 6)}`}</p>
                           <Badge variant="secondary" className={cn(
-                            isOverdue ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                            isOverdue 
+                              ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' 
+                              : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                           )}>
-                            {isOverdue ? 'Qua han' : 'Cho thanh toan'}
+                            {isOverdue ? 'Quá hạn' : 'Chờ thanh toán'}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground truncate">
-                          {invoice.description || invoice.class?.name || 'Hoc phi'}
+                          {invoice.description || invoice.class?.name || 'Học phí'}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Han thanh toan: {formatDate(invoice.due_date)}
+                          Hạn thanh toán: {formatDate(invoice.due_date)}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-semibold text-emerald-700">{formatMoney(remaining)}</p>
+                        <p className="font-semibold text-emerald-700 dark:text-emerald-400">{formatMoney(remaining)}</p>
                         {invoice.paid_amount > 0 && (
-                          <p className="text-xs text-muted-foreground">Da dong: {formatMoney(invoice.paid_amount)}</p>
+                          <p className="text-xs text-muted-foreground">Đã đóng: {formatMoney(invoice.paid_amount)}</p>
                         )}
                       </div>
                     </div>
@@ -284,98 +327,102 @@ export function StudentPayment() {
               </div>
             ) : (
               <div className="text-center py-12 text-muted-foreground">
-                <Receipt className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                <p>Hien tai khong co hoa don can thanh toan</p>
+                <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-emerald-500" />
+                <p className="font-medium">Không có hóa đơn cần thanh toán</p>
+                <p className="text-sm mt-1">Bạn đã thanh toán đầy đủ học phí</p>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Checkout */}
+        {/* Payment Panel */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Summary Card */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <CreditCard className="h-5 w-5" />
-                Gio thanh toan
+                <Wallet className="h-5 w-5" />
+                Giỏ thanh toán
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">So hoa don da chon</span>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Số hóa đơn đã chọn</span>
                 <span className="font-semibold">{selectedInvoices.length}</span>
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Tong so tien</span>
-                <span className="font-semibold text-emerald-700">{formatMoney(totalSelectedAmount)}</span>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Tổng số tiền</span>
+                <span className="font-bold text-lg text-emerald-600 dark:text-emerald-400">
+                  {formatMoney(totalSelectedAmount)}
+                </span>
               </div>
+              
               {selectedInvoices.length > 0 && (
                 <div className="space-y-2 pt-3 border-t">
+                  <p className="text-sm font-medium text-muted-foreground">Hóa đơn đã chọn:</p>
                   {selectedInvoices.map(inv => (
-                    <button
+                    <div
                       key={inv.id}
-                      onClick={() => setActiveId(inv.id)}
-                      className={cn(
-                        'w-full flex items-center justify-between px-3 py-2 rounded-lg text-left text-sm transition-colors',
-                        activeInvoice?.id === inv.id ? 'bg-emerald-100 text-emerald-800' : 'bg-muted/50 hover:bg-muted'
-                      )}
+                      className="flex items-center justify-between px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-sm"
                     >
-                      <span className="truncate">{inv.invoice_code || inv.id.slice(0, 6)}</span>
-                      <ArrowRight className="h-4 w-4" />
-                    </button>
+                      <span className="truncate font-medium">{inv.invoice_code || inv.id.slice(0, 6)}</span>
+                      <span className="text-emerald-700 dark:text-emerald-400">{formatMoney(getRemaining(inv))}</span>
+                    </div>
                   ))}
                 </div>
               )}
-              <div className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
-                Moi hoa don can chuyen khoan rieng. Noi dung chuyen khoan phai chua ma hoa don.
-              </div>
+
+              {selectedInvoices.length > 1 && (
+                <div className="text-xs text-muted-foreground bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <strong>Thanh toán gộp:</strong> Quét 1 mã QR để thanh toán tất cả hóa đơn đã chọn.
+                </div>
+              )}
             </CardContent>
           </Card>
 
+          {/* QR Payment Card */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <QrCode className="h-5 w-5" />
-                Thanh toan bang QR
+                Thanh toán bằng QR
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {!activeInvoice && (
-                <div className="text-sm text-muted-foreground">
-                  Vui long chon mot hoa don de tao QR thanh toan.
+              {!selectedInvoices.length && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <QrCode className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                  <p>Vui lòng chọn hóa đơn để tạo mã QR thanh toán</p>
                 </div>
               )}
 
-              {activeInvoice && (
+              {selectedInvoices.length > 0 && (
                 <>
-                  <div className="space-y-1">
-                    <p className="text-sm text-muted-foreground">Hoa don</p>
-                    <p className="font-semibold">{activeInvoice.invoice_code || activeInvoice.id.slice(0, 6)}</p>
-                    <p className="text-sm text-muted-foreground">{activeInvoice.description || activeInvoice.class?.name}</p>
-                  </div>
-
+                  {/* Amount Input */}
                   <div>
-                    <label className="text-sm font-medium">So tien can thanh toan</label>
+                    <label className="text-sm font-medium">Số tiền thanh toán</label>
                     <div className="mt-1">
                       <Input
-                        value={formatCurrency(amountInput)}
-                        onChange={(e) => setAmountInput(e.target.value)}
-                        placeholder="Nhap so tien..."
+                        value={customAmount ? formatCurrency(customAmount) : formatMoney(totalSelectedAmount)}
+                        onChange={(e) => setCustomAmount(e.target.value)}
+                        placeholder="Nhập số tiền..."
+                        className="text-right font-semibold"
                       />
                       <div className="flex gap-2 mt-2">
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
-                          onClick={() => setAmountInput(getRemaining(activeInvoice).toString())}
+                          onClick={() => setCustomAmount('')}
+                          className={!customAmount ? 'ring-2 ring-emerald-500' : ''}
                         >
-                          Dong du
+                          Đóng đủ
                         </Button>
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
-                          onClick={() => setAmountInput(Math.round(getRemaining(activeInvoice) / 2).toString())}
+                          onClick={() => setCustomAmount(Math.round(totalSelectedAmount / 2).toString())}
                         >
                           50%
                         </Button>
@@ -383,44 +430,52 @@ export function StudentPayment() {
                     </div>
                   </div>
 
+                  {/* Bank Config Loading/Error */}
                   {loadingConfig && (
-                    <div className="text-sm text-muted-foreground">Dang tai thong tin ngan hang...</div>
+                    <div className="text-sm text-muted-foreground flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
+                      Đang tải thông tin ngân hàng...
+                    </div>
                   )}
+                  
                   {configError && (
-                    <div className="text-sm text-destructive">{configError}</div>
+                    <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-lg">
+                      Chưa cấu hình thông tin ngân hàng. Vui lòng liên hệ trung tâm.
+                    </div>
                   )}
 
+                  {/* Bank Info + QR */}
                   {config && (
-                    <div className="space-y-3">
-                      <div className="rounded-lg border bg-muted/50 p-3 space-y-2 text-sm">
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Ngan hang</span>
-                          <span className="font-medium">{config.bankId}</span>
+                    <div className="space-y-4">
+                      <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Ngân hàng</span>
+                          <span className="font-medium">{config.bankName || config.bankId}</span>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">So tai khoan</span>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Số tài khoản</span>
                           <button
-                            className="font-medium flex items-center gap-1"
+                            className="font-medium flex items-center gap-1 hover:text-primary transition-colors"
                             onClick={() => handleCopy('accountNo', config.accountNo)}
                           >
                             {config.accountNo}
                             {copiedField === 'accountNo' ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
                           </button>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Chu tai khoan</span>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Chủ tài khoản</span>
                           <button
-                            className="font-medium flex items-center gap-1"
+                            className="font-medium flex items-center gap-1 hover:text-primary transition-colors"
                             onClick={() => handleCopy('accountName', config.accountName)}
                           >
                             {config.accountName}
                             {copiedField === 'accountName' ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
                           </button>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Noi dung</span>
+                        <div className="flex items-center justify-between text-sm pt-2 border-t">
+                          <span className="text-muted-foreground">Nội dung CK</span>
                           <button
-                            className="font-mono text-xs flex items-center gap-1"
+                            className="font-mono text-xs bg-amber-100 dark:bg-amber-900/30 px-2 py-1 rounded flex items-center gap-1 hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors"
                             onClick={() => handleCopy('transferContent', transferContent)}
                           >
                             {transferContent}
@@ -429,56 +484,74 @@ export function StudentPayment() {
                         </div>
                       </div>
 
-                      {qrUrl && parsedAmount > 0 && (
+                      {/* QR Code */}
+                      {qrUrl && (
                         <div className="flex justify-center">
-                          <div className="bg-white p-3 rounded-xl border shadow-sm">
-                            <img src={qrUrl} alt="VietQR" className="w-56 h-56 object-contain" />
+                          <div className="bg-white p-4 rounded-xl border-2 border-dashed border-emerald-200 shadow-sm">
+                            <img src={qrUrl} alt="Mã QR thanh toán" className="w-64 h-64 object-contain" />
+                            <p className="text-center text-xs text-muted-foreground mt-2">
+                              Quét mã để thanh toán {formatMoney(paymentAmount)}
+                            </p>
                           </div>
                         </div>
                       )}
                     </div>
                   )}
 
+                  {/* Upload Proof */}
                   <div>
-                    <label className="text-sm font-medium">Anh minh chung chuyen khoan</label>
+                    <label className="text-sm font-medium">Ảnh minh chứng chuyển khoản</label>
                     <div className="mt-2">
                       {bankProofUrl ? (
                         <div className="relative">
-                          <img src={bankProofUrl} alt="Proof" className="w-full max-h-48 object-cover rounded-lg border" />
+                          <img src={bankProofUrl} alt="Minh chứng" className="w-full max-h-48 object-cover rounded-lg border" />
                           <button
                             onClick={() => setBankProofUrl(null)}
-                            className="absolute top-2 right-2 p-1.5 rounded-full bg-white/90 border"
+                            className="absolute top-2 right-2 p-1.5 rounded-full bg-white/90 border hover:bg-white transition-colors"
                           >
                             <X className="h-4 w-4" />
                           </button>
                         </div>
                       ) : (
-                        <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer bg-muted/30 hover:bg-muted/50 transition-colors">
-                          <Upload className="h-5 w-5 text-muted-foreground mb-1" />
-                          <span className="text-xs text-muted-foreground">Keo tha hoac click de tai anh</span>
+                        <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed rounded-lg cursor-pointer bg-muted/30 hover:bg-muted/50 transition-colors">
+                          <Upload className="h-6 w-6 text-muted-foreground mb-2" />
+                          <span className="text-sm text-muted-foreground">Kéo thả hoặc click để tải ảnh</span>
+                          <span className="text-xs text-muted-foreground mt-1">PNG, JPG (tối đa 5MB)</span>
                           <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
                         </label>
                       )}
                     </div>
                   </div>
 
+                  {/* Notes */}
                   <div>
-                    <label className="text-sm font-medium">Ghi chu (tuy chon)</label>
+                    <label className="text-sm font-medium">Ghi chú (tùy chọn)</label>
                     <Textarea
                       className="mt-1"
                       rows={2}
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      placeholder="VD: Thanh toan dot 1, hen dong dot 2..."
+                      placeholder="VD: Thanh toán đợt 1, hẹn đóng đợt 2..."
                     />
                   </div>
 
+                  {/* Submit Button */}
                   <Button
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white h-12 text-base"
                     onClick={handleSubmit}
-                    disabled={submitting || !activeInvoice}
+                    disabled={submitting || !selectedInvoices.length}
                   >
-                    {submitting ? 'Dang gui...' : 'Gui xac nhan chuyen khoan'}
+                    {submitting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                        Đang gửi...
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard className="h-5 w-5 mr-2" />
+                        Gửi xác nhận thanh toán
+                      </>
+                    )}
                   </Button>
                 </>
               )}
