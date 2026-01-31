@@ -178,35 +178,55 @@ export function StudentPayment() {
 
     setSubmitting(true);
     try {
-      // For combined payment, we distribute proportionally or pay first invoice first
-      const firstInvoice = selectedInvoices[0];
+      // Distribute payment across invoices (pay each invoice's remaining amount)
+      let remainingPayment = paymentAmount;
+      const results = [];
       
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/invoices/${firstInvoice.id}/payments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session?.access_token}`
-        },
-        body: JSON.stringify({
-          amount: paymentAmount,
-          payment_method: 'bank_transfer',
-          notes: notes ? `${transferContent}\n${notes}` : transferContent,
-          bank_proof_url: bankProofUrl,
-          // Include all invoice IDs for batch processing
-          invoice_ids: selectedInvoices.map(inv => inv.id)
-        })
-      });
-      const result = await res.json();
-      if (result.success) {
-        toast.success('Đã gửi xác nhận chuyển khoản. Trung tâm sẽ xác minh sớm.');
-        refresh();
-        setSelectedIds([]);
-        setCustomAmount('');
-        setNotes('');
-        setBankProofUrl(null);
-      } else {
-        toast.error(result.message || 'Có lỗi xảy ra khi gửi thanh toán');
+      for (const invoice of selectedInvoices) {
+        if (remainingPayment <= 0) break;
+        
+        const invoiceRemaining = getRemaining(invoice);
+        const amountForThisInvoice = Math.min(remainingPayment, invoiceRemaining);
+        
+        if (amountForThisInvoice <= 0) continue;
+        
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/invoices/${invoice.id}/payments`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session?.access_token}`
+          },
+          body: JSON.stringify({
+            amount: amountForThisInvoice,
+            payment_method: 'bank_transfer',
+            notes: notes ? `${transferContent}\n${notes}` : transferContent,
+            bank_proof_url: bankProofUrl
+          })
+        });
+        
+        const result = await res.json();
+        results.push({ invoice: invoice.invoice_code, success: result.success, message: result.message });
+        
+        if (result.success) {
+          remainingPayment -= amountForThisInvoice;
+        }
       }
+      
+      const successCount = results.filter(r => r.success).length;
+      if (successCount === selectedInvoices.length) {
+        toast.success(`Đã gửi xác nhận thanh toán cho ${successCount} hóa đơn. Trung tâm sẽ xác minh sớm.`);
+      } else if (successCount > 0) {
+        toast.success(`Đã thanh toán ${successCount}/${selectedInvoices.length} hóa đơn.`);
+      } else {
+        const firstError = results.find(r => !r.success);
+        toast.error(firstError?.message || 'Có lỗi xảy ra khi gửi thanh toán');
+      }
+      
+      refresh();
+      setSelectedIds([]);
+      setCustomAmount('');
+      setNotes('');
+      setBankProofUrl(null);
     } catch (err) {
       toast.error('Không thể gửi thanh toán lúc này');
     } finally {
