@@ -19285,11 +19285,22 @@ app.get('/api/student/schedule',
       const baseDate = date ? new Date(date) : new Date();
       const events = [];
 
+      // Helper to parse schedule (may be JSON string or array)
+      const parseSchedule = (schedule) => {
+        if (!schedule) return [];
+        if (Array.isArray(schedule)) return schedule;
+        if (typeof schedule === 'string') {
+          try { return JSON.parse(schedule); } catch { return []; }
+        }
+        return [];
+      };
+
       for (const enrollment of enrollments || []) {
         const cls = enrollment.class;
         if (!cls?.schedule) continue;
 
-        for (const scheduleItem of cls.schedule) {
+        const scheduleItems = parseSchedule(cls.schedule);
+        for (const scheduleItem of scheduleItems) {
           // scheduleItem: { day: 2, start: '18:00', end: '20:00' }
           // day: 2=Monday, 3=Tuesday, ..., 8=Sunday
 
