@@ -19669,10 +19669,10 @@ app.get('/api/student/invoices',
       let query = supabase
         .from('invoices')
         .select(`
-          id, invoice_code, invoice_type, amount, discount_amount, final_amount,
+          id, invoice_code, amount, discount_amount, final_amount,
           paid_amount, status, due_date, description, created_at,
           class:classes(id, name, code, course:courses(id, title)),
-          payments(id, amount, payment_method, payment_date, status, reference_code)
+          payments(id, amount, payment_method, payment_date, reference_code, notes)
         `)
         .eq('student_id', studentId)
         .order('created_at', { ascending: false });
@@ -19750,22 +19750,43 @@ app.get('/api/student/certificates',
       const { data: certificates, error } = await supabase
         .from('certificates')
         .select(`
-          id, certificate_code, issue_date, expiry_date, status, pdf_url, metadata,
+          id, certificate_number, issued_at, status, pdf_url,
+          course_name, student_name, grade, completion_date,
           class:classes(id, name, code, course:courses(id, title, level)),
           issued_by:users!certificates_issued_by_fkey(id, full_name)
         `)
         .eq('student_id', studentId)
-        .order('issue_date', { ascending: false });
+        .order('issued_at', { ascending: false });
 
       if (error) throw error;
 
-      console.log(`🎓 Student certificates loaded: ${certificates?.length || 0} certificates`);
+      // Transform to match frontend expectations
+      const transformedCertificates = (certificates || []).map(cert => ({
+        id: cert.id,
+        certificate_code: cert.certificate_number,  // Alias for frontend
+        certificate_number: cert.certificate_number,
+        issue_date: cert.issued_at,  // Alias for frontend
+        issued_at: cert.issued_at,
+        status: cert.status,
+        pdf_url: cert.pdf_url,
+        course_name: cert.course_name,
+        student_name: cert.student_name,
+        grade: cert.grade,
+        completion_date: cert.completion_date,
+        class: cert.class,
+        issued_by: cert.issued_by,
+        // Legacy fields frontend might expect
+        expiry_date: null,
+        metadata: null
+      }));
+
+      console.log(`🎓 Student certificates loaded: ${transformedCertificates.length} certificates`);
 
       res.json({
         success: true,
         data: {
-          certificates: certificates || [],
-          count: certificates?.length || 0
+          certificates: transformedCertificates,
+          count: transformedCertificates.length
         }
       });
     } catch (error) {
