@@ -187,3 +187,30 @@ Day mapping follows Vietnamese convention:
 - 8 = Sunday (Chủ nhật)
 
 **NOT** JavaScript's `getDay()` (0=Sunday, 1=Monday, etc.)
+
+---
+
+### GOTCHA-005: Non-Existent Columns in Select
+**Category**: gotcha
+**Tags**: database, supabase, schema
+**Date**: 2026-01-31
+
+Backend queries may reference columns that don't exist in the actual schema.
+
+**Examples found:**
+- `courses.color` - doesn't exist (use frontend color generation instead)
+- `invoices.invoice_type` - doesn't exist
+- `payments.status` - doesn't exist
+- `certificates.certificate_code` - should be `certificate_number`
+- `certificates.issue_date` - should be `issued_at`
+
+**Best Practice:**
+Always verify column names against actual SQL schema files before writing queries:
+```bash
+grep -n "column_name" database/*.sql
+```
+
+**Citations**:
+- `database/01_schema.sql` (courses table lines 67-85 - no color field)
+- `database/04_invoices.sql` (invoices/payments tables)
+- `database/18_documents_certificates_support.sql` (certificates table)
