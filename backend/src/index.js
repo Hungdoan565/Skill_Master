@@ -8954,6 +8954,23 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
       });
     }
 
+    // Check remaining amount before processing
+    const remaining = (invoice.final_amount || 0) - (invoice.paid_amount || 0);
+    if (remaining <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Hóa đơn đã thanh toán đủ, không thể thêm thanh toán'
+      });
+    }
+
+    const paymentAmount = parseFloat(amount);
+    if (paymentAmount > remaining) {
+      return res.status(400).json({
+        success: false,
+        message: `Số tiền thanh toán (${paymentAmount.toLocaleString('vi-VN')}đ) vượt quá số còn nợ (${remaining.toLocaleString('vi-VN')}đ)`
+      });
+    }
+
     // ============================================
     // PERMISSION CHECK
     // ============================================
@@ -9069,13 +9086,18 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
       paymentData.payment_date = new Date(transfer_date).toISOString();
     }
 
+    console.log('📝 Payment data to insert:', JSON.stringify(paymentData, null, 2));
+
     const { data: payment, error: paymentError } = await supabase
       .from('payments')
       .insert(paymentData)
       .select()
       .single();
 
-    if (paymentError) throw paymentError;
+    if (paymentError) {
+      console.error('❌ Payment insert error:', paymentError);
+      throw paymentError;
+    }
 
     // Lấy lại invoice đã cập nhật
     const { data: updatedInvoice } = await supabase
