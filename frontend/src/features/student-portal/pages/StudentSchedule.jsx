@@ -1,7 +1,14 @@
 /**
  * StudentSchedule Page - Trang lịch học của học viên
+ * Features:
+ * - Week/Month view với navigation
+ * - Swipe gestures cho mobile
+ * - Countdown timer cho buổi sắp bắt đầu
+ * - Export calendar ra ICS
+ * - Push notification nhắc trước 30 phút
  */
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useSwipeable } from 'react-swipeable';
 import { cn } from '@/lib/utils';
 import {
   ChevronLeft,
@@ -13,7 +20,13 @@ import {
   BookOpen,
   X,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  LayoutGrid,
+  List,
+  Download,
+  Bell,
+  BellOff,
+  Timer
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,16 +42,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { useStudentSchedule } from '../hooks';
+import { useStudentSchedule } from '../hooks/useStudentSchedule';
+import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 
+// Configuration
 const DAYS_OF_WEEK = [
-  { value: 2, label: 'Thứ 2' },
-  { value: 3, label: 'Thứ 3' },
-  { value: 4, label: 'Thứ 4' },
-  { value: 5, label: 'Thứ 5' },
-  { value: 6, label: 'Thứ 6' },
-  { value: 7, label: 'Thứ 7' },
-  { value: 8, label: 'CN' }
+  { value: 2, label: 'Thứ 2', short: 'T2' },
+  { value: 3, label: 'Thứ 3', short: 'T3' },
+  { value: 4, label: 'Thứ 4', short: 'T4' },
+  { value: 5, label: 'Thứ 5', short: 'T5' },
+  { value: 6, label: 'Thứ 6', short: 'T6' },
+  { value: 7, label: 'Thứ 7', short: 'T7' },
+  { value: 8, label: 'CN', short: 'CN' }
 ];
 
 const COURSE_COLORS = [
@@ -52,12 +68,178 @@ const COURSE_COLORS = [
   { bg: 'bg-orange-100 dark:bg-orange-900/30', border: 'border-l-orange-500', text: 'text-orange-700 dark:text-orange-300' },
 ];
 
+const STATUS_CONFIG = {
+  scheduled: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Sắp tới' },
+  completed: { bg: 'bg-green-100', text: 'text-green-700', label: 'Đã học' },
+  cancelled: { bg: 'bg-red-100', text: 'text-red-700', label: 'Đã hủy' },
+  in_progress: { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Đang học' }
+};
+
+// ============ ICS EXPORT UTILITY ============
+const generateICSFile = (sessions, fileName = 'lich-hoc.ics') => {
+  const formatICSDate = (dateStr, timeStr) => {
+    const date = new Date(`${dateStr}T${timeStr}`);
+    return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  };
+
+  const escapeICS = (text) => {
+    if (!text) return '';
+    return text.replace(/[,;\\]/g, (match) => '\\' + match).replace(/\n/g, '\\n');
+  };
+
+  let icsContent = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Skill Master//Student Schedule//VI',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'X-WR-CALNAME:Lịch học Skill Master',
+    'X-WR-TIMEZONE:Asia/Ho_Chi_Minh'
+  ];
+
+  sessions.forEach((session, index) => {
+    if (session.status === 'cancelled') return; // Skip cancelled sessions
+    
+    const uid = `${session.sessionId || index}@skillmaster.edu.vn`;
+    const dtStart = formatICSDate(session.sessionDate, session.startTime);
+    const dtEnd = formatICSDate(session.sessionDate, session.endTime);
+    const summary = escapeICS(`${session.className} - Buổi ${session.sessionNumber || ''}`);
+    const description = escapeICS(`Khóa học: ${session.courseName || 'N/A'}\\nGiáo viên: ${session.teacherName || 'N/A'}`);
+    const location = escapeICS(session.roomName || '');
+
+    icsContent.push(
+      'BEGIN:VEVENT',
+      `UID:${uid}`,
+      `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
+      `DTSTART:${dtStart}`,
+      `DTEND:${dtEnd}`,
+      `SUMMARY:${summary}`,
+      `DESCRIPTION:${description}`,
+      location ? `LOCATION:${location}` : '',
+      'STATUS:CONFIRMED',
+      // Alarm 30 minutes before
+      'BEGIN:VALARM',
+      'TRIGGER:-PT30M',
+      'ACTION:DISPLAY',
+      'DESCRIPTION:Nhắc nhở: Buổi học sắp bắt đầu trong 30 phút',
+      'END:VALARM',
+      'END:VEVENT'
+    );
+  });
+
+  icsContent.push('END:VCALENDAR');
+  
+  const blob = new Blob([icsContent.filter(Boolean).join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
+// ============ NOTIFICATION UTILITY ============
+const NOTIFICATION_KEY = 'schedule_notifications_enabled';
+const NOTIFIED_SESSIONS_KEY = 'notified_session_ids';
+
+const requestNotificationPermission = async () => {
+  if (!('Notification' in window)) {
+    return { granted: false, reason: 'not_supported' };
+  }
+  
+  if (Notification.permission === 'granted') {
+    return { granted: true };
+  }
+  
+  if (Notification.permission === 'denied') {
+    return { granted: false, reason: 'denied' };
+  }
+  
+  const permission = await Notification.requestPermission();
+  return { granted: permission === 'granted', reason: permission };
+};
+
+const showNotification = (title, body, tag) => {
+  if (Notification.permission !== 'granted') return;
+  
+  const notification = new Notification(title, {
+    body,
+    icon: '/favicon.ico',
+    tag,
+    requireInteraction: true
+  });
+  
+  notification.onclick = () => {
+    window.focus();
+    notification.close();
+  };
+  
+  // Auto close after 30 seconds
+  setTimeout(() => notification.close(), 30000);
+};
+
+const getNotifiedSessions = () => {
+  try {
+    return JSON.parse(localStorage.getItem(NOTIFIED_SESSIONS_KEY) || '[]');
+  } catch {
+    return [];
+  }
+};
+
+const markSessionNotified = (sessionId) => {
+  const notified = getNotifiedSessions();
+  if (!notified.includes(sessionId)) {
+    notified.push(sessionId);
+    // Keep only last 100 session IDs
+    if (notified.length > 100) notified.shift();
+    localStorage.setItem(NOTIFIED_SESSIONS_KEY, JSON.stringify(notified));
+  }
+};
+
+// ============ COUNTDOWN HOOK ============
+const useCountdown = (targetDate) => {
+  const [timeLeft, setTimeLeft] = useState(null);
+  
+  useEffect(() => {
+    if (!targetDate) return;
+    
+    const calculateTimeLeft = () => {
+      const now = new Date();
+      const target = new Date(targetDate);
+      const diff = target - now;
+      
+      if (diff <= 0) return null;
+      
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      
+      return { hours, minutes, seconds, total: diff };
+    };
+    
+    setTimeLeft(calculateTimeLeft());
+    const timer = setInterval(() => {
+      setTimeLeft(calculateTimeLeft());
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, [targetDate]);
+  
+  return timeLeft;
+};
+
+// Utils
 const getCourseColor = (courseId) => {
   if (!courseId) return COURSE_COLORS[0];
-  const index = typeof courseId === 'string' 
-    ? courseId.charCodeAt(0) % COURSE_COLORS.length 
-    : courseId % COURSE_COLORS.length;
-  return COURSE_COLORS[index];
+  const str = String(courseId);
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return COURSE_COLORS[Math.abs(hash) % COURSE_COLORS.length];
 };
 
 const formatTime = (time) => {
@@ -65,36 +247,142 @@ const formatTime = (time) => {
   return time.slice(0, 5);
 };
 
-const ScheduleEvent = ({ event, onClick }) => {
-  const colorScheme = getCourseColor(event.courseId);
+const formatDate = (date) => {
+  return new Date(date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+};
+
+// ============ TIME SLOT GROUPING ============
+const TIME_SLOTS = [
+  { 
+    key: 'morning', 
+    label: 'Sáng', 
+    icon: '🌅', 
+    range: '06:00 - 12:00',
+    startHour: 6, 
+    endHour: 12,
+    bg: 'bg-amber-50 dark:bg-amber-900/10',
+    border: 'border-amber-200 dark:border-amber-800'
+  },
+  { 
+    key: 'afternoon', 
+    label: 'Chiều', 
+    icon: '☀️', 
+    range: '12:00 - 18:00',
+    startHour: 12, 
+    endHour: 18,
+    bg: 'bg-orange-50 dark:bg-orange-900/10',
+    border: 'border-orange-200 dark:border-orange-800'
+  },
+  { 
+    key: 'evening', 
+    label: 'Tối', 
+    icon: '🌙', 
+    range: '18:00 - 23:00',
+    startHour: 18, 
+    endHour: 23,
+    bg: 'bg-indigo-50 dark:bg-indigo-900/10',
+    border: 'border-indigo-200 dark:border-indigo-800'
+  }
+];
+
+const getTimeSlot = (timeStr) => {
+  if (!timeStr) return null;
+  const hour = parseInt(timeStr.split(':')[0], 10);
+  return TIME_SLOTS.find(slot => hour >= slot.startHour && hour < slot.endHour) || TIME_SLOTS[2];
+};
+
+const groupSessionsByTimeSlot = (sessions) => {
+  const grouped = {
+    morning: [],
+    afternoon: [],
+    evening: []
+  };
+  
+  sessions.forEach(session => {
+    const slot = getTimeSlot(session.startTime);
+    if (slot) {
+      grouped[slot.key].push(session);
+    }
+  });
+  
+  return grouped;
+};
+
+// Components
+const CountdownBadge = ({ targetDateTime }) => {
+  const timeLeft = useCountdown(targetDateTime);
+  
+  if (!timeLeft || timeLeft.total > 2 * 60 * 60 * 1000) return null; // Only show if within 2 hours
+  
+  const formatCountdown = () => {
+    if (timeLeft.hours > 0) {
+      return `Còn ${timeLeft.hours}h ${timeLeft.minutes}p`;
+    }
+    if (timeLeft.minutes > 0) {
+      return `Còn ${timeLeft.minutes} phút`;
+    }
+    return `Còn ${timeLeft.seconds}s`;
+  };
   
   return (
+    <div className="flex items-center gap-1 text-[10px] font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full animate-pulse">
+      <Timer className="h-3 w-3" />
+      {formatCountdown()}
+    </div>
+  );
+};
+
+const ScheduleEvent = ({ event, onClick, isCompact = false }) => {
+  const colorScheme = getCourseColor(event.courseId);
+  const status = STATUS_CONFIG[event.status] || STATUS_CONFIG.scheduled;
+  const eventDateTime = `${event.sessionDate}T${event.startTime}`;
+  
+  // Calculate if upcoming (within 2 hours)
+  const isUpcoming = useMemo(() => {
+    if (event.status !== 'scheduled') return false;
+    const now = new Date();
+    const eventStart = new Date(eventDateTime);
+    const diff = eventStart - now;
+    return diff > 0 && diff < 2 * 60 * 60 * 1000; // 2 hours
+  }, [event, eventDateTime]);
+
+  return (
     <div
-      onClick={() => onClick(event)}
+      onClick={(e) => { e.stopPropagation(); onClick(event); }}
       className={cn(
-        'rounded-lg border-l-4 p-3 cursor-pointer transition-all',
+        'rounded-lg border-l-4 cursor-pointer transition-all relative',
         'hover:shadow-md hover:scale-[1.02]',
+        isCompact ? 'p-1.5' : 'p-3',
         colorScheme.bg,
-        colorScheme.border
+        colorScheme.border,
+        isUpcoming && 'ring-2 ring-red-400 ring-offset-1 animate-pulse'
       )}
     >
-      <div className={cn('font-medium text-sm truncate', colorScheme.text)}>
+      <div className={cn('font-medium truncate', isCompact ? 'text-xs' : 'text-sm', colorScheme.text)}>
         {event.className}
       </div>
-      <div className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400 mt-1">
-        <Clock className="h-3 w-3" />
-        <span>{formatTime(event.startTime)} - {formatTime(event.endTime)}</span>
-      </div>
-      {event.roomName && (
-        <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 mt-1">
-          <MapPin className="h-3 w-3" />
-          <span className="truncate">{event.roomName}</span>
-        </div>
+      
+      {!isCompact && (
+        <>
+          <div className="flex items-center justify-between mt-1">
+            <div className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400">
+              <Clock className="h-3 w-3" />
+              <span>{formatTime(event.startTime)} - {formatTime(event.endTime)}</span>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
+             <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 h-5 bg-white/50 border-0', status.text)}>
+                {status.label}
+             </Badge>
+             {isUpcoming && <CountdownBadge targetDateTime={eventDateTime} />}
+          </div>
+        </>
       )}
-      {event.teacherName && (
-        <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 mt-1">
-          <User className="h-3 w-3" />
-          <span className="truncate">{event.teacherName}</span>
+      
+      {isCompact && (
+        <div className="text-[10px] text-slate-600 mt-0.5">
+          {formatTime(event.startTime)}
         </div>
       )}
     </div>
@@ -105,6 +393,7 @@ const ClassDetailModal = ({ isOpen, onClose, event }) => {
   if (!event) return null;
   
   const colorScheme = getCourseColor(event.courseId);
+  const status = STATUS_CONFIG[event.status] || STATUS_CONFIG.scheduled;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -118,14 +407,20 @@ const ClassDetailModal = ({ isOpen, onClose, event }) => {
         
         <div className="space-y-4 mt-4">
           <div className={cn('p-4 rounded-lg border-l-4', colorScheme.bg, colorScheme.border)}>
-            <h3 className={cn('font-semibold text-lg', colorScheme.text)}>
-              {event.className}
-            </h3>
+            <div className="flex justify-between items-start">
+              <h3 className={cn('font-semibold text-lg', colorScheme.text)}>
+                {event.className}
+              </h3>
+              <span className={cn('text-xs px-2 py-1 rounded-full bg-white/80 font-medium', status.text)}>
+                {status.label}
+              </span>
+            </div>
             {event.courseName && (
               <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                 {event.courseName}
               </p>
             )}
+            <p className="text-sm text-slate-500 mt-2">Buổi số: {event.sessionNumber}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -144,7 +439,7 @@ const ClassDetailModal = ({ isOpen, onClose, event }) => {
               <div>
                 <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Ngày học</p>
                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                  {DAYS_OF_WEEK.find(d => d.value === event.dayOfWeek)?.label || `Thứ ${event.dayOfWeek}`}
+                  {DAYS_OF_WEEK.find(d => d.value === event.dayOfWeek)?.label}, {formatDate(event.sessionDate)}
                 </p>
               </div>
             </div>
@@ -183,78 +478,208 @@ const ClassDetailModal = ({ isOpen, onClose, event }) => {
 
 export function StudentSchedule() {
   const [classFilter, setClassFilter] = useState('all');
+  const [viewType, setViewType] = useState('week'); // 'week' | 'month'
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
-
-  const [currentWeekStart, setCurrentWeekStart] = useState(() => {
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-    monday.setHours(0, 0, 0, 0);
-    return monday;
+  const [notificationsEnabled, setNotificationsEnabled] = useState(() => {
+    return localStorage.getItem(NOTIFICATION_KEY) === 'true';
   });
 
-  const { events, classes, loading, error, refresh } = useStudentSchedule(classFilter !== 'all' ? classFilter : null);
+  // Navigation handlers
+  const handlePrev = useCallback(() => {
+    const newDate = new Date(currentDate);
+    if (viewType === 'week') {
+      newDate.setDate(newDate.getDate() - 7);
+    } else {
+      newDate.setMonth(newDate.getMonth() - 1);
+    }
+    setCurrentDate(newDate);
+  }, [currentDate, viewType]);
 
-  const filteredEvents = useMemo(() => {
-    if (!events) return [];
-    if (!classFilter || classFilter === 'all') return events;
-    return events.filter(e => e.classId === classFilter);
-  }, [events, classFilter]);
+  const handleNext = useCallback(() => {
+    const newDate = new Date(currentDate);
+    if (viewType === 'week') {
+      newDate.setDate(newDate.getDate() + 7);
+    } else {
+      newDate.setMonth(newDate.getMonth() + 1);
+    }
+    setCurrentDate(newDate);
+  }, [currentDate, viewType]);
 
-  const eventsByDay = useMemo(() => {
+  // Swipe handlers for mobile
+  const swipeHandlers = useSwipeable({
+    onSwipedLeft: handleNext,
+    onSwipedRight: handlePrev,
+    trackMouse: false,
+    trackTouch: true,
+    delta: 50,
+    preventScrollOnSwipe: true
+  });
+
+  // Calculate Start/End Date based on View Type
+  const { startDate, endDate } = useMemo(() => {
+    const start = new Date(currentDate);
+    const end = new Date(currentDate);
+
+    if (viewType === 'week') {
+      // Get Monday
+      const day = start.getDay();
+      const diff = start.getDate() - day + (day === 0 ? -6 : 1);
+      start.setDate(diff);
+      start.setHours(0, 0, 0, 0);
+      
+      // Get Sunday
+      end.setDate(start.getDate() + 6);
+      end.setHours(23, 59, 59, 999);
+    } else {
+      // First day of month
+      start.setDate(1);
+      start.setHours(0, 0, 0, 0);
+      
+      // Last day of month
+      end.setMonth(end.getMonth() + 1);
+      end.setDate(0);
+      end.setHours(23, 59, 59, 999);
+      
+      // Expand to cover full weeks for calendar grid (start on Monday)
+      const startDay = start.getDay(); // 0=Sun, 1=Mon...
+      const prevDays = startDay === 0 ? 6 : startDay - 1;
+      start.setDate(start.getDate() - prevDays);
+      
+      // Expand end to finish week (end on Sunday)
+      const endDay = end.getDay();
+      const nextDays = endDay === 0 ? 0 : 7 - endDay;
+      end.setDate(end.getDate() + nextDays);
+    }
+
+    return { startDate: start, endDate: end };
+  }, [currentDate, viewType]);
+
+  const { sessions, classes, statistics, loading, error, refresh } = useStudentSchedule({
+    classId: classFilter,
+    startDate,
+    endDate,
+    viewType
+  });
+
+  const handleToday = () => {
+    setCurrentDate(new Date());
+  };
+
+  // Toggle notifications
+  const handleToggleNotifications = async () => {
+    if (notificationsEnabled) {
+      setNotificationsEnabled(false);
+      localStorage.setItem(NOTIFICATION_KEY, 'false');
+      toast.info('Đã tắt thông báo nhắc lịch học');
+    } else {
+      const result = await requestNotificationPermission();
+      if (result.granted) {
+        setNotificationsEnabled(true);
+        localStorage.setItem(NOTIFICATION_KEY, 'true');
+        toast.success('Đã bật thông báo! Bạn sẽ được nhắc trước 30 phút mỗi buổi học.');
+      } else if (result.reason === 'denied') {
+        toast.error('Trình duyệt đã chặn thông báo. Vui lòng cho phép trong cài đặt.');
+      } else {
+        toast.error('Trình duyệt không hỗ trợ thông báo.');
+      }
+    }
+  };
+
+  // Export ICS handler
+  const handleExportICS = () => {
+    if (!sessions || sessions.length === 0) {
+      toast.error('Không có lịch học để xuất');
+      return;
+    }
+    const fileName = `lich-hoc-${currentDate.toISOString().split('T')[0]}.ics`;
+    generateICSFile(sessions, fileName);
+    toast.success('Đã tải file lịch học (.ics)');
+  };
+
+  // Notification effect - check sessions every minute
+  useEffect(() => {
+    if (!notificationsEnabled || !sessions?.length) return;
+
+    const checkUpcomingSessions = () => {
+      const now = new Date();
+      const notifiedIds = getNotifiedSessions();
+
+      sessions.forEach(session => {
+        if (session.status !== 'scheduled') return;
+        if (notifiedIds.includes(session.sessionId)) return;
+
+        const sessionStart = new Date(`${session.sessionDate}T${session.startTime}`);
+        const diffMinutes = (sessionStart - now) / (1000 * 60);
+
+        // Notify if session starts in 25-35 minutes (targeting ~30 min)
+        if (diffMinutes > 25 && diffMinutes <= 35) {
+          showNotification(
+            `🔔 Sắp đến giờ học!`,
+            `${session.className} bắt đầu lúc ${formatTime(session.startTime)}${session.roomName ? ` tại ${session.roomName}` : ''}`,
+            `session-${session.sessionId}`
+          );
+          markSessionNotified(session.sessionId);
+        }
+      });
+    };
+
+    // Check immediately and then every minute
+    checkUpcomingSessions();
+    const interval = setInterval(checkUpcomingSessions, 60000);
+    return () => clearInterval(interval);
+  }, [notificationsEnabled, sessions]);
+
+  const formatRange = () => {
+    if (viewType === 'week') {
+      // Re-calculate actual week start/end for display (not including padding)
+      const d = new Date(currentDate);
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+      const start = new Date(d);
+      start.setDate(diff);
+      const end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      
+      return `${start.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })} - ${end.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}`;
+    } else {
+      return currentDate.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
+    }
+  };
+
+  // Group sessions by date string YYYY-MM-DD
+  const sessionsByDate = useMemo(() => {
     const grouped = {};
-    DAYS_OF_WEEK.forEach(day => {
-      grouped[day.value] = filteredEvents.filter(e => e.dayOfWeek === day.value);
+    sessions.forEach(session => {
+      // session.sessionDate is YYYY-MM-DD
+      const dateKey = session.sessionDate.split('T')[0];
+      if (!grouped[dateKey]) grouped[dateKey] = [];
+      grouped[dateKey].push(session);
     });
     return grouped;
-  }, [filteredEvents]);
+  }, [sessions]);
 
-  const weekEnd = useMemo(() => {
-    const end = new Date(currentWeekStart);
-    end.setDate(currentWeekStart.getDate() + 6);
-    return end;
-  }, [currentWeekStart]);
+  // Generate calendar days
+  const calendarDays = useMemo(() => {
+    const days = [];
+    const curr = new Date(startDate);
+    while (curr <= endDate) {
+      days.push(new Date(curr));
+      curr.setDate(curr.getDate() + 1);
+    }
+    return days;
+  }, [startDate, endDate]);
 
-  const goToPrevWeek = () => {
-    const newStart = new Date(currentWeekStart);
-    newStart.setDate(newStart.getDate() - 7);
-    setCurrentWeekStart(newStart);
-  };
-
-  const goToNextWeek = () => {
-    const newStart = new Date(currentWeekStart);
-    newStart.setDate(newStart.getDate() + 7);
-    setCurrentWeekStart(newStart);
-  };
-
-  const goToThisWeek = () => {
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-    monday.setHours(0, 0, 0, 0);
-    setCurrentWeekStart(monday);
-  };
-
-  const formatWeekRange = () => {
-    const start = currentWeekStart.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
-    const end = weekEnd.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    return `${start} - ${end}`;
-  };
-
-  const getDateForDay = (dayIndex) => {
-    const date = new Date(currentWeekStart);
-    date.setDate(currentWeekStart.getDate() + dayIndex);
-    return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
-  };
-
-  const isToday = (dayIndex) => {
-    const date = new Date(currentWeekStart);
-    date.setDate(currentWeekStart.getDate() + dayIndex);
+  const isToday = (date) => {
     const today = new Date();
-    return date.toDateString() === today.toDateString();
+    return date.getDate() === today.getDate() &&
+           date.getMonth() === today.getMonth() &&
+           date.getFullYear() === today.getFullYear();
+  };
+
+  const isCurrentMonth = (date) => {
+    return date.getMonth() === currentDate.getMonth();
   };
 
   const handleEventClick = (event) => {
@@ -262,7 +687,7 @@ export function StudentSchedule() {
     setDetailModalOpen(true);
   };
 
-  if (loading) {
+  if (loading && !sessions.length) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
@@ -273,36 +698,47 @@ export function StudentSchedule() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="text-center p-6 bg-red-50 dark:bg-red-900/20 rounded-xl max-w-md">
-          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-red-700 dark:text-red-400 mb-2">Đã có lỗi xảy ra</h2>
-          <p className="text-red-600 dark:text-red-300 mb-4">{error}</p>
-          <Button onClick={refresh} variant="outline" className="gap-2">
-            <RefreshCw className="h-4 w-4" />
-            Thử lại
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-            📅 Lịch học
+            📅 Lịch học của bạn
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">
-            Xem lịch học theo tuần
-          </p>
+          <div className="flex items-center gap-2 mt-1">
+             <span className="text-sm text-slate-500">
+               {statistics.totalSessions || 0} buổi tổng
+             </span>
+             <span className="text-slate-300">|</span>
+             <span className="text-sm text-blue-600 font-medium">
+               {statistics.upcomingSessions || 0} sắp tới
+             </span>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700">
+             <Button
+               variant={viewType === 'week' ? 'white' : 'ghost'}
+               size="sm"
+               className={cn("h-8", viewType === 'week' && "shadow-sm bg-white dark:bg-slate-700")}
+               onClick={() => setViewType('week')}
+             >
+               <LayoutGrid className="w-4 h-4 mr-2" />
+               Tuần
+             </Button>
+             <Button
+               variant={viewType === 'month' ? 'white' : 'ghost'}
+               size="sm"
+               className={cn("h-8", viewType === 'month' && "shadow-sm bg-white dark:bg-slate-700")}
+               onClick={() => setViewType('month')}
+             >
+               <Calendar className="w-4 h-4 mr-2" />
+               Tháng
+             </Button>
+          </div>
+
           <Select value={classFilter} onValueChange={setClassFilter}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Tất cả lớp" />
@@ -314,105 +750,213 @@ export function StudentSchedule() {
               ))}
             </SelectContent>
           </Select>
+          
+          <div className="flex items-center gap-1">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={handleExportICS} 
+              title="Xuất file lịch (.ics)"
+              disabled={!sessions?.length}
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+            
+            <Button 
+              variant={notificationsEnabled ? "default" : "outline"}
+              size="icon" 
+              onClick={handleToggleNotifications} 
+              title={notificationsEnabled ? "Tắt thông báo" : "Bật thông báo nhắc lịch"}
+              className={notificationsEnabled ? "bg-green-600 hover:bg-green-700" : ""}
+            >
+              {notificationsEnabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+            </Button>
+            
+            <Button variant="outline" size="icon" onClick={refresh} title="Làm mới">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Week Navigation */}
-      <div className="flex flex-wrap items-center justify-center gap-2">
-        <Button variant="outline" size="icon" onClick={goToPrevWeek} title="Tuần trước">
+      {/* Navigation */}
+      <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+        <Button variant="ghost" size="icon" onClick={handlePrev}>
           <ChevronLeft className="h-5 w-5" />
         </Button>
-
-        <Button variant="ghost" onClick={goToThisWeek} className="text-blue-600 dark:text-blue-400">
-          Tuần này
-        </Button>
-
-        <div className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 min-w-[180px] text-center">
-          {formatWeekRange()}
+        
+        <div className="flex items-center gap-3">
+           <h2 className="text-lg font-semibold capitalize text-slate-800 dark:text-slate-200">
+             {formatRange()}
+           </h2>
+           {!isToday(currentDate) && (
+             <Button variant="outline" size="xs" onClick={handleToday} className="h-7 text-xs">
+               Hôm nay
+             </Button>
+           )}
         </div>
 
-        <Button variant="outline" size="icon" onClick={goToNextWeek} title="Tuần sau">
+        <Button variant="ghost" size="icon" onClick={handleNext}>
           <ChevronRight className="h-5 w-5" />
         </Button>
-
-        <Button variant="outline" size="icon" onClick={refresh} title="Làm mới">
-          <RefreshCw className="h-5 w-5" />
-        </Button>
       </div>
 
-      {/* Week Timetable */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
-        {/* Day headers */}
-        <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-          {DAYS_OF_WEEK.map((day, index) => (
-            <div
-              key={day.value}
-              className={cn(
-                'p-3 text-center border-r border-slate-200 dark:border-slate-700 last:border-r-0',
-                isToday(index) && 'bg-blue-50 dark:bg-blue-900/20'
-              )}
-            >
-              <p className={cn(
-                'text-xs font-medium',
-                isToday(index) ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400'
-              )}>
-                {day.label}
-              </p>
-              <p className={cn(
-                'text-sm font-semibold mt-1',
-                isToday(index) ? 'text-blue-600 dark:text-blue-400' : 'text-slate-700 dark:text-slate-300'
-              )}>
-                {getDateForDay(index)}
-              </p>
-              {isToday(index) && (
-                <span className="inline-block mt-1 px-2 py-0.5 text-xs font-medium bg-blue-600 text-white rounded-full">
-                  Hôm nay
-                </span>
-              )}
+      {/* Views - Swipeable */}
+      <div 
+        {...swipeHandlers}
+        className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm touch-pan-y"
+      >
+        {/* Swipe hint for mobile */}
+        <div className="sm:hidden text-center text-xs text-slate-400 py-1 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+          ← Vuốt trái/phải để chuyển {viewType === 'week' ? 'tuần' : 'tháng'} →
+        </div>
+        
+        {/* Header Grid */}
+        <div className={cn(
+          "grid grid-cols-7 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50",
+          viewType === 'week' && "hidden sm:grid"
+        )}>
+          {DAYS_OF_WEEK.map((day) => (
+            <div key={day.value} className="p-3 text-center border-r border-slate-200 dark:border-slate-700 last:border-r-0">
+              <span className="hidden sm:inline text-sm font-medium text-slate-500">{day.label}</span>
+              <span className="sm:hidden text-sm font-medium text-slate-500">{day.short}</span>
             </div>
           ))}
         </div>
 
-        {/* Schedule grid */}
-        <div className="grid grid-cols-7 min-h-[400px]">
-          {DAYS_OF_WEEK.map((day, index) => (
-            <div
-              key={day.value}
-              className={cn(
-                'border-r border-slate-200 dark:border-slate-700 last:border-r-0 p-2 space-y-2',
-                isToday(index) && 'bg-blue-50/30 dark:bg-blue-900/10'
-              )}
-            >
-              {eventsByDay[day.value]?.length === 0 ? (
-                <div className="h-full min-h-[100px] flex items-center justify-center text-slate-400 dark:text-slate-500 text-sm">
-                  <span className="hidden sm:inline">Không có lịch</span>
-                  <span className="sm:hidden">—</span>
-                </div>
-              ) : (
-                eventsByDay[day.value]?.map((event, idx) => (
-                  <ScheduleEvent
-                    key={event.classId || idx}
-                    event={event}
-                    onClick={handleEventClick}
-                  />
-                ))
-              )}
-            </div>
-          ))}
+        {/* Calendar Grid */}
+        <div className={cn(
+           "grid",
+           viewType === 'month' ? "grid-cols-7 auto-rows-[minmax(100px,auto)]" : "grid-cols-1 sm:grid-cols-7 min-h-[500px]"
+        )}>
+          {calendarDays.map((date, index) => {
+            const dateKey = date.toISOString().split('T')[0];
+            const daySessions = sessionsByDate[dateKey] || [];
+            const isDayToday = isToday(date);
+            const isCurrMonth = isCurrentMonth(date);
+            const dayValue = date.getDay() === 0 ? 8 : date.getDay() + 1;
+            const dayLabel = DAYS_OF_WEEK.find(d => d.value === dayValue)?.label;
+            
+            return (
+               <div
+                 key={dateKey}
+                 className={cn(
+                   "border-r border-b border-slate-200 dark:border-slate-700 p-2 relative transition-colors",
+                   (index + 1) % 7 === 0 && viewType === 'month' && "border-r-0", 
+                   viewType === 'week' && "sm:border-r last:border-r-0",
+                   isDayToday && "bg-blue-50/30 dark:bg-blue-900/10",
+                   !isCurrMonth && viewType === 'month' && "bg-slate-50/50 dark:bg-slate-900/50 text-slate-400"
+                 )}
+               >
+                 {/* Mobile Day Header (Week View only) */}
+                 <div className={cn(
+                   "sm:hidden font-medium mb-3 flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800",
+                   viewType === 'month' && "hidden"
+                 )}>
+                   <div className={cn(
+                     "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold",
+                     isDayToday ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700"
+                   )}>
+                     {date.getDate()}
+                   </div>
+                   <div className="flex flex-col">
+                     <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{dayLabel}</span>
+                     {isDayToday && <span className="text-xs text-blue-600 font-medium">Hôm nay</span>}
+                   </div>
+                 </div>
+
+                 {/* Desktop/Month Date Header */}
+                 <div className={cn(
+                   "flex items-center justify-between mb-2",
+                   viewType === 'week' && "hidden sm:flex"
+                 )}>
+                   <span className={cn(
+                     "text-sm font-medium h-7 w-7 flex items-center justify-center rounded-full",
+                     isDayToday 
+                       ? "bg-blue-600 text-white" 
+                       : isCurrMonth ? "text-slate-700 dark:text-slate-300" : "text-slate-400"
+                   )}>
+                     {date.getDate()}
+                   </span>
+                   {daySessions.length > 0 && (
+                     <span className="text-xs text-slate-400 font-medium">{daySessions.length}</span>
+                   )}
+                 </div>
+                 
+                  <div className="space-y-2 pl-2 sm:pl-0">
+                    {daySessions.length > 0 ? (
+                      viewType === 'week' ? (
+                        // Week view: Group by time slots (Sáng/Chiều/Tối)
+                        <>
+                          {(() => {
+                            const grouped = groupSessionsByTimeSlot(daySessions);
+                            return TIME_SLOTS.map(slot => {
+                              const slotSessions = grouped[slot.key];
+                              if (slotSessions.length === 0) return null;
+                              
+                              return (
+                                <div key={slot.key} className={cn("rounded-lg p-1.5 border", slot.bg, slot.border)}>
+                                  <div className="flex items-center gap-1.5 mb-1.5 px-1">
+                                    <span className="text-sm">{slot.icon}</span>
+                                    <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                                      {slot.label}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400">
+                                      ({slot.range})
+                                    </span>
+                                  </div>
+                                  <div className="space-y-1">
+                                    {slotSessions.map((session) => (
+                                      <ScheduleEvent 
+                                        key={session.sessionId} 
+                                        event={session} 
+                                        onClick={handleEventClick}
+                                        isCompact={false}
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            });
+                          })()}
+                        </>
+                      ) : (
+                        // Month view: Compact, no grouping
+                        daySessions.map((session) => (
+                          <ScheduleEvent 
+                            key={session.sessionId} 
+                            event={session} 
+                            onClick={handleEventClick}
+                            isCompact={true}
+                          />
+                        ))
+                      )
+                    ) : (
+                      viewType === 'week' && (
+                        <div className="h-full flex items-center justify-center sm:pt-10 text-slate-300 dark:text-slate-700 text-xs italic py-4 sm:py-0">
+                           <span className="sm:hidden">Không có lịch</span>
+                           <span className="hidden sm:inline">Trống</span>
+                        </div>
+                      )
+                    )}
+                  </div>
+               </div>
+            );
+          })}
         </div>
       </div>
-
+      
       {/* Legend */}
-      <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-slate-600 dark:text-slate-400">
-        <span className="text-slate-500 dark:text-slate-400">Màu theo khóa học:</span>
-        {COURSE_COLORS.slice(0, 4).map((color, idx) => (
-          <span key={idx} className="flex items-center gap-2">
-            <span className={cn('w-4 h-4 rounded border-l-4', color.bg, color.border)}></span>
-          </span>
+      <div className="flex flex-wrap items-center gap-4 text-sm p-4 bg-slate-50 dark:bg-slate-800/30 rounded-lg">
+        <span className="font-medium text-slate-700 dark:text-slate-300">Trạng thái:</span>
+        {Object.entries(STATUS_CONFIG).map(([key, config]) => (
+          <div key={key} className="flex items-center gap-2">
+            <span className={cn("w-3 h-3 rounded-full", config.bg.replace('bg-', 'bg-').replace('100', '500'))}></span>
+            <span className="text-slate-600 dark:text-slate-400">{config.label}</span>
+          </div>
         ))}
       </div>
 
-      {/* Class Detail Modal */}
       <ClassDetailModal
         isOpen={detailModalOpen}
         onClose={setDetailModalOpen}
@@ -423,4 +967,3 @@ export function StudentSchedule() {
 }
 
 export default StudentSchedule;
-

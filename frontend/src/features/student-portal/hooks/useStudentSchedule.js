@@ -6,19 +6,34 @@ import { useAuth } from '@/contexts/auth-context';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-export function useStudentSchedule(classId = null) {
+export function useStudentSchedule({ classId, startDate, endDate, viewType = 'week' } = {}) {
   const { session } = useAuth();
-  const [data, setData] = useState({ events: [], classes: [] });
+  const [data, setData] = useState({ sessions: [], classes: [], statistics: {} });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const fetchSchedule = useCallback(async () => {
     if (!session?.access_token) return;
     
+    // Only fetch if we have dates (or maybe default to something, but component should control)
+    if (!startDate || !endDate) return;
+
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (classId) params.append('classId', classId);
+      if (classId && classId !== 'all') params.append('classId', classId);
+      
+      // Format dates as YYYY-MM-DD safely using local time
+      const formatDate = (date) => {
+        const d = new Date(date);
+        const offset = d.getTimezoneOffset();
+        const localDate = new Date(d.getTime() - (offset * 60 * 1000));
+        return localDate.toISOString().split('T')[0];
+      };
+
+      params.append('startDate', formatDate(startDate));
+      params.append('endDate', formatDate(endDate));
+      params.append('view', viewType);
       
       const res = await fetch(`${API_URL}/api/student/schedule?${params}`, {
         headers: { Authorization: `Bearer ${session.access_token}` }
@@ -32,10 +47,11 @@ export function useStudentSchedule(classId = null) {
       }
     } catch (err) {
       setError('Không thể tải lịch học');
+      console.error(err);
     } finally {
       setLoading(false);
     }
-  }, [session?.access_token, classId]);
+  }, [session?.access_token, classId, startDate, endDate, viewType]);
 
   useEffect(() => {
     fetchSchedule();
@@ -43,4 +59,3 @@ export function useStudentSchedule(classId = null) {
 
   return { ...data, loading, error, refresh: fetchSchedule };
 }
-
