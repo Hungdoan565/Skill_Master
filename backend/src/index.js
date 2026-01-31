@@ -19182,16 +19182,30 @@ app.get('/api/student/dashboard',
         })
         .sort((a, b) => (a.todaySchedule?.start || '').localeCompare(b.todaySchedule?.start || ''));
 
-      // 3. Get recent grades (last 5)
+      // 3. Get recent grades (last 5) - via enrollments
       const { data: recentGrades } = await supabase
         .from('grades')
         .select(`
-          id, score, grade_type, created_at, notes,
-          class:classes(id, name, code)
+          id, score, created_at, notes,
+          grade_structure:grade_structures(id, name, weight),
+          enrollment:enrollments!inner(
+            id, student_id,
+            class:classes(id, name, code)
+          )
         `)
-        .eq('student_id', studentId)
+        .eq('enrollment.student_id', studentId)
         .order('created_at', { ascending: false })
         .limit(5);
+      
+      // Transform grades to expected format
+      const formattedRecentGrades = (recentGrades || []).map(g => ({
+        id: g.id,
+        score: g.score,
+        grade_type: g.grade_structure?.name,
+        created_at: g.created_at,
+        notes: g.notes,
+        class: g.enrollment?.class
+      }));
 
       // 4. Get upcoming/unpaid invoices
       const { data: unpaidInvoices } = await supabase
@@ -19212,11 +19226,11 @@ app.get('/api/student/dashboard',
       const presentSessions = attendanceStats?.filter(a => a.status === 'present').length || 0;
       const attendanceRate = totalSessions > 0 ? Math.round((presentSessions / totalSessions) * 100) : 0;
 
-      // 6. Calculate average grade
+      // 6. Calculate average grade - via enrollments
       const { data: allGrades } = await supabase
         .from('grades')
-        .select('score')
-        .eq('student_id', studentId);
+        .select('score, enrollment:enrollments!inner(student_id)')
+        .eq('enrollment.student_id', studentId);
 
       const avgGrade = allGrades?.length > 0
         ? (allGrades.reduce((sum, g) => sum + (g.score || 0), 0) / allGrades.length).toFixed(1)
@@ -19228,7 +19242,7 @@ app.get('/api/student/dashboard',
         success: true,
         data: {
           todayClasses,
-          recentGrades: recentGrades || [],
+          recentGrades: formattedRecentGrades,
           unpaidInvoices: unpaidInvoices || [],
           stats: {
             totalClasses: enrollments?.length || 0,
@@ -19361,25 +19375,42 @@ app.get('/api/student/grades',
       const studentId = req.user.id;
       const { classId } = req.query;
 
+      // Query grades via enrollments (correct schema relationship)
       let query = supabase
         .from('grades')
         .select(`
-          id, score, grade_type, weight, notes, created_at, is_locked,
-          class:classes(id, name, code, course:courses(id, title))
+          id, score, notes, created_at,
+          grade_structure:grade_structures(id, name, weight, max_score),
+          enrollment:enrollments!inner(
+            id, student_id, class_id,
+            class:classes(id, name, code, course:courses(id, title))
+          )
         `)
-        .eq('student_id', studentId)
+        .eq('enrollment.student_id', studentId)
         .order('created_at', { ascending: false });
 
       if (classId) {
-        query = query.eq('class_id', classId);
+        query = query.eq('enrollment.class_id', classId);
       }
 
-      const { data: grades, error } = await query;
+      const { data: rawGrades, error } = await query;
       if (error) throw error;
+
+      // Transform to expected format
+      const grades = (rawGrades || []).map(g => ({
+        id: g.id,
+        score: g.score,
+        grade_type: g.grade_structure?.name,
+        weight: g.grade_structure?.weight,
+        max_score: g.grade_structure?.max_score,
+        notes: g.notes,
+        created_at: g.created_at,
+        class: g.enrollment?.class
+      }));
 
       // Calculate statistics per class
       const classStats = {};
-      for (const grade of grades || []) {
+      for (const grade of grades) {
         const cid = grade.class?.id;
         if (!cid) continue;
 
@@ -19407,20 +19438,20 @@ app.get('/api/student/grades',
       }));
 
       // Overall statistics
-      const allScores = (grades || []).map(g => g.score).filter(s => s != null);
+      const allScores = grades.map(g => g.score).filter(s => s != null);
       const overallAvg = allScores.length > 0
         ? (allScores.reduce((a, b) => a + b, 0) / allScores.length).toFixed(2)
         : null;
 
-      console.log(`📝 Student grades loaded: ${grades?.length || 0} grades`);
+      console.log(`📝 Student grades loaded: ${grades.length} grades`);
 
       res.json({
         success: true,
         data: {
-          grades: grades || [],
+          grades,
           classSummaries,
           statistics: {
-            totalGrades: grades?.length || 0,
+            totalGrades: grades.length,
             overallAverage: overallAvg,
             highestScore: allScores.length > 0 ? Math.max(...allScores) : null,
             lowestScore: allScores.length > 0 ? Math.min(...allScores) : null
