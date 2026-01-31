@@ -9011,37 +9011,6 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
         });
       }
     }
-
-      if (payment_method !== 'bank_transfer') {
-        return res.status(400).json({
-          success: false,
-          message: 'Há»c viÃªn chá»‰ cÃ³ thá»ƒ thanh toÃ¡n báº±ng chuyá»ƒn khoáº£n'
-        });
-      }
-
-      if (!req.body.bank_proof_url) {
-        return res.status(400).json({
-          success: false,
-          message: 'Vui lÃ²ng táº£i lÃªn áº£nh minh chá»©ng chuyá»ƒn khoáº£n'
-        });
-      }
-    } else if (userRole === 'CENTER_MANAGER') {
-      if (!userCenterId) {
-        return res.status(403).json({
-          success: false,
-          message: 'Báº¡n chÆ°a Ä‘Æ°á»£c gÃ¡n vÃ o trung tÃ¢m nÃ o.'
-        });
-      }
-
-      const invoiceCenterId = invoice.class?.center_id || invoice.student?.center_id || null;
-      if (invoiceCenterId && invoiceCenterId !== userCenterId) {
-        return res.status(403).json({
-          success: false,
-          message: 'Báº¡n khÃ´ng cÃ³ quyá»n thao tÃ¡c hÃ³a Ä‘Æ¡n cá»§a trung tÃ¢m khÃ¡c.'
-        });
-      }
-    }
-
     // ============================================
     // AUTO-VERIFY LOGIC (Reconciliation Key)
     // ============================================
