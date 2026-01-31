@@ -19281,7 +19281,7 @@ app.get('/api/student/schedule',
           id,
           class:classes(
             id, name, code, schedule, start_date, end_date, room,
-            course:courses(id, title, color),
+            course:courses(id, title),
             teacher:users!classes_teacher_id_fkey(id, full_name)
           )
         `)
@@ -20249,9 +20249,11 @@ app.get('/api/parent/child/:studentId/schedule',
             classId: cls.id,
             className: cls.name,
             classCode: cls.code,
+            courseId: cls.course?.id,
+            courseName: cls.course?.title,
             courseTitle: cls.course?.title,
-            courseColor: cls.course?.color || '#3b82f6',
             teacherName: cls.teacher?.full_name,
+            roomName: cls.room,
             room: cls.room,
             dayOfWeek: scheduleItem.day,
             startTime: scheduleItem.start,
