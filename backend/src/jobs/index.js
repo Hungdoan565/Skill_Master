@@ -1,116 +1,145 @@
 /**
  * Jobs Index
  * Central export for all background jobs
+ * 
+ * Uses pg-boss (PostgreSQL-based) instead of BullMQ/Redis
  */
+
+// pg-boss exports
 export {
-  getPaymentReminderQueue,
-  getOverdueCheckQueue,
-  getEmailQueue,
-  getRedisConnectionInstance,
-  scheduleRecurringJobs,
+  initPgBoss,
+  isPgBossAvailable,
+  getBoss,
+  QUEUES,
+  addJob,
+  scheduleJob,
+  registerWorker,
+  getQueueStats,
+  stopPgBoss,
   triggerPaymentReminder,
   triggerOverdueCheck,
-  getQueueStats,
-  isRedisAvailable,
-  tryConnectRedis
-} from './scheduler.js';
+  queueEmail,
+  queueEnrollmentEmail,
+  scheduleRecurringJobs
+} from './pgboss-scheduler.js';
 
-export { paymentReminderWorker, processReminders, REMINDER_TYPES } from './paymentReminder.job.js';
-export { overdueCheckWorker, processOverdueInvoices } from './overdueCheck.job.js';
-export { emailWorker, sendEmail } from './email.job.js';
-export {
-  ENROLLMENT_EVENTS,
-  queueEnrollmentNotification,
-  sendEnrollmentWelcome,
-  sendTrialConvertedNotification,
-  sendEnrollmentCancelledNotification
-} from './enrollmentNotification.job.js';
+// Workers
+export { startWorkers } from './pgboss-workers.js';
 
-import { scheduleRecurringJobs, getRedisConnectionInstance, tryConnectRedis, isRedisAvailable } from './scheduler.js';
+// Enrollment notification helpers
+export const ENROLLMENT_EVENTS = {
+  CREATED: 'enrollment_created',
+  TRIAL_CONVERTED: 'trial_converted',
+  CANCELLED: 'enrollment_cancelled'
+};
 
-let workersStarted = false;
+import { initPgBoss, scheduleRecurringJobs, stopPgBoss, isPgBossAvailable, queueEmail, queueEnrollmentEmail, triggerPaymentReminder, triggerOverdueCheck } from './pgboss-scheduler.js';
+import { startWorkers } from './pgboss-workers.js';
 
+/**
+ * Start job scheduler (called from main server)
+ */
 export async function startJobScheduler() {
-  console.log('🚀 Starting job scheduler...');
+  console.log('🚀 Starting job scheduler (pg-boss)...');
 
-  // Try to connect to Redis first
-  const connected = await tryConnectRedis();
-
+  const connected = await initPgBoss();
   if (!connected) {
-    console.warn('⚠️ Job scheduler not started (Redis not available)');
+    console.warn('⚠️ Job scheduler not started (DATABASE_URL not available)');
     console.warn('   Backend will continue without background jobs.');
-    return { success: false, error: 'Redis not available' };
+    return { success: false, error: 'pg-boss not available' };
   }
 
-  // Dynamically import workers only when Redis is available
-  // This prevents workers from trying to connect on module load
-  try {
-    const [
-      { paymentReminderWorker },
-      { overdueCheckWorker },
-      { emailWorker }
-    ] = await Promise.all([
-      import('./paymentReminder.job.js'),
-      import('./overdueCheck.job.js'),
-      import('./email.job.js')
-    ]);
+  // Start workers
+  await startWorkers();
 
-    workersStarted = true;
+  // Schedule recurring jobs
+  const result = await scheduleRecurringJobs();
 
-    const result = await scheduleRecurringJobs();
-
-    if (result.success) {
-      console.log('✅ Job scheduler started successfully');
-      console.log('   Workers active:');
-      console.log('   - Payment Reminder Worker');
-      console.log('   - Overdue Check Worker');
-      console.log('   - Email Worker');
-    } else {
-      console.error('❌ Failed to schedule recurring jobs:', result.error);
-    }
-
-    return result;
-  } catch (error) {
-    console.error('❌ Failed to start job scheduler:', error.message);
-    return { success: false, error: error.message };
+  if (result.success) {
+    console.log('✅ Job scheduler started successfully (pg-boss)');
+    console.log('   Workers active:');
+    console.log('   - Email Worker');
+    console.log('   - Payment Reminder Worker');
+    console.log('   - Overdue Check Worker');
+    console.log('   - Enrollment Notification Worker');
   }
+
+  return result;
 }
 
+/**
+ * Stop job scheduler gracefully
+ */
 export async function stopJobScheduler() {
   console.log('🛑 Stopping job scheduler...');
-
-  if (!workersStarted) {
-    console.log('   No workers to stop (Redis was not available)');
-    return;
-  }
-
-  try {
-    // Dynamically import workers to close them
-    const [
-      { paymentReminderWorker },
-      { overdueCheckWorker },
-      { emailWorker }
-    ] = await Promise.all([
-      import('./paymentReminder.job.js'),
-      import('./overdueCheck.job.js'),
-      import('./email.job.js')
-    ]);
-
-    await Promise.all([
-      paymentReminderWorker.close(),
-      overdueCheckWorker.close(),
-      emailWorker.close()
-    ]);
-
-    // Close Redis connection
-    const conn = getRedisConnectionInstance();
-    if (conn && conn.status === 'ready') {
-      await conn.quit();
-      console.log('   Redis connection closed');
-    }
-
-    console.log('✅ Job scheduler stopped');
-  } catch (error) {
-    console.error('❌ Error stopping job scheduler:', error.message);
-  }
+  await stopPgBoss();
+  console.log('✅ Job scheduler stopped');
 }
+
+// ============================================================
+// BACKWARD COMPATIBILITY EXPORTS
+// These maintain API compatibility with old BullMQ-based code
+// ============================================================
+
+// Legacy: isRedisAvailable -> isPgBossAvailable
+export function isRedisAvailable() {
+  return isPgBossAvailable();
+}
+
+// Legacy: tryConnectRedis -> initPgBoss
+export async function tryConnectRedis() {
+  return initPgBoss();
+}
+
+// Legacy queue references (null - use functions instead)
+export const paymentReminderQueue = null;
+export const overdueCheckQueue = null;
+export const emailQueue = null;
+export const redisConnection = null;
+
+// Legacy worker references
+export const paymentReminderWorker = { close: async () => {} };
+export const overdueCheckWorker = { close: async () => {} };
+export const emailWorker = { close: async () => {} };
+
+// Legacy functions
+export const REMINDER_TYPES = {
+  UPCOMING_3_DAYS: 'upcoming_3_days',
+  DUE_TODAY: 'due_today',
+  OVERDUE_1_DAY: 'overdue_1_day',
+  OVERDUE_7_DAYS: 'overdue_7_days'
+};
+
+export async function processReminders() {
+  return triggerPaymentReminder();
+}
+
+export async function processOverdueInvoices() {
+  return triggerOverdueCheck();
+}
+
+export async function queueEnrollmentNotification(eventType, data) {
+  return queueEnrollmentEmail(eventType, data);
+}
+
+export async function sendEnrollmentWelcome(data) {
+  return queueEnrollmentEmail(ENROLLMENT_EVENTS.CREATED, data);
+}
+
+export async function sendTrialConvertedNotification(data) {
+  return queueEnrollmentEmail(ENROLLMENT_EVENTS.TRIAL_CONVERTED, data);
+}
+
+export async function sendEnrollmentCancelledNotification(data) {
+  return queueEnrollmentEmail(ENROLLMENT_EVENTS.CANCELLED, data);
+}
+
+export async function sendEmail(to, subject, template, data) {
+  return queueEmail(to, subject, template, data);
+}
+
+// Legacy getter functions (for compatibility)
+export function getPaymentReminderQueue() { return null; }
+export function getOverdueCheckQueue() { return null; }
+export function getEmailQueue() { return null; }
+export function getRedisConnectionInstance() { return null; }
