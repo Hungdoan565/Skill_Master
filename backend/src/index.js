@@ -19293,86 +19293,124 @@ app.get('/api/student/schedule',
   async (req, res, next) => {
     try {
       const studentId = req.user.id;
-      const { view = 'week', date, classId } = req.query;
+      const { view = 'week', startDate, endDate, classId } = req.query;
 
-      // Get enrolled classes
-      let query = supabase
+      // 1. Get enrolled classes (for filter list and permission check)
+      const { data: enrollments, error: enrollError } = await supabase
         .from('enrollments')
         .select(`
-          id,
           class:classes(
-            id, name, code, schedule, start_date, end_date, room,
-            course:courses(id, title),
-            teacher:users!classes_teacher_id_fkey(id, full_name)
+            id, name, code
           )
         `)
         .eq('student_id', studentId)
         .eq('status', 'active');
 
+      if (enrollError) throw enrollError;
+
+      const enrolledClassIds = enrollments?.map(e => e.class?.id).filter(Boolean) || [];
+
+      if (enrolledClassIds.length === 0) {
+        return res.json({
+          success: true,
+          data: {
+            sessions: [],
+            classes: [],
+            statistics: {
+              totalSessions: 0,
+              completedSessions: 0,
+              upcomingSessions: 0
+            }
+          }
+        });
+      }
+
+      // 2. Query sessions based on enrolled classes and date range
+      let query = supabase
+        .from('sessions')
+        .select(`
+          id,
+          session_date,
+          start_time,
+          end_time,
+          status,
+          room_name,
+          session_number,
+          class:classes(
+            id, name, code,
+            course:courses(id, title),
+            teacher:users!classes_teacher_id_fkey(id, full_name)
+          )
+        `)
+        .in('class_id', enrolledClassIds)
+        .order('session_date', { ascending: true })
+        .order('start_time', { ascending: true });
+
+      // Apply filters
       if (classId) {
         query = query.eq('class_id', classId);
       }
-
-      const { data: enrollments, error } = await query;
-      if (error) throw error;
-
-      // Generate schedule events based on view
-      const baseDate = date ? new Date(date) : new Date();
-      const events = [];
-
-      // Helper to parse schedule (may be JSON string or array)
-      const parseSchedule = (schedule) => {
-        if (!schedule) return [];
-        if (Array.isArray(schedule)) return schedule;
-        if (typeof schedule === 'string') {
-          try { return JSON.parse(schedule); } catch { return []; }
-        }
-        return [];
-      };
-
-      for (const enrollment of enrollments || []) {
-        const cls = enrollment.class;
-        if (!cls?.schedule) continue;
-
-        const scheduleItems = parseSchedule(cls.schedule);
-        for (const scheduleItem of scheduleItems) {
-          // scheduleItem: { day: 2, start: '18:00', end: '20:00' }
-          // day: 2=Monday, 3=Tuesday, ..., 8=Sunday
-
-          events.push({
-            classId: cls.id,
-            className: cls.name,
-            classCode: cls.code,
-            courseTitle: cls.course?.title,
-            courseColor: cls.course?.color || '#3b82f6',
-            teacherName: cls.teacher?.full_name,
-            room: cls.room,
-            dayOfWeek: scheduleItem.day,
-            startTime: scheduleItem.start,
-            endTime: scheduleItem.end,
-            startDate: cls.start_date,
-            endDate: cls.end_date
-          });
-        }
+      
+      if (startDate) {
+        query = query.gte('session_date', startDate);
+      }
+      
+      if (endDate) {
+        query = query.lte('session_date', endDate);
       }
 
-      // Sort by day and time
-      events.sort((a, b) => {
-        if (a.dayOfWeek !== b.dayOfWeek) return a.dayOfWeek - b.dayOfWeek;
-        return a.startTime.localeCompare(b.startTime);
+      const { data: sessionsData, error: sessionError } = await query;
+      if (sessionError) throw sessionError;
+
+      // 3. Transform data for frontend
+      const sessions = (sessionsData || []).map(session => {
+        const date = new Date(session.session_date);
+        // JS getDay(): 0=Sun, 1=Mon... We want 8=Sun, 2=Mon...
+        // 0 (Sun) -> 8
+        // 1 (Mon) -> 2
+        // ...
+        const jsDay = date.getDay();
+        const dayOfWeek = jsDay === 0 ? 8 : jsDay + 1;
+
+        return {
+          sessionId: session.id,
+          classId: session.class?.id,
+          className: session.class?.name,
+          classCode: session.class?.code,
+          courseName: session.class?.course?.title,
+          courseId: session.class?.course?.id,
+          teacherName: session.class?.teacher?.full_name,
+          roomName: session.room_name,
+          sessionDate: session.session_date,
+          dayOfWeek: dayOfWeek,
+          startTime: session.start_time,
+          endTime: session.end_time,
+          status: session.status || 'scheduled',
+          sessionNumber: session.session_number
+        };
       });
 
-      console.log(`📅 Student schedule loaded: ${events.length} events`);
+      // 4. Calculate statistics
+      const now = new Date();
+      const stats = {
+        totalSessions: sessions.length,
+        completedSessions: sessions.filter(s => s.status === 'completed' || new Date(s.sessionDate + ' ' + s.endTime) < now).length,
+        upcomingSessions: sessions.filter(s => s.status === 'scheduled' && new Date(s.sessionDate + ' ' + s.startTime) > now).length
+      };
+
+      // 5. Unique classes list for filter dropdown
+      const uniqueClasses = Array.from(new Map(
+        enrollments.map(e => [e.class.id, e.class])
+      ).values());
+
+      console.log(`📅 Fetched ${sessions.length} sessions for student ${studentId}`);
 
       res.json({
         success: true,
         data: {
-          events,
-          classes: (enrollments || []).map(e => ({
-            id: e.class?.id,
-            name: e.class?.name,
-            code: e.class?.code
-          }))
+          sessions,
+          classes: uniqueClasses,
+          statistics: stats
         }
       });
     } catch (error) {
