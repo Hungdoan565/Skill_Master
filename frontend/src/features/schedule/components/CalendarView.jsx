@@ -33,6 +33,70 @@ const MONTHS = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Th�
 // Working hours for week view
 const WORK_HOURS = Array.from({ length: 15 }, (_, i) => i + 7); // 7:00 - 21:00
 
+// Time slots configuration (Sáng/Chiều/Tối)
+const TIME_SLOTS = [
+  { 
+    key: 'morning', 
+    label: 'Sáng', 
+    icon: '🌅', 
+    startHour: 6, 
+    endHour: 12, 
+    bgClass: 'bg-amber-50',
+    headerClass: 'bg-amber-100 text-amber-800',
+    borderClass: 'border-amber-200'
+  },
+  { 
+    key: 'afternoon', 
+    label: 'Chiều', 
+    icon: '☀️', 
+    startHour: 12, 
+    endHour: 18, 
+    bgClass: 'bg-orange-50',
+    headerClass: 'bg-orange-100 text-orange-800',
+    borderClass: 'border-orange-200'
+  },
+  { 
+    key: 'evening', 
+    label: 'Tối', 
+    icon: '🌙', 
+    startHour: 18, 
+    endHour: 23, 
+    bgClass: 'bg-indigo-50',
+    headerClass: 'bg-indigo-100 text-indigo-800',
+    borderClass: 'border-indigo-200'
+  }
+];
+
+// Get time slot for a session
+const getTimeSlot = (timeStr) => {
+  if (!timeStr) return 'morning';
+  const hour = parseInt(timeStr.split(':')[0], 10);
+  if (hour < 12) return 'morning';
+  if (hour < 18) return 'afternoon';
+  return 'evening';
+};
+
+// Group sessions by time slot
+const groupSessionsByTimeSlot = (sessions) => {
+  const grouped = {
+    morning: [],
+    afternoon: [],
+    evening: []
+  };
+  
+  sessions.forEach(session => {
+    const slot = getTimeSlot(session.start_time);
+    grouped[slot].push(session);
+  });
+  
+  // Sort sessions within each slot by start_time
+  Object.keys(grouped).forEach(slot => {
+    grouped[slot].sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
+  });
+  
+  return grouped;
+};
+
 // Status config
 const STATUS_CONFIG = {
   scheduled: {
@@ -204,21 +268,25 @@ function SessionCard({ session, onClick, compact = false }) {
 }
 
 // ============================================
-// WEEK VIEW COMPONENT
+// WEEK VIEW COMPONENT (with Sáng/Chiều/Tối grouping)
 // ============================================
 function WeekView({ sessions, currentDate, onSessionClick }) {
   const weekDates = useMemo(() => getWeekDates(currentDate), [currentDate]);
   const today = formatDateKey(new Date());
   
-  // Group sessions by date and hour
-  const sessionsByDateTime = useMemo(() => {
+  // Group sessions by date and time slot
+  const sessionsByDateAndSlot = useMemo(() => {
     const map = {};
     sessions.forEach(session => {
       const dateKey = session.session_date;
-      const hour = parseInt(session.start_time?.split(':')[0] || '0');
-      const key = `${dateKey}-${hour}`;
+      const slot = getTimeSlot(session.start_time);
+      const key = `${dateKey}-${slot}`;
       if (!map[key]) map[key] = [];
       map[key].push(session);
+    });
+    // Sort sessions within each slot
+    Object.keys(map).forEach(key => {
+      map[key].sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
     });
     return map;
   }, [sessions]);
@@ -228,7 +296,7 @@ function WeekView({ sessions, currentDate, onSessionClick }) {
       {/* Header - Days - Sticky */}
       <div className="sticky top-0 z-20 grid grid-cols-8 border-b border-slate-200 bg-slate-50 shadow-sm">
         <div className="p-2 bg-slate-50 border-r border-slate-200">
-          <span className="text-xs font-medium text-slate-500">Giờ</span>
+          <span className="text-xs font-medium text-slate-500">Buổi</span>
         </div>
         {weekDates.map((date, i) => {
           const dateKey = formatDateKey(date);
@@ -246,47 +314,65 @@ function WeekView({ sessions, currentDate, onSessionClick }) {
               <div className={`text-lg font-bold ${isToday ? 'text-indigo-600' : 'text-slate-900'}`}>
                 {date.getDate()}
               </div>
+              {isToday && (
+                <span className="inline-block mt-0.5 px-1.5 py-0.5 text-[10px] font-medium bg-indigo-600 text-white rounded-full">
+                  Hôm nay
+                </span>
+              )}
             </div>
           );
         })}
       </div>
       
-      {/* Time Grid */}
+      {/* Time Slot Grid (Sáng/Chiều/Tối) */}
       <div className="max-h-[600px] overflow-y-auto">
-        {WORK_HOURS.map(hour => (
-          <div key={hour} className="grid grid-cols-8 border-b border-slate-100 min-h-20">
-            {/* Hour label */}
-            <div className="p-2 border-r border-slate-200 bg-slate-50">
-              <span className="text-xs font-medium text-slate-500">
-                {String(hour).padStart(2, '0')}:00
-              </span>
-            </div>
-            
-            {/* Day cells */}
-            {weekDates.map((date, i) => {
-              const dateKey = formatDateKey(date);
-              const isToday = dateKey === today;
-              const cellKey = `${dateKey}-${hour}`;
-              const cellSessions = sessionsByDateTime[cellKey] || [];
+        {TIME_SLOTS.map(slot => (
+          <div key={slot.key} className={`border-b ${slot.borderClass}`}>
+            {/* Time slot row */}
+            <div className="grid grid-cols-8 min-h-[120px]">
+              {/* Slot label */}
+              <div className={`p-2 border-r ${slot.borderClass} ${slot.headerClass} flex flex-col items-center justify-center`}>
+                <span className="text-xl mb-1">{slot.icon}</span>
+                <span className="text-xs font-semibold">{slot.label}</span>
+                <span className="text-[10px] opacity-75 mt-0.5">
+                  {slot.startHour}:00 - {slot.endHour}:00
+                </span>
+              </div>
               
-              return (
-                <div 
-                  key={i}
-                  className={`p-1 border-r border-slate-100 last:border-r-0 ${
-                    isToday ? 'bg-indigo-50/30' : ''
-                  }`}
-                >
-                  {cellSessions.map(session => (
-                    <SessionCard 
-                      key={session.id} 
-                      session={session} 
-                      onClick={onSessionClick}
-                      compact
-                    />
-                  ))}
-                </div>
-              );
-            })}
+              {/* Day cells for this slot */}
+              {weekDates.map((date, i) => {
+                const dateKey = formatDateKey(date);
+                const isToday = dateKey === today;
+                const cellKey = `${dateKey}-${slot.key}`;
+                const cellSessions = sessionsByDateAndSlot[cellKey] || [];
+                
+                return (
+                  <div 
+                    key={i}
+                    className={`p-1.5 border-r ${slot.borderClass} last:border-r-0 ${slot.bgClass} ${
+                      isToday ? 'ring-1 ring-inset ring-indigo-200' : ''
+                    }`}
+                  >
+                    {cellSessions.length === 0 ? (
+                      <div className="h-full flex items-center justify-center">
+                        <span className="text-[10px] text-slate-400">—</span>
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        {cellSessions.map(session => (
+                          <SessionCard 
+                            key={session.id} 
+                            session={session} 
+                            onClick={onSessionClick}
+                            compact
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         ))}
       </div>

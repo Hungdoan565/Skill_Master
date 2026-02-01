@@ -14,6 +14,49 @@ import {
 } from 'lucide-react';
 import { useTeacherSchedule } from '../hooks/useTeacherSchedule';
 
+// Time slots configuration (Sáng/Chiều/Tối)
+const TIME_SLOTS = [
+    { 
+        key: 'morning', 
+        label: 'Sáng', 
+        icon: '🌅', 
+        startHour: 6, 
+        endHour: 12, 
+        bgClass: 'bg-amber-50',
+        headerClass: 'bg-amber-100 text-amber-800 border-amber-200',
+        borderClass: 'border-amber-200'
+    },
+    { 
+        key: 'afternoon', 
+        label: 'Chiều', 
+        icon: '☀️', 
+        startHour: 12, 
+        endHour: 18, 
+        bgClass: 'bg-orange-50',
+        headerClass: 'bg-orange-100 text-orange-800 border-orange-200',
+        borderClass: 'border-orange-200'
+    },
+    { 
+        key: 'evening', 
+        label: 'Tối', 
+        icon: '🌙', 
+        startHour: 18, 
+        endHour: 23, 
+        bgClass: 'bg-indigo-50',
+        headerClass: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+        borderClass: 'border-indigo-200'
+    }
+];
+
+// Get time slot for a session
+const getTimeSlot = (timeStr) => {
+    if (!timeStr) return 'morning';
+    const hour = parseInt(timeStr.split(':')[0], 10);
+    if (hour < 12) return 'morning';
+    if (hour < 18) return 'afternoon';
+    return 'evening';
+};
+
 /**
  * Teacher Schedule Page - Trang lịch dạy của giáo viên
  */
@@ -219,10 +262,14 @@ export function TeacherSchedulePage() {
                 </div>
             )}
 
-            {/* Schedule Grid */}
+            {/* Schedule Grid - with Sáng/Chiều/Tối grouping */}
             <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
                 {/* Days Header */}
-                <div className="grid grid-cols-7 border-b bg-gray-50">
+                <div className="grid grid-cols-8 border-b bg-gray-50">
+                    {/* Empty cell for time slot labels */}
+                    <div className="p-3 text-center border-r bg-gray-100">
+                        <p className="text-xs font-medium text-gray-500">Buổi</p>
+                    </div>
                     {schedule.map((day) => (
                         <div
                             key={day.date}
@@ -252,72 +299,95 @@ export function TeacherSchedulePage() {
                     ))}
                 </div>
 
-                {/* Schedule Content */}
-                <div className="grid grid-cols-7 min-h-[400px]">
-                    {schedule.map((day) => (
-                        <div
-                            key={day.date}
-                            className={cn(
-                                'border-r last:border-r-0 p-2',
-                                isToday(day.date) && 'bg-blue-50/30',
-                                isPast(day.date) && !isToday(day.date) && 'bg-gray-50/50'
-                            )}
-                        >
-                            {day.sessions.length === 0 ? (
-                                <div className="h-full flex items-center justify-center text-gray-400 text-sm">
-                                    <span>Không có lịch</span>
-                                </div>
-                            ) : (
-                                <div className="space-y-2">
-                                    {day.sessions.map((session) => {
-                                        const statusConfig = getStatusConfig(session.status);
-                                        const StatusIcon = statusConfig.icon;
-
-                                        return (
-                                            <div
-                                                key={session.id}
-                                                className={cn(
-                                                    'rounded-lg border p-3 cursor-pointer transition-all hover:shadow-md',
-                                                    statusConfig.class
-                                                )}
-                                            >
-                                                {/* Time */}
-                                                <div className="flex items-center gap-1 text-xs font-medium mb-2">
-                                                    <Clock className="h-3 w-3" />
-                                                    {formatTime(session.start_time)} - {formatTime(session.end_time)}
-                                                </div>
-
-                                                {/* Class name */}
-                                                <h4 className="font-semibold text-sm truncate" title={session.class_name}>
-                                                    {session.class_name || session.class_code}
-                                                </h4>
-
-                                                {/* Course */}
-                                                <p className="text-xs truncate opacity-80 mt-1" title={session.course_name}>
-                                                    {session.course_name}
-                                                </p>
-
-                                                {/* Room */}
-                                                {session.room_name && (
-                                                    <div className="flex items-center gap-1 text-xs mt-2 opacity-80">
-                                                        <MapPin className="h-3 w-3" />
-                                                        {session.room_name}
-                                                    </div>
-                                                )}
-
-                                                {/* Status */}
-                                                <div className="flex items-center gap-1 text-xs mt-2">
-                                                    <StatusIcon className="h-3 w-3" />
-                                                    {statusConfig.label}
-                                                </div>
+                {/* Schedule Content - grouped by time slots */}
+                {TIME_SLOTS.map((slot) => (
+                    <div key={slot.key} className={cn('border-b', slot.borderClass)}>
+                        <div className="grid grid-cols-8 min-h-[120px]">
+                            {/* Time slot label */}
+                            <div className={cn(
+                                'p-3 border-r flex flex-col items-center justify-center',
+                                slot.headerClass
+                            )}>
+                                <span className="text-xl mb-1">{slot.icon}</span>
+                                <span className="text-xs font-semibold">{slot.label}</span>
+                                <span className="text-[10px] opacity-75 mt-0.5">
+                                    {slot.startHour}:00 - {slot.endHour}:00
+                                </span>
+                            </div>
+                            
+                            {/* Day cells for this slot */}
+                            {schedule.map((day) => {
+                                // Filter sessions for this time slot
+                                const slotSessions = day.sessions.filter(s => getTimeSlot(s.start_time) === slot.key);
+                                
+                                return (
+                                    <div
+                                        key={`${day.date}-${slot.key}`}
+                                        className={cn(
+                                            'border-r last:border-r-0 p-2',
+                                            slot.bgClass,
+                                            isToday(day.date) && 'ring-1 ring-inset ring-blue-200',
+                                            isPast(day.date) && !isToday(day.date) && 'opacity-75'
+                                        )}
+                                    >
+                                        {slotSessions.length === 0 ? (
+                                            <div className="h-full flex items-center justify-center text-gray-400 text-[10px]">
+                                                <span>—</span>
                                             </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
+                                        ) : (
+                                            <div className="space-y-2">
+                                                {slotSessions.map((session) => {
+                                                    const statusConfig = getStatusConfig(session.status);
+                                                    const StatusIcon = statusConfig.icon;
+
+                                                    return (
+                                                        <div
+                                                            key={session.id}
+                                                            className={cn(
+                                                                'rounded-lg border p-2 cursor-pointer transition-all hover:shadow-md',
+                                                                statusConfig.class
+                                                            )}
+                                                        >
+                                                            {/* Time */}
+                                                            <div className="flex items-center gap-1 text-xs font-medium mb-1">
+                                                                <Clock className="h-3 w-3" />
+                                                                {formatTime(session.start_time)} - {formatTime(session.end_time)}
+                                                            </div>
+
+                                                            {/* Class name */}
+                                                            <h4 className="font-semibold text-sm truncate" title={session.class_name}>
+                                                                {session.class_name || session.class_code}
+                                                            </h4>
+
+                                                            {/* Course */}
+                                                            <p className="text-xs truncate opacity-80 mt-0.5" title={session.course_name}>
+                                                                {session.course_name}
+                                                            </p>
+
+                                                            {/* Room */}
+                                                            {session.room_name && (
+                                                                <div className="flex items-center gap-1 text-xs mt-1 opacity-80">
+                                                                    <MapPin className="h-3 w-3" />
+                                                                    {session.room_name}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Status */}
+                                                            <div className="flex items-center gap-1 text-xs mt-1">
+                                                                <StatusIcon className="h-3 w-3" />
+                                                                {statusConfig.label}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
-                    ))}
-                </div>
+                    </div>
+                ))}
             </div>
 
             {/* Legend */}
