@@ -5,7 +5,8 @@ import {
     DollarSign,
     Clock,
     FileText,
-    Settings
+    Settings,
+    Zap
 } from 'lucide-react';
 
 /**
@@ -59,8 +60,9 @@ export function QuickActions() {
 
     return (
         <div className="rounded-xl border bg-white p-6 shadow-sm">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                ⚡ Thao tác nhanh
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <Zap className="h-5 w-5 text-yellow-500" />
+                Thao tác nhanh
             </h3>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">

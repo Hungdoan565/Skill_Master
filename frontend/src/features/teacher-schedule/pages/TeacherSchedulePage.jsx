@@ -10,7 +10,11 @@ import {
     CheckCircle,
     XCircle,
     AlertCircle,
-    RefreshCw
+    RefreshCw,
+    CalendarDays,
+    Sunrise,
+    Sun,
+    Moon
 } from 'lucide-react';
 import { useTeacherSchedule } from '../hooks/useTeacherSchedule';
 
@@ -19,7 +23,7 @@ const TIME_SLOTS = [
     { 
         key: 'morning', 
         label: 'Sáng', 
-        icon: '🌅', 
+        Icon: Sunrise, 
         startHour: 6, 
         endHour: 12, 
         bgClass: 'bg-amber-50',
@@ -29,7 +33,7 @@ const TIME_SLOTS = [
     { 
         key: 'afternoon', 
         label: 'Chiều', 
-        icon: '☀️', 
+        Icon: Sun, 
         startHour: 12, 
         endHour: 18, 
         bgClass: 'bg-orange-50',
@@ -39,7 +43,7 @@ const TIME_SLOTS = [
     { 
         key: 'evening', 
         label: 'Tối', 
-        icon: '🌙', 
+        Icon: Moon, 
         startHour: 18, 
         endHour: 23, 
         bgClass: 'bg-indigo-50',
@@ -201,7 +205,10 @@ export function TeacherSchedulePage() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">📅 Lịch dạy</h1>
+                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                        <CalendarDays className="h-6 w-6 text-blue-500" />
+                        Lịch dạy
+                    </h1>
                     <p className="text-gray-500 mt-1">Xem và theo dõi các buổi dạy của bạn</p>
                 </div>
 
@@ -308,7 +315,7 @@ export function TeacherSchedulePage() {
                                 'p-3 border-r flex flex-col items-center justify-center',
                                 slot.headerClass
                             )}>
-                                <span className="text-xl mb-1">{slot.icon}</span>
+                                <span className="text-xl mb-1"><slot.Icon className="h-5 w-5" /></span>
                                 <span className="text-xs font-semibold">{slot.label}</span>
                                 <span className="text-[10px] opacity-75 mt-0.5">
                                     {slot.startHour}:00 - {slot.endHour}:00

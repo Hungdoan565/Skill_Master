@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { Clock, MapPin, Users, CheckCircle, AlertCircle } from 'lucide-react';
+import { Clock, MapPin, Users, CheckCircle, AlertCircle, CalendarDays } from 'lucide-react';
 
 /**
  * Component hiển thị lịch dạy hôm nay
@@ -8,8 +8,9 @@ export function TodaySchedule({ sessions = [], onMarkAttendance }) {
     if (sessions.length === 0) {
         return (
             <div className="rounded-xl border bg-white p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    📅 Lịch dạy hôm nay
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <CalendarDays className="h-5 w-5 text-blue-500" />
+                    Lịch dạy hôm nay
                 </h3>
                 <div className="text-center py-8 text-gray-500">
                     <Clock className="h-12 w-12 mx-auto mb-3 text-gray-300" />
@@ -68,8 +69,9 @@ export function TodaySchedule({ sessions = [], onMarkAttendance }) {
     return (
         <div className="rounded-xl border bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                    📅 Lịch dạy hôm nay
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <CalendarDays className="h-5 w-5 text-blue-500" />
+                    Lịch dạy hôm nay
                 </h3>
                 <span className="text-sm text-gray-500">
                     {sessions.length} buổi học

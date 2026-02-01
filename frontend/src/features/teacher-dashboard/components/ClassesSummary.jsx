@@ -9,8 +9,9 @@ export function ClassesSummary({ classes = [] }) {
     if (classes.length === 0) {
         return (
             <div className="rounded-xl border bg-white p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    📚 Lớp học đang dạy
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <BookOpen className="h-5 w-5 text-purple-500" />
+                    Lớp học đang dạy
                 </h3>
                 <div className="text-center py-8 text-gray-500">
                     <BookOpen className="h-12 w-12 mx-auto mb-3 text-gray-300" />
@@ -37,8 +38,9 @@ export function ClassesSummary({ classes = [] }) {
     return (
         <div className="rounded-xl border bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                    📚 Lớp học đang dạy
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <BookOpen className="h-5 w-5 text-purple-500" />
+                    Lớp học đang dạy
                 </h3>
                 <Link
                     to="/teacher/classes"

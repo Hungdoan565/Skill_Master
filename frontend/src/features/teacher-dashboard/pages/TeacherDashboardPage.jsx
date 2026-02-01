@@ -13,7 +13,8 @@ import {
     DollarSign,
     ClipboardCheck,
     RefreshCw,
-    AlertTriangle
+    AlertTriangle,
+    Lightbulb
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -169,8 +170,9 @@ export function TeacherDashboardPage() {
 
                 {/* Tips Section */}
                 <div className="rounded-xl border bg-gradient-to-r from-amber-50 to-orange-50 p-6">
-                    <h3 className="text-lg font-semibold text-amber-900 mb-3">
-                        💡 Mẹo hôm nay
+                <h3 className="text-lg font-semibold text-amber-900 mb-3 flex items-center gap-2">
+                        <Lightbulb className="h-5 w-5" />
+                        Mẹo hôm nay
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="bg-white/60 rounded-lg p-4">

@@ -153,7 +153,10 @@ export function TeacherAvailabilityPage() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">⏰ Lịch trống</h1>
+                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                        <Clock className="h-6 w-6 text-blue-500" />
+                        Lịch trống
+                    </h1>
                     <p className="text-gray-500 mt-1">
                         Cập nhật lịch trống để admin có thể xếp lịch dạy phù hợp cho bạn
                     </p>

@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { CheckCircle, XCircle, Clock, TrendingUp } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, TrendingUp, BarChart3 } from 'lucide-react';
 
 /**
  * Component hiển thị thống kê điểm danh
@@ -54,8 +54,9 @@ export function AttendanceStats({ stats }) {
     return (
         <div className="rounded-xl border bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">
-                    📊 Thống kê điểm danh
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5 text-blue-500" />
+                    Thống kê điểm danh
                 </h3>
                 {monthly_trend && (
                     <div className="flex items-center gap-1 text-sm">
