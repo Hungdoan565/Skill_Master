@@ -116,6 +116,7 @@ export const GRADE_TEMPLATE_OPTIONS = [
 // Tab configuration
 export const SETTINGS_TABS = [
     { id: 'profile', label: 'Hồ sơ cá nhân', icon: 'User' },
+    { id: 'bank', label: 'Tài khoản ngân hàng', icon: 'Building2', teacherOnly: true },
     { id: 'payment', label: 'Thanh toán', icon: 'CreditCard' },
     { id: 'grades', label: 'Đánh giá', icon: 'GraduationCap' },
     { id: 'system', label: 'Hệ thống', icon: 'Settings' },

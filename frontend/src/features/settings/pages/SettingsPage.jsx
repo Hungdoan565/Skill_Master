@@ -11,12 +11,13 @@ import {
     GraduationCap,
     Shield,
     ArrowLeft,
-    ChevronRight
+    ChevronRight,
+    Building2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/contexts/auth-context';
-import { ProfileTab, PaymentTab, SystemTab, SecurityTab, GradesConfigTab } from '../components';
+import { ProfileTab, PaymentTab, SystemTab, SecurityTab, GradesConfigTab, BankInfoTab } from '../components';
 import { SETTINGS_TABS } from '../utils/constants';
 
 // Map icon names to components
@@ -25,7 +26,8 @@ const iconMap = {
     CreditCard: CreditCard,
     GraduationCap: GraduationCap,
     Settings: Settings,
-    Shield: Shield
+    Shield: Shield,
+    Building2: Building2
 };
 
 export function SettingsPage() {
@@ -36,11 +38,14 @@ export function SettingsPage() {
 
     // Check SUPER_ADMIN role from roles.code or roleCode
     const isSuperAdmin = profile?.roles?.code === 'SUPER_ADMIN' || profile?.roleCode === 'SUPER_ADMIN';
+    const isTeacher = profile?.roles?.code === 'TEACHER' || profile?.roleCode === 'TEACHER';
 
     // Filter tabs based on role
-    const availableTabs = SETTINGS_TABS.filter(
-        tab => !tab.superAdminOnly || isSuperAdmin
-    );
+    const availableTabs = SETTINGS_TABS.filter(tab => {
+        if (tab.superAdminOnly && !isSuperAdmin) return false;
+        if (tab.teacherOnly && !isTeacher) return false;
+        return true;
+    });
 
     // Handle message from tabs
     const handleMessage = (text, type = 'info') => {
@@ -53,6 +58,8 @@ export function SettingsPage() {
         switch (activeTab) {
             case 'profile':
                 return <ProfileTab onMessage={handleMessage} />;
+            case 'bank':
+                return isTeacher ? <BankInfoTab onMessage={handleMessage} /> : null;
             case 'payment':
                 return <PaymentTab onMessage={handleMessage} />;
             case 'grades':
