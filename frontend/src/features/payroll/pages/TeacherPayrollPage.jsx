@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
-import { DollarSign, Calendar, Clock, FileText, Loader2 } from 'lucide-react';
+import { DollarSign, Calendar, Clock, FileText, Loader2, AlertTriangle } from 'lucide-react';
 import axios from 'axios';
 import {
     Card,
@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/components/ui/toast';
 import { supabase } from '@/lib/supabaseClient';
 import {
     formatCurrency,
@@ -28,6 +29,8 @@ import {
     API_URL,
 } from '../utils';
 import { PrintPayslipModal } from '../components/PrintPayslipModal';
+import { DisputeModal } from '../components/DisputeModal';
+import { usePayroll } from '../hooks/usePayroll';
 
 const getAuthHeaders = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -45,6 +48,11 @@ export function TeacherPayrollPage() {
     const [selectedPayroll, setSelectedPayroll] = useState(null);
     const [detailLoading, setDetailLoading] = useState(false);
     const [printModal, setPrintModal] = useState({ isOpen: false, payrollData: null });
+    const [disputeModal, setDisputeModal] = useState({ isOpen: false, payroll: null });
+    const [disputeSubmitting, setDisputeSubmitting] = useState(false);
+
+    const { submitDispute } = usePayroll();
+    const { toast } = useToast();
 
     // Fetch payroll list
     const fetchPayrolls = useCallback(async () => {
@@ -93,6 +101,35 @@ export function TeacherPayrollPage() {
     // Print payslip
     const handlePrint = (payroll) => {
         setPrintModal({ isOpen: true, payrollData: payroll });
+    };
+
+    // Open dispute modal
+    const handleOpenDispute = (payroll) => {
+        setDisputeModal({ isOpen: true, payroll });
+    };
+
+    // Submit dispute
+    const handleSubmitDispute = async (payrollId, data) => {
+        try {
+            setDisputeSubmitting(true);
+            await submitDispute(payrollId, data);
+            setDisputeModal({ isOpen: false, payroll: null });
+            // Show success notification
+            toast.success('Khiếu nại đã được gửi thành công!', {
+                title: 'Thành công'
+            });
+        } catch (error) {
+            console.error('Error submitting dispute:', error);
+            // Show actual error message from backend if available
+            const errorMessage = error.response?.data?.message 
+                || error.message 
+                || 'Có lỗi xảy ra khi gửi khiếu nại';
+            toast.error(errorMessage, {
+                title: 'Lỗi'
+            });
+        } finally {
+            setDisputeSubmitting(false);
+        }
     };
 
     // Calculate year total
@@ -276,9 +313,15 @@ export function TeacherPayrollPage() {
                                 {/* Salary Breakdown */}
                                 <div className="space-y-2">
                                     <div className="flex justify-between py-2 border-b">
-                                        <span>Lương cơ bản</span>
+                                        <span>Thu nhập giờ dạy</span>
                                         <span>{formatCurrency(selectedPayroll.base_salary)}</span>
                                     </div>
+                                    {(selectedPayroll.fixed_salary > 0) && (
+                                        <div className="flex justify-between py-2 border-b">
+                                            <span>Lương cố định tháng</span>
+                                            <span>{formatCurrency(selectedPayroll.fixed_salary)}</span>
+                                        </div>
+                                    )}
                                     <div className="flex justify-between py-2 border-b text-green-600">
                                         <span>Thưởng</span>
                                         <span>+{formatCurrency(selectedPayroll.bonus || 0)}</span>
@@ -318,6 +361,27 @@ export function TeacherPayrollPage() {
                                     </div>
                                 )}
 
+                                {/* Payment Proof */}
+                                {selectedPayroll.status === 'paid' && selectedPayroll.payment_proof_url && (
+                                    <div className="space-y-2">
+                                        <h4 className="font-medium text-sm text-slate-600">Chứng từ thanh toán</h4>
+                                        <div className="border rounded-lg overflow-hidden">
+                                            <img 
+                                                src={selectedPayroll.payment_proof_url} 
+                                                alt="Payment proof" 
+                                                className="w-full max-h-48 object-contain bg-slate-50"
+                                                onClick={() => window.open(selectedPayroll.payment_proof_url, '_blank')}
+                                                style={{ cursor: 'pointer' }}
+                                            />
+                                        </div>
+                                        {selectedPayroll.payment_reference && (
+                                            <p className="text-xs text-slate-500">
+                                                Mã GD: {selectedPayroll.payment_reference}
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+
                                 {/* Print Button */}
                                 {selectedPayroll.status === 'paid' && (
                                     <Button
@@ -327,6 +391,18 @@ export function TeacherPayrollPage() {
                                     >
                                         <FileText className="mr-2 h-4 w-4" />
                                         In phiếu lương
+                                    </Button>
+                                )}
+
+                                {/* Dispute Button - show for non-paid payrolls */}
+                                {['draft', 'pending', 'approved'].includes(selectedPayroll.status) && (
+                                    <Button
+                                        onClick={() => handleOpenDispute(selectedPayroll)}
+                                        className="w-full"
+                                        variant="outline"
+                                    >
+                                        <AlertTriangle className="mr-2 h-4 w-4 text-orange-500" />
+                                        Khiếu nại bảng lương
                                     </Button>
                                 )}
                             </div>
@@ -340,6 +416,15 @@ export function TeacherPayrollPage() {
                 isOpen={printModal.isOpen}
                 onClose={() => setPrintModal({ isOpen: false, payrollData: null })}
                 payrollData={printModal.payrollData}
+            />
+
+            {/* Dispute Modal */}
+            <DisputeModal
+                isOpen={disputeModal.isOpen}
+                onClose={() => setDisputeModal({ isOpen: false, payroll: null })}
+                payroll={disputeModal.payroll}
+                onSubmit={handleSubmitDispute}
+                submitting={disputeSubmitting}
             />
         </div>
     );

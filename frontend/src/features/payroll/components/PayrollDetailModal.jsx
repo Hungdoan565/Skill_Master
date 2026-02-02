@@ -126,10 +126,18 @@ export function PayrollDetailModal({
                                     Chi tiết lương
                                 </h3>
                                 <div className="space-y-2">
+                                    {/* Teaching Earnings (previously base_salary) */}
                                     <div className="flex justify-between text-sm">
-                                        <span>Lương cơ bản ({formatHours(detailData.total_hours)} × rate)</span>
+                                        <span>Thu nhập giờ dạy ({formatHours(detailData.total_hours)} × rate)</span>
                                         <span>{formatCurrency(detailData.base_salary)}</span>
                                     </div>
+                                    {/* Fixed Salary - only show if > 0 */}
+                                    {(detailData.fixed_salary > 0) && (
+                                        <div className="flex justify-between text-sm">
+                                            <span>Lương cố định tháng</span>
+                                            <span>{formatCurrency(detailData.fixed_salary)}</span>
+                                        </div>
+                                    )}
                                     <div className="flex justify-between text-sm text-green-600">
                                         <span>Thưởng</span>
                                         <span>+{formatCurrency(detailData.bonus || 0)}</span>

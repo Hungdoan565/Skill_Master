@@ -31,6 +31,21 @@ async function getEnrollmentNotifications() {
   return enrollmentNotifications || null;
 }
 
+// Lazy import for queueEmail (requires Redis/PgBoss)
+let queueEmailFn = null;
+async function getQueueEmail() {
+  if (queueEmailFn === null) {
+    try {
+      const jobs = await import('./jobs/index.js');
+      queueEmailFn = jobs.queueEmail || false;
+    } catch (err) {
+      console.warn('⚠️ Email queue not available (Redis may not be running):', err.message);
+      queueEmailFn = false;
+    }
+  }
+  return queueEmailFn || null;
+}
+
 dotenv.config();
 
 const app = express();
@@ -10059,6 +10074,2620 @@ app.get('/api/admin/invoices/overdue', requireAuth, requireRole(['SUPER_ADMIN', 
     next(error);
   }
 });
+
+// ============================================================
+// PAYROLL MANAGEMENT APIs
+// ============================================================
+
+/**
+ * GET /api/admin/payroll
+ * Get list of payrolls with optional filters
+ * Query: ?month=2&year=2026&status=draft&teacher_id=uuid
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.get('/api/admin/payroll',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { month, year, status, teacher_id, center_id } = req.query;
+
+      // Permission check
+      const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, center_id);
+      if (permError) {
+        return res.status(403).json({ success: false, message: permError });
+      }
+
+      console.log(`💰 Admin ${req.user.email} fetching payrolls - month: ${month}, year: ${year}`);
+
+      let query = supabase
+        .from('payroll')
+        .select(`
+          *,
+          teacher:users!payroll_teacher_id_fkey (
+            id, full_name, email, phone, avatar_url, hourly_rate, center_id
+          ),
+          approver:users!payroll_approved_by_fkey (
+            id, full_name, email
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      // Apply filters
+      if (month) query = query.eq('period_month', parseInt(month));
+      if (year) query = query.eq('period_year', parseInt(year));
+      if (status) query = query.eq('status', status);
+      if (teacher_id) query = query.eq('teacher_id', teacher_id);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      // Filter by center if needed
+      let filteredData = data || [];
+      if (effectiveCenterId) {
+        filteredData = filteredData.filter(p => p.teacher?.center_id === effectiveCenterId);
+      }
+
+      res.json({
+        success: true,
+        data: filteredData
+      });
+    } catch (error) {
+      console.error('❌ Error fetching payrolls:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/admin/payroll/stats
+ * Get payroll statistics for a period
+ * Query: ?month=2&year=2026
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.get('/api/admin/payroll/stats',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const now = new Date();
+      const month = parseInt(req.query.month) || (now.getMonth() + 1);
+      const year = parseInt(req.query.year) || now.getFullYear();
+      const { center_id } = req.query;
+
+      const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, center_id);
+      if (permError) {
+        return res.status(403).json({ success: false, message: permError });
+      }
+
+      console.log(`💰 Admin ${req.user.email} fetching payroll stats - ${month}/${year}`);
+
+      const { data: payrolls, error } = await supabase
+        .from('payroll')
+        .select(`
+          id, status, net_salary, base_salary, bonus, deduction,
+          teacher:users!payroll_teacher_id_fkey (center_id)
+        `)
+        .eq('period_month', month)
+        .eq('period_year', year);
+
+      if (error) throw error;
+
+      // Filter by center
+      let filtered = payrolls || [];
+      if (effectiveCenterId) {
+        filtered = filtered.filter(p => p.teacher?.center_id === effectiveCenterId);
+      }
+
+      // Calculate stats
+      const stats = {
+        month,
+        year,
+        total_payrolls: filtered.length,
+        draft: filtered.filter(p => p.status === 'draft').length,
+        pending: filtered.filter(p => p.status === 'pending').length,
+        approved: filtered.filter(p => p.status === 'approved').length,
+        paid: filtered.filter(p => p.status === 'paid').length,
+        total_amount: filtered.reduce((sum, p) => sum + (parseFloat(p.net_salary) || 0), 0),
+        paid_amount: filtered
+          .filter(p => p.status === 'paid')
+          .reduce((sum, p) => sum + (parseFloat(p.net_salary) || 0), 0),
+        pending_amount: filtered
+          .filter(p => p.status !== 'paid')
+          .reduce((sum, p) => sum + (parseFloat(p.net_salary) || 0), 0)
+      };
+
+      res.json({
+        success: true,
+        data: stats
+      });
+    } catch (error) {
+      console.error('❌ Error fetching payroll stats:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/admin/payroll/teachers
+ * Get teachers with monthly stats (sessions, hours, base salary)
+ * Query: ?month=2&year=2026
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.get('/api/admin/payroll/teachers',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const now = new Date();
+      const month = parseInt(req.query.month) || (now.getMonth() + 1);
+      const year = parseInt(req.query.year) || now.getFullYear();
+      const { center_id } = req.query;
+
+      const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, center_id);
+      if (permError) {
+        return res.status(403).json({ success: false, message: permError });
+      }
+
+      console.log(`💰 Admin ${req.user.email} fetching teachers for payroll - ${month}/${year}`);
+
+      // Get all teachers
+      let teachersQuery = supabase
+        .from('users')
+        .select(`
+          id, full_name, email, phone, avatar_url, hourly_rate, center_id, status,
+          roles!inner (code)
+        `)
+        .eq('roles.code', 'TEACHER')
+        .eq('status', 'active');
+
+      if (effectiveCenterId) {
+        teachersQuery = teachersQuery.eq('center_id', effectiveCenterId);
+      }
+
+      const { data: teachers, error: teachersError } = await teachersQuery;
+      if (teachersError) throw teachersError;
+
+      if (!teachers || teachers.length === 0) {
+        return res.json({ success: true, data: [] });
+      }
+
+      const teacherIds = teachers.map(t => t.id);
+
+      // Get completed sessions for the period
+      const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+      const endDate = new Date(year, month, 0).toISOString().split('T')[0]; // Last day of month
+
+      const { data: sessions, error: sessionsError } = await supabase
+        .from('sessions')
+        .select('teacher_id, duration_hours, teacher_rate')
+        .in('teacher_id', teacherIds)
+        .eq('status', 'completed')
+        .gte('session_date', startDate)
+        .lte('session_date', endDate);
+
+      if (sessionsError) throw sessionsError;
+
+      // Get existing payrolls for this period
+      const { data: payrolls, error: payrollsError } = await supabase
+        .from('payroll')
+        .select('*')
+        .in('teacher_id', teacherIds)
+        .eq('period_month', month)
+        .eq('period_year', year);
+
+      if (payrollsError) throw payrollsError;
+
+      // Build stats per teacher
+      const sessionsByTeacher = {};
+      (sessions || []).forEach(s => {
+        if (!sessionsByTeacher[s.teacher_id]) {
+          sessionsByTeacher[s.teacher_id] = { sessions: 0, hours: 0, salary: 0 };
+        }
+        const hours = parseFloat(s.duration_hours) || 0;
+        const rate = parseFloat(s.teacher_rate) || 150000;
+        sessionsByTeacher[s.teacher_id].sessions++;
+        sessionsByTeacher[s.teacher_id].hours += hours;
+        sessionsByTeacher[s.teacher_id].salary += hours * rate;
+      });
+
+      const payrollByTeacher = {};
+      (payrolls || []).forEach(p => {
+        payrollByTeacher[p.teacher_id] = p;
+      });
+
+      // Combine data
+      const result = teachers.map(teacher => ({
+        id: teacher.id,
+        full_name: teacher.full_name,
+        email: teacher.email,
+        phone: teacher.phone,
+        avatar_url: teacher.avatar_url,
+        hourly_rate: teacher.hourly_rate || 150000,
+        center_id: teacher.center_id,
+        month,
+        year,
+        total_sessions: sessionsByTeacher[teacher.id]?.sessions || 0,
+        total_hours: sessionsByTeacher[teacher.id]?.hours || 0,
+        base_salary: sessionsByTeacher[teacher.id]?.salary || 0,
+        payroll: payrollByTeacher[teacher.id] || null
+      }));
+
+      res.json({
+        success: true,
+        data: result
+      });
+    } catch (error) {
+      console.error('❌ Error fetching teachers for payroll:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /api/admin/payroll/generate
+ * Generate payroll for a single teacher
+ * Body: { teacher_id, month, year, bonus, deduction, notes }
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.post('/api/admin/payroll/generate',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { teacher_id, month, year, bonus = 0, deduction = 0, notes = '' } = req.body;
+
+      if (!teacher_id || !month || !year) {
+        return res.status(400).json({
+          success: false,
+          message: 'teacher_id, month và year là bắt buộc'
+        });
+      }
+
+      console.log(`💰 Admin ${req.user.email} generating payroll for teacher ${teacher_id} - ${month}/${year}`);
+
+      // Check if payroll already exists
+      const { data: existing } = await supabase
+        .from('payroll')
+        .select('id')
+        .eq('teacher_id', teacher_id)
+        .eq('period_month', month)
+        .eq('period_year', year)
+        .single();
+
+      if (existing) {
+        return res.status(400).json({
+          success: false,
+          message: 'Bảng lương cho giáo viên này trong kỳ này đã tồn tại'
+        });
+      }
+
+      // Get teacher info
+      const { data: teacher, error: teacherError } = await supabase
+        .from('users')
+        .select('id, full_name, hourly_rate, center_id')
+        .eq('id', teacher_id)
+        .single();
+
+      if (teacherError || !teacher) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy giáo viên'
+        });
+      }
+
+      // Permission check for center
+      const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, null);
+      if (effectiveCenterId && teacher.center_id !== effectiveCenterId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn không có quyền tạo bảng lương cho giáo viên này'
+        });
+      }
+
+      // Calculate from sessions
+      const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+      const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+
+      const { data: sessions, error: sessionsError } = await supabase
+        .from('sessions')
+        .select('duration_hours, teacher_rate')
+        .eq('teacher_id', teacher_id)
+        .eq('status', 'completed')
+        .gte('session_date', startDate)
+        .lte('session_date', endDate);
+
+      if (sessionsError) throw sessionsError;
+
+      // Get active compensation config
+      const compensation = await getActiveTeacherCompensation(teacher_id, startDate);
+      
+      const total_sessions = sessions?.length || 0;
+      
+      // Calculate using compensation config (or fallback to legacy hourly calculation)
+      const { teaching_earnings, fixed_salary, total_hours } = calculatePayrollFromCompensation(
+        compensation,
+        sessions,
+        teacher.hourly_rate || 150000
+      );
+
+      const bonusNum = parseFloat(bonus) || 0;
+      const deductionNum = parseFloat(deduction) || 0;
+      // net_salary = teaching_earnings (base_salary) + fixed_salary + bonus - deduction
+      const net_salary = teaching_earnings + fixed_salary + bonusNum - deductionNum;
+
+      // Create payroll
+      const { data: payroll, error: createError } = await supabase
+        .from('payroll')
+        .insert({
+          teacher_id,
+          period_month: month,
+          period_year: year,
+          total_sessions,
+          total_hours,
+          base_salary: teaching_earnings, // teaching_earnings stored as base_salary for backward compatibility
+          fixed_salary: fixed_salary, // new field for fixed monthly salary
+          compensation_id: compensation?.id || null,
+          bonus: bonusNum,
+          deduction: deductionNum,
+          net_salary,
+          status: 'draft',
+          notes
+        })
+        .select(`
+          *,
+          teacher:users!payroll_teacher_id_fkey (id, full_name, email, hourly_rate)
+        `)
+        .single();
+
+      if (createError) throw createError;
+
+      console.log(`💰 Created payroll ${payroll.id} for ${teacher.full_name}`);
+
+      res.json({
+        success: true,
+        data: payroll,
+        message: 'Tạo bảng lương thành công'
+      });
+    } catch (error) {
+      console.error('❌ Error generating payroll:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /api/admin/payroll/bulk-generate
+ * Generate payrolls for multiple teachers
+ * Body: { teacher_ids: [], month, year, bonus, deduction, notes }
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.post('/api/admin/payroll/bulk-generate',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { teacher_ids, month, year, bonus = 0, deduction = 0, notes = '' } = req.body;
+
+      if (!teacher_ids || !Array.isArray(teacher_ids) || teacher_ids.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'teacher_ids array là bắt buộc'
+        });
+      }
+
+      if (!month || !year) {
+        return res.status(400).json({
+          success: false,
+          message: 'month và year là bắt buộc'
+        });
+      }
+
+      console.log(`💰 Admin ${req.user.email} bulk generating ${teacher_ids.length} payrolls - ${month}/${year}`);
+
+      const success = [];
+      const failed = [];
+
+      for (const teacher_id of teacher_ids) {
+        try {
+          // Check if already exists
+          const { data: existing } = await supabase
+            .from('payroll')
+            .select('id')
+            .eq('teacher_id', teacher_id)
+            .eq('period_month', month)
+            .eq('period_year', year)
+            .single();
+
+          if (existing) {
+            failed.push({ teacher_id, reason: 'Đã tồn tại bảng lương' });
+            continue;
+          }
+
+          // Get teacher
+          const { data: teacher } = await supabase
+            .from('users')
+            .select('id, full_name, hourly_rate')
+            .eq('id', teacher_id)
+            .single();
+
+          if (!teacher) {
+            failed.push({ teacher_id, reason: 'Không tìm thấy giáo viên' });
+            continue;
+          }
+
+          // Calculate from sessions
+          const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+          const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+
+          const { data: sessions, error: sessionsError } = await supabase
+            .from('sessions')
+            .select('duration_hours, teacher_rate')
+            .eq('teacher_id', teacher_id)
+            .eq('status', 'completed')
+            .gte('session_date', startDate)
+            .lte('session_date', endDate);
+
+          if (sessionsError) {
+            failed.push({ teacher_id, teacher_name: teacher.full_name, reason: `Sessions query error: ${sessionsError.message}` });
+            continue;
+          }
+
+          // Get active compensation config
+          const compensation = await getActiveTeacherCompensation(teacher_id, startDate);
+
+          const total_sessions = sessions?.length || 0;
+          
+          // Calculate using compensation config (or fallback to legacy hourly calculation)
+          const { teaching_earnings, fixed_salary, total_hours } = calculatePayrollFromCompensation(
+            compensation,
+            sessions,
+            teacher.hourly_rate || 150000
+          );
+
+          const bonusNum = parseFloat(bonus) || 0;
+          const deductionNum = parseFloat(deduction) || 0;
+          // net_salary = teaching_earnings (base_salary) + fixed_salary + bonus - deduction
+          const net_salary = teaching_earnings + fixed_salary + bonusNum - deductionNum;
+
+          // Create payroll
+          const { data: payroll, error: createError } = await supabase
+            .from('payroll')
+            .insert({
+              teacher_id,
+              period_month: month,
+              period_year: year,
+              total_sessions,
+              total_hours,
+              base_salary: teaching_earnings, // teaching_earnings stored as base_salary for backward compatibility
+              fixed_salary: fixed_salary, // new field for fixed monthly salary
+              compensation_id: compensation?.id || null,
+              bonus: bonusNum,
+              deduction: deductionNum,
+              net_salary,
+              status: 'draft',
+              notes
+            })
+            .select()
+            .single();
+
+          if (createError) {
+            failed.push({ teacher_id, teacher_name: teacher.full_name, reason: createError.message });
+          } else {
+            success.push({ teacher_id, teacher_name: teacher.full_name, payroll_id: payroll.id });
+          }
+        } catch (err) {
+          failed.push({ teacher_id, reason: err.message });
+        }
+      }
+
+      console.log(`💰 Bulk generate complete: ${success.length} success, ${failed.length} failed`);
+
+      res.json({
+        success: true,
+        data: { success, failed },
+        message: `Đã tạo ${success.length} bảng lương thành công`
+      });
+    } catch (error) {
+      console.error('❌ Error bulk generating payrolls:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/admin/payroll/:id
+ * Get payroll detail with sessions
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.get('/api/admin/payroll/:id',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+
+      console.log(`💰 Admin ${req.user.email} fetching payroll detail: ${id}`);
+
+      const { data: payroll, error } = await supabase
+        .from('payroll')
+        .select(`
+          *,
+          teacher:users!payroll_teacher_id_fkey (
+            id, full_name, email, phone, avatar_url, hourly_rate, center_id
+          ),
+          approver:users!payroll_approved_by_fkey (
+            id, full_name, email
+          )
+        `)
+        .eq('id', id)
+        .single();
+
+      if (error || !payroll) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy bảng lương'
+        });
+      }
+
+      // Permission check
+      const { effectiveCenterId } = getEffectiveCenterId(req.user, null);
+      if (effectiveCenterId && payroll.teacher?.center_id !== effectiveCenterId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn không có quyền xem bảng lương này'
+        });
+      }
+
+      // Get sessions for this period
+      const startDate = `${payroll.period_year}-${String(payroll.period_month).padStart(2, '0')}-01`;
+      const endDate = new Date(payroll.period_year, payroll.period_month, 0).toISOString().split('T')[0];
+
+      const { data: sessions, error: sessionsError } = await supabase
+        .from('sessions')
+        .select(`
+          id, session_date, start_time, end_time, duration_hours, teacher_rate, status, is_locked,
+          classes (id, name, code)
+        `)
+        .eq('teacher_id', payroll.teacher_id)
+        .eq('status', 'completed')
+        .gte('session_date', startDate)
+        .lte('session_date', endDate)
+        .order('session_date', { ascending: true });
+
+      if (sessionsError) throw sessionsError;
+
+      res.json({
+        success: true,
+        data: {
+          ...payroll,
+          sessions: sessions || []
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error fetching payroll detail:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * PUT /api/admin/payroll/:id
+ * Update payroll (bonus, deduction, notes)
+ * Body: { bonus, deduction, notes }
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.put('/api/admin/payroll/:id',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const { bonus, deduction, notes } = req.body;
+
+      console.log(`💰 Admin ${req.user.email} updating payroll: ${id}`);
+
+      // Get existing payroll
+      const { data: existing, error: fetchError } = await supabase
+        .from('payroll')
+        .select('*, teacher:users!payroll_teacher_id_fkey (center_id)')
+        .eq('id', id)
+        .single();
+
+      if (fetchError || !existing) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy bảng lương'
+        });
+      }
+
+      // Check if editable
+      if (!['draft', 'pending'].includes(existing.status)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Chỉ có thể sửa bảng lương ở trạng thái Nháp hoặc Chờ duyệt'
+        });
+      }
+
+      // Permission check
+      const { effectiveCenterId } = getEffectiveCenterId(req.user, null);
+      if (effectiveCenterId && existing.teacher?.center_id !== effectiveCenterId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn không có quyền sửa bảng lương này'
+        });
+      }
+
+      // Calculate new net_salary
+      const bonusNum = bonus !== undefined ? parseFloat(bonus) : existing.bonus;
+      const deductionNum = deduction !== undefined ? parseFloat(deduction) : existing.deduction;
+      const net_salary = parseFloat(existing.base_salary) + bonusNum - deductionNum;
+
+      // Update
+      const { data: updated, error: updateError } = await supabase
+        .from('payroll')
+        .update({
+          bonus: bonusNum,
+          deduction: deductionNum,
+          notes: notes !== undefined ? notes : existing.notes,
+          net_salary,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select(`
+          *,
+          teacher:users!payroll_teacher_id_fkey (id, full_name, email)
+        `)
+        .single();
+
+      if (updateError) throw updateError;
+
+      res.json({
+        success: true,
+        data: updated,
+        message: 'Cập nhật bảng lương thành công'
+      });
+    } catch (error) {
+      console.error('❌ Error updating payroll:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * PATCH /api/admin/payroll/:id/status
+ * Update payroll status
+ * Body: { status: 'pending'|'approved'|'paid'|'draft' }
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.patch('/api/admin/payroll/:id/status',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      const validStatuses = ['draft', 'pending', 'approved', 'paid'];
+      if (!status || !validStatuses.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: `Status phải là một trong: ${validStatuses.join(', ')}`
+        });
+      }
+
+      console.log(`💰 Admin ${req.user.email} updating payroll ${id} status to: ${status}`);
+
+      // Get existing payroll
+      const { data: existing, error: fetchError } = await supabase
+        .from('payroll')
+        .select('*, teacher:users!payroll_teacher_id_fkey (center_id, full_name)')
+        .eq('id', id)
+        .single();
+
+      if (fetchError || !existing) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy bảng lương'
+        });
+      }
+
+      // Permission check
+      const { effectiveCenterId } = getEffectiveCenterId(req.user, null);
+      if (effectiveCenterId && existing.teacher?.center_id !== effectiveCenterId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn không có quyền thay đổi trạng thái bảng lương này'
+        });
+      }
+
+      // Build update data
+      const updateData = {
+        status,
+        updated_at: new Date().toISOString()
+      };
+
+      // If approving, set approved_by and approved_at
+      if (status === 'approved' && existing.status !== 'approved') {
+        updateData.approved_by = req.user.id;
+        updateData.approved_at = new Date().toISOString();
+
+        // Lock sessions for this period
+        const startDate = `${existing.period_year}-${String(existing.period_month).padStart(2, '0')}-01`;
+        const endDate = new Date(existing.period_year, existing.period_month, 0).toISOString().split('T')[0];
+
+        const { error: lockError } = await supabase
+          .from('sessions')
+          .update({ is_locked: true, payroll_id: id })
+          .eq('teacher_id', existing.teacher_id)
+          .eq('status', 'completed')
+          .gte('session_date', startDate)
+          .lte('session_date', endDate);
+
+        if (lockError) {
+          console.error('⚠️ Error locking sessions:', lockError);
+        } else {
+          console.log(`🔒 Locked sessions for payroll ${id}`);
+        }
+      }
+
+      // Update payroll
+      const { data: updated, error: updateError } = await supabase
+        .from('payroll')
+        .update(updateData)
+        .eq('id', id)
+        .select(`
+          *,
+          teacher:users!payroll_teacher_id_fkey (id, full_name, email)
+        `)
+        .single();
+
+      if (updateError) throw updateError;
+
+      const statusLabels = {
+        draft: 'Nháp',
+        pending: 'Chờ duyệt',
+        approved: 'Đã duyệt',
+        paid: 'Đã thanh toán'
+      };
+
+      // Send email notification to teacher based on new status
+      if (updated.teacher?.email) {
+        const queueEmail = await getQueueEmail();
+        if (queueEmail) {
+          try {
+            const formatCurrency = (amount) => {
+              return new Intl.NumberFormat('vi-VN', { 
+                style: 'currency', 
+                currency: 'VND' 
+              }).format(amount || 0);
+            };
+
+            const portalUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+            const centerName = 'Skill Master';
+
+            if (status === 'pending' && existing.status === 'draft') {
+              // Payroll submitted/created - notify teacher
+              await queueEmail(
+                updated.teacher.email,
+                `[Skill Master] Bảng lương tháng ${updated.period_month}/${updated.period_year} đã được tạo`,
+                'payroll_created',
+                {
+                  teacherName: updated.teacher.full_name,
+                  month: updated.period_month,
+                  year: updated.period_year,
+                  totalSessions: updated.total_sessions,
+                  totalHours: updated.total_hours,
+                  netSalary: formatCurrency(updated.net_salary),
+                  centerName,
+                  portalUrl
+                }
+              );
+              console.log(`📧 Payroll created email queued for ${updated.teacher.email}`);
+            } else if (status === 'approved') {
+              // Payroll approved - notify teacher
+              await queueEmail(
+                updated.teacher.email,
+                `[Skill Master] Bảng lương tháng ${updated.period_month}/${updated.period_year} đã được duyệt`,
+                'payroll_approved',
+                {
+                  teacherName: updated.teacher.full_name,
+                  month: updated.period_month,
+                  year: updated.period_year,
+                  totalSessions: updated.total_sessions,
+                  totalHours: updated.total_hours,
+                  netSalary: formatCurrency(updated.net_salary),
+                  centerName,
+                  portalUrl
+                }
+              );
+              console.log(`📧 Payroll approved email queued for ${updated.teacher.email}`);
+            } else if (status === 'paid') {
+              // Payroll paid - notify teacher
+              await queueEmail(
+                updated.teacher.email,
+                `[Skill Master] Bảng lương tháng ${updated.period_month}/${updated.period_year} đã được thanh toán`,
+                'payroll_paid',
+                {
+                  teacherName: updated.teacher.full_name,
+                  month: updated.period_month,
+                  year: updated.period_year,
+                  totalSessions: updated.total_sessions,
+                  totalHours: updated.total_hours,
+                  netSalary: formatCurrency(updated.net_salary),
+                  paymentDate: new Date().toLocaleDateString('vi-VN'),
+                  paymentMethod: updated.payment_method || 'Chuyển khoản ngân hàng',
+                  centerName,
+                  portalUrl
+                }
+              );
+              console.log(`📧 Payroll paid email queued for ${updated.teacher.email}`);
+            }
+          } catch (emailError) {
+            // Don't fail the request if email fails
+            console.error('⚠️ Failed to queue payroll email:', emailError.message);
+          }
+        }
+      }
+
+      res.json({
+        success: true,
+        data: updated,
+        message: `Đã cập nhật trạng thái thành "${statusLabels[status]}"`
+      });
+    } catch (error) {
+      console.error('❌ Error updating payroll status:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * DELETE /api/admin/payroll/:id
+ * Delete draft payroll
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.delete('/api/admin/payroll/:id',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+
+      console.log(`💰 Admin ${req.user.email} deleting payroll: ${id}`);
+
+      // Get existing payroll
+      const { data: existing, error: fetchError } = await supabase
+        .from('payroll')
+        .select('*, teacher:users!payroll_teacher_id_fkey (center_id, full_name)')
+        .eq('id', id)
+        .single();
+
+      if (fetchError || !existing) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy bảng lương'
+        });
+      }
+
+      // Only allow deleting draft
+      if (existing.status !== 'draft') {
+        return res.status(400).json({
+          success: false,
+          message: 'Chỉ có thể xóa bảng lương ở trạng thái Nháp'
+        });
+      }
+
+      // Permission check
+      const { effectiveCenterId } = getEffectiveCenterId(req.user, null);
+      if (effectiveCenterId && existing.teacher?.center_id !== effectiveCenterId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn không có quyền xóa bảng lương này'
+        });
+      }
+
+      // Delete
+      const { error: deleteError } = await supabase
+        .from('payroll')
+        .delete()
+        .eq('id', id);
+
+      if (deleteError) throw deleteError;
+
+      console.log(`💰 Deleted payroll ${id} for ${existing.teacher?.full_name}`);
+
+      res.json({
+        success: true,
+        message: 'Đã xóa bảng lương'
+      });
+    } catch (error) {
+      console.error('❌ Error deleting payroll:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/admin/payroll/export
+ * Export payrolls to CSV
+ * Query: ?month=2&year=2026&format=csv
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.get('/api/admin/payroll/export',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { month, year, format = 'csv', center_id } = req.query;
+
+      if (!month || !year) {
+        return res.status(400).json({
+          success: false,
+          message: 'month và year là bắt buộc'
+        });
+      }
+
+      const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, center_id);
+      if (permError) {
+        return res.status(403).json({ success: false, message: permError });
+      }
+
+      console.log(`💰 Admin ${req.user.email} exporting payrolls - ${month}/${year}`);
+
+      const { data: payrolls, error } = await supabase
+        .from('payroll')
+        .select(`
+          *,
+          teacher:users!payroll_teacher_id_fkey (
+            id, full_name, email, phone, center_id
+          )
+        `)
+        .eq('period_month', parseInt(month))
+        .eq('period_year', parseInt(year))
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Filter by center
+      let filtered = payrolls || [];
+      if (effectiveCenterId) {
+        filtered = filtered.filter(p => p.teacher?.center_id === effectiveCenterId);
+      }
+
+      if (format === 'json') {
+        return res.json({ success: true, data: filtered });
+      }
+
+      // Generate CSV
+      const headers = [
+        'STT', 'Họ tên', 'Email', 'SĐT',
+        'Số buổi', 'Số giờ', 'Lương cơ bản',
+        'Thưởng', 'Khấu trừ', 'Thực nhận', 'Trạng thái'
+      ];
+
+      const statusLabels = {
+        draft: 'Nháp',
+        pending: 'Chờ duyệt',
+        approved: 'Đã duyệt',
+        paid: 'Đã thanh toán'
+      };
+
+      const rows = filtered.map((p, idx) => [
+        idx + 1,
+        p.teacher?.full_name || '',
+        p.teacher?.email || '',
+        p.teacher?.phone || '',
+        p.total_sessions || 0,
+        p.total_hours || 0,
+        p.base_salary || 0,
+        p.bonus || 0,
+        p.deduction || 0,
+        p.net_salary || 0,
+        statusLabels[p.status] || p.status
+      ]);
+
+      // BOM for UTF-8
+      const BOM = '\uFEFF';
+      const csvContent = BOM + [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n');
+
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename=payroll_${month}_${year}.csv`);
+      res.send(csvContent);
+    } catch (error) {
+      console.error('❌ Error exporting payrolls:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/admin/payroll/:id/audit
+ * Get audit trail for a payroll
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.get('/api/admin/payroll/:id/audit',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+
+      console.log(`💰 Admin ${req.user.email} fetching audit trail for payroll: ${id}`);
+
+      // Verify payroll exists and check permission
+      const { data: payroll, error: payrollError } = await supabase
+        .from('payroll')
+        .select('id, teacher:users!payroll_teacher_id_fkey (center_id)')
+        .eq('id', id)
+        .single();
+
+      if (payrollError || !payroll) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy bảng lương'
+        });
+      }
+
+      const { effectiveCenterId } = getEffectiveCenterId(req.user, null);
+      if (effectiveCenterId && payroll.teacher?.center_id !== effectiveCenterId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn không có quyền xem lịch sử bảng lương này'
+        });
+      }
+
+      // Get audit logs
+      const { data: auditLogs, error: auditError } = await supabase
+        .from('payroll_audit_log')
+        .select(`
+          id, action, old_values, new_values, changed_at, notes,
+          changed_by_user:users!payroll_audit_log_changed_by_fkey (
+            id, full_name, email
+          )
+        `)
+        .eq('payroll_id', id)
+        .order('changed_at', { ascending: false });
+
+      if (auditError) {
+        // Table might not exist yet
+        console.warn('⚠️ Audit log table not available:', auditError.message);
+        return res.json({
+          success: true,
+          data: [],
+          message: 'Chưa có lịch sử thay đổi'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: auditLogs || []
+      });
+    } catch (error) {
+      console.error('❌ Error fetching payroll audit:', error);
+      next(error);
+    }
+  }
+);
+
+// ============================================================
+// TEACHER AVAILABILITY & DASHBOARD APIs
+// ============================================================
+
+/**
+ * GET /api/teacher/availability
+ * Get current teacher's availability slots
+ * 🔒 Authenticated teachers only
+ */
+app.get('/api/teacher/availability',
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      const teacherId = req.user.id;
+      console.log(`📅 Teacher ${req.user.email} fetching availability`);
+
+      const { data: slots, error } = await supabase
+        .from('teacher_availability')
+        .select('id, day_of_week, start_time, end_time, is_available')
+        .eq('teacher_id', teacherId)
+        .order('day_of_week', { ascending: true })
+        .order('start_time', { ascending: true });
+
+      if (error) throw error;
+
+      // Map is_available to type for frontend compatibility
+      const availability = (slots || []).map(slot => ({
+        ...slot,
+        type: slot.is_available ? 'available' : 'unavailable'
+      }));
+
+      res.json({
+        success: true,
+        availability
+      });
+    } catch (error) {
+      console.error('❌ Error fetching teacher availability:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * PUT /api/teacher/availability
+ * Update teacher's availability slots (replace all)
+ * Body: { slots: [{ day_of_week, start_time, end_time, type }] }
+ * 🔒 Authenticated teachers only
+ */
+app.put('/api/teacher/availability',
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      const teacherId = req.user.id;
+      const { slots } = req.body;
+
+      console.log(`📅 Teacher ${req.user.email} updating availability - ${slots?.length || 0} slots`);
+
+      if (!Array.isArray(slots)) {
+        return res.status(400).json({
+          success: false,
+          message: 'slots phải là một mảng'
+        });
+      }
+
+      // Delete all existing slots
+      const { error: deleteError } = await supabase
+        .from('teacher_availability')
+        .delete()
+        .eq('teacher_id', teacherId);
+
+      if (deleteError) throw deleteError;
+
+      // Insert new slots if any
+      if (slots.length > 0) {
+        const slotsToInsert = slots.map(slot => ({
+          teacher_id: teacherId,
+          day_of_week: slot.day_of_week,
+          start_time: slot.start_time,
+          end_time: slot.end_time,
+          is_available: true // Always available when teacher sets it
+        }));
+
+        const { error: insertError } = await supabase
+          .from('teacher_availability')
+          .insert(slotsToInsert);
+
+        if (insertError) throw insertError;
+      }
+
+      // Fetch updated slots
+      const { data: updatedSlots, error: fetchError } = await supabase
+        .from('teacher_availability')
+        .select('id, day_of_week, start_time, end_time, is_available')
+        .eq('teacher_id', teacherId)
+        .order('day_of_week', { ascending: true })
+        .order('start_time', { ascending: true });
+
+      if (fetchError) throw fetchError;
+
+      const availability = (updatedSlots || []).map(slot => ({
+        ...slot,
+        type: slot.is_available ? 'available' : 'unavailable'
+      }));
+
+      res.json({
+        success: true,
+        availability,
+        message: 'Đã cập nhật lịch trống thành công'
+      });
+    } catch (error) {
+      console.error('❌ Error updating teacher availability:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/admin/teacher-availability/:teacherId
+ * Admin xem lịch rảnh/bận của giáo viên cụ thể
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.get('/api/admin/teacher-availability/:teacherId',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { teacherId } = req.params;
+      console.log(`📅 Admin ${req.user.email} viewing availability for teacher ${teacherId}`);
+
+      const { data: slots, error } = await supabase
+        .from('teacher_availability')
+        .select('id, day_of_week, start_time, end_time, is_available, created_at')
+        .eq('teacher_id', teacherId)
+        .order('day_of_week', { ascending: true })
+        .order('start_time', { ascending: true });
+
+      if (error) throw error;
+
+      // Map to frontend expected format
+      const data = (slots || []).map(slot => ({
+        id: slot.id,
+        type: slot.is_available ? 'preferred' : 'unavailable',
+        days: [slot.day_of_week],
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        created_at: slot.created_at
+      }));
+
+      res.json({
+        success: true,
+        data
+      });
+    } catch (error) {
+      console.error('❌ Error fetching teacher availability:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * PUT /api/admin/teacher-availability/:teacherId
+ * Admin cập nhật lịch rảnh/bận cho giáo viên
+ * Body: { type, days[], start_time, end_time, start_date?, end_date?, reason? }
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.put('/api/admin/teacher-availability/:teacherId',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { teacherId } = req.params;
+      const { type, days, start_time, end_time, start_date, end_date, reason } = req.body;
+
+      console.log(`📅 Admin ${req.user.email} updating availability for teacher ${teacherId}`);
+
+      // Validate
+      if (!type) {
+        return res.status(400).json({
+          success: false,
+          message: 'Loại lịch là bắt buộc'
+        });
+      }
+
+      // For temporary type (specific date range - not stored in teacher_availability)
+      if (type === 'temporary') {
+        // This would typically be stored in a different table (leave_requests or similar)
+        // For now, return success - this needs a separate implementation
+        return res.json({
+          success: true,
+          data: [{
+            id: 'temp-' + Date.now(),
+            type: 'temporary',
+            start_date,
+            end_date,
+            reason
+          }],
+          message: 'Đã lưu lịch nghỉ tạm thời'
+        });
+      }
+
+      // For recurring types (weekly schedule)
+      if (!days || days.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Vui lòng chọn ít nhất một ngày'
+        });
+      }
+
+      // Insert new slots for each selected day
+      const slotsToInsert = days.map(day => ({
+        teacher_id: teacherId,
+        day_of_week: day,
+        start_time: start_time || '08:00',
+        end_time: end_time || '17:00',
+        is_available: type === 'preferred' // preferred = available, unavailable = not available
+      }));
+
+      const { data: insertedSlots, error: insertError } = await supabase
+        .from('teacher_availability')
+        .insert(slotsToInsert)
+        .select();
+
+      if (insertError) throw insertError;
+
+      // Map to frontend format
+      const data = (insertedSlots || []).map(slot => ({
+        id: slot.id,
+        type: slot.is_available ? 'preferred' : 'unavailable',
+        days: [slot.day_of_week],
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        reason
+      }));
+
+      res.json({
+        success: true,
+        data,
+        message: 'Đã thêm lịch rảnh/bận thành công'
+      });
+    } catch (error) {
+      console.error('❌ Error updating teacher availability:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * DELETE /api/admin/teacher-availability/:slotId
+ * Admin xóa một khung giờ cụ thể
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.delete('/api/admin/teacher-availability/:slotId',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { slotId } = req.params;
+      console.log(`📅 Admin ${req.user.email} deleting availability slot ${slotId}`);
+
+      const { error } = await supabase
+        .from('teacher_availability')
+        .delete()
+        .eq('id', slotId);
+
+      if (error) throw error;
+
+      res.json({
+        success: true,
+        message: 'Đã xóa khung giờ thành công'
+      });
+    } catch (error) {
+      console.error('❌ Error deleting teacher availability:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/teacher/dashboard/overview
+ * Get teacher dashboard overview stats
+ * 🔒 Authenticated teachers only
+ */
+app.get('/api/teacher/dashboard/overview',
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      const teacherId = req.user.id;
+      console.log(`📊 Teacher ${req.user.email} fetching dashboard overview`);
+
+      const now = new Date();
+      const today = now.toISOString().split('T')[0];
+      const firstDayOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+      const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+
+      // Get total classes
+      const { count: totalClasses, error: classesError } = await supabase
+        .from('classes')
+        .select('id', { count: 'exact', head: true })
+        .eq('teacher_id', teacherId);
+
+      if (classesError) throw classesError;
+
+      // Get teacher's class IDs for student count
+      const { data: teacherClasses, error: classIdsError } = await supabase
+        .from('classes')
+        .select('id')
+        .eq('teacher_id', teacherId);
+
+      if (classIdsError) throw classIdsError;
+
+      const classIds = (teacherClasses || []).map(c => c.id);
+
+      // Get total unique students
+      let totalStudents = 0;
+      if (classIds.length > 0) {
+        const { data: enrollments, error: enrollError } = await supabase
+          .from('enrollments')
+          .select('student_id')
+          .in('class_id', classIds)
+          .neq('status', 'cancelled');
+
+        if (enrollError) throw enrollError;
+
+        const uniqueStudents = new Set((enrollments || []).map(e => e.student_id));
+        totalStudents = uniqueStudents.size;
+      }
+
+      // Get completed sessions this month
+      const { count: completedSessions, error: completedError } = await supabase
+        .from('sessions')
+        .select('id', { count: 'exact', head: true })
+        .eq('teacher_id', teacherId)
+        .eq('status', 'completed')
+        .gte('session_date', firstDayOfMonth)
+        .lte('session_date', lastDayOfMonth);
+
+      if (completedError) throw completedError;
+
+      // Get upcoming sessions
+      const { count: upcomingSessions, error: upcomingError } = await supabase
+        .from('sessions')
+        .select('id', { count: 'exact', head: true })
+        .eq('teacher_id', teacherId)
+        .eq('status', 'scheduled')
+        .gte('session_date', today);
+
+      if (upcomingError) throw upcomingError;
+
+      // Get total hours this month
+      const { data: monthSessions, error: hoursError } = await supabase
+        .from('sessions')
+        .select('duration_hours')
+        .eq('teacher_id', teacherId)
+        .eq('status', 'completed')
+        .gte('session_date', firstDayOfMonth)
+        .lte('session_date', lastDayOfMonth);
+
+      if (hoursError) throw hoursError;
+
+      const totalHoursThisMonth = (monthSessions || [])
+        .reduce((sum, s) => sum + (parseFloat(s.duration_hours) || 0), 0);
+
+      res.json({
+        success: true,
+        totalClasses: totalClasses || 0,
+        totalStudents,
+        completedSessions: completedSessions || 0,
+        upcomingSessions: upcomingSessions || 0,
+        totalHoursThisMonth: Math.round(totalHoursThisMonth * 10) / 10
+      });
+    } catch (error) {
+      console.error('❌ Error fetching teacher dashboard overview:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/teacher/dashboard/today-sessions
+ * Get teacher's sessions for today
+ * 🔒 Authenticated teachers only
+ */
+app.get('/api/teacher/dashboard/today-sessions',
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      const teacherId = req.user.id;
+      const today = new Date().toISOString().split('T')[0];
+
+      console.log(`📅 Teacher ${req.user.email} fetching today's sessions (${today})`);
+
+      const { data: sessions, error } = await supabase
+        .from('sessions')
+        .select(`
+          id, session_date, start_time, end_time, status, duration_hours, notes,
+          class:classes (id, name, code)
+        `)
+        .eq('teacher_id', teacherId)
+        .eq('session_date', today)
+        .order('start_time', { ascending: true });
+
+      if (error) throw error;
+
+      res.json({
+        success: true,
+        sessions: sessions || []
+      });
+    } catch (error) {
+      console.error('❌ Error fetching today sessions:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/teacher/dashboard/attendance-stats
+ * Get attendance statistics for teacher's sessions
+ * 🔒 Authenticated teachers only
+ */
+app.get('/api/teacher/dashboard/attendance-stats',
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      const teacherId = req.user.id;
+      console.log(`📊 Teacher ${req.user.email} fetching attendance stats`);
+
+      // Get all session IDs for this teacher
+      const { data: teacherSessions, error: sessionsError } = await supabase
+        .from('sessions')
+        .select('id')
+        .eq('teacher_id', teacherId);
+
+      if (sessionsError) throw sessionsError;
+
+      const sessionIds = (teacherSessions || []).map(s => s.id);
+
+      if (sessionIds.length === 0) {
+        return res.json({
+          success: true,
+          present: 0,
+          absent: 0,
+          late: 0,
+          totalRecords: 0
+        });
+      }
+
+      // Get attendance records for these sessions
+      const { data: attendance, error: attendanceError } = await supabase
+        .from('attendance')
+        .select('status')
+        .in('session_id', sessionIds);
+
+      if (attendanceError) throw attendanceError;
+
+      const records = attendance || [];
+      const stats = {
+        present: records.filter(a => a.status === 'present').length,
+        absent: records.filter(a => a.status === 'absent').length,
+        late: records.filter(a => a.status === 'late').length,
+        totalRecords: records.length
+      };
+
+      res.json({
+        success: true,
+        ...stats
+      });
+    } catch (error) {
+      console.error('❌ Error fetching attendance stats:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/teacher/dashboard/classes-summary
+ * Get summary of teacher's classes with student count
+ * 🔒 Authenticated teachers only
+ */
+app.get('/api/teacher/dashboard/classes-summary',
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      const teacherId = req.user.id;
+      console.log(`📚 Teacher ${req.user.email} fetching classes summary`);
+
+      // Get classes for this teacher
+      const { data: classes, error: classesError } = await supabase
+        .from('classes')
+        .select('id, name, code, status')
+        .eq('teacher_id', teacherId)
+        .order('created_at', { ascending: false });
+
+      if (classesError) throw classesError;
+
+      if (!classes || classes.length === 0) {
+        return res.json({
+          success: true,
+          classes: []
+        });
+      }
+
+      // Get student counts for each class
+      const classIds = classes.map(c => c.id);
+      const { data: enrollments, error: enrollError } = await supabase
+        .from('enrollments')
+        .select('class_id')
+        .in('class_id', classIds)
+        .neq('status', 'cancelled');
+
+      if (enrollError) throw enrollError;
+
+      // Count students per class
+      const studentCounts = {};
+      (enrollments || []).forEach(e => {
+        studentCounts[e.class_id] = (studentCounts[e.class_id] || 0) + 1;
+      });
+
+      // Combine data
+      const classesWithCounts = classes.map(c => ({
+        ...c,
+        student_count: studentCounts[c.id] || 0
+      }));
+
+      res.json({
+        success: true,
+        classes: classesWithCounts
+      });
+    } catch (error) {
+      console.error('❌ Error fetching classes summary:', error);
+      next(error);
+    }
+  }
+);
+
+// ============================================================
+// TEACHER PAYROLL APIs (Teacher views own payroll)
+// ============================================================
+
+/**
+ * GET /api/teacher/payroll
+ * Get list of payrolls for the logged-in teacher
+ * Query: ?year=2026
+ * 🔒 TEACHER only
+ */
+app.get('/api/teacher/payroll',
+  requireAuth,
+  requireRole(['TEACHER']),
+  async (req, res, next) => {
+    try {
+      const teacherId = req.user.id;
+      const { year } = req.query;
+
+      console.log(`💰 Teacher ${req.user.email} fetching own payrolls - year: ${year || 'all'}`);
+
+      let query = supabase
+        .from('payroll')
+        .select(`
+          id, period_month, period_year, status,
+          base_salary, bonus, deduction, net_salary,
+          total_sessions, total_hours,
+          approved_at, notes, created_at,
+          payment_proof_url, paid_at, payment_method, payment_reference
+        `)
+        .eq('teacher_id', teacherId)
+        .order('period_year', { ascending: false })
+        .order('period_month', { ascending: false });
+
+      // Filter by year if provided
+      if (year) {
+        query = query.eq('period_year', parseInt(year));
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      res.json({
+        success: true,
+        data: data || []
+      });
+    } catch (error) {
+      console.error('❌ Error fetching teacher payrolls:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/teacher/payroll/:id
+ * Get payroll detail with sessions for the logged-in teacher
+ * 🔒 TEACHER only (can only view own payroll)
+ */
+app.get('/api/teacher/payroll/:id',
+  requireAuth,
+  requireRole(['TEACHER']),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const teacherId = req.user.id;
+
+      console.log(`💰 Teacher ${req.user.email} fetching payroll detail: ${id}`);
+
+      // Fetch payroll and verify ownership
+      const { data: payroll, error } = await supabase
+        .from('payroll')
+        .select(`
+          id, period_month, period_year, status,
+          base_salary, bonus, deduction, net_salary,
+          total_sessions, total_hours,
+          approved_at, notes, created_at, updated_at,
+          payment_proof_url, paid_at, payment_method, payment_reference,
+          approver:users!payroll_approved_by_fkey (
+            id, full_name
+          )
+        `)
+        .eq('id', id)
+        .eq('teacher_id', teacherId) // Ensure teacher can only see own payroll
+        .single();
+
+      if (error || !payroll) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy bảng lương hoặc bạn không có quyền xem'
+        });
+      }
+
+      // Get sessions for this payroll period
+      const startDate = `${payroll.period_year}-${String(payroll.period_month).padStart(2, '0')}-01`;
+      const endDate = new Date(payroll.period_year, payroll.period_month, 0).toISOString().split('T')[0];
+
+      const { data: sessions, error: sessionsError } = await supabase
+        .from('sessions')
+        .select(`
+          id, session_date, start_time, end_time, duration_hours, teacher_rate, status, is_locked,
+          classes (id, name, code)
+        `)
+        .eq('teacher_id', teacherId)
+        .eq('status', 'completed')
+        .gte('session_date', startDate)
+        .lte('session_date', endDate)
+        .order('session_date', { ascending: true });
+
+      if (sessionsError) throw sessionsError;
+
+      res.json({
+        success: true,
+        data: {
+          ...payroll,
+          sessions: sessions || []
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error fetching teacher payroll detail:', error);
+      next(error);
+    }
+  }
+);
+
+// ============================================================
+// TEACHER BANK INFO APIs
+// ============================================================
+
+/**
+ * GET /api/teacher/bank-info
+ * Get current teacher's bank information
+ * 🔒 TEACHER only
+ */
+app.get('/api/teacher/bank-info',
+  requireAuth,
+  requireRole(['TEACHER']),
+  async (req, res, next) => {
+    try {
+      const teacherId = req.user.id;
+      console.log(`🏦 Teacher ${req.user.email} fetching bank info`);
+
+      const { data, error } = await supabase
+        .from('users')
+        .select('bank_name, bank_account_number, bank_account_holder')
+        .eq('id', teacherId)
+        .single();
+
+      if (error) throw error;
+
+      res.json({
+        success: true,
+        data: data || { bank_name: null, bank_account_number: null, bank_account_holder: null }
+      });
+    } catch (error) {
+      console.error('❌ Error fetching teacher bank info:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * PUT /api/teacher/bank-info
+ * Update current teacher's bank information
+ * Body: { bank_name, bank_account_number, bank_account_holder }
+ * 🔒 TEACHER only
+ */
+app.put('/api/teacher/bank-info',
+  requireAuth,
+  requireRole(['TEACHER']),
+  async (req, res, next) => {
+    try {
+      const teacherId = req.user.id;
+      const { bank_name, bank_account_number, bank_account_holder } = req.body;
+
+      console.log(`🏦 Teacher ${req.user.email} updating bank info`);
+
+      // Validate required fields
+      if (!bank_name || !bank_account_number || !bank_account_holder) {
+        return res.status(400).json({
+          success: false,
+          message: 'Vui lòng điền đầy đủ thông tin ngân hàng'
+        });
+      }
+
+      const { data, error } = await supabase
+        .from('users')
+        .update({
+          bank_name: bank_name.trim(),
+          bank_account_number: bank_account_number.trim(),
+          bank_account_holder: bank_account_holder.trim().toUpperCase(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', teacherId)
+        .select('bank_name, bank_account_number, bank_account_holder')
+        .single();
+
+      if (error) throw error;
+
+      console.log(`🏦 Teacher ${req.user.email} bank info updated successfully`);
+
+      res.json({
+        success: true,
+        data,
+        message: 'Cập nhật thông tin ngân hàng thành công'
+      });
+    } catch (error) {
+      console.error('❌ Error updating teacher bank info:', error);
+      next(error);
+    }
+  }
+);
+
+// ============================================================
+// PAYROLL DISPUTES APIs (Teacher)
+// ============================================================
+
+/**
+ * GET /api/teacher/payroll/:id/disputes
+ * Get disputes for a specific payroll
+ * 🔒 TEACHER only (own payroll)
+ */
+app.get('/api/teacher/payroll/:id/disputes',
+  requireAuth,
+  requireRole(['TEACHER']),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const teacherId = req.user.id;
+
+      console.log(`📝 Teacher ${req.user.email} fetching disputes for payroll ${id}`);
+
+      // Verify payroll ownership
+      const { data: payroll, error: payrollError } = await supabase
+        .from('payroll')
+        .select('id')
+        .eq('id', id)
+        .eq('teacher_id', teacherId)
+        .single();
+
+      if (payrollError || !payroll) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy bảng lương'
+        });
+      }
+
+      const { data: disputes, error } = await supabase
+        .from('payroll_disputes')
+        .select(`
+          id, reason, dispute_type, status, admin_response, 
+          created_at, resolved_at,
+          resolver:users!payroll_disputes_resolved_by_fkey (id, full_name)
+        `)
+        .eq('payroll_id', id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      res.json({
+        success: true,
+        data: disputes || []
+      });
+    } catch (error) {
+      console.error('❌ Error fetching payroll disputes:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /api/teacher/payroll/:id/dispute
+ * Submit a dispute for a payroll
+ * Body: { reason, dispute_type }
+ * 🔒 TEACHER only (own payroll)
+ */
+app.post('/api/teacher/payroll/:id/dispute',
+  requireAuth,
+  requireRole(['TEACHER']),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const teacherId = req.user.id;
+      const { reason, dispute_type = 'other' } = req.body;
+
+      console.log(`📝 Teacher ${req.user.email} submitting dispute for payroll ${id}`);
+      console.log(`📝 Request body:`, req.body);
+
+      // Validate
+      if (!reason || reason.trim().length < 10) {
+        console.log(`❌ Validation failed: reason length = ${reason?.length || 0}`);
+        return res.status(400).json({
+          success: false,
+          message: `Vui lòng mô tả chi tiết lý do khiếu nại (ít nhất 10 ký tự). Hiện tại: ${reason?.trim()?.length || 0} ký tự`
+        });
+      }
+
+      // Verify payroll ownership and status
+      const { data: payroll, error: payrollError } = await supabase
+        .from('payroll')
+        .select('id, status')
+        .eq('id', id)
+        .eq('teacher_id', teacherId)
+        .single();
+
+      if (payrollError || !payroll) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy bảng lương'
+        });
+      }
+
+      // Check if already has pending dispute
+      const { data: existingDispute } = await supabase
+        .from('payroll_disputes')
+        .select('id')
+        .eq('payroll_id', id)
+        .eq('status', 'pending')
+        .single();
+
+      if (existingDispute) {
+        return res.status(400).json({
+          success: false,
+          message: 'Đã có khiếu nại đang chờ xử lý cho bảng lương này'
+        });
+      }
+
+      // Create dispute
+      const { data: dispute, error } = await supabase
+        .from('payroll_disputes')
+        .insert({
+          payroll_id: id,
+          teacher_id: teacherId,
+          reason: reason.trim(),
+          dispute_type,
+          status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      console.log(`📝 Dispute ${dispute.id} created for payroll ${id}`);
+
+      res.status(201).json({
+        success: true,
+        data: dispute,
+        message: 'Gửi khiếu nại thành công. Chúng tôi sẽ xem xét trong thời gian sớm nhất.'
+      });
+    } catch (error) {
+      console.error('❌ Error creating payroll dispute:', error);
+      next(error);
+    }
+  }
+);
+
+// ============================================================
+// PAYROLL DISPUTES APIs (Admin)
+// ============================================================
+
+/**
+ * GET /api/admin/payroll-disputes
+ * Get all disputes with optional filters
+ * Query: ?status=pending&teacher_id=xxx
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.get('/api/admin/payroll-disputes',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { status, teacher_id } = req.query;
+
+      console.log(`📝 Admin ${req.user.email} fetching payroll disputes`);
+
+      let query = supabase
+        .from('payroll_disputes')
+        .select(`
+          id, reason, dispute_type, status, admin_response, 
+          created_at, resolved_at,
+          payroll:payroll!payroll_disputes_payroll_id_fkey (
+            id, period_month, period_year, net_salary, status
+          ),
+          teacher:users!payroll_disputes_teacher_id_fkey (
+            id, full_name, email, center_id
+          ),
+          resolver:users!payroll_disputes_resolved_by_fkey (
+            id, full_name
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (status) query = query.eq('status', status);
+      if (teacher_id) query = query.eq('teacher_id', teacher_id);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      // Filter by center for CENTER_MANAGER
+      const { effectiveCenterId } = getEffectiveCenterId(req.user, null);
+      let filteredData = data || [];
+      if (effectiveCenterId) {
+        filteredData = filteredData.filter(d => d.teacher?.center_id === effectiveCenterId);
+      }
+
+      res.json({
+        success: true,
+        data: filteredData
+      });
+    } catch (error) {
+      console.error('❌ Error fetching payroll disputes:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * PATCH /api/admin/payroll-disputes/:id
+ * Update dispute status and response
+ * Body: { status, admin_response }
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.patch('/api/admin/payroll-disputes/:id',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const { status, admin_response } = req.body;
+
+      console.log(`📝 Admin ${req.user.email} updating dispute ${id}`);
+
+      // Validate status
+      const validStatuses = ['pending', 'reviewing', 'resolved', 'rejected'];
+      if (status && !validStatuses.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Trạng thái không hợp lệ'
+        });
+      }
+
+      // Get existing dispute
+      const { data: existing, error: fetchError } = await supabase
+        .from('payroll_disputes')
+        .select('*, teacher:users!payroll_disputes_teacher_id_fkey (center_id)')
+        .eq('id', id)
+        .single();
+
+      if (fetchError || !existing) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy khiếu nại'
+        });
+      }
+
+      // Center permission check
+      const { effectiveCenterId } = getEffectiveCenterId(req.user, null);
+      if (effectiveCenterId && existing.teacher?.center_id !== effectiveCenterId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Không có quyền xử lý khiếu nại này'
+        });
+      }
+
+      // Build update object
+      const updateData = {};
+      if (status) updateData.status = status;
+      if (admin_response !== undefined) updateData.admin_response = admin_response;
+      
+      if (status === 'resolved' || status === 'rejected') {
+        updateData.resolved_by = req.user.id;
+        updateData.resolved_at = new Date().toISOString();
+      }
+
+      const { data: updated, error } = await supabase
+        .from('payroll_disputes')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      console.log(`📝 Dispute ${id} updated to status: ${status}`);
+
+      res.json({
+        success: true,
+        data: updated,
+        message: 'Cập nhật khiếu nại thành công'
+      });
+    } catch (error) {
+      console.error('❌ Error updating payroll dispute:', error);
+      next(error);
+    }
+  }
+);
+
+// ============================================================
+// PAYROLL PAYMENT PROOF APIs
+// ============================================================
+
+/**
+ * POST /api/admin/payroll/:id/payment-proof
+ * Upload payment proof and mark as paid
+ * Body: { payment_proof_url, payment_method, payment_reference }
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.post('/api/admin/payroll/:id/payment-proof',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const { payment_proof_url, payment_method = 'bank_transfer', payment_reference } = req.body;
+
+      console.log(`💳 Admin ${req.user.email} uploading payment proof for payroll ${id}`);
+
+      // Get payroll
+      const { data: payroll, error: fetchError } = await supabase
+        .from('payroll')
+        .select('*, teacher:users!payroll_teacher_id_fkey (center_id, full_name, email)')
+        .eq('id', id)
+        .single();
+
+      if (fetchError || !payroll) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy bảng lương'
+        });
+      }
+
+      // Center permission check
+      const { effectiveCenterId } = getEffectiveCenterId(req.user, null);
+      if (effectiveCenterId && payroll.teacher?.center_id !== effectiveCenterId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Không có quyền cập nhật bảng lương này'
+        });
+      }
+
+      // Must be approved before marking paid
+      if (payroll.status !== 'approved') {
+        return res.status(400).json({
+          success: false,
+          message: 'Chỉ có thể thanh toán bảng lương đã được duyệt'
+        });
+      }
+
+      // Update payroll with payment info
+      const { data: updated, error } = await supabase
+        .from('payroll')
+        .update({
+          status: 'paid',
+          payment_proof_url,
+          payment_method,
+          payment_reference,
+          paid_at: new Date().toISOString(),
+          paid_by: req.user.id,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select(`
+          *,
+          teacher:users!payroll_teacher_id_fkey (id, full_name, email),
+          payer:users!payroll_paid_by_fkey (id, full_name)
+        `)
+        .single();
+
+      if (error) throw error;
+
+      console.log(`💳 Payroll ${id} marked as paid with proof`);
+
+      res.json({
+        success: true,
+        data: updated,
+        message: 'Thanh toán thành công'
+      });
+    } catch (error) {
+      console.error('❌ Error uploading payment proof:', error);
+      next(error);
+    }
+  }
+);
+
+// ============================================================
+// HOLIDAY MANAGEMENT APIs
+// ============================================================
+
+/**
+ * GET /api/admin/holidays
+ * Get list of holidays with optional date range filter
+ * Query: ?year=2026&month=2&from=2026-01-01&to=2026-12-31
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.get('/api/admin/holidays',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { year, month, from, to } = req.query;
+      console.log(`🎄 Admin ${req.user.email} fetching holidays`);
+
+      let query = supabase
+        .from('holidays')
+        .select(`
+          id, name, date, description, is_recurring, created_at, updated_at,
+          creator:users!holidays_created_by_fkey (id, full_name, email)
+        `)
+        .order('date', { ascending: true });
+
+      // Apply date filters
+      if (year && month) {
+        const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+        const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+        const endDate = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;
+        query = query.gte('date', startDate).lte('date', endDate);
+      } else if (year) {
+        query = query.gte('date', `${year}-01-01`).lte('date', `${year}-12-31`);
+      } else if (from && to) {
+        query = query.gte('date', from).lte('date', to);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      res.json({
+        success: true,
+        data: data || []
+      });
+    } catch (error) {
+      console.error('❌ Error fetching holidays:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/admin/holidays/:id
+ * Get single holiday by ID
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.get('/api/admin/holidays/:id',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      console.log(`🎄 Admin ${req.user.email} fetching holiday ${id}`);
+
+      const { data, error } = await supabase
+        .from('holidays')
+        .select(`
+          id, name, date, description, is_recurring, created_at, updated_at,
+          creator:users!holidays_created_by_fkey (id, full_name, email)
+        `)
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          return res.status(404).json({
+            success: false,
+            message: 'Không tìm thấy ngày lễ'
+          });
+        }
+        throw error;
+      }
+
+      res.json({
+        success: true,
+        data
+      });
+    } catch (error) {
+      console.error('❌ Error fetching holiday:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /api/admin/holidays
+ * Create a new holiday
+ * Body: { name, date, description?, is_recurring? }
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.post('/api/admin/holidays',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { name, date, description, is_recurring } = req.body;
+      console.log(`🎄 Admin ${req.user.email} creating holiday: ${name} (${date})`);
+
+      // Validation
+      if (!name || !date) {
+        return res.status(400).json({
+          success: false,
+          message: 'Tên và ngày là bắt buộc'
+        });
+      }
+
+      // Check if date already exists
+      const { data: existing, error: checkError } = await supabase
+        .from('holidays')
+        .select('id')
+        .eq('date', date)
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+
+      if (existing) {
+        return res.status(409).json({
+          success: false,
+          message: `Đã có ngày lễ vào ngày ${date}`
+        });
+      }
+
+      // Create holiday
+      const { data, error } = await supabase
+        .from('holidays')
+        .insert({
+          name,
+          date,
+          description: description || null,
+          is_recurring: is_recurring || false,
+          created_by: req.user.id
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      res.status(201).json({
+        success: true,
+        data,
+        message: 'Đã tạo ngày lễ thành công'
+      });
+    } catch (error) {
+      console.error('❌ Error creating holiday:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * PUT /api/admin/holidays/:id
+ * Update an existing holiday
+ * Body: { name?, date?, description?, is_recurring? }
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.put('/api/admin/holidays/:id',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const { name, date, description, is_recurring } = req.body;
+      console.log(`🎄 Admin ${req.user.email} updating holiday ${id}`);
+
+      // Check if holiday exists
+      const { data: existing, error: checkError } = await supabase
+        .from('holidays')
+        .select('id')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+
+      if (!existing) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy ngày lễ'
+        });
+      }
+
+      // Check for date conflict if date is being changed
+      if (date) {
+        const { data: conflict, error: conflictError } = await supabase
+          .from('holidays')
+          .select('id')
+          .eq('date', date)
+          .neq('id', id)
+          .maybeSingle();
+
+        if (conflictError) throw conflictError;
+
+        if (conflict) {
+          return res.status(409).json({
+            success: false,
+            message: `Đã có ngày lễ khác vào ngày ${date}`
+          });
+        }
+      }
+
+      // Build update object
+      const updateData = {
+        updated_at: new Date().toISOString()
+      };
+      if (name !== undefined) updateData.name = name;
+      if (date !== undefined) updateData.date = date;
+      if (description !== undefined) updateData.description = description;
+      if (is_recurring !== undefined) updateData.is_recurring = is_recurring;
+
+      // Update holiday
+      const { data, error } = await supabase
+        .from('holidays')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      res.json({
+        success: true,
+        data,
+        message: 'Đã cập nhật ngày lễ thành công'
+      });
+    } catch (error) {
+      console.error('❌ Error updating holiday:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * DELETE /api/admin/holidays/:id
+ * Delete a holiday
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.delete('/api/admin/holidays/:id',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      console.log(`🎄 Admin ${req.user.email} deleting holiday ${id}`);
+
+      // Check if holiday exists
+      const { data: existing, error: checkError } = await supabase
+        .from('holidays')
+        .select('id, name')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+
+      if (!existing) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy ngày lễ'
+        });
+      }
+
+      // Delete holiday
+      const { error } = await supabase
+        .from('holidays')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      res.json({
+        success: true,
+        message: `Đã xóa ngày lễ "${existing.name}" thành công`
+      });
+    } catch (error) {
+      console.error('❌ Error deleting holiday:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/holidays
+ * Public endpoint to check holidays (for scheduling)
+ * Query: ?date=2026-02-01 or ?from=2026-02-01&to=2026-02-28
+ * 🔓 Authenticated users
+ */
+app.get('/api/holidays',
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      const { date, from, to } = req.query;
+
+      let query = supabase
+        .from('holidays')
+        .select('id, name, date, description, is_recurring')
+        .order('date', { ascending: true });
+
+      if (date) {
+        query = query.eq('date', date);
+      } else if (from && to) {
+        query = query.gte('date', from).lte('date', to);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      res.json({
+        success: true,
+        data: data || []
+      });
+    } catch (error) {
+      console.error('❌ Error fetching holidays:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/holidays/check
+ * Check if a specific date is a holiday
+ * Query: ?date=2026-02-01
+ * 🔓 Authenticated users
+ */
+app.get('/api/holidays/check',
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      const { date } = req.query;
+
+      if (!date) {
+        return res.status(400).json({
+          success: false,
+          message: 'Ngày là bắt buộc'
+        });
+      }
+
+      // Check exact date match
+      const { data: exactMatch, error: exactError } = await supabase
+        .from('holidays')
+        .select('id, name, date, description')
+        .eq('date', date)
+        .maybeSingle();
+
+      if (exactError) throw exactError;
+
+      if (exactMatch) {
+        return res.json({
+          success: true,
+          isHoliday: true,
+          holiday: exactMatch
+        });
+      }
+
+      // Check recurring holidays (same month/day, any year)
+      const checkDate = new Date(date);
+      const month = checkDate.getMonth() + 1;
+      const day = checkDate.getDate();
+
+      const { data: recurring, error: recurringError } = await supabase
+        .from('holidays')
+        .select('id, name, date, description')
+        .eq('is_recurring', true);
+
+      if (recurringError) throw recurringError;
+
+      const matchingRecurring = (recurring || []).find(h => {
+        const hDate = new Date(h.date);
+        return hDate.getMonth() + 1 === month && hDate.getDate() === day;
+      });
+
+      if (matchingRecurring) {
+        return res.json({
+          success: true,
+          isHoliday: true,
+          holiday: matchingRecurring,
+          isRecurring: true
+        });
+      }
+
+      res.json({
+        success: true,
+        isHoliday: false
+      });
+    } catch (error) {
+      console.error('❌ Error checking holiday:', error);
+      next(error);
+    }
+  }
+);
 
 // ============================================================
 // PAYMENT IMPORT APIs
@@ -20698,6 +23327,550 @@ app.get('/api/parent/payment-config',
 
 // ============================================================
 // END PARENT PORTAL APIs
+// ============================================================
+
+// ============================================================
+// TEACHER COMPENSATION APIs
+// ============================================================
+
+/**
+ * Helper function to get active teacher compensation config for a given teacher
+ * @param {string} teacherId - Teacher's user ID
+ * @param {string} [asOfDate] - Optional date to check config validity (default: now)
+ * @returns {Object|null} Active compensation config or null if not found
+ */
+async function getActiveTeacherCompensation(teacherId, asOfDate = null) {
+  const checkDate = asOfDate || new Date().toISOString().split('T')[0];
+  
+  const { data, error } = await supabase
+    .from('teacher_compensation')
+    .select('*')
+    .eq('teacher_id', teacherId)
+    .lte('effective_from', checkDate)
+    .or(`effective_to.is.null,effective_to.gte.${checkDate}`)
+    .order('effective_from', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  
+  if (error) {
+    console.error(`❌ Error fetching compensation for teacher ${teacherId}:`, error);
+    return null;
+  }
+  
+  return data;
+}
+
+/**
+ * Calculate payroll based on compensation config and sessions
+ * @param {Object} compensation - Teacher compensation config
+ * @param {Array} sessions - Array of completed sessions
+ * @param {number} defaultHourlyRate - Fallback hourly rate from users table
+ * @returns {Object} { teaching_earnings, fixed_salary, total_hours }
+ */
+function calculatePayrollFromCompensation(compensation, sessions, defaultHourlyRate = 150000) {
+  const total_hours = sessions?.reduce((sum, s) => sum + (parseFloat(s.duration_hours) || 0), 0) || 0;
+  
+  let teaching_earnings = 0;
+  let fixed_salary = 0;
+  
+  if (!compensation) {
+    // No compensation config - use legacy calculation (hourly only)
+    teaching_earnings = sessions?.reduce((sum, s) => {
+      const hours = parseFloat(s.duration_hours) || 0;
+      const rate = parseFloat(s.teacher_rate) || defaultHourlyRate;
+      return sum + (hours * rate);
+    }, 0) || 0;
+  } else {
+    const { pay_scheme, hourly_rate, fixed_monthly_salary, extra_hourly_rate } = compensation;
+    
+    switch (pay_scheme) {
+      case 'HOURLY_ONLY':
+        // All earnings from hourly work
+        teaching_earnings = sessions?.reduce((sum, s) => {
+          const hours = parseFloat(s.duration_hours) || 0;
+          const rate = parseFloat(s.teacher_rate) || hourly_rate || defaultHourlyRate;
+          return sum + (hours * rate);
+        }, 0) || 0;
+        fixed_salary = 0;
+        break;
+        
+      case 'FIXED_ONLY':
+        // Fixed monthly salary, no hourly earnings
+        teaching_earnings = 0;
+        fixed_salary = parseFloat(fixed_monthly_salary) || 0;
+        break;
+        
+      case 'FIXED_PLUS_HOURLY':
+        // Fixed base + extra hourly for additional work
+        fixed_salary = parseFloat(fixed_monthly_salary) || 0;
+        teaching_earnings = sessions?.reduce((sum, s) => {
+          const hours = parseFloat(s.duration_hours) || 0;
+          const rate = parseFloat(s.teacher_rate) || extra_hourly_rate || hourly_rate || defaultHourlyRate;
+          return sum + (hours * rate);
+        }, 0) || 0;
+        break;
+        
+      default:
+        // Unknown scheme - fall back to hourly
+        teaching_earnings = sessions?.reduce((sum, s) => {
+          const hours = parseFloat(s.duration_hours) || 0;
+          const rate = parseFloat(s.teacher_rate) || hourly_rate || defaultHourlyRate;
+          return sum + (hours * rate);
+        }, 0) || 0;
+    }
+  }
+  
+  return { teaching_earnings, fixed_salary, total_hours };
+}
+
+/**
+ * GET /api/admin/teacher-compensation
+ * Get all teacher compensation configs with filters
+ * Query: ?center_id=xxx&pay_scheme=HOURLY_ONLY&active_only=true
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.get('/api/admin/teacher-compensation',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { center_id, pay_scheme, active_only = 'true', search } = req.query;
+      const user = req.user;
+
+      console.log(`💰 ${user.email} fetching teacher compensations`);
+
+      let query = supabase
+        .from('teacher_compensation')
+        .select(`
+          *,
+          teacher:users!teacher_compensation_teacher_id_fkey (
+            id, full_name, email, avatar_url, phone, status
+          ),
+          center:centers!teacher_compensation_center_id_fkey (
+            id, name
+          )
+        `)
+        .order('updated_at', { ascending: false });
+
+      // Active only filter
+      if (active_only === 'true') {
+        query = query.is('effective_to', null);
+      }
+
+      // Center filter
+      if (center_id) {
+        query = query.eq('center_id', center_id);
+      } else if (user.role_code === 'CENTER_MANAGER' && user.center_id) {
+        query = query.eq('center_id', user.center_id);
+      }
+
+      // Pay scheme filter
+      if (pay_scheme && ['HOURLY_ONLY', 'FIXED_ONLY', 'FIXED_PLUS_HOURLY'].includes(pay_scheme)) {
+        query = query.eq('pay_scheme', pay_scheme);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      // Local search filter
+      let filteredData = data || [];
+      if (search) {
+        const searchLower = search.toLowerCase();
+        filteredData = filteredData.filter(c =>
+          c.teacher?.full_name?.toLowerCase().includes(searchLower) ||
+          c.teacher?.email?.toLowerCase().includes(searchLower)
+        );
+      }
+
+      res.json({
+        success: true,
+        data: filteredData
+      });
+    } catch (error) {
+      console.error('❌ Error fetching teacher compensations:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/admin/teacher-compensation/:teacherId
+ * Get compensation config for a specific teacher (current + history)
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.get('/api/admin/teacher-compensation/:teacherId',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { teacherId } = req.params;
+
+      // Get all compensation configs for this teacher
+      const { data, error } = await supabase
+        .from('teacher_compensation')
+        .select(`
+          *,
+          teacher:users!teacher_compensation_teacher_id_fkey (
+            id, full_name, email, avatar_url, phone, center_id, hourly_rate
+          ),
+          center:centers!teacher_compensation_center_id_fkey (
+            id, name
+          ),
+          created_by_user:users!teacher_compensation_created_by_fkey (
+            id, full_name
+          )
+        `)
+        .eq('teacher_id', teacherId)
+        .order('effective_from', { ascending: false });
+
+      if (error) throw error;
+
+      // Separate current and history
+      const current = data?.find(c => c.effective_to === null) || null;
+      const history = data?.filter(c => c.effective_to !== null) || [];
+
+      res.json({
+        success: true,
+        data: {
+          current,
+          history,
+          all: data
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error fetching teacher compensation:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /api/admin/teacher-compensation
+ * Create new compensation config for a teacher
+ * Body: { teacher_id, pay_scheme, hourly_rate, fixed_monthly_salary, extra_hourly_rate, effective_from, notes }
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.post('/api/admin/teacher-compensation',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const {
+        teacher_id,
+        pay_scheme = 'HOURLY_ONLY',
+        hourly_rate = 150000,
+        fixed_monthly_salary = 0,
+        extra_hourly_rate,
+        effective_from,
+        notes
+      } = req.body;
+
+      console.log(`💰 ${req.user.email} creating compensation for teacher ${teacher_id}`);
+
+      // Validate
+      if (!teacher_id) {
+        return res.status(400).json({
+          success: false,
+          message: 'teacher_id là bắt buộc'
+        });
+      }
+
+      // Get teacher info
+      const { data: teacher, error: teacherError } = await supabase
+        .from('users')
+        .select('id, full_name, center_id')
+        .eq('id', teacher_id)
+        .single();
+
+      if (teacherError || !teacher) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy giáo viên'
+        });
+      }
+
+      // Close any existing active config
+      const { error: closeError } = await supabase
+        .from('teacher_compensation')
+        .update({ 
+          effective_to: new Date(effective_from || new Date()).toISOString().split('T')[0]
+        })
+        .eq('teacher_id', teacher_id)
+        .is('effective_to', null);
+
+      if (closeError) {
+        console.warn('Warning closing old config:', closeError);
+      }
+
+      // Create new config
+      const { data: newConfig, error: createError } = await supabase
+        .from('teacher_compensation')
+        .insert({
+          teacher_id,
+          center_id: teacher.center_id,
+          pay_scheme,
+          hourly_rate: pay_scheme !== 'FIXED_ONLY' ? hourly_rate : null,
+          fixed_monthly_salary: pay_scheme !== 'HOURLY_ONLY' ? fixed_monthly_salary : 0,
+          extra_hourly_rate: pay_scheme === 'FIXED_PLUS_HOURLY' ? (extra_hourly_rate || hourly_rate) : null,
+          effective_from: effective_from || new Date().toISOString().split('T')[0],
+          notes,
+          created_by: req.user.id
+        })
+        .select(`
+          *,
+          teacher:users!teacher_compensation_teacher_id_fkey (
+            id, full_name, email
+          )
+        `)
+        .single();
+
+      if (createError) throw createError;
+
+      // Also update users.hourly_rate for backward compatibility
+      await supabase
+        .from('users')
+        .update({ hourly_rate })
+        .eq('id', teacher_id);
+
+      console.log(`💰 Created compensation ${newConfig.id} for ${teacher.full_name}`);
+
+      res.status(201).json({
+        success: true,
+        data: newConfig,
+        message: 'Tạo cấu hình lương thành công'
+      });
+    } catch (error) {
+      console.error('❌ Error creating teacher compensation:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * PUT /api/admin/teacher-compensation/:id
+ * Update compensation config
+ * Body: { pay_scheme, hourly_rate, fixed_monthly_salary, extra_hourly_rate, notes }
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.put('/api/admin/teacher-compensation/:id',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const {
+        pay_scheme,
+        hourly_rate,
+        fixed_monthly_salary,
+        extra_hourly_rate,
+        notes
+      } = req.body;
+
+      console.log(`💰 ${req.user.email} updating compensation ${id}`);
+
+      // Get existing config
+      const { data: existing, error: fetchError } = await supabase
+        .from('teacher_compensation')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (fetchError || !existing) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy cấu hình lương'
+        });
+      }
+
+      // Build update object
+      const updateData = {};
+      if (pay_scheme) updateData.pay_scheme = pay_scheme;
+      if (hourly_rate !== undefined) updateData.hourly_rate = hourly_rate;
+      if (fixed_monthly_salary !== undefined) updateData.fixed_monthly_salary = fixed_monthly_salary;
+      if (extra_hourly_rate !== undefined) updateData.extra_hourly_rate = extra_hourly_rate;
+      if (notes !== undefined) updateData.notes = notes;
+
+      const { data: updated, error: updateError } = await supabase
+        .from('teacher_compensation')
+        .update(updateData)
+        .eq('id', id)
+        .select(`
+          *,
+          teacher:users!teacher_compensation_teacher_id_fkey (
+            id, full_name, email
+          )
+        `)
+        .single();
+
+      if (updateError) throw updateError;
+
+      // Also update users.hourly_rate for backward compatibility
+      if (hourly_rate !== undefined) {
+        await supabase
+          .from('users')
+          .update({ hourly_rate })
+          .eq('id', existing.teacher_id);
+      }
+
+      res.json({
+        success: true,
+        data: updated,
+        message: 'Cập nhật cấu hình lương thành công'
+      });
+    } catch (error) {
+      console.error('❌ Error updating teacher compensation:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * DELETE /api/admin/teacher-compensation/:id
+ * Delete compensation config (only if not the only active one)
+ * 🔒 SUPER_ADMIN only
+ */
+app.delete('/api/admin/teacher-compensation/:id',
+  requireAuth,
+  requireRole(['SUPER_ADMIN']),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+
+      console.log(`💰 ${req.user.email} deleting compensation ${id}`);
+
+      // Check if this is the only config for this teacher
+      const { data: existing, error: fetchError } = await supabase
+        .from('teacher_compensation')
+        .select('teacher_id')
+        .eq('id', id)
+        .single();
+
+      if (fetchError || !existing) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy cấu hình lương'
+        });
+      }
+
+      // Count configs for this teacher
+      const { count } = await supabase
+        .from('teacher_compensation')
+        .select('id', { count: 'exact', head: true })
+        .eq('teacher_id', existing.teacher_id);
+
+      if (count <= 1) {
+        return res.status(400).json({
+          success: false,
+          message: 'Không thể xóa cấu hình lương duy nhất. Hãy tạo cấu hình mới trước.'
+        });
+      }
+
+      const { error: deleteError } = await supabase
+        .from('teacher_compensation')
+        .delete()
+        .eq('id', id);
+
+      if (deleteError) throw deleteError;
+
+      res.json({
+        success: true,
+        message: 'Xóa cấu hình lương thành công'
+      });
+    } catch (error) {
+      console.error('❌ Error deleting teacher compensation:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/admin/teacher-compensation/stats
+ * Get compensation statistics
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.get('/api/admin/teacher-compensation-stats',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { center_id } = req.query;
+      const user = req.user;
+
+      let query = supabase
+        .from('teacher_compensation')
+        .select('pay_scheme, hourly_rate, fixed_monthly_salary')
+        .is('effective_to', null);
+
+      // Center filter
+      if (center_id) {
+        query = query.eq('center_id', center_id);
+      } else if (user.role_code === 'CENTER_MANAGER' && user.center_id) {
+        query = query.eq('center_id', user.center_id);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const stats = {
+        total: data?.length || 0,
+        by_scheme: {
+          HOURLY_ONLY: data?.filter(c => c.pay_scheme === 'HOURLY_ONLY').length || 0,
+          FIXED_ONLY: data?.filter(c => c.pay_scheme === 'FIXED_ONLY').length || 0,
+          FIXED_PLUS_HOURLY: data?.filter(c => c.pay_scheme === 'FIXED_PLUS_HOURLY').length || 0
+        },
+        avg_hourly_rate: data?.length > 0 
+          ? Math.round(data.reduce((sum, c) => sum + (parseFloat(c.hourly_rate) || 0), 0) / data.length)
+          : 0,
+        avg_fixed_salary: data?.filter(c => c.fixed_monthly_salary > 0).length > 0
+          ? Math.round(data.filter(c => c.fixed_monthly_salary > 0).reduce((sum, c) => sum + parseFloat(c.fixed_monthly_salary), 0) / data.filter(c => c.fixed_monthly_salary > 0).length)
+          : 0
+      };
+
+      res.json({
+        success: true,
+        data: stats
+      });
+    } catch (error) {
+      console.error('❌ Error fetching compensation stats:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/teacher/my-compensation
+ * Teacher view their own compensation config
+ * 🔒 TEACHER
+ */
+app.get('/api/teacher/my-compensation',
+  requireAuth,
+  requireRole(['TEACHER']),
+  async (req, res, next) => {
+    try {
+      const teacherId = req.user.id;
+
+      const { data, error } = await supabase
+        .from('teacher_compensation')
+        .select('*')
+        .eq('teacher_id', teacherId)
+        .is('effective_to', null)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+
+      res.json({
+        success: true,
+        data: data || null
+      });
+    } catch (error) {
+      console.error('❌ Error fetching my compensation:', error);
+      next(error);
+    }
+  }
+);
+
+// ============================================================
+// END TEACHER COMPENSATION APIs
 // ============================================================
 
 // Test endpoint không cần auth

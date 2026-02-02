@@ -226,9 +226,15 @@ export function PrintPayslipModal({
                                 <table>
                                     <tbody>
                                         <tr>
-                                            <td>Lương cơ bản ({formatHours(payrollData.total_hours)} giờ)</td>
+                                            <td>Thu nhập giờ dạy ({formatHours(payrollData.total_hours)} giờ)</td>
                                             <td className="text-right">{formatCurrency(payrollData.base_salary)}</td>
                                         </tr>
+                                        {(payrollData.fixed_salary > 0) && (
+                                            <tr>
+                                                <td>Lương cố định tháng</td>
+                                                <td className="text-right">{formatCurrency(payrollData.fixed_salary)}</td>
+                                            </tr>
+                                        )}
                                         <tr>
                                             <td>Thưởng</td>
                                             <td className="text-right amount-positive">+{formatCurrency(payrollData.bonus || 0)}</td>
