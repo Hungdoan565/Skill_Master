@@ -256,13 +256,13 @@ export function StudentDashboard() {
           icon={CreditCard} 
           label="Thanh toán" 
           color="orange" 
-          onClick={() => navigate('/student/invoices')} 
+          onClick={() => navigate('/student/tuition')} 
         />
         <QuickAction 
           icon={BookOpen} 
-          label="Khóa học" 
+          label="Chứng chỉ" 
           color="purple" 
-          onClick={() => navigate('/student/courses')} 
+          onClick={() => navigate('/student/certificates')} 
         />
       </div>
 
@@ -364,7 +364,7 @@ export function StudentDashboard() {
                         {formatCurrency(stats.unpaidAmount)}
                       </span>
                       <button 
-                        onClick={() => navigate('/student/invoices')}
+                        onClick={() => navigate('/student/tuition')}
                         className="text-xs font-medium bg-amber-200 hover:bg-amber-300 text-amber-900 px-3 py-1.5 rounded-full transition-colors"
                       >
                         Thanh toán ngay

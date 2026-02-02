@@ -13,3 +13,7 @@ export { DeletePayrollModal } from './DeletePayrollModal';
 export { BulkGeneratePayrollModal } from './BulkGeneratePayrollModal';
 export { PrintPayslipModal } from './PrintPayslipModal';
 export { AuditTrailModal } from './AuditTrailModal';
+export { PaymentProofModal } from './PaymentProofModal';
+export { DisputeModal } from './DisputeModal';
+
+
