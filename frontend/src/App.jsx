@@ -33,11 +33,12 @@ import { ClassDetailPage } from '@/features/classes';
 import { CoursesPage } from '@/features/courses';
 import { ClassesPage } from '@/features/classes-list';
 import { DashboardPage } from '@/features/dashboard';
-import { StaffPage } from '@/features/staff';
+import { StaffPage, SalaryConfigPage } from '@/features/staff';
 import { RoomsPage } from '@/features/rooms';
 import { StudentsPage, StudentDetailPage } from '@/features/students';
-import { PayrollPage, TeacherPayrollPage } from '@/features/payroll';
+import { PayrollPage, TeacherPayrollPage, DisputeManagementPage } from '@/features/payroll';
 import { SchedulePage } from '@/features/schedule';
+import { HolidaysPage } from '@/features/holidays';
 import { GradesPage } from '@/features/grades';
 import { CentersPage, CenterDetailPage } from '@/features/centers';
 import { SettingsPage } from '@/features/settings';
@@ -418,10 +419,13 @@ function App() {
               <Route path="invoices/overdue" element={<OverdueDashboardPage />} />
               <Route path="grades" element={<GradesPage />} />
               <Route path="payroll" element={<PayrollPage />} />
+              <Route path="payroll-disputes" element={<DisputeManagementPage />} />
               <Route path="staff" element={<StaffPage />} />
+              <Route path="salary-config" element={<SalaryConfigPage />} />
               <Route path="centers" element={<CentersPage />} />
               <Route path="centers/:id" element={<CenterDetailPage />} />
               <Route path="rooms" element={<RoomsPage />} />
+              <Route path="holidays" element={<HolidaysPage />} />
               <Route path="documents" element={<DocumentsPage />} />
               <Route path="certificates" element={<CertificatesPage />} />
               <Route path="certificates/list" element={<CertificateListPage />} />

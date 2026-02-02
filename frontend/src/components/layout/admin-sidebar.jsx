@@ -20,6 +20,9 @@ import {
   Bell,
   TrendingUp,
   Headphones,
+  Calendar,
+  AlertTriangle,
+  DollarSign,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -35,7 +38,7 @@ const menuGroups = [
       { label: 'Dashboard', icon: LayoutDashboard, path: '/admin/dashboard' },
     ],
   },
-  {
+{
     id: 'training',
     title: 'QUẢN LÝ ĐÀO TẠO',
     items: [
@@ -60,7 +63,9 @@ const menuGroups = [
     title: 'NỘI BỘ',
     items: [
       { label: 'Nhân sự', icon: UserCog, path: '/admin/staff' },
+      { label: 'Cấu hình lương', icon: DollarSign, path: '/admin/salary-config' },
       { label: 'Bảng lương', icon: Wallet, path: '/admin/payroll' },
+      { label: 'Khiếu nại lương', icon: AlertTriangle, path: '/admin/payroll-disputes' },
     ],
   },
   {

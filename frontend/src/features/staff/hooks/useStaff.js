@@ -70,13 +70,32 @@ export function useStaff() {
   // Create new staff member
   const createStaff = useCallback(async (formData) => {
     const headers = await getAuthHeaders();
+    
+    // Create user first
     const response = await axios.post(`${API_URL}/api/admin/users`, formData, { headers });
 
     if (response.data?.success) {
+      const createdUser = response.data.data;
+      
+      // If teacher with salary config, create compensation record
+      if (formData.role_code === 'TEACHER' && formData.hourly_rate) {
+        try {
+          await axios.post(`${API_URL}/api/admin/teacher-compensation`, {
+            teacher_id: createdUser.id,
+            pay_scheme: formData.pay_scheme || 'HOURLY_ONLY',
+            hourly_rate: formData.hourly_rate || 150000,
+            fixed_monthly_salary: formData.fixed_monthly_salary || 0,
+          }, { headers });
+        } catch (compError) {
+          console.warn('Warning: Could not create compensation config:', compError);
+          // Don't fail the whole operation, user is still created
+        }
+      }
+      
       return {
         success: true,
-        data: response.data.data,
-        defaultPassword: response.data.data?.default_password || 'SkillMaster@123',
+        data: createdUser,
+        defaultPassword: createdUser?.default_password || 'SkillMaster@123',
       };
     }
 

@@ -41,4 +41,24 @@ export const DEFAULT_STAFF_FORM = {
   email: '',
   phone: '',
   role_code: 'TEACHER',
+  // Salary configuration
+  hourly_rate: 150000,
+  pay_scheme: 'HOURLY_ONLY',
+  fixed_monthly_salary: 0,
 };
+
+// Pay scheme options for forms
+export const PAY_SCHEME_OPTIONS = [
+  { value: 'HOURLY_ONLY', label: 'Chỉ lương theo giờ', description: 'Part-time, sinh viên dạy thêm' },
+  { value: 'FIXED_PLUS_HOURLY', label: 'Lương cố định + Giờ dạy thêm', description: 'Full-time, có dạy thêm ngoài giờ' },
+  { value: 'FIXED_ONLY', label: 'Chỉ lương cố định', description: 'Không tính theo giờ dạy' },
+];
+
+// Default hourly rate suggestions
+export const HOURLY_RATE_SUGGESTIONS = [
+  { value: 100000, label: '100.000đ' },
+  { value: 150000, label: '150.000đ' },
+  { value: 200000, label: '200.000đ' },
+  { value: 250000, label: '250.000đ' },
+  { value: 300000, label: '300.000đ' },
+];

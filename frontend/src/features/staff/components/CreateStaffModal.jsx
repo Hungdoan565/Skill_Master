@@ -1,15 +1,20 @@
 /**
  * CreateStaffModal Component
- * Modal thêm nhân viên mới
+ * Modal thêm nhân viên mới - có cấu hình lương cho Giáo viên
  */
 
-import { UserPlus, Copy, Check } from 'lucide-react';
+import { UserPlus, Copy, Check, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SimpleModal } from './SimpleModal';
 import { SimpleSelect } from './SimpleSelect';
-import { ROLE_OPTIONS } from '../utils';
+import { ROLE_OPTIONS, PAY_SCHEME_OPTIONS, HOURLY_RATE_SUGGESTIONS } from '../utils';
+
+// Format currency for display
+const formatCurrency = (value) => {
+  return new Intl.NumberFormat('vi-VN').format(value || 0) + 'đ';
+};
 
 export function CreateStaffModal({
   isOpen,
@@ -27,6 +32,10 @@ export function CreateStaffModal({
     e.preventDefault();
     onSubmit();
   };
+
+  const isTeacher = formData.role_code === 'TEACHER';
+  const showFixedSalary = formData.pay_scheme !== 'HOURLY_ONLY';
+  const showHourlyRate = formData.pay_scheme !== 'FIXED_ONLY';
 
   return (
     <SimpleModal
@@ -137,6 +146,91 @@ export function CreateStaffModal({
               onChange={(e) => onFieldChange('phone', e.target.value)}
             />
           </div>
+
+          {/* Salary Configuration - Only for Teachers */}
+          {isTeacher && (
+            <div className="border-t pt-4 mt-4">
+              <div className="flex items-center gap-2 mb-4">
+                <DollarSign className="h-5 w-5 text-orange-600" />
+                <h3 className="font-semibold text-base">Cấu hình lương</h3>
+              </div>
+
+              {/* Pay Scheme */}
+              <div className="space-y-2 mb-4">
+                <Label>Loại hình trả lương</Label>
+                <SimpleSelect
+                  value={formData.pay_scheme || 'HOURLY_ONLY'}
+                  onChange={(value) => onFieldChange('pay_scheme', value)}
+                  options={PAY_SCHEME_OPTIONS}
+                />
+              </div>
+
+              {/* Hourly Rate */}
+              {showHourlyRate && (
+                <div className="space-y-2 mb-4">
+                  <Label htmlFor="hourly_rate">
+                    Mức lương/giờ <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="hourly_rate"
+                      type="number"
+                      min="0"
+                      step="10000"
+                      placeholder="150000"
+                      value={formData.hourly_rate || 150000}
+                      onChange={(e) => onFieldChange('hourly_rate', parseInt(e.target.value) || 0)}
+                      className="flex-1"
+                    />
+                    <span className="text-sm text-muted-foreground whitespace-nowrap">
+                      = {formatCurrency(formData.hourly_rate || 150000)}/giờ
+                    </span>
+                  </div>
+                  {/* Quick select buttons */}
+                  <div className="flex flex-wrap gap-1">
+                    {HOURLY_RATE_SUGGESTIONS.map(rate => (
+                      <button
+                        key={rate.value}
+                        type="button"
+                        onClick={() => onFieldChange('hourly_rate', rate.value)}
+                        className={`px-2 py-1 text-xs rounded border transition-colors ${
+                          formData.hourly_rate === rate.value
+                            ? 'bg-orange-100 border-orange-300 text-orange-700'
+                            : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        {rate.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Fixed Monthly Salary */}
+              {showFixedSalary && (
+                <div className="space-y-2">
+                  <Label htmlFor="fixed_monthly_salary">
+                    Lương cố định/tháng <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="fixed_monthly_salary"
+                      type="number"
+                      min="0"
+                      step="100000"
+                      placeholder="5000000"
+                      value={formData.fixed_monthly_salary || 0}
+                      onChange={(e) => onFieldChange('fixed_monthly_salary', parseInt(e.target.value) || 0)}
+                      className="flex-1"
+                    />
+                    <span className="text-sm text-muted-foreground whitespace-nowrap">
+                      = {formatCurrency(formData.fixed_monthly_salary || 0)}/tháng
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           
           {/* Buttons */}
           <div className="flex justify-end gap-2 pt-4 border-t">

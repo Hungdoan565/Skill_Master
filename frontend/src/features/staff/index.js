@@ -12,6 +12,7 @@
 
 // Page export (default)
 export { StaffPage } from './pages';
+export { SalaryConfigPage } from './pages';
 export { StaffPage as default } from './pages';
 
 // Components exports
@@ -37,6 +38,8 @@ export {
   ROLE_OPTIONS,
   ROLE_FILTER_OPTIONS,
   DEFAULT_STAFF_FORM,
+  PAY_SCHEME_OPTIONS,
+  HOURLY_RATE_SUGGESTIONS,
   formatDate,
   getInitials,
   getGradient,

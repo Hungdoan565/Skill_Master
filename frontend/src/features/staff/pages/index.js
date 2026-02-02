@@ -3,3 +3,5 @@
  */
 
 export { StaffPage } from './StaffPage';
+export { SalaryConfigPage } from './SalaryConfigPage';
+
