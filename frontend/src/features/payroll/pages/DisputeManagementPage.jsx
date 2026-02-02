@@ -36,25 +36,25 @@ import { formatCurrency, formatMonthYear, API_URL } from '../utils';
 const getAuthHeaders = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) {
-        throw new Error('Chua dang nhap');
+        throw new Error('Chưa đăng nhập');
     }
     return { Authorization: `Bearer ${session.access_token}` };
 };
 
 const DISPUTE_STATUS = {
-    pending: { label: 'Cho xu ly', color: 'bg-yellow-100 text-yellow-800', icon: Clock },
-    reviewing: { label: 'Dang xem xet', color: 'bg-blue-100 text-blue-800', icon: Search },
-    resolved: { label: 'Da giai quyet', color: 'bg-green-100 text-green-800', icon: CheckCircle },
-    rejected: { label: 'Tu choi', color: 'bg-red-100 text-red-800', icon: XCircle },
+    pending: { label: 'Chờ xử lý', color: 'bg-yellow-100 text-yellow-800', icon: Clock },
+    reviewing: { label: 'Đang xem xét', color: 'bg-blue-100 text-blue-800', icon: Search },
+    resolved: { label: 'Đã giải quyết', color: 'bg-green-100 text-green-800', icon: CheckCircle },
+    rejected: { label: 'Từ chối', color: 'bg-red-100 text-red-800', icon: XCircle },
 };
 
 const DISPUTE_TYPES = {
-    incorrect_hours: 'Sai so gio day',
-    incorrect_rate: 'Sai muc luong/gio',
-    missing_sessions: 'Thieu buoi day',
-    incorrect_bonus: 'Sai tien thuong',
-    incorrect_deduction: 'Sai tien khau tru',
-    other: 'Ly do khac',
+    incorrect_hours: 'Sai số giờ dạy',
+    incorrect_rate: 'Sai mức lương/giờ',
+    missing_sessions: 'Thiếu buổi dạy',
+    incorrect_bonus: 'Sai tiền thưởng',
+    incorrect_deduction: 'Sai tiền khấu trừ',
+    other: 'Lý do khác',
 };
 
 // Custom IconSelect Component
@@ -204,9 +204,9 @@ export function DisputeManagementPage() {
             {/* Header */}
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Quan ly khieu nai</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">Quản lý khiếu nại</h1>
                     <p className="text-muted-foreground">
-                        Xem va xu ly cac khieu nai bang luong tu giao vien
+                        Xem và xử lý các khiếu nại bảng lương từ giáo viên
                     </p>
                 </div>
             </div>
@@ -216,7 +216,7 @@ export function DisputeManagementPage() {
                 <Card>
                     <CardContent className="pt-6">
                         <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">Tong so</span>
+                            <span className="text-sm text-muted-foreground">Tổng số</span>
                             <AlertTriangle className="h-4 w-4 text-slate-500" />
                         </div>
                         <p className="text-2xl font-bold">{stats.total}</p>
@@ -225,7 +225,7 @@ export function DisputeManagementPage() {
                 <Card>
                     <CardContent className="pt-6">
                         <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">Cho xu ly</span>
+                            <span className="text-sm text-muted-foreground">Chờ xử lý</span>
                             <Clock className="h-4 w-4 text-yellow-500" />
                         </div>
                         <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
@@ -234,7 +234,7 @@ export function DisputeManagementPage() {
                 <Card>
                     <CardContent className="pt-6">
                         <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">Dang xem xet</span>
+                            <span className="text-sm text-muted-foreground">Đang xem xét</span>
                             <Search className="h-4 w-4 text-blue-500" />
                         </div>
                         <p className="text-2xl font-bold text-blue-600">{stats.reviewing}</p>
@@ -243,7 +243,7 @@ export function DisputeManagementPage() {
                 <Card>
                     <CardContent className="pt-6">
                         <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">Da giai quyet</span>
+                            <span className="text-sm text-muted-foreground">Đã giải quyết</span>
                             <CheckCircle className="h-4 w-4 text-green-500" />
                         </div>
                         <p className="text-2xl font-bold text-green-600">{stats.resolved}</p>
@@ -252,7 +252,7 @@ export function DisputeManagementPage() {
                 <Card>
                     <CardContent className="pt-6">
                         <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">Tu choi</span>
+                            <span className="text-sm text-muted-foreground">Từ chối</span>
                             <XCircle className="h-4 w-4 text-red-500" />
                         </div>
                         <p className="text-2xl font-bold text-red-600">{stats.rejected}</p>
@@ -279,7 +279,7 @@ export function DisputeManagementPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <AlertTriangle className="h-5 w-5" />
-                            Danh sach khieu nai
+                            Danh sách khiếu nại
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -290,7 +290,7 @@ export function DisputeManagementPage() {
                         ) : disputes.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-12 text-slate-400">
                                 <CheckCircle className="h-12 w-12 mb-2" />
-                                <p>Khong co khieu nai nao</p>
+                                <p>Không có khiếu nại nào</p>
                             </div>
                         ) : (
                             <div className="space-y-3 max-h-[500px] overflow-y-auto">
@@ -350,30 +350,30 @@ export function DisputeManagementPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <MessageSquare className="h-5 w-5" />
-                            Chi tiet khieu nai
+                            Chi tiết khiếu nại
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
                         {!selectedDispute ? (
                             <div className="flex flex-col items-center justify-center py-12 text-slate-400">
                                 <Search className="h-12 w-12 mb-2" />
-                                <p>Chon mot khieu nai de xem chi tiet</p>
+                                <p>Chọn một khiếu nại để xem chi tiết</p>
                             </div>
                         ) : (
                             <div className="space-y-6">
                                 {/* Teacher Info */}
                                 <div className="p-4 rounded-lg bg-slate-50">
-                                    <h4 className="font-medium mb-2">Giao vien</h4>
+                                    <h4 className="font-medium mb-2">Giáo viên</h4>
                                     <p className="text-lg font-semibold">{selectedDispute.teacher?.full_name}</p>
                                     <p className="text-sm text-muted-foreground">{selectedDispute.teacher?.email}</p>
                                 </div>
 
                                 {/* Payroll Info */}
                                 <div className="p-4 rounded-lg bg-orange-50 border border-orange-200">
-                                    <h4 className="font-medium text-orange-800 mb-2">Bang luong</h4>
+                                    <h4 className="font-medium text-orange-800 mb-2">Bảng lương</h4>
                                     <div className="grid grid-cols-2 gap-2 text-sm">
                                         <div>
-                                            <span className="text-orange-600">Ky luong:</span>
+                                            <span className="text-orange-600">Kỳ lương:</span>
                                             <span className="ml-2 font-medium">
                                                 {formatMonthYear(
                                                     selectedDispute.payroll?.period_month,
@@ -382,7 +382,7 @@ export function DisputeManagementPage() {
                                             </span>
                                         </div>
                                         <div>
-                                            <span className="text-orange-600">Tien luong:</span>
+                                            <span className="text-orange-600">Tiền lương:</span>
                                             <span className="ml-2 font-medium">
                                                 {formatCurrency(selectedDispute.payroll?.net_salary)}
                                             </span>
@@ -393,19 +393,19 @@ export function DisputeManagementPage() {
                                 {/* Dispute Details */}
                                 <div className="space-y-3">
                                     <div>
-                                        <Label className="text-muted-foreground">Loai khieu nai</Label>
+                                        <Label className="text-muted-foreground">Loại khiếu nại</Label>
                                         <p className="font-medium">
                                             {DISPUTE_TYPES[selectedDispute.dispute_type] || selectedDispute.dispute_type}
                                         </p>
                                     </div>
                                     <div>
-                                        <Label className="text-muted-foreground">Ly do chi tiet</Label>
+                                        <Label className="text-muted-foreground">Lý do chi tiết</Label>
                                         <p className="p-3 rounded-lg bg-slate-50 text-sm whitespace-pre-wrap">
                                             {selectedDispute.reason}
                                         </p>
                                     </div>
                                     <div>
-                                        <Label className="text-muted-foreground">Ngay gui</Label>
+                                        <Label className="text-muted-foreground">Ngày gửi</Label>
                                         <p className="font-medium">
                                             {new Date(selectedDispute.created_at).toLocaleString('vi-VN')}
                                         </p>
@@ -415,11 +415,11 @@ export function DisputeManagementPage() {
                                 {/* Admin Response */}
                                 {selectedDispute.admin_response && (
                                     <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
-                                        <h4 className="font-medium text-blue-800 mb-2">Phan hoi cua quan ly</h4>
+                                        <h4 className="font-medium text-blue-800 mb-2">Phản hồi của quản lý</h4>
                                         <p className="text-sm whitespace-pre-wrap">{selectedDispute.admin_response}</p>
                                         {selectedDispute.resolved_at && (
                                             <p className="text-xs text-blue-600 mt-2">
-                                                Xu ly luc: {new Date(selectedDispute.resolved_at).toLocaleString('vi-VN')}
+                                                Xử lý lúc: {new Date(selectedDispute.resolved_at).toLocaleString('vi-VN')}
                                             </p>
                                         )}
                                     </div>
@@ -437,17 +437,17 @@ export function DisputeManagementPage() {
                                             className="flex-1"
                                         >
                                             <Search className="mr-2 h-4 w-4" />
-                                            Xem xet
+                                            Xem xét
                                         </Button>
                                         <Button
                                             onClick={() => {
                                                 setResponseData({ status: 'resolved', admin_response: '' });
                                                 setResponseModal({ isOpen: true, dispute: selectedDispute });
                                             }}
-                                            className="flex-1 bg-green-600 hover:bg-green-700"
+                                            className="flex-1 bg-green-600 hover:bg-green-700 text-white"
                                         >
                                             <CheckCircle className="mr-2 h-4 w-4" />
-                                            Giai quyet
+                                            Giải quyết
                                         </Button>
                                         <Button
                                             onClick={() => {
@@ -458,7 +458,7 @@ export function DisputeManagementPage() {
                                             className="flex-1"
                                         >
                                             <XCircle className="mr-2 h-4 w-4" />
-                                            Tu choi
+                                            Từ chối
                                         </Button>
                                     </div>
                                 )}
@@ -478,18 +478,18 @@ export function DisputeManagementPage() {
                     <div className="relative z-10 w-full max-w-md rounded-lg bg-white shadow-xl mx-4">
                         <div className="p-6 space-y-4">
                             <h3 className="text-lg font-semibold">
-                                {responseData.status === 'reviewing' && 'Danh dau dang xem xet'}
-                                {responseData.status === 'resolved' && 'Giai quyet khieu nai'}
-                                {responseData.status === 'rejected' && 'Tu choi khieu nai'}
+                                {responseData.status === 'reviewing' && 'Đánh dấu đang xem xét'}
+                                {responseData.status === 'resolved' && 'Giải quyết khiếu nại'}
+                                {responseData.status === 'rejected' && 'Từ chối khiếu nại'}
                             </h3>
 
                             <div className="space-y-2">
-                                <Label htmlFor="admin_response">Phan hoi (bat buoc)</Label>
+                                <Label htmlFor="admin_response">Phản hồi (bắt buộc)</Label>
                                 <textarea
                                     id="admin_response"
                                     value={responseData.admin_response}
                                     onChange={(e) => setResponseData(prev => ({ ...prev, admin_response: e.target.value }))}
-                                    placeholder="Nhap phan hoi cua ban..."
+                                    placeholder="Nhập phản hồi của bạn..."
                                     rows={4}
                                     className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm resize-none"
                                 />
@@ -501,24 +501,24 @@ export function DisputeManagementPage() {
                                     onClick={() => setResponseModal({ isOpen: false, dispute: null })}
                                     disabled={submitting}
                                 >
-                                    Huy
+                                    Hủy
                                 </Button>
                                 <Button
                                     onClick={handleSubmitResponse}
                                     disabled={submitting || !responseData.admin_response.trim()}
                                     className={
-                                        responseData.status === 'resolved' ? 'bg-green-600 hover:bg-green-700' :
-                                        responseData.status === 'rejected' ? 'bg-red-600 hover:bg-red-700' :
+                                        responseData.status === 'resolved' ? 'bg-green-600 hover:bg-green-700 text-white' :
+                                        responseData.status === 'rejected' ? 'bg-red-600 hover:bg-red-700 text-white' :
                                         ''
                                     }
                                 >
                                     {submitting ? (
                                         <>
                                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Dang xu ly...
+                                            Đang xử lý...
                                         </>
                                     ) : (
-                                        'Xac nhan'
+                                        'Xác nhận'
                                     )}
                                 </Button>
                             </div>
