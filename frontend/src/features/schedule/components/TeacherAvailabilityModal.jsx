@@ -226,7 +226,7 @@ export function TeacherAvailabilityModal({
     }
   };
 
-  // Handle delete
+// Handle delete
   const handleDelete = async () => {
     const id = deleteModal.slotId;
     if (!id) return;
@@ -237,7 +237,16 @@ export function TeacherAvailabilityModal({
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Chưa đăng nhập');
       
-      // Xóa slot từ availability array (API sẽ được gọi khi save)
+      // Call DELETE API
+      const res = await fetch(`${API_URL}/api/admin/teacher-availability/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${session.access_token}` }
+      });
+      
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message);
+      
+      // Remove from local state
       setAvailability(prev => prev.filter(a => a.id !== id));
       setDeleteModal({ isOpen: false, slotId: null });
       onSuccess?.();

@@ -22,13 +22,6 @@ const DAYS_OF_WEEK = [
     { value: 0, label: 'Chủ nhật', short: 'CN' }
 ];
 
-const TIME_SLOTS = [
-    '07:00', '07:30', '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
-    '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30',
-    '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30',
-    '19:00', '19:30', '20:00', '20:30', '21:00', '21:30', '22:00'
-];
-
 /**
  * Teacher Availability Page - Quản lý lịch trống của giáo viên
  */
@@ -269,32 +262,26 @@ export function TeacherAvailabilityPage() {
                                             >
                                                 <Clock className="h-5 w-5 text-gray-400" />
 
-                                                {/* Start Time */}
+{/* Start Time */}
                                                 <div className="flex items-center gap-2">
                                                     <label className="text-sm text-gray-600">Từ:</label>
-                                                    <select
+                                                    <input
+                                                        type="time"
                                                         value={slot.start_time}
                                                         onChange={(e) => updateSlot(slot._id, 'start_time', e.target.value)}
                                                         className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                                    >
-                                                        {TIME_SLOTS.map((time) => (
-                                                            <option key={time} value={time}>{time}</option>
-                                                        ))}
-                                                    </select>
+                                                    />
                                                 </div>
 
                                                 {/* End Time */}
                                                 <div className="flex items-center gap-2">
                                                     <label className="text-sm text-gray-600">Đến:</label>
-                                                    <select
+                                                    <input
+                                                        type="time"
                                                         value={slot.end_time}
                                                         onChange={(e) => updateSlot(slot._id, 'end_time', e.target.value)}
                                                         className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                                    >
-                                                        {TIME_SLOTS.map((time) => (
-                                                            <option key={time} value={time}>{time}</option>
-                                                        ))}
-                                                    </select>
+                                                    />
                                                 </div>
 
                                                 {/* Type */}
