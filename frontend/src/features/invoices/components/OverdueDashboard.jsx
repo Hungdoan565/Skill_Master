@@ -10,7 +10,7 @@
  * - Color coding by severity
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,8 +21,76 @@ import {
   Phone, Mail, AlertTriangle, Clock, Users, DollarSign, Calendar,
   ChevronRight, ChevronLeft, Loader2, RefreshCw, Plus, FileText,
   MessageSquare, CheckCircle, ArrowUpCircle, CreditCard, Filter,
-  PhoneCall, Edit3, X
+  PhoneCall, Edit3, X, ChevronDown, FilterIcon
 } from 'lucide-react';
+
+// IconSelect Component for consistent UI
+function IconSelect({ value, onChange, options, placeholder, icon: Icon }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef(null);
+  
+  const selectedOption = options.find(opt => opt.value === value);
+  
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+  
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 h-9 px-3 rounded-lg border border-border bg-white hover:bg-slate-50 transition-colors text-sm min-w-[140px] justify-between"
+      >
+        <div className="flex items-center gap-2">
+          {selectedOption?.icon ? (
+            <selectedOption.icon className={`h-4 w-4 ${selectedOption.iconColor}`} />
+          ) : Icon ? (
+            <Icon className="h-4 w-4 text-muted-foreground" />
+          ) : null}
+          <span>{selectedOption?.label || placeholder}</span>
+        </div>
+        <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-1 w-full bg-white rounded-lg border shadow-lg z-50 py-1">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => {
+                onChange(option.value);
+                setIsOpen(false);
+              }}
+              className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2 transition-colors ${
+                value === option.value ? 'bg-slate-50 font-medium' : ''
+              }`}
+            >
+              {option.icon && <option.icon className={`h-4 w-4 ${option.iconColor || 'text-slate-500'}`} />}
+              <span>{option.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Overdue days filter options with icons
+const OVERDUE_FILTER_OPTIONS = [
+  { value: '-', label: 'Tất cả', icon: FilterIcon, iconColor: 'text-slate-500' },
+  { value: '1-7', label: '1-7 ngày', icon: Clock, iconColor: 'text-amber-500' },
+  { value: '8-14', label: '8-14 ngày', icon: AlertTriangle, iconColor: 'text-orange-500' },
+  { value: '15-30', label: '15-30 ngày', icon: AlertTriangle, iconColor: 'text-red-500' },
+  { value: '31-', label: '30+ ngày', icon: AlertTriangle, iconColor: 'text-red-600' },
+];
 
 // Severity color mapping based on days overdue
 const SEVERITY_CONFIG = {
@@ -375,20 +443,16 @@ function OverdueTable({
           <Filter className="w-4 h-4 text-muted-foreground" />
           <span className="text-sm font-medium">Lọc theo ngày quá hạn:</span>
         </div>
-        <select
+        <IconSelect
           value={`${filters.daysOverdueMin || ''}-${filters.daysOverdueMax || ''}`}
-          onChange={(e) => {
-            const [min, max] = e.target.value.split('-');
+          onChange={(value) => {
+            const [min, max] = value.split('-');
             onFilterChange(prev => ({ ...prev, daysOverdueMin: min, daysOverdueMax: max }));
           }}
-          className="text-sm border rounded-md px-2 py-1 bg-background"
-        >
-          <option value="-">Tất cả</option>
-          <option value="1-7">1-7 ngày</option>
-          <option value="8-14">8-14 ngày</option>
-          <option value="15-30">15-30 ngày</option>
-          <option value="31-">30+ ngày</option>
-        </select>
+          options={OVERDUE_FILTER_OPTIONS}
+          placeholder="Chọn khoảng thời gian"
+          icon={Filter}
+        />
       </div>
 
       {/* Table */}

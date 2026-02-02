@@ -1,7 +1,7 @@
 /**
  * InvoiceFilters Component
  *
- * Pure Component cho thanh lọc hóa đơn.
+ * Pure Component cho thanh lọc hóa đơn với IconSelect đồng bộ style admin.
  * Bao gồm: Search, Status filter, Overdue filter, Date range, Center filter (Super Admin), Invoice Type filter
  *
  * @param {Object} filters - { search, status, dateStart, dateEnd, overdueOnly, centerId, invoiceType }
@@ -12,9 +12,104 @@
  * @param {Array} centers - Danh sách centers (cho Super Admin)
  */
 
-import { Search, Calendar, X, AlertTriangle, Building2 } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { 
+  Search, 
+  Calendar, 
+  X, 
+  AlertTriangle, 
+  Building2, 
+  ChevronDown,
+  Filter,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  GraduationCap,
+  BookOpen,
+  Shirt,
+  FileText,
+  MoreHorizontal
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { STATUS_OPTIONS, INVOICE_TYPE_OPTIONS } from '../utils/constants';
+
+// IconSelect Component
+function IconSelect({ value, onChange, options, placeholder, icon: Icon }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef(null);
+  
+  const selectedOption = options.find(opt => opt.value === value);
+  
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+  
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 h-9 px-3 rounded-lg border border-border bg-muted/50 hover:bg-muted transition-colors text-sm min-w-[160px] justify-between"
+      >
+        <div className="flex items-center gap-2">
+          {selectedOption?.icon ? (
+            <selectedOption.icon className={`h-4 w-4 ${selectedOption.iconColor}`} />
+          ) : Icon ? (
+            <Icon className="h-4 w-4 text-muted-foreground" />
+          ) : null}
+          <span className="text-foreground">{selectedOption?.label || placeholder}</span>
+        </div>
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-1 w-full bg-white rounded-lg border shadow-lg z-50 py-1">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => {
+                onChange(option.value);
+                setIsOpen(false);
+              }}
+              className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2 transition-colors ${
+                value === option.value ? 'bg-slate-50 font-medium' : ''
+              }`}
+            >
+              {option.icon && <option.icon className={`h-4 w-4 ${option.iconColor || 'text-muted-foreground'}`} />}
+              <span>{option.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Status options with Lucide icons
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'Tất cả trạng thái', icon: Filter, iconColor: 'text-muted-foreground' },
+  { value: 'unpaid', label: 'Chưa thanh toán', icon: Clock, iconColor: 'text-orange-500' },
+  { value: 'partial', label: 'Thanh toán một phần', icon: AlertCircle, iconColor: 'text-yellow-500' },
+  { value: 'paid', label: 'Đã thanh toán', icon: CheckCircle, iconColor: 'text-green-500' },
+  { value: 'cancelled', label: 'Đã hủy', icon: XCircle, iconColor: 'text-red-500' },
+];
+
+// Invoice type options with Lucide icons
+const INVOICE_TYPE_OPTIONS = [
+  { value: 'all', label: 'Tất cả loại', icon: Filter, iconColor: 'text-muted-foreground' },
+  { value: 'tuition', label: 'Học phí', icon: GraduationCap, iconColor: 'text-blue-500' },
+  { value: 'book', label: 'Giáo trình/Sách', icon: BookOpen, iconColor: 'text-indigo-500' },
+  { value: 'uniform', label: 'Đồng phục', icon: Shirt, iconColor: 'text-purple-500' },
+  { value: 'exam', label: 'Phí thi', icon: FileText, iconColor: 'text-orange-500' },
+  { value: 'other', label: 'Phí khác', icon: MoreHorizontal, iconColor: 'text-slate-500' }
+];
 
 export function InvoiceFilters({
   filters,
@@ -24,6 +119,17 @@ export function InvoiceFilters({
   isSuperAdmin = false,
   centers = []
 }) {
+  // Prepare center options
+  const centerOptions = [
+    { value: '', label: 'Tất cả trung tâm', icon: Building2, iconColor: 'text-muted-foreground' },
+    ...centers.map(center => ({
+      value: center.id,
+      label: center.name,
+      icon: Building2,
+      iconColor: 'text-blue-500'
+    }))
+  ];
+
   return (
     <div className="px-4 py-3 border-b border-border">
       <div className="flex flex-wrap items-center gap-3">
@@ -49,63 +155,32 @@ export function InvoiceFilters({
 
         {/* Center Filter - Only for Super Admin */}
         {isSuperAdmin && centers.length > 0 && (
-          <div className="flex items-center gap-1.5">
-            <Building2 className="w-4 h-4 text-muted-foreground" />
-            <select
-              value={filters.centerId || ''}
-              onChange={(e) => onFilterChange('centerId', e.target.value)}
-              className="
-                h-9 px-3 rounded-lg text-sm
-                bg-muted/50 border border-border text-foreground
-                focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
-                cursor-pointer min-w-[160px]
-              "
-            >
-              <option value="">Tất cả trung tâm</option>
-              {centers.map(center => (
-                <option key={center.id} value={center.id}>
-                  {center.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <IconSelect
+            value={filters.centerId || ''}
+            onChange={(value) => onFilterChange('centerId', value)}
+            options={centerOptions}
+            placeholder="Chọn trung tâm"
+            icon={Building2}
+          />
         )}
 
         {/* Status Filter */}
-        <select
+        <IconSelect
           value={filters.status}
-          onChange={(e) => onFilterChange('status', e.target.value)}
-          className="
-            h-9 px-3 rounded-lg text-sm
-            bg-muted/50 border border-border text-foreground
-            focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
-            cursor-pointer
-          "
-        >
-          {STATUS_OPTIONS.map(option => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          onChange={(value) => onFilterChange('status', value)}
+          options={STATUS_OPTIONS}
+          placeholder="Trạng thái"
+          icon={Filter}
+        />
 
         {/* Invoice Type Filter */}
-        <select
+        <IconSelect
           value={filters.invoiceType || 'all'}
-          onChange={(e) => onFilterChange('invoiceType', e.target.value)}
-          className="
-            h-9 px-3 rounded-lg text-sm
-            bg-muted/50 border border-border text-foreground
-            focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
-            cursor-pointer
-          "
-        >
-          {INVOICE_TYPE_OPTIONS.map(option => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          onChange={(value) => onFilterChange('invoiceType', value)}
+          options={INVOICE_TYPE_OPTIONS}
+          placeholder="Loại hóa đơn"
+          icon={Filter}
+        />
 
         {/* Overdue Filter */}
         <button
