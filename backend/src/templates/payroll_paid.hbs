@@ -1,0 +1,119 @@
+{{!-- Payroll Paid: Email sent to teacher when payroll is paid --}}
+{{!-- Subject: Lương tháng {{month}}/{{year}} đã được thanh toán 🎉 --}}
+
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+  <tr>
+    <td>
+      <h2 style="margin: 0 0 20px; color: #1f2937; font-size: 22px; font-weight: 600;">
+        Xin chào {{teacherName}}! 🎉
+      </h2>
+      
+      <p style="margin: 0 0 20px; color: #4b5563; font-size: 15px; line-height: 1.7;">
+        Lương tháng {{month}}/{{year}} của bạn đã được thanh toán thành công!
+      </p>
+      
+      <!-- Success Banner -->
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); border-radius: 8px; margin-bottom: 25px;">
+        <tr>
+          <td style="padding: 30px; text-align: center;">
+            <span style="font-size: 50px;">💰</span>
+            <h3 style="margin: 10px 0 5px; color: #ffffff; font-size: 20px; font-weight: 700;">
+              THANH TOÁN THÀNH CÔNG!
+            </h3>
+            <p style="margin: 0; color: rgba(255,255,255,0.9); font-size: 28px; font-weight: 700;">
+              {{netSalary}}
+            </p>
+          </td>
+        </tr>
+      </table>
+      
+      <!-- Payment Details -->
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; margin-bottom: 25px;">
+        <tr>
+          <td style="padding: 20px;">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+              <tr>
+                <td style="padding-bottom: 12px; border-bottom: 1px dashed #86efac;">
+                  <span style="color: #166534; font-weight: 600; font-size: 14px;">📋 CHI TIẾT THANH TOÁN</span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding-top: 15px;">
+                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                    <tr>
+                      <td style="padding: 8px 0; color: #166534; font-size: 14px;">Kỳ lương:</td>
+                      <td style="padding: 8px 0; color: #1f2937; font-size: 14px; text-align: right;">Tháng {{month}}/{{year}}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 0; color: #166534; font-size: 14px;">Số buổi dạy:</td>
+                      <td style="padding: 8px 0; color: #1f2937; font-size: 14px; text-align: right;">{{totalSessions}} buổi</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 8px 0; color: #166534; font-size: 14px;">Phương thức:</td>
+                      <td style="padding: 8px 0; color: #1f2937; font-size: 14px; text-align: right;">{{paymentMethod}}</td>
+                    </tr>
+                    {{#if paymentReference}}
+                    <tr>
+                      <td style="padding: 8px 0; color: #166534; font-size: 14px;">Mã giao dịch:</td>
+                      <td style="padding: 8px 0; color: #1f2937; font-size: 14px; font-family: monospace; text-align: right;">{{paymentReference}}</td>
+                    </tr>
+                    {{/if}}
+                    <tr>
+                      <td style="padding: 8px 0; color: #166534; font-size: 14px;">Thời gian:</td>
+                      <td style="padding: 8px 0; color: #1f2937; font-size: 14px; text-align: right;">{{paidAt}}</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+      
+      <!-- Bank Account Info -->
+      {{#if bankName}}
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; margin-bottom: 25px;">
+        <tr>
+          <td style="padding: 15px 20px;">
+            <p style="margin: 0 0 10px; color: #1e40af; font-weight: 600; font-size: 14px;">
+              🏦 TÀI KHOẢN NHẬN
+            </p>
+            <p style="margin: 0; color: #1f2937; font-size: 14px; line-height: 1.8;">
+              <strong>{{bankName}}</strong><br>
+              STK: {{bankAccountNumber}}<br>
+              Chủ TK: {{bankAccountHolder}}
+            </p>
+          </td>
+        </tr>
+      </table>
+      {{/if}}
+      
+      <!-- View Details CTA -->
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 25px;">
+        <tr>
+          <td align="center">
+            <a href="{{portalUrl}}/teacher/payroll" style="display: inline-block; background-color: #f97316; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-size: 14px; font-weight: 600;">
+              Xem chi tiết & Chứng từ →
+            </a>
+          </td>
+        </tr>
+      </table>
+      
+      <!-- Thank You Message -->
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #fef3c7; border-left: 4px solid #f97316; border-radius: 0 8px 8px 0; margin-bottom: 25px;">
+        <tr>
+          <td style="padding: 15px 20px;">
+            <p style="margin: 0; color: #92400e; font-size: 14px; line-height: 1.6;">
+              🙏 <strong>Cảm ơn bạn!</strong> Sự cống hiến và nhiệt huyết của bạn là động lực để chúng tôi phát triển. Chúc bạn luôn khỏe mạnh và thành công!
+            </p>
+          </td>
+        </tr>
+      </table>
+      
+      <p style="margin: 25px 0 0; color: #1f2937; font-size: 14px;">
+        Trân trọng,<br>
+        <strong style="color: #f97316;">{{centerName}}</strong>
+      </p>
+    </td>
+  </tr>
+</table>

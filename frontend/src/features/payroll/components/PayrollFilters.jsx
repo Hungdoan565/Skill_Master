@@ -1,11 +1,67 @@
 /**
  * PayrollFilters Component
- * Bộ lọc cho trang payroll
+ * Bộ lọc cho trang payroll - đồng bộ style với admin
  */
 
-import { Search, Filter } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Search, ChevronDown, Calendar, Clock, CheckCircle, DollarSign, Filter, FileText } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { getMonthOptions, getYearOptions, getCurrentMonth } from '../utils';
+import { getMonthOptions, getYearOptions } from '../utils';
+
+// Custom Select Component với icon Lucide
+function IconSelect({ value, onChange, options, placeholder, icon: Icon }) {
+    const [isOpen, setIsOpen] = useState(false);
+    const containerRef = useRef(null);
+    
+    const selectedOption = options.find(opt => opt.value === value);
+    
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (containerRef.current && !containerRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+    
+    return (
+        <div ref={containerRef} className="relative">
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="flex items-center gap-2 h-10 px-3 rounded-md border border-input bg-white hover:bg-slate-50 transition-colors text-sm min-w-[140px] justify-between"
+            >
+                <div className="flex items-center gap-2">
+                    {Icon && <Icon className="h-4 w-4 text-slate-500" />}
+                    <span className={selectedOption?.color || ''}>
+                        {selectedOption?.label || placeholder}
+                    </span>
+                </div>
+                <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {isOpen && (
+                <div className="absolute top-full left-0 mt-1 w-full bg-white rounded-md border shadow-lg z-50 py-1">
+                    {options.map((option) => (
+                        <button
+                            key={option.value}
+                            onClick={() => {
+                                onChange(option.value);
+                                setIsOpen(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2 transition-colors ${
+                                value === option.value ? 'bg-slate-50 font-medium' : ''
+                            }`}
+                        >
+                            {option.icon && <option.icon className={`h-4 w-4 ${option.iconColor || 'text-slate-500'}`} />}
+                            <span className={option.color || ''}>{option.label}</span>
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
 
 export function PayrollFilters({
     month,
@@ -20,12 +76,13 @@ export function PayrollFilters({
     const months = getMonthOptions(year);
     const years = getYearOptions();
 
+    // Status options với Lucide icons thay vì emoji
     const statusOptions = [
-        { value: '', label: 'Tất cả trạng thái' },
-        { value: 'draft', label: '📝 Nháp' },
-        { value: 'pending', label: '⏳ Chờ duyệt' },
-        { value: 'approved', label: '✅ Đã duyệt' },
-        { value: 'paid', label: '💰 Đã thanh toán' },
+        { value: '', label: 'Tất cả trạng thái', icon: Filter, iconColor: 'text-slate-400' },
+        { value: 'draft', label: 'Nháp', icon: FileText, iconColor: 'text-slate-500' },
+        { value: 'pending', label: 'Chờ duyệt', icon: Clock, iconColor: 'text-orange-500' },
+        { value: 'approved', label: 'Đã duyệt', icon: CheckCircle, iconColor: 'text-green-500' },
+        { value: 'paid', label: 'Đã thanh toán', icon: DollarSign, iconColor: 'text-blue-500' },
     ];
 
     return (
@@ -42,43 +99,31 @@ export function PayrollFilters({
             </div>
 
             {/* Month filter */}
-            <select
+            <IconSelect
                 value={month}
-                onChange={(e) => onMonthChange(parseInt(e.target.value))}
-                className="h-10 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-                {months.map((m) => (
-                    <option key={m.value} value={m.value}>
-                        {m.label}
-                    </option>
-                ))}
-            </select>
+                onChange={onMonthChange}
+                options={months}
+                placeholder="Chọn tháng"
+                icon={Calendar}
+            />
 
             {/* Year filter */}
-            <select
+            <IconSelect
                 value={year}
-                onChange={(e) => onYearChange(parseInt(e.target.value))}
-                className="h-10 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-                {years.map((y) => (
-                    <option key={y.value} value={y.value}>
-                        {y.label}
-                    </option>
-                ))}
-            </select>
+                onChange={onYearChange}
+                options={years}
+                placeholder="Chọn năm"
+                icon={Calendar}
+            />
 
             {/* Status filter */}
-            <select
+            <IconSelect
                 value={status}
-                onChange={(e) => onStatusChange(e.target.value)}
-                className="h-10 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-                {statusOptions.map((s) => (
-                    <option key={s.value} value={s.value}>
-                        {s.label}
-                    </option>
-                ))}
-            </select>
+                onChange={onStatusChange}
+                options={statusOptions}
+                placeholder="Trạng thái"
+                icon={Filter}
+            />
         </div>
     );
 }

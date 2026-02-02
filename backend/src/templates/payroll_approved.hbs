@@ -1,0 +1,98 @@
+{{!-- Payroll Approved: Email sent to teacher when payroll is approved --}}
+{{!-- Subject: Bảng lương tháng {{month}}/{{year}} đã được duyệt --}}
+
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+  <tr>
+    <td>
+      <h2 style="margin: 0 0 20px; color: #1f2937; font-size: 22px; font-weight: 600;">
+        Xin chào {{teacherName}}! ✅
+      </h2>
+      
+      <p style="margin: 0 0 20px; color: #4b5563; font-size: 15px; line-height: 1.7;">
+        Tin vui! Bảng lương tháng {{month}}/{{year}} của bạn đã được duyệt và sẽ được thanh toán trong thời gian sớm nhất.
+      </p>
+      
+      <!-- Approved Banner -->
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); border-radius: 8px; margin-bottom: 25px;">
+        <tr>
+          <td style="padding: 25px; text-align: center;">
+            <span style="font-size: 40px;">✅</span>
+            <h3 style="margin: 10px 0 5px; color: #ffffff; font-size: 18px; font-weight: 700;">
+              BẢNG LƯƠNG ĐÃ ĐƯỢC DUYỆT
+            </h3>
+            <p style="margin: 0; color: rgba(255,255,255,0.9); font-size: 14px;">
+              Kỳ lương: Tháng {{month}}/{{year}}
+            </p>
+          </td>
+        </tr>
+      </table>
+      
+      <!-- Payroll Summary -->
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; margin-bottom: 25px;">
+        <tr>
+          <td style="padding: 20px;">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+              <tr>
+                <td style="padding: 8px 0; color: #166534; font-size: 14px;">Số buổi dạy:</td>
+                <td style="padding: 8px 0; color: #1f2937; font-size: 14px; text-align: right;">{{totalSessions}} buổi</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #166534; font-size: 14px;">Tổng số giờ:</td>
+                <td style="padding: 8px 0; color: #1f2937; font-size: 14px; text-align: right;">{{totalHours}} giờ</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; color: #166534; font-size: 14px;">Lương cơ bản:</td>
+                <td style="padding: 8px 0; color: #1f2937; font-size: 14px; text-align: right;">{{baseSalary}}</td>
+              </tr>
+              {{#if bonus}}
+              <tr>
+                <td style="padding: 8px 0; color: #166534; font-size: 14px;">Thưởng:</td>
+                <td style="padding: 8px 0; color: #22c55e; font-size: 14px; text-align: right;">+{{bonus}}</td>
+              </tr>
+              {{/if}}
+              {{#if deduction}}
+              <tr>
+                <td style="padding: 8px 0; color: #166534; font-size: 14px;">Khấu trừ:</td>
+                <td style="padding: 8px 0; color: #ef4444; font-size: 14px; text-align: right;">-{{deduction}}</td>
+              </tr>
+              {{/if}}
+              <tr style="border-top: 2px solid #22c55e;">
+                <td style="padding: 15px 0 5px; color: #166534; font-size: 16px; font-weight: 700;">THỰC NHẬN:</td>
+                <td style="padding: 15px 0 5px; color: #22c55e; font-size: 22px; font-weight: 700; text-align: right;">{{netSalary}}</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+      
+      <!-- Approver Info -->
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; margin-bottom: 25px;">
+        <tr>
+          <td style="padding: 15px 20px;">
+            <p style="margin: 0; color: #1e40af; font-size: 14px;">
+              👤 <strong>Người duyệt:</strong> {{approverName}}<br>
+              📅 <strong>Thời gian duyệt:</strong> {{approvedAt}}
+            </p>
+          </td>
+        </tr>
+      </table>
+      
+      <!-- Next Steps -->
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0 8px 8px 0; margin-bottom: 25px;">
+        <tr>
+          <td style="padding: 15px 20px;">
+            <p style="margin: 0; color: #92400e; font-size: 14px; line-height: 1.6;">
+              💳 <strong>Bước tiếp theo:</strong> Lương sẽ được chuyển vào tài khoản ngân hàng của bạn trong vòng 1-3 ngày làm việc. Bạn sẽ nhận được email xác nhận khi giao dịch hoàn tất.
+            </p>
+          </td>
+        </tr>
+      </table>
+      
+      <p style="margin: 25px 0 0; color: #1f2937; font-size: 14px;">
+        Cảm ơn bạn đã đóng góp cho {{centerName}}!<br><br>
+        Trân trọng,<br>
+        <strong style="color: #f97316;">{{centerName}}</strong>
+      </p>
+    </td>
+  </tr>
+</table>

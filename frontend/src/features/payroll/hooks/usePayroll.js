@@ -249,6 +249,56 @@ export function usePayroll() {
         return [];
     }, []);
 
+    // Submit payment proof and mark as paid
+    const submitPaymentProof = useCallback(async (payrollId, data) => {
+        const headers = await getAuthHeaders();
+        const response = await axios.post(
+            `${API_URL}/api/admin/payroll/${payrollId}/payment-proof`,
+            data,
+            { headers }
+        );
+
+        if (response.data?.success) {
+            setPayrolls(prev => prev.map(p =>
+                p.id === payrollId ? response.data.data : p
+            ));
+            return response.data.data;
+        }
+
+        throw new Error(response.data?.message || 'Có lỗi xảy ra');
+    }, []);
+
+    // Submit dispute (for teachers)
+    const submitDispute = useCallback(async (payrollId, data) => {
+        const headers = await getAuthHeaders();
+        const response = await axios.post(
+            `${API_URL}/api/teacher/payroll/${payrollId}/dispute`,
+            data,
+            { headers }
+        );
+
+        if (response.data?.success) {
+            return response.data.data;
+        }
+
+        throw new Error(response.data?.message || 'Có lỗi xảy ra');
+    }, []);
+
+    // Get disputes for a payroll (for teachers)
+    const fetchPayrollDisputes = useCallback(async (payrollId) => {
+        const headers = await getAuthHeaders();
+        const response = await axios.get(
+            `${API_URL}/api/teacher/payroll/${payrollId}/disputes`,
+            { headers }
+        );
+
+        if (response.data?.success) {
+            return response.data.data;
+        }
+
+        return [];
+    }, []);
+
     return {
         payrolls,
         teachers,
@@ -265,6 +315,9 @@ export function usePayroll() {
         deletePayroll,
         exportPayroll,
         fetchAuditTrail,
+        submitPaymentProof,
+        submitDispute,
+        fetchPayrollDisputes,
     };
 }
 

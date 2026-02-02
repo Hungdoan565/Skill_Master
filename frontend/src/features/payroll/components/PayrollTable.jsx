@@ -118,7 +118,7 @@ function ActionMenu({ payroll, onView, onEdit, onDelete, onUpdateStatus, onPrint
 
                     {payroll.status === 'approved' && (
                         <button
-                            onClick={() => { onUpdateStatus(payroll.id, 'paid'); setIsOpen(false); }}
+                            onClick={() => { onUpdateStatus(payroll.id, 'paid', payroll); setIsOpen(false); }}
                             className="flex w-full items-center gap-2 px-3 py-2 text-sm text-green-600 hover:bg-green-50"
                         >
                             <CheckCircle className="h-4 w-4" />

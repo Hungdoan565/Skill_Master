@@ -27,6 +27,7 @@ import {
     BulkGeneratePayrollModal,
     PrintPayslipModal,
     AuditTrailModal,
+    PaymentProofModal,
 } from '../components';
 import { getCurrentMonth } from '../utils';
 
@@ -52,6 +53,7 @@ export function PayrollPage() {
     const [printModal, setPrintModal] = useState({ isOpen: false, payrollData: null });
     const [auditModal, setAuditModal] = useState({ isOpen: false, payrollId: null });
     const [statusConfirm, setStatusConfirm] = useState({ isOpen: false, payrollId: null, status: null, message: '' });
+    const [paymentProofModal, setPaymentProofModal] = useState({ isOpen: false, payroll: null, submitting: false });
 
     const {
         payrolls,
@@ -69,6 +71,7 @@ export function PayrollPage() {
         deletePayroll,
         exportPayroll,
         fetchAuditTrail,
+        submitPaymentProof,
     } = usePayroll();
 
     // Load data when filters change
@@ -167,7 +170,13 @@ export function PayrollPage() {
     };
 
     // Handle update status with confirmation
-    const handleUpdateStatus = (payrollId, status) => {
+    const handleUpdateStatus = (payrollId, status, payroll = null) => {
+        // For "paid" status, open payment proof modal instead
+        if (status === 'paid' && payroll) {
+            setPaymentProofModal({ isOpen: true, payroll, submitting: false });
+            return;
+        }
+
         const messages = {
             pending: 'Bạn có chắc muốn gửi duyệt bảng lương này?',
             approved: 'Xác nhận duyệt bảng lương? Sessions sẽ bị khóa không thể chỉnh sửa.',
@@ -180,6 +189,23 @@ export function PayrollPage() {
             status,
             message: messages[status] || 'Xác nhận thay đổi trạng thái?'
         });
+    };
+
+    // Handle payment proof submit
+    const handlePaymentProofSubmit = async (payrollId, data) => {
+        setPaymentProofModal(prev => ({ ...prev, submitting: true }));
+        try {
+            await submitPaymentProof(payrollId, data);
+            setPaymentProofModal({ isOpen: false, payroll: null, submitting: false });
+            fetchStats(month, year);
+            fetchTeachers(month, year);
+            fetchPayrolls({ month, year, status: statusFilter });
+            toast.success('Đã thanh toán thành công!');
+        } catch (error) {
+            console.error('Error submitting payment proof:', error);
+            toast.error(error.message || 'Có lỗi xảy ra khi thanh toán');
+            setPaymentProofModal(prev => ({ ...prev, submitting: false }));
+        }
     };
 
     const handleStatusConfirm = async () => {
@@ -415,6 +441,14 @@ export function PayrollPage() {
                 onClose={() => setAuditModal({ isOpen: false, payrollId: null })}
                 payrollId={auditModal.payrollId}
                 fetchAuditTrail={fetchAuditTrail}
+            />
+
+            <PaymentProofModal
+                isOpen={paymentProofModal.isOpen}
+                onClose={() => setPaymentProofModal({ isOpen: false, payroll: null, submitting: false })}
+                payroll={paymentProofModal.payroll}
+                onSubmit={handlePaymentProofSubmit}
+                submitting={paymentProofModal.submitting}
             />
 
             {/* Status Change Confirmation Dialog */}

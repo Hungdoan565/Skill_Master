@@ -1,0 +1,85 @@
+{{!-- Payroll Created: Email sent to teacher when payroll is generated --}}
+{{!-- Subject: Bảng lương tháng {{month}}/{{year}} đã được tạo --}}
+
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+  <tr>
+    <td>
+      <h2 style="margin: 0 0 20px; color: #1f2937; font-size: 22px; font-weight: 600;">
+        Xin chào {{teacherName}}! 📋
+      </h2>
+      
+      <p style="margin: 0 0 20px; color: #4b5563; font-size: 15px; line-height: 1.7;">
+        Bảng lương tháng {{month}}/{{year}} của bạn đã được tạo. Vui lòng kiểm tra thông tin chi tiết bên dưới.
+      </p>
+      
+      <!-- Payroll Info Box -->
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; margin-bottom: 25px;">
+        <tr>
+          <td style="padding: 25px;">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+              <tr>
+                <td style="padding-bottom: 15px; border-bottom: 1px dashed #86efac;">
+                  <span style="color: #166534; font-weight: 600; font-size: 16px;">💰 THÔNG TIN BẢNG LƯƠNG</span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding-top: 15px;">
+                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                    <tr>
+                      <td style="padding: 10px 0; color: #166534; font-size: 14px; width: 50%;">Kỳ lương:</td>
+                      <td style="padding: 10px 0; color: #1f2937; font-size: 14px; font-weight: 600; text-align: right;">Tháng {{month}}/{{year}}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 10px 0; color: #166534; font-size: 14px;">Số buổi dạy:</td>
+                      <td style="padding: 10px 0; color: #1f2937; font-size: 14px; font-weight: 600; text-align: right;">{{totalSessions}} buổi</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 10px 0; color: #166534; font-size: 14px;">Tổng số giờ:</td>
+                      <td style="padding: 10px 0; color: #1f2937; font-size: 14px; font-weight: 600; text-align: right;">{{totalHours}} giờ</td>
+                    </tr>
+                    <tr style="border-top: 2px solid #22c55e;">
+                      <td style="padding: 15px 0 10px; color: #166534; font-size: 16px; font-weight: 700;">Lương tạm tính:</td>
+                      <td style="padding: 15px 0 10px; color: #22c55e; font-size: 20px; font-weight: 700; text-align: right;">{{netSalary}}</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+      
+      <!-- Status Badge -->
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0 8px 8px 0; margin-bottom: 25px;">
+        <tr>
+          <td style="padding: 15px 20px;">
+            <p style="margin: 0; color: #92400e; font-size: 14px; line-height: 1.6;">
+              ⏳ <strong>Trạng thái: Đang chờ duyệt</strong><br>
+              Bảng lương của bạn đang được xem xét. Bạn sẽ nhận được thông báo khi bảng lương được duyệt và thanh toán.
+            </p>
+          </td>
+        </tr>
+      </table>
+      
+      <!-- Check Details CTA -->
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 25px;">
+        <tr>
+          <td align="center">
+            <a href="{{portalUrl}}/teacher/payroll" style="display: inline-block; background-color: #22c55e; color: #ffffff; text-decoration: none; padding: 12px 30px; border-radius: 6px; font-size: 14px; font-weight: 600;">
+              Xem chi tiết bảng lương →
+            </a>
+          </td>
+        </tr>
+      </table>
+      
+      <p style="margin: 0 0 15px; color: #6b7280; font-size: 14px; line-height: 1.7;">
+        Nếu bạn thấy có sai sót trong bảng lương, vui lòng liên hệ với quản lý hoặc gửi khiếu nại qua hệ thống.
+      </p>
+      
+      <p style="margin: 25px 0 0; color: #1f2937; font-size: 14px;">
+        Trân trọng,<br>
+        <strong style="color: #f97316;">{{centerName}}</strong>
+      </p>
+    </td>
+  </tr>
+</table>
