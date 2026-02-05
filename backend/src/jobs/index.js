@@ -18,6 +18,7 @@ export {
   stopPgBoss,
   triggerPaymentReminder,
   triggerOverdueCheck,
+  triggerSessionAutoComplete,
   queueEmail,
   queueEnrollmentEmail,
   scheduleRecurringJobs
@@ -26,6 +27,9 @@ export {
 // Workers
 export { startWorkers } from './pgboss-workers.js';
 
+// Session auto-complete
+export { autoCompleteSessionsManual } from './sessionAutoComplete.job.js';
+
 // Enrollment notification helpers
 export const ENROLLMENT_EVENTS = {
   CREATED: 'enrollment_created',
@@ -33,8 +37,9 @@ export const ENROLLMENT_EVENTS = {
   CANCELLED: 'enrollment_cancelled'
 };
 
-import { initPgBoss, scheduleRecurringJobs, stopPgBoss, isPgBossAvailable, queueEmail, queueEnrollmentEmail, triggerPaymentReminder, triggerOverdueCheck } from './pgboss-scheduler.js';
+import { initPgBoss, scheduleRecurringJobs, stopPgBoss, isPgBossAvailable, queueEmail, queueEnrollmentEmail, triggerPaymentReminder, triggerOverdueCheck, triggerSessionAutoComplete } from './pgboss-scheduler.js';
 import { startWorkers } from './pgboss-workers.js';
+import { autoCompleteSessionsManual } from './sessionAutoComplete.job.js';
 
 /**
  * Start job scheduler (called from main server)
@@ -62,6 +67,7 @@ export async function startJobScheduler() {
     console.log('   - Payment Reminder Worker');
     console.log('   - Overdue Check Worker');
     console.log('   - Enrollment Notification Worker');
+    console.log('   - Session Auto-Complete Worker (every 15 min)');
   }
 
   return result;

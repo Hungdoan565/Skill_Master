@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/auth-context';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 // Quick date presets
 const DATE_PRESETS = [

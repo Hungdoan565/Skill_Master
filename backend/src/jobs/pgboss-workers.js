@@ -9,6 +9,7 @@ import {
   QUEUES, 
   isPgBossAvailable 
 } from './pgboss-scheduler.js';
+import { processSessionAutoComplete } from './sessionAutoComplete.job.js';
 import nodemailer from 'nodemailer';
 import Handlebars from 'handlebars';
 import fs from 'fs';
@@ -241,6 +242,7 @@ export async function startWorkers() {
     await registerWorker(QUEUES.PAYMENT_REMINDER, processPaymentReminder);
     await registerWorker(QUEUES.OVERDUE_CHECK, processOverdueCheck);
     await registerWorker(QUEUES.ENROLLMENT_NOTIFICATION, processEnrollmentNotification);
+    await registerWorker(QUEUES.SESSION_AUTO_COMPLETE, processSessionAutoComplete);
 
     console.log('✅ All workers started');
     return true;

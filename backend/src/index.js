@@ -3648,6 +3648,8 @@ app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
         is_locked,
         teacher_id,
         class_id,
+        room_id,
+        rooms (id, name),
         classes (
           id, 
           name, 
@@ -5122,6 +5124,473 @@ app.get('/api/admin/attendance/audit/:sessionId', requireAuth, requireRole(['SUP
   }
 });
 
+/**
+ * GET /api/admin/sessions/:sessionId/available-teachers
+ * Get available teachers for a session (exclude conflicts)
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.get('/api/admin/sessions/:sessionId/available-teachers', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { sessionId } = req.params;
+
+    // 1) Get session info (date/time + class center)
+    const { data: session, error: sessionError } = await supabase
+      .from('sessions')
+      .select(`
+        id,
+        session_date,
+        start_time,
+        end_time,
+        classes (
+          id,
+          center_id
+        )
+      `)
+      .eq('id', sessionId)
+      .single();
+
+    if (sessionError || !session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy buổi học'
+      });
+    }
+
+    const sessionCenterId = session.classes?.center_id;
+    if (!sessionCenterId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Buổi học chưa được gán trung tâm'
+      });
+    }
+
+    // 2) Permission check
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, sessionCenterId);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    // 3) Get teachers in same center as the class
+    const { data: teachers, error: teachersError } = await supabase
+      .from('users')
+      .select('id, full_name, email, avatar_url')
+      .eq('role_code', 'TEACHER')
+      .eq('center_id', sessionCenterId)
+      .order('full_name', { ascending: true });
+
+    if (teachersError) throw teachersError;
+
+    const teacherList = teachers || [];
+    if (teacherList.length === 0) {
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+
+    // 4) Find conflicting teachers (same date + overlapping time)
+    let conflictTeacherIds = new Set();
+    if (session.session_date && session.start_time && session.end_time) {
+      const { data: conflictSessions, error: conflictError } = await supabase
+        .from('sessions')
+        .select(`
+          id,
+          teacher_id,
+          classes (
+            center_id,
+            teacher_id
+          )
+        `)
+        .eq('session_date', session.session_date)
+        .neq('id', sessionId)
+        .lt('start_time', session.end_time)
+        .gt('end_time', session.start_time);
+
+      if (conflictError) throw conflictError;
+
+      const teacherIdsSet = new Set(teacherList.map(t => t.id).filter(Boolean));
+      (conflictSessions || []).forEach(s => {
+        if (s?.classes?.center_id !== sessionCenterId) return;
+        const tId = s.teacher_id || s.classes?.teacher_id;
+        if (tId && teacherIdsSet.has(tId)) conflictTeacherIds.add(tId);
+      });
+    }
+
+    const availableTeachers = teacherList
+      .filter(t => !conflictTeacherIds.has(t.id))
+      .map(t => ({
+        id: t.id,
+        full_name: t.full_name,
+        email: t.email,
+        avatar_url: t.avatar_url,
+        has_conflict: false
+      }));
+
+    return res.json({
+      success: true,
+      data: availableTeachers
+    });
+  } catch (error) {
+    console.error('❌ Error in available teachers:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/sessions/:sessionId/available-rooms
+ * Get available rooms for a session (exclude conflicts)
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { sessionId } = req.params;
+
+    // 1) Get session info (date/time + class center)
+    const { data: session, error: sessionError } = await supabase
+      .from('sessions')
+      .select(`
+        id,
+        session_date,
+        start_time,
+        end_time,
+        classes (
+          id,
+          center_id
+        )
+      `)
+      .eq('id', sessionId)
+      .single();
+
+    if (sessionError || !session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy buổi học'
+      });
+    }
+
+    const sessionCenterId = session.classes?.center_id;
+    if (!sessionCenterId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Buổi học chưa được gán trung tâm'
+      });
+    }
+
+    // 2) Permission check
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, sessionCenterId);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    // 3) Get rooms in same center as the class (not user's center)
+    const { data: rooms, error: roomsError } = await supabase
+      .from('rooms')
+      .select('id, name, code, capacity')
+      .eq('center_id', sessionCenterId)
+      .eq('status', 'active')
+      .order('name', { ascending: true });
+
+    if (roomsError) throw roomsError;
+
+    const roomList = rooms || [];
+    if (roomList.length === 0) {
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+
+    // 4) Find conflicting rooms (same date + overlapping time)
+    let conflictRoomIds = new Set();
+    if (session.session_date && session.start_time && session.end_time) {
+      const { data: conflictSessions, error: conflictError } = await supabase
+        .from('sessions')
+        .select(`
+          id,
+          room_id,
+          classes (
+            center_id,
+            room_id
+          )
+        `)
+        .eq('session_date', session.session_date)
+        .neq('id', sessionId)
+        .lt('start_time', session.end_time)
+        .gt('end_time', session.start_time);
+
+      if (conflictError) throw conflictError;
+
+      const roomIdsSet = new Set(roomList.map(r => r.id).filter(Boolean));
+      (conflictSessions || []).forEach(s => {
+        if (s?.classes?.center_id !== sessionCenterId) return;
+        const rId = s.room_id || s.classes?.room_id;
+        if (rId && roomIdsSet.has(rId)) conflictRoomIds.add(rId);
+      });
+    }
+
+    const availableRooms = roomList
+      .filter(r => !conflictRoomIds.has(r.id))
+      .map(r => ({
+        id: r.id,
+        name: r.name,
+        code: r.code,
+        capacity: r.capacity,
+        has_conflict: false
+      }));
+
+    return res.json({
+      success: true,
+      data: availableRooms
+    });
+  } catch (error) {
+    console.error('❌ Error in available rooms:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/classes/:classId/students
+ * Get students in a class (active + pending enrollments)
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.get('/api/admin/classes/:classId/students', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { classId } = req.params;
+    const userRole = req.user.roleCode;
+    const userCenterId = req.user.centerId;
+
+    // 1) Get class center_id
+    const { data: classData, error: classError } = await supabase
+      .from('classes')
+      .select('id, center_id')
+      .eq('id', classId)
+      .single();
+
+    if (classError || !classData) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy lớp học'
+      });
+    }
+
+    // 2) CENTER_MANAGER can only access their center
+    if (userRole === 'CENTER_MANAGER') {
+      if (classData.center_id !== userCenterId) {
+        console.log(`⛔ CENTER_MANAGER ${req.user.email} bị chặn xem danh sách học viên lớp ${classId} - không thuộc center của họ`);
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn chỉ có thể xem các lớp thuộc trung tâm của mình'
+        });
+      }
+    }
+
+    // 3) Query enrollments
+    const { data: enrollments, error: enrollError } = await supabase
+      .from('enrollments')
+      .select('student_id, status')
+      .eq('class_id', classId)
+      .in('status', ['active', 'pending']);
+
+    if (enrollError) throw enrollError;
+
+    const enrollmentList = enrollments || [];
+    if (enrollmentList.length === 0) {
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+
+    const studentIds = Array.from(new Set(enrollmentList.map(e => e.student_id).filter(Boolean)));
+    const { data: students, error: studentsError } = await supabase
+      .from('users')
+      .select('id, full_name, email, avatar_url')
+      .in('id', studentIds);
+
+    if (studentsError) throw studentsError;
+
+    const studentsById = new Map((students || []).map(s => [s.id, s]));
+    const result = enrollmentList
+      .map(e => {
+        const s = studentsById.get(e.student_id);
+        if (!s) return null;
+        return {
+          id: s.id,
+          full_name: s.full_name,
+          email: s.email,
+          avatar_url: s.avatar_url,
+          enrollment_status: e.status
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
+
+    return res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('❌ Error in class students:', error);
+    next(error);
+  }
+});
+
+// ============ SESSION AUTO-COMPLETE & BULK OPERATIONS ============
+
+/**
+ * POST /api/admin/sessions/auto-complete
+ * Manually trigger session auto-complete
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.post('/api/admin/sessions/auto-complete', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { dryRun = false, sessionIds = null } = req.body;
+    
+    console.log(`🔄 Admin ${req.user.email} triggered session auto-complete (dryRun: ${dryRun})`);
+    
+    // Import the function
+    const { autoCompleteSessionsManual } = await import('./jobs/sessionAutoComplete.job.js');
+    
+    const result = await autoCompleteSessionsManual({ dryRun, sessionIds });
+    
+    res.json({
+      success: true,
+      ...result
+    });
+  } catch (error) {
+    console.error('❌ Error in session auto-complete:', error);
+    next(error);
+  }
+});
+
+/**
+ * PUT /api/admin/sessions/bulk
+ * Bulk update sessions (complete or cancel multiple)
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { sessionIds, action } = req.body;
+    
+    // Validation
+    if (!sessionIds || !Array.isArray(sessionIds) || sessionIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cần cung cấp danh sách buổi học (sessionIds)'
+      });
+    }
+    
+    if (!['complete', 'cancel'].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Action phải là "complete" hoặc "cancel"'
+      });
+    }
+    
+    console.log(`📦 Admin ${req.user.email} bulk ${action} ${sessionIds.length} sessions`);
+    
+    // 1) Check all sessions exist and are not locked
+    const { data: sessions, error: fetchError } = await supabase
+      .from('sessions')
+      .select(`
+        id,
+        status,
+        is_locked,
+        session_date,
+        classes (
+          id,
+          center_id
+        )
+      `)
+      .in('id', sessionIds);
+    
+    if (fetchError) throw fetchError;
+    
+    if (!sessions || sessions.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy buổi học nào'
+      });
+    }
+    
+    // 2) Check permissions - all sessions must be in accessible centers
+    const userRole = req.user.roleCode;
+    const userCenterId = req.user.centerId;
+    
+    for (const session of sessions) {
+      const sessionCenterId = session.classes?.center_id;
+      if (userRole !== 'SUPER_ADMIN' && sessionCenterId !== userCenterId) {
+        return res.status(403).json({
+          success: false,
+          message: `Bạn không có quyền thao tác buổi học thuộc trung tâm khác`
+        });
+      }
+    }
+    
+    // 3) Filter out locked sessions
+    const lockedSessions = sessions.filter(s => s.is_locked);
+    const editableSessions = sessions.filter(s => !s.is_locked);
+    
+    if (editableSessions.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tất cả buổi học đã bị khóa, không thể thay đổi',
+        lockedCount: lockedSessions.length
+      });
+    }
+    
+    // 4) For 'complete' action, also filter by status (only scheduled can be completed)
+    let toUpdate = editableSessions;
+    let skippedByStatus = [];
+    
+    if (action === 'complete') {
+      toUpdate = editableSessions.filter(s => s.status === 'scheduled');
+      skippedByStatus = editableSessions.filter(s => s.status !== 'scheduled');
+    } else if (action === 'cancel') {
+      // Can cancel scheduled or in_progress
+      toUpdate = editableSessions.filter(s => ['scheduled'].includes(s.status));
+      skippedByStatus = editableSessions.filter(s => !['scheduled'].includes(s.status));
+    }
+    
+    if (toUpdate.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Không có buổi học nào có thể ${action === 'complete' ? 'hoàn thành' : 'hủy'}`,
+        lockedCount: lockedSessions.length,
+        skippedByStatus: skippedByStatus.length
+      });
+    }
+    
+    // 5) Perform bulk update
+    const newStatus = action === 'complete' ? 'completed' : 'cancelled';
+    const idsToUpdate = toUpdate.map(s => s.id);
+    
+    const { error: updateError } = await supabase
+      .from('sessions')
+      .update({ 
+        status: newStatus,
+        updated_at: new Date().toISOString()
+      })
+      .in('id', idsToUpdate);
+    
+    if (updateError) throw updateError;
+    
+    console.log(`✅ Bulk ${action}: ${idsToUpdate.length} sessions updated`);
+    
+    res.json({
+      success: true,
+      updatedCount: idsToUpdate.length,
+      lockedCount: lockedSessions.length,
+      skippedByStatus: skippedByStatus.length,
+      updatedIds: idsToUpdate,
+      message: `Đã ${action === 'complete' ? 'hoàn thành' : 'hủy'} ${idsToUpdate.length} buổi học`
+    });
+  } catch (error) {
+    console.error('❌ Error in bulk session update:', error);
+    next(error);
+  }
+});
+
 // ============ ROOM MANAGEMENT APIs ============
 
 // Lấy danh sách phòng học
@@ -5255,6 +5724,97 @@ app.post('/api/admin/rooms', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MA
     });
   } catch (error) {
     console.error('💥 Error creating room:', error);
+    next(error);
+  }
+});
+
+// Import phòng học từ Excel/CSV
+app.post('/api/admin/rooms/import', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { rooms } = req.body;
+
+    if (!rooms || !Array.isArray(rooms) || rooms.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không có dữ liệu phòng để import'
+      });
+    }
+
+    console.log(`📥 Admin ${req.user.email} import ${rooms.length} phòng`);
+
+    // Validate all rooms have required fields
+    const invalidRooms = rooms.filter(r => !r.name || !r.code || !r.center_id);
+    if (invalidRooms.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `${invalidRooms.length} phòng thiếu thông tin bắt buộc (tên, mã, trung tâm)`
+      });
+    }
+
+    // Check for existing room codes
+    const codes = rooms.map(r => r.code.toUpperCase());
+    const { data: existingRooms } = await supabase
+      .from('rooms')
+      .select('code')
+      .in('code', codes);
+
+    const existingCodes = new Set((existingRooms || []).map(r => r.code.toUpperCase()));
+    
+    // Filter out rooms with existing codes
+    const newRooms = rooms.filter(r => !existingCodes.has(r.code.toUpperCase()));
+    const skippedCount = rooms.length - newRooms.length;
+
+    if (newRooms.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tất cả mã phòng đã tồn tại trong hệ thống',
+        skipped: skippedCount
+      });
+    }
+
+    // Prepare rooms for insert
+    const roomsToInsert = newRooms.map(room => ({
+      name: room.name.trim(),
+      code: room.code.trim().toUpperCase(),
+      capacity: parseInt(room.capacity) || 20,
+      room_type: room.room_type || 'standard',
+      status: room.status || 'active',
+      equipment: room.equipment || [],
+      center_id: room.center_id,
+      notes: room.notes || ''
+    }));
+
+    // Insert in batches of 50
+    const batchSize = 50;
+    const results = { created: 0, errors: [] };
+
+    for (let i = 0; i < roomsToInsert.length; i += batchSize) {
+      const batch = roomsToInsert.slice(i, i + batchSize);
+      
+      const { data, error } = await supabase
+        .from('rooms')
+        .insert(batch)
+        .select();
+
+      if (error) {
+        console.error(`❌ Batch ${i / batchSize + 1} error:`, error);
+        results.errors.push(`Lỗi batch ${i / batchSize + 1}: ${error.message}`);
+      } else {
+        results.created += data.length;
+      }
+    }
+
+    console.log(`✅ Import hoàn thành: ${results.created} tạo mới, ${skippedCount} bỏ qua`);
+
+    res.json({
+      success: true,
+      message: `Đã import ${results.created} phòng thành công`,
+      created: results.created,
+      skipped: skippedCount,
+      errors: results.errors
+    });
+  } catch (error) {
+    console.error('💥 Error importing rooms:', error);
     next(error);
   }
 });

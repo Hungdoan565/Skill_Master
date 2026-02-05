@@ -22,7 +22,6 @@ import {
   Headphones,
   Calendar,
   AlertTriangle,
-  DollarSign,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -63,7 +62,6 @@ const menuGroups = [
     title: 'NỘI BỘ',
     items: [
       { label: 'Nhân sự', icon: UserCog, path: '/admin/staff' },
-      { label: 'Cấu hình lương', icon: DollarSign, path: '/admin/salary-config' },
       { label: 'Bảng lương', icon: Wallet, path: '/admin/payroll' },
       { label: 'Khiếu nại lương', icon: AlertTriangle, path: '/admin/payroll-disputes' },
     ],

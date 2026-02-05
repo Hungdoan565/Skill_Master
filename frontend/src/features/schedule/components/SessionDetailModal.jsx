@@ -254,7 +254,7 @@ export function SessionDetailModal({
                 <div className="min-w-0">
                   <p className="text-xs text-purple-600 font-medium">Phòng học</p>
                   <p className="font-medium text-slate-900 text-sm truncate">
-                    {session.classes?.rooms?.name || (
+                    {session.rooms?.name || session.classes?.rooms?.name || (
                       <span className="text-amber-600">Chưa xếp</span>
                     )}
                   </p>

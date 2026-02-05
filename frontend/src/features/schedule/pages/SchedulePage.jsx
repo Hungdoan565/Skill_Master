@@ -57,7 +57,8 @@ export function SchedulePage() {
     activePreset,
     filterOptions,
     fetchSessions,
-    markSessionStatus
+    markSessionStatus,
+    bulkUpdateSessions
   } = useGlobalSessions();
 
   // View mode: 'table' | 'calendar'
@@ -121,6 +122,21 @@ export function SchedulePage() {
     fetchSessions(); // Refresh list
   };
 
+  // Handle bulk actions from SessionsTable
+  const handleBulkAction = async (action, sessionIds) => {
+    const result = await bulkUpdateSessions(action, sessionIds);
+    if (result.success) {
+      // Build success message
+      let message = `Đã ${action === 'complete' ? 'hoàn thành' : 'hủy'} ${result.updatedCount} buổi học.`;
+      if (result.lockedCount > 0) {
+        message += ` (${result.lockedCount} buổi bị khóa, ${result.skippedByStatus || 0} buổi đã xử lý trước đó)`;
+      }
+      alert(message); // TODO: Replace with toast notification
+    } else {
+      alert(`Lỗi: ${result.error}`);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
@@ -128,8 +144,8 @@ export function SchedulePage() {
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-indigo-100 rounded-xl">
-                <Calendar className="w-6 h-6 text-indigo-600" />
+              <div className="p-2 bg-orange-100 rounded-xl">
+                <Calendar className="w-6 h-6 text-orange-600" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-slate-900">
@@ -239,6 +255,7 @@ export function SchedulePage() {
             sessions={sessions}
             loading={loading}
             onAction={handleAction}
+            onBulkAction={handleBulkAction}
           />
         ) : (
           <CalendarView
@@ -246,6 +263,7 @@ export function SchedulePage() {
             loading={loading}
             onSessionClick={(session) => openModal('detail', session)}
             onMakeupClick={() => openModal('makeup', null)}
+            onDateChange={({ startDate, endDate }) => updateFilters({ startDate, endDate })}
           />
         )}
       </div>

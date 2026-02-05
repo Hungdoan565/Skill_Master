@@ -2,11 +2,11 @@
  * useCenters Hook - Fetch danh sách trung tâm
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import { API_URL } from '../utils';
 
-export function useCenters() {
+export function useCenters(autoFetch = false) {
   const [centers, setCenters] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -22,6 +22,13 @@ export function useCenters() {
       setLoading(false);
     }
   }, []);
+
+  // Auto-fetch on mount if autoFetch is true
+  useEffect(() => {
+    if (autoFetch) {
+      fetchCenters();
+    }
+  }, [autoFetch, fetchCenters]);
 
   return {
     centers,

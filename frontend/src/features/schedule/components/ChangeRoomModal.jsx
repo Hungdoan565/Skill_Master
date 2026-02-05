@@ -573,7 +573,7 @@ export function ChangeRoomModal({
           <Button 
             onClick={handleSave}
             disabled={saving || !selectedRoomId}
-            className="bg-orange-500 hover:bg-orange-600"
+            className="bg-orange-500 hover:bg-orange-600 text-white"
           >
             {saving ? (
               <>

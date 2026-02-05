@@ -15,3 +15,4 @@ export { DeleteRoomModal } from './DeleteRoomModal';
 export { CenterCard } from './CenterCard';
 export { ZoneCard } from './ZoneCard';
 export { RoomListModal } from './RoomListModal';
+export { ImportRoomsModal } from './ImportRoomsModal';

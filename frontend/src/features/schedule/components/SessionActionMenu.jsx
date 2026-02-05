@@ -47,10 +47,12 @@ const MENU_ITEMS = [
     icon: ClipboardCheck, 
     color: 'text-indigo-600 hover:bg-indigo-50',
     enabled: (session) => {
+      if (session.is_locked) return false;
       const status = getDisplayStatus(session);
       return status === 'overdue' || status === 'in_progress';
     },
     disabledReason: (session) => {
+      if (session.is_locked) return 'Đã khóa sổ';
       const status = getDisplayStatus(session);
       if (status === 'completed') return 'Đã hoàn thành';
       if (status === 'cancelled') return 'Đã hủy';
@@ -64,10 +66,12 @@ const MENU_ITEMS = [
     icon: CheckCircle2, 
     color: 'text-green-600 hover:bg-green-50',
     enabled: (session) => {
+      if (session.is_locked) return false;
       const status = getDisplayStatus(session);
       return status === 'overdue' || status === 'in_progress';
     },
     disabledReason: (session) => {
+      if (session.is_locked) return 'Đã khóa sổ';
       const status = getDisplayStatus(session);
       if (status === 'completed') return 'Đã hoàn thành';
       if (status === 'cancelled') return 'Đã hủy';
@@ -80,8 +84,12 @@ const MENU_ITEMS = [
     label: 'Đổi giáo viên', 
     icon: UserCog, 
     color: 'text-blue-600 hover:bg-blue-50',
-    enabled: (session) => getDisplayStatus(session) === 'scheduled',
+    enabled: (session) => {
+      if (session.is_locked) return false;
+      return getDisplayStatus(session) === 'scheduled';
+    },
     disabledReason: (session) => {
+      if (session.is_locked) return 'Đã khóa sổ';
       const status = getDisplayStatus(session);
       if (status === 'completed') return 'Đã hoàn thành';
       if (status === 'cancelled') return 'Đã hủy';
@@ -96,8 +104,12 @@ const MENU_ITEMS = [
     label: 'Đổi phòng học', 
     icon: DoorOpen, 
     color: 'text-purple-600 hover:bg-purple-50',
-    enabled: (session) => getDisplayStatus(session) === 'scheduled',
+    enabled: (session) => {
+      if (session.is_locked) return false;
+      return getDisplayStatus(session) === 'scheduled';
+    },
     disabledReason: (session) => {
+      if (session.is_locked) return 'Đã khóa sổ';
       const status = getDisplayStatus(session);
       if (status === 'completed') return 'Đã hoàn thành';
       if (status === 'cancelled') return 'Đã hủy';
@@ -112,10 +124,12 @@ const MENU_ITEMS = [
     icon: XCircle, 
     color: 'text-red-600 hover:bg-red-50',
     enabled: (session) => {
+      if (session.is_locked) return false;
       const status = getDisplayStatus(session);
       return status === 'scheduled' || status === 'in_progress';
     },
     disabledReason: (session) => {
+      if (session.is_locked) return 'Đã khóa sổ';
       const status = getDisplayStatus(session);
       if (status === 'completed') return 'Đã hoàn thành';
       if (status === 'cancelled') return 'Đã hủy';

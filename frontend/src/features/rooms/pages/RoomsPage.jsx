@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState, useMemo } from 'react';
-import { Plus, DoorOpen, Home, ChevronRight } from 'lucide-react';
+import { Plus, DoorOpen, Home, ChevronRight, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRooms, useCenters, useRoomForm } from '../hooks';
 import { groupRoomsByCenterAndZone, extractZoneFromCode } from '../utils';
@@ -14,6 +14,7 @@ import {
   RoomListModal,
   RoomFormModal,
   DeleteRoomModal,
+  ImportRoomsModal,
 } from '../components';
 
 export function RoomsPage() {
@@ -30,6 +31,7 @@ export function RoomsPage() {
     error: null
   });
   const [deleting, setDeleting] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   const { rooms, loading, fetchRooms, createRoom, updateRoom, deleteRoom } = useRooms();
   const { centers, fetchCenters } = useCenters();
@@ -155,12 +157,21 @@ export function RoomsPage() {
               </p>
             </div>
           </div>
-          <Button
-            onClick={handleAddClick}
-            className="gap-2 bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/25"
-          >
-            <Plus className="h-4 w-4" /> Thêm phòng
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setImportModalOpen(true)}
+              className="gap-2"
+            >
+              <Upload className="h-4 w-4" /> Import Excel
+            </Button>
+            <Button
+              onClick={handleAddClick}
+              className="gap-2 bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/25"
+            >
+              <Plus className="h-4 w-4" /> Thêm phòng
+            </Button>
+          </div>
         </div>
 
         {/* Breadcrumb */}
@@ -251,6 +262,17 @@ export function RoomsPage() {
         error={deleteModal.error}
         onClose={() => setDeleteModal({ isOpen: false, room: null, error: null })}
         onConfirm={handleDeleteConfirm}
+      />
+
+      {/* Import Rooms Modal */}
+      <ImportRoomsModal
+        isOpen={importModalOpen}
+        onClose={() => setImportModalOpen(false)}
+        onSuccess={(message) => {
+          fetchRooms();
+          setImportModalOpen(false);
+          alert(message); // TODO: Replace with toast
+        }}
       />
     </div>
   );

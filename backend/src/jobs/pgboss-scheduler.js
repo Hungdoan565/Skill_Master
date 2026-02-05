@@ -87,7 +87,8 @@ export const QUEUES = {
   PAYMENT_REMINDER: 'payment-reminder',
   OVERDUE_CHECK: 'overdue-check',
   EMAIL: 'email',
-  ENROLLMENT_NOTIFICATION: 'enrollment-notification'
+  ENROLLMENT_NOTIFICATION: 'enrollment-notification',
+  SESSION_AUTO_COMPLETE: 'session-auto-complete'
 };
 
 /**
@@ -248,6 +249,16 @@ export async function queueEnrollmentEmail(eventType, emailData) {
 }
 
 /**
+ * Trigger session auto-complete job manually
+ */
+export async function triggerSessionAutoComplete() {
+  return addJob(QUEUES.SESSION_AUTO_COMPLETE, {
+    triggeredAt: new Date().toISOString(),
+    manual: true
+  });
+}
+
+/**
  * Schedule recurring jobs (called on startup)
  */
 export async function scheduleRecurringJobs() {
@@ -268,6 +279,13 @@ export async function scheduleRecurringJobs() {
     await scheduleJob(
       QUEUES.OVERDUE_CHECK,
       '0 10 * * *',
+      { scheduled: true }
+    );
+
+    // Session auto-complete every 15 minutes
+    await scheduleJob(
+      QUEUES.SESSION_AUTO_COMPLETE,
+      '*/15 * * * *',
       { scheduled: true }
     );
 

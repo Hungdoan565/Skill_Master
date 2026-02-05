@@ -219,7 +219,7 @@ export function useGlobalSessions(initialFilters = {}) {
     }
   }, [fetchSessions]);
 
-  // Cancel session
+// Cancel session
   const cancelSession = useCallback(async (sessionId, reason) => {
     try {
       const headers = await getAuthHeaders();
@@ -233,6 +233,33 @@ export function useGlobalSessions(initialFilters = {}) {
 
       fetchSessions();
       return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  }, [fetchSessions]);
+
+  // Bulk update sessions
+  const bulkUpdateSessions = useCallback(async (action, sessionIds) => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_URL}/api/admin/sessions/bulk`, {
+        method: 'PUT',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, sessionIds })
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || 'Không thể cập nhật');
+
+      // Refresh data
+      fetchSessions();
+      return { 
+        success: true, 
+        updatedCount: json.updatedCount,
+        lockedCount: json.lockedCount,
+        skippedByStatus: json.skippedByStatus,
+        message: json.message 
+      };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -257,6 +284,7 @@ export function useGlobalSessions(initialFilters = {}) {
     markSessionStatus: markCompleted,
     markCompleted,
     cancelSession,
+    bulkUpdateSessions,
     // Filter options placeholder
     filterOptions: {},
     // Permission info

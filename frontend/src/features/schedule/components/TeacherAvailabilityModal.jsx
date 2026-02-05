@@ -288,7 +288,7 @@ export function TeacherAvailabilityModal({
         aria-labelledby="teacher-avail-dialog-title"
       >
         {/* Header */}
-        <div className="bg-linear-to-r from-indigo-600 to-violet-600 px-6 py-4 shrink-0">
+        <div className="bg-gradient-to-r from-orange-500 to-amber-500 px-6 py-4 shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/20 rounded-lg">
@@ -299,7 +299,7 @@ export function TeacherAvailabilityModal({
                   className="text-lg font-semibold text-white"
                   id="teacher-avail-dialog-title"
                 >Lịch Rảnh/Bận Giáo Viên</h2>
-                <p className="text-indigo-100 text-sm">
+                <p className="text-orange-100 text-sm">
                   {selectedTeacher?.full_name || 'Chọn giáo viên để quản lý lịch'}
                 </p>
               </div>
