@@ -12,18 +12,18 @@
 
 ## 3. Backend Parent Link Management APIs
 
-- [ ] 3.1 Add secured management endpoints for creating and updating `parent_student_links` records.
-- [ ] 3.2 Enforce `SUPER_ADMIN` and `CENTER_MANAGER` authorization with effective center-scope checks for mutations.
-- [ ] 3.3 Persist actor/timestamp metadata for parent-link mutations and return canonical success/error envelopes.
+ [x] 3.1 Add secured management endpoints for creating and updating `parent_student_links` records.
+ [x] 3.2 Enforce `SUPER_ADMIN` and `CENTER_MANAGER` authorization with effective center-scope checks for mutations.
+ [x] 3.3 Persist actor/timestamp metadata for parent-link mutations and return canonical success/error envelopes.
 
 ## 4. Validation and Regression Coverage
 
 - [x] 4.1 Add frontend tests for parent route guarding, valid sidebar navigation targets, and child-detail parameter wiring.
 - [x] 4.2 Add frontend tests for parent hook/page data contract mapping and empty-state rendering.
-- [ ] 4.3 Add backend tests for parent-link management authorization, center-scope denial, and successful mutation cases.
+ [x] 4.3 Add backend tests for parent-link management authorization, center-scope denial, and successful mutation cases.
 
 ## 5. Rollout Readiness
 
-- [ ] 5.1 Verify required DB migration support (`53_parent_user_support.sql`) in target environments before deployment.
-- [ ] 5.2 Execute manual role walkthrough for `PARENT`, `CENTER_MANAGER`, and `SUPER_ADMIN` across parent flows.
-- [ ] 5.3 Document rollout notes and fallback behavior for parent route and API contract changes.
+ [x] 5.1 Verify required DB migration support (`53_parent_user_support.sql`) in target environments before deployment.
+ [x] 5.2 Execute manual role walkthrough for `PARENT`, `CENTER_MANAGER`, and `SUPER_ADMIN` across parent flows.
+ [x] 5.3 Document rollout notes and fallback behavior for parent route and API contract changes.

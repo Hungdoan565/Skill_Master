@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const root = process.cwd();
+const root = path.resolve(import.meta.dirname, '..');
 
 function read(relativePath) {
   return fs.readFileSync(path.resolve(root, relativePath), 'utf8');

@@ -184,7 +184,7 @@ test('deactivate denies CENTER_MANAGER for cross-center links', async () => {
 });
 
 test('routes exist with requireAuth/requireRole and canonical envelopes', () => {
-  const source = fs.readFileSync(path.resolve(process.cwd(), 'src/index.js'), 'utf8');
+  const source = fs.readFileSync(path.resolve(import.meta.dirname, '..', 'src', 'index.js'), 'utf8');
 
   assert.match(
     source,

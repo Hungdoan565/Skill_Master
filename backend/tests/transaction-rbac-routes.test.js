@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const source = fs.readFileSync(
-  path.resolve(process.cwd(), 'src/index.js'),
+  path.resolve(import.meta.dirname, '..', 'src', 'index.js'),
   'utf8',
 );
 
