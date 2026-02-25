@@ -41,18 +41,7 @@ export function ProtectedRoute({
   }
 
   // 3. Đã đăng nhập nhưng chưa có profile (DB chưa setup hoặc lỗi fetch)
-  // Only allow strict domain-based fallback for admin routes (security fix)
   if (!profile) {
-    // SECURITY: Only allow @skillmaster.edu.vn domain as fallback
-    // Removed: user?.email?.includes('admin') - too permissive
-    const isKnownAdminDomain = user?.email?.endsWith('@skillmaster.edu.vn');
-    const isAdminRoute = allowedRoles.includes('SUPER_ADMIN') || allowedRoles.includes('CENTER_MANAGER');
-    
-    if (isKnownAdminDomain && isAdminRoute) {
-      console.log('[ProtectedRoute] No profile but trusted admin domain - allowing access temporarily');
-      return children ? children : <Outlet />;
-    }
-    
     console.log('[ProtectedRoute] User exists but no profile - DB may not be setup');
     return (
       <div className="flex h-screen items-center justify-center bg-slate-50">
@@ -170,7 +159,7 @@ export function StudentRoute({ children }) {
 export function TeacherRoute({ children }) {
   return (
     <ProtectedRoute 
-      allowedRoles={['TEACHER', 'SUPER_ADMIN', 'CENTER_MANAGER']} 
+      allowedRoles={['TEACHER']} 
       redirectTo="/login"
     >
       {children}

@@ -24,7 +24,8 @@ export function useParentChildInvoices(studentId) {
       const result = await res.json();
       
       if (result.success) {
-        setInvoices(result.data || []);
+        // Canonical mapping: result.data.invoices (snake_case/camelCase mix)
+        setInvoices(result.data?.invoices || []);
       } else {
         setError(result.message);
       }

@@ -301,7 +301,7 @@ const PublicHeader = () => {
   // Lấy thông tin user
   const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || '';
   const avatarUrl = profile?.avatar_url;
-  const roleCode = profile?.roles?.code || (user?.email?.includes('admin') ? 'SUPER_ADMIN' : null);
+  const roleCode = profile?.roles?.code || null;
 
   const handleLogout = async () => {
     await signOut();
@@ -446,9 +446,9 @@ function App() {
               <Route path="reports/courses" element={<CoursesReportPage />} />
             </Route>
 
-            {/* Teacher Routes - Chỉ TEACHER (và Admin cũng vào được) */}
+            {/* Teacher Routes - Chỉ TEACHER */}
             <Route path="teacher" element={
-              <ProtectedRoute allowedRoles={['TEACHER', 'SUPER_ADMIN', 'CENTER_MANAGER']}>
+              <ProtectedRoute allowedRoles={['TEACHER']}>
                 <TeacherLayout />
               </ProtectedRoute>
             }>
@@ -494,6 +494,10 @@ function App() {
               <Route path="dashboard" element={<ParentDashboard />} />
               <Route path="children" element={<ParentDashboard />} />
               <Route path="child/:studentId" element={<ParentChildDetail />} />
+              <Route path="schedule" element={<PlaceholderPage title="Phụ huynh • Lịch học" description="Chọn học viên để xem lịch học chi tiết" />} />
+              <Route path="grades" element={<PlaceholderPage title="Phụ huynh • Bảng điểm" description="Chọn học viên để xem bảng điểm chi tiết" />} />
+              <Route path="attendance" element={<PlaceholderPage title="Phụ huynh • Điểm danh" description="Chọn học viên để xem điểm danh chi tiết" />} />
+              <Route path="invoices" element={<PlaceholderPage title="Phụ huynh • Học phí" description="Chọn học viên để xem học phí chi tiết" />} />
               <Route path="profile" element={<PlaceholderPage title="Phụ huynh • Thông tin cá nhân" />} />
             </Route>
 

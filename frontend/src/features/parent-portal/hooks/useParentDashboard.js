@@ -24,7 +24,20 @@ export function useParentDashboard() {
       const result = await res.json();
       
       if (result.success) {
-        setData(result.data);
+        const data = result.data || {};
+        
+        // Canonical frontend mapping: If stats are missing, aggregate from children
+        if (data.children && !data.stats) {
+          const totalUnpaid = (data.children || []).reduce((sum, c) => sum + (c.stats?.unpaidAmount || 0), 0);
+          const unpaidInvoicesCount = (data.children || []).reduce((sum, c) => sum + (c.stats?.unpaidInvoices || 0), 0);
+          
+          data.stats = {
+            totalUnpaid,
+            unpaidInvoicesCount
+          };
+        }
+        
+        setData(data);
       } else {
         setError(result.message);
       }

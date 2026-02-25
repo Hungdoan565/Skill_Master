@@ -103,6 +103,7 @@ function parseTransactionRow(row, format, index) {
     const phoneNumbers = description.match(PHONE_PATTERN) || [];
 
     return {
+      id: `txn-${index + 2}`,
       rowIndex: index + 2,
       date,
       amount,
@@ -163,8 +164,10 @@ function parseDate(value) {
  * @param {Object} supabase - Supabase client
  * @returns {Array} Matched results with confidence score
  */
-export async function matchTransactionsWithInvoices(transactions, supabase) {
+export async function matchTransactionsWithInvoices(transactions, supabase, options = {}) {
   try {
+    const { effectiveCenterId = null } = options;
+
     const { data: invoices, error: invoiceError } = await supabase
       .from('invoices')
       .select(`
@@ -174,7 +177,8 @@ export async function matchTransactionsWithInvoices(transactions, supabase) {
         final_amount,
         paid_amount,
         status,
-        student:users!invoices_student_id_fkey(id, full_name, phone)
+        class:classes!invoices_class_id_fkey(id, center_id),
+        student:users!invoices_student_id_fkey(id, full_name, phone, center_id)
       `)
       .in('status', ['unpaid', 'partial'])
       .order('created_at', { ascending: false });
@@ -183,7 +187,15 @@ export async function matchTransactionsWithInvoices(transactions, supabase) {
       throw new Error(`Lỗi truy vấn hóa đơn: ${invoiceError.message}`);
     }
 
-    const results = transactions.map(tx => matchSingleTransaction(tx, invoices));
+    let candidateInvoices = invoices || [];
+    if (effectiveCenterId) {
+      candidateInvoices = candidateInvoices.filter((invoice) => {
+        const invoiceCenterId = invoice.class?.center_id || invoice.student?.center_id || null;
+        return invoiceCenterId === effectiveCenterId;
+      });
+    }
+
+    const results = transactions.map(tx => matchSingleTransaction(tx, candidateInvoices));
 
     const summary = {
       total: results.length,
@@ -273,6 +285,7 @@ function matchSingleTransaction(transaction, invoices) {
   const bestMatch = matches[0] || null;
 
   return {
+    transactionId: transaction.id,
     transaction,
     matchedInvoice: bestMatch?.invoice || null,
     confidence: bestMatch?.confidence || 'none',
@@ -317,7 +330,8 @@ function removeVietnameseTones(str) {
  * @param {UUID} userId - User applying the payments
  * @returns {Object} { applied: X, failed: Y, details: [...] }
  */
-export async function applyMatchedPayments(matches, supabase, userId) {
+export async function applyMatchedPayments(matches, supabase, userId, options = {}) {
+  const { effectiveCenterId = null } = options;
   const results = {
     applied: 0,
     failed: 0,
@@ -327,12 +341,12 @@ export async function applyMatchedPayments(matches, supabase, userId) {
 
   const validMatches = matches.filter(m =>
     m.matchedInvoice &&
-    ['high', 'medium'].includes(m.confidence) &&
+    ['high', 'medium', 'manual'].includes(m.confidence) &&
     m.transaction?.amount > 0
   );
 
   for (const match of validMatches) {
-    const result = await applySinglePayment(match, supabase, userId);
+    const result = await applySinglePayment(match, supabase, userId, { effectiveCenterId });
     results.details.push(result);
 
     if (result.success) {
@@ -356,13 +370,22 @@ export async function applyMatchedPayments(matches, supabase, userId) {
   };
 }
 
-async function applySinglePayment(match, supabase, userId) {
+async function applySinglePayment(match, supabase, userId, options = {}) {
+  const { effectiveCenterId = null } = options;
   const { transaction, matchedInvoice, confidence, matchReasons } = match;
 
   try {
     const { data: currentInvoice, error: fetchError } = await supabase
       .from('invoices')
-      .select('id, invoice_code, final_amount, paid_amount, status')
+      .select(`
+        id,
+        invoice_code,
+        final_amount,
+        paid_amount,
+        status,
+        class:classes!invoices_class_id_fkey(center_id),
+        student:users!invoices_student_id_fkey(center_id)
+      `)
       .eq('id', matchedInvoice.id)
       .single();
 
@@ -373,6 +396,17 @@ async function applySinglePayment(match, supabase, userId) {
         transaction,
         invoiceCode: matchedInvoice.invoice_code,
         error: 'Không tìm thấy hóa đơn'
+      };
+    }
+
+    const invoiceCenterId = currentInvoice.class?.center_id || currentInvoice.student?.center_id || null;
+    if (effectiveCenterId && invoiceCenterId !== effectiveCenterId) {
+      return {
+        success: false,
+        skipped: false,
+        transaction,
+        invoiceCode: matchedInvoice.invoice_code,
+        error: 'Không có quyền áp dụng thanh toán cho hóa đơn ngoài trung tâm của bạn'
       };
     }
 
@@ -395,6 +429,7 @@ async function applySinglePayment(match, supabase, userId) {
         invoice_id: currentInvoice.id,
         amount: paymentAmount,
         payment_method: 'bank_transfer',
+        verification_status: 'pending',
         reference_code: transaction.reference || null,
         notes: buildPaymentNotes(transaction, confidence, matchReasons),
         received_by: userId,
@@ -448,4 +483,3 @@ function truncateString(str, maxLength) {
   if (!str) return '';
   return str.length > maxLength ? str.substring(0, maxLength) + '...' : str;
 }
-

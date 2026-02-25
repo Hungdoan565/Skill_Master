@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { supabase, getDbStatus } from './lib/db.js';
+import { getEffectiveCenterId } from './lib/center-scope.js';
 import { requireAuth, requireRole } from './middleware/auth.js';
 import { checkScheduleConflict } from './lib/schedule-conflict.js';
 import { generateClassSessions, regenerateClassSessions } from './lib/session-generator.js';
@@ -16,6 +17,11 @@ import {
   issueCertificate,
   getEligibleStudentsForCertificates
 } from './services/certificateService.js';
+import {
+  createParentStudentLink,
+  updateParentStudentLink,
+  deactivateParentStudentLink,
+} from './services/parentStudentLinkService.js';
 
 // Lazy import for enrollment notifications (requires Redis)
 let enrollmentNotifications = null;
@@ -55,47 +61,6 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // ============ HELPER FUNCTIONS FOR PERMISSION ============
-
-/**
- * Lấy center_id hiệu lực dựa trên role của user
- * - SUPER_ADMIN: có thể xem tất cả hoặc filter theo centerId param
- * - CENTER_MANAGER: chỉ được xem center của mình
- * 
- * @returns {Object} { effectiveCenterId, error }
- */
-function getEffectiveCenterId(user, requestedCenterId = null) {
-  const userRole = user.roleCode;
-  const userCenterId = user.centerId;
-
-  // SUPER_ADMIN: không filter hoặc dùng centerId từ query
-  if (userRole === 'SUPER_ADMIN') {
-    return {
-      effectiveCenterId: requestedCenterId || null, // null = tất cả centers
-      error: null
-    };
-  }
-
-  // CENTER_MANAGER hoặc khác: phải có center và chỉ được xem center của mình
-  if (!userCenterId) {
-    return {
-      effectiveCenterId: null,
-      error: 'Bạn chưa được gán vào trung tâm nào. Vui lòng liên hệ admin.'
-    };
-  }
-
-  // Nếu request center khác với center của user
-  if (requestedCenterId && requestedCenterId !== userCenterId) {
-    return {
-      effectiveCenterId: null,
-      error: 'Bạn không có quyền xem dữ liệu của trung tâm khác.'
-    };
-  }
-
-  return {
-    effectiveCenterId: userCenterId,
-    error: null
-  };
-}
 
 // ============ ATTENDANCE EDIT WINDOW ============
 
@@ -9570,19 +9535,28 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
           message: 'Vui lòng tải lên ảnh minh chứng chuyển khoản'
         });
       }
-    } else if (userRole === 'CENTER_MANAGER') {
-      if (!userCenterId) {
-        return res.status(403).json({
-          success: false,
-          message: 'Bạn chưa được gán vào trung tâm nào.'
-        });
+    } else {
+      if (userRole === 'CENTER_MANAGER') {
+        if (!userCenterId) {
+          return res.status(403).json({
+            success: false,
+            message: 'Bạn chưa được gán vào trung tâm nào.'
+          });
+        }
+
+        const invoiceCenterId = invoice.class?.center_id || invoice.student?.center_id || null;
+        if (invoiceCenterId && invoiceCenterId !== userCenterId) {
+          return res.status(403).json({
+            success: false,
+            message: 'Bạn không có quyền thao tác hóa đơn của trung tâm khác.'
+          });
+        }
       }
 
-      const invoiceCenterId = invoice.class?.center_id || invoice.student?.center_id || null;
-      if (invoiceCenterId && invoiceCenterId !== userCenterId) {
-        return res.status(403).json({
+      if (payment_method !== 'cash' && !reference_code && !req.body.bank_proof_url) {
+        return res.status(400).json({
           success: false,
-          message: 'Bạn không có quyền thao tác hóa đơn của trung tâm khác.'
+          message: 'Thanh toán không dùng tiền mặt cần mã tham chiếu hoặc minh chứng giao dịch'
         });
       }
     }
@@ -9743,7 +9717,15 @@ app.patch('/api/payments/:id/verify', requireAuth, requireRole(['SUPER_ADMIN', '
     // Get payment
     const { data: payment, error: fetchError } = await supabase
       .from('payments')
-      .select('*, invoice:invoice_id(id, status)')
+      .select(`
+        *,
+        invoice:invoice_id(
+          id,
+          status,
+          class:class_id(id, center_id),
+          student:student_id(id, center_id)
+        )
+      `)
       .eq('id', id)
       .single();
 
@@ -9755,6 +9737,15 @@ app.patch('/api/payments/:id/verify', requireAuth, requireRole(['SUPER_ADMIN', '
       return res.status(400).json({
         success: false,
         message: `Thanh toán này đã ${payment.verification_status === 'verified' ? 'được xác nhận' : 'bị từ chối'}`
+      });
+    }
+
+    const paymentCenterId = payment.invoice?.class?.center_id || payment.invoice?.student?.center_id || null;
+    const { error: verifyPermError } = getEffectiveCenterId(req.user, paymentCenterId);
+    if (verifyPermError || (req.user.roleCode === 'CENTER_MANAGER' && !paymentCenterId)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền xác minh giao dịch này'
       });
     }
 
@@ -9797,14 +9788,21 @@ app.patch('/api/payments/:id/reject', requireAuth, requireRole(['SUPER_ADMIN', '
     const { reason } = req.body;
     const userId = req.user?.id;
 
-    if (!reason) {
+    if (!reason || !String(reason).trim()) {
       return res.status(400).json({ success: false, message: 'Vui lòng nhập lý do từ chối' });
     }
 
     // Get payment
     const { data: payment, error: fetchError } = await supabase
       .from('payments')
-      .select('*')
+      .select(`
+        *,
+        invoice:invoice_id(
+          id,
+          class:class_id(id, center_id),
+          student:student_id(id, center_id)
+        )
+      `)
       .eq('id', id)
       .single();
 
@@ -9819,6 +9817,15 @@ app.patch('/api/payments/:id/reject', requireAuth, requireRole(['SUPER_ADMIN', '
       });
     }
 
+    const paymentCenterId = payment.invoice?.class?.center_id || payment.invoice?.student?.center_id || null;
+    const { error: rejectPermError } = getEffectiveCenterId(req.user, paymentCenterId);
+    if (rejectPermError || (req.user.roleCode === 'CENTER_MANAGER' && !paymentCenterId)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền từ chối giao dịch này'
+      });
+    }
+
     // Update to rejected
     const { data: updated, error: updateError } = await supabase
       .from('payments')
@@ -9826,7 +9833,7 @@ app.patch('/api/payments/:id/reject', requireAuth, requireRole(['SUPER_ADMIN', '
         verification_status: 'rejected',
         verified_by: userId,
         verified_at: new Date().toISOString(),
-        rejection_reason: reason
+        rejection_reason: String(reason).trim()
       })
       .eq('id', id)
       .select()
@@ -9848,13 +9855,20 @@ app.patch('/api/payments/:id/reject', requireAuth, requireRole(['SUPER_ADMIN', '
 // GET /api/payments/pending - Lấy danh sách chuyển khoản chờ xác nhận
 app.get('/api/payments/pending', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
+    const { center_id } = req.query;
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, center_id || null);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
     const { data: payments, error } = await supabase
       .from('payments')
       .select(`
         *,
         invoice:invoice_id(
           id, invoice_code, final_amount, paid_amount,
-          student:student_id(id, full_name, email, phone)
+          student:student_id(id, full_name, email, phone),
+          class:class_id(id, center_id)
         ),
         received_by_user:received_by(id, full_name)
       `)
@@ -9864,10 +9878,15 @@ app.get('/api/payments/pending', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
 
     if (error) throw error;
 
+    let filtered = payments || [];
+    if (effectiveCenterId) {
+      filtered = filtered.filter((item) => item.invoice?.class?.center_id === effectiveCenterId);
+    }
+
     res.json({
       success: true,
-      data: payments || [],
-      count: payments?.length || 0
+      data: filtered,
+      count: filtered.length
     });
   } catch (error) {
     console.error('Error fetching pending payments:', error);
@@ -9887,8 +9906,14 @@ app.get('/api/transactions', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MA
       dateEnd,
       search,
       page = 1,
-      limit = 20
+      limit = 20,
+      center_id
     } = req.query;
+
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, center_id || null);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
 
     // Build query
     let query = supabase
@@ -9898,11 +9923,11 @@ app.get('/api/transactions', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MA
         invoice:invoice_id(
           id, invoice_code, final_amount, paid_amount, status,
           student:student_id(id, full_name, email, phone),
-          class:class_id(id, name)
+          class:class_id(id, name, center_id)
         ),
         received_by_user:received_by(id, full_name),
         verified_by_user:verified_by(id, full_name)
-      `, { count: 'exact' });
+      `);
 
     // Filter by verification status
     if (status && status !== 'all') {
@@ -9922,39 +9947,63 @@ app.get('/api/transactions', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MA
       query = query.lte('created_at', `${dateEnd}T23:59:59`);
     }
 
-    // Order and paginate
-    const from = (page - 1) * limit;
-    const to = from + parseInt(limit) - 1;
-
     query = query
-      .order('created_at', { ascending: false })
-      .range(from, to);
+      .order('created_at', { ascending: false });
 
-    const { data: transactions, error, count } = await query;
+    const { data: transactions, error } = await query;
 
     if (error) throw error;
 
-    // Get summary stats
-    const { data: stats } = await supabase
-      .from('payments')
-      .select('verification_status, amount')
-      .eq('payment_method', 'bank_transfer');
+    let filtered = transactions || [];
+
+    if (effectiveCenterId) {
+      filtered = filtered.filter((item) => item.invoice?.class?.center_id === effectiveCenterId);
+    }
+
+    if (search && search.trim()) {
+      const searchLower = search.trim().toLowerCase();
+      filtered = filtered.filter((item) => {
+        const invoiceCode = item.invoice?.invoice_code?.toLowerCase() || '';
+        const studentName = item.invoice?.student?.full_name?.toLowerCase() || '';
+        const studentEmail = item.invoice?.student?.email?.toLowerCase() || '';
+        const studentPhone = item.invoice?.student?.phone || '';
+        const referenceCode = item.reference_code?.toLowerCase() || '';
+        const noteText = item.notes?.toLowerCase() || '';
+
+        return (
+          invoiceCode.includes(searchLower)
+          || studentName.includes(searchLower)
+          || studentEmail.includes(searchLower)
+          || studentPhone.includes(searchLower)
+          || referenceCode.includes(searchLower)
+          || noteText.includes(searchLower)
+        );
+      });
+    }
+
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = parseInt(limit, 10) || 20;
+    const from = (pageNum - 1) * limitNum;
+    const paginated = filtered.slice(from, from + limitNum);
 
     const summary = {
-      totalPending: stats?.filter(s => s.verification_status === 'pending').length || 0,
-      totalVerified: stats?.filter(s => s.verification_status === 'verified').length || 0,
-      totalRejected: stats?.filter(s => s.verification_status === 'rejected').length || 0,
-      pendingAmount: stats?.filter(s => s.verification_status === 'pending').reduce((sum, s) => sum + parseFloat(s.amount || 0), 0) || 0
+      total: filtered.length,
+      totalPending: filtered.filter(s => s.verification_status === 'pending').length,
+      totalVerified: filtered.filter(s => s.verification_status === 'verified').length,
+      totalRejected: filtered.filter(s => s.verification_status === 'rejected').length,
+      pendingAmount: filtered
+        .filter(s => s.verification_status === 'pending')
+        .reduce((sum, s) => sum + parseFloat(s.amount || 0), 0)
     };
 
     res.json({
       success: true,
-      data: transactions || [],
+      data: paginated,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / limit)
+        page: pageNum,
+        limit: limitNum,
+        total: filtered.length,
+        totalPages: Math.ceil(filtered.length / limitNum)
       },
       summary
     });
@@ -9974,6 +10023,63 @@ app.patch('/api/transactions/bulk-verify', requireAuth, requireRole(['SUPER_ADMI
       return res.status(400).json({
         success: false,
         message: 'Vui lòng chọn ít nhất một giao dịch'
+      });
+    }
+
+    const { data: candidatePayments, error: fetchError } = await supabase
+      .from('payments')
+      .select(`
+        id,
+        verification_status,
+        invoice:invoice_id(
+          id,
+          class:class_id(id, center_id),
+          student:student_id(id, center_id)
+        )
+      `)
+      .in('id', paymentIds);
+
+    if (fetchError) throw fetchError;
+
+    const foundIds = new Set((candidatePayments || []).map((item) => item.id));
+    const missingIds = paymentIds.filter((id) => !foundIds.has(id));
+    if (missingIds.length > 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Một số giao dịch không tồn tại',
+        data: { missingIds }
+      });
+    }
+
+    const unauthorizedIds = [];
+    const invalidStatusIds = [];
+
+    for (const payment of candidatePayments || []) {
+      const paymentCenterId = payment.invoice?.class?.center_id || payment.invoice?.student?.center_id || null;
+      const { error: paymentPermError } = getEffectiveCenterId(req.user, paymentCenterId);
+
+      if (paymentPermError || (req.user.roleCode === 'CENTER_MANAGER' && !paymentCenterId)) {
+        unauthorizedIds.push(payment.id);
+      }
+
+      if (payment.verification_status !== 'pending') {
+        invalidStatusIds.push(payment.id);
+      }
+    }
+
+    if (unauthorizedIds.length > 0) {
+      return res.status(403).json({
+        success: false,
+        message: 'Có giao dịch thuộc trung tâm khác, thao tác bị từ chối',
+        data: { unauthorizedIds }
+      });
+    }
+
+    if (invalidStatusIds.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ có thể xác nhận các giao dịch ở trạng thái chờ xác minh',
+        data: { invalidStatusIds }
       });
     }
 
@@ -10331,6 +10437,13 @@ app.post('/api/admin/invoices/bulk-payment', requireAuth, requireRole(['SUPER_AD
       return res.status(400).json({
         success: false,
         message: 'Phương thức thanh toán không hợp lệ'
+      });
+    }
+
+    if (payment_method !== 'cash' && !reference_code) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thanh toán không dùng tiền mặt cần mã tham chiếu giao dịch'
       });
     }
 
@@ -13257,6 +13370,7 @@ app.get('/api/holidays/check',
  * POST /api/admin/payments/import/parse
  * Parse uploaded bank statement file
  * Body: { fileData: base64, fileType: 'csv'|'xlsx', bankFormat: 'vcb'|'tcb'|'bidv'|'generic' }
+ * Response: { success, data: { transactions: Array, count: number, bankFormat: string } }
  * 🔒 SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/payments/import/parse',
@@ -13280,7 +13394,16 @@ app.post('/api/admin/payments/import/parse',
       const base64Data = fileData.replace(/^data:.*?;base64,/, '');
       const fileBuffer = Buffer.from(base64Data, 'base64');
 
-      const transactions = await parseBankStatement(fileBuffer, fileType, bankFormat || 'generic');
+      const parseResult = await parseBankStatement(fileBuffer, fileType, (bankFormat || 'generic').toLowerCase());
+
+      if (!parseResult.success) {
+        return res.status(400).json({
+          success: false,
+          message: parseResult.message || 'Không thể parse file sao kê'
+        });
+      }
+
+      const transactions = parseResult.data || [];
 
       console.log(`📄 Parsed ${transactions.length} transactions from bank statement`);
 
@@ -13288,7 +13411,8 @@ app.post('/api/admin/payments/import/parse',
         success: true,
         data: {
           transactions,
-          count: transactions.length
+          count: transactions.length,
+          bankFormat: (bankFormat || 'generic').toLowerCase()
         }
       });
     } catch (error) {
@@ -13302,6 +13426,7 @@ app.post('/api/admin/payments/import/parse',
  * POST /api/admin/payments/import/match
  * Match parsed transactions with invoices
  * Body: { transactions: Array }
+ * Response: { success, data: { matches: Array, summary: Object } }
  * 🔒 SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/payments/import/match',
@@ -13310,6 +13435,11 @@ app.post('/api/admin/payments/import/match',
   async (req, res, next) => {
     try {
       const { transactions } = req.body;
+      const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, null);
+
+      if (permError) {
+        return res.status(403).json({ success: false, message: permError });
+      }
 
       if (!transactions || !Array.isArray(transactions)) {
         return res.status(400).json({
@@ -13320,13 +13450,29 @@ app.post('/api/admin/payments/import/match',
 
       const { matchTransactionsWithInvoices } = await import('./services/paymentImportService.js');
 
-      const result = await matchTransactionsWithInvoices(transactions, supabase);
+      const result = await matchTransactionsWithInvoices(transactions, supabase, { effectiveCenterId });
 
-      console.log(`🔍 Matched ${result.summary.matched} of ${result.summary.total} transactions`);
+      if (!result.success) {
+        return res.status(400).json({
+          success: false,
+          message: result.message || 'Không thể khớp giao dịch với hóa đơn'
+        });
+      }
+
+      const matches = result.data || [];
+      const summary = {
+        ...(result.summary || {}),
+        matched: matches.filter((item) => item.matchedInvoice && ['high', 'medium', 'manual'].includes(item.confidence)).length
+      };
+
+      console.log(`🔍 Matched ${summary.matched} of ${summary.total || matches.length} transactions`);
 
       res.json({
         success: true,
-        data: result
+        data: {
+          matches,
+          summary
+        }
       });
     } catch (error) {
       console.error('❌ Error matching transactions:', error);
@@ -13339,6 +13485,7 @@ app.post('/api/admin/payments/import/match',
  * POST /api/admin/payments/import/apply
  * Apply matched payments to invoices
  * Body: { matches: Array }
+ * Response: { success, data: { applied, failed, skipped, skippedLowConfidence, total, details, errors } }
  * 🔒 SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/payments/import/apply',
@@ -13347,6 +13494,11 @@ app.post('/api/admin/payments/import/apply',
   async (req, res, next) => {
     try {
       const { matches } = req.body;
+      const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, null);
+
+      if (permError) {
+        return res.status(403).json({ success: false, message: permError });
+      }
 
       if (!matches || !Array.isArray(matches)) {
         return res.status(400).json({
@@ -13357,13 +13509,25 @@ app.post('/api/admin/payments/import/apply',
 
       const { applyMatchedPayments } = await import('./services/paymentImportService.js');
 
-      const result = await applyMatchedPayments(matches, supabase, req.user.id);
+      const result = await applyMatchedPayments(matches, supabase, req.user.id, { effectiveCenterId });
+
+      const errors = (result.details || [])
+        .filter((item) => !item.success)
+        .map((item) => item.error);
 
       console.log(`💳 Applied ${result.applied} payments, ${result.failed} failed, ${result.skipped} skipped`);
 
       res.json({
         success: true,
-        data: result,
+        data: {
+          applied: result.applied,
+          failed: result.failed,
+          skipped: result.skipped,
+          skippedLowConfidence: result.skippedLowConfidence,
+          total: matches.length,
+          details: result.details,
+          errors
+        },
         message: `Đã áp dụng ${result.applied} thanh toán thành công`
       });
     } catch (error) {
@@ -23880,6 +24044,125 @@ app.get('/api/parent/payment-config',
       });
     } catch (error) {
       console.error('❌ Error fetching parent payment config:', error);
+      next(error);
+    }
+  }
+);
+
+// ============================================================
+// PARENT LINK MANAGEMENT APIs
+// ============================================================
+
+/**
+ * POST /api/admin/parent-student-links
+ * Create a parent-student link
+ * Body: { parent_id, student_id, relationship, is_primary?, can_pay?, can_view_academics?, notes? }
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.post('/api/admin/parent-student-links',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const result = await createParentStudentLink({
+        supabase,
+        actor: req.user,
+        payload: req.body,
+      });
+
+      if (!result.success) {
+        return res.status(result.status || 400).json({
+          success: false,
+          message: result.message,
+          ...(result.error ? { error: result.error } : {}),
+        });
+      }
+
+      return res.status(201).json({
+        success: true,
+        data: result.data,
+        message: result.message,
+      });
+    } catch (error) {
+      console.error('❌ Error creating parent-student link:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * PATCH /api/admin/parent-student-links/:linkId
+ * Update link permissions/metadata
+ * Body: { can_pay?, can_view_academics?, is_primary?, relationship?, notes? }
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.patch('/api/admin/parent-student-links/:linkId',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { linkId } = req.params;
+
+      const result = await updateParentStudentLink({
+        supabase,
+        actor: req.user,
+        linkId,
+        payload: req.body,
+      });
+
+      if (!result.success) {
+        return res.status(result.status || 400).json({
+          success: false,
+          message: result.message,
+          ...(result.error ? { error: result.error } : {}),
+        });
+      }
+
+      return res.json({
+        success: true,
+        data: result.data,
+        message: result.message,
+      });
+    } catch (error) {
+      console.error('❌ Error updating parent-student link:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /api/admin/parent-student-links/:linkId/deactivate
+ * Deactivate (soft disable) a link
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.post('/api/admin/parent-student-links/:linkId/deactivate',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { linkId } = req.params;
+
+      const result = await deactivateParentStudentLink({
+        supabase,
+        actor: req.user,
+        linkId,
+      });
+
+      if (!result.success) {
+        return res.status(result.status || 400).json({
+          success: false,
+          message: result.message,
+          ...(result.error ? { error: result.error } : {}),
+        });
+      }
+
+      return res.json({
+        success: true,
+        data: result.data,
+        message: result.message,
+      });
+    } catch (error) {
+      console.error('❌ Error deactivating parent-student link:', error);
       next(error);
     }
   }

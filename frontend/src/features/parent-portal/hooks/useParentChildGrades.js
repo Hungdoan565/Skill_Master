@@ -24,7 +24,17 @@ export function useParentChildGrades(studentId) {
       const result = await res.json();
       
       if (result.success) {
-        setGrades(result.data || []);
+        // Canonical mapping: result.data.gradesByClass -> flat array of grades
+        const gradesByClass = result.data?.gradesByClass || [];
+        const flatGrades = gradesByClass.flatMap(g => 
+          (g.grades || []).map(grade => ({
+            ...grade,
+            className: g.className,
+            classCode: g.classCode,
+            courseTitle: g.courseTitle
+          }))
+        );
+        setGrades(flatGrades);
       } else {
         setError(result.message);
       }

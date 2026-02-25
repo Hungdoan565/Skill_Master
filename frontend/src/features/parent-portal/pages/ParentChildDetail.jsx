@@ -54,34 +54,35 @@ function ScheduleTab({ studentId }) {
 
   return (
     <div className="space-y-4">
-      {schedule.map((cls) => (
-        <Card key={cls.id}>
+      {schedule.map((cls, idx) => (
+        <Card key={idx}>
           <CardContent className="p-4 flex items-center justify-between">
             <div className="flex items-start gap-4">
               <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded-lg">
                 <BookOpen className="h-6 w-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <h4 className="font-semibold text-lg">{cls.class_name}</h4>
-                <p className="text-muted-foreground">{cls.course_name}</p>
+                <h4 className="font-semibold text-lg">{cls.className}</h4>
+                <p className="text-muted-foreground">{cls.courseTitle}</p>
                 <div className="flex items-center gap-4 mt-2 text-sm text-gray-600 dark:text-gray-400">
                   <div className="flex items-center gap-1">
                     <Calendar className="h-4 w-4" />
-                    <span>{cls.day_of_week_label || `Thứ ${cls.day_of_week}`}</span>
+                    <span>{cls.dayOfWeek === 8 ? 'Chủ nhật' : `Thứ ${cls.dayOfWeek}`}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Clock className="h-4 w-4" />
-                    <span>{formatTime(cls.start_time)} - {formatTime(cls.end_time)}</span>
+                    <span>{formatTime(cls.startTime)} - {formatTime(cls.endTime)}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <MapPin className="h-4 w-4" />
-                    <span>{cls.room_name || 'Chưa xếp phòng'}</span>
+                    <span>{cls.roomName || 'Chưa xếp phòng'}</span>
                   </div>
                 </div>
               </div>
             </div>
-            <Badge variant={cls.status === 'active' ? 'default' : 'secondary'}>
-              {cls.status === 'active' ? 'Đang học' : 'Đã kết thúc'}
+            {/* Status logic might need backend support or derived from dates */}
+            <Badge variant={'default'}>
+              Đang học
             </Badge>
           </CardContent>
         </Card>
@@ -104,9 +105,9 @@ function GradesTab({ studentId }) {
           {grades.map((grade, idx) => (
             <div key={idx} className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
               <div>
-                <p className="font-medium">{grade.class_name}</p>
-                <p className="text-sm text-muted-foreground">{grade.type_label || grade.grade_type}</p>
-                <p className="text-xs text-muted-foreground mt-1">Ngày: {formatDate(grade.exam_date || grade.created_at)}</p>
+                <p className="font-medium">{grade.className}</p>
+                <p className="text-sm text-muted-foreground">{grade.gradeType}</p>
+                <p className="text-xs text-muted-foreground mt-1">Ngày: {formatDate(grade.assessmentDate)}</p>
               </div>
               <div className="text-right">
                 <span className={cn(
@@ -152,8 +153,8 @@ function AttendanceTab({ studentId }) {
                    <Clock className="h-5 w-5" />}
                 </div>
                 <div>
-                  <p className="font-medium">{att.class_name}</p>
-                  <p className="text-sm text-muted-foreground">{formatDate(att.session_date)}</p>
+                  <p className="font-medium">{att.className}</p>
+                  <p className="text-sm text-muted-foreground">{formatDate(att.sessionDate)}</p>
                 </div>
               </div>
               <div>
@@ -194,7 +195,7 @@ function InvoicesTab({ studentId }) {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h4 className="font-semibold text-lg">{inv.invoice_number}</h4>
-                <p className="text-sm text-muted-foreground">Tạo ngày: {formatDate(inv.created_at)}</p>
+                <p className="text-sm text-muted-foreground">Tạo ngày: {formatDate(inv.issue_date || inv.created_at)}</p>
               </div>
               <Badge variant={
                 inv.status === 'paid' ? 'success' : 
@@ -212,7 +213,7 @@ function InvoicesTab({ studentId }) {
               </div>
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">Tổng tiền</p>
-                <p className="text-xl font-bold text-orange-600">{formatCurrency(inv.total_amount)}</p>
+                <p className="text-xl font-bold text-orange-600">{formatCurrency(inv.final_amount || inv.total_amount)}</p>
               </div>
             </div>
           </CardContent>
@@ -225,11 +226,11 @@ function InvoicesTab({ studentId }) {
 // --- Main Page Component ---
 
 export function ParentChildDetail() {
-  const { id } = useParams();
+  const { studentId } = useParams();
   const { children, loading } = useParentChildren();
   
   // Find current child from the list
-  const currentChild = children.find(c => c.id === id || c.id === parseInt(id));
+  const currentChild = children.find(c => c.id === studentId || c.id === parseInt(studentId));
 
   if (loading) {
     return (
@@ -294,19 +295,19 @@ export function ParentChildDetail() {
         </TabsList>
         
         <TabsContent value="schedule" className="mt-0">
-          <ScheduleTab studentId={id} />
+          <ScheduleTab studentId={studentId} />
         </TabsContent>
         
         <TabsContent value="grades" className="mt-0">
-          <GradesTab studentId={id} />
+          <GradesTab studentId={studentId} />
         </TabsContent>
         
         <TabsContent value="attendance" className="mt-0">
-          <AttendanceTab studentId={id} />
+          <AttendanceTab studentId={studentId} />
         </TabsContent>
         
         <TabsContent value="invoices" className="mt-0">
-          <InvoicesTab studentId={id} />
+          <InvoicesTab studentId={studentId} />
         </TabsContent>
       </Tabs>
     </div>

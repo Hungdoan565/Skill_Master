@@ -24,7 +24,8 @@ export function useParentChildSchedule(studentId) {
       const result = await res.json();
       
       if (result.success) {
-        setSchedule(result.data || []);
+        // Canonical mapping: result.data.events (camelCase)
+        setSchedule(result.data?.events || []);
       } else {
         setError(result.message);
       }

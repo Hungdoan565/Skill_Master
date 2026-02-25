@@ -49,7 +49,7 @@ const formatDate = (dateStr) => {
 
 const STATUS_CONFIG = {
   paid: { label: 'Đã thanh toán', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
-  pending: { label: 'Chờ thanh toán', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+  pending: { label: 'Chờ xác minh', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
   overdue: { label: 'Quá hạn', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
   partial: { label: 'Thanh toán một phần', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' }
 };
@@ -201,7 +201,7 @@ function InvoiceDetailModal({ invoice, open, onClose, onPay }) {
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                 onClick={() => onPay?.(invoice)}
               >
-                Thanh toan ngay
+                Gửi minh chứng thanh toán
               </Button>
             </div>
           )}
@@ -282,7 +282,7 @@ export function StudentTuition() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Học phí</h1>
-          <p className="text-muted-foreground">Quản lý hóa đơn và thanh toán</p>
+          <p className="text-muted-foreground">Theo dõi hóa đơn và trạng thái xác minh thanh toán</p>
         </div>
         <div className="flex items-center gap-3">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -291,7 +291,7 @@ export function StudentTuition() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tất cả</SelectItem>
-              <SelectItem value="pending">Chờ thanh toán</SelectItem>
+              <SelectItem value="pending">Chờ xác minh</SelectItem>
               <SelectItem value="paid">Đã thanh toán</SelectItem>
               <SelectItem value="overdue">Quá hạn</SelectItem>
             </SelectContent>

@@ -24,7 +24,8 @@ export function useParentChildren() {
       const result = await res.json();
       
       if (result.success) {
-        setChildren(result.data || []);
+        // Canonical mapping: result.data.children
+        setChildren(result.data?.children || []);
       } else {
         setError(result.message);
       }

@@ -216,7 +216,7 @@ export function StudentPayment() {
       if (successCount === selectedInvoices.length) {
         toast.success(`Đã gửi xác nhận thanh toán cho ${successCount} hóa đơn. Trung tâm sẽ xác minh sớm.`);
       } else if (successCount > 0) {
-        toast.success(`Đã thanh toán ${successCount}/${selectedInvoices.length} hóa đơn.`);
+        toast.success(`Đã gửi minh chứng cho ${successCount}/${selectedInvoices.length} hóa đơn.`);
       } else {
         const firstError = results.find(r => !r.success);
         toast.error(firstError?.message || 'Có lỗi xảy ra khi gửi thanh toán');

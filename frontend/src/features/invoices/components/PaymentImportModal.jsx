@@ -154,6 +154,13 @@ export function PaymentImportModal({ isOpen, onClose, onSuccess }) {
     return validTypes.includes(file.type) || validExtensions.includes(extension);
   };
 
+  const fileToBase64 = useCallback((file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Không thể đọc file'));
+    reader.readAsDataURL(file);
+  }), []);
+
   // Step 1: Parse file
   const handleParseFile = useCallback(async () => {
     if (!selectedFile) return;
@@ -162,33 +169,38 @@ export function PaymentImportModal({ isOpen, onClose, onSuccess }) {
     setError('');
     
     try {
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-      formData.append('bankFormat', bankFormat);
+      const fileData = await fileToBase64(selectedFile);
+      const extension = selectedFile.name.split('.').pop()?.toLowerCase() || 'csv';
+      const fileType = extension === 'xls' ? 'xlsx' : extension;
       
       const response = await fetch(`${API_URL}/api/admin/payments/import/parse`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session?.access_token}`
+          'Authorization': `Bearer ${session?.access_token}`,
+          'Content-Type': 'application/json'
         },
-        body: formData
+        body: JSON.stringify({
+          fileData,
+          fileType,
+          bankFormat: bankFormat.toLowerCase()
+        })
       });
-      
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Không thể đọc file');
+
+      const payload = await response.json();
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.message || payload.error || 'Không thể đọc file');
       }
-      
-      const data = await response.json();
-      setTransactions(data.transactions || []);
-      setSelectedTransactions(new Set(data.transactions?.map(t => t.id) || []));
+
+      const parsedTransactions = payload.data?.transactions || [];
+      setTransactions(parsedTransactions);
+      setSelectedTransactions(new Set(parsedTransactions.map(t => t.id)));
       setCurrentStep(2);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, [selectedFile, bankFormat, session]);
+  }, [selectedFile, bankFormat, session, fileToBase64]);
 
   // Step 2: Match transactions with invoices
   const handleMatchTransactions = useCallback(async () => {
@@ -207,16 +219,25 @@ export function PaymentImportModal({ isOpen, onClose, onSuccess }) {
         body: JSON.stringify({ transactions: selectedTxns })
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Không thể khớp giao dịch');
+      const payload = await response.json();
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.message || payload.error || 'Không thể khớp giao dịch');
       }
 
-      const data = await response.json();
+      const matches = payload.data?.matches || [];
+      const matchByTransactionId = new Map(
+        matches.map((item) => [item.transactionId || item.transaction?.id, item])
+      );
+
       setTransactions(prev => prev.map(t => {
-        const matched = data.matches?.find(m => m.transactionId === t.id);
+        const matched = matchByTransactionId.get(t.id);
         if (matched) {
-          return { ...t, matchedInvoice: matched.invoice, confidence: matched.confidence };
+          return {
+            ...t,
+            matchedInvoice: matched.matchedInvoice || null,
+            confidence: matched.confidence,
+            matchReasons: matched.matchReasons || []
+          };
         }
         return t;
       }));
@@ -255,7 +276,12 @@ export function PaymentImportModal({ isOpen, onClose, onSuccess }) {
   const handleSelectInvoice = useCallback((transactionId, invoice) => {
     setTransactions(prev => prev.map(t => {
       if (t.id === transactionId) {
-        return { ...t, matchedInvoice: invoice, confidence: 'manual' };
+        return {
+          ...t,
+          matchedInvoice: invoice,
+          confidence: 'manual',
+          matchReasons: ['Khớp thủ công bởi người vận hành']
+        };
       }
       return t;
     }));
@@ -293,17 +319,24 @@ export function PaymentImportModal({ isOpen, onClose, onSuccess }) {
     setApplyProgress(0);
 
     try {
-      const paymentsToApply = transactions
+      const matchesToApply = transactions
         .filter(t => selectedTransactions.has(t.id) && t.matchedInvoice)
         .map(t => ({
-          transactionId: t.id,
-          invoiceId: t.matchedInvoice.id,
-          amount: t.amount,
-          transactionDate: t.date,
-          description: t.description
+          transaction: {
+            id: t.id,
+            date: t.date,
+            amount: t.amount,
+            description: t.description,
+            reference: t.reference || '',
+            extractedInvoiceCodes: t.extractedInvoiceCodes || [],
+            extractedPhoneNumbers: t.extractedPhoneNumbers || []
+          },
+          matchedInvoice: t.matchedInvoice,
+          confidence: t.confidence === 'manual' ? 'manual' : (t.confidence || 'high'),
+          matchReasons: t.matchReasons?.length ? t.matchReasons : ['Khớp thủ công bởi người vận hành']
         }));
 
-      if (paymentsToApply.length === 0) {
+      if (matchesToApply.length === 0) {
         throw new Error('Không có giao dịch nào được chọn để áp dụng');
       }
 
@@ -313,20 +346,19 @@ export function PaymentImportModal({ isOpen, onClose, onSuccess }) {
           'Authorization': `Bearer ${session?.access_token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ payments: paymentsToApply })
+        body: JSON.stringify({ matches: matchesToApply })
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Không thể áp dụng thanh toán');
+      const payload = await response.json();
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.message || payload.error || 'Không thể áp dụng thanh toán');
       }
 
-      const data = await response.json();
-      setApplyResults(data);
+      setApplyResults(payload.data);
       setApplyProgress(100);
 
-      if (data.success > 0) {
-        onSuccess?.(`Đã áp dụng ${data.success} thanh toán thành công`, data);
+      if ((payload.data?.applied || 0) > 0) {
+        onSuccess?.(`Đã áp dụng ${payload.data.applied} thanh toán thành công`, payload.data);
       }
     } catch (err) {
       setError(err.message);
@@ -636,11 +668,11 @@ export function PaymentImportModal({ isOpen, onClose, onSuccess }) {
             <span className="font-medium">Hoàn thành!</span>
           </div>
           <div className="p-3 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg text-sm space-y-1">
-            <p>✓ Thành công: {applyResults.success} giao dịch</p>
-            {applyResults.failed > 0 && (
+            <p>✓ Thành công: {applyResults.applied || 0} giao dịch</p>
+            {(applyResults.failed || 0) > 0 && (
               <p className="text-red-600">✗ Thất bại: {applyResults.failed} giao dịch</p>
             )}
-            {applyResults.errors?.length > 0 && (
+            {(applyResults.errors?.length || 0) > 0 && (
               <div className="mt-2 text-xs text-red-600">
                 {applyResults.errors.map((err, i) => (
                   <p key={i}>- {err}</p>

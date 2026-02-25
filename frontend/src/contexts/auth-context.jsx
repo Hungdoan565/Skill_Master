@@ -322,16 +322,6 @@ export function AuthProvider({ children }) {
       }
     }
 
-    // Không có profile nhưng có user - fallback dựa vào email domain (strict)
-    if (user?.email) {
-      // SECURITY: Only allow @skillmaster.edu.vn domain as fallback
-      // Removed: user.email.includes('admin') - too permissive
-      if (user.email.endsWith('@skillmaster.edu.vn')) {
-        console.log('[AuthContext] getRedirectPath: No profile, but trusted admin domain -> /admin/dashboard');
-        return '/admin/dashboard';
-      }
-    }
-
     // Mặc định về trang chủ
     console.warn('[AuthContext] getRedirectPath: No role found, redirecting to home');
     return '/';

@@ -24,7 +24,8 @@ export function useParentChildAttendance(studentId) {
       const result = await res.json();
       
       if (result.success) {
-        setAttendance(result.data || []);
+        // Canonical mapping: result.data.attendance (camelCase)
+        setAttendance(result.data?.attendance || []);
       } else {
         setError(result.message);
       }

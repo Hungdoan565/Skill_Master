@@ -354,9 +354,9 @@ export function StudentDashboard() {
                   </div>
                   <div className="flex-1 space-y-2">
                     <div>
-                      <h3 className="font-semibold text-amber-900 dark:text-amber-100">Cần thanh toán học phí</h3>
+                      <h3 className="font-semibold text-amber-900 dark:text-amber-100">Cần gửi minh chứng học phí</h3>
                       <p className="text-sm text-amber-700 dark:text-amber-300/80 mt-1">
-                        Bạn có {unpaidInvoices.length} hóa đơn chưa thanh toán.
+                        Bạn có {unpaidInvoices.length} hóa đơn cần gửi minh chứng để trung tâm xác minh.
                       </p>
                     </div>
                     <div className="flex items-center justify-between pt-2">
@@ -367,7 +367,7 @@ export function StudentDashboard() {
                         onClick={() => navigate('/student/tuition')}
                         className="text-xs font-medium bg-amber-200 hover:bg-amber-300 text-amber-900 px-3 py-1.5 rounded-full transition-colors"
                       >
-                        Thanh toán ngay
+                        Gửi minh chứng
                       </button>
                     </div>
                   </div>
