@@ -12,7 +12,6 @@ export const createRateLimiter = (options = {}) => {
     methods,
     message = DEFAULT_MESSAGE,
     skipPaths = DEFAULT_SKIP_PATHS,
-    keyGenerator = (req) => req.ip,
     ...rest
   } = options;
 
@@ -22,7 +21,6 @@ export const createRateLimiter = (options = {}) => {
   return rateLimit({
     windowMs,
     max,
-    keyGenerator,
     standardHeaders: false,
     legacyHeaders: true,
     handler: (_req, res) => {
