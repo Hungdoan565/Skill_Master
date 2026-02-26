@@ -15,6 +15,8 @@ export { PaymentModal } from './PaymentModal';
 export { PaymentHistorySection } from './PaymentHistorySection';
 export { ReceiptTemplate } from './ReceiptTemplate';
 export { ReceiptModal } from './ReceiptModal';
+export { InvoicePrintTemplate } from './InvoicePrintTemplate';
+export { InvoicePrintModal } from './InvoicePrintModal';
 export { TransactionsTab } from './TransactionsTab';
 export { InvoiceDetailModal } from './InvoiceDetailModal';
 export { Toast } from './Toast';

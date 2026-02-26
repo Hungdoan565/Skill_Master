@@ -5,7 +5,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { GraduationCap, UserPlus } from 'lucide-react';
+import { GraduationCap, UserPlus, Upload } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -21,6 +21,7 @@ import {
   LoadingState,
   StudentDetailModal,
   EditStudentModal,
+  StudentImportModal,
 } from '../components';
 
 export function StudentsPage() {
@@ -32,6 +33,7 @@ export function StudentsPage() {
   const [promoteModal, setPromoteModal] = useState({ isOpen: false, student: null });
   const [detailModal, setDetailModal] = useState({ isOpen: false, student: null, data: null, loading: false });
   const [editModal, setEditModal] = useState({ isOpen: false, student: null, submitting: false });
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const {
     students,
@@ -125,6 +127,9 @@ export function StudentsPage() {
               <UserPlus className="h-4 w-4 mr-2" /> Ghi danh
             </Button>
           </Link>
+          <Button size="sm" variant="outline" onClick={() => setShowImportModal(true)}>
+            <Upload className="h-4 w-4 mr-2" /> Import
+          </Button>
           <div className="flex items-center gap-2 rounded-lg bg-green-50 px-4 py-2 border border-green-200">
             <GraduationCap className="h-5 w-5 text-green-600" />
             <span className="text-sm font-medium text-green-700">
@@ -183,6 +188,15 @@ export function StudentsPage() {
         onClose={closePromoteModal}
         student={promoteModal.student}
         onConfirm={handlePromoteConfirm}
+      />
+
+      <StudentImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onImportSuccess={(count) => {
+          toast.success(`Đã import ${count} học viên thành công!`);
+          fetchStudents(statusFilter);
+        }}
       />
     </div>
   );

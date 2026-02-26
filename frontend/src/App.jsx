@@ -29,6 +29,7 @@ import { ToastProvider } from '@/components/ui/toast';
 import { ErrorBoundary } from '@/components/errors/ErrorBoundary';
 // REFACTORED: Import từ feature modules thay vì file monolithic
 import { InvoicesPage, OverdueDashboardPage } from '@/features/invoices';
+import { FinancialDashboardPage } from '@/features/finance';
 import { ClassDetailPage } from '@/features/classes';
 import { CoursesPage } from '@/features/courses';
 import { ClassesPage } from '@/features/classes-list';
@@ -417,6 +418,7 @@ function App() {
               <Route path="enrollments/new" element={<NewEnrollmentPage />} />
               <Route path="invoices" element={<InvoicesPage />} />
               <Route path="invoices/overdue" element={<OverdueDashboardPage />} />
+              <Route path="finance" element={<FinancialDashboardPage />} />
               <Route path="grades" element={<GradesPage />} />
               <Route path="payroll" element={<PayrollPage />} />
               <Route path="payroll-disputes" element={<DisputeManagementPage />} />

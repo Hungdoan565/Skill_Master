@@ -54,6 +54,7 @@ const menuGroups = [
       { label: 'Học viên', icon: Users, path: '/admin/students' },
       { label: 'Ghi danh', icon: UserPlus, path: '/admin/enrollments' },
       { label: 'Hóa đơn', icon: Receipt, path: '/admin/invoices' },
+      { label: 'Tổng quan tài chính', icon: TrendingUp, path: '/admin/finance', badge: 'new' },
       { label: 'Chứng chỉ', icon: Award, path: '/admin/certificates' },
     ],
   },

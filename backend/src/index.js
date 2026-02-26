@@ -2357,6 +2357,127 @@ app.get('/api/admin/students', requireAuth, async (req, res, next) => {
   }
 });
 
+// Import học viên từ Excel/CSV
+app.post('/api/students/import', requireAuth, async (req, res, next) => {
+  try {
+    const { students } = req.body;
+
+    if (!Array.isArray(students) || students.length === 0) {
+      return res.status(400).json({
+        success: 0,
+        errors: [{ row: 0, message: 'Không có dữ liệu học viên để import' }]
+      });
+    }
+
+    const centerId = req.user.center_id;
+    if (!centerId) {
+      return res.status(403).json({
+        success: 0,
+        errors: [{ row: 0, message: 'Tài khoản chưa được gán trung tâm' }]
+      });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const errors = [];
+    const validStudents = [];
+    const emailRows = new Map();
+
+    students.forEach((student, index) => {
+      const row = Number(student?._row) || index + 1;
+      const fullName = String(student?.full_name || '').trim();
+      const email = String(student?.email || '').trim().toLowerCase();
+      const phone = String(student?.phone || '').trim();
+      const dateOfBirth = student?.date_of_birth ? String(student.date_of_birth).trim() : null;
+      const genderRaw = String(student?.gender || '').trim().toLowerCase();
+      const address = student?.address ? String(student.address).trim() : null;
+      const notes = student?.notes ? String(student.notes).trim() : null;
+
+      if (!fullName) {
+        errors.push({ row, message: 'Họ tên là bắt buộc' });
+        return;
+      }
+
+      if (email && !emailRegex.test(email)) {
+        errors.push({ row, message: 'Email không hợp lệ' });
+        return;
+      }
+
+      if (email) {
+        if (!emailRows.has(email)) {
+          emailRows.set(email, row);
+        } else {
+          errors.push({ row, message: `Email trùng trong file với dòng ${emailRows.get(email)}` });
+          return;
+        }
+      }
+
+      const genderMap = {
+        male: 'male',
+        female: 'female',
+        other: 'other',
+      };
+
+      validStudents.push({
+        full_name: fullName,
+        email: email || null,
+        phone: phone || null,
+        date_of_birth: dateOfBirth || null,
+        gender: genderMap[genderRaw] || null,
+        address,
+        notes,
+        status: 'active',
+        center_id: centerId,
+        created_by: req.user.id,
+      });
+    });
+
+    if (validStudents.length === 0) {
+      return res.status(400).json({ success: 0, errors });
+    }
+
+    const emails = validStudents.map((s) => s.email).filter(Boolean);
+    if (emails.length > 0) {
+      const { data: existingStudents, error: existingError } = await supabase
+        .from('students')
+        .select('email')
+        .eq('center_id', centerId)
+        .in('email', emails);
+
+      if (existingError) throw existingError;
+
+      const existingEmailSet = new Set((existingStudents || []).map((s) => String(s.email || '').toLowerCase()));
+
+      if (existingEmailSet.size > 0) {
+        validStudents.forEach((student, index) => {
+          if (student.email && existingEmailSet.has(student.email.toLowerCase())) {
+            const row = Number(students[index]?._row) || index + 1;
+            errors.push({ row, message: `Email đã tồn tại trong trung tâm: ${student.email}` });
+          }
+        });
+      }
+    }
+
+    if (errors.length > 0) {
+      return res.status(400).json({ success: 0, errors });
+    }
+
+    const { data: insertedStudents, error: insertError } = await supabase
+      .from('students')
+      .insert(validStudents)
+      .select('id');
+
+    if (insertError) throw insertError;
+
+    return res.json({
+      success: insertedStudents?.length || 0,
+      errors: []
+    });
+  } catch (error) {
+    console.error('Error importing students:', error);
+    next(error);
+  }
+});
+
 // ============ STUDENT DETAIL APIs ============
 
 // Lấy chi tiết học viên (kèm enrollments, invoices, attendance)
@@ -9259,6 +9380,238 @@ app.get('/api/invoices/statistics', requireAuth, requireRole(['SUPER_ADMIN', 'CE
   }
 });
 
+// GET /api/finance/summary - Tổng quan tài chính
+app.get('/api/finance/summary', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const {
+      center_id,
+      period = 'month',
+      year,
+      month,
+    } = req.query;
+
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, center_id || null);
+    if (permError) {
+      return res.status(403).json({ message: permError });
+    }
+
+    const now = new Date();
+    const periodYear = Number.isInteger(parseInt(year, 10)) ? parseInt(year, 10) : now.getFullYear();
+    const periodMonth = Number.isInteger(parseInt(month, 10)) ? parseInt(month, 10) : (now.getMonth() + 1);
+    const safeMonth = Math.min(Math.max(periodMonth, 1), 12);
+
+    let periodStart;
+    let periodEnd;
+
+    if (period === 'year') {
+      periodStart = new Date(periodYear, 0, 1, 0, 0, 0);
+      periodEnd = new Date(periodYear, 11, 31, 23, 59, 59);
+    } else if (period === 'quarter') {
+      const quarter = Math.floor((safeMonth - 1) / 3) + 1;
+      const startMonth = (quarter - 1) * 3;
+      periodStart = new Date(periodYear, startMonth, 1, 0, 0, 0);
+      periodEnd = new Date(periodYear, startMonth + 3, 0, 23, 59, 59);
+    } else {
+      periodStart = new Date(periodYear, safeMonth - 1, 1, 0, 0, 0);
+      periodEnd = new Date(periodYear, safeMonth, 0, 23, 59, 59);
+    }
+
+    const chartEnd = new Date(periodEnd.getFullYear(), periodEnd.getMonth(), 1);
+    const chartStart = new Date(chartEnd.getFullYear(), chartEnd.getMonth() - 11, 1);
+
+    const { data: rawInvoices, error: invoicesError } = await supabase
+      .from('invoices')
+      .select(`
+        id,
+        class_id,
+        student_id,
+        final_amount,
+        paid_amount,
+        status,
+        due_date,
+        created_at,
+        class:classes (
+          id,
+          center_id,
+          course:courses (
+            id,
+            title
+          )
+        ),
+        student:users!invoices_student_id_fkey (
+          id,
+          center_id
+        )
+      `)
+      .neq('status', 'cancelled');
+
+    if (invoicesError) throw invoicesError;
+
+    const centerScopedInvoices = (rawInvoices || []).filter((invoice) => {
+      if (!effectiveCenterId) return true;
+      const invoiceCenterId = invoice.class?.center_id || invoice.student?.center_id || null;
+      return invoiceCenterId === effectiveCenterId;
+    });
+
+    const periodInvoices = centerScopedInvoices.filter((invoice) => {
+      if (!invoice.created_at) return false;
+      const createdAt = new Date(invoice.created_at);
+      return createdAt >= periodStart && createdAt <= periodEnd;
+    });
+
+    const monthlyMap = {};
+    for (let i = 0; i < 12; i += 1) {
+      const d = new Date(chartStart.getFullYear(), chartStart.getMonth() + i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      monthlyMap[key] = {
+        month: key,
+        revenue: 0,
+        paid: 0,
+        pending: 0,
+      };
+    }
+
+    centerScopedInvoices.forEach((invoice) => {
+      if (!invoice.created_at) return;
+      const createdAt = new Date(invoice.created_at);
+      if (createdAt < chartStart || createdAt > periodEnd) return;
+
+      const key = `${createdAt.getFullYear()}-${String(createdAt.getMonth() + 1).padStart(2, '0')}`;
+      if (!monthlyMap[key]) return;
+
+      const finalAmount = parseFloat(invoice.final_amount) || 0;
+      const paidAmount = parseFloat(invoice.paid_amount) || 0;
+      const pendingAmount = Math.max(finalAmount - paidAmount, 0);
+
+      monthlyMap[key].revenue += finalAmount;
+      monthlyMap[key].paid += paidAmount;
+      monthlyMap[key].pending += pendingAmount;
+    });
+
+    const monthlyRevenue = Object.values(monthlyMap);
+
+    const today = new Date();
+    const overview = periodInvoices.reduce((acc, invoice) => {
+      const finalAmount = parseFloat(invoice.final_amount) || 0;
+      const paidAmount = parseFloat(invoice.paid_amount) || 0;
+      const pendingAmount = Math.max(finalAmount - paidAmount, 0);
+      const dueDate = invoice.due_date ? new Date(invoice.due_date) : null;
+
+      acc.total_revenue += finalAmount;
+      acc.total_paid += paidAmount;
+      acc.total_pending += pendingAmount;
+
+      if (dueDate && dueDate < today && pendingAmount > 0 && invoice.status !== 'paid') {
+        acc.total_overdue += pendingAmount;
+      }
+
+      if (invoice.student_id) {
+        acc._studentSet.add(invoice.student_id);
+      }
+
+      return acc;
+    }, {
+      total_revenue: 0,
+      total_paid: 0,
+      total_pending: 0,
+      total_overdue: 0,
+      invoice_count: periodInvoices.length,
+      _studentSet: new Set(),
+    });
+
+    const topCourseMap = {};
+    periodInvoices.forEach((invoice) => {
+      const courseName = invoice.class?.course?.title || 'Khóa học khác';
+      const revenue = parseFloat(invoice.final_amount) || 0;
+
+      if (!topCourseMap[courseName]) {
+        topCourseMap[courseName] = {
+          course_name: courseName,
+          revenue: 0,
+          _studentSet: new Set(),
+        };
+      }
+
+      topCourseMap[courseName].revenue += revenue;
+      if (invoice.student_id) {
+        topCourseMap[courseName]._studentSet.add(invoice.student_id);
+      }
+    });
+
+    const topCourses = Object.values(topCourseMap)
+      .map((item) => ({
+        course_name: item.course_name,
+        revenue: item.revenue,
+        student_count: item._studentSet.size,
+      }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+
+    const { data: rawPayments, error: paymentsError } = await supabase
+      .from('payments')
+      .select(`
+        amount,
+        payment_method,
+        payment_date,
+        created_at,
+        invoice:invoice_id (
+          class:class_id (
+            center_id
+          ),
+          student:student_id (
+            center_id
+          )
+        )
+      `);
+
+    if (paymentsError) throw paymentsError;
+
+    const paymentMethodMap = {};
+    (rawPayments || []).forEach((payment) => {
+      const paymentDate = payment.payment_date ? new Date(payment.payment_date) : new Date(payment.created_at);
+      if (paymentDate < periodStart || paymentDate > periodEnd) return;
+
+      if (effectiveCenterId) {
+        const paymentCenterId = payment.invoice?.class?.center_id || payment.invoice?.student?.center_id || null;
+        if (paymentCenterId !== effectiveCenterId) return;
+      }
+
+      const method = payment.payment_method || 'other';
+      if (!paymentMethodMap[method]) {
+        paymentMethodMap[method] = {
+          method,
+          count: 0,
+          total: 0,
+        };
+      }
+
+      paymentMethodMap[method].count += 1;
+      paymentMethodMap[method].total += (parseFloat(payment.amount) || 0);
+    });
+
+    const paymentMethods = Object.values(paymentMethodMap).sort((a, b) => b.total - a.total);
+
+    const responseData = {
+      overview: {
+        total_revenue: overview.total_revenue,
+        total_paid: overview.total_paid,
+        total_pending: overview.total_pending,
+        total_overdue: overview.total_overdue,
+        student_count: overview._studentSet.size,
+        invoice_count: overview.invoice_count,
+      },
+      monthly_revenue: monthlyRevenue,
+      payment_methods: paymentMethods,
+      top_courses: topCourses,
+    };
+
+    res.json(responseData);
+  } catch (error) {
+    console.error('Error fetching finance summary:', error);
+    next(error);
+  }
+});
+
 // GET /api/invoices/:id - Chi tiết hóa đơn
 app.get('/api/invoices/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -9626,7 +9979,8 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
       bank_proof_url: req.body.bank_proof_url || null,
       verification_status: verificationStatus,
       verified_by: autoVerified ? userId : null,
-      verified_at: autoVerified ? new Date().toISOString() : null
+      verified_at: autoVerified ? new Date().toISOString() : null,
+      confirmation_method: autoVerified ? (payment_method === 'cash' ? 'cash_direct' : 'auto_reconciliation') : (userRole === 'STUDENT' ? 'student_upload' : null)
     };
 
     // Use transfer_date if provided (for bank transfers), otherwise use current timestamp
@@ -9755,7 +10109,8 @@ app.patch('/api/payments/:id/verify', requireAuth, requireRole(['SUPER_ADMIN', '
       .update({
         verification_status: 'verified',
         verified_by: userId,
-        verified_at: new Date().toISOString()
+        verified_at: new Date().toISOString(),
+        confirmation_method: 'manual'
       })
       .eq('id', id)
       .select()
@@ -10085,12 +10440,12 @@ app.patch('/api/transactions/bulk-verify', requireAuth, requireRole(['SUPER_ADMI
 
     // Update all selected payments
     const { data: updated, error } = await supabase
-      .from('payments')
-      .update({
-        verification_status: 'verified',
-        verified_by: userId,
-        verified_at: new Date().toISOString()
-      })
+      .from('payments').update({
+      verification_status: 'verified',
+      verified_by: userId,
+      verified_at: new Date().toISOString(),
+      confirmation_method: 'bulk_manual'
+    })
       .in('id', paymentIds)
       .eq('verification_status', 'pending')
       .select();
@@ -21649,6 +22004,187 @@ app.get('/api/admin/documents/:id/stats', requireAuth, requireRole(['SUPER_ADMIN
 
 // ============================================================
 // END DOCUMENTS MANAGEMENT APIs
+// ============================================================
+
+// ============================================================
+// STUDENT DOCUMENTS APIs
+// ============================================================
+
+const STUDENT_DOC_TYPES = ['personal', 'academic', 'certificate', 'medical', 'other'];
+
+const getUserCenterId = (user) => user?.centerId || user?.center_id || null;
+
+const canAccessCenter = (user, centerId) => {
+  if (user?.roleCode === 'SUPER_ADMIN' || user?.role_code === 'SUPER_ADMIN') {
+    return true;
+  }
+  return getUserCenterId(user) === centerId;
+};
+
+app.get('/api/students/:studentId/documents', requireAuth, async (req, res, next) => {
+  try {
+    const { studentId } = req.params;
+
+    const { data: student, error: studentError } = await supabase
+      .from('students')
+      .select('id, center_id, full_name')
+      .eq('id', studentId)
+      .single();
+
+    if (studentError || !student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy học viên'
+      });
+    }
+
+    if (!canAccessCenter(req.user, student.center_id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền xem tài liệu của học viên này'
+      });
+    }
+
+    let query = supabase
+      .from('student_documents')
+      .select('*')
+      .eq('student_id', studentId)
+      .order('created_at', { ascending: false });
+
+    if (!(req.user.roleCode === 'SUPER_ADMIN' || req.user.role_code === 'SUPER_ADMIN')) {
+      query = query.eq('center_id', getUserCenterId(req.user));
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: data || []
+    });
+  } catch (error) {
+    console.error('❌ Error fetching student documents:', error);
+    next(error);
+  }
+});
+
+app.post('/api/students/:studentId/documents', requireAuth, async (req, res, next) => {
+  try {
+    const { studentId } = req.params;
+    const { title, type = 'other', file_url, file_name, file_size, notes } = req.body;
+
+    if (!title || !file_url) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tiêu đề và đường dẫn file là bắt buộc'
+      });
+    }
+
+    if (!STUDENT_DOC_TYPES.includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: `Loại tài liệu không hợp lệ. Cho phép: ${STUDENT_DOC_TYPES.join(', ')}`
+      });
+    }
+
+    const { data: student, error: studentError } = await supabase
+      .from('students')
+      .select('id, center_id')
+      .eq('id', studentId)
+      .single();
+
+    if (studentError || !student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy học viên'
+      });
+    }
+
+    if (!canAccessCenter(req.user, student.center_id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền tải tài liệu cho học viên này'
+      });
+    }
+
+    const insertData = {
+      student_id: studentId,
+      title: title.trim(),
+      type,
+      file_url,
+      file_name: file_name || null,
+      file_size: file_size || null,
+      notes: notes?.trim() || null,
+      uploaded_by: req.user.id,
+      center_id: student.center_id
+    };
+
+    const { data, error } = await supabase
+      .from('student_documents')
+      .insert([insertData])
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json({
+      success: true,
+      message: 'Tải tài liệu học viên thành công',
+      data
+    });
+  } catch (error) {
+    console.error('❌ Error creating student document:', error);
+    next(error);
+  }
+});
+
+const deleteStudentDocumentHandler = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const { data: existingDoc, error: fetchError } = await supabase
+      .from('student_documents')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !existingDoc) {
+      return res.status(404).json({
+        success: false,
+        message: 'Tài liệu học viên không tồn tại'
+      });
+    }
+
+    if (!canAccessCenter(req.user, existingDoc.center_id)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền xóa tài liệu này'
+      });
+    }
+
+    const { error: deleteError } = await supabase
+      .from('student_documents')
+      .delete()
+      .eq('id', id);
+
+    if (deleteError) throw deleteError;
+
+    res.json({
+      success: true,
+      message: 'Đã xóa tài liệu học viên'
+    });
+  } catch (error) {
+    console.error('❌ Error deleting student document:', error);
+    next(error);
+  }
+};
+
+app.delete('/api/student-documents/:id', requireAuth, deleteStudentDocumentHandler);
+app.delete('/api/documents/:id', requireAuth, deleteStudentDocumentHandler);
+
+// ============================================================
+// END STUDENT DOCUMENTS APIs
 // ============================================================
 
 // ============================================================

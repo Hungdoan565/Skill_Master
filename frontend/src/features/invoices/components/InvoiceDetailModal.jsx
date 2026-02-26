@@ -15,11 +15,12 @@
  */
 
 import { useState } from 'react';
-import { X, FileText, Users, Building2, Loader2 } from 'lucide-react';
+import { X, FileText, Users, Building2, Loader2, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from './StatusBadge';
 import { PaymentHistorySection } from './PaymentHistorySection';
 import { ReceiptModal } from './ReceiptModal';
+import { InvoicePrintModal } from './InvoicePrintModal';
 import { formatDate } from '../utils/formatters';
 
 export function InvoiceDetailModal({
@@ -34,6 +35,7 @@ export function InvoiceDetailModal({
   onRefreshPayments
 }) {
   const [receiptModal, setReceiptModal] = useState({ isOpen: false, payment: null });
+  const [showPrintModal, setShowPrintModal] = useState(false);
 
   if (!isOpen) return null;
 
@@ -156,8 +158,12 @@ export function InvoiceDetailModal({
         </div>
 
         {/* Footer */}
-        <div className="flex-shrink-0 px-4 py-3 bg-muted/50 border-t border-border">
-          <Button variant="outline" className="w-full" onClick={onClose}>
+        <div className="flex-shrink-0 px-4 py-3 bg-muted/50 border-t border-border flex gap-2">
+          <Button variant="outline" className="flex-1" onClick={() => setShowPrintModal(true)}>
+            <Printer className="w-4 h-4 mr-2" />
+            In hóa đơn
+          </Button>
+          <Button variant="outline" className="flex-1" onClick={onClose}>
             Đóng
           </Button>
         </div>
@@ -169,6 +175,14 @@ export function InvoiceDetailModal({
         invoice={invoice}
         payment={receiptModal.payment}
         onClose={() => setReceiptModal({ isOpen: false, payment: null })}
+      />
+
+      {/* Invoice Print Modal */}
+      <InvoicePrintModal
+        isOpen={showPrintModal}
+        invoice={invoice}
+        payments={payments}
+        onClose={() => setShowPrintModal(false)}
       />
     </div>
   );

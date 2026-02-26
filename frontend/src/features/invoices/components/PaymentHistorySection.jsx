@@ -142,6 +142,14 @@ function PaymentRow({
     const isCash = payment.payment_method === 'cash';
     const isBank = payment.payment_method === 'bank_transfer';
 
+    const confirmationMethodLabels = {
+        cash_direct: 'Tiền mặt trực tiếp',
+        auto_reconciliation: 'Hệ thống tự động',
+        student_upload: 'Học sinh tải lên',
+        manual: 'Thủ công',
+        bulk_manual: 'Xác nhận hàng loạt'
+    };
+
     const statusConfig = {
         pending: {
             icon: Clock,
@@ -202,6 +210,12 @@ function PaymentRow({
                         )}
                         {isVerified && payment.verified_by_user?.full_name && (
                             <p>Xác nhận bởi: {payment.verified_by_user.full_name}</p>
+                        )}
+                        {isVerified && payment.confirmation_method && (
+                            <p>Phương thức: {confirmationMethodLabels[payment.confirmation_method] || payment.confirmation_method}</p>
+                        )}
+                        {isVerified && payment.verified_at && (
+                            <p>Xác nhận lúc: {new Date(payment.verified_at).toLocaleString('vi-VN')}</p>
                         )}
                         {isRejected && payment.rejection_reason && (
                             <p className="text-red-600">Lý do: {payment.rejection_reason}</p>

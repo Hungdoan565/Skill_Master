@@ -39,6 +39,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useStudents } from '../hooks';
 import { formatDate, getInitials, getGradient, STATUS_OPTIONS } from '../utils';
 import { EditStudentModal, StudentTransferModal } from '../components';
+import { StudentDocumentsTab } from '../components/StudentDocumentsTab';
 import { Share2 } from 'lucide-react'; // For transfer icon
 
 // Tab components
@@ -645,6 +646,7 @@ export function StudentDetailPage() {
         { id: 'grades', label: 'Điểm số', icon: BarChart3, count: student.grades?.length || 0 },
         { id: 'certificates', label: 'Chứng chỉ', icon: Award, count: student.certificates?.length || 0 },
         { id: 'attendance', label: 'Điểm danh', icon: Clock },
+        { id: 'documents', label: 'Tài liệu', icon: FileText },
     ];
 
     return (
@@ -767,7 +769,17 @@ export function StudentDetailPage() {
                             {activeTab === 'payments' && <PaymentsTab invoices={student.invoices} />}
                             {activeTab === 'grades' && <GradesTab grades={student.grades} />}
                             {activeTab === 'certificates' && <CertificatesTab certificates={student.certificates} />}
-                            {activeTab === 'attendance' && <AttendanceTab attendance={student.attendance} />}
+            {activeTab === 'attendance' && <AttendanceTab attendance={student.attendance} />}
+            {activeTab === 'documents' && (
+                <StudentDocumentsTab
+                    studentId={id}
+                    studentName={student.full_name}
+                    getHeaders={() => ({
+                        'Authorization': `Bearer ${session?.access_token}`,
+                        'Content-Type': 'application/json'
+                    })}
+                />
+            )}
                         </CardContent>
                     </Card>
                 </div>
