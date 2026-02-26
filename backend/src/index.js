@@ -25252,6 +25252,151 @@ app.get('/api/teacher/my-compensation',
 // END TEACHER COMPENSATION APIs
 // ============================================================
 
+// ============================================================
+// TEACHER LEAVE REQUEST APIs
+// ============================================================
+
+/**
+ * GET /api/teacher/leave-requests
+ * Lấy danh sách đơn xin nghỉ của giáo viên hiện tại
+ */
+app.get('/api/teacher/leave-requests', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, null);
+
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    const { data, error } = await supabase
+      .from('leave_requests')
+      .select('*')
+      .eq('teacher_id', teacherId)
+      .eq('center_id', effectiveCenterId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return res.json({
+      success: true,
+      data: data || []
+    });
+  } catch (error) {
+    console.error('❌ Error fetching teacher leave requests:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /api/teacher/leave-requests
+ * Tạo đơn xin nghỉ mới cho giáo viên
+ */
+app.post('/api/teacher/leave-requests', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+    const { leave_type, start_date, end_date, reason } = req.body;
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, null);
+
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    if (!leave_type || !start_date || !end_date || !reason) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng nhập đầy đủ loại nghỉ, ngày bắt đầu, ngày kết thúc và lý do'
+      });
+    }
+
+    const validLeaveTypes = ['sick', 'personal', 'annual', 'other'];
+    if (!validLeaveTypes.includes(leave_type)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Loại nghỉ không hợp lệ'
+      });
+    }
+
+    if (new Date(end_date) < new Date(start_date)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu'
+      });
+    }
+
+    const { data, error } = await supabase
+      .from('leave_requests')
+      .insert({
+        teacher_id: teacherId,
+        center_id: effectiveCenterId,
+        leave_type,
+        start_date,
+        end_date,
+        reason: reason.trim(),
+        status: 'pending'
+      })
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    return res.status(201).json({
+      success: true,
+      data
+    });
+  } catch (error) {
+    console.error('❌ Error creating teacher leave request:', error);
+    next(error);
+  }
+});
+
+/**
+ * DELETE /api/teacher/leave-requests/:id
+ * Giáo viên chỉ được xoá đơn đang chờ duyệt của chính mình
+ */
+app.delete('/api/teacher/leave-requests/:id', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+    const { id } = req.params;
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, null);
+
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    const { data, error } = await supabase
+      .from('leave_requests')
+      .delete()
+      .eq('id', id)
+      .eq('teacher_id', teacherId)
+      .eq('center_id', effectiveCenterId)
+      .eq('status', 'pending')
+      .select('id')
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy đơn xin nghỉ hoặc đơn đã được xử lý'
+      });
+    }
+
+    return res.json({
+      success: true,
+      data
+    });
+  } catch (error) {
+    console.error('❌ Error deleting teacher leave request:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// END TEACHER LEAVE REQUEST APIs
+// ============================================================
+
 // Test endpoint không cần auth
 app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'Backend is running', time: new Date().toISOString() });

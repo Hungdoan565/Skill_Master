@@ -19,7 +19,8 @@ import {
   StudentAttendance,
   StudentTuition,
   StudentPayment,
-  StudentCertificates
+  StudentCertificates,
+  StudentSupportPage
 } from '@/features/student-portal';
 import {
   ParentDashboard,
@@ -30,6 +31,9 @@ import {
   ParentInvoicesPage,
   ParentProfilePage
 } from '@/features/parent-portal';
+import { TeacherLeaveRequestsPage } from '@/features/teacher-leave';
+import { TeacherProfilePage, TeacherSettingsPage } from '@/features/teacher-profile';
+import NotFoundPage from '@/components/NotFoundPage';
 import { ToastProvider } from '@/components/ui/toast';
 import { ErrorBoundary } from '@/components/errors/ErrorBoundary';
 // REFACTORED: Import từ feature modules thay vì file monolithic
@@ -101,13 +105,6 @@ const PageLoader = () => (
       <div className="w-10 h-10 border-4 border-zinc-200 border-t-red-600 rounded-full animate-spin" />
       <p className="text-zinc-500 text-sm font-medium">Đang tải...</p>
     </div>
-  </div>
-);
-
-const PlaceholderPage = ({ title, description }) => (
-  <div className="p-6">
-    <h1 className="text-2xl font-bold">{title}</h1>
-    {description && <p className="text-muted-foreground mt-2">{description}</p>}
   </div>
 );
 
@@ -261,8 +258,8 @@ const UserDropdown = ({ user, profile, displayName, avatarUrl, roleCode, onLogou
             </div>
           </div>
           {roleCode && (
-            <span className={`mt-2 inline-block text-[10px] font-medium px-2 py-0.5 rounded-full ${getRoleColor()}`}>
-              {getRoleLabel()}
+            <span className={`mt-2 inline-block text-[10px] font-medium px-2 py-0.5 rounded-full ${roleCode === 'SUPER_ADMIN' ? 'bg-red-100 text-red-700' : 'bg-zinc-100 text-zinc-700'}`}>
+              {roleCode}
             </span>
           )}
         </div>
@@ -468,10 +465,10 @@ function App() {
               <Route path="classes/:id/gradebook" element={<TeacherGradebookPage />} />
               <Route path="payroll" element={<TeacherPayrollPage />} />
               <Route path="availability" element={<TeacherAvailabilityPage />} />
-              <Route path="leave-requests" element={<PlaceholderPage title="Giáo viên • Đơn xin nghỉ" description="Quản lý đơn xin nghỉ phép" />} />
+              <Route path="leave-requests" element={<TeacherLeaveRequestsPage />} />
               <Route path="attendance" element={<TeacherQuickAttendancePage />} />
-              <Route path="profile" element={<PlaceholderPage title="Giáo viên • Thông tin cá nhân" />} />
-              <Route path="settings" element={<PlaceholderPage title="Giáo viên • Cài đặt" />} />
+              <Route path="profile" element={<TeacherProfilePage />} />
+              <Route path="settings" element={<TeacherSettingsPage />} />
             </Route>
 
             {/* Student Routes - Chỉ STUDENT */}
@@ -488,7 +485,7 @@ function App() {
               <Route path="tuition" element={<StudentTuition />} />
               <Route path="payment" element={<StudentPayment />} />
               <Route path="certificates" element={<StudentCertificates />} />
-              <Route path="support" element={<PlaceholderPage title="Học viên • Hỗ trợ" description="Liên hệ hỗ trợ" />} />
+              <Route path="support" element={<StudentSupportPage />} />
             </Route>
 
             {/* Parent Routes - Chỉ PARENT */}
@@ -508,7 +505,7 @@ function App() {
               <Route path="profile" element={<ParentProfilePage />} />
             </Route>
 
-            <Route path="*" element={<PlaceholderPage title="404" description="Page not found" />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </BrowserRouter>
       </ToastProvider>

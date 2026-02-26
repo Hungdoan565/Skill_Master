@@ -10,6 +10,7 @@ export { StudentAttendance } from './pages/StudentAttendance';
 export { StudentTuition } from './pages/StudentTuition';
 export { StudentPayment } from './pages/StudentPayment';
 export { StudentCertificates } from './pages/StudentCertificates';
+export { default as StudentSupportPage } from './pages/StudentSupportPage';
 
 // Hooks
 export {
@@ -19,5 +20,6 @@ export {
   useStudentAttendance,
   useStudentInvoices,
   useStudentCertificates,
-  useStudentPaymentConfig
+  useStudentPaymentConfig,
+  useStudentSupport
 } from './hooks';
