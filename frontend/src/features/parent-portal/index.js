@@ -5,10 +5,10 @@
 // Pages
 export { ParentDashboard } from './pages/ParentDashboard';
 export { ParentChildDetail } from './pages/ParentChildDetail';
-export { ParentSchedulePage } from './pages/ParentSchedulePage';
-export { ParentGradesPage } from './pages/ParentGradesPage';
-export { ParentAttendancePage } from './pages/ParentAttendancePage';
-export { ParentInvoicesPage } from './pages/ParentInvoicesPage';
+export { default as ParentSchedulePage } from './pages/ParentSchedulePage';
+export { default as ParentGradesPage } from './pages/ParentGradesPage';
+export { default as ParentAttendancePage } from './pages/ParentAttendancePage';
+export { default as ParentInvoicesPage } from './pages/ParentInvoicesPage';
 export { ParentProfilePage } from './pages/ParentProfilePage';
 
 // Hooks
