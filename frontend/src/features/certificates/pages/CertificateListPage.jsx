@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 /**
  * CertificateListPage - Danh sách tất cả chứng chỉ đã cấp
  * 
@@ -708,7 +709,7 @@ export function CertificateListPage() {
 
         const printWindow = window.open('', '_blank', 'width=1200,height=800');
         if (!printWindow) {
-            alert('Vui lòng cho phép popup để in chứng chỉ');
+            toast('Vui lòng cho phép popup để in chứng chỉ');
             return;
         }
 
@@ -747,15 +748,15 @@ export function CertificateListPage() {
             });
 
             if (response.ok) {
-                alert('Đã hủy chứng chỉ thành công');
+                toast('Đã hủy chứng chỉ thành công');
                 fetchCertificates();
             } else {
                 const error = await response.json();
-                alert(error.message || 'Có lỗi xảy ra khi hủy chứng chỉ');
+                toast(error.message || 'Có lỗi xảy ra khi hủy chứng chỉ');
             }
         } catch (error) {
             console.error('Error revoking certificate:', error);
-            alert('Có lỗi xảy ra khi hủy chứng chỉ');
+            toast('Có lỗi xảy ra khi hủy chứng chỉ');
         }
     };
 
@@ -860,7 +861,7 @@ export function CertificateListPage() {
                 <Card>
                     <CardContent className="p-0">
                         <div className="overflow-x-auto">
-                            <table className="w-full">
+                            <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                                 <thead className="bg-slate-50 border-b">
                                     <tr>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">

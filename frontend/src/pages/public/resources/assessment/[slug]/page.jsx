@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -472,7 +473,7 @@ export const QuizPage = () => {
             setNeedsGuestInfo(false);
         } catch (err) {
             console.error('Error starting attempt:', err);
-            alert(err.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
+            toast(err.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
         } finally {
             setLoading(false);
         }
@@ -563,7 +564,7 @@ export const QuizPage = () => {
             navigate(`/assessment/${slug}/result?attempt=${attempt.id}`, { replace: true });
         } catch (err) {
             console.error('Error submitting:', err);
-            alert('Có lỗi khi nộp bài. Vui lòng thử lại.');
+            toast('Có lỗi khi nộp bài. Vui lòng thử lại.');
         } finally {
             setSubmitting(false);
             setShowSubmitModal(false);

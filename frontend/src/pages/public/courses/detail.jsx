@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { SEOHead } from '@/components/common';
@@ -536,7 +537,7 @@ const ConsultationModal = ({ isOpen, onClose, courseId, courseName }) => {
             setSuccess(true);
         } catch (err) {
             console.error('Error submitting consultation:', err);
-            alert('Có lỗi xảy ra. Vui lòng thử lại sau.');
+            toast('Có lỗi xảy ra. Vui lòng thử lại sau.');
         } finally {
             setLoading(false);
         }

@@ -145,7 +145,7 @@ export function TransactionsTab({
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full">
+                        <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                             <thead className="bg-muted/50">
                                 <tr className="text-left text-xs font-medium text-muted-foreground">
                                     <th className="p-3 w-10">

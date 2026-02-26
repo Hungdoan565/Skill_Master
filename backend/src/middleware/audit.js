@@ -1,65 +1,125 @@
-/**
- * Audit Logging Middleware
- * Automatically logs sensitive operations
- */
+import { supabase } from '../lib/db.js';
 
-import { AuditLogService } from '../services/audit-log.service.js';
-
-/**
- * Middleware to log audit events
- * @param {String} tableName - Table being modified
- * @param {String} action - Action type (INSERT, UPDATE, DELETE, VIEW, EXPORT)
- */
-export const auditLog = (tableName, action) => {
-    return async (req, res, next) => {
-        // Store original methods
-        const originalJson = res.json;
-        const originalSend = res.send;
-
-        // Capture the response
-        res.json = function (data) {
-            // Log the audit event asynchronously (don't wait)
-            if (data.success && req.user) {
-                const recordId = req.params.id || data.data?.id || null;
-                
-                AuditLogService.log({
-                    userId: req.user.id,
-                    userEmail: req.user.email,
-                    userRole: req.user.roleCode,
-                    action,
-                    tableName,
-                    recordId,
-                    oldValues: req._oldValues || null,
-                    newValues: action === 'DELETE' ? null : req.body,
-                    ipAddress: req.ip || req.connection?.remoteAddress,
-                    userAgent: req.headers['user-agent'],
-                    requestPath: req.originalUrl
-                }).catch(err => {
-                    console.error('Audit log failed:', err);
-                });
-            }
-
-            // Call original json method
-            return originalJson.call(this, data);
-        };
-
-        next();
-    };
+export const AUDIT_ACTIONS = {
+  CREATE: 'CREATE',
+  UPDATE: 'UPDATE',
+  DELETE: 'DELETE',
+  APPROVE: 'APPROVE',
+  REJECT: 'REJECT',
+  LOGIN: 'LOGIN',
 };
 
-/**
- * Middleware to capture old values before update/delete
- */
-export const captureOldValues = (getOldValuesFn) => {
-    return async (req, res, next) => {
-        try {
-            if (req.params.id) {
-                req._oldValues = await getOldValuesFn(req.params.id);
-            }
-        } catch (err) {
-            console.error('Error capturing old values:', err);
-        }
-        next();
-    };
+export const AUDIT_ENTITY_TYPES = {
+  USER: 'user',
+  ENROLLMENT: 'enrollment',
+  GRADE: 'grade',
+  INVOICE: 'invoice',
+  LEAVE_REQUEST: 'leave_request',
+  SETTINGS: 'settings',
+  COURSE: 'course',
+  CLASS: 'class',
 };
 
+function tryParseJson(value) {
+  if (!value || typeof value !== 'string') {
+    return null;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch (_error) {
+    return null;
+  }
+}
+
+function resolveEntityId(req, responsePayload) {
+  if (req.params?.id) {
+    return req.params.id;
+  }
+
+  if (req.params?.linkId) {
+    return req.params.linkId;
+  }
+
+  if (req.params?.classId) {
+    return req.params.classId;
+  }
+
+  const candidates = [
+    responsePayload?.data?.id,
+    responsePayload?.data?.enrollment_id,
+    responsePayload?.data?.invoice_id,
+    responsePayload?.data?.student_id,
+    responsePayload?.id,
+    req.body?.id,
+    req.body?.enrollment_id,
+    req.body?.invoice_id,
+    req.body?.student_id,
+  ];
+
+  return candidates.find((item) => item !== undefined && item !== null) || null;
+}
+
+export function auditLog(action, entityType) {
+  return (req, res, next) => {
+    const originalJson = res.json.bind(res);
+    const originalSend = res.send.bind(res);
+    let responsePayload = null;
+
+    res.json = (body) => {
+      responsePayload = body;
+      return originalJson(body);
+    };
+
+    res.send = (body) => {
+      if (!responsePayload && (typeof body === 'object' || Array.isArray(body))) {
+        responsePayload = body;
+      }
+      if (!responsePayload && typeof body === 'string') {
+        responsePayload = tryParseJson(body);
+      }
+      return originalSend(body);
+    };
+
+    res.on('finish', () => {
+      if (!req.user?.id) {
+        return;
+      }
+
+      if (res.statusCode < 200 || res.statusCode >= 400) {
+        return;
+      }
+
+      const resolvedAction = typeof action === 'function' ? action(req, res, responsePayload) : action;
+      const resolvedEntityType = typeof entityType === 'function' ? entityType(req, res, responsePayload) : entityType;
+      const entityId = resolveEntityId(req, responsePayload);
+      const payload = {
+        user_id: req.user.id,
+        action: resolvedAction,
+        entity_type: resolvedEntityType,
+        entity_id: entityId,
+        old_values: resolvedAction === AUDIT_ACTIONS.CREATE ? null : (req.auditOldValues || null),
+        new_values: req.body && Object.keys(req.body).length > 0 ? req.body : null,
+        ip_address: req.ip || null,
+        user_agent: req.headers['user-agent'] || null,
+        center_id: req.user.centerId || req.user.center_id || req.body?.center_id || null,
+        created_at: new Date().toISOString(),
+        metadata: {
+          method: req.method,
+          path: req.originalUrl,
+          status_code: res.statusCode,
+        },
+      };
+
+      Promise.resolve(
+        supabase
+          .from('audit_logs')
+          .insert(payload)
+      ).catch((error) => {
+        console.error('Audit log insert failed:', error?.message || error);
+      });
+    });
+
+    next();
+  };
+}

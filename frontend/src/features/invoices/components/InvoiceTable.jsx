@@ -77,7 +77,7 @@ export function InvoiceTable({
     <div className="flex flex-col">
       {/* Scrollable Table Container */}
       <div className="overflow-x-auto max-h-[calc(100vh-320px)]">
-        <table className="w-full">
+        <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
           {/* Sticky Header */}
           <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
             <tr className="border-b border-border">

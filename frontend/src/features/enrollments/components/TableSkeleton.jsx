@@ -6,7 +6,7 @@
 export const TableSkeleton = ({ rows = 5, columns = 8 }) => {
     return (
         <div className="animate-pulse">
-            <table className="w-full">
+            <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                 <thead className="bg-slate-50 border-b">
                     <tr>
                         {Array.from({ length: columns }).map((_, i) => (

@@ -215,7 +215,7 @@ function GradesTable({ grades, classSummaries }) {
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
             <thead className="bg-muted/40 border-b">
               <tr>
                 <SortableHeader 

@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 /**
  * ReportPDFExport Component - Export reports to PDF
  * 
@@ -202,7 +203,7 @@ export function ReportPDFExport({
             setTimeout(() => setExportSuccess(false), 2000);
         } catch (error) {
             console.error('Export failed:', error);
-            alert('Lỗi khi xuất PDF: ' + error.message);
+            toast('Lỗi khi xuất PDF: ' + error.message);
         } finally {
             setExporting(false);
         }

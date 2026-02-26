@@ -12,6 +12,7 @@ import {
   Plus,
   Loader2,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -150,7 +151,7 @@ export function StudentDocumentsTab({ studentId, studentName, getHeaders }) {
       setDocuments((prev) => prev.filter((item) => item.id !== doc.id));
     } catch (error) {
       console.error('Error deleting student document:', error);
-      alert(error.message || 'Không thể xóa tài liệu');
+      toast.error(error.message || 'Không thể xóa tài liệu');
     }
   };
 

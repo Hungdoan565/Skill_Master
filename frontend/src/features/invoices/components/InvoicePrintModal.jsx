@@ -13,6 +13,7 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { X, Printer, Download, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { InvoicePrintTemplate } from './InvoicePrintTemplate';
 
@@ -34,7 +35,7 @@ export function InvoicePrintModal({ isOpen, invoice, payments = [], onClose }) {
         const printWindow = window.open('', '_blank');
 
         if (!printWindow) {
-            alert('Popup bị chặn. Vui lòng cho phép popup để in.');
+            toast.error('Popup bị chặn. Vui lòng cho phép popup để in.');
             setPrinting(false);
             return;
         }

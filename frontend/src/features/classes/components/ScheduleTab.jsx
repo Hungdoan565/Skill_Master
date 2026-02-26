@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 /**
  * ScheduleTab Component
  * Displays session list with attendance management
@@ -86,7 +87,7 @@ export function ScheduleTab({
       });
     } catch (error) {
       console.error('Export failed:', error);
-      alert(error.message || 'Xuất dữ liệu thất bại');
+      toast(error.message || 'Xuất dữ liệu thất bại');
     }
   };
 

@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import React, { useState } from 'react';
 import { SmartImage } from '@/components/common';
 import { Link } from 'react-router-dom';
@@ -21,7 +22,7 @@ export const Footer = () => {
 
     const handleSubscribe = (e) => {
         e.preventDefault();
-        alert(`Đã đăng ký nhận tin với email: ${email}`);
+        toast(`Đã đăng ký nhận tin với email: ${email}`);
         setEmail('');
     };
 

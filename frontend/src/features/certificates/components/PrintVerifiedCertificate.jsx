@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 /**
  * PrintVerifiedCertificate - Print certificate with watermark
  * Extracted from PublicCertificateVerification
@@ -10,7 +11,7 @@ export function PrintVerifiedCertificate({ certificate }) {
     const handlePrint = () => {
         const printWindow = window.open('', '_blank', 'width=900,height=700');
         if (!printWindow) {
-            alert('Vui lòng cho phép popup để in');
+            toast('Vui lòng cho phép popup để in');
             return;
         }
 

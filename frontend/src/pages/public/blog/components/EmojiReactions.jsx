@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/auth-context';
@@ -62,7 +63,7 @@ export const EmojiReactions = ({ postSlug }) => {
 
     const handleReact = async (type) => {
         if (!user) {
-            alert('Vui lòng đăng nhập để bày tỏ cảm xúc!');
+            toast('Vui lòng đăng nhập để bày tỏ cảm xúc!');
             return;
         }
 

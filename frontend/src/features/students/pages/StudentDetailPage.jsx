@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 /**
  * StudentDetailPage - Trang chi tiết học viên
  * 
@@ -597,12 +598,12 @@ export function StudentDetailPage() {
         try {
             await transferStudent(studentId, transferData);
             setTransferModal({ isOpen: false, submitting: false });
-            alert('✅ Chuyển chi nhánh thành công');
+            toast('✅ Chuyển chi nhánh thành công');
             loadStudent(); // Refresh data to show new center
         } catch (err) {
             console.error('Error transferring student:', err);
             setTransferModal(prev => ({ ...prev, submitting: false }));
-            alert('❌ Lỗi: ' + (err.message || 'Không thể chuyển chi nhánh'));
+            toast('❌ Lỗi: ' + (err.message || 'Không thể chuyển chi nhánh'));
         }
     };
 

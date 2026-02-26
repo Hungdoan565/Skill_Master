@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import {
@@ -651,7 +652,7 @@ export const CommentsSection = ({ postSlug }) => {
             setNewComment('');
         } catch (err) {
             console.error('Submit error:', err);
-            alert(err.message || 'Có lỗi xảy ra');
+            toast(err.message || 'Có lỗi xảy ra');
         } finally {
             setIsSubmitting(false);
         }
@@ -679,7 +680,7 @@ export const CommentsSection = ({ postSlug }) => {
             setDeleteModal({ isOpen: false, commentId: null, parentId: null });
         } catch (err) {
             console.error('Delete error:', err);
-            alert(err.message || 'Có lỗi xảy ra');
+            toast(err.message || 'Có lỗi xảy ra');
         } finally {
             setIsDeleting(false);
         }
@@ -706,7 +707,7 @@ export const CommentsSection = ({ postSlug }) => {
             setIsReporting(true);
 
             if (!isAuthenticated) {
-                alert('Vui lòng đăng nhập để gửi báo cáo!');
+                toast('Vui lòng đăng nhập để gửi báo cáo!');
                 return;
             }
 
@@ -722,10 +723,10 @@ export const CommentsSection = ({ postSlug }) => {
             if (reportError) throw reportError;
 
             setReportModal({ isOpen: false, commentId: null });
-            alert('✅ Cảm ơn bạn! Báo cáo của bạn đã được gửi cho ban quản trị.');
+            toast('✅ Cảm ơn bạn! Báo cáo của bạn đã được gửi cho ban quản trị.');
         } catch (err) {
             console.error('Report error:', err);
-            alert('Có lỗi xảy ra: ' + (err.message || 'Không thể gửi báo cáo'));
+            toast('Có lỗi xảy ra: ' + (err.message || 'Không thể gửi báo cáo'));
         } finally {
             setIsReporting(false);
         }

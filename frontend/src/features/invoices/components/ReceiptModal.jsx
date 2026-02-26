@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 /**
  * ReceiptModal Component
  * 
@@ -34,7 +35,7 @@ export function ReceiptModal({ isOpen, invoice, payment, onClose }) {
         const printWindow = window.open('', '_blank');
 
         if (!printWindow) {
-            alert('Popup bị chặn. Vui lòng cho phép popup để in.');
+            toast('Popup bị chặn. Vui lòng cho phép popup để in.');
             setPrinting(false);
             return;
         }

@@ -5,6 +5,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { Plus, DoorOpen, Home, ChevronRight, Upload } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { useRooms, useCenters, useRoomForm } from '../hooks';
 import { groupRoomsByCenterAndZone, extractZoneFromCode } from '../utils';
@@ -271,7 +272,7 @@ export function RoomsPage() {
         onSuccess={(message) => {
           fetchRooms();
           setImportModalOpen(false);
-          alert(message); // TODO: Replace with toast
+          toast.success(message);
         }}
       />
     </div>

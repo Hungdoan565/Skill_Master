@@ -10,6 +10,7 @@ import {
   isPgBossAvailable 
 } from './pgboss-scheduler.js';
 import { processSessionAutoComplete } from './sessionAutoComplete.job.js';
+import { processEmailQueue } from '../services/email.service.js';
 import nodemailer from 'nodemailer';
 import Handlebars from 'handlebars';
 import fs from 'fs';
@@ -238,6 +239,7 @@ export async function startWorkers() {
   }
 
   try {
+    await processEmailQueue();
     await registerWorker(QUEUES.EMAIL, processEmailJob, { concurrency: 5 });
     await registerWorker(QUEUES.PAYMENT_REMINDER, processPaymentReminder);
     await registerWorker(QUEUES.OVERDUE_CHECK, processOverdueCheck);

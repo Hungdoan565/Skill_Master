@@ -322,7 +322,7 @@ function StudentsTable({
 }) {
   return (
     <div className="overflow-x-auto border border-slate-200 rounded-xl">
-      <table className="w-full">
+      <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
         <thead className="bg-slate-50">
           <tr className="border-b border-slate-200">
             <th className="w-12 py-3 px-4">

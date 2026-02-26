@@ -22,6 +22,7 @@ import {
   List,
   Settings2
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 
 // Feature imports
@@ -131,9 +132,9 @@ export function SchedulePage() {
       if (result.lockedCount > 0) {
         message += ` (${result.lockedCount} buổi bị khóa, ${result.skippedByStatus || 0} buổi đã xử lý trước đó)`;
       }
-      alert(message); // TODO: Replace with toast notification
+      toast.success(message);
     } else {
-      alert(`Lỗi: ${result.error}`);
+      toast.error(result.error);
     }
   };
 

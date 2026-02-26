@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom';
 import {
@@ -394,7 +395,7 @@ export const ResultPage = () => {
                 setPdfLoading(false);
             };
         } else {
-            alert('Không thể mở cửa sổ in. Vui lòng tắt popup blocker và thử lại.');
+            toast('Không thể mở cửa sổ in. Vui lòng tắt popup blocker và thử lại.');
             setPdfLoading(false);
         }
     };

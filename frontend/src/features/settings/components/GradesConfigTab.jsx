@@ -259,7 +259,7 @@ export function GradesConfigTab({ onMessage }) {
 
                 {/* Columns Table */}
                 <div className="overflow-x-auto">
-                    <table className="w-full">
+                    <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                         <thead>
                             <tr className="text-left text-sm text-gray-500 border-b">
                                 <th className="pb-2 font-medium">Tên cột</th>

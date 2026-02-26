@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 /**
  * CertificateIssuanceWizard - Wizard cấp chứng chỉ theo từng bước
  * 
@@ -900,7 +901,7 @@ const Step4Preview = ({
     const handlePrintAll = () => {
         const printWindow = window.open('', '_blank', 'width=1200,height=800');
         if (!printWindow) {
-            alert('Vui lòng cho phép popup để in chứng chỉ');
+            toast('Vui lòng cho phép popup để in chứng chỉ');
             return;
         }
 
@@ -1695,11 +1696,11 @@ export function CertificateIssuanceWizard({ isOpen, onClose, onSuccess }) {
             } else {
                 const error = data;
                 console.error('API Error:', error);
-                alert(error.message || 'Có lỗi xảy ra khi cấp chứng chỉ');
+                toast(error.message || 'Có lỗi xảy ra khi cấp chứng chỉ');
             }
         } catch (error) {
             console.error('Error issuing certificates:', error);
-            alert('Có lỗi xảy ra khi cấp chứng chỉ');
+            toast('Có lỗi xảy ra khi cấp chứng chỉ');
         }
         setIsSubmitting(false);
     };

@@ -489,7 +489,7 @@ export function EnrollmentsPage() {
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
-                            <table className="w-full">
+                            <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                                 <thead className="bg-slate-50 border-b">
                                     <tr>
                                         <th className="px-4 py-3 w-[50px]">

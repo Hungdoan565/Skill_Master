@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import { supabase, getDbStatus } from './lib/db.js';
 import { getEffectiveCenterId } from './lib/center-scope.js';
 import { requireAuth, requireRole } from './middleware/auth.js';
+import { auditLog } from './middleware/audit.js';
+import { authLimiter, writeLimiter, readLimiter } from './middleware/rate-limit.js';
 import { checkScheduleConflict } from './lib/schedule-conflict.js';
 import { generateClassSessions, regenerateClassSessions } from './lib/session-generator.js';
 import {
@@ -12,6 +14,14 @@ import {
   confirmInvoice,
   voidDraftInvoice
 } from './services/enrollmentService.js';
+import { queueEmail as queueNotificationEmailJob } from './services/email.service.js';
+import {
+  enrollmentConfirmation,
+  invoiceCreated,
+  paymentReceived,
+  leaveStatusUpdate,
+  gradePublished
+} from './services/email-templates.js';
 import {
   checkCertificateEligibility,
   issueCertificate,
@@ -22,6 +32,7 @@ import {
   updateParentStudentLink,
   deactivateParentStudentLink,
 } from './services/parentStudentLinkService.js';
+import { createNotification } from './services/notification.service.js';
 
 // Lazy import for enrollment notifications (requires Redis)
 let enrollmentNotifications = null;
@@ -52,6 +63,61 @@ async function getQueueEmail() {
   return queueEmailFn || null;
 }
 
+async function isUserEmailNotificationEnabled(userId) {
+  if (!userId) {
+    return false;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('user_notification_preferences')
+      .select('email_enabled, email_notifications_enabled, receive_email, notifications_enabled')
+      .eq('user_id', userId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return true;
+      }
+      console.warn('⚠️ Không thể đọc user_notification_preferences:', error.message);
+      return true;
+    }
+
+    const candidates = [
+      data?.email_enabled,
+      data?.email_notifications_enabled,
+      data?.receive_email,
+      data?.notifications_enabled
+    ];
+
+    const firstDefined = candidates.find((value) => typeof value === 'boolean');
+    return firstDefined !== false;
+  } catch (error) {
+    console.warn('⚠️ Lỗi khi kiểm tra user_notification_preferences:', error.message);
+    return true;
+  }
+}
+
+async function queueEventEmail({
+  userId,
+  to,
+  template,
+  templateData,
+  metadata
+}) {
+  if (!to || !template) {
+    return { skipped: true, reason: 'missing_email_or_template' };
+  }
+
+  const isEnabled = await isUserEmailNotificationEnabled(userId);
+  if (!isEnabled) {
+    return { skipped: true, reason: 'user_preference_disabled' };
+  }
+
+  const emailContent = template(templateData);
+  return queueNotificationEmailJob(to, emailContent.subject, emailContent.html, metadata);
+}
+
 dotenv.config();
 
 const app = express();
@@ -59,6 +125,24 @@ app.use(cors());
 // Tăng limit để cho phép upload ảnh base64 (max 10MB)
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+const authRateLimitedPaths = new Set([
+  '/api/auth/login',
+  '/api/auth/register',
+  '/api/auth/forgot-password',
+]);
+
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/forgot-password', authLimiter);
+app.use((req, res, next) => {
+  if (authRateLimitedPaths.has(req.path)) {
+    return next();
+  }
+
+  return writeLimiter(req, res, next);
+});
+app.use(readLimiter);
 
 // ============ HELPER FUNCTIONS FOR PERMISSION ============
 
@@ -611,7 +695,7 @@ app.put('/api/courses/:courseId/grade-structures', requireAuth, async (req, res,
 });
 
 // API kiểm tra user hiện tại (debug/profile)
-app.get('/api/me', requireAuth, async (req, res) => {
+app.get('/api/me', requireAuth, auditLog('LOGIN', 'user'), async (req, res) => {
   res.json({
     success: true,
     user: {
@@ -727,7 +811,7 @@ app.get('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CE
  * Cập nhật setting
  * PUT /api/admin/settings/:key
  */
-app.put('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+app.put('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), auditLog('UPDATE', 'settings'), async (req, res, next) => {
   try {
     const { key } = req.params;
     const { value, scope = 'global', centerId } = req.body;
@@ -772,7 +856,7 @@ app.put('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CE
  * Xóa setting của center (reset về global)
  * DELETE /api/admin/settings/:key
  */
-app.delete('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+app.delete('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), auditLog('DELETE', 'settings'), async (req, res, next) => {
   try {
     const { key } = req.params;
     const { centerId } = req.query;
@@ -1185,7 +1269,7 @@ app.get('/api/admin/staff/:id', requireAuth, async (req, res, next) => {
 });
 
 // Cập nhật thông tin nhân viên
-app.put('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+app.put('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), auditLog('UPDATE', 'user'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { full_name, phone, status, hourly_rate, center_id, role_code } = req.body;
@@ -1293,7 +1377,7 @@ app.put('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
 });
 
 // Xóa/Vô hiệu hóa nhân viên (soft delete - chuyển status thành inactive)
-app.delete('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+app.delete('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), auditLog('DELETE', 'user'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { permanent } = req.query; // ?permanent=true để xóa vĩnh viễn
@@ -2059,7 +2143,7 @@ app.patch('/api/admin/centers/:id/manager', requireAuth, requireRole(['SUPER_ADM
 // ============================================================
 
 // Tạo tài khoản nhân viên mới (Admin only)
-app.post('/api/admin/users', requireAuth, async (req, res, next) => {
+app.post('/api/admin/users', requireAuth, auditLog('CREATE', 'user'), async (req, res, next) => {
   try {
     const { email, full_name, phone, role_code, hourly_rate, center_id } = req.body;
 
@@ -2642,7 +2726,7 @@ app.get('/api/admin/students/:id', requireAuth, async (req, res, next) => {
 });
 
 // Cập nhật thông tin học viên
-app.put('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+app.put('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), auditLog('UPDATE', 'user'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const {
@@ -2723,7 +2807,7 @@ app.put('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
 });
 
 // Vô hiệu hóa học viên
-app.delete('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+app.delete('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), auditLog('DELETE', 'user'), async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -2817,7 +2901,7 @@ app.patch('/api/admin/students/:id/restore', requireAuth, requireRole(['SUPER_AD
 });
 
 // Cập nhật role của user (Admin nâng cấp Student -> Teacher/Manager)
-app.patch('/api/admin/users/:id/role', requireAuth, async (req, res, next) => {
+app.patch('/api/admin/users/:id/role', requireAuth, auditLog('UPDATE', 'user'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { role_code } = req.body;
@@ -6485,6 +6569,59 @@ app.post('/api/classes/:id/enroll', requireAuth, async (req, res, next) => {
     }
 
     console.log(`✅ ${result.message || 'Ghi danh thành công'} - Invoice: ${result.invoice?.invoice_number} (draft)`);
+
+    try {
+      const [{ data: student }, { data: classInfo }] = await Promise.all([
+        supabase
+          .from('users')
+          .select('id, full_name, email')
+          .eq('id', student_id)
+          .single(),
+        supabase
+          .from('classes')
+          .select('name, center_id, courses(title), centers(name)')
+          .eq('id', class_id)
+          .single()
+      ]);
+
+      try {
+        await queueEventEmail({
+          userId: student?.id,
+          to: student?.email,
+          template: enrollmentConfirmation,
+          templateData: {
+            centerName: classInfo?.centers?.name,
+            studentName: student?.full_name,
+            className: classInfo?.name,
+            courseName: classInfo?.courses?.title,
+            finalAmount: result.invoice?.final_amount || 0,
+            enrolledAt: result.enrollment?.enrolled_at || new Date().toISOString()
+          },
+          metadata: {
+            event_type: 'enrollment_confirmation',
+            student_id: student?.id,
+            class_id,
+            enrollment_id: result.enrollment?.id,
+            invoice_id: result.invoice?.id
+          }
+        });
+      } catch (queueEmailError) {
+        console.warn('⚠️ Không thể queue enrollment confirmation email:', queueEmailError.message);
+      }
+
+      await createNotification(supabase, {
+        userId: student?.id,
+        centerId: classInfo?.center_id,
+        type: 'enrollment_created',
+        title: 'Đăng ký thành công',
+        message: `Bạn đã đăng ký thành công lớp ${classInfo?.name || ''}`.trim(),
+        referenceId: result.enrollment?.id,
+        referenceType: 'enrollment'
+      });
+    } catch (notificationError) {
+      console.warn('⚠️ Không thể tạo enrollment notification:', notificationError.message);
+    }
+
     res.status(201).json({
       success: true,
       message: result.message || 'Ghi danh thành công',
@@ -6905,7 +7042,7 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
     // 1. Lấy thông tin enrollment hiện tại
     const { data: enrollment, error: enrollmentError } = await supabase
       .from('enrollments')
-      .select('id, tuition_fee, discount_amount, paid_amount')
+      .select('id, student_id, class_id, tuition_fee, discount_amount, paid_amount')
       .eq('id', enrollment_id)
       .single();
 
@@ -7040,6 +7177,67 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
     }
 
     console.log(`✅ Payment processed: ${amount.toLocaleString()}đ for enrollment ${enrollment_id}`);
+
+    try {
+      const [{ data: student }, { data: classInfo }] = await Promise.all([
+        supabase
+          .from('users')
+          .select('id, full_name, email')
+          .eq('id', enrollment.student_id)
+          .single(),
+        supabase
+          .from('classes')
+          .select('name, center_id, courses(title), centers(name)')
+          .eq('id', enrollment.class_id)
+          .single()
+      ]);
+
+      const paymentMethodLabelMap = {
+        cash: 'Tien mat',
+        bank_transfer: 'Chuyen khoan',
+        card: 'The',
+        momo: 'Vi MoMo'
+      };
+
+      try {
+        await queueEventEmail({
+          userId: student?.id,
+          to: student?.email,
+          template: paymentReceived,
+          templateData: {
+            centerName: classInfo?.centers?.name,
+            studentName: student?.full_name,
+            invoiceCode: invoice?.invoice_code,
+            amountPaid: amount,
+            paymentMethodLabel: paymentMethodLabelMap[payment_method] || payment_method || 'Khac',
+            paymentDate: paymentRecord?.payment_date || new Date().toISOString(),
+            remainingAmount: Math.max(0, amountDue - newPaidAmount)
+          },
+          metadata: {
+            event_type: 'payment_received',
+            student_id: student?.id,
+            class_id: enrollment.class_id,
+            enrollment_id,
+            invoice_id: invoice?.id,
+            payment_id: paymentRecord?.id
+          }
+        });
+      } catch (queueEmailError) {
+        console.warn('⚠️ Không thể queue payment receipt email:', queueEmailError.message);
+      }
+
+      await createNotification(supabase, {
+        userId: student?.id,
+        centerId: classInfo?.center_id,
+        type: 'payment_recorded',
+        title: 'Thanh toán thành công',
+        message: `Bạn đã thanh toán ${amount.toLocaleString('vi-VN')}đ cho lớp ${classInfo?.name || ''}`.trim(),
+        referenceId: paymentRecord?.id || enrollment_id,
+        referenceType: paymentRecord?.id ? 'payment' : 'enrollment'
+      });
+    } catch (notificationError) {
+      console.warn('⚠️ Không thể tạo payment notification:', notificationError.message);
+    }
 
     res.status(201).json({
       success: true,
@@ -7638,7 +7836,7 @@ app.get('/api/classes/:id/grades', requireAuth, async (req, res, next) => {
 });
 
 // POST /api/grades/bulk-update - Lưu điểm hàng loạt
-app.post('/api/grades/bulk-update', requireAuth, async (req, res, next) => {
+app.post('/api/grades/bulk-update', requireAuth, auditLog('UPDATE', 'grade'), async (req, res, next) => {
   try {
     const { grades } = req.body;
     const gradedBy = req.user.id;
@@ -7700,6 +7898,73 @@ app.post('/api/grades/bulk-update', requireAuth, async (req, res, next) => {
     if (error) throw error;
 
     console.log(`✅ Đã lưu ${data?.length || 0} điểm`);
+
+    try {
+      const enrollmentIds = [...new Set(upsertData.map((item) => item.enrollment_id).filter(Boolean))];
+      if (enrollmentIds.length > 0) {
+        const { data: enrollmentRows } = await supabase
+          .from('enrollments')
+          .select(`
+            id,
+            student_id,
+            student:users!enrollments_student_id_fkey(id, full_name, email),
+            class:classes!enrollments_class_id_fkey(name, center_id, centers(name), courses(title))
+          `)
+          .in('id', enrollmentIds);
+
+        for (const enrollmentRow of enrollmentRows || []) {
+          const enrollmentScores = (data || [])
+            .filter((gradeItem) => gradeItem.enrollment_id === enrollmentRow.id)
+            .map((gradeItem) => gradeItem.score)
+            .filter((score) => score !== null && score !== undefined);
+
+          const avgScore = enrollmentScores.length > 0
+            ? Math.round((enrollmentScores.reduce((sum, score) => sum + Number(score), 0) / enrollmentScores.length) * 100) / 100
+            : null;
+
+          try {
+            await queueEventEmail({
+              userId: enrollmentRow?.student?.id || enrollmentRow?.student_id,
+              to: enrollmentRow?.student?.email,
+              template: gradePublished,
+              templateData: {
+                centerName: enrollmentRow?.class?.centers?.name,
+                studentName: enrollmentRow?.student?.full_name,
+                className: enrollmentRow?.class?.name,
+                courseName: enrollmentRow?.class?.courses?.title,
+                averageScore: avgScore,
+                publishedAt: new Date().toISOString()
+              },
+              metadata: {
+                event_type: 'grade_published',
+                enrollment_id: enrollmentRow.id,
+                student_id: enrollmentRow?.student?.id || enrollmentRow?.student_id,
+                total_grades_updated: enrollmentScores.length,
+                graded_by: gradedBy
+              }
+            });
+          } catch (queueEmailError) {
+            console.warn('⚠️ Không thể queue grade published email:', queueEmailError.message);
+          }
+
+          try {
+            await createNotification(supabase, {
+              userId: enrollmentRow?.student?.id || enrollmentRow?.student_id,
+              centerId: enrollmentRow?.class?.center_id,
+              type: 'grade_published',
+              title: 'Điểm đã được cập nhật',
+              message: `Điểm của bạn ở lớp ${enrollmentRow?.class?.name || ''} đã được cập nhật.`.trim(),
+              referenceId: enrollmentRow.id,
+              referenceType: 'enrollment'
+            });
+          } catch (notificationError) {
+            console.warn('⚠️ Không thể tạo grade notification:', notificationError.message);
+          }
+        }
+      }
+    } catch (gradePublishError) {
+      console.warn('⚠️ Không thể xử lý grade published notifications:', gradePublishError.message);
+    }
 
     res.json({
       success: true,
@@ -9685,7 +9950,7 @@ app.get('/api/invoices/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MA
 });
 
 // POST /api/invoices - Tạo hóa đơn thủ công (phí ngoài học phí)
-app.post('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+app.post('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), auditLog('CREATE', 'invoice'), async (req, res, next) => {
   try {
     const {
       student_id,
@@ -9782,6 +10047,40 @@ app.post('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAG
 
     console.log(`📄 Tạo hóa đơn ${invoice.invoice_code} - ${invoice_type || 'other'} cho ${student.full_name}`);
 
+    try {
+      const classCenterInfo = class_id
+        ? await supabase
+            .from('classes')
+            .select('name, centers(name)')
+            .eq('id', class_id)
+            .single()
+        : { data: null };
+
+      await queueEventEmail({
+        userId: invoice?.student?.id,
+        to: invoice?.student?.email,
+        template: invoiceCreated,
+        templateData: {
+          centerName: classCenterInfo?.data?.centers?.name,
+          studentName: invoice?.student?.full_name,
+          invoiceCode: invoice?.invoice_code,
+          invoiceTypeLabel: typeLabels[invoice_type] || 'Phí khác',
+          description: invoice?.description,
+          finalAmount: invoice?.final_amount,
+          dueDate: invoice?.due_date
+        },
+        metadata: {
+          event_type: 'invoice_created',
+          student_id: invoice?.student?.id,
+          class_id: class_id || null,
+          invoice_id: invoice?.id,
+          invoice_type: invoice_type || 'other'
+        }
+      });
+    } catch (emailError) {
+      console.warn('⚠️ Không thể queue invoice email:', emailError.message);
+    }
+
     res.status(201).json({
       success: true,
       message: `Đã tạo hóa đơn ${invoice.invoice_code}`,
@@ -9820,8 +10119,8 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
         paid_amount,
         status,
         student_id,
-        class:classes ( id, center_id ),
-        student:users!invoices_student_id_fkey ( id, center_id )
+        class:classes ( id, center_id, name, centers(name), courses(title) ),
+        student:users!invoices_student_id_fkey ( id, center_id, full_name, email )
       `)
       .eq('id', id)
       .single();
@@ -10016,6 +10315,39 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
       responseMessage = 'Chuyển khoản đã được tự động xác nhận';
     } else {
       responseMessage = 'Đã ghi nhận chuyển khoản. Chờ xác nhận thủ công.';
+    }
+
+    try {
+      const paymentMethodLabelMap = {
+        cash: 'Tien mat',
+        bank_transfer: 'Chuyen khoan',
+        card: 'The',
+        momo: 'Vi MoMo'
+      };
+
+      await queueEventEmail({
+        userId: invoice?.student?.id,
+        to: invoice?.student?.email,
+        template: paymentReceived,
+        templateData: {
+          centerName: invoice?.class?.centers?.name,
+          studentName: invoice?.student?.full_name,
+          invoiceCode: invoice?.invoice_code,
+          amountPaid: Number.parseFloat(amount),
+          paymentMethodLabel: paymentMethodLabelMap[payment_method] || payment_method || 'Khac',
+          paymentDate: payment?.payment_date,
+          remainingAmount: Math.max(0, (updatedInvoice?.final_amount || 0) - (updatedInvoice?.paid_amount || 0))
+        },
+        metadata: {
+          event_type: 'payment_received',
+          student_id: invoice?.student?.id,
+          class_id: invoice?.class?.id,
+          invoice_id: invoice?.id,
+          payment_id: payment?.id
+        }
+      });
+    } catch (emailError) {
+      console.warn('⚠️ Không thể queue payment receipt email:', emailError.message);
     }
 
     res.json({
@@ -10468,7 +10800,7 @@ app.patch('/api/transactions/bulk-verify', requireAuth, requireRole(['SUPER_ADMI
 });
 
 // PUT /api/invoices/:id - Cập nhật hóa đơn
-app.put('/api/invoices/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+app.put('/api/invoices/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), auditLog('UPDATE', 'invoice'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { amount, discount_amount, due_date, description, invoice_type } = req.body;
@@ -16546,7 +16878,7 @@ app.get('/api/teacher/classes/:id/grades/summary', requireAuth, async (req, res,
  * Body: { gradeStructureId, reason }
  * 🔒 TEACHER (own class), SUPER_ADMIN, CENTER_MANAGER
  */
-app.post('/api/teacher/classes/:id/grades/lock', requireAuth, async (req, res, next) => {
+app.post('/api/teacher/classes/:id/grades/lock', requireAuth, auditLog('APPROVE', 'grade'), async (req, res, next) => {
   try {
     const userId = req.user.id;
     const userRole = req.user.roleCode;
@@ -18154,6 +18486,248 @@ app.delete('/api/reports/saved/:id', requireAuth, async (req, res, next) => {
     next(error);
   }
 });
+
+// ============================================================
+// ADMIN ANALYTICS APIs - Phân tích nâng cao
+// ============================================================
+
+// GET /api/admin/analytics/enrollments - Xu hướng ghi danh theo tháng
+app.get('/api/admin/analytics/enrollments', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { from, to, centerId } = req.query;
+
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, centerId || null);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    const now = new Date();
+    const parseYearMonth = (value) => {
+      if (!value || !/^\d{4}-(0[1-9]|1[0-2])$/.test(value)) return null;
+      const [year, month] = value.split('-').map(Number);
+      return new Date(year, month - 1, 1);
+    };
+
+    const defaultTo = new Date(now.getFullYear(), now.getMonth(), 1);
+    const defaultFrom = new Date(defaultTo.getFullYear(), defaultTo.getMonth() - 11, 1);
+
+    const fromDate = parseYearMonth(from) || defaultFrom;
+    const toDate = parseYearMonth(to) || defaultTo;
+
+    if (fromDate > toDate) {
+      return res.status(400).json({ success: false, message: 'Tham số from phải nhỏ hơn hoặc bằng to' });
+    }
+
+    const rangeStart = new Date(fromDate.getFullYear(), fromDate.getMonth(), 1, 0, 0, 0, 0);
+    const rangeEnd = new Date(toDate.getFullYear(), toDate.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    let query = supabase
+      .from('enrollments')
+      .select('created_at, center_id')
+      .gte('created_at', rangeStart.toISOString())
+      .lte('created_at', rangeEnd.toISOString())
+      .order('created_at', { ascending: true });
+
+    if (effectiveCenterId) {
+      query = query.eq('center_id', effectiveCenterId);
+    }
+
+    const { data: enrollments, error } = await query;
+    if (error) throw error;
+
+    const monthMap = new Map();
+    const cursor = new Date(fromDate.getFullYear(), fromDate.getMonth(), 1);
+    while (cursor <= toDate) {
+      const monthKey = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
+      monthMap.set(monthKey, 0);
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+
+    (enrollments || []).forEach((item) => {
+      const createdAt = new Date(item.created_at);
+      const monthKey = `${createdAt.getFullYear()}-${String(createdAt.getMonth() + 1).padStart(2, '0')}`;
+      if (monthMap.has(monthKey)) {
+        monthMap.set(monthKey, monthMap.get(monthKey) + 1);
+      }
+    });
+
+    const data = Array.from(monthMap.entries()).map(([month, count]) => ({ month, count }));
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error fetching enrollment analytics:', error);
+    next(error);
+  }
+});
+
+// GET /api/admin/analytics/retention - Tỷ lệ giữ chân học viên
+app.get('/api/admin/analytics/retention', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { year, centerId } = req.query;
+
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, centerId || null);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    const selectedYear = Number.parseInt(year, 10) || new Date().getFullYear();
+    if (!Number.isInteger(selectedYear) || selectedYear < 2000 || selectedYear > 2100) {
+      return res.status(400).json({ success: false, message: 'Tham số year không hợp lệ' });
+    }
+
+    const yearStart = new Date(selectedYear, 0, 1, 0, 0, 0, 0);
+    const yearEnd = new Date(selectedYear, 11, 31, 23, 59, 59, 999);
+
+    let completedQuery = supabase
+      .from('enrollments')
+      .select('student_id, created_at, status, classes!inner(center_id, course_id)')
+      .eq('status', 'completed')
+      .gte('created_at', yearStart.toISOString())
+      .lte('created_at', yearEnd.toISOString());
+
+    if (effectiveCenterId) {
+      completedQuery = completedQuery.eq('classes.center_id', effectiveCenterId);
+    }
+
+    const { data: completedEnrollments, error: completedError } = await completedQuery;
+    if (completedError) throw completedError;
+
+    const completedByStudent = new Map();
+    (completedEnrollments || []).forEach((item) => {
+      if (!item.student_id) return;
+      const existing = completedByStudent.get(item.student_id) || {
+        completionDate: item.created_at,
+        completedCourseIds: new Set(),
+      };
+
+      if (new Date(item.created_at) < new Date(existing.completionDate)) {
+        existing.completionDate = item.created_at;
+      }
+
+      if (item.classes?.course_id) {
+        existing.completedCourseIds.add(item.classes.course_id);
+      }
+
+      completedByStudent.set(item.student_id, existing);
+    });
+
+    const completedStudentIds = Array.from(completedByStudent.keys());
+    if (completedStudentIds.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          retention_rate: 0,
+          total_completed: 0,
+          total_re_enrolled: 0,
+        },
+      });
+    }
+
+    let reEnrollQuery = supabase
+      .from('enrollments')
+      .select('student_id, created_at, status, classes!inner(center_id, course_id)')
+      .in('student_id', completedStudentIds)
+      .neq('status', 'cancelled')
+      .neq('status', 'dropped')
+      .gte('created_at', yearStart.toISOString())
+      .lte('created_at', yearEnd.toISOString());
+
+    if (effectiveCenterId) {
+      reEnrollQuery = reEnrollQuery.eq('classes.center_id', effectiveCenterId);
+    }
+
+    const { data: potentialReEnrollments, error: reEnrollError } = await reEnrollQuery;
+    if (reEnrollError) throw reEnrollError;
+
+    const reEnrolledStudentIds = new Set();
+    (potentialReEnrollments || []).forEach((item) => {
+      const completedMeta = completedByStudent.get(item.student_id);
+      if (!completedMeta) return;
+
+      const completionDate = new Date(completedMeta.completionDate);
+      const enrollmentDate = new Date(item.created_at);
+      const courseId = item.classes?.course_id;
+
+      const isAfterCompletion = enrollmentDate > completionDate;
+      const isAnotherCourse = courseId && !completedMeta.completedCourseIds.has(courseId);
+
+      if (isAfterCompletion && isAnotherCourse) {
+        reEnrolledStudentIds.add(item.student_id);
+      }
+    });
+
+    const totalCompleted = completedStudentIds.length;
+    const totalReEnrolled = reEnrolledStudentIds.size;
+    const retentionRate = totalCompleted > 0
+      ? Number(((totalReEnrolled / totalCompleted) * 100).toFixed(2))
+      : 0;
+
+    res.json({
+      success: true,
+      data: {
+        retention_rate: retentionRate,
+        total_completed: totalCompleted,
+        total_re_enrolled: totalReEnrolled,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching retention analytics:', error);
+    next(error);
+  }
+});
+
+// GET /api/admin/analytics/revenue-forecast - Dự báo doanh thu 3 tháng
+app.get('/api/admin/analytics/revenue-forecast', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { centerId } = req.query;
+
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, centerId || null);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    let query = supabase
+      .from('enrollments')
+      .select('id, status, tuition_fee, classes!inner(center_id, courses(fee))')
+      .in('status', ['active', 'pending']);
+
+    if (effectiveCenterId) {
+      query = query.eq('classes.center_id', effectiveCenterId);
+    }
+
+    const { data: activeEnrollments, error } = await query;
+    if (error) throw error;
+
+    const totalProjectedRevenue = (activeEnrollments || []).reduce((sum, enrollment) => {
+      const fallbackFee = Number(enrollment.classes?.courses?.fee) || 0;
+      const tuitionFee = Number(enrollment.tuition_fee);
+      const effectiveFee = Number.isFinite(tuitionFee) && tuitionFee > 0 ? tuitionFee : fallbackFee;
+      return sum + effectiveFee;
+    }, 0);
+
+    const activeCount = (activeEnrollments || []).length;
+    const now = new Date();
+
+    const data = Array.from({ length: 3 }).map((_, index) => {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() + index, 1);
+      const month = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`;
+      return {
+        month,
+        projected_revenue: Math.round(totalProjectedRevenue),
+        active_enrollments: activeCount,
+      };
+    });
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error fetching revenue forecast analytics:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// END ADMIN ANALYTICS APIs
+// ============================================================
 
 // ============================================================
 // END REPORTS APIs
@@ -19855,7 +20429,7 @@ app.get('/api/admin/enrollments', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
 });
 
 // Tạo enrollment mới (ghi danh học viên vào lớp)
-app.post('/api/admin/enrollments', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+app.post('/api/admin/enrollments', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), auditLog('CREATE', 'enrollment'), async (req, res, next) => {
   try {
     const { student_id, class_id, tuition_fee, discount_amount, paid_amount, notes } = req.body;
 
@@ -19884,30 +20458,41 @@ app.post('/api/admin/enrollments', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
       });
     }
 
-    // Send welcome email notification (async, don't wait)
     if (result.enrollment) {
       try {
-        // Fetch full enrollment data for notification
         const { data: enrollmentData } = await supabase
           .from('enrollments')
           .select(`
             id,
-            student:users!student_id(id, full_name, email),
-            class:classes!class_id(id, name, course:courses(title))
+            enrolled_at,
+            student:users!enrollments_student_id_fkey(id, full_name, email),
+            class:classes!enrollments_class_id_fkey(id, name, centers(name), courses(title))
           `)
           .eq('id', result.enrollment.id)
           .single();
 
-        if (enrollmentData) {
-          const notifModule = await getEnrollmentNotifications();
-          if (notifModule) {
-            notifModule.sendEnrollmentWelcome(enrollmentData).catch(err => {
-              console.warn('⚠️ Failed to queue enrollment welcome notification:', err.message);
-            });
+        await queueEventEmail({
+          userId: enrollmentData?.student?.id,
+          to: enrollmentData?.student?.email,
+          template: enrollmentConfirmation,
+          templateData: {
+            centerName: enrollmentData?.class?.centers?.name,
+            studentName: enrollmentData?.student?.full_name,
+            className: enrollmentData?.class?.name,
+            courseName: enrollmentData?.class?.courses?.title,
+            finalAmount: result.invoice?.final_amount || 0,
+            enrolledAt: enrollmentData?.enrolled_at
+          },
+          metadata: {
+            event_type: 'enrollment_confirmation',
+            student_id: enrollmentData?.student?.id,
+            class_id: enrollmentData?.class?.id,
+            enrollment_id: result.enrollment.id,
+            invoice_id: result.invoice?.id
           }
-        }
+        });
       } catch (notifError) {
-        console.warn('⚠️ Error sending enrollment welcome notification:', notifError.message);
+        console.warn('⚠️ Error queueing enrollment confirmation email:', notifError.message);
       }
     }
 
@@ -20061,7 +20646,7 @@ app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN'
 });
 
 // Cập nhật enrollment
-app.put('/api/admin/enrollments/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+app.put('/api/admin/enrollments/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), auditLog('UPDATE', 'enrollment'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { status, tuition_fee, discount_amount, paid_amount, notes } = req.body;
@@ -20094,7 +20679,7 @@ app.put('/api/admin/enrollments/:id', requireAuth, requireRole(['SUPER_ADMIN', '
 });
 
 // Hủy enrollment (soft delete - set status = dropped)
-app.delete('/api/admin/enrollments/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+app.delete('/api/admin/enrollments/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), auditLog('DELETE', 'enrollment'), async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -21171,6 +21756,120 @@ app.get('/api/admin/classes/:classId/report', requireAuth, requireRole(['SUPER_A
 // ============================================================
 // NOTIFICATION BULK SEND APIs
 // ============================================================
+
+/**
+ * GET /api/notifications
+ * Lấy danh sách thông báo của user hiện tại
+ */
+app.get('/api/notifications', requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const unreadOnly = String(req.query.unread || 'false') === 'true';
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    let query = supabase
+      .from('notifications')
+      .select('id, user_id, center_id, type, title, message, reference_id, reference_type, read_at, created_at', { count: 'exact' })
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (unreadOnly) {
+      query = query.is('read_at', null);
+    }
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    const unreadCountResult = await supabase
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .is('read_at', null);
+
+    if (unreadCountResult.error) {
+      throw unreadCountResult.error;
+    }
+
+    res.json({
+      success: true,
+      data: data || [],
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limit)
+      },
+      unreadCount: unreadCountResult.count || 0
+    });
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    next(error);
+  }
+});
+
+/**
+ * PATCH /api/notifications/read-all
+ * Đánh dấu tất cả thông báo đã đọc của user hiện tại
+ */
+app.patch('/api/notifications/read-all', requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const nowIso = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from('notifications')
+      .update({ read_at: nowIso })
+      .eq('user_id', userId)
+      .is('read_at', null)
+      .select('id');
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: 'Đã đánh dấu tất cả thông báo là đã đọc',
+      updated: data?.length || 0
+    });
+  } catch (error) {
+    console.error('Error mark all notifications as read:', error);
+    next(error);
+  }
+});
+
+/**
+ * PATCH /api/notifications/:id/read
+ * Đánh dấu 1 thông báo là đã đọc
+ */
+app.patch('/api/notifications/:id/read', requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+
+    const { data, error } = await supabase
+      .from('notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select('id, read_at')
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy thông báo' });
+      }
+      throw error;
+    }
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    next(error);
+  }
+});
 
 /**
  * GET /api/notifications/students
@@ -22899,15 +23598,15 @@ app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADM
 
     // 4. Create notification for student
     try {
-      await supabase
-        .from('notifications')
-        .insert({
-          user_id: id,
-          title: 'Thông báo chuyển chi nhánh',
-          message: `Bạn đã được chuyển từ ${sourceCenterName} sang ${targetCenter.name}.`,
-          type: 'system',
-          is_read: false
-        });
+      await createNotification(supabase, {
+        userId: id,
+        centerId: target_center_id,
+        type: 'system',
+        title: 'Thông báo chuyển chi nhánh',
+        message: `Bạn đã được chuyển từ ${sourceCenterName} sang ${targetCenter.name}.`,
+        referenceId: id,
+        referenceType: 'student'
+      });
     } catch (notifError) {
       console.log('Notification skipped:', notifError.message);
     }
@@ -23847,6 +24546,7 @@ app.get('/api/settings/bank-config',
 app.put('/api/settings/bank-config',
   requireAuth,
   requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  auditLog('UPDATE', 'settings'),
   async (req, res, next) => {
     try {
       const { bankId, accountNo, accountName, template = 'compact2', centerId } = req.body;
@@ -25351,6 +26051,382 @@ app.post('/api/teacher/leave-requests', requireAuth, async (req, res, next) => {
 });
 
 /**
+ * GET /api/admin/leave-requests
+ * Lay danh sach don xin nghi theo trung tam va bo loc
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.get('/api/admin/leave-requests', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { status, teacher_id } = req.query;
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, null);
+
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    if (status && !['pending', 'approved', 'rejected'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Trạng thái không hợp lệ. Chỉ chấp nhận pending, approved hoặc rejected'
+      });
+    }
+
+    let query = supabase
+      .from('leave_requests')
+      .select(`
+        *,
+        teacher:users!leave_requests_teacher_id_fkey(id, full_name, email)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (effectiveCenterId) {
+      query = query.eq('center_id', effectiveCenterId);
+    }
+
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    if (teacher_id) {
+      query = query.eq('teacher_id', teacher_id);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    return res.json({
+      success: true,
+      data: data || []
+    });
+  } catch (error) {
+    console.error('❌ Error fetching admin leave requests:', error);
+    next(error);
+  }
+});
+
+/**
+ * PATCH /api/admin/leave-requests/:id
+ * Duyet/Tu choi don xin nghi
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.patch('/api/admin/leave-requests/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), auditLog((request) => request.body?.action === 'reject' ? 'REJECT' : 'APPROVE', 'leave_request'), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { action, admin_note } = req.body;
+
+    if (!action || !['approve', 'reject'].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Hành động không hợp lệ. Chỉ chấp nhận approve hoặc reject'
+      });
+    }
+
+    if (action === 'reject' && (!admin_note || !String(admin_note).trim())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng nhập lý do từ chối'
+      });
+    }
+
+    const { data: leaveRequest, error: leaveFetchError } = await supabase
+      .from('leave_requests')
+      .select('id, teacher_id, center_id, leave_type, start_date, end_date, status')
+      .eq('id', id)
+      .single();
+
+    if (leaveFetchError || !leaveRequest) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn xin nghỉ' });
+    }
+
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, leaveRequest.center_id);
+    if (permError || (effectiveCenterId && leaveRequest.center_id !== effectiveCenterId)) {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền xử lý đơn xin nghỉ này' });
+    }
+
+    if (leaveRequest.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ có thể xử lý đơn đang chờ duyệt'
+      });
+    }
+
+    const nextStatus = action === 'approve' ? 'approved' : 'rejected';
+    const now = new Date().toISOString();
+    const normalizedNote = typeof admin_note === 'string' && admin_note.trim() ? admin_note.trim() : null;
+
+    let balanceUpdateContext = null;
+
+    if (action === 'approve') {
+      const startDate = new Date(leaveRequest.start_date);
+      const endDate = new Date(leaveRequest.end_date);
+      const leaveDays = Math.max(
+        1,
+        Math.floor((Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth(), endDate.getUTCDate()) - Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate())) / 86400000) + 1
+      );
+      const leaveYear = startDate.getUTCFullYear();
+
+      const { data: leaveBalance, error: balanceFetchError } = await supabase
+        .from('staff_leave_balances')
+        .select('id, remaining_days')
+        .eq('user_id', leaveRequest.teacher_id)
+        .eq('center_id', leaveRequest.center_id)
+        .eq('leave_type', leaveRequest.leave_type)
+        .eq('year', leaveYear)
+        .single();
+
+      if (balanceFetchError || !leaveBalance) {
+        return res.status(400).json({
+          success: false,
+          message: 'Không tìm thấy số dư phép của giáo viên cho loại nghỉ này'
+        });
+      }
+
+      const currentRemaining = Number(leaveBalance.remaining_days || 0);
+      if (currentRemaining < leaveDays) {
+        return res.status(400).json({
+          success: false,
+          message: `Số ngày phép còn lại không đủ (${currentRemaining} ngày)`
+        });
+      }
+
+      const updatedRemaining = currentRemaining - leaveDays;
+
+      const { error: balanceUpdateError } = await supabase
+        .from('staff_leave_balances')
+        .update({
+          remaining_days: updatedRemaining,
+          updated_at: now
+        })
+        .eq('id', leaveBalance.id);
+
+      if (balanceUpdateError) {
+        throw balanceUpdateError;
+      }
+
+      balanceUpdateContext = {
+        balanceId: leaveBalance.id,
+        previousRemaining: currentRemaining
+      };
+    }
+
+    const { data: updatedRequest, error: updateError } = await supabase
+      .from('leave_requests')
+      .update({
+        status: nextStatus,
+        reviewed_by: req.user.id,
+        reviewed_at: now,
+        admin_note: normalizedNote,
+        updated_at: now
+      })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (updateError) {
+      if (balanceUpdateContext) {
+        await supabase
+          .from('staff_leave_balances')
+          .update({
+            remaining_days: balanceUpdateContext.previousRemaining,
+            updated_at: now
+          })
+          .eq('id', balanceUpdateContext.balanceId);
+      }
+      throw updateError;
+    }
+
+    return res.json({
+      success: true,
+      data: updatedRequest
+    });
+  } catch (error) {
+    console.error('❌ Error processing admin leave request:', error);
+    next(error);
+  }
+});
+
+/**
+ * PATCH /api/admin/leave-requests/:id/status
+ * Cập nhật trạng thái đơn xin nghỉ (approved/rejected)
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.patch('/api/admin/leave-requests/:id/status', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), auditLog((request) => request.body?.status === 'rejected' ? 'REJECT' : 'APPROVE', 'leave_request'), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status, review_note } = req.body;
+
+    if (!status || !['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Trạng thái không hợp lệ. Chỉ chấp nhận approved hoặc rejected'
+      });
+    }
+
+    const { data: leaveRequest, error: leaveFetchError } = await supabase
+      .from('leave_requests')
+      .select(`
+        id,
+        teacher_id,
+        center_id,
+        leave_type,
+        start_date,
+        end_date,
+        reason,
+        status,
+        teacher:users!leave_requests_teacher_id_fkey(id, full_name, email)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (leaveFetchError || !leaveRequest) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn xin nghỉ' });
+    }
+
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, leaveRequest.center_id);
+    if (permError || (effectiveCenterId && leaveRequest.center_id !== effectiveCenterId)) {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền xử lý đơn xin nghỉ này' });
+    }
+
+    const { data: updatedLeave, error: leaveUpdateError } = await supabase
+      .from('leave_requests')
+      .update({
+        status,
+        updated_at: new Date().toISOString(),
+        review_note: review_note || null,
+        reviewed_by: req.user?.id,
+        reviewed_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (leaveUpdateError) {
+      const fallbackUpdate = await supabase
+        .from('leave_requests')
+        .update({
+          status,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select('*')
+        .single();
+
+      if (fallbackUpdate.error) {
+        throw fallbackUpdate.error;
+      }
+
+      if (!leaveUpdateError.message?.includes('review_note')) {
+        console.warn('⚠️ leave_requests update fallback:', leaveUpdateError.message);
+      }
+
+      const leaveTypeLabelMap = {
+        sick: 'Nghi om',
+        personal: 'Viec ca nhan',
+        annual: 'Nghi phep nam',
+        other: 'Khac'
+      };
+      const leaveStatusLabel = status === 'approved' ? 'duyệt' : 'từ chối';
+
+      await queueEventEmail({
+        userId: leaveRequest.teacher?.id,
+        to: leaveRequest.teacher?.email,
+        template: leaveStatusUpdate,
+        templateData: {
+          teacherName: leaveRequest.teacher?.full_name,
+          leaveType: leaveRequest.leave_type,
+          leaveTypeLabel: leaveTypeLabelMap[leaveRequest.leave_type] || leaveRequest.leave_type,
+          startDate: leaveRequest.start_date,
+          endDate: leaveRequest.end_date,
+          reason: leaveRequest.reason,
+          status,
+          reviewNote: review_note || null
+        },
+        metadata: {
+          event_type: 'leave_status_update',
+          leave_request_id: leaveRequest.id,
+          teacher_id: leaveRequest.teacher?.id,
+          status
+        }
+      });
+
+      try {
+        await createNotification(supabase, {
+          userId: leaveRequest.teacher?.id,
+          centerId: leaveRequest.center_id,
+          type: 'leave_request_status_changed',
+          title: `Đơn nghỉ phép đã được ${leaveStatusLabel}`,
+          message: `Đơn nghỉ phép từ ${leaveRequest.start_date} đến ${leaveRequest.end_date} đã được ${leaveStatusLabel}.`,
+          referenceId: leaveRequest.id,
+          referenceType: 'leave_request'
+        });
+      } catch (notificationError) {
+        console.warn('⚠️ Không thể tạo leave request notification:', notificationError.message);
+      }
+
+      return res.json({
+        success: true,
+        data: fallbackUpdate.data,
+        message: `Đã cập nhật trạng thái đơn xin nghỉ thành ${status}`
+      });
+    }
+
+    const leaveTypeLabelMap = {
+      sick: 'Nghi om',
+      personal: 'Viec ca nhan',
+      annual: 'Nghi phep nam',
+      other: 'Khac'
+    };
+    const leaveStatusLabel = status === 'approved' ? 'duyệt' : 'từ chối';
+
+    await queueEventEmail({
+      userId: leaveRequest.teacher?.id,
+      to: leaveRequest.teacher?.email,
+      template: leaveStatusUpdate,
+      templateData: {
+        teacherName: leaveRequest.teacher?.full_name,
+        leaveType: leaveRequest.leave_type,
+        leaveTypeLabel: leaveTypeLabelMap[leaveRequest.leave_type] || leaveRequest.leave_type,
+        startDate: leaveRequest.start_date,
+        endDate: leaveRequest.end_date,
+        reason: leaveRequest.reason,
+        status,
+        reviewNote: review_note || null
+      },
+      metadata: {
+        event_type: 'leave_status_update',
+        leave_request_id: leaveRequest.id,
+        teacher_id: leaveRequest.teacher?.id,
+        status
+      }
+    });
+
+    try {
+      await createNotification(supabase, {
+        userId: leaveRequest.teacher?.id,
+        centerId: leaveRequest.center_id,
+        type: 'leave_request_status_changed',
+        title: `Đơn nghỉ phép đã được ${leaveStatusLabel}`,
+        message: `Đơn nghỉ phép từ ${leaveRequest.start_date} đến ${leaveRequest.end_date} đã được ${leaveStatusLabel}.`,
+        referenceId: leaveRequest.id,
+        referenceType: 'leave_request'
+      });
+    } catch (notificationError) {
+      console.warn('⚠️ Không thể tạo leave request notification:', notificationError.message);
+    }
+
+    return res.json({
+      success: true,
+      data: updatedLeave,
+      message: `Đã cập nhật trạng thái đơn xin nghỉ thành ${status}`
+    });
+  } catch (error) {
+    console.error('❌ Error updating leave request status:', error);
+    next(error);
+  }
+});
+
+/**
  * DELETE /api/teacher/leave-requests/:id
  * Giáo viên chỉ được xoá đơn đang chờ duyệt của chính mình
  */
@@ -25415,6 +26491,507 @@ app.get('/api/my-support-tickets', requireAuth, async (req, res, next) => {
     res.json({ success: true, data: data || [] });
   } catch (error) {
     console.error('Error fetching user support tickets:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// INTERNAL MESSAGING APIs
+// ============================================================
+
+const normalizeRoleCode = (roleObject) => {
+  if (!roleObject) return null;
+  if (Array.isArray(roleObject)) return roleObject[0]?.code || null;
+  return roleObject.code || null;
+};
+
+const mapConversationParticipants = (participants = []) => {
+  return participants.map((participant) => ({
+    user_id: participant.user_id,
+    full_name: participant.users?.full_name || 'Người dùng',
+    avatar_url: participant.users?.avatar_url || null,
+    role: normalizeRoleCode(participant.users?.roles)
+  }));
+};
+
+const isConversationParticipant = async (conversationId, userId) => {
+  const { data, error } = await supabase
+    .from('conversation_participants')
+    .select('id')
+    .eq('conversation_id', conversationId)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return !!data;
+};
+
+app.get('/api/users/contacts', requireAuth, async (req, res, next) => {
+  try {
+    const requestedCenterId = req.query.center_id || req.query.centerId || null;
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, requestedCenterId);
+
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    let centerId = effectiveCenterId;
+    if (!centerId) {
+      const { data: me, error: meError } = await supabase
+        .from('users')
+        .select('center_id')
+        .eq('id', req.user.id)
+        .single();
+
+      if (meError) throw meError;
+      centerId = me?.center_id || null;
+    }
+
+    if (!centerId) {
+      return res.status(400).json({ success: false, message: 'Không xác định được trung tâm hiện tại' });
+    }
+
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, full_name, avatar_url, center_id, roles(code)')
+      .eq('center_id', centerId)
+      .eq('status', 'active')
+      .neq('id', req.user.id)
+      .order('full_name', { ascending: true });
+
+    if (error) throw error;
+
+    const contacts = (data || []).map((user) => ({
+      id: user.id,
+      name: user.full_name || 'Người dùng',
+      role: normalizeRoleCode(user.roles),
+      avatar_url: user.avatar_url || null
+    }));
+
+    return res.json({ success: true, data: contacts });
+  } catch (error) {
+    console.error('❌ Error fetching contacts:', error);
+    next(error);
+  }
+});
+
+app.get('/api/admin/audit-logs', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const {
+      page = '1',
+      limit = '20',
+      action,
+      entity_type,
+      user_id,
+      from,
+      to,
+      search,
+      centerId,
+    } = req.query;
+
+    const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
+    const limitNumber = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+    const offset = (pageNumber - 1) * limitNumber;
+    const { effectiveCenterId, error: permissionError } = getEffectiveCenterId(req.user, centerId);
+
+    if (permissionError) {
+      return res.status(403).json({ success: false, message: permissionError });
+    }
+
+    let query = supabase
+      .from('audit_logs')
+      .select('id, user_id, action, entity_type, entity_id, old_values, new_values, ip_address, user_agent, center_id, created_at, metadata, severity', { count: 'exact' })
+      .order('created_at', { ascending: false });
+
+    if (effectiveCenterId) {
+      query = query.eq('center_id', effectiveCenterId);
+    }
+    if (action) {
+      query = query.eq('action', action);
+    }
+    if (entity_type) {
+      query = query.eq('entity_type', entity_type);
+    }
+    if (user_id) {
+      query = query.eq('user_id', user_id);
+    }
+    if (from) {
+      query = query.gte('created_at', new Date(from).toISOString());
+    }
+    if (to) {
+      const toDate = new Date(to);
+      toDate.setHours(23, 59, 59, 999);
+      query = query.lte('created_at', toDate.toISOString());
+    }
+
+    const rawSearch = typeof search === 'string' ? search.trim() : '';
+    if (rawSearch) {
+      const safeSearch = rawSearch.replace(/[(),]/g, ' ').trim();
+      const { data: matchedUsers } = await supabase
+        .from('users')
+        .select('id')
+        .or(`full_name.ilike.%${safeSearch}%,email.ilike.%${safeSearch}%`)
+        .limit(200);
+
+      const userIds = (matchedUsers || []).map((item) => item.id).filter(Boolean);
+      const orConditions = [
+        `action.ilike.%${safeSearch}%`,
+        `entity_type.ilike.%${safeSearch}%`,
+        `entity_id.ilike.%${safeSearch}%`,
+        `ip_address.ilike.%${safeSearch}%`,
+        `user_agent.ilike.%${safeSearch}%`,
+      ];
+
+      if (userIds.length > 0) {
+        orConditions.push(`user_id.in.(${userIds.join(',')})`);
+      }
+
+      query = query.or(orConditions.join(','));
+    }
+
+    const { data: logs, error, count } = await query.range(offset, offset + limitNumber - 1);
+    if (error) throw error;
+
+    const userIds = [...new Set((logs || []).map((item) => item.user_id).filter(Boolean))];
+    let userMap = new Map();
+
+    if (userIds.length > 0) {
+      const { data: users, error: userError } = await supabase
+        .from('users')
+        .select('id, full_name, email')
+        .in('id', userIds);
+
+      if (userError) throw userError;
+      userMap = new Map((users || []).map((item) => [item.id, item]));
+    }
+
+    const transformedLogs = (logs || []).map((item) => ({
+      ...item,
+      user: userMap.get(item.user_id) || null,
+    }));
+
+    return res.json({
+      success: true,
+      data: transformedLogs,
+      pagination: {
+        page: pageNumber,
+        limit: limitNumber,
+        total: count || 0,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching audit logs:', error);
+    next(error);
+  }
+});
+
+app.get('/api/conversations', requireAuth, async (req, res, next) => {
+  try {
+    const requestedCenterId = req.query.center_id || req.query.centerId || null;
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, requestedCenterId);
+
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    const { data: memberships, error: membershipsError } = await supabase
+      .from('conversation_participants')
+      .select('conversation_id, conversations(id, title, class_id, center_id, created_at, updated_at)')
+      .eq('user_id', req.user.id);
+
+    if (membershipsError) throw membershipsError;
+
+    let conversations = (memberships || [])
+      .map((item) => item.conversations)
+      .filter(Boolean);
+
+    if (effectiveCenterId) {
+      conversations = conversations.filter((item) => item.center_id === effectiveCenterId);
+    }
+
+    const conversationIds = conversations.map((item) => item.id);
+    if (conversationIds.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const [participantsResult, messagesResult] = await Promise.all([
+      supabase
+        .from('conversation_participants')
+        .select('conversation_id, user_id, users(id, full_name, avatar_url, roles(code))')
+        .in('conversation_id', conversationIds),
+      supabase
+        .from('messages')
+        .select('id, conversation_id, sender_id, content, read_by, created_at')
+        .in('conversation_id', conversationIds)
+        .order('created_at', { ascending: false })
+    ]);
+
+    if (participantsResult.error) throw participantsResult.error;
+    if (messagesResult.error) throw messagesResult.error;
+
+    const participantsByConversation = {};
+    for (const participant of participantsResult.data || []) {
+      if (!participantsByConversation[participant.conversation_id]) {
+        participantsByConversation[participant.conversation_id] = [];
+      }
+      participantsByConversation[participant.conversation_id].push(participant);
+    }
+
+    const lastMessageByConversation = {};
+    const unreadCountByConversation = {};
+
+    for (const message of messagesResult.data || []) {
+      if (!lastMessageByConversation[message.conversation_id]) {
+        lastMessageByConversation[message.conversation_id] = message;
+      }
+
+      const alreadyRead = Array.isArray(message.read_by) && message.read_by.includes(req.user.id);
+      if (message.sender_id !== req.user.id && !alreadyRead) {
+        unreadCountByConversation[message.conversation_id] = (unreadCountByConversation[message.conversation_id] || 0) + 1;
+      }
+    }
+
+    const data = conversations
+      .map((conversation) => {
+        const participantRows = participantsByConversation[conversation.id] || [];
+        const participants = mapConversationParticipants(participantRows);
+        const otherParticipant = participants.find((item) => item.user_id !== req.user.id) || participants[0] || null;
+        const lastMessage = lastMessageByConversation[conversation.id] || null;
+
+        return {
+          ...conversation,
+          participants,
+          other_participant: otherParticipant,
+          last_message: lastMessage ? {
+            id: lastMessage.id,
+            sender_id: lastMessage.sender_id,
+            content: lastMessage.content,
+            created_at: lastMessage.created_at
+          } : null,
+          unread_count: unreadCountByConversation[conversation.id] || 0
+        };
+      })
+      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+
+    return res.json({ success: true, data });
+  } catch (error) {
+    console.error('❌ Error fetching conversations:', error);
+    next(error);
+  }
+});
+
+app.post('/api/conversations', requireAuth, async (req, res, next) => {
+  try {
+    const participantIds = Array.isArray(req.body?.participant_ids) ? req.body.participant_ids : [];
+    const title = req.body?.title || null;
+    const classId = req.body?.class_id || null;
+    const requestedCenterId = req.body?.center_id || req.body?.centerId || null;
+
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, requestedCenterId);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    if (!effectiveCenterId) {
+      return res.status(400).json({ success: false, message: 'Không xác định được trung tâm tạo hội thoại' });
+    }
+
+    const allParticipantIds = Array.from(new Set([req.user.id, ...participantIds.filter(Boolean)]));
+
+    if (allParticipantIds.length < 2) {
+      return res.status(400).json({ success: false, message: 'Cần ít nhất 2 người tham gia hội thoại' });
+    }
+
+    const { data: validUsers, error: usersError } = await supabase
+      .from('users')
+      .select('id')
+      .in('id', allParticipantIds)
+      .eq('center_id', effectiveCenterId)
+      .eq('status', 'active');
+
+    if (usersError) throw usersError;
+
+    const validUserIds = new Set((validUsers || []).map((item) => item.id));
+    const invalidParticipants = allParticipantIds.filter((id) => !validUserIds.has(id));
+    if (invalidParticipants.length > 0) {
+      return res.status(400).json({ success: false, message: 'Có người tham gia không hợp lệ hoặc khác trung tâm' });
+    }
+
+    const nowIso = new Date().toISOString();
+    const { data: conversation, error: conversationError } = await supabase
+      .from('conversations')
+      .insert({
+        center_id: effectiveCenterId,
+        title,
+        class_id: classId,
+        created_at: nowIso,
+        updated_at: nowIso
+      })
+      .select('*')
+      .single();
+
+    if (conversationError) throw conversationError;
+
+    const participantRows = allParticipantIds.map((userId) => ({
+      conversation_id: conversation.id,
+      user_id: userId,
+      joined_at: nowIso
+    }));
+
+    const { error: participantsInsertError } = await supabase
+      .from('conversation_participants')
+      .insert(participantRows);
+
+    if (participantsInsertError) throw participantsInsertError;
+
+    const { data: participantDetails, error: participantDetailsError } = await supabase
+      .from('conversation_participants')
+      .select('conversation_id, user_id, users(id, full_name, avatar_url, roles(code))')
+      .eq('conversation_id', conversation.id);
+
+    if (participantDetailsError) throw participantDetailsError;
+
+    return res.status(201).json({
+      success: true,
+      data: {
+        ...conversation,
+        participants: mapConversationParticipants(participantDetails || []),
+        unread_count: 0,
+        last_message: null
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error creating conversation:', error);
+    next(error);
+  }
+});
+
+app.get('/api/conversations/:id/messages', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 30, 1), 100);
+    const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+
+    const joined = await isConversationParticipant(id, req.user.id);
+    if (!joined) {
+      return res.status(403).json({ success: false, message: 'Bạn không phải thành viên của hội thoại này' });
+    }
+
+    const [{ data: messages, error: messagesError }, { count, error: countError }] = await Promise.all([
+      supabase
+        .from('messages')
+        .select('id, conversation_id, sender_id, content, read_by, created_at, sender:users(id, full_name, avatar_url, roles(code))')
+        .eq('conversation_id', id)
+        .order('created_at', { ascending: true })
+        .range(offset, offset + limit - 1),
+      supabase
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('conversation_id', id)
+    ]);
+
+    if (messagesError) throw messagesError;
+    if (countError) throw countError;
+
+    return res.json({
+      success: true,
+      data: messages || [],
+      pagination: {
+        limit,
+        offset,
+        total: count || 0
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error fetching messages:', error);
+    next(error);
+  }
+});
+
+app.post('/api/conversations/:id/messages', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const content = typeof req.body?.content === 'string' ? req.body.content.trim() : '';
+
+    if (!content) {
+      return res.status(400).json({ success: false, message: 'Nội dung tin nhắn không được để trống' });
+    }
+
+    const joined = await isConversationParticipant(id, req.user.id);
+    if (!joined) {
+      return res.status(403).json({ success: false, message: 'Bạn không phải thành viên của hội thoại này' });
+    }
+
+    const nowIso = new Date().toISOString();
+    const { data: insertedMessage, error: insertError } = await supabase
+      .from('messages')
+      .insert({
+        conversation_id: id,
+        sender_id: req.user.id,
+        content,
+        read_by: [req.user.id],
+        created_at: nowIso
+      })
+      .select('id, conversation_id, sender_id, content, read_by, created_at, sender:users(id, full_name, avatar_url, roles(code))')
+      .single();
+
+    if (insertError) throw insertError;
+
+    const { error: updateConversationError } = await supabase
+      .from('conversations')
+      .update({ updated_at: nowIso })
+      .eq('id', id);
+
+    if (updateConversationError) throw updateConversationError;
+
+    return res.status(201).json({ success: true, data: insertedMessage });
+  } catch (error) {
+    console.error('❌ Error sending message:', error);
+    next(error);
+  }
+});
+
+app.patch('/api/conversations/:id/read', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const joined = await isConversationParticipant(id, req.user.id);
+    if (!joined) {
+      return res.status(403).json({ success: false, message: 'Bạn không phải thành viên của hội thoại này' });
+    }
+
+    const { data: messages, error: messagesError } = await supabase
+      .from('messages')
+      .select('id, sender_id, read_by')
+      .eq('conversation_id', id);
+
+    if (messagesError) throw messagesError;
+
+    const unreadMessages = (messages || []).filter((message) => {
+      const readBy = Array.isArray(message.read_by) ? message.read_by : [];
+      return message.sender_id !== req.user.id && !readBy.includes(req.user.id);
+    });
+
+    if (unreadMessages.length === 0) {
+      return res.json({ success: true, data: { updated: 0 } });
+    }
+
+    const updateResults = await Promise.all(
+      unreadMessages.map((message) => {
+        const readBy = Array.isArray(message.read_by) ? message.read_by : [];
+        return supabase
+          .from('messages')
+          .update({ read_by: [...readBy, req.user.id] })
+          .eq('id', message.id);
+      })
+    );
+
+    const updateError = updateResults.find((result) => result.error)?.error;
+    if (updateError) throw updateError;
+
+    return res.json({ success: true, data: { updated: unreadMessages.length } });
+  } catch (error) {
+    console.error('❌ Error marking conversation as read:', error);
     next(error);
   }
 });

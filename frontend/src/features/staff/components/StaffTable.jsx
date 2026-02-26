@@ -24,7 +24,7 @@ export function StaffTable({
 }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full">
+      <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
         <thead>
           <tr className="border-b text-left text-sm font-medium text-muted-foreground">
             <th className="pb-3 pr-4">Nhân viên</th>

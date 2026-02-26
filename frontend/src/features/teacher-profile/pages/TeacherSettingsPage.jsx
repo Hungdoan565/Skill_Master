@@ -1,23 +1,21 @@
 import { useState } from 'react';
-import { useAuth } from '@/contexts/auth-context';
+import { useTheme } from '@/contexts/theme-context';
+import LocaleSwitcher from '@/components/LocaleSwitcher';
 import {
     Bell,
     Palette,
     Shield,
-    Globe,
     Lock
 } from 'lucide-react';
 
 export default function TeacherSettingsPage() {
-    const { profile } = useAuth();
-    
     // Notification toggles
     const [emailNotif, setEmailNotif] = useState(true);
     const [smsNotif, setSmsNotif] = useState(false);
     const [classReminders, setClassReminders] = useState(true);
     
     // Appearance toggles
-    const [darkMode, setDarkMode] = useState(false);
+    const { isDark, toggleTheme } = useTheme();
 
     // Custom Toggle Component to avoid using shadcn Switch
     const Toggle = ({ checked, onChange }) => (
@@ -93,13 +91,20 @@ export default function TeacherSettingsPage() {
                         <Palette className="h-5 w-5 text-gray-500 mr-2" />
                         <h2 className="text-lg font-semibold text-gray-900">Giao diện</h2>
                     </div>
-                    <div className="p-6">
+                    <div className="p-6 space-y-4">
                         <div className="flex items-center justify-between">
                             <div>
                                 <h3 className="text-sm font-medium text-gray-900">Chế độ tối (Dark Mode)</h3>
                                 <p className="text-sm text-gray-500">Sử dụng giao diện tối màu giúp bảo vệ mắt</p>
                             </div>
-                            <Toggle checked={darkMode} onChange={setDarkMode} />
+                            <Toggle checked={isDark} onChange={toggleTheme} />
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-sm font-medium text-gray-900">Ngôn ngữ hiển thị</h3>
+                                <p className="text-sm text-gray-500">Chọn ngôn ngữ cho giao diện người dùng</p>
+                            </div>
+                            <LocaleSwitcher />
                         </div>
                     </div>
                 </div>
@@ -126,29 +131,6 @@ export default function TeacherSettingsPage() {
                             >
                                 Đổi mật khẩu
                             </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Language Section */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center">
-                        <Globe className="h-5 w-5 text-gray-500 mr-2" />
-                        <h2 className="text-lg font-semibold text-gray-900">Ngôn ngữ</h2>
-                    </div>
-                    <div className="p-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h3 className="text-sm font-medium text-gray-900">Ngôn ngữ hiển thị</h3>
-                                <p className="text-sm text-gray-500">Chọn ngôn ngữ cho giao diện người dùng</p>
-                            </div>
-                            <select
-                                disabled
-                                className="block w-full md:w-48 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md bg-gray-50 cursor-not-allowed"
-                                defaultValue="vi"
-                            >
-                                <option value="vi">Tiếng Việt</option>
-                            </select>
                         </div>
                     </div>
                 </div>

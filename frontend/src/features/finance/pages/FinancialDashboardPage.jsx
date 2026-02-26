@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { TrendingUp } from 'lucide-react';
+import { TrendingUp, Download } from 'lucide-react';
 import {
   AreaChart,
   Area,
@@ -17,6 +17,7 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/auth-context';
+import { exportToExcel } from '@/lib/export-utils';
 import { useCenters } from '@/features/centers';
 import { useFinanceSummary } from '../hooks/useFinanceSummary';
 
@@ -42,7 +43,7 @@ function OverviewCard({ title, value, tintClass }) {
 }
 
 export function FinancialDashboardPage() {
-  const { isSuperAdmin, isManager, getCenterId } = useAuth();
+  const { isSuperAdmin, isManager, getCenterId, profile } = useAuth();
   const { centers, fetchCenters } = useCenters();
 
   const now = new Date();
@@ -77,6 +78,13 @@ export function FinancialDashboardPage() {
       value: item.total,
     }));
   }, [data?.payment_methods]);
+
+  const centerName = profile?.centers?.name || 'Skill Master';
+  const revenueColumns = [
+    { key: 'month', header: 'Tháng' },
+    { key: 'revenue', header: 'Doanh thu' },
+    { key: 'paid', header: 'Đã thu' },
+  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -144,6 +152,13 @@ export function FinancialDashboardPage() {
             >
               Làm mới
             </button>
+            <button
+              type="button"
+              onClick={() => exportToExcel(data?.monthly_revenue || [], revenueColumns, 'bao-cao-doanh-thu', centerName)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              <Download className="w-4 h-4" /> Xuất Excel
+            </button>
           </div>
         </div>
 
@@ -153,7 +168,7 @@ export function FinancialDashboardPage() {
           </Card>
         )}
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {loading ? (
             <>
               <LoadingBlock className="h-28" />

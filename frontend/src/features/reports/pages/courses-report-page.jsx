@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 /**
  * Courses Report Page - Báo cáo hiệu suất khóa học
  */
@@ -59,7 +60,7 @@ export default function CoursesReportPage() {
             await exportReportToExcel('courses', data);
         } catch (err) {
             console.error('Export error:', err);
-            alert('Lỗi khi xuất Excel: ' + err.message);
+            toast('Lỗi khi xuất Excel: ' + err.message);
         } finally {
             setExporting(false);
         }
@@ -297,7 +298,7 @@ export default function CoursesReportPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="overflow-x-auto">
-                                <table className="w-full">
+                                <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                                     <thead>
                                         <tr className="border-b text-left text-sm text-gray-500">
                                             <th className="pb-3 font-medium">Mã</th>

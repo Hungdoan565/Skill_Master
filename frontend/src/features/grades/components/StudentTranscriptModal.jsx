@@ -250,7 +250,7 @@ export function StudentTranscriptModal({ studentId, studentName, isOpen, onClose
                             {/* Transcript Table */}
                             {transcriptData.transcript.length > 0 ? (
                                 <div className="border border-slate-200 rounded-lg overflow-hidden">
-                                    <table className="w-full">
+                                    <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                                         <thead className="bg-slate-50">
                                             <tr>
                                                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Khóa học</th>

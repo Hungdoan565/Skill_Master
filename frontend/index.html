@@ -23,6 +23,18 @@
     <title>Skill Master - Chinh phục Anh ngữ & Tin học</title>
   </head>
   <body class="antialiased">
+    <script>
+      // Prevent dark mode flash - apply theme before React hydrates
+      (function() {
+        var theme = localStorage.getItem('admin-theme') || 'system';
+        if (theme === 'system') {
+          theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        if (theme === 'dark') {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

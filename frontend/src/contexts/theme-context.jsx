@@ -43,7 +43,6 @@ export function ThemeProvider({ children, defaultTheme = 'system' }) {
 
   // Apply theme to document
   useEffect(() => {
-    console.log('[ThemeContext] Applying theme:', { theme, resolvedTheme, isDark });
     const root = document.documentElement;
     
     // Remove existing theme classes
@@ -52,7 +51,6 @@ export function ThemeProvider({ children, defaultTheme = 'system' }) {
     // Add new theme class
     root.classList.add(resolvedTheme);
     
-    console.log('[ThemeContext] Document classes:', root.classList.toString());
     
     // Update meta theme-color for mobile browsers
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
@@ -68,7 +66,6 @@ export function ThemeProvider({ children, defaultTheme = 'system' }) {
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleChange = (e) => {
-      console.log('[ThemeContext] System preference changed:', e.matches ? 'dark' : 'light');
       setSystemTheme(e.matches ? 'dark' : 'light');
     };
 
@@ -78,7 +75,6 @@ export function ThemeProvider({ children, defaultTheme = 'system' }) {
 
   // Set theme and persist
   const setTheme = (newTheme) => {
-    console.log('[ThemeContext] Setting theme to:', newTheme);
     setThemeState(newTheme);
     localStorage.setItem(THEME_STORAGE_KEY, newTheme);
   };

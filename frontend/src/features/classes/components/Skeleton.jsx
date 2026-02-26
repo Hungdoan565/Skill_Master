@@ -38,7 +38,7 @@ export function TableRowSkeleton({ columns = 5 }) {
 export function StudentsTableSkeleton({ rows = 5 }) {
     return (
         <div className="border border-slate-200 rounded-lg overflow-hidden">
-            <table className="w-full">
+            <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                 <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
                         <th className="w-10 px-4 py-3"><Skeleton className="h-4 w-4" /></th>
@@ -83,7 +83,7 @@ export function StudentsTableSkeleton({ rows = 5 }) {
 export function GradesTableSkeleton({ rows = 5, columns = 4 }) {
     return (
         <div className="border border-slate-200 rounded-lg overflow-hidden">
-            <table className="w-full">
+            <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                 <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
                         <th className="px-3 py-3 w-12"><Skeleton className="h-4 w-6" /></th>

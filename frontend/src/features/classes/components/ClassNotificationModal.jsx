@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 /**
  * ClassNotificationModal Component
  * Send notifications to class students via email/SMS
@@ -249,12 +250,12 @@ export function ClassNotificationModal({
     // Send notification
     const handleSend = async () => {
         if (selectedStudentIds.length === 0) {
-            alert('Vui lòng chọn ít nhất một học viên');
+            toast('Vui lòng chọn ít nhất một học viên');
             return;
         }
 
         if (!subject.trim() || !content.trim()) {
-            alert('Vui lòng nhập tiêu đề và nội dung');
+            toast('Vui lòng nhập tiêu đề và nội dung');
             return;
         }
 

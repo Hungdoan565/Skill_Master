@@ -206,7 +206,7 @@ function GradeTable({
   return (
     <div className="border border-slate-200 rounded-lg overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full">
+        <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
               <th className="px-3 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide w-12">#</th>

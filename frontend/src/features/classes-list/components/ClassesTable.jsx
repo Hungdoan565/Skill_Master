@@ -46,7 +46,7 @@ export function ClassesTable({
   if (loading) {
     return (
       <div className="rounded-lg border border-slate-200 overflow-hidden">
-        <table className="w-full">
+        <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
               <th className="pb-3 pr-2 w-10"></th>
@@ -146,7 +146,7 @@ export function ClassesTable({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full">
+      <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
         <thead>
           <tr className="border-b text-left text-sm font-medium text-muted-foreground">
             <th className="pb-3 pr-2 w-10">

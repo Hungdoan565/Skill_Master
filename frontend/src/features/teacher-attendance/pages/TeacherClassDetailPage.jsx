@@ -370,7 +370,7 @@ function StudentsTab({ students }) {
 
     return (
         <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                 <thead>
                     <tr className="border-b border-slate-200">
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Học viên</th>
@@ -426,7 +426,7 @@ function SessionsTab({ sessions }) {
 
     return (
         <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                 <thead>
                     <tr className="border-b border-slate-200">
                         <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Buổi</th>

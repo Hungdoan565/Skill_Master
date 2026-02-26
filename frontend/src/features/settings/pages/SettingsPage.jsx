@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import LocaleSwitcher from '@/components/LocaleSwitcher';
 import { useAuth } from '@/contexts/auth-context';
 import { ProfileTab, PaymentTab, SystemTab, SecurityTab, GradesConfigTab, BankInfoTab } from '../components';
 import { SETTINGS_TABS } from '../utils/constants';
@@ -99,6 +100,7 @@ export function SettingsPage() {
                                 <span className="text-gray-900">{currentTabLabel}</span>
                             </div>
                         </div>
+                        <LocaleSwitcher />
                     </div>
                 </div>
             </div>

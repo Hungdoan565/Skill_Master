@@ -172,7 +172,7 @@ export function PayrollDetailModal({
                                 </div>
                                 <div className="max-h-64 overflow-auto">
                                     {detailData.sessions && detailData.sessions.length > 0 ? (
-                                        <table className="w-full">
+                                        <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                                             <thead className="bg-slate-50 sticky top-0">
                                                 <tr className="text-left text-sm text-muted-foreground">
                                                     <th className="px-4 py-2">Ngày</th>

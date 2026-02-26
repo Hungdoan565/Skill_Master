@@ -57,7 +57,7 @@ export function HolidayTable({ holidays, loading, onEdit, onDelete, onRefresh })
     return (
         <div className="bg-white rounded-xl border overflow-hidden">
             <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                     <thead>
                         <tr className="bg-gray-50 border-b">
                             <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">

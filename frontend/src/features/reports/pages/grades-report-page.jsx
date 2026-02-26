@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 /**
  * Grades Report Page - Báo cáo điểm số
  * 
@@ -117,7 +118,7 @@ export default function GradesReportPage() {
             await exportReportToExcel('grades', data);
         } catch (err) {
             console.error('Export error:', err);
-            alert('Lỗi khi xuất Excel: ' + err.message);
+            toast('Lỗi khi xuất Excel: ' + err.message);
         } finally {
             setExporting(false);
         }
@@ -389,7 +390,7 @@ export default function GradesReportPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="overflow-x-auto">
-                                <table className="w-full">
+                                <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                                     <thead>
                                         <tr className="border-b text-left text-sm text-gray-500">
                                             <th className="pb-3 font-medium w-12">#</th>
@@ -446,7 +447,7 @@ export default function GradesReportPage() {
                             </CardHeader>
                             <CardContent>
                                 <div className="overflow-x-auto">
-                                    <table className="w-full">
+                                    <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                                         <thead>
                                             <tr className="border-b text-left text-sm text-gray-600">
                                                 <th className="pb-3 font-medium">Học viên</th>

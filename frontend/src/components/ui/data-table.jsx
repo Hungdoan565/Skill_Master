@@ -444,7 +444,7 @@ export function DataTable({
     <div className={cn('rounded-2xl border border-border bg-card overflow-hidden', className)}>
       {/* Table container with horizontal scroll */}
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
+        <table className="w-full min-w-full border-collapse whitespace-nowrap md:whitespace-normal">
           <thead>
             <tr>
               {finalColumns.map((column) => (

@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 /**
  * Attendance Report Page - Báo cáo chuyên cần
  * 
@@ -148,7 +149,7 @@ export default function AttendanceReportPage() {
             await exportReportToExcel('attendance', data, data.period);
         } catch (err) {
             console.error('Export error:', err);
-            alert('Lỗi khi xuất Excel: ' + err.message);
+            toast('Lỗi khi xuất Excel: ' + err.message);
         } finally {
             setExporting(false);
         }
@@ -467,7 +468,7 @@ export default function AttendanceReportPage() {
                             </CardHeader>
                             <CardContent>
                                 <div className="overflow-x-auto">
-                                    <table className="w-full">
+                                    <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                                         <thead>
                                             <tr className="border-b text-left text-sm text-gray-600">
                                                 <th className="pb-3 font-medium">Học viên</th>

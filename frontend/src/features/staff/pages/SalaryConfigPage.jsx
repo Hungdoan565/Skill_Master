@@ -286,7 +286,7 @@ export function SalaryConfigPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                 <thead>
                   <tr className="border-b text-left text-sm text-muted-foreground">
                     <th className="pb-3 font-medium">Giáo viên</th>

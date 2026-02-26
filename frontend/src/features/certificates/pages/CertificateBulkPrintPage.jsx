@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 /**
  * CertificateBulkPrintPage - Trang in nhiều chứng chỉ cùng lúc
  * 
@@ -20,7 +21,7 @@ export function CertificateBulkPrintPage() {
         const printData = localStorage.getItem('certificates_print_data');
 
         if (!printData) {
-            alert('Không tìm thấy dữ liệu in. Vui lòng thử lại.');
+            toast('Không tìm thấy dữ liệu in. Vui lòng thử lại.');
             navigate(-1);
             return;
         }
@@ -38,7 +39,7 @@ export function CertificateBulkPrintPage() {
             }, 1000);
         } catch (error) {
             console.error('Error parsing print data:', error);
-            alert('Dữ liệu in không hợp lệ');
+            toast('Dữ liệu in không hợp lệ');
             navigate(-1);
         }
     }, [navigate]);

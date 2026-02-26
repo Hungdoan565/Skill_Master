@@ -1,7 +1,8 @@
+import { toast } from "sonner";
 /**
  * Toast Notification System
  * 
- * Hệ thống thông báo toast để thay thế native alert()
+ * Hệ thống thông báo toast để thay thế native toast()
  * Tự động ẩn sau một khoảng thời gian
  * 
  * Usage:

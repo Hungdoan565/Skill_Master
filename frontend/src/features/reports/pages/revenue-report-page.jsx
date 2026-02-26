@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 /**
  * Revenue Report Page - Báo cáo doanh thu chi tiết
  */
@@ -103,7 +104,7 @@ export default function RevenueReportPage() {
             await exportReportToExcel('revenue', data, data.period);
         } catch (err) {
             console.error('Export error:', err);
-            alert('Lỗi khi xuất Excel: ' + err.message);
+            toast('Lỗi khi xuất Excel: ' + err.message);
         } finally {
             setExporting(false);
         }
@@ -437,7 +438,7 @@ export default function RevenueReportPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="overflow-x-auto">
-                                <table className="w-full">
+                                <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                                     <thead>
                                         <tr className="border-b text-left text-sm text-gray-500">
                                             <th className="pb-3 font-medium">Mã HĐ</th>

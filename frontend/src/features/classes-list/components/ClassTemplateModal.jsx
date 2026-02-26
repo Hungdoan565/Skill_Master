@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 /**
  * ClassTemplateModal Component
  * Create and manage class templates for quick class creation
@@ -144,7 +145,7 @@ export function ClassTemplateModal({
     // Handle save template
     const handleSave = () => {
         if (!formData.name.trim()) {
-            alert('Vui lòng nhập tên template');
+            toast('Vui lòng nhập tên template');
             return;
         }
 

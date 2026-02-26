@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 /**
  * BatchActionsToolbar - Thanh công cụ thao tác hàng loạt
  */
@@ -45,7 +46,7 @@ export function BatchActionsToolbar({
             onClearSelection();
         } catch (err) {
             console.error('Bulk status update failed:', err);
-            alert('Có lỗi xảy ra khi cập nhật trạng thái');
+            toast('Có lỗi xảy ra khi cập nhật trạng thái');
         } finally {
             setLoading(false);
             setAction(null);
@@ -69,7 +70,7 @@ export function BatchActionsToolbar({
             onClearSelection();
         } catch (err) {
             console.error('Bulk delete failed:', err);
-            alert('Có lỗi xảy ra khi xóa khóa học');
+            toast('Có lỗi xảy ra khi xóa khóa học');
         } finally {
             setLoading(false);
             setAction(null);
@@ -81,7 +82,7 @@ export function BatchActionsToolbar({
     const handleExport = () => {
         setAction('export');
         // Simple CSV export - would need course data passed in for real implementation
-        alert(`Export ${count} khóa học sang CSV - Feature coming soon!`);
+        toast(`Export ${count} khóa học sang CSV - Feature coming soon!`);
         setAction(null);
     };
 

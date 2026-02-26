@@ -19,4 +19,19 @@ export default defineConfig({
   optimizeDeps: {
     force: true, // Force re-optimize dependencies
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('recharts') || id.includes('d3-')) return 'vendor-charts';
+            if (id.includes('xlsx')) return 'vendor-xlsx';
+            if (id.includes('lucide-react')) return 'vendor-icons';
+            if (id.includes('@radix-ui')) return 'vendor-radix';
+            if (id.includes('@supabase')) return 'vendor-supabase';
+          }
+        }
+      }
+    }
+  }
 });

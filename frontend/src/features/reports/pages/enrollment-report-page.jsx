@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 /**
  * Enrollment Report Page - Báo cáo tuyển sinh
  */
@@ -99,7 +100,7 @@ export default function EnrollmentReportPage() {
             await exportReportToExcel('enrollment', data, data.period);
         } catch (err) {
             console.error('Export error:', err);
-            alert('Lỗi khi xuất Excel: ' + err.message);
+            toast('Lỗi khi xuất Excel: ' + err.message);
         } finally {
             setExporting(false);
         }
@@ -402,7 +403,7 @@ export default function EnrollmentReportPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="overflow-x-auto">
-                                <table className="w-full">
+                                <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                                     <thead>
                                         <tr className="border-b text-left text-sm text-gray-500">
                                             <th className="pb-3 font-medium">Học viên</th>

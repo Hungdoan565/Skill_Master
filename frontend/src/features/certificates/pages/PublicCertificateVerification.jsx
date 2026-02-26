@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 /**
  * PublicCertificateVerification - Trang xác thực chứng chỉ công khai
  * 
@@ -246,7 +247,7 @@ const PrintVerifiedCertificate = ({ certificate }) => {
     const handlePrint = () => {
         const printWindow = window.open('', '_blank', 'width=900,height=700');
         if (!printWindow) {
-            alert('Vui lòng cho phép popup để in');
+            toast('Vui lòng cho phép popup để in');
             return;
         }
 

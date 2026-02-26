@@ -5,7 +5,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { GraduationCap, UserPlus, Upload } from 'lucide-react';
+import { GraduationCap, UserPlus, Upload, Download } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -13,6 +13,8 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
+import { useAuth } from '@/contexts/auth-context';
+import { exportToExcel } from '@/lib/export-utils';
 import { useStudents } from '../hooks';
 import {
   StudentFilters,
@@ -26,6 +28,7 @@ import {
 
 export function StudentsPage() {
   const { toast } = useToast();
+  const { profile } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -52,6 +55,14 @@ export function StudentsPage() {
 
   // Filter students locally by search
   const filteredStudents = filterStudents(searchTerm);
+  const centerName = profile?.centers?.name || 'Skill Master';
+  const studentColumns = [
+    { key: 'full_name', header: 'Họ tên' },
+    { key: 'email', header: 'Email' },
+    { key: 'phone', header: 'SĐT' },
+    { key: 'student_code', header: 'Mã HV' },
+    { key: 'status', header: 'Trạng thái' },
+  ];
 
   // Handle view details
   const handleViewDetails = useCallback(async (student) => {
@@ -122,6 +133,13 @@ export function StudentsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => exportToExcel(students, studentColumns, 'danh-sach-hoc-vien', centerName)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+          >
+            <Download className="w-4 h-4" /> Xuất Excel
+          </button>
           <Link to="/admin/enrollments/new">
             <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white">
               <UserPlus className="h-4 w-4 mr-2" /> Ghi danh

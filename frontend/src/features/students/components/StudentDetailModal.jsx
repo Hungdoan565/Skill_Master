@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 /**
  * StudentDetailModal Component
  * Modal hiển thị chi tiết học viên với enrollments, invoices, attendance
@@ -62,12 +63,12 @@ export function StudentDetailModal({
         try {
             await transferStudent(studentId, transferData);
             setTransferModal({ isOpen: false, submitting: false });
-            alert('✅ Chuyển chi nhánh thành công');
+            toast('✅ Chuyển chi nhánh thành công');
             onClose(); // Close detail modal
         } catch (err) {
             console.error('Error transferring student:', err);
             setTransferModal(prev => ({ ...prev, submitting: false }));
-            alert('❌ Lỗi: ' + (err.message || 'Không thể chuyển chi nhánh'));
+            toast('❌ Lỗi: ' + (err.message || 'Không thể chuyển chi nhánh'));
         }
     };
 

@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 /**
  * AdminNotificationsPage - Gửi thông báo hàng loạt cho admin
  * Cho phép lọc học viên theo khóa học, lớp, trạng thái học phí
@@ -352,7 +353,7 @@ export default function AdminNotificationsPage() {
     // Send notifications
     const handleSend = async () => {
         if (selectedStudentIds.length === 0) {
-            alert('Vui lòng chọn ít nhất một học viên');
+            toast('Vui lòng chọn ít nhất một học viên');
             return;
         }
 
