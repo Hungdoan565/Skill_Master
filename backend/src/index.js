@@ -25397,6 +25397,28 @@ app.delete('/api/teacher/leave-requests/:id', requireAuth, async (req, res, next
 // END TEACHER LEAVE REQUEST APIs
 // ============================================================
 
+// ============================================================
+// STUDENT SUPPORT TICKET APIs
+// ============================================================
+
+// GET /api/my-support-tickets - Get current user's support tickets
+app.get('/api/my-support-tickets', requireAuth, async (req, res, next) => {
+  try {
+    const { data, error } = await supabase
+      .from('support_tickets')
+      .select('*')
+      .eq('created_by', req.user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({ success: true, data: data || [] });
+  } catch (error) {
+    console.error('Error fetching user support tickets:', error);
+    next(error);
+  }
+});
+
 // Test endpoint không cần auth
 app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'Backend is running', time: new Date().toISOString() });
