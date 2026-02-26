@@ -23,7 +23,12 @@ import {
 } from '@/features/student-portal';
 import {
   ParentDashboard,
-  ParentChildDetail
+  ParentChildDetail,
+  ParentSchedulePage,
+  ParentGradesPage,
+  ParentAttendancePage,
+  ParentInvoicesPage,
+  ParentProfilePage
 } from '@/features/parent-portal';
 import { ToastProvider } from '@/components/ui/toast';
 import { ErrorBoundary } from '@/components/errors/ErrorBoundary';
@@ -496,11 +501,11 @@ function App() {
               <Route path="dashboard" element={<ParentDashboard />} />
               <Route path="children" element={<ParentDashboard />} />
               <Route path="child/:studentId" element={<ParentChildDetail />} />
-              <Route path="schedule" element={<PlaceholderPage title="Phụ huynh • Lịch học" description="Chọn học viên để xem lịch học chi tiết" />} />
-              <Route path="grades" element={<PlaceholderPage title="Phụ huynh • Bảng điểm" description="Chọn học viên để xem bảng điểm chi tiết" />} />
-              <Route path="attendance" element={<PlaceholderPage title="Phụ huynh • Điểm danh" description="Chọn học viên để xem điểm danh chi tiết" />} />
-              <Route path="invoices" element={<PlaceholderPage title="Phụ huynh • Học phí" description="Chọn học viên để xem học phí chi tiết" />} />
-              <Route path="profile" element={<PlaceholderPage title="Phụ huynh • Thông tin cá nhân" />} />
+              <Route path="schedule" element={<ParentSchedulePage />} />
+              <Route path="grades" element={<ParentGradesPage />} />
+              <Route path="attendance" element={<ParentAttendancePage />} />
+              <Route path="invoices" element={<ParentInvoicesPage />} />
+              <Route path="profile" element={<ParentProfilePage />} />
             </Route>
 
             <Route path="*" element={<PlaceholderPage title="404" description="Page not found" />} />
