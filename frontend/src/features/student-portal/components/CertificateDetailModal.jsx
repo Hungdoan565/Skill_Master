@@ -46,7 +46,7 @@ export default function CertificateDetailModal({ certificate, open, onClose }) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-3xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-4xl lg:max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="flex flex-row items-center justify-between pb-4 border-b">
           <DialogTitle className="flex items-center gap-2 m-0 text-xl">
             <Award className="h-6 w-6 text-primary" />
