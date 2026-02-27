@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Controller } from 'react-hook-form';
-import { ChevronLeft, ChevronRight, Hash, Mail, Award, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Hash, Mail, Award, CheckCircle2, QrCode } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
