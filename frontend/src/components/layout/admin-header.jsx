@@ -120,10 +120,12 @@ const UserDropdown = () => {
             <User className="h-4 w-4 text-zinc-400" />
             <span>Hồ sơ cá nhân</span>
           </button>
-          <button onClick={() => { setIsOpen(false); navigate('/settings'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors">
-            <Settings className="h-4 w-4 text-zinc-400" />
-            <span>Cài đặt</span>
-          </button>
+          {roleCode === 'SUPER_ADMIN' && (
+            <button onClick={() => { setIsOpen(false); navigate('/settings'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors">
+              <Settings className="h-4 w-4 text-zinc-400" />
+              <span>Cài đặt</span>
+            </button>
+          )}
           <div className="my-1 mx-3 border-t border-zinc-100" />
           <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
             <LogOut className="h-4 w-4 text-red-500" />

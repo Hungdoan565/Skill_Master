@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '@/contexts/auth-context';
 import {
   LayoutDashboard,
   BookOpen,
@@ -80,6 +81,19 @@ const menuGroups = [
 
 export function AdminSidebar() {
   const location = useLocation();
+  const { isSuperAdmin } = useAuth();
+
+  // Filter menu items dựa trên role - ẩn mục chỉ dành cho SUPER_ADMIN
+  const filteredMenuGroups = menuGroups
+    .map(group => ({
+      ...group,
+      items: group.items.filter(item => {
+        // Trung tâm - chỉ SUPER_ADMIN mới thấy
+        if (item.path === '/admin/centers') return isSuperAdmin?.();
+        return true;
+      })
+    }))
+    .filter(group => group.items.length > 0);
 
   return (
     <aside className="flex h-screen w-72 flex-col bg-zinc-950 text-white">
@@ -115,7 +129,7 @@ export function AdminSidebar() {
 
       {/* Navigation - Refined spacing and styling */}
       <nav className="flex-1 overflow-y-auto scrollbar-none px-4 py-6">
-        {menuGroups.map((group, index) => (
+        {filteredMenuGroups.map((group, index) => (
           <div key={group.id} className={cn(
             index > 0 && group.title ? 'mt-8' : 'mb-2'
           )}>
@@ -187,30 +201,32 @@ export function AdminSidebar() {
       </nav>
 
       {/* Footer - Settings with premium feel */}
-      <div className="p-4">
-        {/* Divider */}
-        <div className="mb-4 h-px bg-gradient-to-r from-transparent via-zinc-800 to-transparent" />
+      {isSuperAdmin?.() && (
+        <div className="p-4">
+          {/* Divider */}
+          <div className="mb-4 h-px bg-gradient-to-r from-transparent via-zinc-800 to-transparent" />
 
-        <Link
-          to="/admin/settings"
-          className={cn(
-            'group/settings flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
-            location.pathname === '/admin/settings'
-              ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-lg shadow-red-600/25'
-              : 'text-zinc-400 hover:bg-zinc-800/80 hover:text-white'
-          )}
-        >
-          <div className={cn(
-            'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
-            location.pathname === '/admin/settings'
-              ? 'bg-white/20'
-              : 'bg-zinc-800 group-hover/settings:bg-zinc-700'
-          )}>
-            <Settings className="h-4 w-4" />
-          </div>
-          <span>Cài đặt</span>
-        </Link>
-      </div>
+          <Link
+            to="/admin/settings"
+            className={cn(
+              'group/settings flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
+              location.pathname === '/admin/settings'
+                ? 'bg-gradient-to-r from-red-600 to-red-500 text-white shadow-lg shadow-red-600/25'
+                : 'text-zinc-400 hover:bg-zinc-800/80 hover:text-white'
+            )}
+          >
+            <div className={cn(
+              'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
+              location.pathname === '/admin/settings'
+                ? 'bg-white/20'
+                : 'bg-zinc-800 group-hover/settings:bg-zinc-700'
+            )}>
+              <Settings className="h-4 w-4" />
+            </div>
+            <span>Cài đặt</span>
+          </Link>
+        </div>
+      )}
     </aside>
   );
 }

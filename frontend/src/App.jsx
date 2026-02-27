@@ -424,8 +424,16 @@ function App() {
               <Route path="payroll-disputes" element={<DisputeManagementPage />} />
               <Route path="staff" element={<StaffPage />} />
               <Route path="salary-config" element={<SalaryConfigPage />} />
-              <Route path="centers" element={<CentersPage />} />
-              <Route path="centers/:id" element={<CenterDetailPage />} />
+              <Route path="centers" element={
+                <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+                  <CentersPage />
+                </ProtectedRoute>
+              } />
+              <Route path="centers/:id" element={
+                <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+                  <CenterDetailPage />
+                </ProtectedRoute>
+              } />
               <Route path="rooms" element={<RoomsPage />} />
               <Route path="holidays" element={<HolidaysPage />} />
               <Route path="documents" element={<DocumentsPage />} />
@@ -438,7 +446,11 @@ function App() {
               <Route path="support" element={<SupportPage />} />
               <Route path="support-tickets" element={<SupportPage />} />
               <Route path="notifications" element={<AdminNotificationsPage />} />
-              <Route path="settings" element={<SettingsPage />} />
+              <Route path="settings" element={
+                <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+                  <SettingsPage />
+                </ProtectedRoute>
+              } />
               <Route path="reports" element={<ReportsPage />} />
               <Route path="reports/revenue" element={<RevenueReportPage />} />
               <Route path="reports/enrollment" element={<EnrollmentReportPage />} />
