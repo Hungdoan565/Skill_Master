@@ -308,7 +308,8 @@ export function SchedulePage() {
       <ExportScheduleModal
         isOpen={modals.export}
         onClose={() => closeModal('export')}
-        filters={filters}
+        sessions={sessions}
+        dateRange={{ startDate: filters.startDate, endDate: filters.endDate }}
       />
 
       <HolidayManagementModal
