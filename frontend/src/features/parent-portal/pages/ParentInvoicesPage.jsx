@@ -24,7 +24,7 @@ const ChildSelector = ({ children, selectedId, onSelect }) => (
         className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
           selectedId === child.id
             ? 'bg-orange-500 text-white'
-            : 'bg-orange-50 text-orange-700 hover:bg-orange-100'
+            : 'bg-orange-500/10 text-orange-700 hover:bg-orange-500/20'
         }`}
       >
         {child.full_name}
@@ -65,7 +65,7 @@ export default function ParentInvoicesPage() {
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-lg bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center text-orange-600">
+        <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-600">
           <Receipt className="h-6 w-6" />
         </div>
         <h1 className="text-2xl font-bold">Học phí</h1>
@@ -93,7 +93,7 @@ export default function ParentInvoicesPage() {
                     <p className="text-sm font-medium text-muted-foreground mb-1">Tổng học phí</p>
                     <p className="text-xl font-bold">{formatCurrency(totalAmount)}</p>
                   </div>
-                  <div className="p-2 bg-gray-100 rounded-lg text-gray-600">
+                  <div className="p-2 bg-muted rounded-lg text-muted-foreground">
                     <Wallet className="h-5 w-5" />
                   </div>
                 </div>
@@ -106,7 +106,7 @@ export default function ParentInvoicesPage() {
                     <p className="text-sm font-medium text-muted-foreground mb-1">Đã thanh toán</p>
                     <p className="text-xl font-bold text-green-600">{formatCurrency(paidAmount)}</p>
                   </div>
-                  <div className="p-2 bg-green-100 rounded-lg text-green-600">
+                  <div className="p-2 bg-green-500/10 rounded-lg text-green-600">
                     <CheckCircle2 className="h-5 w-5" />
                   </div>
                 </div>
@@ -119,7 +119,7 @@ export default function ParentInvoicesPage() {
                     <p className="text-sm font-medium text-muted-foreground mb-1">Chưa thanh toán</p>
                     <p className="text-xl font-bold text-amber-600">{formatCurrency(unpaidAmount)}</p>
                   </div>
-                  <div className="p-2 bg-amber-100 rounded-lg text-amber-600">
+                  <div className="p-2 bg-amber-500/10 rounded-lg text-amber-600">
                     <Clock className="h-5 w-5" />
                   </div>
                 </div>
@@ -132,7 +132,7 @@ export default function ParentInvoicesPage() {
                     <p className="text-sm font-medium text-muted-foreground mb-1">Quá hạn</p>
                     <p className="text-xl font-bold text-red-600">{formatCurrency(overdueAmount)}</p>
                   </div>
-                  <div className="p-2 bg-red-100 rounded-lg text-red-600">
+                  <div className="p-2 bg-red-500/10 rounded-lg text-red-600">
                     <AlertCircle className="h-5 w-5" />
                   </div>
                 </div>
@@ -154,7 +154,7 @@ export default function ParentInvoicesPage() {
                     inv.status === 'paid' ? 'border-l-green-500' : 
                     inv.status === 'pending' ? 'border-l-yellow-500' :
                     inv.status === 'overdue' ? 'border-l-red-500' :
-                    'border-l-gray-400'
+                    'border-l-muted-foreground'
                   )}>
                     <CardContent className="p-0">
                       <div className="p-5">
@@ -177,7 +177,7 @@ export default function ParentInvoicesPage() {
                             </div>
                             
                             {inv.className && (
-                              <p className="text-sm text-gray-600 font-medium">Lớp/Khóa: {inv.className}</p>
+                              <p className="text-sm text-muted-foreground font-medium">Lớp/Khóa: {inv.className}</p>
                             )}
                             
                             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
@@ -188,7 +188,7 @@ export default function ParentInvoicesPage() {
                             </div>
                           </div>
                           
-                          <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl md:min-w-[200px] border">
+                          <div className="bg-muted/50 p-4 rounded-xl md:min-w-[200px] border border-border">
                             <div className="space-y-2">
                               <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Tổng tiền:</span>
@@ -202,7 +202,7 @@ export default function ParentInvoicesPage() {
                                 <span className="text-sm font-medium">Còn lại:</span>
                                 <span className={cn(
                                   "font-bold",
-                                  remaining > 0 ? "text-orange-600" : "text-gray-900 dark:text-gray-100"
+                                  remaining > 0 ? "text-orange-600" : "text-foreground"
                                 )}>
                                   {formatCurrency(remaining > 0 ? remaining : 0)}
                                 </span>

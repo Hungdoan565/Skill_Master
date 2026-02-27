@@ -15,7 +15,7 @@ const ChildSelector = ({ children, selectedId, onSelect }) => (
         className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
           selectedId === child.id
             ? 'bg-orange-500 text-white shadow-sm'
-            : 'bg-orange-50 text-orange-700 hover:bg-orange-100'
+            : 'bg-orange-500/10 text-orange-700 hover:bg-orange-500/20'
         }`}
       >
         {child.full_name}
@@ -42,7 +42,7 @@ function ScheduleList({ studentId }) {
 
   if (error) {
     return (
-      <div className="p-8 text-center text-red-500 bg-red-50 rounded-lg border border-red-100">
+      <div className="p-8 text-center text-red-500 bg-red-500/10 rounded-lg border border-red-500/20">
         <p>{error}</p>
       </div>
     );
@@ -52,7 +52,7 @@ function ScheduleList({ studentId }) {
     return (
       <div className="p-12 text-center text-muted-foreground bg-muted/30 rounded-lg border border-dashed">
         <CalendarDays className="h-12 w-12 mx-auto mb-3 opacity-50" />
-        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Chưa có lịch học</h3>
+        <h3 className="text-lg font-medium text-foreground">Chưa có lịch học</h3>
         <p className="text-sm">Học viên hiện chưa có lịch học nào.</p>
       </div>
     );
@@ -61,16 +61,16 @@ function ScheduleList({ studentId }) {
   return (
     <div className="space-y-4">
       {schedule.map((cls, idx) => (
-        <Card key={idx} className="hover:border-orange-200 transition-colors">
+        <Card key={idx} className="hover:border-orange-500/30 transition-colors">
           <CardContent className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-start gap-4">
-              <div className="bg-orange-100 dark:bg-orange-900/30 p-3 rounded-lg shrink-0">
-                <BookOpen className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+              <div className="bg-orange-500/10 p-3 rounded-lg shrink-0">
+                <BookOpen className="h-6 w-6 text-orange-600" />
               </div>
               <div>
                 <h4 className="font-semibold text-lg">{cls.className}</h4>
                 <p className="text-muted-foreground">{cls.courseTitle}</p>
-                <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-gray-600 dark:text-gray-400">
+                <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1 bg-muted/50 px-2 py-1 rounded">
                     <Calendar className="h-4 w-4" />
                     <span>{cls.dayOfWeek === 8 ? 'Chủ nhật' : `Thứ ${cls.dayOfWeek}`}</span>
@@ -127,7 +127,7 @@ export default function ParentSchedulePage() {
       </div>
 
       {children && children.length > 0 ? (
-        <div className="bg-white dark:bg-gray-900 p-6 rounded-xl border shadow-sm">
+        <div className="bg-card p-6 rounded-xl border shadow-sm">
           <ChildSelector 
             children={children} 
             selectedId={selectedChildId} 
@@ -145,9 +145,9 @@ export default function ParentSchedulePage() {
           </div>
         </div>
       ) : (
-        <div className="text-center py-12 bg-white dark:bg-gray-900 rounded-xl border shadow-sm">
+        <div className="text-center py-12 bg-card rounded-xl border shadow-sm">
           <GraduationCap className="h-12 w-12 mx-auto text-muted-foreground mb-3 opacity-50" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Chưa có dữ liệu học viên</h3>
+          <h3 className="text-lg font-medium text-foreground">Chưa có dữ liệu học viên</h3>
           <p className="text-sm text-muted-foreground mt-1">Không tìm thấy thông tin học viên nào liên kết với tài khoản này.</p>
         </div>
       )}

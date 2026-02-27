@@ -24,12 +24,11 @@ const formatCurrency = (amount) => {
 
 function StatCard({ icon: Icon, label, value, color = 'default' }) {
   const colorStyles = {
-    default: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-    orange: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400',
-    green: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400',
-    red: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+    default: 'bg-muted text-muted-foreground',
+    orange: 'bg-orange-500/10 text-orange-600 dark:text-orange-400',
+    green: 'bg-green-500/10 text-green-600 dark:text-green-400',
+    red: 'bg-red-500/10 text-red-600 dark:text-red-400'
   };
-
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardContent className="p-6">
@@ -123,11 +122,11 @@ export function ParentDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {children.length > 0 ? (
             children.map((child) => (
-              <Card key={child.id} className="overflow-hidden hover:border-orange-200 hover:shadow-lg transition-all">
-                <CardHeader className="bg-orange-50/50 dark:bg-orange-950/20 pb-4">
+              <Card key={child.id} className="overflow-hidden hover:border-orange-500/30 hover:shadow-lg transition-all">
+                <CardHeader className="bg-orange-500/10 pb-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="h-12 w-12 rounded-full bg-orange-100 dark:bg-orange-900 flex items-center justify-center text-orange-600 font-bold text-lg">
+                      <div className="h-12 w-12 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-600 font-bold text-lg">
                         {child.full_name?.charAt(0) || 'S'}
                       </div>
                       <div>
@@ -147,7 +146,7 @@ export function ParentDashboard() {
                     <span className="font-medium">{child.center_name || 'N/A'}</span>
                   </div>
                   {child.unpaid_amount > 0 && (
-                    <div className="mt-2 p-2 bg-red-50 text-red-600 rounded text-xs font-medium flex items-center gap-1">
+                    <div className="mt-2 p-2 bg-red-500/10 text-red-600 rounded text-xs font-medium flex items-center gap-1">
                       <AlertTriangle className="h-3 w-3" />
                       Còn nợ: {formatCurrency(child.unpaid_amount)}
                     </div>
