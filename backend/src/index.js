@@ -19829,6 +19829,22 @@ app.get('/api/admin/certificates/eligible-students', requireAuth, requireRole(['
       return !effectiveCenterId || e.class?.center?.id === effectiveCenterId;
     });
 
+    // Filter by linked_course_ids if certificate type specified
+    if (certificateTypeId) {
+      const { data: certTypeData } = await supabase
+        .from('certificate_types')
+        .select('linked_course_ids')
+        .eq('id', certificateTypeId)
+        .single();
+
+      const linkedCourseIds = certTypeData?.linked_course_ids || [];
+      if (linkedCourseIds.length > 0) {
+        enrollments = enrollments.filter(e =>
+          linkedCourseIds.includes(e.class?.course?.id)
+        );
+      }
+    }
+
     // Lấy danh sách đã có chứng chỉ
     const { data: existingCerts } = await supabase
       .from('certificates')
@@ -19914,7 +19930,10 @@ app.get('/api/admin/certificates/eligible-students', requireAuth, requireRole(['
 app.post('/api/admin/certificates/request-approval', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { certificate_type_id, students, options = {} } = req.body;
-    const centerId = getEffectiveCenterId(req);
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, req.body.center_id);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
 
     if (!certificate_type_id || !students || !Array.isArray(students) || students.length === 0) {
       return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc' });
@@ -19973,7 +19992,7 @@ app.post('/api/admin/certificates/request-approval', requireAuth, requireRole(['
           completion_date: new Date().toISOString().split('T')[0],
           grade,
           scores: scores || {},
-          center_id: centerId,
+          center_id: effectiveCenterId,
           status: 'issued',
           issued_by: req.user.id,
           issued_at: new Date().toISOString(),
