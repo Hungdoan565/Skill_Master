@@ -1432,12 +1432,15 @@ app.patch('/api/admin/staff/:id/restore', requireAuth, requireRole(['SUPER_ADMIN
 /**
  * GET /api/admin/centers - Lấy danh sách trung tâm (với thống kê)
  */
-app.get('/api/admin/centers', requireAuth, async (req, res, next) => {
+app.get('/api/admin/centers', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { status, search, withStats } = req.query;
 
     console.log(`🏢 Admin ${req.user.email} xem danh sách trung tâm`);
 
+    // CENTER_MANAGER chỉ thấy trung tâm của mình
+    const userRole = req.user.role || req.user.roles?.code;
+    const userCenterId = req.user.center_id;
     let query = supabase
       .from('centers')
       .select(`
@@ -1456,6 +1459,11 @@ app.get('/api/admin/centers', requireAuth, async (req, res, next) => {
         updated_at
       `)
       .order('name');
+
+    // Scope theo role: CENTER_MANAGER chỉ thấy center của mình
+    if (userRole !== 'SUPER_ADMIN' && userCenterId) {
+      query = query.eq('id', userCenterId);
+    }
 
     // Filter theo status
     if (status) {
@@ -1530,11 +1538,21 @@ app.get('/api/admin/centers', requireAuth, async (req, res, next) => {
 /**
  * GET /api/admin/centers/:id - Chi tiết trung tâm
  */
-app.get('/api/admin/centers/:id', requireAuth, async (req, res, next) => {
+app.get('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
 
     console.log(`🏢 Admin ${req.user.email} xem chi tiết center: ${id}`);
+
+    // CENTER_MANAGER chỉ được xem center của mình
+    const userRole = req.user.role || req.user.roles?.code;
+    const userCenterId = req.user.center_id;
+    if (userRole !== 'SUPER_ADMIN' && userCenterId && id !== userCenterId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền xem trung tâm này'
+      });
+    }
 
     // Lấy thông tin center
     const { data: center, error } = await supabase
@@ -1596,11 +1614,21 @@ app.get('/api/admin/centers/:id', requireAuth, async (req, res, next) => {
 /**
  * GET /api/admin/centers/:id/stats - Thống kê chi tiết trung tâm
  */
-app.get('/api/admin/centers/:id/stats', requireAuth, async (req, res, next) => {
+app.get('/api/admin/centers/:id/stats', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
 
     console.log(`📊 Admin ${req.user.email} xem thống kê center: ${id}`);
+
+    // CENTER_MANAGER chỉ được xem stats center của mình
+    const userRole = req.user.role || req.user.roles?.code;
+    const userCenterId = req.user.center_id;
+    if (userRole !== 'SUPER_ADMIN' && userCenterId && id !== userCenterId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền xem thống kê trung tâm này'
+      });
+    }
 
     // Kiểm tra center tồn tại
     const { data: center, error: centerError } = await supabase
@@ -24130,14 +24158,19 @@ app.get('/api/student/certificates',
         .select(`
           id, certificate_number, issued_at, status, pdf_url,
           course_name, student_name, grade, completion_date, scores,
+          certificate_type_id, class_id,
           certificate_type:certificate_types(id, name, code, category),
-          class:classes(id, name, code, course:courses(id, title, level)),
-          issued_by:users!certificates_issued_by_fkey(id, full_name)
+          class:classes(id, name, code)
         `)
         .eq('student_id', studentId)
         .order('issued_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Supabase certificates query error:', JSON.stringify(error));
+        throw error;
+      }
+
+      console.log(`🔍 Student ID: ${studentId}, Raw result count: ${certificates?.length || 0}`);
 
       // Transform to match frontend expectations
       const transformedCertificates = (certificates || []).map(cert => ({
