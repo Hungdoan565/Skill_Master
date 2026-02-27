@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Controller } from 'react-hook-form';
-import { ChevronLeft, ChevronRight, QrCode, Hash, Mail, Award, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Hash, Mail, Award, CheckCircle2 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { TEMPLATE_CONFIG } from '../../constants';
 import { formatCertificateDateVN } from '../../utils/pdf-utils';
 import { cn } from '@/lib/utils';
+import { QRCodeSVG } from 'qrcode.react';
 
 export default function StepPreviewAndConfirm({ form, selectedStudents, certificateType, centerInfo }) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -148,8 +149,14 @@ export default function StepPreviewAndConfirm({ form, selectedStudents, certific
                   <div className="text-left space-y-2">
                     {showQR && (
                       <div className="w-16 h-16 bg-white border border-gray-200 rounded flex flex-col items-center justify-center p-1 shadow-sm">
-                        <QrCode className="w-8 h-8 text-gray-800" />
-                        <span className="text-[8px] font-mono text-gray-500 mt-1">Xác thực</span>
+                        <QRCodeSVG
+                          value={`https://skillmaster.vn/verify/SM-XXXX-XXXX`}
+                          size={48}
+                          level="M"
+                          includeMargin={false}
+                          bgColor="transparent"
+                        />
+                        <span className="text-[6px] font-mono text-gray-500 mt-0.5">Xác thực</span>
                       </div>
                     )}
                     {showSerial && <div className="font-mono text-xs text-gray-500 font-medium">No. SM-XXXX-XXXX</div>}
