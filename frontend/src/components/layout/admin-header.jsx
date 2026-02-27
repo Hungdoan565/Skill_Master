@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Search, LogOut, ChevronDown, User, Settings, LayoutDashboard, Command } from 'lucide-react';
+import { Bell, Search, LogOut, ChevronDown, User, Settings, LayoutDashboard, Command } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth-context';
 
@@ -135,7 +135,7 @@ const UserDropdown = () => {
   );
 };
 
-export function AdminHeader({ notificationBell = null }) {
+export function AdminHeader() {
   return (
     <header className="flex h-16 items-center justify-between border-b border-border bg-card/80 backdrop-blur-sm px-6">
       {/* Search - Enhanced with glassmorphism feel */}
@@ -164,7 +164,18 @@ export function AdminHeader({ notificationBell = null }) {
       {/* Right section */}
       <div className="flex items-center gap-3">
         {/* Notifications - Enhanced */}
-        {notificationBell}
+        <button className="relative flex h-10 w-10 items-center justify-center rounded-xl 
+                          bg-muted border border-border text-muted-foreground
+                          hover:bg-accent hover:text-foreground hover:border-border
+                          transition-all duration-200 group">
+          <Bell className="h-5 w-5 transition-transform group-hover:scale-105" />
+          {/* Notification badge - more prominent */}
+          <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center 
+                          rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground
+                          ring-2 ring-card shadow-sm">
+            3
+          </span>
+        </button>
 
         {/* Divider */}
         <div className="h-8 w-px bg-border" />

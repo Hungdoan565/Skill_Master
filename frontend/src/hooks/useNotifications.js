@@ -35,8 +35,15 @@ export function useNotifications() {
         })
       ]);
 
-      const unreadJson = await unreadResponse.json();
-      const recentJson = await recentResponse.json();
+      let unreadJson = { success: false };
+      let recentJson = { success: false };
+
+      if (unreadResponse.ok) {
+        try { unreadJson = await unreadResponse.json(); } catch { /* non-JSON response */ }
+      }
+      if (recentResponse.ok) {
+        try { recentJson = await recentResponse.json(); } catch { /* non-JSON response */ }
+      }
 
       if (recentResponse.ok && recentJson?.success) {
         setNotifications(recentJson.data || []);

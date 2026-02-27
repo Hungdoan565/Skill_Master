@@ -1,7 +1,4 @@
-import '@/lib/i18n.js';
 import React, { useState, useRef, useEffect, Suspense, lazy } from 'react';
-import i18n from 'i18next';
-import { I18nextProvider } from 'react-i18next';
 import {
   BrowserRouter,
   Routes,
@@ -15,109 +12,70 @@ import { AdminLayout } from '@/layouts/admin-layout';
 import { StudentLayout } from '@/layouts/student-layout';
 import { TeacherLayout } from '@/layouts/teacher-layout';
 import { ParentLayout } from '@/layouts/parent-layout';
-const StudentDashboard = lazy(() => import('@/features/student-portal').then(m => ({ default: m.StudentDashboard })));
-const StudentSchedule = lazy(() => import('@/features/student-portal').then(m => ({ default: m.StudentSchedule })));
-const StudentGrades = lazy(() => import('@/features/student-portal').then(m => ({ default: m.StudentGrades })));
-const StudentAttendance = lazy(() => import('@/features/student-portal').then(m => ({ default: m.StudentAttendance })));
-const StudentTuition = lazy(() => import('@/features/student-portal').then(m => ({ default: m.StudentTuition })));
-const StudentPayment = lazy(() => import('@/features/student-portal').then(m => ({ default: m.StudentPayment })));
-const StudentCertificates = lazy(() => import('@/features/student-portal').then(m => ({ default: m.StudentCertificates })));
-const StudentSupportPage = lazy(() => import('@/features/student-portal').then(m => ({ default: m.StudentSupportPage })));
-
-const ParentDashboard = lazy(() => import('@/features/parent-portal').then(m => ({ default: m.ParentDashboard })));
-const ParentChildDetail = lazy(() => import('@/features/parent-portal').then(m => ({ default: m.ParentChildDetail })));
-const ParentSchedulePage = lazy(() => import('@/features/parent-portal').then(m => ({ default: m.ParentSchedulePage })));
-const ParentGradesPage = lazy(() => import('@/features/parent-portal').then(m => ({ default: m.ParentGradesPage })));
-const ParentAttendancePage = lazy(() => import('@/features/parent-portal').then(m => ({ default: m.ParentAttendancePage })));
-const ParentInvoicesPage = lazy(() => import('@/features/parent-portal').then(m => ({ default: m.ParentInvoicesPage })));
-const ParentProfilePage = lazy(() => import('@/features/parent-portal').then(m => ({ default: m.ParentProfilePage })));
-
-const TeacherLeaveRequestsPage = lazy(() => import('@/features/teacher-leave').then(m => ({ default: m.TeacherLeaveRequestsPage })));
-
-const TeacherProfilePage = lazy(() => import('@/features/teacher-profile').then(m => ({ default: m.TeacherProfilePage })));
-const TeacherSettingsPage = lazy(() => import('@/features/teacher-profile').then(m => ({ default: m.TeacherSettingsPage })));
-
+import {
+  StudentDashboard,
+  StudentSchedule,
+  StudentGrades,
+  StudentAttendance,
+  StudentTuition,
+  StudentPayment,
+  StudentCertificates,
+  StudentSupportPage
+} from '@/features/student-portal';
+import {
+  ParentDashboard,
+  ParentChildDetail,
+  ParentSchedulePage,
+  ParentGradesPage,
+  ParentAttendancePage,
+  ParentInvoicesPage,
+  ParentProfilePage
+} from '@/features/parent-portal';
+import { TeacherLeaveRequestsPage } from '@/features/teacher-leave';
+import { TeacherProfilePage, TeacherSettingsPage } from '@/features/teacher-profile';
 import NotFoundPage from '@/components/NotFoundPage';
 import { ToastProvider } from '@/components/ui/toast';
 import { ErrorBoundary } from '@/components/errors/ErrorBoundary';
-import { DashboardSkeleton, PageSkeleton, TableSkeleton } from '@/components/skeletons';
 // REFACTORED: Import từ feature modules thay vì file monolithic
-const InvoicesPage = lazy(() => import('@/features/invoices').then(m => ({ default: m.InvoicesPage })));
-const OverdueDashboardPage = lazy(() => import('@/features/invoices').then(m => ({ default: m.OverdueDashboardPage })));
-
-const FinancialDashboardPage = lazy(() => import('@/features/finance').then(m => ({ default: m.FinancialDashboardPage })));
-
-const ClassDetailPage = lazy(() => import('@/features/classes').then(m => ({ default: m.ClassDetailPage })));
-
-const CoursesPage = lazy(() => import('@/features/courses').then(m => ({ default: m.CoursesPage })));
-
-const ClassesPage = lazy(() => import('@/features/classes-list').then(m => ({ default: m.ClassesPage })));
-
-const DashboardPage = lazy(() => import('@/features/dashboard').then(m => ({ default: m.DashboardPage })));
-
-const StaffPage = lazy(() => import('@/features/staff').then(m => ({ default: m.StaffPage })));
-const SalaryConfigPage = lazy(() => import('@/features/staff').then(m => ({ default: m.SalaryConfigPage })));
-
-const RoomsPage = lazy(() => import('@/features/rooms').then(m => ({ default: m.RoomsPage })));
-
-const StudentsPage = lazy(() => import('@/features/students').then(m => ({ default: m.StudentsPage })));
-const StudentDetailPage = lazy(() => import('@/features/students').then(m => ({ default: m.StudentDetailPage })));
-
-const PayrollPage = lazy(() => import('@/features/payroll').then(m => ({ default: m.PayrollPage })));
-const TeacherPayrollPage = lazy(() => import('@/features/payroll').then(m => ({ default: m.TeacherPayrollPage })));
-const DisputeManagementPage = lazy(() => import('@/features/payroll').then(m => ({ default: m.DisputeManagementPage })));
-
-const SchedulePage = lazy(() => import('@/features/schedule').then(m => ({ default: m.SchedulePage })));
-
-const HolidaysPage = lazy(() => import('@/features/holidays').then(m => ({ default: m.HolidaysPage })));
-
-const GradesPage = lazy(() => import('@/features/grades').then(m => ({ default: m.GradesPage })));
-
-const CentersPage = lazy(() => import('@/features/centers').then(m => ({ default: m.CentersPage })));
-const CenterDetailPage = lazy(() => import('@/features/centers').then(m => ({ default: m.CenterDetailPage })));
-
-const SettingsPage = lazy(() => import('@/features/settings').then(m => ({ default: m.SettingsPage })));
-
-const EnrollmentsPage = lazy(() => import('@/features/enrollments').then(m => ({ default: m.EnrollmentsPage })));
-const NewEnrollmentPage = lazy(() => import('@/features/enrollments').then(m => ({ default: m.NewEnrollmentPage })));
-
-const DocumentsPage = lazy(() => import('@/features/documents').then(m => ({ default: m.DocumentsPage })));
-
-const CertificatesPage = lazy(() => import('@/features/certificates').then(m => ({ default: m.CertificatesPage })));
-const CertificateTypeDetailPage = lazy(() => import('@/features/certificates').then(m => ({ default: m.CertificateTypeDetailPage })));
-const CertificatePrintPage = lazy(() => import('@/features/certificates').then(m => ({ default: m.CertificatePrintPage })));
-const CertificateListPage = lazy(() => import('@/features/certificates').then(m => ({ default: m.CertificateListPage })));
-const CertificateBulkPrintPage = lazy(() => import('@/features/certificates').then(m => ({ default: m.CertificateBulkPrintPage })));
-const CertificateViewPage = lazy(() => import('@/features/certificates').then(m => ({ default: m.CertificateViewPage })));
-
-const PublicCertificateVerification = lazy(() => import('@/features/certificates/pages/PublicCertificateVerification').then(m => ({ default: m.PublicCertificateVerification })));
-
-const SupportPage = lazy(() => import('@/features/support').then(m => ({ default: m.SupportPage })));
-
-const TeacherDashboardPage = lazy(() => import('@/features/teacher-dashboard').then(m => ({ default: m.TeacherDashboardPage })));
-
-const AdminNotificationsPage = lazy(() => import('@/features/notifications/AdminNotificationsPage'));
-
-const TeacherSchedulePage = lazy(() => import('@/features/teacher-schedule').then(m => ({ default: m.TeacherSchedulePage })));
-
-const TeacherClassesPage = lazy(() => import('@/features/teacher-classes').then(m => ({ default: m.TeacherClassesPage })));
-
-const TeacherAvailabilityPage = lazy(() => import('@/features/teacher-availability').then(m => ({ default: m.TeacherAvailabilityPage })));
-
-const TeacherClassDetailPage = lazy(() => import('@/features/teacher-attendance').then(m => ({ default: m.TeacherClassDetailPage })));
-const TeacherAttendancePage = lazy(() => import('@/features/teacher-attendance').then(m => ({ default: m.TeacherAttendancePage })));
-const TeacherQuickAttendancePage = lazy(() => import('@/features/teacher-attendance').then(m => ({ default: m.TeacherQuickAttendancePage })));
-
-const TeacherGradebookPage = lazy(() => import('@/features/teacher-gradebook').then(m => ({ default: m.TeacherGradebookPage })));
-
-const ReportsPage = lazy(() => import('@/features/reports').then(m => ({ default: m.ReportsPage })));
-const RevenueReportPage = lazy(() => import('@/features/reports').then(m => ({ default: m.RevenueReportPage })));
-const EnrollmentReportPage = lazy(() => import('@/features/reports').then(m => ({ default: m.EnrollmentReportPage })));
-const AttendanceReportPage = lazy(() => import('@/features/reports').then(m => ({ default: m.AttendanceReportPage })));
-const GradesReportPage = lazy(() => import('@/features/reports').then(m => ({ default: m.GradesReportPage })));
-const StaffReportPage = lazy(() => import('@/features/reports').then(m => ({ default: m.StaffReportPage })));
-const CoursesReportPage = lazy(() => import('@/features/reports').then(m => ({ default: m.CoursesReportPage })));
-
+import { InvoicesPage, OverdueDashboardPage } from '@/features/invoices';
+import { ClassDetailPage } from '@/features/classes';
+import { CoursesPage } from '@/features/courses';
+import { ClassesPage } from '@/features/classes-list';
+import { DashboardPage } from '@/features/dashboard';
+import { StaffPage, SalaryConfigPage } from '@/features/staff';
+import { RoomsPage } from '@/features/rooms';
+import { StudentsPage, StudentDetailPage } from '@/features/students';
+import { PayrollPage, TeacherPayrollPage, DisputeManagementPage } from '@/features/payroll';
+import { SchedulePage } from '@/features/schedule';
+import { HolidaysPage } from '@/features/holidays';
+import { GradesPage } from '@/features/grades';
+import { CentersPage, CenterDetailPage } from '@/features/centers';
+import { SettingsPage } from '@/features/settings';
+import { EnrollmentsPage, NewEnrollmentPage } from '@/features/enrollments';
+import { DocumentsPage } from '@/features/documents';
+import { CertificatesPage } from '@/features/certificates';
+import { PublicCertificateVerification } from '@/features/certificates/pages/PublicCertificateVerification';
+import { SupportPage } from '@/features/support';
+import { TeacherDashboardPage } from '@/features/teacher-dashboard';
+import AdminNotificationsPage from '@/features/notifications/AdminNotificationsPage';
+import { TeacherSchedulePage } from '@/features/teacher-schedule';
+import { TeacherClassesPage } from '@/features/teacher-classes';
+import { TeacherAvailabilityPage } from '@/features/teacher-availability';
+import {
+  TeacherClassDetailPage,
+  TeacherAttendancePage,
+  TeacherQuickAttendancePage
+} from '@/features/teacher-attendance';
+import { TeacherGradebookPage } from '@/features/teacher-gradebook';
+import {
+  ReportsPage,
+  RevenueReportPage,
+  EnrollmentReportPage,
+  AttendanceReportPage,
+  GradesReportPage,
+  StaffReportPage,
+  CoursesReportPage
+} from '@/features/reports';
 import { LoginPage } from '@/pages/auth/login-page';
 import { AuthPage } from '@/pages/auth/auth-page';
 import { LandingPage } from '@/pages/landing/landing-page';
@@ -125,8 +83,6 @@ import { CoursesPage as PublicCoursesPage } from '@/pages/public/courses';
 import { CourseDetailPage } from '@/pages/public/courses/detail';
 import { ProtectedRoute, GuestRoute, TeacherRoute, StudentRoute, AdminRoute, ParentRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/contexts/auth-context';
-import { Toaster } from 'sonner';
-import { ThemeProvider } from '@/contexts/theme-context';
 
 // ============================================
 // LAZY LOADED COMPONENTS (Code Splitting)
@@ -140,10 +96,6 @@ const RoadmapPage = lazy(() => import('@/pages/public/roadmap').then(m => ({ def
 const AssessmentPage = lazy(() => import('@/pages/public/resources/assessment').then(m => ({ default: m.AssessmentPage })));
 const QuizPage = lazy(() => import('@/pages/public/resources/assessment/[slug]/page').then(m => ({ default: m.QuizPage })));
 const ResultPage = lazy(() => import('@/pages/public/resources/assessment/[slug]/result').then(m => ({ default: m.ResultPage })));
-const MessagingPage = lazy(() => import('@/features/messaging/pages/MessagingPage').then(m => ({ default: m.MessagingPage })));
-const AnalyticsDashboardPage = lazy(() => import('@/features/analytics').then(m => ({ default: m.AnalyticsDashboardPage })));
-const LeaveManagementPage = lazy(() => import('@/features/leave-management').then(m => ({ default: m.LeaveManagementPage })));
-const AuditLogPage = lazy(() => import('@/features/audit').then(m => ({ default: m.AuditLogPage })));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -407,11 +359,9 @@ const PublicLayout = () => (
 
 function App() {
   return (
-    <I18nextProvider i18n={i18n}>
-      <ErrorBoundary>
-      <ThemeProvider>
-        <ToastProvider>
-          <BrowserRouter>
+    <ErrorBoundary>
+      <ToastProvider>
+        <BrowserRouter>
           <Routes>
             {/* Landing Page - Standalone with its own header/footer */}
             <Route index element={<LandingPage />} />
@@ -436,8 +386,8 @@ function App() {
 
             {/* Public Certificate Verification - No login required */}
             <Route path="verify-certificate" element={<PublicCertificateVerification />} />
-            <Route path="certificates/:id/view" element={<Suspense fallback={<PageSkeleton />}><CertificateViewPage /></Suspense>} />
-            <Route path="certificates/:id/print" element={<Suspense fallback={<PageSkeleton />}><CertificatePrintPage /></Suspense>} />
+              <Route path="certificates/:id/view" element={<CertificatesPage />} />
+              <Route path="certificates/:id/print" element={<CertificatesPage />} />
 
             {/* Auth Pages - Chỉ cho phép khi CHƯA đăng nhập */}
             <Route path="login" element={
@@ -457,49 +407,45 @@ function App() {
                 <AdminLayout />
               </ProtectedRoute>
             }>
-              <Route index element={<Suspense fallback={<DashboardSkeleton />}><DashboardPage /></Suspense>} />
-              <Route path="dashboard" element={<Suspense fallback={<DashboardSkeleton />}><DashboardPage /></Suspense>} />
-              <Route path="courses" element={<Suspense fallback={<TableSkeleton />}><CoursesPage /></Suspense>} />
-              <Route path="classes" element={<Suspense fallback={<TableSkeleton />}><ClassesPage /></Suspense>} />
-              <Route path="classes/:id" element={<Suspense fallback={<PageSkeleton />}><ClassDetailPage /></Suspense>} />
-              <Route path="schedule" element={<Suspense fallback={<TableSkeleton />}><SchedulePage /></Suspense>} />
-              <Route path="students" element={<Suspense fallback={<TableSkeleton />}><StudentsPage /></Suspense>} />
-              <Route path="students/:id" element={<Suspense fallback={<PageSkeleton />}><StudentDetailPage /></Suspense>} />
-              <Route path="enrollments" element={<Suspense fallback={<PageSkeleton />}><EnrollmentsPage /></Suspense>} />
-              <Route path="enrollments/new" element={<Suspense fallback={<PageSkeleton />}><NewEnrollmentPage /></Suspense>} />
-              <Route path="invoices" element={<Suspense fallback={<TableSkeleton />}><InvoicesPage /></Suspense>} />
-              <Route path="invoices/overdue" element={<Suspense fallback={<DashboardSkeleton />}><OverdueDashboardPage /></Suspense>} />
-              <Route path="finance" element={<Suspense fallback={<DashboardSkeleton />}><FinancialDashboardPage /></Suspense>} />
-              <Route path="grades" element={<Suspense fallback={<PageSkeleton />}><GradesPage /></Suspense>} />
-              <Route path="payroll" element={<Suspense fallback={<PageSkeleton />}><PayrollPage /></Suspense>} />
-              <Route path="payroll-disputes" element={<Suspense fallback={<PageSkeleton />}><DisputeManagementPage /></Suspense>} />
-              <Route path="staff" element={<Suspense fallback={<PageSkeleton />}><StaffPage /></Suspense>} />
-              <Route path="salary-config" element={<Suspense fallback={<PageSkeleton />}><SalaryConfigPage /></Suspense>} />
-              <Route path="leave-requests" element={<Suspense fallback={<PageLoader />}><LeaveManagementPage /></Suspense>} />
-              <Route path="audit-logs" element={<Suspense fallback={<PageSkeleton />}><AuditLogPage /></Suspense>} />
-              <Route path="centers" element={<Suspense fallback={<TableSkeleton />}><CentersPage /></Suspense>} />
-              <Route path="centers/:id" element={<Suspense fallback={<PageSkeleton />}><CenterDetailPage /></Suspense>} />
-              <Route path="rooms" element={<Suspense fallback={<PageSkeleton />}><RoomsPage /></Suspense>} />
-              <Route path="holidays" element={<Suspense fallback={<PageSkeleton />}><HolidaysPage /></Suspense>} />
-              <Route path="documents" element={<Suspense fallback={<PageSkeleton />}><DocumentsPage /></Suspense>} />
-              <Route path="certificates" element={<Suspense fallback={<PageSkeleton />}><CertificatesPage /></Suspense>} />
-              <Route path="certificates/list" element={<Suspense fallback={<TableSkeleton />}><CertificateListPage /></Suspense>} />
-              <Route path="certificates/bulk-print" element={<Suspense fallback={<PageSkeleton />}><CertificateBulkPrintPage /></Suspense>} />
-              <Route path="certificates/type/:id" element={<Suspense fallback={<PageSkeleton />}><CertificateTypeDetailPage /></Suspense>} />
-              <Route path="certificates/:id/print" element={<Suspense fallback={<PageSkeleton />}><CertificatePrintPage /></Suspense>} />
-              <Route path="certificates/:id/view" element={<Suspense fallback={<PageSkeleton />}><CertificateViewPage /></Suspense>} />
-              <Route path="support" element={<Suspense fallback={<PageSkeleton />}><SupportPage /></Suspense>} />
-              <Route path="support-tickets" element={<Suspense fallback={<PageSkeleton />}><SupportPage /></Suspense>} />
-              <Route path="notifications" element={<Suspense fallback={<PageSkeleton />}><AdminNotificationsPage /></Suspense>} />
-              <Route path="settings" element={<Suspense fallback={<PageSkeleton />}><SettingsPage /></Suspense>} />
-              <Route path="reports" element={<Suspense fallback={<PageSkeleton />}><ReportsPage /></Suspense>} />
-              <Route path="analytics" element={<Suspense fallback={<PageLoader />}><AnalyticsDashboardPage /></Suspense>} />
-              <Route path="reports/revenue" element={<Suspense fallback={<PageSkeleton />}><RevenueReportPage /></Suspense>} />
-              <Route path="reports/enrollment" element={<Suspense fallback={<PageSkeleton />}><EnrollmentReportPage /></Suspense>} />
-              <Route path="reports/attendance" element={<Suspense fallback={<PageSkeleton />}><AttendanceReportPage /></Suspense>} />
-              <Route path="reports/grades" element={<Suspense fallback={<PageSkeleton />}><GradesReportPage /></Suspense>} />
-              <Route path="reports/staff" element={<Suspense fallback={<PageSkeleton />}><StaffReportPage /></Suspense>} />
-              <Route path="reports/courses" element={<Suspense fallback={<PageSkeleton />}><CoursesReportPage /></Suspense>} />
+              <Route index element={<DashboardPage />} />
+              <Route path="dashboard" element={<DashboardPage />} />
+              <Route path="courses" element={<CoursesPage />} />
+              <Route path="classes" element={<ClassesPage />} />
+              <Route path="classes/:id" element={<ClassDetailPage />} />
+              <Route path="schedule" element={<SchedulePage />} />
+              <Route path="students" element={<StudentsPage />} />
+              <Route path="students/:id" element={<StudentDetailPage />} />
+              <Route path="enrollments" element={<EnrollmentsPage />} />
+              <Route path="enrollments/new" element={<NewEnrollmentPage />} />
+              <Route path="invoices" element={<InvoicesPage />} />
+              <Route path="invoices/overdue" element={<OverdueDashboardPage />} />
+              <Route path="grades" element={<GradesPage />} />
+              <Route path="payroll" element={<PayrollPage />} />
+              <Route path="payroll-disputes" element={<DisputeManagementPage />} />
+              <Route path="staff" element={<StaffPage />} />
+              <Route path="salary-config" element={<SalaryConfigPage />} />
+              <Route path="centers" element={<CentersPage />} />
+              <Route path="centers/:id" element={<CenterDetailPage />} />
+              <Route path="rooms" element={<RoomsPage />} />
+              <Route path="holidays" element={<HolidaysPage />} />
+              <Route path="documents" element={<DocumentsPage />} />
+              <Route path="certificates" element={<CertificatesPage />} />
+              <Route path="certificates/list" element={<CertificatesPage />} />
+              <Route path="certificates/bulk-print" element={<CertificatesPage />} />
+              <Route path="certificates/type/:id" element={<CertificatesPage />} />
+              <Route path="certificates/:id/print" element={<CertificatesPage />} />
+              <Route path="certificates/:id/view" element={<CertificatesPage />} />
+              <Route path="support" element={<SupportPage />} />
+              <Route path="support-tickets" element={<SupportPage />} />
+              <Route path="notifications" element={<AdminNotificationsPage />} />
+              <Route path="settings" element={<SettingsPage />} />
+              <Route path="reports" element={<ReportsPage />} />
+              <Route path="reports/revenue" element={<RevenueReportPage />} />
+              <Route path="reports/enrollment" element={<EnrollmentReportPage />} />
+              <Route path="reports/attendance" element={<AttendanceReportPage />} />
+              <Route path="reports/grades" element={<GradesReportPage />} />
+              <Route path="reports/staff" element={<StaffReportPage />} />
+              <Route path="reports/courses" element={<CoursesReportPage />} />
             </Route>
 
             {/* Teacher Routes - Chỉ TEACHER */}
@@ -508,20 +454,19 @@ function App() {
                 <TeacherLayout />
               </ProtectedRoute>
             }>
-              <Route index element={<Suspense fallback={<DashboardSkeleton />}><TeacherDashboardPage /></Suspense>} />
-              <Route path="dashboard" element={<Suspense fallback={<DashboardSkeleton />}><TeacherDashboardPage /></Suspense>} />
-              <Route path="schedule" element={<Suspense fallback={<PageSkeleton />}><TeacherSchedulePage /></Suspense>} />
-              <Route path="classes" element={<Suspense fallback={<PageSkeleton />}><TeacherClassesPage /></Suspense>} />
-              <Route path="classes/:id" element={<Suspense fallback={<PageSkeleton />}><TeacherClassDetailPage /></Suspense>} />
-              <Route path="classes/:id/attendance" element={<Suspense fallback={<PageSkeleton />}><TeacherAttendancePage /></Suspense>} />
-              <Route path="classes/:id/gradebook" element={<Suspense fallback={<PageSkeleton />}><TeacherGradebookPage /></Suspense>} />
-              <Route path="payroll" element={<Suspense fallback={<PageSkeleton />}><TeacherPayrollPage /></Suspense>} />
-              <Route path="availability" element={<Suspense fallback={<PageSkeleton />}><TeacherAvailabilityPage /></Suspense>} />
-              <Route path="leave-requests" element={<Suspense fallback={<PageSkeleton />}><TeacherLeaveRequestsPage /></Suspense>} />
-              <Route path="attendance" element={<Suspense fallback={<PageSkeleton />}><TeacherQuickAttendancePage /></Suspense>} />
-              <Route path="messages" element={<Suspense fallback={<PageLoader />}><MessagingPage /></Suspense>} />
-              <Route path="profile" element={<Suspense fallback={<PageSkeleton />}><TeacherProfilePage /></Suspense>} />
-              <Route path="settings" element={<Suspense fallback={<PageSkeleton />}><TeacherSettingsPage /></Suspense>} />
+              <Route index element={<TeacherDashboardPage />} />
+              <Route path="dashboard" element={<TeacherDashboardPage />} />
+              <Route path="schedule" element={<TeacherSchedulePage />} />
+              <Route path="classes" element={<TeacherClassesPage />} />
+              <Route path="classes/:id" element={<TeacherClassDetailPage />} />
+              <Route path="classes/:id/attendance" element={<TeacherAttendancePage />} />
+              <Route path="classes/:id/gradebook" element={<TeacherGradebookPage />} />
+              <Route path="payroll" element={<TeacherPayrollPage />} />
+              <Route path="availability" element={<TeacherAvailabilityPage />} />
+              <Route path="leave-requests" element={<TeacherLeaveRequestsPage />} />
+              <Route path="attendance" element={<TeacherQuickAttendancePage />} />
+              <Route path="profile" element={<TeacherProfilePage />} />
+              <Route path="settings" element={<TeacherSettingsPage />} />
             </Route>
 
             {/* Student Routes - Chỉ STUDENT */}
@@ -530,16 +475,15 @@ function App() {
                 <StudentLayout />
               </ProtectedRoute>
             }>
-              <Route index element={<Suspense fallback={<DashboardSkeleton />}><StudentDashboard /></Suspense>} />
-              <Route path="dashboard" element={<Suspense fallback={<DashboardSkeleton />}><StudentDashboard /></Suspense>} />
-              <Route path="schedule" element={<Suspense fallback={<PageSkeleton />}><StudentSchedule /></Suspense>} />
-              <Route path="grades" element={<Suspense fallback={<PageSkeleton />}><StudentGrades /></Suspense>} />
-              <Route path="attendance" element={<Suspense fallback={<PageSkeleton />}><StudentAttendance /></Suspense>} />
-              <Route path="tuition" element={<Suspense fallback={<PageSkeleton />}><StudentTuition /></Suspense>} />
-              <Route path="payment" element={<Suspense fallback={<PageSkeleton />}><StudentPayment /></Suspense>} />
-              <Route path="certificates" element={<Suspense fallback={<PageSkeleton />}><StudentCertificates /></Suspense>} />
-              <Route path="support" element={<Suspense fallback={<PageSkeleton />}><StudentSupportPage /></Suspense>} />
-              <Route path="messages" element={<Suspense fallback={<PageLoader />}><MessagingPage /></Suspense>} />
+              <Route index element={<StudentDashboard />} />
+              <Route path="dashboard" element={<StudentDashboard />} />
+              <Route path="schedule" element={<StudentSchedule />} />
+              <Route path="grades" element={<StudentGrades />} />
+              <Route path="attendance" element={<StudentAttendance />} />
+              <Route path="tuition" element={<StudentTuition />} />
+              <Route path="payment" element={<StudentPayment />} />
+              <Route path="certificates" element={<StudentCertificates />} />
+              <Route path="support" element={<StudentSupportPage />} />
             </Route>
 
             {/* Parent Routes - Chỉ PARENT */}
@@ -548,26 +492,22 @@ function App() {
                 <ParentLayout />
               </ProtectedRoute>
             }>
-              <Route index element={<Suspense fallback={<DashboardSkeleton />}><ParentDashboard /></Suspense>} />
-              <Route path="dashboard" element={<Suspense fallback={<DashboardSkeleton />}><ParentDashboard /></Suspense>} />
-              <Route path="children" element={<Suspense fallback={<DashboardSkeleton />}><ParentDashboard /></Suspense>} />
-              <Route path="child/:studentId" element={<Suspense fallback={<PageSkeleton />}><ParentChildDetail /></Suspense>} />
-              <Route path="schedule" element={<Suspense fallback={<PageSkeleton />}><ParentSchedulePage /></Suspense>} />
-              <Route path="grades" element={<Suspense fallback={<PageSkeleton />}><ParentGradesPage /></Suspense>} />
-              <Route path="attendance" element={<Suspense fallback={<PageSkeleton />}><ParentAttendancePage /></Suspense>} />
-              <Route path="invoices" element={<Suspense fallback={<PageSkeleton />}><ParentInvoicesPage /></Suspense>} />
-              <Route path="messages" element={<Suspense fallback={<PageLoader />}><MessagingPage /></Suspense>} />
-              <Route path="profile" element={<Suspense fallback={<PageSkeleton />}><ParentProfilePage /></Suspense>} />
+              <Route index element={<ParentDashboard />} />
+              <Route path="dashboard" element={<ParentDashboard />} />
+              <Route path="children" element={<ParentDashboard />} />
+              <Route path="child/:studentId" element={<ParentChildDetail />} />
+              <Route path="schedule" element={<ParentSchedulePage />} />
+              <Route path="grades" element={<ParentGradesPage />} />
+              <Route path="attendance" element={<ParentAttendancePage />} />
+              <Route path="invoices" element={<ParentInvoicesPage />} />
+              <Route path="profile" element={<ParentProfilePage />} />
             </Route>
 
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
-          <Toaster position="top-right" richColors closeButton />
-          </BrowserRouter>
-        </ToastProvider>
-      </ThemeProvider>
-      </ErrorBoundary>
-    </I18nextProvider>
+        </BrowserRouter>
+      </ToastProvider>
+    </ErrorBoundary>
   );
 }
 

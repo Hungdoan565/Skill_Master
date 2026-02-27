@@ -238,9 +238,9 @@ export function TeacherPayrollPage() {
                                     <div
                                         key={payroll.id}
                                         onClick={() => handleViewDetail(payroll)}
-                                        className={`p-4 rounded-lg border cursor-pointer transition-colors ${selectedPayroll?.id === payroll.id
-                                                ? 'border-indigo-500 bg-indigo-50'
-                                                : 'hover:bg-slate-50'
+                                        className={`p-4 rounded-2xl border cursor-pointer transition-colors ${selectedPayroll?.id === payroll.id
+                                                ? 'border-indigo-500 bg-indigo-500/10'
+                                                : 'border-border hover:bg-muted/50'
                                             }`}
                                     >
                                         <div className="flex items-center justify-between">
@@ -330,9 +330,9 @@ export function TeacherPayrollPage() {
                                         <span>Khấu trừ</span>
                                         <span>-{formatCurrency(selectedPayroll.deduction || 0)}</span>
                                     </div>
-                                    <div className="flex justify-between py-3 font-bold text-lg">
+                                    <div className="flex justify-between py-3 font-bold text-lg text-foreground">
                                         <span>Thực nhận</span>
-                                        <span className="text-green-600">{formatCurrency(selectedPayroll.net_salary)}</span>
+                                        <span className="text-green-500">{formatCurrency(selectedPayroll.net_salary)}</span>
                                     </div>
                                 </div>
 
@@ -365,17 +365,17 @@ export function TeacherPayrollPage() {
                                 {selectedPayroll.status === 'paid' && selectedPayroll.payment_proof_url && (
                                     <div className="space-y-2">
                                         <h4 className="font-medium text-sm text-slate-600">Chứng từ thanh toán</h4>
-                                        <div className="border rounded-lg overflow-hidden">
+                                        <div className="border border-border rounded-xl overflow-hidden">
                                             <img 
                                                 src={selectedPayroll.payment_proof_url} 
                                                 alt="Payment proof" 
-                                                className="w-full max-h-48 object-contain bg-slate-50"
+                                                className="w-full max-h-48 object-contain bg-muted/50"
                                                 onClick={() => window.open(selectedPayroll.payment_proof_url, '_blank')}
                                                 style={{ cursor: 'pointer' }}
                                             />
                                         </div>
                                         {selectedPayroll.payment_reference && (
-                                            <p className="text-xs text-slate-500">
+                                            <p className="text-xs text-muted-foreground mt-2">
                                                 Mã GD: {selectedPayroll.payment_reference}
                                             </p>
                                         )}

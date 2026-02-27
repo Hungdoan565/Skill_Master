@@ -1,8 +1,7 @@
-import { toast } from "sonner";
 /**
  * ConfirmDialog Component
  * 
- * Reusable confirmation dialog để thay thế native confirm() và toast()
+ * Reusable confirmation dialog để thay thế native confirm() và alert()
  * Hỗ trợ nhiều loại thông báo: danger, warning, info, success
  * 
  * @param {boolean} isOpen - Trạng thái hiển thị

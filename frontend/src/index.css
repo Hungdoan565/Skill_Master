@@ -35,31 +35,6 @@
   --swiss-white: 40 20% 98%;
 }
 
-.dark {
-  --background: 222 47% 11%;
-  --foreground: 210 40% 98%;
-  --card: 224 30% 14%;
-  --card-foreground: 210 40% 98%;
-  --popover: 224 30% 14%;
-  --popover-foreground: 210 40% 98%;
-  --primary: 238 83% 66%;
-  --primary-foreground: 210 40% 98%;
-  --secondary: 217 33% 17%;
-  --secondary-foreground: 210 40% 98%;
-  --muted: 217 33% 17%;
-  --muted-foreground: 215 20% 65%;
-  --accent: 217 33% 17%;
-  --accent-foreground: 210 40% 98%;
-  --destructive: 0 62% 50%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 217 33% 20%;
-  --input: 217 33% 20%;
-  --ring: 238 83% 66%;
-  --swiss-red: 0 84% 55%;
-  --swiss-black: 240 10% 90%;
-  --swiss-white: 222 47% 11%;
-}
-
 * {
   border-color: hsl(var(--border));
 }
@@ -286,9 +261,4 @@ a:focus-visible,
 [tabindex]:focus-visible {
   outline: 2px solid #18181b;
   outline-offset: 2px;
-}
-
-@media print {
-  .no-print { display: none !important; }
-  .print-only { display: block !important; }
 }

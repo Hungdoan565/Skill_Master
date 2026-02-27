@@ -45,7 +45,7 @@ export function StudentLayout() {
           >
             <Menu className="h-6 w-6" />
           </button>
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-visible">
             <AdminHeader notificationBell={<NotificationBell {...notificationState} />} />
           </div>
         </div>
