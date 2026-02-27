@@ -37,6 +37,7 @@ import {
 } from '../components';
 import { ActionableAlertsWidget } from '../components/ActionableAlertsWidget';
 import { exportDashboardToCSV } from '../utils';
+import ManagerDashboardPage from './ManagerDashboardPage';
 
 // Helpers
 const getValue = (val) => {
@@ -60,6 +61,12 @@ const getTrend = (val) => {
 export function DashboardPage() {
   const navigate = useNavigate();
   const { user, session, profile, isSuperAdmin, isManager, getCenterId } = useAuth();
+
+  // Role-based dashboard routing: Manager gets their own dashboard
+  if (isManager?.()) {
+    return <ManagerDashboardPage />;
+  }
+
   const accessToken = session?.access_token;
 
   // For CENTER_MANAGER: auto-set to their assigned center
