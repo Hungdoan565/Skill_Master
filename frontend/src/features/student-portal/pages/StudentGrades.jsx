@@ -55,19 +55,17 @@ const getScoreColor = (score) => {
 
 const getScoreBgColor = (score) => {
   if (score === null || score === undefined) return 'bg-muted';
-  if (score >= 8) return 'bg-green-100 dark:bg-green-900/30';
-  if (score >= 5) return 'bg-amber-100 dark:bg-amber-900/30';
-  return 'bg-red-100 dark:bg-red-900/30';
+  if (score >= 8) return 'bg-green-500/10';
+  if (score >= 5) return 'bg-amber-500/10';
+  return 'bg-red-500/10';
 };
-
 function StatCard({ icon: Icon, label, value, color = 'default' }) {
   const colorStyles = {
-    default: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-    green: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400',
-    blue: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
-    red: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+    default: 'bg-muted text-muted-foreground',
+    green: 'bg-green-500/10 text-green-600 dark:text-green-400',
+    blue: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+    red: 'bg-red-500/10 text-red-600 dark:text-red-400'
   };
-
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardContent className="p-4">
@@ -277,12 +275,12 @@ function GradesTable({ grades, classSummaries }) {
                   return (
                     <tr 
                       key={grade.id || idx} 
-                      className="hover:bg-muted/30 transition-colors"
+                      className="hover:bg-muted/50 transition-colors"
                     >
                       {/* Class */}
                       <td className="px-3 py-3">
                         <div className="flex items-center gap-2">
-                          <div className="p-1.5 rounded-md bg-blue-100 dark:bg-blue-900/30">
+                          <div className="p-1.5 rounded-md bg-blue-500/10">
                             <BookOpen className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                           </div>
                           <div className="min-w-0">
@@ -360,7 +358,7 @@ function ClassSummaryBar({ classSummaries }) {
             key={cs.classId}
             className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-background border hover:shadow-sm transition-shadow"
           >
-            <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+            <div className="p-2 rounded-lg bg-blue-500/10">
               <BookOpen className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="min-w-0">

@@ -48,23 +48,23 @@ const formatDate = (dateStr) => {
 };
 
 const STATUS_CONFIG = {
-  paid: { label: 'Đã thanh toán', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
-  pending: { label: 'Chờ xác minh', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
-  overdue: { label: 'Quá hạn', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
-  partial: { label: 'Thanh toán một phần', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' }
+  paid: { label: 'Đã thanh toán', color: 'bg-green-500/10 text-green-600 dark:text-green-400' },
+  pending: { label: 'Chờ xác minh', color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
+  overdue: { label: 'Quá hạn', color: 'bg-red-500/10 text-red-600 dark:text-red-400' },
+  partial: { label: 'Thanh toán một phần', color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' }
 };
 
 function StatCard({ icon: Icon, label, value, color = 'default' }) {
   const colorStyles = {
-    default: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-    green: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400',
-    blue: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
-    red: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
-    amber: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'
+    default: 'bg-muted text-muted-foreground',
+    green: 'bg-green-500/10 text-green-600 dark:text-green-400',
+    blue: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+    red: 'bg-red-500/10 text-red-600 dark:text-red-400',
+    amber: 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
   };
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className="hover:shadow-md transition-shadow rounded-2xl">
       <CardContent className="p-6">
         <div className="flex items-center gap-4">
           <div className={cn('p-3 rounded-xl', colorStyles[color])}>
@@ -101,14 +101,14 @@ function InvoiceItem({ invoice, onClick }) {
   return (
     <div
       onClick={() => onClick(invoice)}
-      className="flex items-center justify-between p-4 rounded-lg hover:bg-muted/50 transition-colors border border-transparent hover:border-border cursor-pointer"
+      className="flex items-center justify-between p-4 rounded-lg bg-card hover:bg-muted/50 transition-colors border border-border cursor-pointer"
     >
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <div className={cn(
           'p-2 rounded-lg',
-          invoice.status === 'paid' ? 'bg-green-100 dark:bg-green-900/30' :
-          invoice.status === 'overdue' ? 'bg-red-100 dark:bg-red-900/30' :
-          'bg-amber-100 dark:bg-amber-900/30'
+          invoice.status === 'paid' ? 'bg-green-500/10' :
+          invoice.status === 'overdue' ? 'bg-red-500/10' :
+          'bg-amber-500/10'
         )}>
           <Icon className={cn(
             'h-4 w-4',
@@ -190,13 +190,13 @@ function InvoiceDetailModal({ invoice, open, onClose, onPay }) {
             <StatusBadge status={invoice.status} />
           </div>
           {invoice.notes && (
-            <div className="pt-2 border-t">
+            <div className="pt-2 border-t border-border">
               <p className="text-sm text-muted-foreground mb-1">Ghi chú</p>
               <p className="text-sm">{invoice.notes}</p>
             </div>
           )}
           {invoice.status !== 'paid' && (
-            <div className="pt-3 border-t">
+            <div className="pt-3 border-t border-border">
               <Button
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                 onClick={() => onPay?.(invoice)}
@@ -334,7 +334,7 @@ export function StudentTuition() {
       </div>
 
       {/* Invoice List */}
-      <Card>
+      <Card className="rounded-2xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <FileText className="h-5 w-5" />

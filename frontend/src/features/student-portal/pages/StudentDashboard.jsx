@@ -42,15 +42,15 @@ const formatDate = (date) => {
 
 function StatCard({ icon: Icon, label, value, color = 'default' }) {
   const colorStyles = {
-    default: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-    green: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400',
-    blue: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
-    red: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
-    orange: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400'
+    default: 'bg-muted text-muted-foreground',
+    green: 'bg-green-500/10 text-green-600 dark:text-green-400',
+    blue: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+    red: 'bg-red-500/10 text-red-600 dark:text-red-400',
+    orange: 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
   };
 
   return (
-    <Card className="hover:shadow-md transition-all duration-200 border-none shadow-sm bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm">
+    <Card className="hover:shadow-md transition-all duration-200 border-none shadow-sm bg-card/50 backdrop-blur-sm">
       <CardContent className="p-4 flex flex-col items-center text-center justify-center gap-3">
         <div className={cn('p-3 rounded-full', colorStyles[color])}>
           <Icon className="h-6 w-6" />
@@ -66,21 +66,21 @@ function StatCard({ icon: Icon, label, value, color = 'default' }) {
 
 function QuickAction({ icon: Icon, label, onClick, color = 'blue' }) {
   const colorStyles = {
-    blue: 'bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30',
-    green: 'bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/30',
-    orange: 'bg-orange-50 text-orange-600 hover:bg-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/30',
-    purple: 'bg-purple-50 text-purple-600 hover:bg-purple-100 dark:bg-purple-900/20 dark:text-purple-400 dark:hover:bg-purple-900/30'
+    blue: 'bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 dark:text-blue-400',
+    green: 'bg-green-500/10 text-green-600 hover:bg-green-500/20 dark:text-green-400',
+    orange: 'bg-orange-500/10 text-orange-600 hover:bg-orange-500/20 dark:text-orange-400',
+    purple: 'bg-purple-500/10 text-purple-600 hover:bg-purple-500/20 dark:text-purple-400'
   };
 
   return (
     <button 
       onClick={onClick}
       className={cn(
-        "flex flex-col items-center gap-2 p-4 rounded-xl transition-all duration-200 w-full",
+        "flex flex-col items-center gap-2 p-4 rounded-2xl transition-all duration-200 w-full",
         colorStyles[color]
       )}
     >
-      <div className="p-2 bg-white dark:bg-gray-950 rounded-full shadow-sm">
+      <div className="p-2 bg-card rounded-full shadow-sm">
         <Icon className="h-5 w-5" />
       </div>
       <span className="text-sm font-medium">{label}</span>
@@ -113,8 +113,8 @@ function CourseProgressItem({ course }) {
 
 function ClassItem({ classItem }) {
   return (
-    <div className="group flex items-center gap-4 p-4 rounded-xl border bg-card hover:bg-accent/50 transition-all duration-200">
-      <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center group-hover:scale-105 transition-transform">
+    <div className="group flex items-center gap-4 p-4 rounded-2xl border bg-card hover:bg-accent/50 transition-all duration-200">
+      <div className="flex-shrink-0 w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center group-hover:scale-105 transition-transform">
         <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-400" />
       </div>
       <div className="flex-1 min-w-0">
@@ -155,7 +155,7 @@ function GradeItem({ grade }) {
 
 function EmptyState({ icon: Icon, message }) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground bg-muted/30 rounded-xl border border-dashed">
+    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground bg-muted/30 rounded-2xl border-border border-dashed border">
       <Icon className="h-10 w-10 mb-3 opacity-50" />
       <p className="text-sm font-medium">{message}</p>
     </div>
@@ -345,11 +345,11 @@ export function StudentDashboard() {
         <div className="space-y-6">
           {/* Unpaid Invoices Alert */}
           {unpaidInvoices.length > 0 && (
-            <Card className="border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20 overflow-hidden relative">
+            <Card className="border-amber-500/20 bg-amber-500/10 overflow-hidden relative">
               <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
               <CardContent className="p-4">
                 <div className="flex items-start gap-3">
-                  <div className="p-2 rounded-full bg-amber-100 dark:bg-amber-900/50 flex-shrink-0 mt-0.5">
+                  <div className="p-2 rounded-full bg-amber-500/20 flex-shrink-0 mt-0.5">
                     <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                   </div>
                   <div className="flex-1 space-y-2">

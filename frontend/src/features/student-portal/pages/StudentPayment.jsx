@@ -270,7 +270,7 @@ export function StudentPayment() {
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Invoice List */}
-        <Card className="lg:col-span-3">
+        <Card className="lg:col-span-3 rounded-2xl">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -302,10 +302,10 @@ export function StudentPayment() {
                     <div
                       key={invoice.id}
                       className={cn(
-                        'flex items-center gap-3 p-4 rounded-lg border transition-all cursor-pointer',
+                        'flex items-center gap-3 p-4 rounded-lg border transition-all cursor-pointer bg-card',
                         isSelected 
-                          ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/20 shadow-sm' 
-                          : 'hover:bg-muted/50 hover:border-muted-foreground/20'
+                          ? 'border-emerald-500 bg-emerald-500/10 shadow-sm' 
+                          : 'border-border hover:bg-muted/50'
                       )}
                       onClick={() => toggleSelect(invoice)}
                     >
@@ -322,8 +322,8 @@ export function StudentPayment() {
                           <p className="font-medium truncate">{invoice.invoice_code || `HD-${invoice.id.slice(0, 6)}`}</p>
                           <Badge variant="secondary" className={cn(
                             isOverdue 
-                              ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' 
-                              : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                              ? 'bg-red-500/10 text-red-600 dark:text-red-400' 
+                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
                           )}>
                             {isOverdue ? 'Quá hạn' : 'Chờ thanh toán'}
                           </Badge>
@@ -356,9 +356,9 @@ export function StudentPayment() {
         </Card>
 
         {/* Payment Panel */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6 lg:sticky lg:top-6 self-start">
           {/* Summary Card */}
-          <Card>
+          <Card className="rounded-2xl">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Wallet className="h-5 w-5" />
@@ -378,12 +378,12 @@ export function StudentPayment() {
               </div>
               
               {selectedInvoices.length > 0 && (
-                <div className="space-y-2 pt-3 border-t">
+                <div className="space-y-2 pt-3 border-t border-border">
                   <p className="text-sm font-medium text-muted-foreground">Hóa đơn đã chọn:</p>
                   {selectedInvoices.map(inv => (
                     <div
                       key={inv.id}
-                      className="flex items-center justify-between px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-sm"
+                      className="flex items-center justify-between px-3 py-2 rounded-lg bg-emerald-500/10 text-sm"
                     >
                       <span className="truncate font-medium">{inv.invoice_code || inv.id.slice(0, 6)}</span>
                       <span className="text-emerald-700 dark:text-emerald-400">{formatMoney(getRemaining(inv))}</span>
@@ -393,7 +393,7 @@ export function StudentPayment() {
               )}
 
               {selectedInvoices.length > 1 && (
-                <div className="text-xs text-muted-foreground bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="text-xs text-muted-foreground bg-blue-500/10 p-3 rounded-lg border border-blue-500/20">
                   <strong>Thanh toán gộp:</strong> Quét 1 mã QR để thanh toán tất cả hóa đơn đã chọn.
                 </div>
               )}
@@ -401,7 +401,7 @@ export function StudentPayment() {
           </Card>
 
           {/* QR Payment Card */}
-          <Card>
+          <Card className="rounded-2xl">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <QrCode className="h-5 w-5" />
@@ -467,7 +467,7 @@ export function StudentPayment() {
                   {/* Bank Info + QR */}
                   {config && (
                     <div className="space-y-4">
-                      <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                      <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-muted-foreground">Ngân hàng</span>
                           <span className="font-medium">{config.bankName || config.bankId}</span>
@@ -492,10 +492,10 @@ export function StudentPayment() {
                             {copiedField === 'accountName' ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
                           </button>
                         </div>
-                        <div className="flex items-center justify-between text-sm pt-2 border-t">
+                        <div className="flex items-center justify-between text-sm pt-2 border-t border-border">
                           <span className="text-muted-foreground">Nội dung CK</span>
                           <button
-                            className="font-mono text-xs bg-amber-100 dark:bg-amber-900/30 px-2 py-1 rounded flex items-center gap-1 hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors"
+                            className="font-mono text-xs bg-amber-500/10 px-2 py-1 rounded flex items-center gap-1 hover:bg-amber-500/20 transition-colors"
                             onClick={() => handleCopy('transferContent', transferContent)}
                           >
                             {transferContent}
@@ -507,7 +507,7 @@ export function StudentPayment() {
                       {/* QR Code */}
                       {qrUrl && (
                         <div className="flex justify-center">
-                          <div className="bg-white p-4 rounded-xl border-2 border-dashed border-emerald-200 shadow-sm">
+                          <div className="bg-white p-4 rounded-xl border-2 border-dashed border-emerald-500/20 shadow-sm">
                             <img src={qrUrl} alt="Mã QR thanh toán" className="w-64 h-64 object-contain" />
                             <p className="text-center text-xs text-muted-foreground mt-2">
                               Quét mã để thanh toán {formatMoney(paymentAmount)}
@@ -527,13 +527,13 @@ export function StudentPayment() {
                           <img src={bankProofUrl} alt="Minh chứng" className="w-full max-h-48 object-cover rounded-lg border" />
                           <button
                             onClick={() => setBankProofUrl(null)}
-                            className="absolute top-2 right-2 p-1.5 rounded-full bg-white/90 border hover:bg-white transition-colors"
+                            className="absolute top-2 right-2 p-1.5 rounded-full bg-background/90 border border-border hover:bg-background transition-colors"
                           >
                             <X className="h-4 w-4" />
                           </button>
                         </div>
                       ) : (
-                        <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed rounded-lg cursor-pointer bg-muted/30 hover:bg-muted/50 transition-colors">
+                        <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-border rounded-lg cursor-pointer bg-muted/30 hover:bg-muted/50 transition-colors">
                           <Upload className="h-6 w-6 text-muted-foreground mb-2" />
                           <span className="text-sm text-muted-foreground">Kéo thả hoặc click để tải ảnh</span>
                           <span className="text-xs text-muted-foreground mt-1">PNG, JPG (tối đa 5MB)</span>

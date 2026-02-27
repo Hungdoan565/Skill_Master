@@ -365,14 +365,13 @@ const ScheduleEvent = ({ event, onClick, isCompact = false }) => {
       {!isCompact && (
         <>
           <div className="flex items-center justify-between mt-1">
-            <div className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400">
-              <Clock className="h-3 w-3" />
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <span>{formatTime(event.startTime)} - {formatTime(event.endTime)}</span>
             </div>
           </div>
           
           <div className="flex items-center gap-2 mt-2 flex-wrap">
-             <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 h-5 bg-white/50 border-0', status.text)}>
+             <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 h-5 bg-background/50 border-0', status.text)}>
                 {status.label}
              </Badge>
              {isUpcoming && <CountdownBadge targetDateTime={eventDateTime} />}
@@ -381,8 +380,7 @@ const ScheduleEvent = ({ event, onClick, isCompact = false }) => {
       )}
       
       {isCompact && (
-        <div className="text-[10px] text-slate-600 mt-0.5">
-          {formatTime(event.startTime)}
+        <div className="text-[10px] text-muted-foreground mt-0.5">
         </div>
       )}
     </div>
@@ -411,55 +409,50 @@ const ClassDetailModal = ({ isOpen, onClose, event }) => {
               <h3 className={cn('font-semibold text-lg', colorScheme.text)}>
                 {event.className}
               </h3>
-              <span className={cn('text-xs px-2 py-1 rounded-full bg-white/80 font-medium', status.text)}>
+              <span className={cn('text-xs px-2 py-1 rounded-full bg-background/80 font-medium', status.text)}>
                 {status.label}
               </span>
             </div>
             {event.courseName && (
-              <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                {event.courseName}
-              </p>
+<p className="text-sm text-muted-foreground mt-1">{event.courseName}
+</p>
             )}
-            <p className="text-sm text-slate-500 mt-2">Buổi số: {event.sessionNumber}</p>
+            <p className="text-sm text-muted-foreground mt-2">Buổi số: {event.sessionNumber}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="flex items-start gap-3">
-              <Clock className="h-5 w-5 text-slate-400 mt-0.5" />
+              <Clock className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Thời gian</p>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                  {formatTime(event.startTime)} - {formatTime(event.endTime)}
-                </p>
+                <p className="text-sm font-medium text-foreground">Thời gian</p>
+                <p className="text-sm text-muted-foreground">{event.startTime} - {event.endTime}</p>
               </div>
             </div>
 
             <div className="flex items-start gap-3">
-              <Calendar className="h-5 w-5 text-slate-400 mt-0.5" />
+              <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Ngày học</p>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                  {DAYS_OF_WEEK.find(d => d.value === event.dayOfWeek)?.label}, {formatDate(event.sessionDate)}
-                </p>
+                <p className="text-sm font-medium text-foreground">Ngày học</p>
+                <p className="text-sm text-muted-foreground">{event.dayOfWeek || event.date}</p>
               </div>
             </div>
 
             {event.roomName && (
               <div className="flex items-start gap-3">
-                <MapPin className="h-5 w-5 text-slate-400 mt-0.5" />
+                <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Phòng học</p>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">{event.roomName}</p>
+                  <p className="text-sm font-medium text-foreground">Phòng học</p>
+                  <p className="text-sm text-muted-foreground">{event.roomName}</p>
                 </div>
               </div>
             )}
 
             {event.teacherName && (
               <div className="flex items-start gap-3">
-                <User className="h-5 w-5 text-slate-400 mt-0.5" />
+                <User className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Giáo viên</p>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">{event.teacherName}</p>
+                  <p className="text-sm font-medium text-foreground">Giáo viên</p>
+                  <p className="text-sm text-muted-foreground">{event.teacherName}</p>
                 </div>
               </div>
             )}
@@ -692,7 +685,7 @@ export function StudentSchedule() {
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-slate-600 dark:text-slate-400">Đang tải lịch học...</p>
+          <p className="mt-4 text-muted-foreground">Đang tải lịch học...</p>
         </div>
       </div>
     );
@@ -703,36 +696,31 @@ export function StudentSchedule() {
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-            📅 Lịch học của bạn
-          </h1>
+          <h1 className="text-2xl font-bold text-foreground">Lịch học của tôi</h1>
           <div className="flex items-center gap-2 mt-1">
-             <span className="text-sm text-slate-500">
-               {statistics.totalSessions || 0} buổi tổng
+             <span className="text-sm text-muted-foreground">
+               {statistics.totalSessions || 0} buổi học
              </span>
-             <span className="text-slate-300">|</span>
-             <span className="text-sm text-blue-600 font-medium">
+             <span className="text-muted-foreground/30">|</span>
+             <span className="text-sm text-muted-foreground">
                {statistics.upcomingSessions || 0} sắp tới
              </span>
-          </div>
         </div>
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-          <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700">
-             <Button
+          <div className="flex items-center bg-muted p-1 rounded-lg border border-border">
+            <Button
                variant={viewType === 'week' ? 'white' : 'ghost'}
                size="sm"
-               className={cn("h-8", viewType === 'week' && "shadow-sm bg-white dark:bg-slate-700")}
-               onClick={() => setViewType('week')}
-             >
+               className={cn("h-8", viewType === 'week' && "shadow-sm bg-background")}
+            >
                <LayoutGrid className="w-4 h-4 mr-2" />
                Tuần
              </Button>
              <Button
                variant={viewType === 'month' ? 'white' : 'ghost'}
                size="sm"
-               className={cn("h-8", viewType === 'month' && "shadow-sm bg-white dark:bg-slate-700")}
-               onClick={() => setViewType('month')}
+               className={cn("h-8", viewType === 'month' && "shadow-sm bg-background")}
              >
                <Calendar className="w-4 h-4 mr-2" />
                Tháng
@@ -779,47 +767,44 @@ export function StudentSchedule() {
         </div>
       </div>
 
-      {/* Navigation */}
-      <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-        <Button variant="ghost" size="icon" onClick={handlePrev}>
-          <ChevronLeft className="h-5 w-5" />
-        </Button>
-        
-        <div className="flex items-center gap-3">
-           <h2 className="text-lg font-semibold capitalize text-slate-800 dark:text-slate-200">
-             {formatRange()}
-           </h2>
-           {!isToday(currentDate) && (
-             <Button variant="outline" size="xs" onClick={handleToday} className="h-7 text-xs">
-               Hôm nay
-             </Button>
-           )}
+      <div className="flex items-center justify-between mt-4">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={handlePrev}>
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-semibold capitalize text-foreground">
+              {currentDate.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}
+            </h2>
+            {!isToday(currentDate) && (
+              <Button variant="outline" size="xs" onClick={handleToday} className="h-7 text-xs">
+                Hôm nay
+              </Button>
+            )}
+          </div>
+          <Button variant="ghost" size="icon" onClick={handleNext}>
+            <ChevronRight className="h-5 w-5" />
+          </Button>
         </div>
-
-        <Button variant="ghost" size="icon" onClick={handleNext}>
-          <ChevronRight className="h-5 w-5" />
-        </Button>
       </div>
+    </div>
 
       {/* Views - Swipeable */}
       <div 
         {...swipeHandlers}
-        className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm touch-pan-y"
+        className="bg-card rounded-xl border border-border overflow-hidden shadow-sm touch-pan-y"
       >
-        {/* Swipe hint for mobile */}
-        <div className="sm:hidden text-center text-xs text-slate-400 py-1 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-          ← Vuốt trái/phải để chuyển {viewType === 'week' ? 'tuần' : 'tháng'} →
+        <div className="sm:hidden text-center text-xs text-muted-foreground py-1 bg-muted/50 border-b border-border">
         </div>
         
         {/* Header Grid */}
         <div className={cn(
-          "grid grid-cols-7 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50",
-          viewType === 'week' && "hidden sm:grid"
+          "grid grid-cols-7 border-b border-border bg-muted/50",
         )}>
           {DAYS_OF_WEEK.map((day) => (
-            <div key={day.value} className="p-3 text-center border-r border-slate-200 dark:border-slate-700 last:border-r-0">
-              <span className="hidden sm:inline text-sm font-medium text-slate-500">{day.label}</span>
-              <span className="sm:hidden text-sm font-medium text-slate-500">{day.short}</span>
+            <div key={day.value} className="p-3 text-center border-r border-border last:border-r-0">
+              <span className="hidden sm:inline text-sm font-medium text-muted-foreground">{day.label}</span>
+              <span className="sm:hidden text-sm font-medium text-muted-foreground">{day.short}</span>
             </div>
           ))}
         </div>
@@ -841,27 +826,24 @@ export function StudentSchedule() {
                <div
                  key={dateKey}
                  className={cn(
-                   "border-r border-b border-slate-200 dark:border-slate-700 p-2 relative transition-colors",
-                   (index + 1) % 7 === 0 && viewType === 'month' && "border-r-0", 
+                   "border-r border-b border-border p-2 relative transition-colors",
                    viewType === 'week' && "sm:border-r last:border-r-0",
                    isDayToday && "bg-blue-50/30 dark:bg-blue-900/10",
-                   !isCurrMonth && viewType === 'month' && "bg-slate-50/50 dark:bg-slate-900/50 text-slate-400"
+                   !isCurrMonth && viewType === 'month' && "bg-muted/30 text-muted-foreground"
                  )}
                >
                  {/* Mobile Day Header (Week View only) */}
                  <div className={cn(
-                   "sm:hidden font-medium mb-3 flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800",
-                   viewType === 'month' && "hidden"
+                   "sm:hidden font-medium mb-3 flex items-center gap-2 pb-2 border-b border-border",
                  )}>
                    <div className={cn(
                      "w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold",
-                     isDayToday ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700"
+                     isDayToday ? "bg-blue-600 text-white" : "bg-muted text-foreground"
                    )}>
                      {date.getDate()}
                    </div>
                    <div className="flex flex-col">
-                     <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{dayLabel}</span>
-                     {isDayToday && <span className="text-xs text-blue-600 font-medium">Hôm nay</span>}
+                     <span className="text-sm font-semibold text-foreground">{dayLabel}</span>
                    </div>
                  </div>
 
@@ -873,13 +855,15 @@ export function StudentSchedule() {
                    <span className={cn(
                      "text-sm font-medium h-7 w-7 flex items-center justify-center rounded-full",
                      isDayToday 
+
                        ? "bg-blue-600 text-white" 
-                       : isCurrMonth ? "text-slate-700 dark:text-slate-300" : "text-slate-400"
+
+                       : isCurrMonth ? "text-foreground" : "text-muted-foreground"
                    )}>
                      {date.getDate()}
                    </span>
                    {daySessions.length > 0 && (
-                     <span className="text-xs text-slate-400 font-medium">{daySessions.length}</span>
+                     <span className="text-xs text-muted-foreground font-medium">{daySessions.length}</span>
                    )}
                  </div>
                  
@@ -898,11 +882,9 @@ export function StudentSchedule() {
                                 <div key={slot.key} className={cn("rounded-lg p-1.5 border", slot.bg, slot.border)}>
                                   <div className="flex items-center gap-1.5 mb-1.5 px-1">
                                     <span className="text-sm">{slot.icon}</span>
-                                    <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
-                                      {slot.label}
+                                    <span className="text-xs font-medium text-muted-foreground">
                                     </span>
-                                    <span className="text-[10px] text-slate-400">
-                                      ({slot.range})
+                                    <span className="text-[10px] text-muted-foreground">
                                     </span>
                                   </div>
                                   <div className="space-y-1">
@@ -933,8 +915,7 @@ export function StudentSchedule() {
                       )
                     ) : (
                       viewType === 'week' && (
-                        <div className="h-full flex items-center justify-center sm:pt-10 text-slate-300 dark:text-slate-700 text-xs italic py-4 sm:py-0">
-                           <span className="sm:hidden">Không có lịch</span>
+                        <div className="h-full flex items-center justify-center sm:pt-10 text-muted-foreground/50 text-xs italic py-4 sm:py-0">
                            <span className="hidden sm:inline">Trống</span>
                         </div>
                       )
@@ -947,12 +928,12 @@ export function StudentSchedule() {
       </div>
       
       {/* Legend */}
-      <div className="flex flex-wrap items-center gap-4 text-sm p-4 bg-slate-50 dark:bg-slate-800/30 rounded-lg">
-        <span className="font-medium text-slate-700 dark:text-slate-300">Trạng thái:</span>
+      <div className="flex flex-wrap items-center gap-4 text-sm p-4 bg-muted/50 rounded-lg">
+        <span className="font-medium text-foreground">Trạng thái:</span>
         {Object.entries(STATUS_CONFIG).map(([key, config]) => (
           <div key={key} className="flex items-center gap-2">
             <span className={cn("w-3 h-3 rounded-full", config.bg.replace('bg-', 'bg-').replace('100', '500'))}></span>
-            <span className="text-slate-600 dark:text-slate-400">{config.label}</span>
+            <span className="text-muted-foreground">{config.label}</span>
           </div>
         ))}
       </div>

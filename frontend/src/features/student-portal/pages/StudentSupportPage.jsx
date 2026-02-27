@@ -13,10 +13,10 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/toast';
 
 const STATUS_MAP = {
-  open: { label: 'Mở', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' },
-  in_progress: { label: 'Đang xử lý', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400' },
-  resolved: { label: 'Đã giải quyết', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' },
-  closed: { label: 'Đã đóng', color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400' },
+  open: { label: 'Mở', color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400', border: 'border-l-blue-500' },
+  in_progress: { label: 'Đang xử lý', color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400', border: 'border-l-amber-500' },
+  resolved: { label: 'Đã giải quyết', color: 'bg-green-500/10 text-green-600 dark:text-green-400', border: 'border-l-green-500' },
+  closed: { label: 'Đã đóng', color: 'bg-muted text-muted-foreground', border: 'border-l-muted-foreground' },
 };
 
 const CATEGORY_MAP = {
@@ -27,9 +27,9 @@ const CATEGORY_MAP = {
 };
 
 const PRIORITY_MAP = {
-  low: { label: 'Thấp', color: 'text-gray-500 bg-gray-100 dark:bg-gray-800 dark:text-gray-400' },
-  medium: { label: 'Trung bình', color: 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400' },
-  high: { label: 'Cao', color: 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400' }
+  low: { label: 'Thấp', color: 'bg-muted text-muted-foreground' },
+  medium: { label: 'Trung bình', color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
+  high: { label: 'Cao', color: 'bg-red-500/10 text-red-600 dark:text-red-400' }
 };
 
 export default function StudentSupportPage() {
@@ -151,8 +151,8 @@ export default function StudentSupportPage() {
 
       {/* Ticket List */}
       {tickets.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground bg-white dark:bg-gray-900 rounded-xl border shadow-sm">
-          <div className="h-20 w-20 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mb-4">
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground bg-card rounded-2xl border border-border shadow-sm">
+          <div className="h-20 w-20 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4">
             <HeadphonesIcon className="h-10 w-10 text-emerald-600 dark:text-emerald-400" />
           </div>
           <p className="text-lg font-medium text-foreground mb-2">Chưa có yêu cầu hỗ trợ nào</p>
@@ -168,7 +168,7 @@ export default function StudentSupportPage() {
             const priorityConfig = PRIORITY_MAP[ticket.priority] || PRIORITY_MAP.medium;
             
             return (
-              <Card key={ticket.id} className="hover:shadow-md transition-shadow group overflow-hidden border-l-4" style={{ borderLeftColor: ticket.status === 'open' ? '#3b82f6' : ticket.status === 'in_progress' ? '#f59e0b' : ticket.status === 'resolved' ? '#10b981' : '#9ca3af' }}>
+              <Card key={ticket.id} className={cn("hover:shadow-md transition-shadow group overflow-hidden border-l-4 rounded-2xl bg-card border-y-border border-r-border", statusConfig.border)}>
                 <CardContent className="p-5">
                   <div className="flex justify-between items-start mb-3">
                     <span className="font-mono text-xs font-semibold text-muted-foreground bg-muted px-2 py-1 rounded">
@@ -194,11 +194,11 @@ export default function StudentSupportPage() {
                     </div>
                   </div>
                   
-                  <div className="pt-4 border-t flex items-center justify-between">
+                  <div className="pt-4 border-t border-border flex items-center justify-between">
                     <Badge variant="secondary" className={cn("text-xs border-0", priorityConfig.color)}>
                       {priorityConfig.label}
                     </Badge>
-                    <Button variant="ghost" size="sm" className="h-8 text-emerald-600 px-2 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-950/50">
+                    <Button variant="ghost" size="sm" className="h-8 text-emerald-600 dark:text-emerald-400 px-2 group-hover:bg-emerald-500/10">
                       Chi tiết <ChevronRight className="h-4 w-4 ml-1" />
                     </Button>
                   </div>

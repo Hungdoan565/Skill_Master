@@ -19,10 +19,10 @@ const formatDate = (dateStr) => {
 };
 
 const STATUS_CONFIG = {
-  active: { label: 'Còn hiệu lực', variant: 'default', className: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
-  issued: { label: 'Đã cấp', variant: 'default', className: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
-  expired: { label: 'Hết hạn', variant: 'destructive', className: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
-  revoked: { label: 'Đã thu hồi', variant: 'secondary', className: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400' }
+  active: { label: 'Còn hiệu lực', variant: 'default', className: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20' },
+  issued: { label: 'Đã cấp', variant: 'default', className: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20' },
+  expired: { label: 'Hết hạn', variant: 'destructive', className: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20' },
+  revoked: { label: 'Đã thu hồi', variant: 'secondary', className: 'bg-muted text-muted-foreground border-border' }
 };
 
 function StatusBadge({ status }) {
@@ -46,11 +46,11 @@ function CertificateCard({ certificate }) {
   };
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className="hover:shadow-md transition-shadow bg-card rounded-2xl min-h-[220px] flex flex-col border-border">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30">
+            <div className="p-2 rounded-lg bg-amber-500/10">
               <Award className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             </div>
             <div>
@@ -61,7 +61,7 @@ function CertificateCard({ certificate }) {
           <StatusBadge status={certificate.status} />
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3 flex-1 flex flex-col">
         <div className="space-y-2 text-sm">
           <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-muted-foreground" />
@@ -87,7 +87,7 @@ function CertificateCard({ certificate }) {
           )}
         </div>
         {certificate.pdf_url && (
-          <Button variant="outline" size="sm" className="w-full mt-2" onClick={handleDownload}>
+          <Button variant="outline" size="sm" className="w-full mt-auto" onClick={handleDownload}>
             <Download className="h-4 w-4 mr-2" />
             Tải PDF
           </Button>
@@ -165,7 +165,7 @@ export function StudentCertificates() {
           ))}
         </div>
       ) : (
-        <Card>
+        <Card className="bg-card rounded-2xl border-border">
           <CardContent className="p-0">
             <EmptyState />
           </CardContent>

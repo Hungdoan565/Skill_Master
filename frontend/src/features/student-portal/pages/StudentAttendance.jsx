@@ -48,27 +48,27 @@ import { vi } from 'date-fns/locale';
 const STATUS_CONFIG = {
   present: { 
     label: 'Có mặt', 
-    color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-    dotColor: 'bg-green-500 dark:bg-green-600',
-    borderColor: 'border-green-200 dark:border-green-800'
+    color: 'bg-green-500/10 text-green-600 dark:text-green-400',
+    dotColor: 'bg-green-500',
+    borderColor: 'border-green-500/20'
   },
   absent: { 
     label: 'Vắng mặt', 
-    color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-    dotColor: 'bg-red-500 dark:bg-red-600',
-    borderColor: 'border-red-200 dark:border-red-800'
+    color: 'bg-red-500/10 text-red-600 dark:text-red-400',
+    dotColor: 'bg-red-500',
+    borderColor: 'border-red-500/20'
   },
   late: { 
     label: 'Đi trễ', 
-    color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-    dotColor: 'bg-amber-500 dark:bg-amber-600',
-    borderColor: 'border-amber-200 dark:border-amber-800'
+    color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+    dotColor: 'bg-amber-500',
+    borderColor: 'border-amber-500/20'
   },
   excused: { 
     label: 'Có phép', 
-    color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-    dotColor: 'bg-blue-500 dark:bg-blue-600',
-    borderColor: 'border-blue-200 dark:border-blue-800'
+    color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+    dotColor: 'bg-blue-500',
+    borderColor: 'border-blue-500/20'
   }
 };
 
@@ -85,13 +85,12 @@ const formatDate = (dateStr) => {
 // Compact Stat Card Component
 function CompactStatCard({ icon: Icon, label, value, color = 'default' }) {
   const colorStyles = {
-    default: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-    green: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400',
-    blue: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
-    red: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
-    amber: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400'
+    default: 'bg-muted text-muted-foreground',
+    green: 'bg-green-500/10 text-green-600 dark:text-green-400',
+    blue: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
+    red: 'bg-red-500/10 text-red-600 dark:text-red-400',
+    amber: 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
   };
-
   return (
     <Card className="hover:shadow-sm transition-shadow">
       <CardContent className="p-4 flex flex-col items-center justify-center text-center h-full">
@@ -121,11 +120,10 @@ function ClassSummaryChip({ summary }) {
     ? summary.attendanceRate.toFixed(0) 
     : (summary.attendanceRate || 0);
     
-  let colorClass = 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
-  if (rate >= 80) colorClass = 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800';
-  else if (rate >= 60) colorClass = 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800';
-  else colorClass = 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800';
-
+  let colorClass = 'bg-muted text-foreground border-border';
+  if (rate >= 80) colorClass = 'bg-green-500/10 text-green-600 border-green-500/20 dark:text-green-400';
+  else if (rate >= 60) colorClass = 'bg-amber-500/10 text-amber-600 border-amber-500/20 dark:text-amber-400';
+  else colorClass = 'bg-red-500/10 text-red-600 border-red-500/20 dark:text-red-400';
   return (
     <div className={cn('flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-medium whitespace-nowrap', colorClass)}>
       <BookOpen className="h-3.5 w-3.5" />
@@ -189,11 +187,11 @@ function AttendanceHeatmap({ records }) {
                 let dotClass = '';
                 
                 if (status === 'future') {
-                  dotClass = 'bg-transparent border-2 border-dashed border-gray-200 dark:border-gray-700';
+                  dotClass = 'bg-transparent border-2 border-dashed border-border';
                 } else if (status === 'none') {
-                  dotClass = 'bg-gray-100 dark:bg-gray-800'; // Empty/No Class
+                  dotClass = 'bg-muted'; // Empty/No Class
                 } else {
-                  dotClass = STATUS_CONFIG[status]?.dotColor || 'bg-gray-300';
+                  dotClass = STATUS_CONFIG[status]?.dotColor || 'bg-muted';
                 }
 
                 return (
@@ -208,7 +206,7 @@ function AttendanceHeatmap({ records }) {
                     >
                       {/* For none/future, show date number nicely */}
                       {(status === 'none' || status === 'future') && (
-                        <span className="text-[10px] text-gray-400 font-medium">{dateNum}</span>
+                        <span className="text-[10px] text-muted-foreground font-medium">{dateNum}</span>
                       )}
                       {/* For statuses, show check/x or just color */}
                       {status === 'present' && <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-white opacity-90" />}
@@ -237,7 +235,7 @@ function AttendanceHeatmap({ records }) {
             </div>
           ))}
           <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700" />
+            <div className="h-3 w-3 rounded-full bg-muted border border-border" />
             <span className="text-xs text-muted-foreground">Không học</span>
           </div>
         </div>
