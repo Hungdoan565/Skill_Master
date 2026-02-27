@@ -31,4 +31,5 @@ auggie_shell.sh
 .agent/
 conductor/
 .opencode/
+openspec/
 .github/
