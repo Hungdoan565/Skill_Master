@@ -41,9 +41,9 @@ function StatusBadge({ status }) {
 }
 
 function CertificateCard({ certificate, onClick }) {
-  const typeName = certificate.certificate_types?.name || 'Chứng chỉ';
-  const className = certificate.classes?.name || '--';
-  const courseTitle = certificate.classes?.courses?.title || '--';
+  const typeName = certificate.certificate_type?.name || 'Chứng chỉ';
+  const classInfo = certificate.class?.code || certificate.class?.name || '--';
+  const courseTitle = certificate.course_name || '--';
 
   const isPending = certificate.status === 'pending_approval';
   const isRevoked = certificate.status === 'revoked';
@@ -85,7 +85,7 @@ function CertificateCard({ certificate, onClick }) {
           <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-muted-foreground" />
             <span className="text-muted-foreground">Lớp:</span>
-            <span className="font-medium">{className}</span>
+            <span className="font-medium">{classInfo}</span>
           </div>
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />

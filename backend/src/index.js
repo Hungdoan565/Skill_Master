@@ -9142,6 +9142,357 @@ app.get('/api/dashboard/alerts', requireAuth, async (req, res, next) => {
   }
 });
 
+// ────────────────────────────────────────────────────────────
+// MANAGER DASHBOARD APIs
+// ────────────────────────────────────────────────────────────
+
+// GET /api/dashboard/teacher-status-today
+app.get('/api/dashboard/teacher-status-today', requireAuth, async (req, res, next) => {
+  try {
+    const { centerId } = req.query;
+    const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
+    const today = new Date().toISOString().split('T')[0];
+
+    // Get teachers in center
+    let teacherQuery = supabase
+      .from('users')
+      .select('id, full_name, avatar_url, center_id, roles!inner(code)')
+      .eq('roles.code', 'TEACHER')
+      .eq('status', 'active');
+
+    if (effectiveCenterId) {
+      teacherQuery = teacherQuery.eq('center_id', effectiveCenterId);
+    }
+
+    const { data: teachers } = await teacherQuery;
+
+    if (!teachers || teachers.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    // Get approved leave requests for today
+    const { data: leaves } = await supabase
+      .from('leave_requests')
+      .select('teacher_id')
+      .eq('status', 'approved')
+      .lte('start_date', today)
+      .gte('end_date', today);
+
+    const onLeaveIds = new Set((leaves || []).map(l => l.teacher_id));
+
+    // Get today's sessions with class info
+    const { data: sessions } = await supabase
+      .from('sessions')
+      .select('id, class_id, start_time, end_time, status, classes!inner(name, teacher_id, center_id)')
+      .eq('session_date', today)
+      .neq('status', 'cancelled');
+
+    const now = new Date();
+    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    const result = teachers.map(teacher => {
+      if (onLeaveIds.has(teacher.id)) {
+        return { id: teacher.id, full_name: teacher.full_name, avatar_url: teacher.avatar_url, status: 'on_leave', current_class: null, next_class: null };
+      }
+
+      const teacherSessions = (sessions || [])
+        .filter(s => s.classes?.teacher_id === teacher.id)
+        .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
+
+      const currentSession = teacherSessions.find(s => s.start_time <= currentTime && s.end_time >= currentTime);
+      const nextSession = teacherSessions.find(s => s.start_time > currentTime);
+
+      return {
+        id: teacher.id,
+        full_name: teacher.full_name,
+        avatar_url: teacher.avatar_url,
+        status: currentSession ? 'teaching' : 'available',
+        current_class: currentSession ? { name: currentSession.classes?.name, time: `${currentSession.start_time} - ${currentSession.end_time}` } : null,
+        next_class: nextSession ? { name: nextSession.classes?.name, time: `${nextSession.start_time} - ${nextSession.end_time}` } : null,
+      };
+    });
+
+    // Sort: teaching first, then available, then on_leave
+    const order = { teaching: 0, available: 1, on_leave: 2 };
+    result.sort((a, b) => (order[a.status] || 9) - (order[b.status] || 9));
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Error in teacher-status-today:', error);
+    next(error);
+  }
+});
+
+// GET /api/dashboard/room-utilization
+app.get('/api/dashboard/room-utilization', requireAuth, async (req, res, next) => {
+  try {
+    const { centerId } = req.query;
+    const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
+    const today = new Date().toISOString().split('T')[0];
+
+    let roomQuery = supabase.from('rooms').select('id, name, capacity').eq('status', 'active');
+    if (effectiveCenterId) {
+      roomQuery = roomQuery.eq('center_id', effectiveCenterId);
+    }
+
+    const { data: rooms } = await roomQuery;
+
+    if (!rooms || rooms.length === 0) {
+      return res.json({ success: true, data: { rooms: [], summary: { total_rooms: 0, rooms_in_use: 0, overall_utilization_percentage: 0 } } });
+    }
+
+    // Get today's sessions grouped by room
+    const { data: sessions } = await supabase
+      .from('sessions')
+      .select('id, room_id')
+      .eq('session_date', today)
+      .neq('status', 'cancelled');
+
+    const sessionsByRoom = {};
+    (sessions || []).forEach(s => {
+      if (s.room_id) {
+        sessionsByRoom[s.room_id] = (sessionsByRoom[s.room_id] || 0) + 1;
+      }
+    });
+
+    const totalSlots = 8; // Assume 8 time slots per day
+    let roomsInUse = 0;
+
+    const roomData = rooms.map(room => {
+      const usedSlots = sessionsByRoom[room.id] || 0;
+      if (usedSlots > 0) roomsInUse++;
+      return {
+        id: room.id,
+        name: room.name,
+        total_slots: totalSlots,
+        used_slots: usedSlots,
+        utilization_percentage: Math.round((usedSlots / totalSlots) * 100),
+      };
+    });
+
+    roomData.sort((a, b) => b.utilization_percentage - a.utilization_percentage);
+
+    res.json({
+      success: true,
+      data: {
+        rooms: roomData,
+        summary: {
+          total_rooms: rooms.length,
+          rooms_in_use: roomsInUse,
+          overall_utilization_percentage: rooms.length > 0 ? Math.round((roomsInUse / rooms.length) * 100) : 0,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Error in room-utilization:', error);
+    next(error);
+  }
+});
+
+// GET /api/dashboard/class-fill-rates
+app.get('/api/dashboard/class-fill-rates', requireAuth, async (req, res, next) => {
+  try {
+    const { centerId } = req.query;
+    const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
+
+    let classQuery = supabase
+      .from('classes')
+      .select('id, name, max_students, center_id, courses(title)')
+      .in('status', ['upcoming', 'ongoing']);
+
+    if (effectiveCenterId) {
+      classQuery = classQuery.eq('center_id', effectiveCenterId);
+    }
+
+    const { data: classes } = await classQuery;
+
+    if (!classes || classes.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    // Count active enrollments per class
+    const classIds = classes.map(c => c.id);
+    const { data: enrollments } = await supabase
+      .from('enrollments')
+      .select('class_id')
+      .in('class_id', classIds)
+      .eq('status', 'active');
+
+    const enrollCounts = {};
+    (enrollments || []).forEach(e => {
+      enrollCounts[e.class_id] = (enrollCounts[e.class_id] || 0) + 1;
+    });
+
+    const result = classes.map(cls => {
+      const enrolled = enrollCounts[cls.id] || 0;
+      const max = cls.max_students || 20;
+      return {
+        id: cls.id,
+        name: cls.name,
+        course_name: cls.courses?.title || '',
+        enrolled_count: enrolled,
+        max_students: max,
+        fill_percentage: Math.round((enrolled / max) * 100),
+      };
+    });
+
+    result.sort((a, b) => b.fill_percentage - a.fill_percentage);
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Error in class-fill-rates:', error);
+    next(error);
+  }
+});
+
+// GET /api/dashboard/pending-actions
+app.get('/api/dashboard/pending-actions', requireAuth, async (req, res, next) => {
+  try {
+    const { centerId } = req.query;
+    const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
+    const today = new Date().toISOString().split('T')[0];
+
+    // 1. Overdue invoices
+    let overdueQuery = supabase
+      .from('invoices')
+      .select('id, class:classes!inner(center_id)', { count: 'exact', head: true })
+      .in('status', ['pending', 'partial'])
+      .lt('due_date', today);
+    if (effectiveCenterId) {
+      overdueQuery = overdueQuery.eq('class.center_id', effectiveCenterId);
+    }
+    const { count: overdueCount } = await overdueQuery;
+
+    // 2. Pending leave requests
+    let leaveQuery = supabase
+      .from('leave_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending');
+    if (effectiveCenterId) {
+      leaveQuery = leaveQuery.eq('center_id', effectiveCenterId);
+    }
+    const { count: leaveCount } = await leaveQuery;
+
+    // 3. Pending payroll disputes
+    let disputeQuery = supabase
+      .from('payroll_disputes')
+      .select('id, payroll!inner(center_id)', { count: 'exact', head: true })
+      .eq('status', 'pending');
+    if (effectiveCenterId) {
+      disputeQuery = disputeQuery.eq('payroll.center_id', effectiveCenterId);
+    }
+    const { count: disputeCount } = await disputeQuery;
+
+    // 4. Recent new enrollments (last 7 days)
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    let enrollQuery = supabase
+      .from('enrollments')
+      .select('id, classes!inner(center_id)', { count: 'exact', head: true })
+      .gte('enrolled_at', weekAgo.toISOString());
+    if (effectiveCenterId) {
+      enrollQuery = enrollQuery.eq('classes.center_id', effectiveCenterId);
+    }
+    const { count: enrollCount } = await enrollQuery;
+
+    const categories = [
+      { key: 'overdue_invoices', label: 'Hóa đơn quá hạn', count: overdueCount || 0, path: '/admin/invoices' },
+      { key: 'pending_enrollments', label: 'Ghi danh mới (7 ngày)', count: enrollCount || 0, path: '/admin/enrollments' },
+      { key: 'pending_leave_requests', label: 'Đơn xin nghỉ chờ duyệt', count: leaveCount || 0, path: '/admin/leave' },
+      { key: 'pending_disputes', label: 'Khiếu nại lương', count: disputeCount || 0, path: '/admin/payroll-disputes' },
+    ];
+
+    const total = categories.reduce((sum, c) => sum + c.count, 0);
+
+    res.json({ success: true, data: { categories, total } });
+  } catch (error) {
+    console.error('Error in pending-actions:', error);
+    next(error);
+  }
+});
+
+// GET /api/dashboard/collection-rate
+app.get('/api/dashboard/collection-rate', requireAuth, async (req, res, next) => {
+  try {
+    const { centerId, month } = req.query;
+    const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
+    const today = new Date();
+
+    // Determine target month
+    let targetYear, targetMonth;
+    if (month && /^\d{4}-\d{2}$/.test(month)) {
+      [targetYear, targetMonth] = month.split('-').map(Number);
+    } else {
+      targetYear = today.getFullYear();
+      targetMonth = today.getMonth() + 1;
+    }
+
+    const monthStart = `${targetYear}-${String(targetMonth).padStart(2, '0')}-01`;
+    const nextMonth = targetMonth === 12 ? `${targetYear + 1}-01-01` : `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-01`;
+
+    // Get invoices for the month
+    let invoiceQuery = supabase
+      .from('invoices')
+      .select('id, final_amount, paid_amount, due_date, status, class:classes!inner(center_id)')
+      .gte('issue_date', monthStart)
+      .lt('issue_date', nextMonth)
+      .neq('status', 'cancelled');
+
+    if (effectiveCenterId) {
+      invoiceQuery = invoiceQuery.eq('class.center_id', effectiveCenterId);
+    }
+
+    const { data: invoices } = await invoiceQuery;
+
+    if (!invoices || invoices.length === 0) {
+      return res.json({
+        success: true,
+        data: { total_expected: 0, total_collected: 0, collection_percentage: 100, overdue_amount: 0, aging_buckets: { bucket_1_15: 0, bucket_16_30: 0, bucket_30_plus: 0 } },
+      });
+    }
+
+    let totalExpected = 0;
+    let totalCollected = 0;
+    let overdueAmount = 0;
+    let bucket1_15 = 0;
+    let bucket16_30 = 0;
+    let bucket30Plus = 0;
+    const todayStr = today.toISOString().split('T')[0];
+
+    for (const inv of invoices) {
+      totalExpected += inv.final_amount || 0;
+      totalCollected += inv.paid_amount || 0;
+
+      if (inv.due_date && inv.due_date < todayStr && inv.status !== 'paid') {
+        const remaining = (inv.final_amount || 0) - (inv.paid_amount || 0);
+        if (remaining > 0) {
+          overdueAmount += remaining;
+          const daysOverdue = Math.floor((today - new Date(inv.due_date)) / (1000 * 60 * 60 * 24));
+          if (daysOverdue <= 15) bucket1_15 += remaining;
+          else if (daysOverdue <= 30) bucket16_30 += remaining;
+          else bucket30Plus += remaining;
+        }
+      }
+    }
+
+    const collectionPct = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 100;
+
+    res.json({
+      success: true,
+      data: {
+        total_expected: totalExpected,
+        total_collected: totalCollected,
+        collection_percentage: collectionPct,
+        overdue_amount: overdueAmount,
+        aging_buckets: { bucket_1_15: bucket1_15, bucket_16_30: bucket16_30, bucket_30_plus: bucket30Plus },
+      },
+    });
+  } catch (error) {
+    console.error('Error in collection-rate:', error);
+    next(error);
+  }
+});
+
 // ============================================================
 // END DASHBOARD APIs
 // ============================================================
@@ -19403,7 +19754,7 @@ app.get('/api/admin/certificates/eligible-students', requireAuth, requireRole(['
   }
 });
 
-// Yêu cầu cấp chứng chỉ nội bộ (tạo pending approval)
+// Cấp chứng chỉ nội bộ (issued ngay lập tức khi admin xác nhận qua wizard)
 app.post('/api/admin/certificates/request-approval', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { certificate_type_id, students, options = {} } = req.body;
@@ -19428,7 +19779,7 @@ app.post('/api/admin/certificates/request-approval', requireAuth, requireRole(['
 
     for (const student of students) {
       try {
-        const { student_id, scores, override_reason } = student;
+        const { student_id, scores, override_reason, class_id, course_name } = student;
 
         // Lấy thông tin học viên
         const { data: profile } = await supabase
@@ -19461,13 +19812,15 @@ app.post('/api/admin/certificates/request-approval', requireAuth, requireRole(['
           certificate_type_id,
           student_id,
           student_name: studentName,
-          course_name: certType.name,
+          course_name: course_name || certType.name,
+          class_id: class_id || null,
           completion_date: new Date().toISOString().split('T')[0],
           grade,
           scores: scores || {},
           center_id: centerId,
-          status: 'pending_approval',
+          status: 'issued',
           issued_by: req.user.id,
+          issued_at: new Date().toISOString(),
           expires_at: expiresAt,
         };
 
@@ -19491,7 +19844,7 @@ app.post('/api/admin/certificates/request-approval', requireAuth, requireRole(['
 
     res.json({
       success: true,
-      message: `Đã tạo ${results.success.length} yêu cầu cấp chứng chỉ`,
+      message: `Đã cấp ${results.success.length} chứng chỉ thành công`,
       data: results
     });
   } catch (error) {

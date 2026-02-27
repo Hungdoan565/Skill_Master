@@ -134,11 +134,16 @@ export default function IssueInternalWizard({ open, onOpenChange, onSuccess, cen
       
       const payload = {
         certificate_type_id: data.certificateTypeId,
-        students: data.studentIds.map(studentId => ({
-          student_id: studentId,
-          scores: data.scores[studentId],
-          override_reason: data.overrideReasons[studentId] || null
-        })),
+        students: data.studentIds.map(studentId => {
+          const studentData = studentsList.find(s => s.student_id === studentId);
+          return {
+            student_id: studentId,
+            scores: data.scores[studentId],
+            override_reason: data.overrideReasons[studentId] || null,
+            class_id: studentData?.class_id || null,
+            course_name: studentData?.course_name || null
+          };
+        }),
         options: {
           show_qr: data.showQR,
           show_serial: data.showSerial,
@@ -153,15 +158,15 @@ export default function IssueInternalWizard({ open, onOpenChange, onSuccess, cen
       );
 
       if (response.data?.success) {
-        toast.success(`Đã yêu cầu cấp ${data.studentIds.length} chứng chỉ thành công`);
+        toast.success(`Đã cấp ${data.studentIds.length} chứng chỉ thành công`);
         if (onSuccess) onSuccess();
         onOpenChange(false);
       } else {
-        toast.error(response.data?.message || 'Có lỗi xảy ra khi yêu cầu cấp chứng chỉ');
+        toast.error(response.data?.message || 'Có lỗi xảy ra khi cấp chứng chỉ');
       }
     } catch (error) {
       console.error('Lỗi khi submit:', error);
-      toast.error(error.response?.data?.message || 'Không thể yêu cầu cấp chứng chỉ');
+      toast.error(error.response?.data?.message || 'Không thể cấp chứng chỉ')
     } finally {
       setSubmitting(false);
     }
