@@ -19939,7 +19939,11 @@ app.get('/api/admin/certificates/eligible-students', requireAuth, requireRole(['
 app.post('/api/admin/certificates/request-approval', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { certificate_type_id, students, options = {} } = req.body;
+    console.log('=== ISSUE CERTIFICATE REQUEST ===');
+    console.log('User:', req.user?.email, 'Role:', req.user?.roleCode, 'CenterId:', req.user?.centerId);
+    console.log('CertTypeId:', certificate_type_id, 'Students count:', students?.length);
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, req.body.center_id);
+    console.log('EffectiveCenterId:', effectiveCenterId, 'PermError:', permError);
     if (permError) {
       return res.status(403).json({ success: false, message: permError });
     }
