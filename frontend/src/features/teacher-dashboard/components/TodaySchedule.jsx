@@ -7,13 +7,13 @@ import { Clock, MapPin, Users, CheckCircle, AlertCircle, CalendarDays } from 'lu
 export function TodaySchedule({ sessions = [], onMarkAttendance }) {
     if (sessions.length === 0) {
         return (
-            <div className="rounded-xl border bg-white p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+                <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
                     <CalendarDays className="h-5 w-5 text-blue-500" />
                     Lịch dạy hôm nay
                 </h3>
-                <div className="text-center py-8 text-gray-500">
-                    <Clock className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                <div className="text-center py-8 text-muted-foreground">
+                    <Clock className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
                     <p>Không có buổi học nào hôm nay</p>
                     <p className="text-sm mt-1">Nghỉ ngơi và chuẩn bị cho ngày mai nhé!</p>
                 </div>
@@ -24,17 +24,17 @@ export function TodaySchedule({ sessions = [], onMarkAttendance }) {
     const getStatusBadge = (status, attendanceCompleted) => {
         if (attendanceCompleted) {
             return (
-                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-700 dark:text-green-400">
                     <CheckCircle className="h-3 w-3" /> Đã điểm danh
                 </span>
             );
         }
 
         const statusConfig = {
-            scheduled: { label: 'Chưa bắt đầu', class: 'bg-gray-100 text-gray-700' },
-            in_progress: { label: 'Đang diễn ra', class: 'bg-blue-100 text-blue-700' },
-            completed: { label: 'Hoàn thành', class: 'bg-green-100 text-green-700' },
-            cancelled: { label: 'Đã hủy', class: 'bg-red-100 text-red-700' }
+            scheduled: { label: 'Chưa bắt đầu', class: 'bg-muted text-foreground' },
+            in_progress: { label: 'Đang diễn ra', class: 'bg-blue-500/20 text-blue-700 dark:text-blue-400' },
+            completed: { label: 'Hoàn thành', class: 'bg-green-500/20 text-green-700 dark:text-green-400' },
+            cancelled: { label: 'Đã hủy', class: 'bg-red-500/20 text-red-700 dark:text-red-400' }
         };
 
         const config = statusConfig[status] || statusConfig.scheduled;
@@ -67,13 +67,13 @@ export function TodaySchedule({ sessions = [], onMarkAttendance }) {
     };
 
     return (
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
                     <CalendarDays className="h-5 w-5 text-blue-500" />
                     Lịch dạy hôm nay
                 </h3>
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-muted-foreground">
                     {sessions.length} buổi học
                 </span>
             </div>
@@ -89,35 +89,35 @@ export function TodaySchedule({ sessions = [], onMarkAttendance }) {
                             key={session.id}
                             className={cn(
                                 'rounded-lg border p-4 transition-all',
-                                isCurrent ? 'border-blue-300 bg-blue-50 ring-2 ring-blue-200' : 'border-gray-200 hover:border-gray-300',
+                                isCurrent ? 'border-blue-500/30 bg-blue-500/5 ring-2 ring-blue-500/20' : 'border-border hover:border-border/80',
                                 session.status === 'cancelled' && 'opacity-60'
                             )}
                         >
                             <div className="flex items-start justify-between gap-3">
                                 <div className="flex-1 min-w-0">
                                     {/* Class name */}
-                                    <h4 className="font-medium text-gray-900 truncate">
+                                    <h4 className="font-medium text-foreground truncate">
                                         {session.class_name || 'Lớp học'}
                                     </h4>
 
                                     {/* Course name */}
-                                    <p className="text-sm text-gray-500 truncate">
+                                    <p className="text-sm text-muted-foreground truncate">
                                         {session.course_name}
                                     </p>
 
                                     {/* Time & Room */}
                                     <div className="flex items-center gap-4 mt-2 text-sm">
-                                        <span className="flex items-center gap-1 text-gray-600">
+                                        <span className="flex items-center gap-1 text-muted-foreground">
                                             <Clock className="h-4 w-4" />
                                             {formatTime(session.start_time)} - {formatTime(session.end_time)}
                                         </span>
                                         {session.room_name && (
-                                            <span className="flex items-center gap-1 text-gray-600">
+                                            <span className="flex items-center gap-1 text-muted-foreground">
                                                 <MapPin className="h-4 w-4" />
                                                 {session.room_name}
                                             </span>
                                         )}
-                                        <span className="flex items-center gap-1 text-gray-600">
+                                        <span className="flex items-center gap-1 text-muted-foreground">
                                             <Users className="h-4 w-4" />
                                             {session.student_count || 0} học viên
                                         </span>
@@ -140,8 +140,8 @@ export function TodaySchedule({ sessions = [], onMarkAttendance }) {
                             </div>
 
                             {isCurrent && (
-                                <div className="mt-3 pt-3 border-t border-blue-200">
-                                    <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-700">
+                                <div className="mt-3 pt-3 border-t border-border">
+                                    <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 dark:text-blue-400">
                                         <span className="relative flex h-2 w-2">
                                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
                                             <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600"></span>

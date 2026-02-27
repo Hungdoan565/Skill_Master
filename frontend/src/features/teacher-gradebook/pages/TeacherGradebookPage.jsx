@@ -137,7 +137,7 @@ export function TeacherGradebookPage() {
             <div className="min-h-[60vh] flex items-center justify-center">
                 <div className="text-center">
                     <Loader2 className="h-12 w-12 animate-spin text-orange-500 mx-auto" />
-                    <p className="mt-4 text-gray-600">Đang tải dữ liệu điểm...</p>
+                    <p className="mt-4 text-muted-foreground">Đang tải dữ liệu điểm...</p>
                 </div>
             </div>
         );
@@ -146,11 +146,11 @@ export function TeacherGradebookPage() {
     if (error) {
         return (
             <div className="min-h-[60vh] flex items-center justify-center">
-                <div className="text-center p-6 bg-red-50 rounded-xl max-w-md">
+                <div className="text-center p-6 bg-red-500/10 rounded-2xl max-w-md">
                     <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                    <h2 className="text-lg font-semibold text-red-700 mb-2">Đã có lỗi xảy ra</h2>
-                    <p className="text-red-600 mb-4">{error}</p>
-                    <Button onClick={refetch} variant="outline" className="text-red-600">
+                    <h2 className="text-lg font-semibold text-red-500 mb-2">Đã có lỗi xảy ra</h2>
+                    <p className="text-red-500 mb-4">{error}</p>
+                    <Button onClick={refetch} variant="outline" className="text-red-500">
                         <RefreshCw className="h-4 w-4 mr-2" />
                         Thử lại
                     </Button>
@@ -203,11 +203,11 @@ export function TeacherGradebookPage() {
             )}
 
             {/* Sticky Footer */}
-            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-lg z-50">
+            <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-lg z-50">
                 <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-muted-foreground">
                         {hasChanges ? (
-                            <span className="text-amber-600 font-medium">Có thay đổi chưa lưu</span>
+                            <span className="text-amber-500 font-medium">Có thay đổi chưa lưu</span>
                         ) : (
                             <span>Không có thay đổi</span>
                         )}
@@ -217,7 +217,7 @@ export function TeacherGradebookPage() {
                             variant="outline"
                             onClick={() => setShowLockConfirm(true)}
                             disabled={isLocked || hasChanges}
-                            className="text-red-600 border-red-300 hover:bg-red-50"
+                            className="text-red-500 border-red-500/20 hover:bg-red-500/10"
                         >
                             <Lock className="h-4 w-4 mr-2" />
                             Khóa điểm
@@ -250,7 +250,7 @@ function PageHeader({ classId, className, isLocked, lockStatus, selectedGradeTyp
     const lockInfo = lockStatus[selectedGradeType];
 
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-6 mb-6">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                     <Button
@@ -262,10 +262,10 @@ function PageHeader({ classId, className, isLocked, lockStatus, selectedGradeTyp
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">
+                        <h1 className="text-2xl font-bold text-foreground">
                             Sổ điểm {className || ''}
                         </h1>
-                        <p className="text-sm text-gray-500 mt-1">
+                        <p className="text-sm text-muted-foreground mt-1">
                             Quản lý điểm số học viên theo loại điểm
                         </p>
                     </div>
@@ -280,12 +280,12 @@ function LockStatusBadge({ isLocked, lockInfo }) {
     if (isLocked) {
         return (
             <div className="flex flex-col items-end">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-red-500/10 text-red-500">
                     <Lock className="h-3.5 w-3.5" />
                     Đã khóa
                 </span>
                 {lockInfo?.locked_by && (
-                    <span className="text-xs text-gray-500 mt-1">
+                    <span className="text-xs text-muted-foreground mt-1">
                         Bởi: {lockInfo.locked_by} {lockInfo.locked_at && `- ${new Date(lockInfo.locked_at).toLocaleDateString('vi-VN')}`}
                     </span>
                 )}
@@ -294,7 +294,7 @@ function LockStatusBadge({ isLocked, lockInfo }) {
     }
 
     return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-500">
             <Unlock className="h-3.5 w-3.5" />
             Có thể chỉnh sửa
         </span>
@@ -305,7 +305,7 @@ function GradeTypeTabs({ gradeTypes, selectedGradeType, onSelect, lockStatus }) 
     const tabs = gradeTypes.length > 0 ? gradeTypes : GRADE_TYPE_TABS;
 
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 mb-4">
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-4 mb-4">
             <div className="flex flex-wrap gap-2">
                 {tabs.map((type) => {
                     const isActive = selectedGradeType === type.value;
@@ -319,7 +319,7 @@ function GradeTypeTabs({ gradeTypes, selectedGradeType, onSelect, lockStatus }) 
                                 'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all',
                                 isActive
                                     ? 'bg-orange-500 text-white'
-                                    : 'bg-slate-100 text-gray-700 hover:bg-slate-200'
+                                    : 'bg-muted text-foreground hover:bg-muted/80'
                             )}
                         >
                             {type.label}
@@ -334,45 +334,45 @@ function GradeTypeTabs({ gradeTypes, selectedGradeType, onSelect, lockStatus }) 
 
 function SummaryStatsBar({ stats, gradeType }) {
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 mb-4">
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-4 mb-4">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                        <BarChart3 className="h-5 w-5 text-blue-600" />
+                <div className="flex items-center gap-3 p-3 bg-blue-500/10 rounded-2xl">
+                    <div className="p-2 bg-blue-500/20 rounded-lg">
+                        <BarChart3 className="h-5 w-5 text-blue-500" />
                     </div>
                     <div>
-                        <p className="text-xs text-blue-600 font-medium">Điểm TB lớp</p>
-                        <p className="text-lg font-bold text-blue-700">{stats.average}</p>
+                        <p className="text-xs text-blue-500 font-medium">Điểm TB lớp</p>
+                        <p className="text-lg font-bold text-blue-500">{stats.average}</p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl">
-                    <div className="p-2 bg-emerald-100 rounded-lg">
-                        <TrendingUp className="h-5 w-5 text-emerald-600" />
+                <div className="flex items-center gap-3 p-3 bg-emerald-500/10 rounded-2xl">
+                    <div className="p-2 bg-emerald-500/20 rounded-lg">
+                        <TrendingUp className="h-5 w-5 text-emerald-500" />
                     </div>
                     <div>
-                        <p className="text-xs text-emerald-600 font-medium">Điểm cao nhất</p>
-                        <p className="text-lg font-bold text-emerald-700">{stats.highest}</p>
+                        <p className="text-xs text-emerald-500 font-medium">Điểm cao nhất</p>
+                        <p className="text-lg font-bold text-emerald-500">{stats.highest}</p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 p-3 bg-red-50 rounded-xl">
-                    <div className="p-2 bg-red-100 rounded-lg">
-                        <TrendingDown className="h-5 w-5 text-red-600" />
+                <div className="flex items-center gap-3 p-3 bg-red-500/10 rounded-2xl">
+                    <div className="p-2 bg-red-500/20 rounded-lg">
+                        <TrendingDown className="h-5 w-5 text-red-500" />
                     </div>
                     <div>
-                        <p className="text-xs text-red-600 font-medium">Điểm thấp nhất</p>
-                        <p className="text-lg font-bold text-red-700">{stats.lowest}</p>
+                        <p className="text-xs text-red-500 font-medium">Điểm thấp nhất</p>
+                        <p className="text-lg font-bold text-red-500">{stats.lowest}</p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-xl">
-                    <div className="p-2 bg-purple-100 rounded-lg">
-                        <Users className="h-5 w-5 text-purple-600" />
+                <div className="flex items-center gap-3 p-3 bg-purple-500/10 rounded-2xl">
+                    <div className="p-2 bg-purple-500/20 rounded-lg">
+                        <Users className="h-5 w-5 text-purple-500" />
                     </div>
                     <div>
-                        <p className="text-xs text-purple-600 font-medium">Đã nhập điểm</p>
-                        <p className="text-lg font-bold text-purple-700">{stats.count}</p>
+                        <p className="text-xs text-purple-500 font-medium">Đã nhập điểm</p>
+                        <p className="text-lg font-bold text-purple-500">{stats.count}</p>
                     </div>
                 </div>
             </div>
@@ -383,10 +383,10 @@ function SummaryStatsBar({ stats, gradeType }) {
 function GradeInputTable({ students, getStudentGrade, onScoreChange, isLocked, loading, maxScore }) {
     if (loading) {
         return (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+            <div className="bg-card rounded-2xl shadow-sm border border-border p-8">
                 <div className="flex items-center justify-center">
                     <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
-                    <span className="ml-3 text-gray-600">Đang tải danh sách...</span>
+                    <span className="ml-3 text-muted-foreground">Đang tải danh sách...</span>
                 </div>
             </div>
         );
@@ -394,27 +394,27 @@ function GradeInputTable({ students, getStudentGrade, onScoreChange, isLocked, l
 
     if (!students || students.length === 0) {
         return (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
-                <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-700 mb-2">Chưa có học viên</h3>
-                <p className="text-gray-500">Lớp học chưa có học viên nào được ghi danh</p>
+            <div className="bg-card rounded-2xl shadow-sm border border-border p-12 text-center">
+                <Users className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-foreground mb-2">Chưa có học viên</h3>
+                <p className="text-muted-foreground">Lớp học chưa có học viên nào được ghi danh</p>
             </div>
         );
     }
 
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
             <div className="overflow-x-auto">
                 <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                     <thead>
-                        <tr className="bg-slate-50 border-b border-slate-200">
-                            <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 w-12">#</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 w-12">Ảnh</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Họ tên học viên</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-gray-500 w-32">Điểm</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-gray-500 w-24">Thang điểm</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-gray-500 w-24">Phần trăm</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Ghi chú</th>
+                        <tr className="bg-muted/50 border-b border-border">
+                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground w-12">#</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground w-12">Ảnh</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Họ tên học viên</th>
+                            <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground w-32">Điểm</th>
+                            <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground w-24">Thang điểm</th>
+                            <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground w-24">Phần trăm</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Ghi chú</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -448,8 +448,8 @@ function StudentGradeRow({ index, student, grade, onScoreChange, isLocked, maxSc
         : '-';
 
     return (
-        <tr className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-            <td className="py-3 px-4 text-sm text-gray-500 font-medium">{index}</td>
+        <tr className="border-b border-border hover:bg-muted/50 transition-colors">
+            <td className="py-3 px-4 text-sm text-muted-foreground font-medium">{index}</td>
             <td className="py-3 px-4">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white font-medium text-sm">
                     {student.avatar_url ? (
@@ -465,9 +465,9 @@ function StudentGradeRow({ index, student, grade, onScoreChange, isLocked, maxSc
             </td>
             <td className="py-3 px-4">
                 <div>
-                    <p className="font-medium text-gray-900">{studentName}</p>
+                    <p className="font-medium text-foreground">{studentName}</p>
                     {student.student_code && (
-                        <p className="text-xs text-gray-500">{student.student_code}</p>
+                        <p className="text-xs text-muted-foreground">{student.student_code}</p>
                     )}
                 </div>
             </td>
@@ -482,25 +482,25 @@ function StudentGradeRow({ index, student, grade, onScoreChange, isLocked, maxSc
                     disabled={isLocked}
                     placeholder="--"
                     className={cn(
-                        'w-full h-10 text-center rounded-lg border bg-white px-3 text-sm',
+                        'w-full h-10 text-center rounded-lg border bg-background px-3 text-sm',
                         'focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent',
                         isLocked
-                            ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200'
-                            : 'border-slate-200 hover:border-slate-300'
+                            ? 'bg-muted text-muted-foreground cursor-not-allowed border-border'
+                            : 'border-border hover:border-border/80'
                     )}
                 />
             </td>
-            <td className="py-3 px-4 text-center text-sm text-gray-600">
+            <td className="py-3 px-4 text-center text-sm text-muted-foreground">
                 {gradeMaxScore}
             </td>
             <td className="py-3 px-4 text-center">
                 <span className={cn(
                     'text-sm font-medium',
                     percentage !== '-' && parseFloat(percentage) >= 50
-                        ? 'text-emerald-600'
+                        ? 'text-emerald-500'
                         : percentage !== '-'
-                            ? 'text-red-600'
-                            : 'text-gray-400'
+                            ? 'text-red-500'
+                            : 'text-muted-foreground'
                 )}>
                     {percentage !== '-' ? `${percentage}%` : '-'}
                 </span>
@@ -512,11 +512,11 @@ function StudentGradeRow({ index, student, grade, onScoreChange, isLocked, maxSc
                     disabled={isLocked}
                     placeholder="Ghi chú..."
                     className={cn(
-                        'w-full h-10 rounded-lg border bg-white px-3 text-sm',
+                        'w-full h-10 rounded-lg border bg-background px-3 text-sm',
                         'focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent',
                         isLocked
-                            ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200'
-                            : 'border-slate-200 hover:border-slate-300'
+                            ? 'bg-muted text-muted-foreground cursor-not-allowed border-border'
+                            : 'border-border hover:border-border/80'
                     )}
                 />
             </td>
@@ -527,15 +527,15 @@ function StudentGradeRow({ index, student, grade, onScoreChange, isLocked, maxSc
 function LockConfirmModal({ gradeType, onConfirm, onCancel, loading }) {
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
-            <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 p-6">
+            <div className="bg-card rounded-2xl shadow-xl max-w-md w-full mx-4 p-6">
                 <div className="text-center">
-                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Lock className="h-8 w-8 text-red-600" />
+                    <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Lock className="h-8 w-8 text-red-500" />
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    <h3 className="text-lg font-semibold text-foreground mb-2">
                         Xác nhận khóa điểm
                     </h3>
-                    <p className="text-gray-600 mb-6">
+                    <p className="text-muted-foreground mb-6">
                         Bạn có chắc muốn khóa điểm <strong>{gradeType?.label}</strong>?
                         Sau khi khóa, bạn sẽ không thể chỉnh sửa điểm này nữa.
                     </p>

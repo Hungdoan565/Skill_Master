@@ -19,48 +19,48 @@ export function QuickActions() {
             description: 'Lịch tuần này',
             icon: Calendar,
             href: '/teacher/schedule',
-            color: 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+            color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20'
         },
         {
             label: 'Điểm danh',
             description: 'Điểm danh nhanh',
             icon: ClipboardList,
             href: '/teacher/attendance',
-            color: 'bg-green-50 text-green-600 hover:bg-green-100'
+            color: 'bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-500/20'
         },
         {
             label: 'Bảng lương',
             description: 'Xem thu nhập',
             icon: DollarSign,
             href: '/teacher/payroll',
-            color: 'bg-amber-50 text-amber-600 hover:bg-amber-100'
+            color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20'
         },
         {
             label: 'Lịch trống',
             description: 'Cập nhật lịch',
             icon: Clock,
             href: '/teacher/availability',
-            color: 'bg-purple-50 text-purple-600 hover:bg-purple-100'
+            color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20'
         },
         {
             label: 'Đơn xin nghỉ',
             description: 'Gửi đơn nghỉ phép',
             icon: FileText,
             href: '/teacher/leave-requests',
-            color: 'bg-rose-50 text-rose-600 hover:bg-rose-100'
+            color: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20'
         },
         {
             label: 'Cài đặt',
             description: 'Thông tin cá nhân',
             icon: Settings,
             href: '/teacher/profile',
-            color: 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+            color: 'bg-muted text-muted-foreground hover:bg-muted/80'
         }
     ];
 
     return (
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
                 <Zap className="h-5 w-5 text-yellow-500" />
                 Thao tác nhanh
             </h3>
@@ -78,7 +78,7 @@ export function QuickActions() {
                     >
                         <action.icon className="h-6 w-6 mb-2 group-hover:scale-110 transition-transform" />
                         <span className="text-sm font-medium text-center">{action.label}</span>
-                        <span className="text-xs text-gray-500 text-center mt-0.5">
+                        <span className="text-xs text-muted-foreground text-center mt-0.5">
                             {action.description}
                         </span>
                     </Link>

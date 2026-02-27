@@ -34,10 +34,10 @@ const STATUS_OPTIONS = [
 ];
 
 const STATUS_COLORS = {
-    present: { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-300', active: 'bg-emerald-500 text-white' },
-    late: { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-300', active: 'bg-amber-500 text-white' },
-    absent: { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300', active: 'bg-red-500 text-white' },
-    excused: { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-300', active: 'bg-blue-500 text-white' },
+    present: { bg: 'bg-emerald-500/10', text: 'text-emerald-500', border: 'border-emerald-500/20', active: 'bg-emerald-500 text-white' },
+    late: { bg: 'bg-amber-500/10', text: 'text-amber-500', border: 'border-amber-500/20', active: 'bg-amber-500 text-white' },
+    absent: { bg: 'bg-red-500/10', text: 'text-red-500', border: 'border-red-500/20', active: 'bg-red-500 text-white' },
+    excused: { bg: 'bg-blue-500/10', text: 'text-blue-500', border: 'border-blue-500/20', active: 'bg-blue-500 text-white' },
 };
 
 export function TeacherAttendancePage() {
@@ -122,7 +122,7 @@ export function TeacherAttendancePage() {
             <div className="min-h-[60vh] flex items-center justify-center">
                 <div className="text-center">
                     <Loader2 className="h-12 w-12 animate-spin text-orange-500 mx-auto" />
-                    <p className="mt-4 text-gray-600">Đang tải dữ liệu điểm danh...</p>
+                    <p className="mt-4 text-muted-foreground">Đang tải dữ liệu điểm danh...</p>
                 </div>
             </div>
         );
@@ -131,11 +131,11 @@ export function TeacherAttendancePage() {
     if (error) {
         return (
             <div className="min-h-[60vh] flex items-center justify-center">
-                <div className="text-center p-6 bg-red-50 rounded-xl max-w-md">
+                <div className="text-center p-6 bg-red-500/10 rounded-2xl max-w-md">
                     <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                    <h2 className="text-lg font-semibold text-red-700 mb-2">Đã có lỗi xảy ra</h2>
-                    <p className="text-red-600 mb-4">{error}</p>
-                    <Button onClick={refetch} variant="outline" className="text-red-600">
+                    <h2 className="text-lg font-semibold text-red-500 mb-2">Đã có lỗi xảy ra</h2>
+                    <p className="text-red-500 mb-4">{error}</p>
+                    <Button onClick={refetch} variant="outline" className="text-red-500">
                         <RefreshCw className="h-4 w-4 mr-2" />
                         Thử lại
                     </Button>
@@ -147,7 +147,7 @@ export function TeacherAttendancePage() {
     return (
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24">
             {/* Header */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
+            <div className="bg-card rounded-2xl shadow-sm border border-border p-6 mb-6">
                 <div className="flex items-center gap-4">
                     <Button
                         variant="outline"
@@ -158,10 +158,10 @@ export function TeacherAttendancePage() {
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">
+                        <h1 className="text-2xl font-bold text-foreground">
                             Điểm danh lớp {className || 'đang tải...'}
                         </h1>
-                        <p className="text-sm text-gray-500 mt-1">
+                        <p className="text-sm text-muted-foreground mt-1">
                             Quản lý điểm danh học viên theo buổi học
                         </p>
                     </div>
@@ -194,11 +194,11 @@ export function TeacherAttendancePage() {
             />
 
             {/* Sticky Footer */}
-            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-lg z-50">
+            <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-lg z-50">
                 <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-muted-foreground">
                         {hasChanges ? (
-                            <span className="text-amber-600 font-medium">Có thay đổi chưa lưu</span>
+                            <span className="text-amber-500 font-medium">Có thay đổi chưa lưu</span>
                         ) : (
                             <span>Không có thay đổi</span>
                         )}
@@ -233,10 +233,10 @@ export function TeacherAttendancePage() {
 
 function SessionSelector({ sessions, selectedSession, onSelect, editStatus, formatDate }) {
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 mb-4">
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-4 mb-4">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                 <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-foreground mb-2">
                         Chọn buổi học
                     </label>
                     <select
@@ -245,7 +245,7 @@ function SessionSelector({ sessions, selectedSession, onSelect, editStatus, form
                             const session = sessions.find(s => s.id === e.target.value);
                             onSelect(session);
                         }}
-                        className="w-full h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
                     >
                         <option value="">-- Chọn buổi học --</option>
                         {sessions.map((session) => (
@@ -264,7 +264,7 @@ function SessionSelector({ sessions, selectedSession, onSelect, editStatus, form
             </div>
 
             {selectedSession && (
-                <div className="mt-3 pt-3 border-t border-slate-100 text-sm text-gray-600">
+                <div className="mt-3 pt-3 border-t border-border text-sm text-muted-foreground">
                     <span className="font-medium">{selectedSession.title || `Buổi ${selectedSession.session_number}`}</span>
                     {selectedSession.start_time && (
                         <span className="ml-2">• {selectedSession.start_time?.slice(0, 5)} - {selectedSession.end_time?.slice(0, 5)}</span>
@@ -283,11 +283,11 @@ function EditStatusBadge({ editStatus }) {
 
     if (editStatus.canEdit) {
         return (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-500">
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 Có thể chỉnh sửa
                 {editStatus.hoursRemaining && (
-                    <span className="text-emerald-600">({editStatus.hoursRemaining}h còn lại)</span>
+                    <span className="text-emerald-500">({editStatus.hoursRemaining}h còn lại)</span>
                 )}
             </span>
         );
@@ -295,7 +295,7 @@ function EditStatusBadge({ editStatus }) {
 
     if (editStatus.reason === 'locked') {
         return (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-red-500/10 text-red-500">
                 <Lock className="h-3.5 w-3.5" />
                 Đã khóa
             </span>
@@ -303,7 +303,7 @@ function EditStatusBadge({ editStatus }) {
     }
 
     return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-500">
             <AlertTriangle className="h-3.5 w-3.5" />
             Quá 24h - Liên hệ Admin
         </span>
@@ -313,7 +313,7 @@ function EditStatusBadge({ editStatus }) {
 
 function BulkActionsBar({ summary, onMarkAllPresent, onMarkAllAbsent, canEdit }) {
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 mb-4">
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-4 mb-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-center gap-2">
                     <Button
@@ -321,7 +321,7 @@ function BulkActionsBar({ summary, onMarkAllPresent, onMarkAllAbsent, canEdit })
                         size="sm"
                         onClick={onMarkAllPresent}
                         disabled={!canEdit}
-                        className="text-emerald-600 border-emerald-300 hover:bg-emerald-50"
+                        className="text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/10"
                     >
                         <Check className="h-4 w-4 mr-1" />
                         Có mặt tất cả
@@ -331,7 +331,7 @@ function BulkActionsBar({ summary, onMarkAllPresent, onMarkAllAbsent, canEdit })
                         size="sm"
                         onClick={onMarkAllAbsent}
                         disabled={!canEdit}
-                        className="text-red-600 border-red-300 hover:bg-red-50"
+                        className="text-red-500 border-red-500/20 hover:bg-red-500/10"
                     >
                         <X className="h-4 w-4 mr-1" />
                         Vắng tất cả
@@ -339,19 +339,19 @@ function BulkActionsBar({ summary, onMarkAllPresent, onMarkAllAbsent, canEdit })
                 </div>
 
                 <div className="flex items-center gap-4 text-sm">
-                    <span className="text-emerald-600 flex items-center gap-1">
+                    <span className="text-emerald-500 flex items-center gap-1">
                         <Check className="h-4 w-4" /> {summary?.present || 0}
                     </span>
-                    <span className="text-amber-600 flex items-center gap-1">
+                    <span className="text-amber-500 flex items-center gap-1">
                         <Clock className="h-4 w-4" /> {summary?.late || 0}
                     </span>
-                    <span className="text-red-600 flex items-center gap-1">
+                    <span className="text-red-500 flex items-center gap-1">
                         <X className="h-4 w-4" /> {summary?.absent || 0}
                     </span>
-                    <span className="text-blue-600 flex items-center gap-1">
+                    <span className="text-blue-500 flex items-center gap-1">
                         <FileText className="h-4 w-4" /> {summary?.excused || 0}
                     </span>
-                    <span className="text-slate-400">/ {summary?.total || 0} học viên</span>
+                    <span className="text-muted-foreground">/ {summary?.total || 0} học viên</span>
                 </div>
             </div>
         </div>
@@ -361,10 +361,10 @@ function BulkActionsBar({ summary, onMarkAllPresent, onMarkAllAbsent, canEdit })
 function StudentAttendanceList({ attendance, onUpdateStatus, canEdit, loading }) {
     if (loading) {
         return (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+            <div className="bg-card rounded-2xl shadow-sm border border-border p-8">
                 <div className="flex items-center justify-center">
                     <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
-                    <span className="ml-3 text-gray-600">Đang tải danh sách...</span>
+                    <span className="ml-3 text-muted-foreground">Đang tải danh sách...</span>
                 </div>
             </div>
         );
@@ -372,23 +372,23 @@ function StudentAttendanceList({ attendance, onUpdateStatus, canEdit, loading })
 
     if (!attendance || attendance.length === 0) {
         return (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
-                <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-700 mb-2">Chưa có dữ liệu điểm danh</h3>
-                <p className="text-gray-500">Vui lòng chọn buổi học để xem danh sách học viên</p>
+            <div className="bg-card rounded-2xl shadow-sm border border-border p-12 text-center">
+                <Users className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-foreground mb-2">Chưa có dữ liệu điểm danh</h3>
+                <p className="text-muted-foreground">Vui lòng chọn buổi học để xem danh sách học viên</p>
             </div>
         );
     }
 
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
             <div className="overflow-x-auto">
                 <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                     <thead>
-                        <tr className="bg-slate-50 border-b border-slate-200">
-                            <th className="text-left py-3 px-4 text-sm font-medium text-gray-500 w-12">#</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Học viên</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-gray-500">Trạng thái điểm danh</th>
+                        <tr className="bg-muted/50 border-b border-border">
+                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground w-12">#</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Học viên</th>
+                            <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">Trạng thái điểm danh</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -413,17 +413,17 @@ function StudentRow({ index, record, onUpdateStatus, canEdit }) {
     const initials = studentName.split(' ').map(n => n[0]).slice(-2).join('').toUpperCase();
 
     return (
-        <tr className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-            <td className="py-3 px-4 text-sm text-gray-500 font-medium">{index}</td>
+        <tr className="border-b border-border hover:bg-muted/50 transition-colors">
+            <td className="py-3 px-4 text-sm text-muted-foreground font-medium">{index}</td>
             <td className="py-3 px-4">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white font-medium text-sm">
                         {initials}
                     </div>
                     <div>
-                        <p className="font-medium text-gray-900">{studentName}</p>
+                        <p className="font-medium text-foreground">{studentName}</p>
                         {record.student_code && (
-                            <p className="text-xs text-gray-500">{record.student_code}</p>
+                            <p className="text-xs text-muted-foreground">{record.student_code}</p>
                         )}
                     </div>
                 </div>

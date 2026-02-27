@@ -8,13 +8,13 @@ import { Link } from 'react-router-dom';
 export function ClassesSummary({ classes = [] }) {
     if (classes.length === 0) {
         return (
-            <div className="rounded-xl border bg-white p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+                <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
                     <BookOpen className="h-5 w-5 text-purple-500" />
                     Lớp học đang dạy
                 </h3>
-                <div className="text-center py-8 text-gray-500">
-                    <BookOpen className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                <div className="text-center py-8 text-muted-foreground">
+                    <BookOpen className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
                     <p>Chưa có lớp học nào</p>
                     <p className="text-sm mt-1">Bạn sẽ thấy danh sách lớp khi được phân công</p>
                 </div>
@@ -26,7 +26,7 @@ export function ClassesSummary({ classes = [] }) {
         if (progress >= 80) return 'bg-green-500';
         if (progress >= 50) return 'bg-blue-500';
         if (progress >= 25) return 'bg-amber-500';
-        return 'bg-gray-400';
+        return 'bg-muted-foreground';
     };
 
     const formatSchedule = (schedule) => {
@@ -36,15 +36,15 @@ export function ClassesSummary({ classes = [] }) {
     };
 
     return (
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
                     <BookOpen className="h-5 w-5 text-purple-500" />
                     Lớp học đang dạy
                 </h3>
                 <Link
                     to="/teacher/classes"
-                    className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                    className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 flex items-center gap-1"
                 >
                     Xem tất cả <ChevronRight className="h-4 w-4" />
                 </Link>
@@ -57,17 +57,17 @@ export function ClassesSummary({ classes = [] }) {
                     return (
                         <div
                             key={classItem.id}
-                            className="rounded-lg border border-gray-200 p-4 hover:border-blue-300 hover:shadow-sm transition-all"
+                            className="rounded-lg border border-border p-4 hover:border-blue-500/50 hover:shadow-sm transition-all"
                         >
                             <div className="flex items-start justify-between gap-3">
                                 <div className="flex-1 min-w-0">
                                     {/* Class name */}
-                                    <h4 className="font-medium text-gray-900 truncate">
+                                    <h4 className="font-medium text-foreground truncate">
                                         {classItem.name}
                                     </h4>
 
                                     {/* Course name */}
-                                    <p className="text-sm text-gray-500 truncate">
+                                    <p className="text-sm text-muted-foreground truncate">
                                         {classItem.course_name}
                                     </p>
                                 </div>
@@ -75,10 +75,10 @@ export function ClassesSummary({ classes = [] }) {
                                 {/* Status badge */}
                                 <span className={cn(
                                     'px-2 py-0.5 text-xs font-medium rounded-full shrink-0',
-                                    classItem.status === 'active' ? 'bg-green-100 text-green-700' :
-                                        classItem.status === 'upcoming' ? 'bg-blue-100 text-blue-700' :
-                                            classItem.status === 'completed' ? 'bg-gray-100 text-gray-700' :
-                                                'bg-gray-100 text-gray-600'
+                                    classItem.status === 'active' ? 'bg-green-500/20 text-green-700 dark:text-green-400' :
+                                        classItem.status === 'upcoming' ? 'bg-blue-500/20 text-blue-700 dark:text-blue-400' :
+                                            classItem.status === 'completed' ? 'bg-muted text-foreground' :
+                                                'bg-muted text-muted-foreground'
                                 )}>
                                     {classItem.status === 'active' ? 'Đang học' :
                                         classItem.status === 'upcoming' ? 'Sắp khai giảng' :
@@ -88,7 +88,7 @@ export function ClassesSummary({ classes = [] }) {
                             </div>
 
                             {/* Class info */}
-                            <div className="mt-3 flex items-center gap-4 text-sm text-gray-600">
+                            <div className="mt-3 flex items-center gap-4 text-sm text-muted-foreground">
                                 <span className="flex items-center gap-1">
                                     <Users className="h-4 w-4" />
                                     {classItem.student_count || 0} học viên
@@ -100,7 +100,7 @@ export function ClassesSummary({ classes = [] }) {
                             </div>
 
                             {/* Schedule */}
-                            <div className="mt-2 text-sm text-gray-500 flex items-center gap-1">
+                            <div className="mt-2 text-sm text-muted-foreground flex items-center gap-1">
                                 <Clock className="h-4 w-4" />
                                 {formatSchedule(classItem.schedule)}
                             </div>
@@ -108,12 +108,12 @@ export function ClassesSummary({ classes = [] }) {
                             {/* Progress bar */}
                             <div className="mt-3">
                                 <div className="flex items-center justify-between text-xs mb-1">
-                                    <span className="text-gray-500">Tiến độ</span>
-                                    <span className="font-medium text-gray-700">
+                                    <span className="text-muted-foreground">Tiến độ</span>
+                                    <span className="font-medium text-foreground">
                                         {classItem.completed_sessions || 0}/{classItem.total_sessions || 0} buổi ({progress}%)
                                     </span>
                                 </div>
-                                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                <div className="h-2 bg-muted rounded-full overflow-hidden">
                                     <div
                                         className={cn(
                                             'h-full rounded-full transition-all duration-500',
@@ -132,7 +132,7 @@ export function ClassesSummary({ classes = [] }) {
                 <div className="mt-4 text-center">
                     <Link
                         to="/teacher/classes"
-                        className="text-sm text-blue-600 hover:text-blue-700"
+                        className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
                     >
                         Xem thêm {classes.length - 4} lớp học khác →
                     </Link>

@@ -50,32 +50,32 @@ export function TeacherClassesPage() {
             active: {
                 label: 'Đang học',
                 icon: PlayCircle,
-                class: 'bg-green-100 text-green-700'
+                class: 'bg-green-500/20 text-green-700 dark:text-green-400'
             },
             ongoing: {
                 label: 'Đang học',
                 icon: PlayCircle,
-                class: 'bg-green-100 text-green-700'
+                class: 'bg-green-500/20 text-green-700 dark:text-green-400'
             },
             upcoming: {
                 label: 'Sắp khai giảng',
                 icon: Clock,
-                class: 'bg-blue-100 text-blue-700'
+                class: 'bg-blue-500/20 text-blue-700 dark:text-blue-400'
             },
             completed: {
                 label: 'Hoàn thành',
                 icon: CheckCircle,
-                class: 'bg-gray-100 text-gray-700'
+                class: 'bg-muted text-foreground'
             },
             cancelled: {
                 label: 'Đã hủy',
                 icon: XCircle,
-                class: 'bg-red-100 text-red-700'
+                class: 'bg-red-500/20 text-red-700 dark:text-red-400'
             },
             paused: {
                 label: 'Tạm dừng',
                 icon: PauseCircle,
-                class: 'bg-amber-100 text-amber-700'
+                class: 'bg-amber-500/20 text-amber-700 dark:text-amber-400'
             }
         };
         return configs[status] || configs.upcoming;
@@ -85,7 +85,7 @@ export function TeacherClassesPage() {
         if (progress >= 80) return 'bg-green-500';
         if (progress >= 50) return 'bg-blue-500';
         if (progress >= 25) return 'bg-amber-500';
-        return 'bg-gray-400';
+        return 'bg-muted-foreground';
     };
 
     const formatDate = (dateStr) => {
@@ -98,7 +98,7 @@ export function TeacherClassesPage() {
             <div className="min-h-[60vh] flex items-center justify-center">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="mt-4 text-gray-600">Đang tải danh sách lớp...</p>
+                    <p className="mt-4 text-muted-foreground">Đang tải danh sách lớp...</p>
                 </div>
             </div>
         );
@@ -107,10 +107,10 @@ export function TeacherClassesPage() {
     if (error) {
         return (
             <div className="min-h-[60vh] flex items-center justify-center">
-                <div className="text-center p-6 bg-red-50 rounded-xl max-w-md">
+                <div className="text-center p-6 bg-red-500/10 rounded-2xl max-w-md">
                     <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                    <h2 className="text-lg font-semibold text-red-700 mb-2">Đã có lỗi xảy ra</h2>
-                    <p className="text-red-600 mb-4">{error}</p>
+                    <h2 className="text-lg font-semibold text-red-700 dark:text-red-400 mb-2">Đã có lỗi xảy ra</h2>
+                    <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
                     <button
                         onClick={refetch}
                         className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
@@ -128,16 +128,16 @@ export function TeacherClassesPage() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
                         <BookOpen className="h-6 w-6 text-purple-500" />
                         Lớp học của tôi
                     </h1>
-                    <p className="text-gray-500 mt-1">Quản lý và theo dõi các lớp bạn đang dạy</p>
+                    <p className="text-muted-foreground mt-1">Quản lý và theo dõi các lớp bạn đang dạy</p>
                 </div>
 
                 <button
                     onClick={refetch}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:bg-muted transition-colors"
                 >
                     <RefreshCw className="h-4 w-4" />
                     Làm mới
@@ -149,65 +149,65 @@ export function TeacherClassesPage() {
                 <button
                     onClick={() => setStatusFilter('all')}
                     className={cn(
-                        'p-4 rounded-xl border text-left transition-all',
-                        statusFilter === 'all' ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' : 'bg-white hover:border-gray-300'
+                        'p-4 rounded-2xl border text-left transition-all',
+                        statusFilter === 'all' ? 'border-blue-500/50 bg-blue-500/10 ring-2 ring-blue-500/20' : 'bg-card border-border hover:border-border/80'
                     )}
                 >
-                    <p className="text-2xl font-bold text-gray-900">{statusCounts.all}</p>
-                    <p className="text-sm text-gray-500">Tất cả lớp</p>
+                    <p className="text-2xl font-bold text-foreground">{statusCounts.all}</p>
+                    <p className="text-sm text-muted-foreground">Tất cả lớp</p>
                 </button>
                 <button
                     onClick={() => setStatusFilter('active')}
                     className={cn(
-                        'p-4 rounded-xl border text-left transition-all',
-                        statusFilter === 'active' ? 'border-green-500 bg-green-50 ring-2 ring-green-200' : 'bg-white hover:border-gray-300'
+                        'p-4 rounded-2xl border text-left transition-all',
+                        statusFilter === 'active' ? 'border-green-500/50 bg-green-500/10 ring-2 ring-green-500/20' : 'bg-card border-border hover:border-border/80'
                     )}
                 >
-                    <p className="text-2xl font-bold text-green-600">{statusCounts.active}</p>
-                    <p className="text-sm text-gray-500">Đang học</p>
+                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">{statusCounts.active}</p>
+                    <p className="text-sm text-muted-foreground">Đang học</p>
                 </button>
                 <button
                     onClick={() => setStatusFilter('upcoming')}
                     className={cn(
-                        'p-4 rounded-xl border text-left transition-all',
-                        statusFilter === 'upcoming' ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' : 'bg-white hover:border-gray-300'
+                        'p-4 rounded-2xl border text-left transition-all',
+                        statusFilter === 'upcoming' ? 'border-blue-500/50 bg-blue-500/10 ring-2 ring-blue-500/20' : 'bg-card border-border hover:border-border/80'
                     )}
                 >
-                    <p className="text-2xl font-bold text-blue-600">{statusCounts.upcoming}</p>
-                    <p className="text-sm text-gray-500">Sắp khai giảng</p>
+                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{statusCounts.upcoming}</p>
+                    <p className="text-sm text-muted-foreground">Sắp khai giảng</p>
                 </button>
                 <button
                     onClick={() => setStatusFilter('completed')}
                     className={cn(
-                        'p-4 rounded-xl border text-left transition-all',
-                        statusFilter === 'completed' ? 'border-gray-500 bg-gray-50 ring-2 ring-gray-200' : 'bg-white hover:border-gray-300'
+                        'p-4 rounded-2xl border text-left transition-all',
+                        statusFilter === 'completed' ? 'border-muted-foreground bg-muted ring-2 ring-muted' : 'bg-card border-border hover:border-border/80'
                     )}
                 >
-                    <p className="text-2xl font-bold text-gray-600">{statusCounts.completed}</p>
-                    <p className="text-sm text-gray-500">Hoàn thành</p>
+                    <p className="text-2xl font-bold text-muted-foreground">{statusCounts.completed}</p>
+                    <p className="text-sm text-muted-foreground">Hoàn thành</p>
                 </button>
             </div>
 
             {/* Search */}
-            <div className="bg-white rounded-xl border p-4 mb-6">
+            <div className="bg-card rounded-2xl border border-border p-4 mb-6">
                 <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/50" />
                     <input
                         type="text"
                         placeholder="Tìm kiếm theo tên lớp, mã lớp, hoặc khóa học..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full pl-10 pr-4 py-2 bg-transparent border border-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                 </div>
             </div>
 
             {/* Classes List */}
             {filteredClasses.length === 0 ? (
-                <div className="bg-white rounded-xl border p-12 text-center">
-                    <BookOpen className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Không tìm thấy lớp học</h3>
-                    <p className="text-gray-500">
+                <div className="bg-card rounded-2xl border border-border p-12 text-center">
+                    <BookOpen className="h-16 w-16 text-muted-foreground/30 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-foreground mb-2">Không tìm thấy lớp học</h3>
+                    <p className="text-muted-foreground">
                         {searchTerm || statusFilter !== 'all'
                             ? 'Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm'
                             : 'Bạn chưa được phân công lớp học nào'}
@@ -223,16 +223,16 @@ export function TeacherClassesPage() {
                         return (
                             <div
                                 key={cls.id}
-                                className="bg-white rounded-xl border hover:border-blue-300 hover:shadow-md transition-all overflow-hidden"
+                                className="bg-card rounded-2xl border border-border hover:border-blue-500/50 hover:shadow-md transition-all overflow-hidden"
                             >
                                 {/* Header */}
-                                <div className="p-4 border-b bg-gradient-to-r from-blue-50 to-purple-50">
+                                <div className="p-4 border-b border-border bg-gradient-to-r from-blue-500/10 to-purple-500/10">
                                     <div className="flex items-start justify-between gap-2">
                                         <div className="min-w-0 flex-1">
-                                            <h3 className="font-semibold text-gray-900 truncate">
+                                            <h3 className="font-semibold text-foreground truncate">
                                                 {cls.name}
                                             </h3>
-                                            <p className="text-sm text-gray-500 truncate">
+                                            <p className="text-sm text-muted-foreground truncate">
                                                 {cls.code}
                                             </p>
                                         </div>
@@ -250,28 +250,28 @@ export function TeacherClassesPage() {
                                 <div className="p-4 space-y-3">
                                     {/* Course */}
                                     <div className="flex items-center gap-2 text-sm">
-                                        <BookOpen className="h-4 w-4 text-gray-400" />
-                                        <span className="text-gray-600 truncate">{cls.course_name || 'Chưa có khóa học'}</span>
+                                        <BookOpen className="h-4 w-4 text-muted-foreground/50" />
+                                        <span className="text-muted-foreground truncate">{cls.course_name || 'Chưa có khóa học'}</span>
                                     </div>
 
                                     {/* Students */}
                                     <div className="flex items-center gap-2 text-sm">
-                                        <Users className="h-4 w-4 text-gray-400" />
-                                        <span className="text-gray-600">{cls.student_count || 0} học viên</span>
+                                        <Users className="h-4 w-4 text-muted-foreground/50" />
+                                        <span className="text-muted-foreground">{cls.student_count || 0} học viên</span>
                                     </div>
 
                                     {/* Schedule */}
                                     <div className="flex items-center gap-2 text-sm">
-                                        <Calendar className="h-4 w-4 text-gray-400" />
-                                        <span className="text-gray-600">
+                                        <Calendar className="h-4 w-4 text-muted-foreground/50" />
+                                        <span className="text-muted-foreground">
                                             {formatDate(cls.start_date)} - {formatDate(cls.end_date)}
                                         </span>
                                     </div>
 
                                     {/* Sessions */}
                                     <div className="flex items-center gap-2 text-sm">
-                                        <Clock className="h-4 w-4 text-gray-400" />
-                                        <span className="text-gray-600">
+                                        <Clock className="h-4 w-4 text-muted-foreground/50" />
+                                        <span className="text-muted-foreground">
                                             {cls.completed_sessions || 0}/{cls.total_sessions || 0} buổi
                                         </span>
                                     </div>
@@ -279,10 +279,10 @@ export function TeacherClassesPage() {
                                     {/* Progress */}
                                     <div>
                                         <div className="flex items-center justify-between text-xs mb-1">
-                                            <span className="text-gray-500">Tiến độ</span>
-                                            <span className="font-medium text-gray-700">{progress}%</span>
+                                            <span className="text-muted-foreground">Tiến độ</span>
+                                            <span className="font-medium text-foreground">{progress}%</span>
                                         </div>
-                                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                        <div className="h-2 bg-muted rounded-full overflow-hidden">
                                             <div
                                                 className={cn(
                                                     'h-full rounded-full transition-all duration-500',
@@ -295,22 +295,22 @@ export function TeacherClassesPage() {
                                 </div>
 
                                 {/* Actions */}
-                                <div className="p-4 border-t bg-gray-50 flex items-center gap-2">
+                                <div className="p-4 border-t border-border bg-muted/50 flex items-center gap-2">
                                     <Link
                                         to={`/teacher/classes/${cls.id}/attendance`}
-                                        className="flex-1 px-3 py-2 text-sm font-medium text-center text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                        className="flex-1 px-3 py-2 text-sm font-medium text-center text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
                                     >
                                         Điểm danh
                                     </Link>
                                     <Link
                                         to={`/teacher/classes/${cls.id}/gradebook`}
-                                        className="flex-1 px-3 py-2 text-sm font-medium text-center text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                                        className="flex-1 px-3 py-2 text-sm font-medium text-center text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 rounded-lg transition-colors"
                                     >
                                         Sổ điểm
                                     </Link>
                                     <Link
                                         to={`/teacher/classes/${cls.id}`}
-                                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                                        className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
                                     >
                                         <ChevronRight className="h-5 w-5" />
                                     </Link>

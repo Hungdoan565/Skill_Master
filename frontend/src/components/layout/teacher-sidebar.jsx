@@ -1,5 +1,4 @@
 import { Link, useLocation } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard,
   CalendarDays,
@@ -16,35 +15,35 @@ import { cn } from '@/lib/utils';
 // Import logo
 import logoImage from '@/assets/logo.png';
 
+// Menu items for teacher portal
+const menuGroups = [
+  {
+    id: 'overview',
+    items: [
+      { label: 'Tổng quan', icon: LayoutDashboard, path: '/teacher' },
+    ],
+  },
+  {
+    id: 'teaching',
+    title: 'GIẢNG DẠY',
+    items: [
+      { label: 'Lịch dạy', icon: CalendarDays, path: '/teacher/schedule' },
+      { label: 'Lớp học', icon: BookOpen, path: '/teacher/classes' },
+      { label: 'Điểm danh', icon: ClipboardCheck, path: '/teacher/attendance' },
+    ],
+  },
+  {
+    id: 'management',
+    title: 'QUẢN LÝ',
+    items: [
+      { label: 'Bảng lương', icon: DollarSign, path: '/teacher/payroll' },
+      { label: 'Lịch trống', icon: Clock, path: '/teacher/availability' },
+    ],
+  },
+];
+
 export function TeacherSidebar() {
   const location = useLocation();
-  const { t } = useTranslation();
-
-  const menuGroups = [
-    {
-      id: 'overview',
-      items: [
-        { label: t('navigation:items.dashboard'), icon: LayoutDashboard, path: '/teacher' },
-      ],
-    },
-    {
-      id: 'teaching',
-      title: t('navigation:groups.teaching').toUpperCase(),
-      items: [
-        { label: t('navigation:items.schedule'), icon: CalendarDays, path: '/teacher/schedule' },
-        { label: t('navigation:items.classes'), icon: BookOpen, path: '/teacher/classes' },
-        { label: t('navigation:items.attendance'), icon: ClipboardCheck, path: '/teacher/attendance' },
-      ],
-    },
-    {
-      id: 'management',
-      title: t('navigation:groups.management').toUpperCase(),
-      items: [
-        { label: t('navigation:items.payroll'), icon: DollarSign, path: '/teacher/payroll' },
-        { label: t('navigation:items.availability'), icon: Clock, path: '/teacher/availability' },
-      ],
-    },
-  ];
 
   return (
     <aside className="flex h-screen w-72 flex-col bg-zinc-950 text-white">
@@ -67,7 +66,7 @@ export function TeacherSidebar() {
         <div className="relative flex flex-col ml-1">
           <span className="text-[11px] text-zinc-500 flex items-center gap-1.5">
             <Home className="h-3 w-3" />
-            <span>{t('navigation:actions.backToHome')}</span>
+            <span>Về trang chủ</span>
           </span>
         </div>
       </Link>
@@ -79,7 +78,7 @@ export function TeacherSidebar() {
       <div className="px-4 py-3">
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600/10 border border-blue-600/20">
           <GraduationCap className="h-4 w-4 text-blue-400" />
-          <span className="text-xs font-medium text-blue-400">{t('navigation:roles.teacher')}</span>
+          <span className="text-xs font-medium text-blue-400">Giáo viên</span>
         </div>
       </div>
 
@@ -140,7 +139,7 @@ export function TeacherSidebar() {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800 group-hover/support:bg-zinc-700 transition-colors">
             <HelpCircle className="h-4 w-4" />
           </div>
-          <span>{t('navigation:items.support')}</span>
+          <span>Hỗ trợ</span>
         </Link>
       </div>
     </aside>

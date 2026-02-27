@@ -115,8 +115,8 @@ export function TeacherAvailabilityPage() {
         return (
             <div className="min-h-[60vh] flex items-center justify-center">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="mt-4 text-gray-600">Đang tải lịch trống...</p>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+                    <p className="mt-4 text-muted-foreground">Đang tải lịch trống...</p>
                 </div>
             </div>
         );
@@ -125,10 +125,10 @@ export function TeacherAvailabilityPage() {
     if (error && !localSlots.length) {
         return (
             <div className="min-h-[60vh] flex items-center justify-center">
-                <div className="text-center p-6 bg-red-50 rounded-xl max-w-md">
+                <div className="text-center p-6 bg-red-500/10 rounded-2xl max-w-md">
                     <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                    <h2 className="text-lg font-semibold text-red-700 mb-2">Đã có lỗi xảy ra</h2>
-                    <p className="text-red-600 mb-4">{error}</p>
+                    <h2 className="text-lg font-semibold text-red-500 mb-2">Đã có lỗi xảy ra</h2>
+                    <p className="text-red-500 mb-4">{error}</p>
                     <button
                         onClick={refetch}
                         className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
@@ -146,11 +146,11 @@ export function TeacherAvailabilityPage() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
                         <Clock className="h-6 w-6 text-blue-500" />
                         Lịch trống
                     </h1>
-                    <p className="text-gray-500 mt-1">
+                    <p className="text-muted-foreground mt-1">
                         Cập nhật lịch trống để admin có thể xếp lịch dạy phù hợp cho bạn
                     </p>
                 </div>
@@ -192,7 +192,7 @@ export function TeacherAvailabilityPage() {
             {saveMessage && (
                 <div className={cn(
                     'mb-6 p-4 rounded-lg flex items-center gap-3',
-                    saveMessage.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+                    saveMessage.type === 'success' ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'
                 )}>
                     {saveMessage.type === 'success' ? (
                         <CheckCircle className="h-5 w-5 text-green-500" />
@@ -204,12 +204,12 @@ export function TeacherAvailabilityPage() {
             )}
 
             {/* Info Banner */}
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 mb-6">
                 <div className="flex items-start gap-3">
-                    <AlertTriangle className="h-5 w-5 text-blue-600 mt-0.5" />
+                    <AlertTriangle className="h-5 w-5 text-blue-500 mt-0.5" />
                     <div>
-                        <h3 className="font-medium text-blue-900">Hướng dẫn</h3>
-                        <p className="text-sm text-blue-700 mt-1">
+                        <h3 className="font-medium text-blue-500">Hướng dẫn</h3>
+                        <p className="text-sm text-blue-500 mt-1">
                             Thêm các khung giờ bạn có thể dạy trong tuần. Admin sẽ dựa vào lịch này để xếp lịch dạy phù hợp.
                             Bạn có thể thêm nhiều khung giờ cho mỗi ngày.
                         </p>
@@ -228,13 +228,13 @@ export function TeacherAvailabilityPage() {
                             className="bg-white rounded-xl border overflow-hidden"
                         >
                             {/* Day Header */}
-                            <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b">
+                            <div className="flex items-center justify-between px-4 py-3 bg-muted/50 border-b border-border">
                                 <div className="flex items-center gap-3">
-                                    <span className="w-10 h-10 flex items-center justify-center bg-blue-100 text-blue-700 font-bold rounded-lg">
+                                    <span className="w-10 h-10 flex items-center justify-center bg-blue-500/20 text-blue-500 font-bold rounded-xl">
                                         {day.short}
                                     </span>
-                                    <span className="font-medium text-gray-900">{day.label}</span>
-                                    <span className="text-sm text-gray-500">
+                                    <span className="font-medium text-foreground">{day.label}</span>
+                                    <span className="text-sm text-muted-foreground">
                                         ({daySlots.length} khung giờ)
                                     </span>
                                 </div>
@@ -250,7 +250,7 @@ export function TeacherAvailabilityPage() {
                             {/* Day Slots */}
                             <div className="p-4">
                                 {daySlots.length === 0 ? (
-                                    <p className="text-center text-gray-500 py-4">
+                                    <p className="text-center text-muted-foreground py-4">
                                         Chưa có lịch trống. Nhấn "Thêm" để thêm khung giờ.
                                     </p>
                                 ) : (
@@ -258,29 +258,29 @@ export function TeacherAvailabilityPage() {
                                         {daySlots.map((slot) => (
                                             <div
                                                 key={slot._id}
-                                                className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg"
+                                                className="flex items-center gap-4 p-3 bg-muted/50 rounded-xl border border-border"
                                             >
-                                                <Clock className="h-5 w-5 text-gray-400" />
+                                                <Clock className="h-5 w-5 text-muted-foreground" />
 
 {/* Start Time */}
                                                 <div className="flex items-center gap-2">
-                                                    <label className="text-sm text-gray-600">Từ:</label>
+                                                    <label className="text-sm text-muted-foreground">Từ:</label>
                                                     <input
                                                         type="time"
                                                         value={slot.start_time}
                                                         onChange={(e) => updateSlot(slot._id, 'start_time', e.target.value)}
-                                                        className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                        className="px-3 py-1.5 border border-border bg-background text-foreground rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                                     />
                                                 </div>
 
                                                 {/* End Time */}
                                                 <div className="flex items-center gap-2">
-                                                    <label className="text-sm text-gray-600">Đến:</label>
+                                                    <label className="text-sm text-muted-foreground">Đến:</label>
                                                     <input
                                                         type="time"
                                                         value={slot.end_time}
                                                         onChange={(e) => updateSlot(slot._id, 'end_time', e.target.value)}
-                                                        className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                        className="px-3 py-1.5 border border-border bg-background text-foreground rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                                     />
                                                 </div>
 
@@ -290,8 +290,8 @@ export function TeacherAvailabilityPage() {
                                                         value={slot.type || 'available'}
                                                         onChange={(e) => updateSlot(slot._id, 'type', e.target.value)}
                                                         className={cn(
-                                                            'px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
-                                                            slot.type === 'preferred' ? 'border-green-300 bg-green-50 text-green-700' : 'border-gray-300'
+                                                            'px-3 py-1.5 border rounded-lg text-sm bg-background text-foreground focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
+                                                            slot.type === 'preferred' ? 'border-green-500/20 bg-green-500/10 text-green-500' : 'border-border'
                                                         )}
                                                     >
                                                         <option value="available">Có thể dạy</option>
@@ -302,7 +302,7 @@ export function TeacherAvailabilityPage() {
                                                 {/* Remove */}
                                                 <button
                                                     onClick={() => removeSlot(slot._id)}
-                                                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors ml-auto"
+                                                    className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors ml-auto"
                                                     title="Xóa"
                                                 >
                                                     <Trash2 className="h-4 w-4" />
@@ -319,16 +319,16 @@ export function TeacherAvailabilityPage() {
 
             {/* Sticky Save Bar (when has changes) */}
             {hasChanges && (
-                <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4 z-50">
+                <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-lg p-4 z-50">
                     <div className="max-w-5xl mx-auto flex items-center justify-between">
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-muted-foreground">
                             <span className="inline-block w-2 h-2 bg-amber-500 rounded-full mr-2"></span>
                             Có thay đổi chưa được lưu
                         </p>
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={handleDiscard}
-                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                                className="px-4 py-2 text-sm font-medium text-foreground bg-card border border-border rounded-lg hover:bg-muted/50"
                             >
                                 Hủy
                             </button>

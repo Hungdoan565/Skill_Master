@@ -26,9 +26,9 @@ const TIME_SLOTS = [
         Icon: Sunrise, 
         startHour: 6, 
         endHour: 12, 
-        bgClass: 'bg-amber-50',
-        headerClass: 'bg-amber-100 text-amber-800 border-amber-200',
-        borderClass: 'border-amber-200'
+        bgClass: 'bg-amber-500/5',
+        headerClass: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
+        borderClass: 'border-amber-500/20'
     },
     { 
         key: 'afternoon', 
@@ -36,9 +36,9 @@ const TIME_SLOTS = [
         Icon: Sun, 
         startHour: 12, 
         endHour: 18, 
-        bgClass: 'bg-orange-50',
-        headerClass: 'bg-orange-100 text-orange-800 border-orange-200',
-        borderClass: 'border-orange-200'
+        bgClass: 'bg-orange-500/5',
+        headerClass: 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20',
+        borderClass: 'border-orange-500/20'
     },
     { 
         key: 'evening', 
@@ -46,9 +46,9 @@ const TIME_SLOTS = [
         Icon: Moon, 
         startHour: 18, 
         endHour: 23, 
-        bgClass: 'bg-indigo-50',
-        headerClass: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-        borderClass: 'border-indigo-200'
+        bgClass: 'bg-indigo-500/5',
+        headerClass: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-500/20',
+        borderClass: 'border-indigo-500/20'
     }
 ];
 
@@ -149,22 +149,22 @@ export function TeacherSchedulePage() {
             completed: {
                 label: 'Hoàn thành',
                 icon: CheckCircle,
-                class: 'bg-green-100 text-green-700 border-green-200'
+                class: 'bg-green-500/20 text-green-700 dark:text-green-400 border-green-500/20'
             },
             scheduled: {
                 label: 'Đã lên lịch',
                 icon: Clock,
-                class: 'bg-blue-100 text-blue-700 border-blue-200'
+                class: 'bg-blue-500/20 text-blue-700 dark:text-blue-400 border-blue-500/20'
             },
             in_progress: {
                 label: 'Đang diễn ra',
                 icon: AlertCircle,
-                class: 'bg-amber-100 text-amber-700 border-amber-200'
+                class: 'bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/20'
             },
             cancelled: {
                 label: 'Đã hủy',
                 icon: XCircle,
-                class: 'bg-red-100 text-red-700 border-red-200'
+                class: 'bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/20'
             }
         };
         return configs[status] || configs.scheduled;
@@ -175,7 +175,7 @@ export function TeacherSchedulePage() {
             <div className="min-h-[60vh] flex items-center justify-center">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="mt-4 text-gray-600">Đang tải lịch dạy...</p>
+                    <p className="mt-4 text-muted-foreground">Đang tải lịch dạy...</p>
                 </div>
             </div>
         );
@@ -184,10 +184,10 @@ export function TeacherSchedulePage() {
     if (error) {
         return (
             <div className="min-h-[60vh] flex items-center justify-center">
-                <div className="text-center p-6 bg-red-50 rounded-xl max-w-md">
+                <div className="text-center p-6 bg-red-500/10 rounded-2xl max-w-md">
                     <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-                    <h2 className="text-lg font-semibold text-red-700 mb-2">Đã có lỗi xảy ra</h2>
-                    <p className="text-red-600 mb-4">{error}</p>
+                    <h2 className="text-lg font-semibold text-red-700 dark:text-red-400 mb-2">Đã có lỗi xảy ra</h2>
+                    <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
                     <button
                         onClick={refetch}
                         className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
@@ -205,18 +205,18 @@ export function TeacherSchedulePage() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
                         <CalendarDays className="h-6 w-6 text-blue-500" />
                         Lịch dạy
                     </h1>
-                    <p className="text-gray-500 mt-1">Xem và theo dõi các buổi dạy của bạn</p>
+                    <p className="text-muted-foreground mt-1">Xem và theo dõi các buổi dạy của bạn</p>
                 </div>
 
                 {/* Week Navigation */}
                 <div className="flex items-center gap-2">
                     <button
                         onClick={goToPrevWeek}
-                        className="p-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition-colors"
+                        className="p-2 rounded-lg border border-border hover:bg-muted transition-colors"
                         title="Tuần trước"
                     >
                         <ChevronLeft className="h-5 w-5" />
@@ -224,18 +224,18 @@ export function TeacherSchedulePage() {
 
                     <button
                         onClick={goToThisWeek}
-                        className="px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        className="px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
                     >
                         Tuần này
                     </button>
 
-                    <div className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 min-w-[180px] text-center">
+                    <div className="px-4 py-2 bg-card border border-border rounded-lg text-sm font-medium text-foreground min-w-[180px] text-center">
                         {formatWeekRange()}
                     </div>
 
                     <button
                         onClick={goToNextWeek}
-                        className="p-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition-colors"
+                        className="p-2 rounded-lg border border-border hover:bg-muted transition-colors"
                         title="Tuần sau"
                     >
                         <ChevronRight className="h-5 w-5" />
@@ -243,7 +243,7 @@ export function TeacherSchedulePage() {
 
                     <button
                         onClick={refetch}
-                        className="p-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition-colors ml-2"
+                        className="p-2 rounded-lg border border-border hover:bg-muted transition-colors ml-2"
                         title="Làm mới"
                     >
                         <RefreshCw className="h-5 w-5" />
@@ -254,46 +254,46 @@ export function TeacherSchedulePage() {
             {/* Stats Summary */}
             {stats && (
                 <div className="grid grid-cols-3 gap-4 mb-6">
-                    <div className="bg-white rounded-xl border p-4 text-center">
+                    <div className="bg-card rounded-2xl border border-border p-4 text-center">
                         <p className="text-2xl font-bold text-blue-600">{stats.totalSessions}</p>
-                        <p className="text-sm text-gray-500">Tổng buổi dạy</p>
+                        <p className="text-sm text-muted-foreground">Tổng buổi dạy</p>
                     </div>
-                    <div className="bg-white rounded-xl border p-4 text-center">
+                    <div className="bg-card rounded-2xl border border-border p-4 text-center">
                         <p className="text-2xl font-bold text-green-600">{stats.completedSessions}</p>
-                        <p className="text-sm text-gray-500">Đã hoàn thành</p>
+                        <p className="text-sm text-muted-foreground">Đã hoàn thành</p>
                     </div>
-                    <div className="bg-white rounded-xl border p-4 text-center">
+                    <div className="bg-card rounded-2xl border border-border p-4 text-center">
                         <p className="text-2xl font-bold text-purple-600">{stats.totalHours}h</p>
-                        <p className="text-sm text-gray-500">Tổng số giờ</p>
+                        <p className="text-sm text-muted-foreground">Tổng số giờ</p>
                     </div>
                 </div>
             )}
 
             {/* Schedule Grid - with Sáng/Chiều/Tối grouping */}
-            <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+            <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
                 {/* Days Header */}
-                <div className="grid grid-cols-8 border-b bg-gray-50">
+                <div className="grid grid-cols-8 border-b border-border bg-muted/50">
                     {/* Empty cell for time slot labels */}
-                    <div className="p-3 text-center border-r bg-gray-100">
-                        <p className="text-xs font-medium text-gray-500">Buổi</p>
+                    <div className="p-3 text-center border-r border-border bg-muted">
+                        <p className="text-xs font-medium text-muted-foreground">Buổi</p>
                     </div>
                     {schedule.map((day) => (
                         <div
                             key={day.date}
                             className={cn(
-                                'p-3 text-center border-r last:border-r-0',
-                                isToday(day.date) && 'bg-blue-50'
+                                'p-3 text-center border-r border-border last:border-r-0',
+                                isToday(day.date) && 'bg-blue-500/10'
                             )}
                         >
                             <p className={cn(
                                 'text-xs font-medium',
-                                isToday(day.date) ? 'text-blue-600' : 'text-gray-500'
+                                isToday(day.date) ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground'
                             )}>
                                 {getFullDayName(day.dayOfWeek)}
                             </p>
                             <p className={cn(
                                 'text-lg font-bold mt-1',
-                                isToday(day.date) ? 'text-blue-600' : 'text-gray-900'
+                                isToday(day.date) ? 'text-blue-600 dark:text-blue-400' : 'text-foreground'
                             )}>
                                 {formatDate(day.date)}
                             </p>
@@ -308,11 +308,11 @@ export function TeacherSchedulePage() {
 
                 {/* Schedule Content - grouped by time slots */}
                 {TIME_SLOTS.map((slot) => (
-                    <div key={slot.key} className={cn('border-b', slot.borderClass)}>
+                    <div key={slot.key} className={cn('border-b border-border', slot.borderClass)}>
                         <div className="grid grid-cols-8 min-h-[120px]">
                             {/* Time slot label */}
                             <div className={cn(
-                                'p-3 border-r flex flex-col items-center justify-center',
+                                'p-3 border-r border-border flex flex-col items-center justify-center',
                                 slot.headerClass
                             )}>
                                 <span className="text-xl mb-1"><slot.Icon className="h-5 w-5" /></span>
@@ -331,14 +331,14 @@ export function TeacherSchedulePage() {
                                     <div
                                         key={`${day.date}-${slot.key}`}
                                         className={cn(
-                                            'border-r last:border-r-0 p-2',
+                                            'border-r border-border last:border-r-0 p-2',
                                             slot.bgClass,
-                                            isToday(day.date) && 'ring-1 ring-inset ring-blue-200',
+                                            isToday(day.date) && 'ring-1 ring-inset ring-blue-500/30',
                                             isPast(day.date) && !isToday(day.date) && 'opacity-75'
                                         )}
                                     >
                                         {slotSessions.length === 0 ? (
-                                            <div className="h-full flex items-center justify-center text-gray-400 text-[10px]">
+                                            <div className="h-full flex items-center justify-center text-muted-foreground/50 text-[10px]">
                                                 <span>—</span>
                                             </div>
                                         ) : (
@@ -398,21 +398,21 @@ export function TeacherSchedulePage() {
             </div>
 
             {/* Legend */}
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-sm text-gray-600">
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground">
                 <span className="flex items-center gap-2">
-                    <span className="w-4 h-4 rounded bg-green-100 border border-green-200"></span>
+                    <span className="w-4 h-4 rounded bg-green-500/20 border border-green-500/20"></span>
                     Hoàn thành
                 </span>
                 <span className="flex items-center gap-2">
-                    <span className="w-4 h-4 rounded bg-blue-100 border border-blue-200"></span>
+                    <span className="w-4 h-4 rounded bg-blue-500/20 border border-blue-500/20"></span>
                     Đã lên lịch
                 </span>
                 <span className="flex items-center gap-2">
-                    <span className="w-4 h-4 rounded bg-amber-100 border border-amber-200"></span>
+                    <span className="w-4 h-4 rounded bg-amber-500/20 border border-amber-500/20"></span>
                     Đang diễn ra
                 </span>
                 <span className="flex items-center gap-2">
-                    <span className="w-4 h-4 rounded bg-red-100 border border-red-200"></span>
+                    <span className="w-4 h-4 rounded bg-red-500/20 border border-red-500/20"></span>
                     Đã hủy
                 </span>
             </div>

@@ -25,10 +25,10 @@ import {
 const API_URL = import.meta.env.VITE_API_URL || '';
 
 const STATUS_CONFIG = {
-    completed: { label: 'Đã điểm danh', className: 'bg-green-100 text-green-700 border-green-200' },
-    pending: { label: 'Chưa điểm danh', className: 'bg-amber-100 text-amber-700 border-amber-200' },
-    upcoming: { label: 'Sắp tới', className: 'bg-blue-100 text-blue-700 border-blue-200' },
-    locked: { label: 'Đã khóa', className: 'bg-gray-100 text-gray-500 border-gray-200' }
+    completed: { label: 'Đã điểm danh', className: 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20' },
+    pending: { label: 'Chưa điểm danh', className: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20' },
+    upcoming: { label: 'Sắp tới', className: 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20' },
+    locked: { label: 'Đã khóa', className: 'bg-muted text-muted-foreground border-border' }
 };
 
 function StatusBadge({ status }) {
@@ -47,22 +47,22 @@ function SessionCard({ session, onNavigate }) {
     const formatTime = (time) => time?.slice(0, 5) || '--:--';
 
     return (
-        <div className="bg-gradient-to-br from-slate-50 to-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow">
+        <div className="bg-card rounded-2xl border border-border p-4 hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between gap-2 mb-3">
-                <span className="px-2.5 py-1 bg-orange-100 text-orange-700 rounded-lg text-xs font-medium">
+                <span className="px-2.5 py-1 bg-orange-500/10 text-orange-700 dark:text-orange-400 rounded-lg text-xs font-medium">
                     {formatTime(session.start_time)} - {formatTime(session.end_time)}
                 </span>
                 <StatusBadge status={session.attendanceStatus} />
             </div>
 
-            <h3 className="font-semibold text-gray-900 truncate mb-1">
+            <h3 className="font-semibold text-foreground truncate mb-1">
                 {session.class_name || 'Lớp học'}
             </h3>
-            <p className="text-sm text-gray-500 truncate mb-3">
+            <p className="text-sm text-muted-foreground truncate mb-3">
                 Buổi {session.session_number || '?'} • {session.course_name || 'Khóa học'}
             </p>
 
-            <div className="flex items-center gap-4 text-xs text-gray-600 mb-4">
+            <div className="flex items-center gap-4 text-xs text-muted-foreground mb-4">
                 <span className="flex items-center gap-1">
                     <Users className="h-3.5 w-3.5" />
                     {session.student_count || 0}
@@ -91,27 +91,27 @@ function PendingAlert({ sessions, onNavigate }) {
     if (!sessions.length) return null;
 
     return (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4">
             <div className="flex items-start gap-3">
                 <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
-                    <h3 className="font-semibold text-amber-800">
+                    <h3 className="font-semibold text-amber-800 dark:text-amber-400">
                         Cần điểm danh ({sessions.length} buổi)
                     </h3>
-                    <p className="text-sm text-amber-700 mt-1">
+                    <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
                         Các buổi học đã qua nhưng chưa được điểm danh
                     </p>
                     <div className="mt-3 space-y-2">
                         {sessions.slice(0, 3).map((session) => (
                             <div
                                 key={session.id}
-                                className="flex items-center justify-between bg-white rounded-lg p-2 border border-amber-100"
+                                className="flex items-center justify-between bg-card rounded-lg p-2 border border-amber-500/20"
                             >
                                 <div className="min-w-0">
-                                    <p className="text-sm font-medium text-gray-900 truncate">
+                                    <p className="text-sm font-medium text-foreground truncate">
                                         {session.class_name}
                                     </p>
-                                    <p className="text-xs text-gray-500">
+                                    <p className="text-xs text-muted-foreground">
                                         {formatDate(session.session_date)} • Buổi {session.session_number}
                                     </p>
                                 </div>
@@ -121,7 +121,7 @@ function PendingAlert({ sessions, onNavigate }) {
                             </div>
                         ))}
                         {sessions.length > 3 && (
-                            <p className="text-xs text-amber-600 text-center">
+                            <p className="text-xs text-amber-600 dark:text-amber-400 text-center">
                                 và {sessions.length - 3} buổi khác...
                             </p>
                         )}
@@ -243,10 +243,10 @@ export function TeacherQuickAttendancePage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="min-h-screen bg-background flex items-center justify-center">
                 <div className="text-center">
                     <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
-                    <p className="text-gray-600">Đang tải dữ liệu...</p>
+                    <p className="text-muted-foreground">Đang tải dữ liệu...</p>
                 </div>
             </div>
         );
@@ -254,11 +254,11 @@ export function TeacherQuickAttendancePage() {
 
     if (error) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-                <div className="bg-white rounded-xl border border-red-200 p-6 max-w-md text-center">
+            <div className="min-h-screen bg-background flex items-center justify-center p-4">
+                <div className="bg-card rounded-2xl border border-red-500/20 p-6 max-w-md text-center shadow-sm">
                     <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-3" />
-                    <h3 className="font-semibold text-gray-900 mb-2">Đã xảy ra lỗi</h3>
-                    <p className="text-gray-600 mb-4">{error}</p>
+                    <h3 className="font-semibold text-foreground mb-2">Đã xảy ra lỗi</h3>
+                    <p className="text-muted-foreground mb-4">{error}</p>
                     <Button onClick={fetchSchedule}>Thử lại</Button>
                 </div>
             </div>
@@ -266,14 +266,14 @@ export function TeacherQuickAttendancePage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-background">
             {/* Header */}
-            <div className="bg-white border-b sticky top-0 z-10">
+            <div className="bg-card border-b border-border sticky top-0 z-10">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h1 className="text-xl font-bold text-gray-900">Điểm danh nhanh</h1>
-                            <p className="text-sm text-gray-500 mt-0.5">
+                            <h1 className="text-xl font-bold text-foreground">Điểm danh nhanh</h1>
+                            <p className="text-sm text-muted-foreground mt-0.5">
                                 Quản lý điểm danh các buổi học
                             </p>
                         </div>
@@ -294,16 +294,16 @@ export function TeacherQuickAttendancePage() {
                 <section>
                     <div className="flex items-center gap-2 mb-4">
                         <Calendar className="h-5 w-5 text-blue-600" />
-                        <h2 className="text-lg font-semibold text-gray-900">
+                        <h2 className="text-lg font-semibold text-foreground">
                             Hôm nay - {formatFullDate(today)}
                         </h2>
                     </div>
 
                     {todaySessions.length === 0 ? (
-                        <div className="bg-white rounded-xl border p-8 text-center">
-                            <Clock className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                            <p className="text-gray-600">Hôm nay bạn không có buổi dạy nào</p>
-                            <p className="text-sm text-gray-400 mt-1">
+                        <div className="bg-card rounded-2xl border border-border p-8 text-center">
+                            <Clock className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+                            <p className="text-muted-foreground">Hôm nay bạn không có buổi dạy nào</p>
+                            <p className="text-sm text-muted-foreground/70 mt-1">
                                 Nghỉ ngơi và chuẩn bị cho các buổi học sắp tới
                             </p>
                         </div>
@@ -324,43 +324,43 @@ export function TeacherQuickAttendancePage() {
                 <section>
                     <div className="flex items-center gap-2 mb-4">
                         <ChevronRight className="h-5 w-5 text-green-600" />
-                        <h2 className="text-lg font-semibold text-gray-900">
+                        <h2 className="text-lg font-semibold text-foreground">
                             Buổi học sắp tới (7 ngày)
                         </h2>
                     </div>
 
                     {upcomingSessions.length === 0 ? (
-                        <div className="bg-white rounded-xl border p-8 text-center">
-                            <CheckCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                            <p className="text-gray-600">Không có buổi học sắp tới</p>
+                        <div className="bg-card rounded-2xl border border-border p-8 text-center">
+                            <CheckCircle className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+                            <p className="text-muted-foreground">Không có buổi học sắp tới</p>
                         </div>
                     ) : (
-                        <div className="bg-white rounded-xl border divide-y">
+                        <div className="bg-card rounded-2xl border border-border divide-y divide-border">
                             {upcomingSessions.map(session => (
                                 <div
                                     key={session.id}
-                                    className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+                                    className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
                                 >
                                     <div className="flex items-center gap-4 min-w-0">
                                         <div className="text-center min-w-[60px]">
-                                            <p className="text-xs text-gray-500">
+                                            <p className="text-xs text-muted-foreground">
                                                 {new Date(session.session_date).toLocaleDateString('vi-VN', { weekday: 'short' })}
                                             </p>
-                                            <p className="text-lg font-bold text-gray-900">
+                                            <p className="text-lg font-bold text-foreground">
                                                 {new Date(session.session_date).getDate()}
                                             </p>
-                                            <p className="text-xs text-gray-500">
+                                            <p className="text-xs text-muted-foreground">
                                                 Th{new Date(session.session_date).getMonth() + 1}
                                             </p>
                                         </div>
                                         <div className="min-w-0">
-                                            <p className="font-medium text-gray-900 truncate">
+                                            <p className="font-medium text-foreground truncate">
                                                 {session.class_name}
                                             </p>
-                                            <p className="text-sm text-gray-500 truncate">
+                                            <p className="text-sm text-muted-foreground truncate">
                                                 Buổi {session.session_number} • {session.course_name}
                                             </p>
-                                            <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                                            <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                                                 <span className="flex items-center gap-1">
                                                     <Clock className="h-3 w-3" />
                                                     {session.start_time?.slice(0, 5)} - {session.end_time?.slice(0, 5)}
