@@ -96,7 +96,7 @@ export const groupAndSortRoomsByZone = (rooms) => {
   Object.keys(grouped).forEach(zone => {
     grouped[zone].sort((a, b) => {
       // Natural sort for codes like E2-01, E2-02, E2-10, E3-01
-      return a.code.localeCompare(b.code, undefined, { numeric: true, sensitivity: 'base' });
+      return (a.code || '').localeCompare(b.code || '', undefined, { numeric: true, sensitivity: 'base' });
     });
   });
 
