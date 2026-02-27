@@ -277,7 +277,7 @@ export default function StepSelectTypeAndStudents({ form, onStudentsLoaded }) {
                 const name = student.student_name || student.full_name || 'Học viên ẩn danh';
                 
                 return (
-                  <div key={student.student_id} className={cn(
+                  <div key={`${student.student_id}_${student.class_id}`} className={cn(
                     "p-4 transition-all duration-200 border-l-4",
                     isSelected ? "bg-muted border-l-primary" : "hover:bg-muted border-l-transparent"
                   )}>
