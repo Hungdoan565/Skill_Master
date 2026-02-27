@@ -30,7 +30,7 @@ const Dialog = ({ open, onOpenChange, children }) => {
         onClick={() => onOpenChange?.(false)}
       />
       {/* Content wrapper */}
-      <div className="relative z-50">{children}</div>
+      <div className="relative z-50 w-full px-4">{children}</div>
     </div>
   );
 };
