@@ -5,7 +5,8 @@
 import { useState, useCallback } from 'react';
 import axios from 'axios';
 import { supabase } from '@/lib/supabaseClient';
-import { API_URL } from '../utils';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const getAuthHeaders = async () => {
     const { data: { session } } = await supabase.auth.getSession();

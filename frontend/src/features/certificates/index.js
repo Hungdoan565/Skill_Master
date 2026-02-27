@@ -1,11 +1,15 @@
 /**
  * Certificates Feature Module - Barrel Export
- * 
- * Module quản lý chứng chỉ
+ *
+ * Module quản lý chứng chỉ (rebuilt)
  */
 
 // Pages
-export { CertificatesPage, CertificateTypeDetailPage, CertificatePrintPage, CertificateListPage, CertificateBulkPrintPage, CertificateViewPage } from './pages';
+export { CertificatesPage, StudentCertificatesPage, PublicCertificateVerification } from './pages';
 
 // Hooks
-export { useCertificates, useCertificateTypes } from './hooks';
+export { useCertificates, useCertificateTypes, useCertificateStats, useStudentCertificates } from './hooks';
+
+// Constants & Schemas
+export * from './constants';
+export * from './schemas';

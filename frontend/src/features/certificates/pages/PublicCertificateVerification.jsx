@@ -832,13 +832,6 @@ export function PublicCertificateVerification() {
                 // Set verification stats if available
                 if (data.stats) {
                     setVerificationStats(data.stats);
-                } else {
-                    // Generate mock stats for demo (in production, this comes from backend)
-                    setVerificationStats({
-                        total_views: Math.floor(Math.random() * 50) + 5,
-                        verified_count: Math.floor(Math.random() * 20) + 1,
-                        last_verified: new Date().toISOString()
-                    });
                 }
 
                 // Check status
@@ -860,7 +853,7 @@ export function PublicCertificateVerification() {
                 setStatus('invalid');
             }
         } catch (error) {
-            console.error('Error verifying certificate:', error);
+            // Verification error handled via status state
             setCertificate(null);
 
             // Distinguish between network errors and other errors
