@@ -121,7 +121,6 @@ export function StudentsTable({
       loading={loading}
       rowKey="id"
       pagination
-      pageSize={20}
       pageSizeOptions={[10, 20, 50, 100]}
       emptyVariant="search"
       emptyTitle="Không tìm thấy học viên"
