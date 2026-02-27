@@ -19404,7 +19404,7 @@ app.post('/api/admin/certificates/request-approval', requireAuth, requireRole(['
 
         // Lấy thông tin học viên
         const { data: profile } = await supabase
-          .from('profiles')
+          .from('users')
           .select('full_name')
           .eq('id', student_id)
           .single();
