@@ -12,6 +12,8 @@ import CertificateTypesGrid from '../components/CertificateTypesGrid';
 import IssueInternalWizard from '../components/wizard/IssueInternalWizard';
 import RecordExternalModal from '../components/RecordExternalModal';
 import PendingApprovalsDialog from '../components/PendingApprovalsDialog';
+import CertificatePrintModal from '../components/CertificatePrintModal';
+import CertificateRevokeModal from '../components/CertificateRevokeModal';
 import { useCertificates } from '../hooks/useCertificates';
 import { useCertificateTypes } from '../hooks/useCertificateTypes';
 
@@ -22,6 +24,8 @@ export default function CertificatesPage() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [externalModalOpen, setExternalModalOpen] = useState(false);
   const [pendingDialogOpen, setPendingDialogOpen] = useState(false);
+  const [printCertificate, setPrintCertificate] = useState(null);
+  const [revokeCertificateTarget, setRevokeCertificateTarget] = useState(null);
 
   const {
     certificates, loading, pagination,
@@ -45,22 +49,28 @@ export default function CertificatesPage() {
   const handleView = (cert) => setSelectedCertificate(cert);
 
   const handlePrint = (cert) => {
-    window.open(`/certificates/print/${cert.id}`, '_blank');
+    setPrintCertificate(cert);
   };
 
   const handleCopyLink = (cert) => {
-    const url = `${window.location.origin}/verify-certificate/${cert.certificate_number}`;
-    navigator.clipboard.writeText(url);
-    toast.success('Đã copy link xác minh');
+    const url = `${window.location.origin}/verify-certificate?cert=${cert.certificate_number}`;
+    navigator.clipboard.writeText(url).then(() => {
+      toast.success('Đã copy link xác minh');
+    }).catch(() => {
+      toast.error('Không thể copy link. Vui lòng copy thủ công.');
+    });
   };
 
-  const handleRevoke = async (cert) => {
-    const reason = window.prompt('Lý do thu hồi:');
-    if (!reason) return;
-    const result = await revokeCertificate(cert.id, reason);
+  const handleRevoke = (cert) => {
+    setRevokeCertificateTarget(cert);
+  };
+
+  const confirmRevoke = async (id, reason) => {
+    const result = await revokeCertificate(id, reason);
     if (result.success) {
       toast.success('Đã thu hồi chứng chỉ');
       setSelectedCertificate(null);
+      refresh();
     } else {
       toast.error(result.error || 'Có lỗi xảy ra');
     }
@@ -202,7 +212,7 @@ export default function CertificatesPage() {
         certificate={selectedCertificate}
         open={!!selectedCertificate}
         onOpenChange={(open) => { if (!open) setSelectedCertificate(null); }}
-        onRevoke={(id, reason) => revokeCertificate(id, reason).then(r => { if (r.success) { toast.success('Đã thu hồi'); setSelectedCertificate(null); refresh(); } })}
+        onRevoke={handleRevoke}
         onPrint={handlePrint}
       />
 
@@ -223,6 +233,19 @@ export default function CertificatesPage() {
         onOpenChange={setPendingDialogOpen}
         onApprove={handleSuccess}
         onReject={handleSuccess}
+      />
+
+      <CertificatePrintModal
+        certificate={printCertificate}
+        open={!!printCertificate}
+        onOpenChange={(open) => { if (!open) setPrintCertificate(null); }}
+      />
+
+      <CertificateRevokeModal
+        certificate={revokeCertificateTarget}
+        open={!!revokeCertificateTarget}
+        onOpenChange={(open) => { if (!open) setRevokeCertificateTarget(null); }}
+        onConfirm={confirmRevoke}
       />
     </div>
   );

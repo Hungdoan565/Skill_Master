@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Award, Download, Share2, ExternalLink, FileX } from 'lucide-react';
+import { Award, Download, Share2, ExternalLink, FileX, Printer } from 'lucide-react';
 import { format } from 'date-fns';
 import { DataTable } from '@/components/ui/data-table';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useStudentCertificates } from '../hooks/useStudentCertificates';
 import { STATUS_CONFIG, CATEGORY_CONFIG, GRADE_CONFIG, getCertificateDisplayStatus } from '../constants';
+import CertificatePrintModal from '../components/CertificatePrintModal';
 
 const STATUS_BADGE_MAP = {
   issued: 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-emerald-500/20',
@@ -21,11 +22,15 @@ const STATUS_BADGE_MAP = {
 export default function StudentCertificatesPage() {
   const { certificates, loading } = useStudentCertificates();
   const [selected, setSelected] = useState(null);
+  const [printCertificate, setPrintCertificate] = useState(null);
 
   const handleCopyLink = (cert) => {
-    const url = `${window.location.origin}/verify-certificate/${cert.certificate_number}`;
-    navigator.clipboard.writeText(url);
-    toast.success('Đã copy link xác minh!');
+    const url = `${window.location.origin}/verify-certificate?cert=${cert.certificate_number}`;
+    navigator.clipboard.writeText(url).then(() => {
+      toast.success('Đã copy link xác minh!');
+    }).catch(() => {
+      toast.error('Không thể copy link. Vui lòng copy thủ công.');
+    });
   };
 
   const getInitials = (name) => {
@@ -210,8 +215,8 @@ export default function StudentCertificatesPage() {
 
                 <div className="flex flex-col gap-3 pt-4 mt-auto">
                   {!selected.is_external && selected.status !== 'revoked' && selected.approval_status !== 'pending_approval' && (
-                    <Button onClick={() => window.open(`/certificates/print/${selected.id}`, '_blank')} className="w-full sm:w-auto flex-1 h-10 shadow-sm">
-                      <Download className="h-4 w-4 mr-2" /> Tải chứng chỉ (PDF)
+                    <Button onClick={() => setPrintCertificate(selected)} className="w-full sm:w-auto flex-1 h-10 shadow-sm">
+                      <Printer className="h-4 w-4 mr-2" /> In / PDF
                     </Button>
                   )}
                   
@@ -232,6 +237,12 @@ export default function StudentCertificatesPage() {
           )}
         </SheetContent>
       </Sheet>
+
+      <CertificatePrintModal
+        certificate={printCertificate}
+        open={!!printCertificate}
+        onOpenChange={(open) => { if (!open) setPrintCertificate(null); }}
+      />
     </div>
   );
 }

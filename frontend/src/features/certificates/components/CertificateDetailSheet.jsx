@@ -78,19 +78,21 @@ export default function CertificateDetailSheet({ certificate, open, onOpenChange
   const badgeStyle = STATUS_STYLE_MAP[displayStatus] || STATUS_STYLE_MAP.expired;
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/verify-certificate/${certificate.certificate_number}`;
-    navigator.clipboard.writeText(url);
-    toast.success('Đã copy link xác minh');
+    const url = `${window.location.origin}/verify-certificate?cert=${certificate.certificate_number}`;
+    navigator.clipboard.writeText(url).then(() => {
+      toast.success('Đã copy link xác minh');
+    }).catch(() => {
+      toast.error('Không thể copy link. Vui lòng copy thủ công.');
+    });
   };
 
   const handleRevoke = () => {
-    const reason = window.prompt('Lý do thu hồi:');
-    if (reason) onRevoke?.(certificate.id, reason);
+    onRevoke?.(certificate);
   };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="sm:max-w-md md:max-w-lg overflow-y-auto p-0 border-border/50 bg-card">
+      <SheetContent side="right" className="sm:max-w-md md:max-w-lg overflow-y-auto p-0 border-border/50">
         {/* Hero Header */}
         <div className="relative pt-12 pb-6 px-6 bg-muted/30 border-b border-border/50 overflow-hidden">
           {/* Background decorations */}
@@ -219,7 +221,7 @@ export default function CertificateDetailSheet({ certificate, open, onOpenChange
                 <Link2 className="h-4 w-4 mr-2 text-muted-foreground" /> Copy link
               </Button>
               <Button variant="outline" className={`${isExternal ? 'col-span-2' : 'col-span-2'} w-full bg-background hover:bg-muted border-border/50 shadow-sm`} onClick={() => {
-                const url = `${window.location.origin}/verify-certificate/${certificate.certificate_number}`;
+                const url = `${window.location.origin}/verify-certificate?cert=${certificate.certificate_number}`;
                 window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
               }}>
                 <Share2 className="h-4 w-4 mr-2 text-blue-600" /> Chia sẻ Facebook
