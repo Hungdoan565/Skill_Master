@@ -47,7 +47,7 @@ export default function IssueInternalWizard({ open, onOpenChange, onSuccess, cen
   const [studentsList, setStudentsList] = useState([]);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   
-  const { certificateTypes } = useCertificateTypes();
+  const { certificateTypes, fetchCertificateTypes } = useCertificateTypes();
 
   const methods = useForm({
     resolver: zodResolver(issuanceWizardSchema),
@@ -78,8 +78,9 @@ export default function IssueInternalWizard({ open, onOpenChange, onSuccess, cen
         showSerial: true,
         sendEmail: true,
       });
+      fetchCertificateTypes();
     }
-  }, [open, reset]);
+  }, [open, reset, fetchCertificateTypes]);
 
   const handleClose = (isOpen) => {
     if (isOpen === true) return;
