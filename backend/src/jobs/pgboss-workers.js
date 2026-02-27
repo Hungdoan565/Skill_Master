@@ -10,7 +10,6 @@ import {
   isPgBossAvailable 
 } from './pgboss-scheduler.js';
 import { processSessionAutoComplete } from './sessionAutoComplete.job.js';
-import { processEmailQueue } from '../services/email.service.js';
 import nodemailer from 'nodemailer';
 import Handlebars from 'handlebars';
 import fs from 'fs';
@@ -230,6 +229,185 @@ async function processEnrollmentNotification(job) {
 }
 
 /**
+ * Certificate Eligibility Worker
+ * Auto-checks eligibility when enrollment is completed
+ */
+async function processCheckCertificateEligibility(job) {
+  const { enrollmentId, studentId, classId, centerId } = job.data;
+  console.log(`🏆 Checking certificate eligibility for enrollment ${enrollmentId}...`);
+
+  try {
+    // 1. Get enrollment + class + course info
+    const { data: enrollment, error: enrollError } = await supabase
+      .from('enrollments')
+      .select(`
+        id, student_id, class_id, status,
+        class:classes!enrollments_class_id_fkey(
+          id, name, course_id,
+          course:courses!classes_course_id_fkey(id, name, code)
+        )
+      `)
+      .eq('id', enrollmentId)
+      .single();
+
+    if (enrollError || !enrollment) {
+      console.warn(`⚠️ Enrollment not found: ${enrollmentId}`);
+      return { skipped: true, reason: 'enrollment_not_found' };
+    }
+
+    if (enrollment.status !== 'completed') {
+      console.log(`ℹ️ Enrollment ${enrollmentId} is not completed (status: ${enrollment.status}). Skipping.`);
+      return { skipped: true, reason: 'not_completed' };
+    }
+
+    const courseId = enrollment.class?.course_id;
+    if (!courseId) {
+      console.warn(`⚠️ No course linked to class ${classId}`);
+      return { skipped: true, reason: 'no_course' };
+    }
+
+    // 2. Find internal certificate types linked to this course
+    const { data: certTypes, error: typeError } = await supabase
+      .from('certificate_types')
+      .select('*')
+      .eq('is_internal', true)
+      .eq('is_active', true)
+      .contains('linked_course_ids', [courseId]);
+
+    if (typeError) {
+      console.error('❌ Error fetching certificate types:', typeError.message);
+      throw typeError;
+    }
+
+    if (!certTypes || certTypes.length === 0) {
+      console.log(`ℹ️ No internal certificate types linked to course ${courseId}. Skipping.`);
+      return { skipped: true, reason: 'no_cert_types' };
+    }
+
+    let createdCount = 0;
+    let skippedCount = 0;
+
+    for (const certType of certTypes) {
+      // 3. Check if certificate already exists for this combo
+      const { data: existing } = await supabase
+        .from('certificates')
+        .select('id')
+        .eq('student_id', studentId)
+        .eq('class_id', classId)
+        .eq('certificate_type_id', certType.id)
+        .limit(1);
+
+      if (existing && existing.length > 0) {
+        console.log(`ℹ️ Certificate already exists for student ${studentId}, class ${classId}, type ${certType.id}. Skipping.`);
+        skippedCount++;
+        continue;
+      }
+
+      // 4. Check eligibility using DB function (3-param overload)
+      const { data: eligibility, error: eligError } = await supabase
+        .rpc('check_certificate_eligibility', {
+          p_student_id: studentId,
+          p_class_id: classId,
+          p_certificate_type_id: certType.id
+        });
+
+      if (eligError) {
+        console.error(`❌ Error checking eligibility:`, eligError.message);
+        skippedCount++;
+        continue;
+      }
+
+      const eligResult = eligibility?.[0] || eligibility;
+      if (!eligResult?.eligible) {
+        console.log(`ℹ️ Student ${studentId} not eligible for ${certType.name}: ${eligResult?.reason || 'unknown'}`);
+        skippedCount++;
+        continue;
+      }
+
+      // 5. Generate certificate number
+      const { data: certNumber } = await supabase
+        .rpc('generate_certificate_number_v2', {
+          p_type_code: certType.code || 'INT',
+          p_center_code: 'SM'
+        });
+
+      // 6. Get design for this category
+      const { data: design } = await supabase
+        .from('certificate_designs')
+        .select('id')
+        .eq('category', certType.category)
+        .eq('is_default', true)
+        .limit(1)
+        .maybeSingle();
+
+      // 7. Calculate expiry
+      const completionDate = new Date();
+      let expiresAt = null;
+      if (certType.validity_months) {
+        expiresAt = new Date(completionDate);
+        expiresAt.setMonth(expiresAt.getMonth() + certType.validity_months);
+      }
+
+      // 8. Create certificate with pending_approval
+      const { data: newCert, error: insertError } = await supabase
+        .from('certificates')
+        .insert({
+          certificate_number: certNumber || `SM-${Date.now()}`,
+          certificate_type_id: certType.id,
+          student_id: studentId,
+          student_name: '',
+          class_id: classId,
+          enrollment_id: enrollmentId,
+          course_id: courseId,
+          course_name: enrollment.class?.course?.name || '',
+          completion_date: completionDate.toISOString().split('T')[0],
+          grade: eligResult?.average_grade?.toString() || eligResult?.avg_score?.toString() || null,
+          center_id: centerId,
+          status: 'issued',
+          approval_status: 'pending_approval',
+          design_id: design?.id || null,
+          expires_at: expiresAt ? expiresAt.toISOString().split('T')[0] : null,
+          issued_at: new Date().toISOString()
+        })
+        .select('id')
+        .single();
+
+      if (insertError) {
+        console.error(`❌ Error creating certificate:`, insertError.message);
+        skippedCount++;
+        continue;
+      }
+
+      // 9. Create approval record
+      const { error: approvalError } = await supabase
+        .from('certificate_approvals')
+        .insert({
+          certificate_ids: [newCert.id],
+          requested_by: studentId,
+          status: 'pending',
+          certificate_type_id: certType.id,
+          center_id: centerId,
+          notes: 'Tự động tạo khi học viên hoàn thành khóa học'
+        });
+
+      if (approvalError) {
+        console.error(`❌ Error creating approval record:`, approvalError.message);
+        // Certificate created but approval failed - log but don't throw
+      } else {
+        createdCount++;
+        console.log(`✅ Auto-created certificate ${newCert.id} for student ${studentId}, type ${certType.name}`);
+      }
+    }
+
+    console.log(`🏆 Certificate eligibility check complete: ${createdCount} created, ${skippedCount} skipped`);
+    return { createdCount, skippedCount };
+  } catch (error) {
+    console.error(`❌ Certificate eligibility check failed for enrollment ${enrollmentId}:`, error.message);
+    throw error;
+  }
+}
+
+/**
  * Start all workers
  */
 export async function startWorkers() {
@@ -239,12 +417,12 @@ export async function startWorkers() {
   }
 
   try {
-    await processEmailQueue();
     await registerWorker(QUEUES.EMAIL, processEmailJob, { concurrency: 5 });
     await registerWorker(QUEUES.PAYMENT_REMINDER, processPaymentReminder);
     await registerWorker(QUEUES.OVERDUE_CHECK, processOverdueCheck);
     await registerWorker(QUEUES.ENROLLMENT_NOTIFICATION, processEnrollmentNotification);
     await registerWorker(QUEUES.SESSION_AUTO_COMPLETE, processSessionAutoComplete);
+    await registerWorker(QUEUES.CERTIFICATE_ELIGIBILITY, processCheckCertificateEligibility);
 
     console.log('✅ All workers started');
     return true;
@@ -261,3 +439,4 @@ export {
   processOverdueCheck,
   processEnrollmentNotification
 };
+  processCheckCertificateEligibility,

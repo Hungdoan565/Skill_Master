@@ -4,7 +4,7 @@
  *
  * pg-boss uses PostgreSQL for job queuing - perfect since we already have Supabase
  */
-import { PgBoss } from 'pg-boss';
+import PgBoss from 'pg-boss';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -88,7 +88,8 @@ export const QUEUES = {
   OVERDUE_CHECK: 'overdue-check',
   EMAIL: 'email',
   ENROLLMENT_NOTIFICATION: 'enrollment-notification',
-  SESSION_AUTO_COMPLETE: 'session-auto-complete'
+  SESSION_AUTO_COMPLETE: 'session-auto-complete',
+  CERTIFICATE_ELIGIBILITY: 'check-certificate-eligibility'
 };
 
 /**
@@ -255,6 +256,22 @@ export async function triggerSessionAutoComplete() {
   return addJob(QUEUES.SESSION_AUTO_COMPLETE, {
     triggeredAt: new Date().toISOString(),
     manual: true
+  });
+}
+
+/**
+ * Trigger certificate eligibility check for a completed enrollment
+ */
+export async function triggerCertificateEligibilityCheck({ enrollmentId, studentId, classId, centerId }) {
+  return addJob(QUEUES.CERTIFICATE_ELIGIBILITY, {
+    enrollmentId,
+    studentId,
+    classId,
+    centerId,
+    triggeredAt: new Date().toISOString()
+  }, {
+    singletonKey: `cert-check-${enrollmentId}`,
+    retryLimit: 3
   });
 }
 
