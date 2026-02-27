@@ -40,13 +40,13 @@ export default function CertificateDetailModal({ certificate, open, onClose }) {
   const category = certificate.certificate_type?.category || 'other';
   const classCode = certificate.class?.code || '';
   const certNumber = certificate.certificate_code || certificate.certificate_number || '';
-  const verifyUrl = `${window.location.origin}/verify/${certNumber}`;
+  const verifyUrl = `${window.location.origin}/verify-certificate?cert=${certNumber}`;
   
   const studentName = certificate.student_name || user?.user_metadata?.full_name || user?.email || 'Học viên';
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-4xl lg:max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-5xl lg:max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="flex flex-row items-center justify-between pb-4 border-b">
           <DialogTitle className="flex items-center gap-2 m-0 text-xl">
             <Award className="h-6 w-6 text-primary" />
@@ -86,7 +86,7 @@ export default function CertificateDetailModal({ certificate, open, onClose }) {
               category={category}
               showQR={isVerifiable}
               showSerial={true}
-              className="max-w-3xl transform scale-90 sm:scale-100 origin-top"
+              className="w-full"
             />
           </div>
 

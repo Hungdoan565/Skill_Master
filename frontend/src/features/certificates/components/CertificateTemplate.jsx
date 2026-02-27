@@ -20,7 +20,7 @@ export default function CertificateTemplate({
   const template = CATEGORY_CONFIG[category]?.template || 'classic-gold';
   const templateConf = TEMPLATE_CONFIG[template] || TEMPLATE_CONFIG['classic-gold'];
   
-  const verifyUrl = `${window.location.origin}/verify/${certificateNumber}`;
+  const verifyUrl = `${window.location.origin}/verify-certificate?cert=${certificateNumber}`;
   const displayDate = issueDate ? new Date(issueDate) : new Date();
 
   return (
@@ -43,7 +43,7 @@ export default function CertificateTemplate({
           style={{ borderColor: templateConf.previewColor }}
         />
         
-        <div className="relative z-10 w-full max-w-lg mx-auto transform transition-all duration-300 group-hover:scale-[1.02]">
+        <div className="relative z-10 w-full max-w-2xl mx-auto transform transition-all duration-300 group-hover:scale-[1.02]">
           <div className="mb-8">
             <div className="w-16 h-16 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-4 border-2 border-dashed border-gray-300">
               <Award className="w-8 h-8 text-gray-400" />
