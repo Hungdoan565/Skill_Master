@@ -30,7 +30,7 @@ const Dialog = ({ open, onOpenChange, children }) => {
         onClick={() => onOpenChange?.(false)}
       />
       {/* Content wrapper */}
-      <div className="relative z-50 w-full px-4 flex justify-center">{children}</div>
+      <div className="relative z-50 w-full px-4 flex justify-center pointer-events-none">{children}</div>
     </div>
   );
 };
@@ -40,7 +40,7 @@ const DialogContent = React.forwardRef(({ className, children, ...props }, ref) 
     ref={ref}
     className={cn(
       // SOLID background - no transparency!
-      'relative max-h-[90vh] overflow-y-auto rounded-lg shadow-2xl p-6 w-full max-w-lg',
+      'relative max-h-[90vh] overflow-y-auto rounded-lg shadow-2xl p-6 w-full max-w-lg pointer-events-auto',
       'bg-white dark:bg-zinc-950',
       'border border-zinc-200 dark:border-zinc-800',
       className
