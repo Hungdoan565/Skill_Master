@@ -24129,7 +24129,8 @@ app.get('/api/student/certificates',
         .from('certificates')
         .select(`
           id, certificate_number, issued_at, status, pdf_url,
-          course_name, student_name, grade, completion_date,
+          course_name, student_name, grade, completion_date, scores,
+          certificate_type:certificate_types(id, name, code, category),
           class:classes(id, name, code, course:courses(id, title, level)),
           issued_by:users!certificates_issued_by_fkey(id, full_name)
         `)
@@ -24153,6 +24154,8 @@ app.get('/api/student/certificates',
         completion_date: cert.completion_date,
         class: cert.class,
         issued_by: cert.issued_by,
+        certificate_type: cert.certificate_type,
+        scores: cert.scores,
         // Legacy fields frontend might expect
         expiry_date: null,
         metadata: null
