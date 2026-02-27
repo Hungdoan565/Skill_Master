@@ -125,6 +125,12 @@ export default function IssueInternalWizard({ open, onOpenChange, onSuccess, cen
     setActiveStep(prev => Math.max(prev - 1, 0));
   };
 
+  const onValidationError = (errors) => {
+    console.error('Form validation errors:', errors);
+    const firstError = Object.values(errors)[0];
+    const message = firstError?.message || firstError?.root?.message || 'Dữ liệu không hợp lệ';
+    toast.error(`Lỗi validation: ${message}`);
+  };
   const onSubmit = async (data) => {
     try {
       setSubmitting(true);
@@ -304,7 +310,7 @@ export default function IssueInternalWizard({ open, onOpenChange, onSuccess, cen
               ) : (
                 <Button 
                   type="button" 
-                  onClick={handleSubmit(onSubmit)}
+                  onClick={handleSubmit(onSubmit, onValidationError)}
                   disabled={submitting || selectedStudentIds.length === 0}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 px-8 font-semibold shadow-sm transition-all shadow-emerald-600/20"
                 >
