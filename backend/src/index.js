@@ -22,6 +22,7 @@ import {
   updateParentStudentLink,
   deactivateParentStudentLink,
 } from './services/parentStudentLinkService.js';
+import { createNotification } from './services/notification.service.js';
 
 // Lazy import for enrollment notifications (requires Redis)
 let enrollmentNotifications = null;
@@ -6534,6 +6535,19 @@ app.post('/api/classes/:id/enroll', requireAuth, async (req, res, next) => {
       data: result.enrollment,
       invoice: result.invoice
     });
+
+    // Notification: Student enrollment created
+    try {
+      createNotification(supabase, {
+        userId: result?.enrollment?.student_id || student_id,
+        centerId: result?.enrollment?.center_id,
+        type: 'enrollment',
+        title: 'Đăng ký lớp học thành công',
+        message: 'Bạn đã được đăng ký vào lớp học mới',
+        referenceId: result?.enrollment?.id,
+        referenceType: 'enrollment'
+      }).catch(err => console.warn('Notification error:', err.message));
+    } catch (e) { }
   } catch (error) {
     console.error('Error enrolling student:', error);
     res.status(500).json({
@@ -6670,6 +6684,27 @@ app.patch('/api/enrollments/:id', requireAuth, async (req, res, next) => {
     if (error) throw error;
 
     res.json({ success: true, message: 'Cập nhật thành công', data });
+
+    // Notification: Enrollment status updated
+    try {
+      const nextStatus = data?.status || status;
+      let statusTitle = '';
+      if (nextStatus === 'approved') statusTitle = 'Đăng ký đã được duyệt';
+      if (nextStatus === 'rejected') statusTitle = 'Đăng ký bị từ chối';
+      if (nextStatus === 'completed') statusTitle = 'Hoàn thành khóa học';
+
+      if (statusTitle) {
+        createNotification(supabase, {
+          userId: data?.student_id,
+          centerId: data?.center_id,
+          type: 'enrollment',
+          title: statusTitle,
+          message: `Trạng thái ghi danh của bạn đã được cập nhật: ${nextStatus}`,
+          referenceId: data?.id,
+          referenceType: 'enrollment'
+        }).catch(err => console.warn('Notification error:', err.message));
+      }
+    } catch (e) { }
 
     // Auto-trigger certificate eligibility check when enrollment is completed
     if (status === 'completed' && data) {
@@ -6967,7 +7002,7 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
     // 1. Lấy thông tin enrollment hiện tại
     const { data: enrollment, error: enrollmentError } = await supabase
       .from('enrollments')
-      .select('id, tuition_fee, discount_amount, paid_amount')
+      .select('id, student_id, center_id, tuition_fee, discount_amount, paid_amount')
       .eq('id', enrollment_id)
       .single();
 
@@ -7112,6 +7147,19 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
         invoice_code: invoice?.invoice_code
       }
     });
+
+    // Notification: Payment recorded
+    try {
+      createNotification(supabase, {
+        userId: enrollment?.student_id || student_id,
+        centerId: enrollment?.center_id || updatedEnrollment?.center_id,
+        type: 'payment',
+        title: 'Thanh toán thành công',
+        message: `Bạn đã thanh toán thành công ${amount.toLocaleString()}đ`,
+        referenceId: paymentRecord?.id || enrollment_id,
+        referenceType: 'payment'
+      }).catch(err => console.warn('Notification error:', err.message));
+    } catch (e) { }
 
   } catch (error) {
     console.error('Error processing payment:', error);
@@ -16530,6 +16578,42 @@ app.post('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, n
       message: `Đã điểm danh ${results.length} học viên`,
       data: results
     });
+
+    // Notification: Notify parents of absent students
+    try {
+      (async () => {
+        const absentStudentIds = (attendances || [])
+          .filter(att => ['absent', 'vắng'].includes((att?.status || '').toLowerCase()))
+          .map(att => att.student_id)
+          .filter(Boolean);
+
+        if (absentStudentIds.length === 0) return;
+
+        const { data: classInfo } = await supabase
+          .from('classes')
+          .select('center_id')
+          .eq('id', session.class_id)
+          .single();
+
+        const { data: parentLinks } = await supabase
+          .from('parent_student_links')
+          .select('parent_id, student_id')
+          .in('student_id', absentStudentIds)
+          .eq('status', 'active');
+
+        for (const link of parentLinks || []) {
+          createNotification(supabase, {
+            userId: link.parent_id,
+            centerId: classInfo?.center_id,
+            type: 'attendance',
+            title: 'Thông báo điểm danh',
+            message: 'Học viên của bạn vắng mặt trong buổi học gần nhất',
+            referenceId: sessionId,
+            referenceType: 'attendance'
+          }).catch(err => console.warn('Notification error:', err.message));
+        }
+      })().catch(err => console.warn('Notification task error:', err.message));
+    } catch (e) { }
   } catch (error) {
     console.error('Error marking attendance:', error);
     next(error);
@@ -16766,7 +16850,7 @@ app.post('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) 
     // Verify teacher owns this class
     const { data: classData, error: classError } = await supabase
       .from('classes')
-      .select('id, teacher_id, course_id')
+      .select('id, teacher_id, course_id, center_id')
       .eq('id', classId)
       .single();
 
@@ -16833,6 +16917,50 @@ app.post('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) 
       message: `Đã lưu ${savedGrades?.length || 0} điểm thành công`,
       data: savedGrades
     });
+
+    // Notification: Grades published for affected students
+    try {
+      (async () => {
+        const enrollmentIds = [...new Set((savedGrades || []).map(g => g.enrollment_id).filter(Boolean))];
+        if (enrollmentIds.length === 0) return;
+
+        const { data: enrollmentRows } = await supabase
+          .from('enrollments')
+          .select('id, student_id')
+          .in('id', enrollmentIds);
+
+        for (const row of enrollmentRows || []) {
+          createNotification(supabase, {
+            userId: row.student_id,
+            centerId: classData?.center_id,
+            type: 'grade',
+            title: 'Điểm số đã được cập nhật',
+            message: 'Giáo viên đã cập nhật điểm số của bạn',
+            referenceId: classId,
+            referenceType: 'grade_published'
+          }).catch(err => console.warn('Notification error:', err.message));
+
+          // Also notify parent if linked
+          const { data: parentLinks } = await supabase
+            .from('parent_student_links')
+            .select('parent_id')
+            .eq('student_id', row.student_id)
+            .eq('status', 'active');
+
+          for (const link of parentLinks || []) {
+            createNotification(supabase, {
+              userId: link.parent_id,
+              centerId: classData?.center_id,
+              type: 'grade',
+              title: 'Điểm số con em đã được cập nhật',
+              message: 'Giáo viên đã cập nhật điểm số của con em bạn',
+              referenceId: classId,
+              referenceType: 'grade_published'
+            }).catch(err => console.warn('Notification error:', err.message));
+          }
+        }
+      })().catch(err => console.warn('Notification task error:', err.message));
+    } catch (e) { }
   } catch (error) {
     console.error('❌ Error saving grades:', error);
     next(error);
@@ -19530,11 +19658,26 @@ app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CE
 
       if (insertError) throw insertError;
 
-      return res.status(201).json({
+      res.status(201).json({
         success: true,
         data: certificate,
         message: 'Đã ghi nhận chứng chỉ quốc tế thành công'
       });
+
+      // Notification: Certificate issued (external)
+      try {
+        createNotification(supabase, {
+          userId: student_id,
+          centerId: centerId,
+          type: 'certificate',
+          title: 'Chứng chỉ đã được cấp',
+          message: 'Bạn đã được cấp chứng chỉ mới',
+          referenceId: certificate?.id,
+          referenceType: 'certificate'
+        }).catch(err => console.warn('Notification error:', err.message));
+      } catch (e) { }
+
+      return;
     }
 
     if (!student_id || !class_id || !certificate_type_id) {
@@ -19577,6 +19720,19 @@ app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       eligibility: result.eligibility,
       message: 'Đã cấp chứng chỉ thành công'
     });
+
+    // Notification: Certificate issued
+    try {
+      createNotification(supabase, {
+        userId: student_id,
+        centerId: result?.data?.center_id,
+        type: 'certificate',
+        title: 'Chứng chỉ đã được cấp',
+        message: 'Bạn đã được cấp chứng chỉ mới',
+        referenceId: result?.data?.id,
+        referenceType: 'certificate'
+      }).catch(err => console.warn('Notification error:', err.message));
+    } catch (e) { }
   } catch (error) {
     console.error('Error issuing certificate:', error);
     next(error);
@@ -20773,49 +20929,75 @@ app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN'
       });
     }
 
-    // Check for existing enrollments (check tất cả status để tránh duplicate key constraint)
+    // Check for existing enrollments - separate active from dropped
     const { data: existingEnrollments } = await supabase
       .from('enrollments')
-      .select('student_id, status')
+      .select('id, student_id, status')
       .eq('class_id', class_id)
       .in('student_id', student_ids);
 
-    const existingIds = new Set(existingEnrollments?.map(e => e.student_id) || []);
-    const newStudentIds = student_ids.filter(id => !existingIds.has(id));
+    const activeIds = new Set((existingEnrollments || []).filter(e => e.status === 'active').map(e => e.student_id));
+    const droppedEnrollments = (existingEnrollments || []).filter(e => e.status === 'dropped');
+    const droppedIds = new Set(droppedEnrollments.map(e => e.student_id));
+    const newStudentIds = student_ids.filter(id => !activeIds.has(id) && !droppedIds.has(id));
+    const reactivateIds = student_ids.filter(id => droppedIds.has(id) && !activeIds.has(id));
 
-    console.log('[BatchEnroll] Existing enrollments:', existingEnrollments);
-    console.log('[BatchEnroll] New student IDs to enroll:', newStudentIds);
+    console.log('[BatchEnroll] Active (skip):', [...activeIds]);
+    console.log('[BatchEnroll] Dropped (reactivate):', reactivateIds);
+    console.log('[BatchEnroll] New (insert):', newStudentIds);
 
-    if (newStudentIds.length === 0) {
+    if (newStudentIds.length === 0 && reactivateIds.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Tất cả học viên đã được ghi danh vào lớp này (bao gồm cả học viên đã rời lớp)'
+        message: 'Tất cả học viên đã được ghi danh vào lớp này'
       });
     }
 
-    // Batch insert
-    const enrollments = newStudentIds.map(student_id => ({
-      student_id,
-      class_id,
-      tuition_fee: tuition_fee || 0,
-      discount_amount: 0,
-      paid_amount: 0,
-      status: 'active',
-      enrolled_at: new Date().toISOString()
-    }));
+    // Reactivate dropped enrollments
+    let reactivatedData = [];
+    if (reactivateIds.length > 0) {
+      const reactivateEnrollmentIds = droppedEnrollments
+        .filter(e => reactivateIds.includes(e.student_id))
+        .map(e => e.id);
+      const { data: reactivated, error: reactivateError } = await supabase
+        .from('enrollments')
+        .update({ status: 'active', enrolled_at: new Date().toISOString() })
+        .in('id', reactivateEnrollmentIds)
+        .select();
+      if (reactivateError) throw reactivateError;
+      reactivatedData = reactivated || [];
+    }
 
-    const { data, error } = await supabase
-      .from('enrollments')
-      .insert(enrollments)
-      .select();
+    // Batch insert new students
+    let insertedData = [];
+    if (newStudentIds.length > 0) {
+      const enrollments = newStudentIds.map(student_id => ({
+        student_id,
+        class_id,
+        tuition_fee: tuition_fee || 0,
+        discount_amount: 0,
+        paid_amount: 0,
+        status: 'active',
+        enrolled_at: new Date().toISOString()
+      }));
 
-    if (error) throw error;
+      const { data, error } = await supabase
+        .from('enrollments')
+        .insert(enrollments)
+        .select();
 
-    // 🔥 NEW: Create draft invoices for each enrollment
+      if (error) throw error;
+      insertedData = data || [];
+    }
+
+    // Combine all enrolled (new + reactivated)
+    const allEnrolled = [...insertedData, ...reactivatedData];
+
+    // Create draft invoices for all enrolled
     const invoiceResults = [];
     const invoiceErrors = [];
 
-    for (const enrollment of data) {
+    for (const enrollment of allEnrolled) {
       try {
         const invoiceResult = await createDraftInvoice(supabase, {
           student_id: enrollment.student_id,
@@ -20840,18 +21022,20 @@ app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN'
       }
     }
 
-    console.log(`✅ Batch enrollment: ${data.length} enrolled, ${invoiceResults.length} invoices created`);
+    console.log(`✅ Batch enrollment: ${insertedData.length} new, ${reactivatedData.length} reactivated, ${invoiceResults.length} invoices`);
 
     res.status(201).json({
       success: true,
       data: {
-        enrolled: data.length,
-        skipped: student_ids.length - newStudentIds.length,
+        enrolled: allEnrolled.length,
+        new_enrolled: insertedData.length,
+        reactivated: reactivatedData.length,
+        skipped: activeIds.size,
         total: student_ids.length,
         invoices_created: invoiceResults.length,
         invoice_errors: invoiceErrors.length > 0 ? invoiceErrors : undefined
       },
-      message: `Đã ghi danh ${data.length} học viên và tạo ${invoiceResults.length} hóa đơn draft`
+      message: `Đã ghi danh ${allEnrolled.length} học viên và tạo ${invoiceResults.length} hóa đơn draft`
     });
   } catch (error) {
     console.error('Error batch enrollment:', error);
@@ -21594,6 +21778,193 @@ app.get('/api/admin/waiting-list/statistics', requireAuth, requireRole(['SUPER_A
     });
   } catch (error) {
     console.error('Error fetching waiting list statistics:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// NOTIFICATION BELL APIs (fetch, mark read)
+// ============================================================
+
+/**
+ * GET /api/notifications
+ * Fetch notifications for the authenticated user (paginated)
+ */
+app.get('/api/notifications', requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { effectiveCenterId } = getEffectiveCenterId(req.user);
+    const { unread, limit = 20, offset = 0 } = req.query;
+    const limitNum = Math.min(parseInt(limit) || 20, 50);
+    const offsetNum = parseInt(offset) || 0;
+
+    let query = supabase
+      .from('notifications')
+      .select('id, type, title, message, reference_id, reference_type, read_at, created_at', { count: 'exact' })
+      .eq('user_id', userId)
+      .eq('center_id', effectiveCenterId)
+      .order('created_at', { ascending: false })
+      .range(offsetNum, offsetNum + limitNum - 1);
+
+    if (unread === 'true') {
+      query = query.is('read_at', null);
+    }
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    // Get unread count separately
+    const { count: unreadCount, error: unreadError } = await supabase
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('center_id', effectiveCenterId)
+      .is('read_at', null);
+
+    if (unreadError) throw unreadError;
+
+    res.json({
+      success: true,
+      data: {
+        notifications: data || [],
+        total: count || 0,
+        unreadCount: unreadCount || 0
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    next(error);
+  }
+});
+
+/**
+ * PATCH /api/notifications/read-all
+ * Mark all unread notifications as read (must be before :id route)
+ */
+app.patch('/api/notifications/read-all', requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { effectiveCenterId } = getEffectiveCenterId(req.user);
+
+    const { data, error } = await supabase
+      .from('notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .eq('center_id', effectiveCenterId)
+      .is('read_at', null)
+      .select('id');
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: { updated: data?.length || 0 }
+    });
+  } catch (error) {
+    console.error('Error marking all notifications as read:', error);
+    next(error);
+  }
+});
+
+/**
+ * PATCH /api/notifications/:id/read
+ * Mark a single notification as read
+ */
+app.patch('/api/notifications/:id/read', requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+
+    const { data, error } = await supabase
+      .from('notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select('id, read_at')
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({ success: false, message: 'Notification not found' });
+      }
+      throw error;
+    }
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/notifications/preferences
+ * Get user notification preferences
+ */
+app.get('/api/notifications/preferences', requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { effectiveCenterId } = getEffectiveCenterId(req.user);
+
+    const { data, error } = await supabase
+      .from('user_notification_preferences')
+      .select('notification_type, in_app_enabled')
+      .eq('user_id', userId)
+      .eq('center_id', effectiveCenterId);
+
+    if (error) throw error;
+
+    res.json({ success: true, data: data || [] });
+  } catch (error) {
+    console.error('Error fetching notification preferences:', error);
+    next(error);
+  }
+});
+
+/**
+ * PUT /api/notifications/preferences
+ * Update a notification preference (upsert)
+ */
+app.put('/api/notifications/preferences', requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { effectiveCenterId } = getEffectiveCenterId(req.user);
+    const { notification_type, in_app_enabled } = req.body;
+
+    if (!notification_type || typeof in_app_enabled !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'notification_type và in_app_enabled (boolean) là bắt buộc'
+      });
+    }
+
+    const validTypes = ['enrollment', 'grade', 'leave_request', 'payment', 'attendance', 'assessment', 'certificate', 'schedule', 'announcement'];
+    if (!validTypes.includes(notification_type)) {
+      return res.status(400).json({
+        success: false,
+        message: `notification_type không hợp lệ. Các giá trị cho phép: ${validTypes.join(', ')}`
+      });
+    }
+
+    const { data, error } = await supabase
+      .from('user_notification_preferences')
+      .upsert({
+        user_id: userId,
+        center_id: effectiveCenterId,
+        notification_type,
+        in_app_enabled,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id,center_id,notification_type'
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error updating notification preference:', error);
     next(error);
   }
 });
@@ -26147,10 +26518,33 @@ app.post('/api/teacher/leave-requests', requireAuth, async (req, res, next) => {
 
     if (error) throw error;
 
-    return res.status(201).json({
+    res.status(201).json({
       success: true,
       data
     });
+
+    // Notification: New leave request to center managers
+    try {
+      (async () => {
+        const { data: managers } = await supabase
+          .from('user_roles')
+          .select('user_id')
+          .eq('center_id', effectiveCenterId)
+          .eq('role', 'CENTER_MANAGER');
+
+        for (const manager of managers || []) {
+          createNotification(supabase, {
+            userId: manager.user_id,
+            centerId: effectiveCenterId,
+            type: 'leave_request',
+            title: 'Yêu cầu nghỉ phép mới',
+            message: 'Có giáo viên vừa gửi yêu cầu nghỉ phép mới',
+            referenceId: data?.id,
+            referenceType: 'leave_request'
+          }).catch(err => console.warn('Notification error:', err.message));
+        }
+      })().catch(err => console.warn('Notification task error:', err.message));
+    } catch (e) { }
   } catch (error) {
     console.error('❌ Error creating teacher leave request:', error);
     next(error);
