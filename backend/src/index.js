@@ -19413,8 +19413,8 @@ app.post('/api/admin/certificates/request-approval', requireAuth, requireRole(['
 
         // Tạo certificate number
         const { data: certNumber } = await supabase.rpc('generate_certificate_number_v2', {
-          p_center_id: centerId,
-          p_type_code: certType.code || 'INT'
+          p_type_code: certType.code || 'INT',
+          p_center_code: 'SM'
         });
 
         // Tính ngày hết hạn nếu có validity_months
