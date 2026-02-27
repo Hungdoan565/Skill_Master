@@ -19915,10 +19915,19 @@ app.get('/api/admin/certificates/eligible-students', requireAuth, requireRole(['
         }
       }
     }
+    // Dedup by student_id — keep best enrollment per student (eligible first, then first found)
+    const seenStudents = new Map();
+    for (const student of eligibleStudents) {
+      const existing = seenStudents.get(student.student_id);
+      if (!existing || (student.is_eligible && !existing.is_eligible)) {
+        seenStudents.set(student.student_id, student);
+      }
+    }
+    const dedupedStudents = Array.from(seenStudents.values());
 
     res.json({
       success: true,
-      data: eligibleStudents
+      data: dedupedStudents
     });
   } catch (error) {
     console.error('Error fetching eligible students:', error);

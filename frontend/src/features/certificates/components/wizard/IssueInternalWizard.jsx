@@ -158,9 +158,19 @@ export default function IssueInternalWizard({ open, onOpenChange, onSuccess, cen
       );
 
       if (response.data?.success) {
-        toast.success(`Đã cấp ${data.studentIds.length} chứng chỉ thành công`);
-        if (onSuccess) onSuccess();
-        onOpenChange(false);
+        const successCount = response.data?.data?.success?.length || 0;
+        const failedCount = response.data?.data?.failed?.length || 0;
+        if (successCount > 0) {
+          toast.success(`Đã cấp ${successCount} chứng chỉ thành công`);
+        }
+        if (failedCount > 0) {
+          toast.error(`${failedCount} chứng chỉ không thể cấp: ${response.data.data.failed.map(f => f.error).join(', ')}`);
+        }
+        if (successCount === 0 && failedCount === 0) {
+          toast.error('Không có chứng chỉ nào được cấp');
+        }
+        if (successCount > 0 && onSuccess) onSuccess();
+        if (successCount > 0) onOpenChange(false);
       } else {
         toast.error(response.data?.message || 'Có lỗi xảy ra khi cấp chứng chỉ');
       }
