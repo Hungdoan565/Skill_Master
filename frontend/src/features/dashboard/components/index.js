@@ -58,5 +58,6 @@ export { EnrollmentsTable } from './EnrollmentsTable';
 // Enhancement Widgets
 export { GoalProgressWidget } from './GoalProgressWidget';
 export { TopTeachersWidget } from './TopTeachersWidget';
-
+export { PaymentMethodChart } from './PaymentMethodChart';
+export { TopCoursesRevenueChart } from './TopCoursesRevenueChart';
 

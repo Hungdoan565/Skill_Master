@@ -41,8 +41,8 @@ export function useDashboard(accessToken, centerId = null, dateRange = null) {
   // New: Additional widgets data
   const [paymentOverview, setPaymentOverview] = useState(null);
   const [todaySchedule, setTodaySchedule] = useState(null);
+  const [financeSummary, setFinanceSummary] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
-
   // Cache key based on centerId and dateRange
   const cacheKey = `dashboard_${centerId || 'all'}_${dateRange?.start ? formatDateForAPI(dateRange.start) : 'default'}_${dateRange?.end ? formatDateForAPI(dateRange.end) : 'default'}`;
 
@@ -89,8 +89,8 @@ export function useDashboard(accessToken, centerId = null, dateRange = null) {
     setTodaySchedule(cachedData.todaySchedule);
     setRevenueChart(cachedData.revenueChart || []);
     setCourseDistribution(cachedData.courseDistribution || []);
+    setFinanceSummary(cachedData.financeSummary || null);
     setLastUpdated(cachedData.lastUpdated);
-
     return true;
   }, []);
 
@@ -123,21 +123,23 @@ export function useDashboard(accessToken, centerId = null, dateRange = null) {
 
     try {
       // Use unified API for main data (reduces API calls from 4 to 1)
-      const [allDataRes, revenueRes, distributionRes] = await Promise.all([
+      const [allDataRes, revenueRes, distributionRes, financeRes] = await Promise.all([
         fetch(`${API_URL}/api/dashboard/all${buildQuery()}`, { headers: getHeaders() }),
         fetch(`${API_URL}/api/dashboard/revenue-chart${buildQuery()}`, { headers: getHeaders() }),
-        fetch(`${API_URL}/api/dashboard/course-distribution${buildQuery()}`, { headers: getHeaders() })
+        fetch(`${API_URL}/api/dashboard/course-distribution${buildQuery()}`, { headers: getHeaders() }),
+        fetch(`${API_URL}/api/finance/summary${buildQuery()}`, { headers: getHeaders() })
       ]);
 
       // Check for HTTP errors
-      if (!allDataRes.ok || !revenueRes.ok || !distributionRes.ok) {
+      if (!allDataRes.ok || !revenueRes.ok || !distributionRes.ok || !financeRes.ok) {
         throw new Error('Failed to fetch dashboard data');
       }
 
-      const [allData, revenueData, distributionData] = await Promise.all([
+      const [allData, revenueData, distributionData, financeData] = await Promise.all([
         allDataRes.json(),
         revenueRes.json(),
-        distributionRes.json()
+        distributionRes.json(),
+        financeRes.json()
       ]);
 
       if (!isMounted.current) return;
@@ -149,6 +151,7 @@ export function useDashboard(accessToken, centerId = null, dateRange = null) {
         todaySchedule: null,
         revenueChart: [],
         courseDistribution: [],
+        financeSummary: null,
         lastUpdated: new Date()
       };
 
@@ -174,6 +177,10 @@ export function useDashboard(accessToken, centerId = null, dateRange = null) {
         setCourseDistribution(newData.courseDistribution);
       }
 
+      if (financeData.success) {
+        newData.financeSummary = financeData.data;
+        setFinanceSummary(newData.financeSummary);
+      }
       setLastUpdated(newData.lastUpdated);
 
       // ====== SAVE TO CACHE ======
@@ -216,7 +223,7 @@ export function useDashboard(accessToken, centerId = null, dateRange = null) {
     courseDistribution,
     paymentOverview,
     todaySchedule,
-
+    financeSummary,
     // Actions
     fetchDashboardData,
     refresh,

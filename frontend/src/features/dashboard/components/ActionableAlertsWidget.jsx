@@ -35,32 +35,32 @@ const ALERT_CONFIG = {
     overdue_invoices: {
         icon: TrendingDown,
         color: 'text-red-600',
-        bgColor: 'bg-red-50',
-        borderColor: 'border-red-200',
+        bgColor: 'bg-red-500/10',
+        borderColor: 'border-red-500/20',
         title: 'Hóa đơn quá hạn',
         emptyMessage: 'Không có hóa đơn quá hạn',
     },
     classes_missing_schedule: {
         icon: Calendar,
         color: 'text-amber-600',
-        bgColor: 'bg-amber-50',
-        borderColor: 'border-amber-200',
+        bgColor: 'bg-amber-500/10',
+        borderColor: 'border-amber-500/20',
         title: 'Lớp thiếu lịch học',
         emptyMessage: 'Tất cả lớp đã có lịch',
     },
     certificates_pending: {
         icon: Award,
         color: 'text-blue-600',
-        bgColor: 'bg-blue-50',
-        borderColor: 'border-blue-200',
+        bgColor: 'bg-blue-500/10',
+        borderColor: 'border-blue-500/20',
         title: 'Chứng chỉ chờ cấp',
         emptyMessage: 'Không có chứng chỉ chờ cấp',
     },
     draft_invoices: {
         icon: FileText,
         color: 'text-purple-600',
-        bgColor: 'bg-purple-50',
-        borderColor: 'border-purple-200',
+        bgColor: 'bg-purple-500/10',
+        borderColor: 'border-purple-500/20',
         title: 'Hóa đơn draft lâu',
         emptyMessage: 'Không có hóa đơn draft',
     },
@@ -72,23 +72,23 @@ const AlertItem = ({ type, item }) => {
         return (
             <Link
                 to={`/admin/invoices?highlight=${item.invoice_id}`}
-                className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg transition-colors group"
+                className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg transition-colors group"
             >
                 <div className="flex-1 min-w-0">
-                    <p className="font-medium text-slate-900 truncate">
+                    <p className="font-medium text-foreground truncate">
                         {item.student_name}
                     </p>
                     <div className="flex items-center gap-2 mt-1">
-                        <span className="text-sm text-slate-500">#{item.invoice_number}</span>
+                        <span className="text-sm text-muted-foreground">#{item.invoice_number}</span>
                         <span className="text-sm text-red-600 font-semibold">
                             {item.amount?.toLocaleString('vi-VN')}đ
                         </span>
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                         Quá hạn {item.days_overdue} ngày
                     </p>
                 </div>
-                <ExternalLink className="h-4 w-4 text-slate-400 group-hover:text-indigo-600 flex-shrink-0" />
+                <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-indigo-600 flex-shrink-0" />
             </Link>
         );
     }
@@ -97,18 +97,18 @@ const AlertItem = ({ type, item }) => {
         return (
             <Link
                 to={`/admin/classes/${item.class_id}`}
-                className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg transition-colors group"
+                className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg transition-colors group"
             >
                 <div className="flex-1 min-w-0">
-                    <p className="font-medium text-slate-900 truncate">
+                    <p className="font-medium text-foreground truncate">
                         {item.class_name}
                     </p>
-                    <p className="text-sm text-slate-500 truncate">{item.course_name}</p>
-                    <p className="text-xs text-slate-400 mt-1">
+                    <p className="text-sm text-muted-foreground truncate">{item.course_name}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
                         Bắt đầu: {new Date(item.start_date).toLocaleDateString('vi-VN')}
                     </p>
                 </div>
-                <ExternalLink className="h-4 w-4 text-slate-400 group-hover:text-indigo-600 flex-shrink-0" />
+                <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-indigo-600 flex-shrink-0" />
             </Link>
         );
     }
@@ -117,19 +117,19 @@ const AlertItem = ({ type, item }) => {
         return (
             <Link
                 to={`/admin/certificates?student=${item.student_id}&class=${item.class_id}`}
-                className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg transition-colors group"
+                className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg transition-colors group"
             >
                 <div className="flex-1 min-w-0">
-                    <p className="font-medium text-slate-900 truncate">
+                    <p className="font-medium text-foreground truncate">
                         {item.student_name}
                     </p>
-                    <p className="text-sm text-slate-500 truncate">{item.class_name}</p>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
+                    <p className="text-sm text-muted-foreground truncate">{item.class_name}</p>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                         <span>Điểm danh: {item.attendance_rate?.toFixed(0)}%</span>
                         <span>Điểm TB: {item.average_grade?.toFixed(1)}</span>
                     </div>
                 </div>
-                <ExternalLink className="h-4 w-4 text-slate-400 group-hover:text-indigo-600 flex-shrink-0" />
+                <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-indigo-600 flex-shrink-0" />
             </Link>
         );
     }
@@ -138,23 +138,23 @@ const AlertItem = ({ type, item }) => {
         return (
             <Link
                 to={`/admin/invoices?highlight=${item.invoice_id}`}
-                className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg transition-colors group"
+                className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg transition-colors group"
             >
                 <div className="flex-1 min-w-0">
-                    <p className="font-medium text-slate-900 truncate">
+                    <p className="font-medium text-foreground truncate">
                         {item.student_name}
                     </p>
                     <div className="flex items-center gap-2 mt-1">
-                        <span className="text-sm text-slate-500">#{item.invoice_number}</span>
+                        <span className="text-sm text-muted-foreground">#{item.invoice_number}</span>
                         <span className="text-sm text-purple-600 font-semibold">
                             {item.amount?.toLocaleString('vi-VN')}đ
                         </span>
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                         Draft {item.days_in_draft} ngày
                     </p>
                 </div>
-                <ExternalLink className="h-4 w-4 text-slate-400 group-hover:text-indigo-600 flex-shrink-0" />
+                <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-indigo-600 flex-shrink-0" />
             </Link>
         );
     }
@@ -170,44 +170,44 @@ const AlertSection = ({ type, config, data }) => {
     const hasItems = items.length > 0;
 
     return (
-        <div className={`border rounded-lg ${hasItems ? config.borderColor : 'border-slate-200'}`}>
+        <div className={`border rounded-lg ${hasItems ? config.borderColor : 'border-border'}`}>
             {/* Header */}
             <button
                 onClick={() => setExpanded(!expanded)}
-                className={`w-full flex items-center justify-between p-4 ${hasItems ? config.bgColor : 'bg-slate-50'
+                className={`w-full flex items-center justify-between p-4 ${hasItems ? config.bgColor : 'bg-muted'
                     } rounded-t-lg hover:opacity-90 transition-opacity`}
             >
                 <div className="flex items-center gap-3">
-                    <Icon className={`h-5 w-5 ${hasItems ? config.color : 'text-slate-400'}`} />
-                    <span className={`font-semibold ${hasItems ? 'text-slate-900' : 'text-slate-500'}`}>
+                    <Icon className={`h-5 w-5 ${hasItems ? config.color : 'text-muted-foreground'}`} />
+                    <span className={`font-semibold ${hasItems ? 'text-foreground' : 'text-muted-foreground'}`}>
                         {config.title}
                     </span>
                     {hasItems && (
-                        <Badge variant="secondary" className={`${config.color} bg-white`}>
+                        <Badge variant="secondary" className={`${config.color} bg-white dark:bg-zinc-900`}>
                             {items.length}
                         </Badge>
                     )}
                 </div>
                 {hasItems ? (
                     expanded ? (
-                        <ChevronDown className="h-5 w-5 text-slate-400" />
+                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
                     ) : (
-                        <ChevronRight className="h-5 w-5 text-slate-400" />
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
                     )
                 ) : (
-                    <span className="text-sm text-slate-400">{config.emptyMessage}</span>
+                    <span className="text-sm text-muted-foreground">{config.emptyMessage}</span>
                 )}
             </button>
 
             {/* Content */}
             {expanded && hasItems && (
-                <div className="divide-y divide-slate-100">
+                <div className="divide-y divide-border">
                     {items.slice(0, 5).map((item, idx) => (
                         <AlertItem key={idx} type={type} item={item} />
                     ))}
                     {items.length > 5 && (
                         <div className="p-3 text-center">
-                            <span className="text-sm text-slate-500">
+                            <span className="text-sm text-muted-foreground">
                                 +{items.length - 5} mục khác
                             </span>
                         </div>
@@ -271,7 +271,7 @@ export const ActionableAlertsWidget = ({ centerId }) => {
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex items-center justify-center py-8 text-slate-500">
+                    <div className="flex items-center justify-center py-8 text-muted-foreground">
                         <Loader2 className="h-6 w-6 animate-spin mr-2" />
                         <span>Đang tải...</span>
                     </div>
@@ -290,9 +290,9 @@ export const ActionableAlertsWidget = ({ centerId }) => {
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-center gap-3 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
                         <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0" />
-                        <p className="text-sm text-red-700">{error}</p>
+                        <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
                     </div>
                 </CardContent>
             </Card>
@@ -322,13 +322,13 @@ export const ActionableAlertsWidget = ({ centerId }) => {
             <CardContent>
                 {totalAlerts === 0 ? (
                     <div className="text-center py-8">
-                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-3">
-                            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 mb-3">
+                            <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                             </svg>
                         </div>
-                        <p className="text-slate-600 font-medium">Tất cả đã xử lý!</p>
-                        <p className="text-sm text-slate-400 mt-1">Không có vấn đề cần chú ý</p>
+                        <p className="text-foreground font-medium">Tất cả đã xử lý!</p>
+                        <p className="text-sm text-muted-foreground mt-1">Không có vấn đề cần chú ý</p>
                     </div>
                 ) : (
                     <div className="space-y-3">

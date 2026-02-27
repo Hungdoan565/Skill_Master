@@ -25,7 +25,8 @@ import { DistributionDonut } from '../components/DistributionDonut';
 import { EnrollmentsTable } from '../components/EnrollmentsTable';
 import { GoalProgressWidget } from '../components/GoalProgressWidget';
 import { TopTeachersWidget } from '../components/TopTeachersWidget';
-
+import { PaymentMethodChart } from '../components/PaymentMethodChart';
+import { TopCoursesRevenueChart } from '../components/TopCoursesRevenueChart';
 // Existing Components
 import {
   CenterSelector,
@@ -104,7 +105,7 @@ export function DashboardPage() {
     courseDistribution,
     paymentOverview,
     todaySchedule,
-    fetchDashboardData,
+    financeSummary,
     refresh,
     clearError
   } = useDashboard(accessToken, selectedCenterId, dateRange);
@@ -183,10 +184,10 @@ export function DashboardPage() {
   }, [accessToken, selectedCenterId]);
 
   useEffect(() => {
-    fetchDashboardData();
+    refresh();
     fetchTopTeachers();
     fetchGoals();
-  }, [fetchDashboardData, fetchTopTeachers, fetchGoals, selectedCenterId, dateRange]);
+  }, [refresh, fetchTopTeachers, fetchGoals, selectedCenterId, dateRange]);
 
   const userName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Admin';
 
@@ -337,7 +338,15 @@ export function DashboardPage() {
             <DistributionDonut data={courseDistribution} loading={loading} />
           </div>
         </div>
-
+        {/* ========== FINANCE CHARTS ROW ========== */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+          <div className="lg:col-span-1">
+            <PaymentMethodChart data={financeSummary?.payment_methods} loading={loading} />
+          </div>
+          <div className="lg:col-span-2">
+            <TopCoursesRevenueChart data={financeSummary?.top_courses} loading={loading} />
+          </div>
+        </div>
         {/* ========== TABLE + WIDGETS ROW ========== */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
           {/* Enrollments Table - 2 columns */}
