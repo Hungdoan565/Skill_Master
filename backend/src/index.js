@@ -19375,6 +19375,103 @@ app.get('/api/admin/certificates/eligible-students', requireAuth, requireRole(['
   }
 });
 
+// Yêu cầu cấp chứng chỉ nội bộ (tạo pending approval)
+app.post('/api/admin/certificates/request-approval', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { certificate_type_id, students, options = {} } = req.body;
+    const centerId = getEffectiveCenterId(req);
+
+    if (!certificate_type_id || !students || !Array.isArray(students) || students.length === 0) {
+      return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc' });
+    }
+
+    // Lấy thông tin certificate type
+    const { data: certType, error: typeError } = await supabase
+      .from('certificate_types')
+      .select('*')
+      .eq('id', certificate_type_id)
+      .single();
+
+    if (typeError || !certType) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy loại chứng chỉ' });
+    }
+
+    const results = { success: [], failed: [] };
+
+    for (const student of students) {
+      try {
+        const { student_id, scores, override_reason } = student;
+
+        // Lấy thông tin học viên
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', student_id)
+          .single();
+
+        const studentName = profile?.full_name || 'Unknown';
+
+        // Tạo certificate number
+        const { data: certNumber } = await supabase.rpc('generate_certificate_number_v2', {
+          p_center_id: centerId,
+          p_type_code: certType.code || 'INT'
+        });
+
+        // Tính ngày hết hạn nếu có validity_months
+        let expiresAt = null;
+        if (certType.validity_months) {
+          const expiry = new Date();
+          expiry.setMonth(expiry.getMonth() + certType.validity_months);
+          expiresAt = expiry.toISOString().split('T')[0];
+        }
+
+        // Xác định grade từ scores
+        const grade = scores?.grade || scores?.overall || null;
+
+        const insertData = {
+          certificate_number: certNumber || `SM-${Date.now()}`,
+          certificate_type_id,
+          student_id,
+          student_name: studentName,
+          course_name: certType.name,
+          completion_date: new Date().toISOString().split('T')[0],
+          grade,
+          scores: scores || {},
+          center_id: centerId,
+          status: 'pending_approval',
+          issued_by: req.user.id,
+          expires_at: expiresAt,
+        };
+
+        const { data: cert, error: insertError } = await supabase
+          .from('certificates')
+          .insert(insertData)
+          .select('*, certificate_type:certificate_types(id, name, code, category)')
+          .single();
+
+        if (insertError) {
+          console.error('Insert cert error:', insertError);
+          results.failed.push({ student_id, student_name: studentName, error: insertError.message });
+        } else {
+          results.success.push(cert);
+        }
+      } catch (err) {
+        console.error('Student cert error:', err);
+        results.failed.push({ student_id: student.student_id, error: err.message });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Đã tạo ${results.success.length} yêu cầu cấp chứng chỉ`,
+      data: results
+    });
+  } catch (error) {
+    console.error('Request approval error:', error);
+    next(error);
+  }
+});
+
 // Cấp chứng chỉ hàng loạt cho một lớp
 app.post('/api/admin/certificates/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
