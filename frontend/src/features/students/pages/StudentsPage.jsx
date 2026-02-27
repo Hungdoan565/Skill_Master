@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/contexts/auth-context';
-import { exportToExcel } from '@/lib/export-utils';
+import { exportStudentsToExcel } from '../utils/export-students-excel';
 import { useStudents } from '../hooks';
 import {
   StudentFilters,
@@ -56,13 +56,6 @@ export function StudentsPage() {
   // Filter students locally by search
   const filteredStudents = filterStudents(searchTerm);
   const centerName = profile?.centers?.name || 'Skill Master';
-  const studentColumns = [
-    { key: 'full_name', header: 'Họ tên' },
-    { key: 'email', header: 'Email' },
-    { key: 'phone', header: 'SĐT' },
-    { key: 'student_code', header: 'Mã HV' },
-    { key: 'status', header: 'Trạng thái' },
-  ];
 
   // Handle view details
   const handleViewDetails = useCallback(async (student) => {
@@ -135,7 +128,7 @@ export function StudentsPage() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => exportToExcel(students, studentColumns, 'danh-sach-hoc-vien', centerName)}
+            onClick={() => exportStudentsToExcel(students, centerName)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
           >
             <Download className="w-4 h-4" /> Xuất Excel
