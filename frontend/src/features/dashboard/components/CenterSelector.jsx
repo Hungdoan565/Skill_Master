@@ -22,7 +22,7 @@ export function CenterSelector({
     useEffect(() => {
         const fetchCenters = async () => {
             try {
-                const res = await fetch(`${API_URL}/api/centers`, {
+                const res = await fetch(`${API_URL}/api/admin/centers`, {
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${accessToken}`

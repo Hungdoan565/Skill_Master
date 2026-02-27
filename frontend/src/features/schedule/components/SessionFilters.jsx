@@ -81,7 +81,7 @@ export function SessionFilters({
 
         // Fetch centers
         try {
-          const centersRes = await fetch(`${API_URL}/api/centers`, { headers });
+          const centersRes = await fetch(`${API_URL}/api/admin/centers`, { headers });
           if (centersRes.ok) {
             const centersData = await centersRes.json();
             setCenters(centersData.data || []);

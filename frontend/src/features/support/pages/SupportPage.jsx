@@ -309,7 +309,7 @@ export function SupportPage() {
                 try {
                     const { data: { session } } = await (await import('@/lib/supabaseClient')).supabase.auth.getSession();
                     const response = await fetch(
-                        `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/centers`,
+                        `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/admin/centers`,
                         { headers: { Authorization: `Bearer ${session?.access_token}` } }
                     );
                     const result = await response.json();

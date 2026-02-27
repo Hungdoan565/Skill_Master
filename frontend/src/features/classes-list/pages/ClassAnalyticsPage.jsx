@@ -69,7 +69,7 @@ export function ClassAnalyticsPage() {
             const [classesRes, coursesRes, centersRes] = await Promise.all([
                 axios.get(`${API_URL}/api/classes`, { headers }),
                 axios.get(`${API_URL}/api/courses`),
-                axios.get(`${API_URL}/api/centers`)
+                axios.get(`${API_URL}/api/admin/centers`, { headers })
             ]);
 
             if (classesRes.data?.success) setClasses(classesRes.data.data);

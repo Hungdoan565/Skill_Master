@@ -128,7 +128,7 @@ export function InvoicesPage() {
     if (isSuperAdmin()) {
       const fetchCenters = async () => {
         try {
-          const response = await fetch(`${API_URL}/api/centers`, {
+          const response = await fetch(`${API_URL}/api/admin/centers`, {
             headers: { Authorization: `Bearer ${session?.access_token}` }
           });
           const result = await response.json();
