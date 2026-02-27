@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { useStudentCertificates } from '../hooks';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,9 +10,13 @@ import {
   AlertTriangle,
   RefreshCw,
   FileText,
-  Clock
+  Clock,
+  Eye,
+  Star,
+  ShieldX
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import CertificateDetailModal from '../components/CertificateDetailModal';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '--';
@@ -21,6 +26,7 @@ const formatDate = (dateStr) => {
 const STATUS_CONFIG = {
   active: { label: 'Còn hiệu lực', variant: 'default', className: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20' },
   issued: { label: 'Đã cấp', variant: 'default', className: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20' },
+  pending_approval: { label: 'Đang chờ duyệt', variant: 'default', className: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' },
   expired: { label: 'Hết hạn', variant: 'destructive', className: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20' },
   revoked: { label: 'Đã thu hồi', variant: 'secondary', className: 'bg-muted text-muted-foreground border-border' }
 };
@@ -34,11 +40,13 @@ function StatusBadge({ status }) {
   );
 }
 
-function CertificateCard({ certificate }) {
+function CertificateCard({ certificate, onClick }) {
   const typeName = certificate.certificate_types?.name || 'Chứng chỉ';
   const className = certificate.classes?.name || '--';
   const courseTitle = certificate.classes?.courses?.title || '--';
 
+  const isPending = certificate.status === 'pending_approval';
+  const isRevoked = certificate.status === 'revoked';
   const handleDownload = () => {
     if (certificate.pdf_url) {
       window.open(certificate.pdf_url, '_blank');
@@ -46,7 +54,13 @@ function CertificateCard({ certificate }) {
   };
 
   return (
-    <Card className="hover:shadow-md transition-shadow bg-card rounded-2xl min-h-[220px] flex flex-col border-border">
+    <Card
+      className={cn(
+        'hover:shadow-md transition-all bg-card rounded-2xl min-h-[220px] flex flex-col border-border cursor-pointer',
+        isPending && 'opacity-75 border-amber-500/30'
+      )}
+      onClick={() => onClick?.(certificate)}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-3">
@@ -85,13 +99,25 @@ function CertificateCard({ certificate }) {
               <span className="font-medium">{formatDate(certificate.expiry_date)}</span>
             </div>
           )}
+          {certificate.grade && (
+            <div className="flex items-center gap-2">
+              <Star className="h-4 w-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Xếp loại:</span>
+              <span className="font-medium">{certificate.grade}</span>
+            </div>
+          )}
         </div>
-        {certificate.pdf_url && (
-          <Button variant="outline" size="sm" className="w-full mt-auto" onClick={handleDownload}>
-            <Download className="h-4 w-4 mr-2" />
-            Tải PDF
+        <div className="flex gap-2 mt-auto">
+          <Button variant="outline" size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); onClick?.(certificate); }}>
+            <Eye className="h-4 w-4 mr-2" />
+            Chi tiết
           </Button>
-        )}
+          {certificate.pdf_url && !isPending && !isRevoked && (
+            <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleDownload(); }}>
+              <Download className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
@@ -109,6 +135,7 @@ function EmptyState() {
 
 export function StudentCertificates() {
   const { certificates, count, loading, error, refresh } = useStudentCertificates();
+  const [selectedCert, setSelectedCert] = useState(null);
 
   if (loading) {
     return (
@@ -161,7 +188,7 @@ export function StudentCertificates() {
       {certificates.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {certificates.map((cert) => (
-            <CertificateCard key={cert.id} certificate={cert} />
+            <CertificateCard key={cert.id} certificate={cert} onClick={setSelectedCert} />
           ))}
         </div>
       ) : (
@@ -171,6 +198,11 @@ export function StudentCertificates() {
           </CardContent>
         </Card>
       )}
+      <CertificateDetailModal
+        certificate={selectedCert}
+        open={!!selectedCert}
+        onClose={() => setSelectedCert(null)}
+      />
     </div>
   );
 }
