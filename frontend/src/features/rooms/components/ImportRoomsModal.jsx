@@ -288,31 +288,164 @@ export function ImportRoomsModal({ isOpen, onClose, onSuccess }) {
   }, [previewData, session, onSuccess]);
 
   // Download template
-  const downloadTemplate = useCallback(() => {
-    const template = [
-      {
-        'Tên phòng': 'Phòng E2-01',
-        'Mã phòng': 'E2-01',
-        'Sức chứa': 30,
-        'Loại phòng': 'standard',
-        'Trạng thái': 'active',
-        'Ghi chú': 'Tầng 2, dãy E'
+  const downloadTemplate = useCallback(async () => {
+    const XLSXStyled = await import('xlsx-js-style');
+    const today = new Date().toLocaleDateString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+    const centerName = centers.find(c => c.id === selectedCenterId)?.name || 'Tất cả trung tâm';
+
+    const styles = {
+      title: {
+        font: { bold: true, sz: 16, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '1E40AF' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
       },
-      {
-        'Tên phòng': 'Phòng Lab 1',
-        'Mã phòng': 'LAB1',
-        'Sức chứa': 25,
-        'Loại phòng': 'lab',
-        'Trạng thái': 'active',
-        'Ghi chú': 'Phòng máy tính'
+      subtitle: {
+        font: { bold: true, sz: 13, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '1E40AF' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
       },
+      info: {
+        font: { sz: 11, color: { rgb: '374151' } },
+        alignment: { horizontal: 'center' },
+      },
+      date: {
+        font: { sz: 10, color: { rgb: '6B7280' } },
+        alignment: { horizontal: 'center' },
+      },
+      header: {
+        font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '1E40AF' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: {
+          top: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          bottom: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          left: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          right: { style: 'thin', color: { rgb: 'D1D5DB' } },
+        },
+      },
+      dataEven: {
+        font: { sz: 10 },
+        alignment: { vertical: 'center' },
+        border: {
+          top: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          bottom: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          left: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          right: { style: 'thin', color: { rgb: 'D1D5DB' } },
+        },
+      },
+      dataOdd: {
+        font: { sz: 10 },
+        fill: { fgColor: { rgb: 'F8FAFC' } },
+        alignment: { vertical: 'center' },
+        border: {
+          top: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          bottom: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          left: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          right: { style: 'thin', color: { rgb: 'D1D5DB' } },
+        },
+      },
+      instruction: { font: { bold: true, sz: 11, color: { rgb: '1E40AF' } } },
+      note: { font: { sz: 10, color: { rgb: '374151' } } },
+      signTitle: { font: { bold: true, sz: 11 }, alignment: { horizontal: 'center' } },
+      signNote: {
+        font: { italic: true, sz: 9, color: { rgb: '9CA3AF' } },
+        alignment: { horizontal: 'center' },
+      },
+    };
+
+    const headers = ['STT', 'Tên phòng *', 'Mã phòng *', 'Sức chứa', 'Loại phòng', 'Trạng thái', 'Ghi chú'];
+    const samples = [
+      [1, 'Phòng E2-01', 'E2-01', 30, 'standard', 'active', 'Tầng 2, dãy E'],
+      [2, 'Phòng Lab 1', 'LAB1', 25, 'lab', 'active', 'Phòng máy tính'],
+      [3, 'Phòng họp A', 'MEETING-A', 15, 'meeting', 'active', 'Tầng 3'],
     ];
 
-    const ws = XLSX.utils.json_to_sheet(template);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Rooms');
-    XLSX.writeFile(wb, 'mau_import_phong.xlsx');
-  }, []);
+    const wsData = [
+      [{ v: 'SKILL MASTER', s: styles.title }],
+      [{ v: 'MẪU IMPORT DANH SÁCH PHÒNG HỌC', s: styles.subtitle }],
+      [{ v: `Trung tâm: ${centerName}`, s: styles.info }],
+      [{ v: `Ngày tải: ${today}`, s: styles.date }],
+      [],
+      headers.map(h => ({ v: h, s: styles.header })),
+      samples[0].map(v => ({ v, s: styles.dataOdd })),
+      samples[1].map(v => ({ v, s: styles.dataEven })),
+      samples[2].map(v => ({ v, s: styles.dataOdd })),
+      [],
+      [],
+      [{ v: 'HƯỚNG DẪN:', s: styles.instruction }],
+      [{ v: '• Các cột có dấu (*) là bắt buộc', s: styles.note }],
+      [{ v: '• Loại phòng: standard, lab, meeting, online', s: styles.note }],
+      [{ v: '• Trạng thái: active, maintenance, inactive', s: styles.note }],
+      [{ v: '• Sức chứa mặc định: 20 nếu để trống', s: styles.note }],
+      [],
+      [],
+      [],
+      [
+        { v: '' },
+        { v: '' },
+        { v: 'Người lập biểu', s: styles.signTitle },
+        { v: '' },
+        { v: '' },
+        { v: 'Giám đốc trung tâm', s: styles.signTitle },
+        { v: '' },
+      ],
+      [
+        { v: '' },
+        { v: '' },
+        { v: '(Ký ghi rõ họ tên)', s: styles.signNote },
+        { v: '' },
+        { v: '' },
+        { v: '(Ký đóng dấu)', s: styles.signNote },
+        { v: '' },
+      ],
+    ];
+
+    const ws = XLSXStyled.utils.aoa_to_sheet(wsData);
+    ws['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: 6 } },
+      { s: { r: 3, c: 0 }, e: { r: 3, c: 6 } },
+      { s: { r: 11, c: 0 }, e: { r: 11, c: 6 } },
+      { s: { r: 12, c: 0 }, e: { r: 12, c: 6 } },
+      { s: { r: 13, c: 0 }, e: { r: 13, c: 6 } },
+      { s: { r: 14, c: 0 }, e: { r: 14, c: 6 } },
+      { s: { r: 15, c: 0 }, e: { r: 15, c: 6 } },
+      { s: { r: 19, c: 2 }, e: { r: 19, c: 3 } },
+      { s: { r: 19, c: 5 }, e: { r: 19, c: 6 } },
+      { s: { r: 20, c: 2 }, e: { r: 20, c: 3 } },
+      { s: { r: 20, c: 5 }, e: { r: 20, c: 6 } },
+    ];
+
+    ws['!cols'] = [
+      { wch: 5 },
+      { wch: 25 },
+      { wch: 15 },
+      { wch: 12 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 30 },
+    ];
+
+    const rows = [];
+    rows[0] = { hpt: 35 };
+    rows[1] = { hpt: 28 };
+    rows[2] = { hpt: 22 };
+    rows[3] = { hpt: 20 };
+    rows[4] = { hpt: 10 };
+    rows[5] = { hpt: 28 };
+    rows[19] = { hpt: 24 };
+    rows[20] = { hpt: 20 };
+    ws['!rows'] = rows;
+
+    const wb = XLSXStyled.utils.book_new();
+    XLSXStyled.utils.book_append_sheet(wb, ws, 'Mẫu phòng học');
+    XLSXStyled.writeFile(wb, `mau_import_phong_${centerName.replace(/\s+/g, '_')}.xlsx`);
+  }, [selectedCenterId, centers]);
 
   // Render Step 1: Upload
   const renderUploadStep = () => (
