@@ -53,12 +53,6 @@ body {
   font-feature-settings: "ss01" on, "ss02" on;
 }
 
-/* Swiss Grid Background Pattern */
-.swiss-grid {
-  background-image: linear-gradient(rgba(24, 24, 27, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(24, 24, 27, 0.03) 1px, transparent 1px);
-  background-size: 60px 60px;
-}
 
 /* ============================================
    CUSTOM ANIMATIONS
@@ -168,13 +162,6 @@ body {
   transform: scale(0.97);
 }
 
-/* Glass morphism card */
-.glass-card {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
 
 /* ============================================
    SCROLL BEHAVIOR

@@ -58,7 +58,7 @@ export function CenterSwitcher() {
 
       {/* Dropdown Menu */}
       <div className={cn(
-        "absolute left-0 top-full mt-2 w-72 rounded-xl border border-border bg-card shadow-lg shadow-black/5 z-[101] transition-all duration-200 ease-out",
+        "absolute left-0 top-full mt-2 w-72 rounded-xl border border-border bg-white shadow-lg shadow-black/5 z-[101] transition-all duration-200 ease-out",
         isOpen
           ? "opacity-100 scale-100 translate-y-0 visible"
           : "opacity-0 scale-95 -translate-y-2 invisible pointer-events-none"

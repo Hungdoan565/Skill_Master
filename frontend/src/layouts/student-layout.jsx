@@ -37,7 +37,7 @@ export function StudentLayout() {
       {/* Main content area */}
       <div className="flex flex-1 flex-col overflow-hidden w-full relative">
         {/* Header - reuse AdminHeader for consistency */}
-        <div className="relative z-[100] flex items-center bg-card/80 backdrop-blur-sm border-b border-border h-16 md:h-auto md:block md:border-0 md:bg-transparent">
+        <div className="relative z-[100] flex items-center bg-card border-b border-border shadow-sm h-16 md:h-auto md:block md:border-0 md:bg-transparent">
           <button
             onClick={() => setIsSidebarOpen(true)}
             className="md:hidden ml-4 p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
@@ -52,8 +52,17 @@ export function StudentLayout() {
 
         {/* Page content */}
         <main className="flex-1 overflow-auto relative z-0">
-          <div className="min-h-full bg-gradient-to-br from-background via-muted/80 to-accent/30">
-            <div className="min-h-full p-6 lg:p-8">
+          <div className="min-h-full bg-[#fff8f0] relative">
+            <div
+              className="absolute inset-0 z-0"
+              style={{
+                backgroundImage: `
+                  radial-gradient(circle at 20% 80%, rgba(255, 182, 153, 0.3) 0%, transparent 50%),
+                  radial-gradient(circle at 80% 20%, rgba(255, 244, 214, 0.5) 0%, transparent 50%),
+                  radial-gradient(circle at 40% 40%, rgba(255, 182, 153, 0.1) 0%, transparent 50%)`,
+              }}
+            />
+            <div className="min-h-full p-6 lg:p-8 relative z-[1]">
               <Outlet />
             </div>
           </div>
