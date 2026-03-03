@@ -49,7 +49,7 @@ export function InvoiceTable({
   // ============================================
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-48 bg-card">
+      <div className="flex items-center justify-center h-48 bg-white">
         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -60,7 +60,7 @@ export function InvoiceTable({
   // ============================================
   if (!invoices || invoices.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-48 bg-card">
+      <div className="flex flex-col items-center justify-center h-48 bg-white">
         <Receipt className="w-10 h-10 mb-2 text-muted-foreground/40" />
         <p className="text-sm font-medium text-muted-foreground">Không có hóa đơn nào</p>
         <p className="text-xs text-muted-foreground/70 mt-1">
@@ -79,7 +79,7 @@ export function InvoiceTable({
       <div className="overflow-x-auto max-h-[calc(100vh-320px)]">
         <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
           {/* Sticky Header */}
-          <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
+          <thead className="sticky top-0 z-10 bg-slate-50">
             <tr className="border-b border-border">
               {/* Checkbox column */}
               {onToggleSelect && (

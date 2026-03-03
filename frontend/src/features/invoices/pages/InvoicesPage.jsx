@@ -400,7 +400,7 @@ export function InvoicesPage() {
 
         {/* Tab Content */}
         {activeTab === 'invoices' ? (
-          <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+          <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
             {/* Slim KPI Stats Bar */}
             <SlimStatBar
               statistics={statistics}

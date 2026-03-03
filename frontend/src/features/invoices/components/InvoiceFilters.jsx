@@ -55,7 +55,7 @@ function IconSelect({ value, onChange, options, placeholder, icon: Icon }) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 h-9 px-3 rounded-lg border border-border bg-muted/50 hover:bg-muted transition-colors text-sm min-w-[160px] justify-between"
+        className="flex items-center gap-2 h-9 px-3 rounded-lg border border-border bg-white hover:bg-slate-50 transition-colors text-sm min-w-[160px] justify-between"
       >
         <div className="flex items-center gap-2">
           {selectedOption?.icon ? (
@@ -145,7 +145,7 @@ export function InvoiceFilters({
               onChange={(e) => onFilterChange('search', e.target.value)}
               className="
                 w-full h-9 pl-9 pr-3 rounded-lg
-                bg-muted/50 border border-border text-sm text-foreground
+                bg-white border border-border text-sm text-foreground
                 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
                 placeholder:text-muted-foreground
               "
