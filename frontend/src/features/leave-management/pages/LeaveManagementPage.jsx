@@ -27,7 +27,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { toast } from 'sonner';
+import { gooeyToast } from 'goey-toast';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -113,7 +113,7 @@ export function LeaveManagementPage() {
       setRequests(result.data || []);
     } catch (error) {
       console.error('Error fetching leave requests:', error);
-      toast.error(error.message || 'Không thể tải danh sách đơn xin nghỉ');
+      gooeyToast.error(error.message || 'Không thể tải danh sách đơn xin nghỉ');
     } finally {
       setLoading(false);
     }
@@ -139,7 +139,7 @@ export function LeaveManagementPage() {
     if (!dialogState.request) return;
 
     if (dialogState.action === 'reject' && !adminNote.trim()) {
-      toast.error('Vui lòng nhập lý do từ chối');
+      gooeyToast.error('Vui lòng nhập lý do từ chối');
       return;
     }
 
@@ -159,12 +159,14 @@ export function LeaveManagementPage() {
         throw new Error(result?.message || 'Không thể cập nhật trạng thái đơn xin nghỉ');
       }
 
-      toast.success(dialogState.action === 'approve' ? 'Đã duyệt đơn xin nghỉ' : 'Đã từ chối đơn xin nghỉ');
+      gooeyToast.success(dialogState.action === 'approve' ? 'Đã duyệt đơn xin nghỉ' : 'Đã từ chối đơn xin nghỉ', {
+        description: `Nhân viên: ${dialogState.request.teacher?.full_name || 'Chưa rõ'} • Ngày: ${formatDate(dialogState.request.start_date)} - ${formatDate(dialogState.request.end_date)}`,
+      });
       closeDialog();
       await fetchRequests();
     } catch (error) {
       console.error('Error updating leave request:', error);
-      toast.error(error.message || 'Không thể xử lý đơn xin nghỉ');
+      gooeyToast.error(error.message || 'Không thể xử lý đơn xin nghỉ');
     } finally {
       setProcessingId(null);
     }

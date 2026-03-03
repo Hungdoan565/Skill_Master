@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
-import { toast } from 'sonner';
+import { gooeyToast } from 'goey-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -105,7 +105,7 @@ export function AuditLogPage() {
 
   const fetchAuditLogs = useCallback(async (nextPage = pagination.page, nextLimit = pagination.limit, activeFilters = appliedFilters) => {
     if (!session?.access_token) {
-      toast.error('Phiên đăng nhập không hợp lệ');
+      gooeyToast.error('Phiên đăng nhập không hợp lệ');
       return;
     }
 
@@ -140,7 +140,7 @@ export function AuditLogPage() {
       setExpandedRows(new Set());
     } catch (error) {
       console.error('Error fetching audit logs:', error);
-      toast.error(error.message || 'Không thể tải nhật ký hoạt động');
+      gooeyToast.error(error.message || 'Không thể tải nhật ký hoạt động');
     } finally {
       setLoading(false);
     }

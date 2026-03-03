@@ -115,7 +115,7 @@ const registerSchema = z.object({
 });
 
 // ============ PASSWORD STRENGTH ============
-const checkPasswordStrength = (password) => {
+const checkPasswordStrength = (password = '') => {
   const checks = {
     length: password.length >= 8,
     lowercase: /[a-z]/.test(password),
@@ -338,12 +338,13 @@ InputField.displayName = 'InputField';
 const LoginForm = ({ onSwitchToRegister, isAnimating }) => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { isAuthenticated, getRedirectPath } = useAuth();
 
   const [isLoading, setIsLoading] = useState(false);
   const [isOAuthLoading, setIsOAuthLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  const { isAuthenticated, getRedirectPath } = useAuth();
 
   // Handle OAuth error from URL params
   useEffect(() => {
@@ -397,8 +398,12 @@ const LoginForm = ({ onSwitchToRegister, isAnimating }) => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      const redirectTo = searchParams.get('redirectTo') || getRedirectPath();
-      navigate(redirectTo, { replace: true });
+      const redirectTo = searchParams.get('redirect') || searchParams.get('redirectTo');
+      if (redirectTo && redirectTo.startsWith('/student/')) {
+        navigate(redirectTo, { replace: true });
+      } else {
+        navigate(getRedirectPath(), { replace: true });
+      }
     }
   }, [isAuthenticated, navigate, searchParams, getRedirectPath]);
 
@@ -556,7 +561,6 @@ const LoginForm = ({ onSwitchToRegister, isAnimating }) => {
 const RegisterForm = ({ onSwitchToLogin, isAnimating }) => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { isAuthenticated, getRedirectPath } = useAuth();
 
   const [isLoading, setIsLoading] = useState(false);
   const [isOAuthLoading, setIsOAuthLoading] = useState(false);
@@ -565,6 +569,10 @@ const RegisterForm = ({ onSwitchToLogin, isAnimating }) => {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+
+  const courseSlug = searchParams.get('courseSlug');
+
+  const { isAuthenticated, getRedirectPath } = useAuth();
 
   // Handle OAuth error from URL params
   useEffect(() => {
@@ -621,10 +629,14 @@ const RegisterForm = ({ onSwitchToLogin, isAnimating }) => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      const redirectTo = getRedirectPath();
-      navigate(redirectTo, { replace: true });
+      const redirectTo = searchParams.get('redirect') || searchParams.get('redirectTo');
+      if (redirectTo && redirectTo.startsWith('/student/')) {
+        navigate(redirectTo, { replace: true });
+      } else {
+        navigate(getRedirectPath(), { replace: true });
+      }
     }
-  }, [isAuthenticated, navigate, getRedirectPath]);
+  }, [isAuthenticated, navigate, searchParams, getRedirectPath]);
 
   const onSubmit = async (data) => {
     setIsLoading(true);
@@ -655,9 +667,12 @@ const RegisterForm = ({ onSwitchToLogin, isAnimating }) => {
       setSuccessMessage('Đăng ký thành công! Vui lòng kiểm tra email để xác thực.');
       
       setTimeout(() => {
-        onSwitchToLogin();
+        if (courseSlug) {
+          navigate(`/login?redirect=/student/courses`, { replace: true });
+        } else {
+          onSwitchToLogin();
+        }
       }, 3000);
-
     } catch (err) {
       setErrorMessage('Đã xảy ra lỗi. Vui lòng thử lại.');
       console.error('Register error:', err);
@@ -953,6 +968,7 @@ const LeftPanel = ({ isLogin }) => {
 // ============ MAIN AUTH PAGE ============
 export function AuthPage() {
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   
   const [isLogin, setIsLogin] = useState(location.pathname !== '/register');
@@ -965,15 +981,20 @@ export function AuthPage() {
   const handleSwitch = (toLogin) => {
     setIsAnimating(true);
     
+    // Preserve query parameters when switching
+    const query = location.search;
+    const targetPath = toLogin ? '/login' : '/register';
+    
     setTimeout(() => {
       setIsLogin(toLogin);
-      navigate(toLogin ? '/login' : '/register', { replace: true });
+      navigate(`${targetPath}${query}`, { replace: true });
       
       setTimeout(() => {
         setIsAnimating(false);
       }, 50);
     }, 300);
   };
+
 
   return (
     <div className="min-h-screen flex bg-white">

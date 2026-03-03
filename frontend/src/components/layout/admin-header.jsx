@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Bell, Search, LogOut, ChevronDown, User, Settings, LayoutDashboard, Command } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth-context';
+import { CenterSwitcher } from '@/components/common/CenterSwitcher';
 
 // User Dropdown - Ported EXACTLY from Landing Page (header.jsx)
 // With Z-Index adjustment for Admin Layout
@@ -41,6 +42,20 @@ const UserDropdown = () => {
   const handleHome = () => {
     setIsOpen(false);
     navigate('/');
+  };
+
+  const getProfilePath = () => {
+    switch (roleCode) {
+      case 'SUPER_ADMIN':
+      case 'CENTER_MANAGER':
+        return '/admin/settings';
+      case 'TEACHER':
+        return '/teacher/profile';
+      case 'PARENT':
+        return '/parent/profile';
+      default:
+        return '/';
+    }
   };
 
   const getRoleLabel = () => {
@@ -116,12 +131,12 @@ const UserDropdown = () => {
             <LayoutDashboard className="h-4 w-4 text-zinc-400" />
             <span>Trang chủ</span>
           </button>
-          <button onClick={() => { setIsOpen(false); navigate('/profile'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors">
+          <button onClick={() => { setIsOpen(false); navigate(getProfilePath()); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors">
             <User className="h-4 w-4 text-zinc-400" />
             <span>Hồ sơ cá nhân</span>
           </button>
           {roleCode === 'SUPER_ADMIN' && (
-            <button onClick={() => { setIsOpen(false); navigate('/settings'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors">
+            <button onClick={() => { setIsOpen(false); navigate('/admin/settings'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors">
               <Settings className="h-4 w-4 text-zinc-400" />
               <span>Cài đặt</span>
             </button>
@@ -137,7 +152,7 @@ const UserDropdown = () => {
   );
 };
 
-export function AdminHeader() {
+export function AdminHeader({ notificationBell }) {
   return (
     <header className="flex h-16 items-center justify-between border-b border-border bg-card/80 backdrop-blur-sm px-6">
       {/* Search - Enhanced with glassmorphism feel */}
@@ -163,21 +178,12 @@ export function AdminHeader() {
         </div>
       </div>
 
+      {/* Center Switcher - Global center selection for SUPER_ADMIN */}
+      <CenterSwitcher />
       {/* Right section */}
       <div className="flex items-center gap-3">
-        {/* Notifications - Enhanced */}
-        <button className="relative flex h-10 w-10 items-center justify-center rounded-xl 
-                          bg-muted border border-border text-muted-foreground
-                          hover:bg-accent hover:text-foreground hover:border-border
-                          transition-all duration-200 group">
-          <Bell className="h-5 w-5 transition-transform group-hover:scale-105" />
-          {/* Notification badge - more prominent */}
-          <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center 
-                          rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground
-                          ring-2 ring-card shadow-sm">
-            3
-          </span>
-        </button>
+        {/* Notifications */}
+        {notificationBell}
 
         {/* Divider */}
         <div className="h-8 w-px bg-border" />

@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { gooeyToast } from 'goey-toast';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom';
 import {
@@ -395,7 +395,7 @@ export const ResultPage = () => {
                 setPdfLoading(false);
             };
         } else {
-            toast('Không thể mở cửa sổ in. Vui lòng tắt popup blocker và thử lại.');
+            gooeyToast('Không thể mở cửa sổ in. Vui lòng tắt popup blocker và thử lại.');
             setPdfLoading(false);
         }
     };

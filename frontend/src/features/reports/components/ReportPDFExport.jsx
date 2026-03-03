@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { gooeyToast } from 'goey-toast';
 /**
  * ReportPDFExport Component - Export reports to PDF
  * 
@@ -203,7 +203,7 @@ export function ReportPDFExport({
             setTimeout(() => setExportSuccess(false), 2000);
         } catch (error) {
             console.error('Export failed:', error);
-            toast('Lỗi khi xuất PDF: ' + error.message);
+            gooeyToast('Lỗi khi xuất PDF: ' + error.message);
         } finally {
             setExporting(false);
         }

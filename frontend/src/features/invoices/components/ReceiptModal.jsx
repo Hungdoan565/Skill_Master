@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { gooeyToast } from 'goey-toast';
 /**
  * ReceiptModal Component
  * 
@@ -35,7 +35,7 @@ export function ReceiptModal({ isOpen, invoice, payment, onClose }) {
         const printWindow = window.open('', '_blank');
 
         if (!printWindow) {
-            toast('Popup bị chặn. Vui lòng cho phép popup để in.');
+            gooeyToast('Popup bị chặn. Vui lòng cho phép popup để in.');
             setPrinting(false);
             return;
         }

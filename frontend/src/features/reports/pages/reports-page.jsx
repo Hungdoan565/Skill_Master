@@ -34,6 +34,7 @@ const REPORT_CARDS = [
         type: 'revenue',
         title: 'Báo cáo Doanh thu',
         description: 'Phân tích doanh thu, công nợ, thu chi theo kỳ',
+        metricId: 'financial.revenue_total',
         icon: DollarSign,
         color: 'text-green-600',
         bgColor: 'bg-green-50',
@@ -43,6 +44,7 @@ const REPORT_CARDS = [
         type: 'enrollment',
         title: 'Báo cáo Tuyển sinh',
         description: 'Thống kê ghi danh, tỷ lệ chuyển đổi, xu hướng',
+        metricId: 'growth.enrollment_growth_mom',
         icon: Users,
         color: 'text-blue-600',
         bgColor: 'bg-blue-50',
@@ -52,6 +54,7 @@ const REPORT_CARDS = [
         type: 'attendance',
         title: 'Báo cáo Chuyên cần',
         description: 'Tỷ lệ đi học, vắng mặt, cảnh báo học viên',
+        metricId: 'academic_quality.attendance_rate',
         icon: ClipboardCheck,
         color: 'text-amber-600',
         bgColor: 'bg-amber-50',
@@ -61,6 +64,7 @@ const REPORT_CARDS = [
         type: 'grades',
         title: 'Báo cáo Điểm số',
         description: 'Phân bố điểm, tỷ lệ đậu/rớt, top học viên',
+        metricId: 'academic_quality.learning_outcomes',
         icon: GraduationCap,
         color: 'text-purple-600',
         bgColor: 'bg-purple-50',
@@ -70,6 +74,7 @@ const REPORT_CARDS = [
         type: 'staff',
         title: 'Báo cáo Nhân sự',
         description: 'Giờ dạy, lương, hiệu suất giảng viên',
+        metricId: 'capacity.active_staff',
         icon: UserCog,
         color: 'text-rose-600',
         bgColor: 'bg-rose-50',
@@ -79,6 +84,7 @@ const REPORT_CARDS = [
         type: 'courses',
         title: 'Báo cáo Khóa học',
         description: 'Hiệu suất khóa học, so sánh, xu hướng',
+        metricId: 'capacity.class_fill_rate',
         icon: BookOpen,
         color: 'text-indigo-600',
         bgColor: 'bg-indigo-50',
@@ -92,6 +98,7 @@ export default function ReportsPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const [savedReports, setSavedReports] = useState([]);
     const [selectedClass, setSelectedClass] = useState(null);
+    const [definitionVersion, setDefinitionVersion] = useState('n/a');
 
     // Get classId from URL
     const classIdFromUrl = searchParams.get('classId');
@@ -115,10 +122,30 @@ export default function ReportsPage() {
         }
     }, [classIdFromUrl, session]);
 
+    const fetchKpiDefinitionVersion = useCallback(async () => {
+        if (!session?.access_token) return;
+
+        try {
+            const response = await fetch(`${API_URL}/api/admin/system-dashboard`, {
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`
+                }
+            });
+
+            const payload = await response.json();
+            if (payload?.success && payload?.meta?.definitionVersion) {
+                setDefinitionVersion(payload.meta.definitionVersion);
+            }
+        } catch (err) {
+            console.error('Error fetching KPI definition version:', err);
+        }
+    }, [session]);
+
     useEffect(() => {
         loadSavedReports();
         fetchClassDetails();
-    }, [fetchClassDetails]);
+        fetchKpiDefinitionVersion();
+    }, [fetchClassDetails, fetchKpiDefinitionVersion]);
 
     // Clear class filter
     const clearClassFilter = () => {
@@ -157,6 +184,9 @@ export default function ReportsPage() {
                     <h1 className="text-2xl font-bold text-gray-900">Báo cáo & Thống kê</h1>
                     <p className="text-gray-500 mt-1">
                         Phân tích dữ liệu chi tiết và xuất báo cáo
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                        Chuẩn KPI: phiên bản {definitionVersion}
                     </p>
                 </div>
                 {selectedClass && (
@@ -227,6 +257,7 @@ export default function ReportsPage() {
                                     </div>
                                     <CardTitle className="text-lg mt-3">{report.title}</CardTitle>
                                     <CardDescription>{report.description}</CardDescription>
+                                    <p className="text-xs text-muted-foreground mt-2">Metric: {report.metricId}</p>
                                 </CardHeader>
                             </Card>
                         </Link>

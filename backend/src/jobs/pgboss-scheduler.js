@@ -89,7 +89,9 @@ export const QUEUES = {
   EMAIL: 'email',
   ENROLLMENT_NOTIFICATION: 'enrollment-notification',
   SESSION_AUTO_COMPLETE: 'session-auto-complete',
-  CERTIFICATE_ELIGIBILITY: 'check-certificate-eligibility'
+  CERTIFICATE_ELIGIBILITY: 'check-certificate-eligibility',
+  CUSTOM_ALERT_CHECK: 'custom-alert-check',
+  SCHEDULED_REPORT_RUN: 'scheduled-report-run'
 };
 
 /**
@@ -303,6 +305,20 @@ export async function scheduleRecurringJobs() {
     await scheduleJob(
       QUEUES.SESSION_AUTO_COMPLETE,
       '*/15 * * * *',
+      { scheduled: true }
+    );
+
+    // Custom alert evaluator every 15 minutes
+    await scheduleJob(
+      QUEUES.CUSTOM_ALERT_CHECK,
+      '*/15 * * * *',
+      { scheduled: true }
+    );
+
+    // Scheduled report runner every hour
+    await scheduleJob(
+      QUEUES.SCHEDULED_REPORT_RUN,
+      '0 * * * *',
       { scheduled: true }
     );
 

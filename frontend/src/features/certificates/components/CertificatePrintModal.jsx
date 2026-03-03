@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Printer, Download, X, Award, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
+import { gooeyToast } from 'goey-toast';
 
 const CATEGORY_STYLES = {
   language: { color: '#3B82F6', twColor: 'text-blue-600', twBorder: 'border-blue-600', twBg: 'bg-blue-600' },
@@ -33,37 +33,40 @@ export default function CertificatePrintModal({ certificate, open, onOpenChange 
   const handleDownload = async () => {
     try {
       setIsDownloading(true);
-      toast.info("Đang tạo PDF...");
-      
-      const html2canvas = (await import('html2canvas')).default;
-      const jsPDF = (await import('jspdf')).default;
-      
-      const element = document.getElementById('certificate-print-area');
-      
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff'
+      const generatePDFPromise = (async () => {
+        const html2canvas = (await import('html2canvas')).default;
+        const jsPDF = (await import('jspdf')).default;
+
+        const element = document.getElementById('certificate-print-area');
+
+        const canvas = await html2canvas(element, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff'
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({
+          orientation: 'landscape',
+          unit: 'mm',
+          format: 'a4'
+        });
+
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`ChungNhan_${certificate.student_name}_${certificate.certificate_number}.pdf`);
+      })();
+
+      await gooeyToast.promise(generatePDFPromise, {
+        loading: 'Đang tạo PDF...',
+        success: 'Đã tạo PDF thành công',
+        error: 'Lỗi khi tạo PDF'
       });
-      
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4'
-      });
-      
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`ChungNhan_${certificate.student_name}_${certificate.certificate_number}.pdf`);
-      
-      toast.success("Đã tải PDF thành công");
     } catch (error) {
       console.error("PDF generation failed:", error);
-      toast.error("Không thể tạo PDF. Vui lòng thử lại.");
     } finally {
       setIsDownloading(false);
     }

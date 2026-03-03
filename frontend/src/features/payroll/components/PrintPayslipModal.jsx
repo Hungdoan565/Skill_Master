@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { gooeyToast } from 'goey-toast';
 /**
  * PrintPayslipModal Component
  * Modal để in phiếu lương PDF
@@ -24,7 +24,7 @@ export function PrintPayslipModal({
 
         const printWindow = window.open('', '_blank');
         if (!printWindow) {
-            toast('Vui lòng cho phép popup để in phiếu lương');
+            gooeyToast.warning('Vui lòng cho phép popup để in phiếu lương');
             return;
         }
 

@@ -3,6 +3,15 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { supabase, getDbStatus } from './lib/db.js';
 import { getEffectiveCenterId } from './lib/center-scope.js';
+import {
+  STRATEGIC_KPI_DICTIONARY,
+  STRATEGIC_METRIC_IDS,
+  ANOMALY_LIFECYCLE_STATES,
+  buildStrategicMeta,
+  createDataWarning,
+  normalizeCenterCounts,
+  buildGovernanceReadiness,
+} from './lib/admin-kpi-dictionary.js';
 import { requireAuth, requireRole } from './middleware/auth.js';
 import { checkScheduleConflict } from './lib/schedule-conflict.js';
 import { generateClassSessions, regenerateClassSessions } from './lib/session-generator.js';
@@ -23,6 +32,10 @@ import {
   deactivateParentStudentLink,
 } from './services/parentStudentLinkService.js';
 import { createNotification } from './services/notification.service.js';
+import { buildSystemPrompt, loadStudentData, loadConversationHistory, getOrCreateSession, saveMessage, streamChatCompletion, generateConversationTitle, deleteMessagesAfter, deleteLastAssistantMessage, syncMessageCount, MAX_SESSION_MESSAGES } from './services/chatbot.js';
+import { getCourseData } from './services/courseCache.js';
+import { isGroqAvailable } from './services/groq.js';
+import { AuditLogService } from './services/audit-log.service.js';
 
 // Lazy import for enrollment notifications (requires Redis)
 let enrollmentNotifications = null;
@@ -75,6 +88,18 @@ app.use(cors());
 // Tăng limit để cho phép upload ảnh base64 (max 10MB)
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+function getAuditContext(req) {
+  return {
+    userId: req.user?.id,
+    userEmail: req.user?.email,
+    userRole: req.user?.role,
+    ipAddress: req.headers['x-forwarded-for'] || req.ip,
+    userAgent: req.headers['user-agent'],
+    requestPath: req.originalUrl,
+    centerId: getEffectiveCenterId(req)
+  };
+}
 
 // ============ HELPER FUNCTIONS FOR PERMISSION ============
 
@@ -348,6 +373,15 @@ app.post('/api/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGE
 
     if (error) throw error;
 
+    AuditLogService.log({
+      ...getAuditContext(req),
+      centerId: getEffectiveCenterId(req),
+      action: 'CREATE',
+      tableName: 'courses',
+      recordId: data?.id,
+      newValues: { name: title }
+    });
+
     res.status(201).json({
       success: true,
       message: 'Tạo khóa học thành công',
@@ -422,6 +456,15 @@ app.put('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MAN
 
     if (error) throw error;
 
+    AuditLogService.log({
+      ...getAuditContext(req),
+      centerId: getEffectiveCenterId(req),
+      action: 'UPDATE',
+      tableName: 'courses',
+      recordId: req.params.id,
+      newValues: req.body
+    });
+
     res.json({
       success: true,
       message: 'Cập nhật khóa học thành công',
@@ -430,6 +473,44 @@ app.put('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MAN
   } catch (error) {
     console.error('Error updating course:', error);
     next(error);
+  }
+});
+
+// PATCH /api/courses/:id - Partial update (status only)
+app.patch('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    const allowedFields = ['status'];
+    const filteredUpdates = {};
+
+    for (const key of allowedFields) {
+      if (updates[key] !== undefined) {
+        filteredUpdates[key] = updates[key];
+      }
+    }
+
+    if (Object.keys(filteredUpdates).length === 0) {
+      return res.status(400).json({ success: false, error: 'No valid fields to update' });
+    }
+
+    filteredUpdates.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabase
+
+      .from('courses')
+      .update(filteredUpdates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error patching course:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -475,6 +556,14 @@ app.delete('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
       .eq('id', id);
 
     if (error) throw error;
+
+    AuditLogService.log({
+      ...getAuditContext(req),
+      centerId: getEffectiveCenterId(req),
+      action: 'DELETE',
+      tableName: 'courses',
+      recordId: req.params.id
+    });
 
     res.json({
       success: true,
@@ -1082,8 +1171,6 @@ app.get('/api/admin/staff', requireAuth, async (req, res, next) => {
     }
 
     // ====== PAGINATION ======
-    query = query.range(offset, offset + limitNum - 1);
-
     const { data, error, count } = await query;
     if (error) throw error;
 
@@ -1440,7 +1527,7 @@ app.get('/api/admin/centers', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_M
     console.log(`🏢 Admin ${req.user.email} xem danh sách trung tâm`);
 
     // CENTER_MANAGER chỉ thấy trung tâm của mình
-    const userRole = req.user.role || req.user.roles?.code;
+    const userRole = req.user.roleCode;
     const userCenterId = req.user.center_id;
     let query = supabase
       .from('centers')
@@ -1503,6 +1590,13 @@ app.get('/api/admin/centers', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_M
             .eq('center_id', center.id)
             .eq('status', 'active');
 
+          // Đếm số học viên đang học
+          const { count: studentCount } = await supabase
+            .from('enrollments')
+            .select('id, classes!inner(center_id)', { count: 'exact', head: true })
+            .eq('classes.center_id', center.id)
+            .eq('status', 'active');
+
           // Lấy thông tin manager nếu có
           let manager = null;
           if (center.manager_id) {
@@ -1514,15 +1608,18 @@ app.get('/api/admin/centers', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_M
             manager = managerData;
           }
 
-          return {
+          const stats = {
+            roomCount: roomCount || 0,
+            classCount: classCount || 0,
+            staffCount: staffCount || 0,
+            studentCount: studentCount || 0,
+          };
+
+          return normalizeCenterCounts({
             ...center,
             manager,
-            stats: {
-              roomCount: roomCount || 0,
-              classCount: classCount || 0,
-              staffCount: staffCount || 0
-            }
-          };
+            stats,
+          }, stats);
         })
       );
 
@@ -1546,7 +1643,7 @@ app.get('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
     console.log(`🏢 Admin ${req.user.email} xem chi tiết center: ${id}`);
 
     // CENTER_MANAGER chỉ được xem center của mình
-    const userRole = req.user.role || req.user.roles?.code;
+    const userRole = req.user.roleCode;
     const userCenterId = req.user.center_id;
     if (userRole !== 'SUPER_ADMIN' && userCenterId && id !== userCenterId) {
       return res.status(403).json({
@@ -1593,18 +1690,22 @@ app.get('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
         .eq('status', 'active')
     ]);
 
+    const stats = {
+      roomCount: roomsRes.count || 0,
+      classCount: classesRes.count || 0,
+      staffCount: staffRes.count || 0,
+      studentCount: studentsRes.count || 0,
+    };
+
+    const centerPayload = normalizeCenterCounts({
+      ...center,
+      manager,
+      stats,
+    }, stats);
+
     res.json({
       success: true,
-      data: {
-        ...center,
-        manager,
-        stats: {
-          roomCount: roomsRes.count || 0,
-          classCount: classesRes.count || 0,
-          staffCount: staffRes.count || 0,
-          studentCount: studentsRes.count || 0
-        }
-      }
+      data: centerPayload,
     });
   } catch (error) {
     console.error('Error fetching center detail:', error);
@@ -1622,7 +1723,7 @@ app.get('/api/admin/centers/:id/stats', requireAuth, requireRole(['SUPER_ADMIN',
     console.log(`📊 Admin ${req.user.email} xem thống kê center: ${id}`);
 
     // CENTER_MANAGER chỉ được xem stats center của mình
-    const userRole = req.user.role || req.user.roles?.code;
+    const userRole = req.user.roleCode;
     const userCenterId = req.user.center_id;
     if (userRole !== 'SUPER_ADMIN' && userCenterId && id !== userCenterId) {
       return res.status(403).json({
@@ -1818,6 +1919,8 @@ app.post('/api/admin/centers', requireAuth, requireRole(['SUPER_ADMIN']), async 
         .eq('id', manager_id);
     }
 
+    AuditLogService.log({ ...getAuditContext(req), action: 'CREATE', tableName: 'centers', recordId: data.id, newValues: { name: data.name } });
+
     res.status(201).json({
       success: true,
       message: 'Tạo trung tâm thành công',
@@ -1902,6 +2005,8 @@ app.put('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), asy
       }
     }
 
+    AuditLogService.log({ ...getAuditContext(req), action: 'UPDATE', tableName: 'centers', recordId: id, newValues: req.body });
+
     res.json({
       success: true,
       message: 'Cập nhật trung tâm thành công',
@@ -1973,6 +2078,8 @@ app.delete('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), 
 
       if (error) throw error;
 
+      AuditLogService.log({ ...getAuditContext(req), action: 'DELETE', tableName: 'centers', recordId: id });
+
       return res.json({
         success: true,
         message: `Đã xóa vĩnh viễn trung tâm "${existing.name}"`
@@ -1988,6 +2095,8 @@ app.delete('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), 
       .single();
 
     if (error) throw error;
+
+    AuditLogService.log({ ...getAuditContext(req), action: 'DELETE', tableName: 'centers', recordId: id });
 
     res.json({
       success: true,
@@ -2017,6 +2126,8 @@ app.patch('/api/admin/centers/:id/restore', requireAuth, requireRole(['SUPER_ADM
       .single();
 
     if (error) throw error;
+
+    AuditLogService.log({ ...getAuditContext(req), action: 'RESTORE', tableName: 'centers', recordId: id });
 
     res.json({
       success: true,
@@ -2086,6 +2197,8 @@ app.patch('/api/admin/centers/:id/manager', requireAuth, requireRole(['SUPER_ADM
     if (manager_id) {
       await supabase.from('users').update({ center_id: id }).eq('id', manager_id);
     }
+
+    AuditLogService.log({ ...getAuditContext(req), action: 'UPDATE', tableName: 'centers', recordId: id, newValues: { manager_id: req.body.manager_id } });
 
     res.json({
       success: true,
@@ -2229,6 +2342,8 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
         }
       }
     }
+
+    AuditLogService.log({ ...getAuditContext(req), action: 'CREATE', tableName: 'users', recordId: userId, newValues: { email, role: role_code, full_name } });
 
     res.status(201).json({
       success: true,
@@ -2482,10 +2597,11 @@ app.post('/api/students/import', requireAuth, async (req, res, next) => {
     const emails = validStudents.map((s) => s.email).filter(Boolean);
     if (emails.length > 0) {
       const { data: existingStudents, error: existingError } = await supabase
-        .from('students')
+        .from('users')
         .select('email')
         .eq('center_id', centerId)
-        .in('email', emails);
+        .eq('role_id', 'e5a36360-8376-4aa4-b740-c7fab967a480')
+        .in('email', emails)
 
       if (existingError) throw existingError;
 
@@ -2506,9 +2622,9 @@ app.post('/api/students/import', requireAuth, async (req, res, next) => {
     }
 
     const { data: insertedStudents, error: insertError } = await supabase
-      .from('students')
-      .insert(validStudents)
-      .select('id');
+      .from('users')
+      .insert(validStudents.map(s => ({ ...s, role_id: 'e5a36360-8376-4aa4-b740-c7fab967a480' })))
+      .select('id')
 
     if (insertError) throw insertError;
 
@@ -2904,6 +3020,8 @@ app.patch('/api/admin/users/:id/role', requireAuth, async (req, res, next) => {
       .single();
 
     if (error) throw error;
+
+    AuditLogService.log({ ...getAuditContext(req), action: 'UPDATE', tableName: 'users', recordId: id, newValues: { role: role_code } });
 
     res.json({
       success: true,
@@ -3511,6 +3629,15 @@ app.post('/api/admin/classes', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
       console.log(`📅 Sessions generated: ${sessionResult.count} buổi`);
     }
 
+    AuditLogService.log({
+      ...getAuditContext(req),
+      centerId: getEffectiveCenterId(req),
+      action: 'CREATE',
+      tableName: 'classes',
+      recordId: data?.id,
+      newValues: { name }
+    });
+
     res.status(201).json({
       success: true,
       message: 'Tạo lớp học thành công',
@@ -3591,6 +3718,15 @@ app.put('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
       sessionsUpdated = sessionResult.count;
       console.log(`📅 Sessions regenerated: ${sessionsUpdated} buổi`);
     }
+
+    AuditLogService.log({
+      ...getAuditContext(req),
+      centerId: getEffectiveCenterId(req),
+      action: 'UPDATE',
+      tableName: 'classes',
+      recordId: req.params.id,
+      newValues: req.body
+    });
 
     res.json({
       success: true,
@@ -3702,6 +3838,14 @@ app.delete('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'C
     // Xóa lớp học
     const { error } = await supabase.from('classes').delete().eq('id', id);
     if (error) throw error;
+
+    AuditLogService.log({
+      ...getAuditContext(req),
+      centerId: getEffectiveCenterId(req),
+      action: 'DELETE',
+      tableName: 'classes',
+      recordId: req.params.id
+    });
 
     res.json({ success: true, message: 'Xóa lớp học thành công' });
   } catch (error) {
@@ -4450,7 +4594,7 @@ app.post('/api/admin/classes/import', requireAuth, requireRole(['SUPER_ADMIN', '
     // Fetch lookup data
     const [coursesRes, teachersRes, centersRes, roomsRes] = await Promise.all([
       supabase.from('courses').select('id, code, name'),
-      supabase.from('profiles').select('id, email, full_name').eq('role', 'TEACHER'),
+      supabase.from('users').select('id, email, full_name').eq('role_id', '7d0897c4-4e72-480e-97b4-86770b0b9542'),
       supabase.from('centers').select('id, code, name'),
       supabase.from('rooms').select('id, name, center_id')
     ]);
@@ -6529,6 +6673,18 @@ app.post('/api/classes/:id/enroll', requireAuth, async (req, res, next) => {
     }
 
     console.log(`✅ ${result.message || 'Ghi danh thành công'} - Invoice: ${result.invoice?.invoice_number} (draft)`);
+    AuditLogService.log({
+      ...getAuditContext(req),
+      centerId: getEffectiveCenterId(req),
+      action: 'CREATE',
+      tableName: 'enrollments',
+      recordId: result?.enrollment?.id || null,
+      newValues: {
+        class_id: req.params.id,
+        student_id
+      }
+    });
+
     res.status(201).json({
       success: true,
       message: result.message || 'Ghi danh thành công',
@@ -6618,6 +6774,19 @@ app.delete('/api/classes/:classId/students/:studentId', requireAuth, async (req,
         .eq('student_id', studentId);
 
       if (error) throw error;
+
+      AuditLogService.log({
+        ...getAuditContext(req),
+        centerId: getEffectiveCenterId(req),
+        action: 'DELETE',
+        tableName: 'enrollments',
+        recordId: null,
+        newValues: {
+          class_id: req.params.classId,
+          student_id: req.params.studentId
+        }
+      });
+
       return res.json({ success: true, message: 'Đã xóa học viên khỏi lớp' });
     }
 
@@ -6654,7 +6823,50 @@ app.delete('/api/classes/:classId/students/:studentId', requireAuth, async (req,
 
     if (error) throw error;
 
+    AuditLogService.log({
+      ...getAuditContext(req),
+      centerId: getEffectiveCenterId(req),
+      action: 'DELETE',
+      tableName: 'enrollments',
+      recordId: null,
+      newValues: {
+        class_id: req.params.classId,
+        student_id: req.params.studentId
+      }
+    });
+
     res.json({ success: true, message: 'Học viên đã rời lớp', data });
+
+    // Auto-promote waitlisted enrollment request (FIFO)
+    try {
+      const { data: waitlisted } = await supabase
+        .from('enrollment_requests')
+        .select('id, student_id, class_id')
+        .eq('class_id', classId)
+        .eq('status', 'waitlisted')
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .single();
+
+      if (waitlisted) {
+        await supabase
+          .from('enrollment_requests')
+          .update({ status: 'pending', updated_at: new Date().toISOString() })
+          .eq('id', waitlisted.id);
+
+        createNotification(supabase, {
+          userId: waitlisted.student_id,
+          centerId: req.user.center_id || req.user.centerId,
+          type: 'enrollment_waitlist_promoted',
+          title: 'Có slot trống cho lớp bạn chờ',
+          message: 'Đã có slot trống. Yêu cầu đăng ký của bạn đang chờ phê duyệt.',
+          referenceId: waitlisted.id,
+          referenceType: 'enrollment_request'
+        }).catch(err => console.warn('Waitlist promotion notification failed:', err));
+      }
+    } catch (wpErr) {
+      console.warn('Waitlist auto-promotion check failed:', wpErr.message);
+    }
   } catch (error) {
     console.error('Error removing student:', error);
     next(error);
@@ -6682,6 +6894,15 @@ app.patch('/api/enrollments/:id', requireAuth, async (req, res, next) => {
       .single();
 
     if (error) throw error;
+
+    AuditLogService.log({
+      ...getAuditContext(req),
+      centerId: getEffectiveCenterId(req),
+      action: 'UPDATE',
+      tableName: 'enrollments',
+      recordId: req.params.id,
+      newValues: req.body
+    });
 
     res.json({ success: true, message: 'Cập nhật thành công', data });
 
@@ -6722,6 +6943,39 @@ app.patch('/api/enrollments/:id', requireAuth, async (req, res, next) => {
       } catch (certErr) {
         console.warn('⚠️ Failed to trigger certificate eligibility check:', certErr.message);
         // Don't fail the enrollment update if cert check trigger fails
+      }
+    }
+
+    // Auto-promote waitlisted enrollment request when enrollment dropped
+    if (req.body.status === 'dropped') {
+      try {
+        const { data: waitlisted } = await supabase
+          .from('enrollment_requests')
+          .select('id, student_id, class_id')
+          .eq('class_id', data.class_id)
+          .eq('status', 'waitlisted')
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .single();
+
+        if (waitlisted) {
+          await supabase
+            .from('enrollment_requests')
+            .update({ status: 'pending', updated_at: new Date().toISOString() })
+            .eq('id', waitlisted.id);
+
+          createNotification(supabase, {
+            userId: waitlisted.student_id,
+            centerId: req.user.center_id || req.user.centerId,
+            type: 'enrollment_waitlist_promoted',
+            title: 'Có slot trống cho lớp bạn chờ',
+            message: 'Đã có slot trống. Yêu cầu đăng ký của bạn đang chờ phê duyệt.',
+            referenceId: waitlisted.id,
+            referenceType: 'enrollment_request'
+          }).catch(err => console.warn('Waitlist promotion notification failed:', err));
+        }
+      } catch (wpErr) {
+        console.warn('Waitlist auto-promotion check failed:', wpErr.message);
       }
     }
   } catch (error) {
@@ -7603,6 +7857,15 @@ app.post('/api/attendance/mark', requireAuth, async (req, res, next) => {
 
     console.log(`✅ Điểm danh thành công: ${summary.present} có mặt, ${summary.absent} vắng, ${summary.late} trễ`);
 
+    AuditLogService.log({
+      ...getAuditContext(req),
+      centerId: getEffectiveCenterId(req),
+      action: 'CREATE',
+      tableName: 'attendance',
+      recordId: null,
+      newValues: { session_id: req.body.session_id }
+    });
+
     res.json({
       success: true,
       message: `Đã lưu điểm danh ${summary.total} học viên`,
@@ -7810,6 +8073,15 @@ app.post('/api/grades/bulk-update', requireAuth, async (req, res, next) => {
     if (error) throw error;
 
     console.log(`✅ Đã lưu ${data?.length || 0} điểm`);
+
+    AuditLogService.log({
+      ...getAuditContext(req),
+      centerId: getEffectiveCenterId(req),
+      action: 'UPDATE',
+      tableName: 'grades',
+      recordId: null,
+      newValues: { count: data?.length || 0 }
+    });
 
     res.json({
       success: true,
@@ -9221,12 +9493,12 @@ app.get('/api/dashboard/teacher-status-today', requireAuth, async (req, res, nex
     // Get approved leave requests for today
     const { data: leaves } = await supabase
       .from('leave_requests')
-      .select('teacher_id')
+      .select('staff_id')
       .eq('status', 'approved')
       .lte('start_date', today)
       .gte('end_date', today);
 
-    const onLeaveIds = new Set((leaves || []).map(l => l.teacher_id));
+    const onLeaveIds = new Set((leaves || []).map(l => l.staff_id));
 
     // Get today's sessions with class info
     const { data: sessions } = await supabase
@@ -9545,6 +9817,1316 @@ app.get('/api/dashboard/collection-rate', requireAuth, async (req, res, next) =>
 // END DASHBOARD APIs
 // ============================================================
 
+// ============================================================
+// ADMIN SYSTEM DASHBOARD APIs - SUPER_ADMIN only
+// ============================================================
+
+// GET /api/admin/system-dashboard - Aggregate KPIs across all centers
+app.get('/api/admin/system-dashboard', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
+  try {
+    const now = new Date();
+    const startDate = req.query.startDate || new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const endDate = req.query.endDate || now.toISOString();
+    const prevStart = new Date(new Date(startDate).getFullYear(), new Date(startDate).getMonth() - 1, 1).toISOString();
+    const prevEnd = new Date(new Date(startDate).getFullYear(), new Date(startDate).getMonth(), 0).toISOString();
+
+    // Current period revenue
+    const { data: curRevenue } = await supabase
+      .from('payments')
+      .select('amount')
+      .eq('verification_status', 'verified')
+      .gte('payment_date', startDate)
+      .lte('payment_date', endDate);
+    const totalRevenue = (curRevenue || []).reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    // Previous period revenue
+    const { data: prevRevenue } = await supabase
+      .from('payments')
+      .select('amount')
+      .eq('verification_status', 'verified')
+      .gte('payment_date', prevStart)
+      .lte('payment_date', prevEnd);
+    const prevTotalRevenue = (prevRevenue || []).reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    // Active students
+    const { count: totalStudents } = await supabase
+      .from('users')
+      .select('id', { count: 'exact', head: true })
+      .eq('role_id', 'e5a36360-8376-4aa4-b740-c7fab967a480')
+      .eq('status', 'active');
+
+    // Previous period students (approximate - active at prev period end)
+    const { count: prevStudents } = await supabase
+      .from('users')
+      .select('id', { count: 'exact', head: true })
+      .eq('role_id', 'e5a36360-8376-4aa4-b740-c7fab967a480')
+      .eq('status', 'active')
+      .lte('created_at', prevEnd);
+
+    // Active classes
+    const { count: totalClasses } = await supabase
+      .from('classes')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'active');
+
+    // Outstanding debt
+    const { data: debtData } = await supabase
+      .from('invoices')
+      .select('final_amount, paid_amount')
+      .in('status', ['pending', 'overdue']);
+    const totalDebt = (debtData || []).reduce((sum, inv) => sum + ((inv.final_amount || 0) - (inv.paid_amount || 0)), 0);
+
+    const { data: prevDebtData } = await supabase
+      .from('invoices')
+      .select('final_amount, paid_amount')
+      .in('status', ['pending', 'overdue'])
+      .lte('created_at', prevEnd);
+    const prevTotalDebt = (prevDebtData || []).reduce((sum, inv) => sum + ((inv.final_amount || 0) - (inv.paid_amount || 0)), 0);
+
+    const calcChange = (cur, prev) => prev ? Math.round(((cur - prev) / prev) * 100) : 0;
+
+    const warnings = [];
+
+    // Governance/audit coverage snapshot for strategic readiness
+    const { count: highImpactAuditCount, error: auditCoverageError } = await supabase
+      .from('audit_logs')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', startDate)
+      .in('action', ['CREATE', 'UPDATE', 'DELETE', 'EXPORT']);
+
+    if (auditCoverageError) {
+      warnings.push(
+        createDataWarning('AUDIT_COVERAGE_UNAVAILABLE', 'Không thể đọc dữ liệu bao phủ audit cho giai đoạn hiện tại', {
+          source: 'audit_logs',
+          error: auditCoverageError.message,
+        })
+      );
+    }
+
+    const roleBoundaryOk = req.user?.roleCode === 'SUPER_ADMIN';
+    const governanceReadiness = buildGovernanceReadiness({
+      roleBoundaryOk,
+      auditPipelineHealthy: !auditCoverageError,
+      strategicFeedsFresh: true,
+      failedChecks: warnings.map((w) => w.code),
+    });
+
+    res.json({
+      success: true,
+      data: {
+        revenue: {
+          metric_id: STRATEGIC_METRIC_IDS.REVENUE_TOTAL,
+          value: totalRevenue,
+          previous: prevTotalRevenue,
+          change: calcChange(totalRevenue, prevTotalRevenue),
+        },
+        students: {
+          metric_id: STRATEGIC_METRIC_IDS.ACTIVE_STUDENTS,
+          value: totalStudents || 0,
+          previous: prevStudents || 0,
+          change: calcChange(totalStudents || 0, prevStudents || 0),
+        },
+        classes: {
+          metric_id: STRATEGIC_METRIC_IDS.CLASS_COUNT,
+          value: totalClasses || 0,
+        },
+        debt: {
+          metric_id: STRATEGIC_METRIC_IDS.OVERDUE_DEBT,
+          value: totalDebt,
+          previous: prevTotalDebt,
+          change: calcChange(totalDebt, prevTotalDebt),
+        },
+        governance: {
+          metric_id: STRATEGIC_METRIC_IDS.GOVERNANCE_READINESS,
+          readiness: governanceReadiness,
+          audit_coverage: {
+            metric_id: STRATEGIC_METRIC_IDS.AUDIT_COVERAGE,
+            value: highImpactAuditCount || 0,
+          },
+        },
+        kpi_dictionary_version: STRATEGIC_KPI_DICTIONARY.version,
+      },
+      meta: buildStrategicMeta({
+        startDate,
+        endDate,
+        dataFreshness: auditCoverageError ? 'degraded' : 'fresh',
+        warnings,
+      }),
+    });
+  } catch (error) {
+    console.error('Error in system-dashboard:', error);
+    next(error);
+  }
+});
+
+// GET /api/admin/center-health - Per-center health metrics
+app.get('/api/admin/center-health', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
+  try {
+    const now = new Date();
+    const startDate = req.query.startDate || new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const endDate = req.query.endDate || now.toISOString();
+    const prevStart = new Date(new Date(startDate).getFullYear(), new Date(startDate).getMonth() - 1, 1).toISOString();
+    const prevEnd = new Date(new Date(startDate).getFullYear(), new Date(startDate).getMonth(), 0).toISOString();
+
+    const { data: centers } = await supabase
+      .from('centers')
+      .select('id, name')
+      .eq('status', 'active');
+
+    const results = [];
+    for (const center of (centers || [])) {
+      // Revenue
+      const { data: payments } = await supabase.from('payments')
+        .select('amount, invoices!inner(classes!inner(center_id))')
+        .eq('verification_status', 'verified')
+        .eq('invoices.classes.center_id', center.id)
+        .gte('payment_date', startDate)
+        .lte('payment_date', endDate);
+      const revenue = (payments || []).reduce((s, p) => s + (p.amount || 0), 0);
+
+      const { data: prevPayments } = await supabase.from('payments')
+        .select('amount, invoices!inner(classes!inner(center_id))')
+        .eq('verification_status', 'verified')
+        .eq('invoices.classes.center_id', center.id)
+        .gte('payment_date', prevStart)
+        .lte('payment_date', prevEnd);
+      const prevRevenue = (prevPayments || []).reduce((s, p) => s + (p.amount || 0), 0);
+      const revenueGrowth = prevRevenue ? ((revenue - prevRevenue) / prevRevenue) * 100 : 0;
+
+      // Students
+      const { count: studentCount } = await supabase.from('users').select('id', { count: 'exact', head: true }).eq('role_id', 'e5a36360-8376-4aa4-b740-c7fab967a480').eq('status', 'active').eq('center_id', center.id);
+
+      // Classes
+      const { count: classCount } = await supabase.from('classes').select('id', { count: 'exact', head: true }).eq('status', 'active').eq('center_id', center.id);
+
+      // Attendance rate
+      const { data: attendanceData } = await supabase.from('attendance')
+        .select('status, enrollments!inner(classes!inner(center_id))')
+        .eq('enrollments.classes.center_id', center.id)
+        .gte('session_date', startDate)
+        .lte('session_date', endDate);
+      const totalAtt = (attendanceData || []).length;
+      const presentAtt = (attendanceData || []).filter(a => a.status === 'present' || a.status === 'late').length;
+      const attendanceRate = totalAtt > 0 ? Math.round((presentAtt / totalAtt) * 100) : 0;
+
+      // Collection rate
+      const { data: invoiceData } = await supabase.from('invoices')
+        .select('final_amount, paid_amount, status, classes!inner(center_id)')
+        .eq('classes.center_id', center.id)
+        .gte('created_at', startDate)
+        .lte('created_at', endDate);
+      const totalInvoiced = (invoiceData || []).reduce((s, i) => s + (i.final_amount || 0), 0);
+      const totalPaid = (invoiceData || []).reduce((s, i) => s + (i.paid_amount || 0), 0);
+      const collectionRate = totalInvoiced > 0 ? Math.round((totalPaid / totalInvoiced) * 100) : 0;
+
+      // Staff count
+      const { count: staffCount } = await supabase.from('users').select('id', { count: 'exact', head: true }).eq('center_id', center.id).in('role_id', ['7d0897c4-4e72-480e-97b4-86770b0b9542', 'd16c524b-8ea5-4baa-b6b0-057ce3ab1fbb']);
+
+      // Enrollment growth
+      const { count: curEnrollments } = await supabase.from('enrollments').select('id, classes!inner(center_id)', { count: 'exact', head: true }).eq('classes.center_id', center.id).gte('created_at', startDate).lte('created_at', endDate);
+      const { count: prevEnrollments } = await supabase.from('enrollments').select('id, classes!inner(center_id)', { count: 'exact', head: true }).eq('classes.center_id', center.id).gte('created_at', prevStart).lte('created_at', prevEnd);
+      const enrollmentGrowth = (prevEnrollments || 0) > 0 ? (((curEnrollments || 0) - (prevEnrollments || 0)) / (prevEnrollments || 1)) * 100 : 0;
+
+      // Fill rate (students / max capacity)
+      const { data: classData } = await supabase.from('classes').select('id, max_students').eq('status', 'active').eq('center_id', center.id);
+      // Count enrolled students per class since there's no current_students column
+      let totalFilled = 0;
+      for (const cls of (classData || [])) {
+        const { count } = await supabase.from('enrollments').select('id', { count: 'exact', head: true }).eq('class_id', cls.id).eq('status', 'active');
+        totalFilled += (count || 0);
+      }
+      const totalCapacity = (classData || []).reduce((s, c) => s + (c.max_students || 0), 0);
+      const fillRate = totalCapacity > 0 ? (totalFilled / totalCapacity) * 100 : 0;
+
+      // Health score
+      const healthScore = Math.round(
+        attendanceRate * 0.25 +
+        collectionRate * 0.25 +
+        fillRate * 0.20 +
+        Math.min(Math.max(enrollmentGrowth + 50, 0), 100) * 0.15 +
+        Math.min(Math.max(revenueGrowth + 50, 0), 100) * 0.15
+      );
+      const healthStatus = healthScore >= 80 ? 'good' : healthScore >= 60 ? 'warning' : 'critical';
+
+      results.push({
+        center_id: center.id,
+        center_name: center.name,
+        revenue,
+        revenue_change: Math.round(revenueGrowth),
+        student_count: studentCount || 0,
+        class_count: classCount || 0,
+        attendance_rate: attendanceRate,
+        collection_rate: collectionRate,
+        staff_count: staffCount || 0,
+        enrollment_count: curEnrollments || 0,
+        health_score: healthScore,
+        health_status: healthStatus,
+        metric_ids: {
+          health_score: STRATEGIC_METRIC_IDS.CENTER_HEALTH_INDEX,
+          collection_rate: STRATEGIC_METRIC_IDS.COLLECTION_RATE,
+          attendance_rate: STRATEGIC_METRIC_IDS.ATTENDANCE_RATE,
+          staff_count: STRATEGIC_METRIC_IDS.STAFF_COUNT,
+          class_fill_rate: STRATEGIC_METRIC_IDS.CLASS_FILL_RATE,
+          enrollment_growth_mom: STRATEGIC_METRIC_IDS.ENROLLMENT_GROWTH_MOM,
+          revenue_growth_mom: STRATEGIC_METRIC_IDS.REVENUE_GROWTH_MOM,
+        },
+      });
+    }
+
+    res.json({
+      success: true,
+      data: results,
+      meta: buildStrategicMeta({ startDate, endDate }),
+    });
+  } catch (error) {
+    console.error('Error in center-health:', error);
+    next(error);
+  }
+});
+
+// GET /api/admin/revenue-trend - Monthly revenue per center
+app.get('/api/admin/revenue-trend', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
+  try {
+    const months = parseInt(req.query.months) || 6;
+    const { data: centers } = await supabase.from('centers').select('id, name').eq('status', 'active');
+
+    const result = [];
+    for (let i = months - 1; i >= 0; i--) {
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59);
+      const monthLabel = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`;
+
+      const centersData = [];
+      for (const center of (centers || [])) {
+        const { data: payments } = await supabase
+          .from('payments')
+          .select('amount, invoices!inner(classes!inner(center_id))')
+          .eq('verification_status', 'verified')
+          .eq('invoices.classes.center_id', center.id)
+          .gte('payment_date', monthStart.toISOString())
+          .lte('payment_date', monthEnd.toISOString());
+        const revenue = (payments || []).reduce((s, p) => s + (p.amount || 0), 0);
+        centersData.push({
+          center_id: center.id,
+          center_name: center.name,
+          metric_id: STRATEGIC_METRIC_IDS.REVENUE_TOTAL,
+          revenue,
+        });
+      }
+
+      result.push({ month: monthLabel, centers: centersData });
+    }
+
+    const firstMonth = result[0]?.month ? `${result[0].month}-01T00:00:00.000Z` : null;
+    const lastMonth = result[result.length - 1]?.month ? `${result[result.length - 1].month}-31T23:59:59.999Z` : null;
+
+    res.json({
+      success: true,
+      data: result,
+      meta: buildStrategicMeta({ startDate: firstMonth, endDate: lastMonth }),
+    });
+  } catch (error) {
+    console.error('Error in revenue-trend:', error);
+    next(error);
+  }
+});
+
+// GET /api/admin/anomalies - Detect anomalies across centers
+app.get('/api/admin/anomalies', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
+  try {
+    const now = new Date();
+    const curStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const curEnd = now.toISOString();
+    const prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
+    const prevEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString();
+
+    const { data: centers } = await supabase.from('centers').select('id, name').eq('status', 'active');
+    const anomalies = [];
+    const defaultDueAt = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString();
+
+    const buildAnomaly = ({ center, type, message, severity, sourceMetricId, breachedValue, threshold }) => ({
+      id: `${type}-${center.id}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      center_id: center.id,
+      center_name: center.name,
+      type,
+      message,
+      severity,
+      state: ANOMALY_LIFECYCLE_STATES[0],
+      owner_id: null,
+      owner_role: 'CENTER_MANAGER',
+      due_at: defaultDueAt,
+      source_metric_id: sourceMetricId,
+      breached_value: breachedValue,
+      threshold,
+      escalation_required: severity === 'critical',
+      resolution_note: null,
+      created_at: new Date().toISOString(),
+    });
+
+    for (const center of (centers || [])) {
+      // Revenue check
+      const { data: curPay } = await supabase.from('payments')
+        .select('amount, invoices!inner(classes!inner(center_id))')
+        .eq('verification_status', 'verified')
+        .eq('invoices.classes.center_id', center.id)
+        .gte('payment_date', curStart).lte('payment_date', curEnd);
+      const { data: prevPay } = await supabase.from('payments')
+        .select('amount, invoices!inner(classes!inner(center_id))')
+        .eq('verification_status', 'verified')
+        .eq('invoices.classes.center_id', center.id)
+        .gte('payment_date', prevStart).lte('payment_date', prevEnd);
+      const curRev = (curPay || []).reduce((s, p) => s + (p.amount || 0), 0);
+      const prevRev = (prevPay || []).reduce((s, p) => s + (p.amount || 0), 0);
+      if (prevRev > 0 && ((prevRev - curRev) / prevRev) > 0.15) {
+        const dropPct = Math.round(((prevRev - curRev) / prevRev) * 100);
+        anomalies.push(buildAnomaly({
+          center,
+          type: 'revenue_drop',
+          message: `Doanh thu giảm ${dropPct}% so với tháng trước`,
+          severity: 'warning',
+          sourceMetricId: STRATEGIC_METRIC_IDS.REVENUE_GROWTH_MOM,
+          breachedValue: -dropPct,
+          threshold: '-15%',
+        }));
+      }
+
+      // Attendance check
+      const { data: attData } = await supabase.from('attendance')
+        .select('status, enrollments!inner(classes!inner(center_id))')
+        .eq('enrollments.classes.center_id', center.id)
+        .gte('session_date', curStart).lte('session_date', curEnd);
+      const totalAtt = (attData || []).length;
+      const presentAtt = (attData || []).filter(a => a.status === 'present' || a.status === 'late').length;
+      const attRate = totalAtt > 0 ? (presentAtt / totalAtt) * 100 : 100;
+      if (attRate < 70) {
+        const roundedRate = Math.round(attRate);
+        anomalies.push(buildAnomaly({
+          center,
+          type: 'low_attendance',
+          message: `Tỷ lệ chuyên cần chỉ ${roundedRate}%`,
+          severity: 'critical',
+          sourceMetricId: STRATEGIC_METRIC_IDS.ATTENDANCE_RATE,
+          breachedValue: roundedRate,
+          threshold: '>= 70%',
+        }));
+      }
+
+      // Collection rate check
+      const { data: invData } = await supabase.from('invoices')
+        .select('final_amount, paid_amount, classes!inner(center_id)')
+        .eq('classes.center_id', center.id)
+        .gte('created_at', curStart).lte('created_at', curEnd);
+      const totalInv = (invData || []).reduce((s, i) => s + (i.final_amount || 0), 0);
+      const totalPaid = (invData || []).reduce((s, i) => s + (i.paid_amount || 0), 0);
+      const collRate = totalInv > 0 ? (totalPaid / totalInv) * 100 : 100;
+      if (collRate < 75) {
+        const roundedRate = Math.round(collRate);
+        anomalies.push(buildAnomaly({
+          center,
+          type: 'low_collection',
+          message: `Tỷ lệ thu chỉ ${roundedRate}%`,
+          severity: 'warning',
+          sourceMetricId: STRATEGIC_METRIC_IDS.COLLECTION_RATE,
+          breachedValue: roundedRate,
+          threshold: '>= 75%',
+        }));
+      }
+
+      // Enrollment drop check
+      const { count: curEnr } = await supabase.from('enrollments')
+        .select('id, classes!inner(center_id)', { count: 'exact', head: true })
+        .eq('classes.center_id', center.id)
+        .gte('created_at', curStart).lte('created_at', curEnd);
+      const { count: prevEnr } = await supabase.from('enrollments')
+        .select('id, classes!inner(center_id)', { count: 'exact', head: true })
+        .eq('classes.center_id', center.id)
+        .gte('created_at', prevStart).lte('created_at', prevEnd);
+      if ((prevEnr || 0) > 0 && (((prevEnr || 0) - (curEnr || 0)) / (prevEnr || 1)) > 0.20) {
+        const dropPct = Math.round((((prevEnr || 0) - (curEnr || 0)) / (prevEnr || 1)) * 100);
+        anomalies.push(buildAnomaly({
+          center,
+          type: 'enrollment_drop',
+          message: `Ghi danh giảm ${dropPct}% so với tháng trước`,
+          severity: 'warning',
+          sourceMetricId: STRATEGIC_METRIC_IDS.ENROLLMENT_GROWTH_MOM,
+          breachedValue: -dropPct,
+          threshold: '-20%',
+        }));
+      }
+    }
+
+    const anomaliesWithSla = anomalies.map((anomaly) => {
+      const dueAt = anomaly.due_at ? new Date(anomaly.due_at).getTime() : null;
+      const isOverdue = dueAt ? dueAt < Date.now() && !['resolved', 'expired'].includes(anomaly.state) : false;
+
+      return {
+        ...anomaly,
+        state: isOverdue ? 'expired' : anomaly.state,
+        sla_breached: isOverdue,
+        escalation_required: anomaly.escalation_required || isOverdue,
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        anomalies: anomaliesWithSla,
+        all_stable: anomaliesWithSla.length === 0,
+        lifecycle_states: ANOMALY_LIFECYCLE_STATES,
+      },
+      meta: buildStrategicMeta({ startDate: curStart, endDate: curEnd }),
+    });
+  } catch (error) {
+    console.error('Error in anomalies:', error);
+    next(error);
+  }
+});
+
+// GET /api/admin/custom-alerts - List custom alert rules
+app.get('/api/admin/custom-alerts', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+  try {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const centerId = getEffectiveCenterId(req);
+
+    let query = supabase
+      .from('custom_alert_rules')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (centerId) {
+      query = query.eq('center_id', centerId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json({ success: true, data: data || [] });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/admin/custom-alerts - Create custom alert rule
+app.post('/api/admin/custom-alerts', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+  try {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const centerId = getEffectiveCenterId(req);
+    const {
+      name,
+      metric_type,
+      condition_operator,
+      threshold_value,
+      severity,
+      notification_channels,
+      is_active,
+      cooldown_minutes,
+      center_id,
+    } = req.body;
+
+    const payload = {
+      center_id: centerId || center_id || null,
+      created_by: req.user.id,
+      name,
+      metric_type,
+      condition_operator,
+      threshold_value,
+      severity,
+      notification_channels: notification_channels || ['in_app'],
+      is_active: typeof is_active === 'boolean' ? is_active : true,
+      cooldown_minutes: cooldown_minutes || 0,
+    };
+
+    const { data, error } = await supabase
+      .from('custom_alert_rules')
+      .insert([payload])
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json({ success: true, data });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// PUT /api/admin/custom-alerts/:id - Update custom alert rule
+app.put('/api/admin/custom-alerts/:id', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+  try {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const centerId = getEffectiveCenterId(req);
+    const { id } = req.params;
+    const {
+      name,
+      metric_type,
+      condition_operator,
+      threshold_value,
+      severity,
+      notification_channels,
+      is_active,
+      cooldown_minutes,
+      last_triggered_at,
+      trigger_count,
+    } = req.body;
+
+    const updates = {
+      ...(name !== undefined ? { name } : {}),
+      ...(metric_type !== undefined ? { metric_type } : {}),
+      ...(condition_operator !== undefined ? { condition_operator } : {}),
+      ...(threshold_value !== undefined ? { threshold_value } : {}),
+      ...(severity !== undefined ? { severity } : {}),
+      ...(notification_channels !== undefined ? { notification_channels } : {}),
+      ...(is_active !== undefined ? { is_active } : {}),
+      ...(cooldown_minutes !== undefined ? { cooldown_minutes } : {}),
+      ...(last_triggered_at !== undefined ? { last_triggered_at } : {}),
+      ...(trigger_count !== undefined ? { trigger_count } : {}),
+      updated_at: new Date().toISOString(),
+    };
+
+    let query = supabase
+      .from('custom_alert_rules')
+      .update(updates)
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (centerId) {
+      query = query.eq('center_id', centerId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// DELETE /api/admin/custom-alerts/:id - Delete custom alert rule
+app.delete('/api/admin/custom-alerts/:id', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+  try {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const centerId = getEffectiveCenterId(req);
+    const { id } = req.params;
+
+    let query = supabase
+      .from('custom_alert_rules')
+      .delete()
+      .eq('id', id)
+      .select('id')
+      .single();
+
+    if (centerId) {
+      query = query.eq('center_id', centerId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/admin/alert-history - List triggered alert history
+app.get('/api/admin/alert-history', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+  try {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const centerId = getEffectiveCenterId(req);
+
+    let query = supabase
+      .from('alert_history')
+      .select('*')
+      .order('triggered_at', { ascending: false });
+
+    if (centerId) {
+      query = query.eq('center_id', centerId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json({ success: true, data: data || [] });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// PATCH /api/admin/alert-history/:id/acknowledge - Acknowledge alert
+app.patch('/api/admin/alert-history/:id/acknowledge', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+  try {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const centerId = getEffectiveCenterId(req);
+    const { id } = req.params;
+
+    let query = supabase
+      .from('alert_history')
+      .update({
+        acknowledged: true,
+        acknowledged_by: req.user.id,
+        acknowledged_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (centerId) {
+      query = query.eq('center_id', centerId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ============================================================
+// ADMIN AUDIT TRAIL & USER MANAGEMENT APIs
+// ============================================================
+
+app.post('/api/audit-log', requireAuth, async (req, res, next) => {
+  try {
+    const { action, metadata } = req.body;
+    const validActions = ['LOGIN', 'LOGOUT'];
+    if (!validActions.includes(action)) {
+      return res.status(400).json({ success: false, message: 'Invalid action' });
+    }
+
+    // Lookup user's center_id
+    let centerId = null;
+    try {
+      const { data: userData } = await supabase.from('users').select('center_id').eq('id', req.user.id).single();
+      centerId = userData?.center_id || null;
+    } catch {}
+
+    await AuditLogService.log({
+      userId: req.user.id,
+      userEmail: req.user.email,
+      userRole: req.user.role,
+      action,
+      tableName: 'auth',
+      recordId: req.user.id,
+      newValues: metadata || null,
+      ipAddress: req.headers['x-forwarded-for'] || req.ip,
+      userAgent: req.headers['user-agent'],
+      requestPath: req.originalUrl,
+      status: 'SUCCESS',
+      centerId
+    });
+
+    res.json({ success: true, message: 'Logged' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/audit-log/auth - Log failed login attempts (no auth required)
+app.post('/api/audit-log/auth', async (req, res, next) => {
+  try {
+    const { action, email } = req.body;
+    // Only allow LOGIN_FAILED action
+    if (action !== 'LOGIN_FAILED') {
+      return res.status(400).json({ success: false, message: 'Invalid action' });
+    }
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email required' });
+    }
+
+    await AuditLogService.log({
+      userId: null,
+      userEmail: email,
+      userRole: null,
+      action: 'LOGIN_FAILED',
+      tableName: 'auth',
+      recordId: null,
+      ipAddress: req.headers['x-forwarded-for'] || req.ip,
+      userAgent: req.headers['user-agent'],
+      requestPath: req.originalUrl,
+      status: 'FAILED'
+    });
+
+    res.json({ success: true, message: 'Logged' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/admin/audit-logs - Paginated, filterable audit logs
+app.get('/api/admin/audit-logs', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    const offset = (page - 1) * limit;
+    const { userId, centerId, action, entityType, startDate, endDate, status, severity } = req.query;
+    const userRole = req.user?.roleCode;
+    const userCenterId = req.user?.center_id;
+    const warnings = [];
+    let dataFreshness = 'fresh';
+    let auditPipelineHealthy = true;
+
+    // Build query with raw SQL for audit schema access
+    let conditions = [];
+    let params = [];
+    let paramIdx = 1;
+
+    // CENTER_MANAGER scoped to own center
+    if (userRole === 'CENTER_MANAGER') {
+      conditions.push(`u_center.id = $${paramIdx}`);
+      params.push(userCenterId);
+      paramIdx++;
+    } else if (centerId) {
+      conditions.push(`u_center.id = $${paramIdx}`);
+      params.push(centerId);
+      paramIdx++;
+    }
+
+    if (userId) { conditions.push(`l.user_id = $${paramIdx}`); params.push(userId); paramIdx++; }
+    if (action) { conditions.push(`l.action = $${paramIdx}`); params.push(action); paramIdx++; }
+    if (entityType) { conditions.push(`l.table_name = $${paramIdx}`); params.push(entityType); paramIdx++; }
+    if (status) { conditions.push(`l.status = $${paramIdx}`); params.push(status); paramIdx++; }
+    if (severity) { conditions.push(`l.severity = $${paramIdx}`); params.push(severity); paramIdx++; }
+    if (startDate) { conditions.push(`l.created_at >= $${paramIdx}`); params.push(startDate); paramIdx++; }
+    if (endDate) { conditions.push(`l.created_at <= $${paramIdx}`); params.push(endDate); paramIdx++; }
+
+    const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+
+    // If rpc doesn't work, fallback to direct query
+    let logs = [];
+    let total = 0;
+    try {
+      const countQuery = `SELECT COUNT(*)::int as total FROM public.audit_logs l LEFT JOIN public.users u_center ON u_center.id = l.user_id LEFT JOIN public.centers c_center ON c_center.id = u_center.center_id ${whereClause}`;
+      const dataQuery = `
+        SELECT l.*,
+          u.full_name as actor_name,
+          c.name as center_name
+        FROM public.audit_logs l
+        LEFT JOIN public.users u ON u.id = l.user_id
+        LEFT JOIN public.centers c ON c.id = u.center_id
+        ${whereClause}
+        ORDER BY l.created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `;
+
+      const [countRes, dataRes] = await Promise.all([
+        supabase.rpc('raw_sql', { sql: countQuery }),
+        supabase.rpc('raw_sql', { sql: dataQuery })
+      ]);
+
+      // Fallback: use supabase schema if rpc not available
+      if (countRes.error || dataRes.error) {
+        auditPipelineHealthy = false;
+        dataFreshness = 'degraded';
+        warnings.push(
+          createDataWarning('AUDIT_SQL_RPC_FALLBACK', 'Audit logs đang dùng chế độ truy vấn fallback', {
+            countError: countRes.error?.message || null,
+            dataError: dataRes.error?.message || null,
+          })
+        );
+
+        let query = supabase.from('audit_logs').select('*', { count: 'exact' });
+        if (userRole !== 'SUPER_ADMIN') {
+          // Direct center scoping using audit_logs.center_id
+          const managerCenterId = getEffectiveCenterId(req);
+          if (managerCenterId) {
+            query = query.eq('center_id', managerCenterId);
+          }
+        } else if (centerId) {
+          query = query.eq('center_id', centerId);
+        }
+
+        // Filter by center through user's center_id (audit_logs has user_id, users has center_id)
+        if (query) {
+          if (userId) query = query.eq('user_id', userId);
+          if (action) query = query.eq('action', action);
+          if (entityType) query = query.eq('table_name', entityType);
+          if (status) query = query.eq('status', status);
+          if (severity) query = query.eq('severity', severity);
+          if (startDate) query = query.gte('created_at', startDate);
+          if (endDate) query = query.lte('created_at', endDate);
+          query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+          const result = await query;
+          logs = (result.data || []).map(log => ({
+            id: log.id,
+            timestamp: log.created_at,
+            actor: { id: log.user_id, name: log.user_email || 'System', role: log.user_role },
+            action: log.action,
+            entity_type: log.table_name,
+            entity_id: log.record_id,
+            changes: log.changes,
+            old_values: log.old_values,
+            new_values: log.new_values,
+            ip_address: log.ip_address,
+            request_path: log.request_path,
+            status: log.status || 'SUCCESS',
+            severity: log.severity || 'INFO',
+            center: { id: log.center_id, name: log.center_name || null }
+          }));
+          total = result.count || 0;
+        }
+      } else {
+        logs = (dataRes.data || []);
+        total = countRes.data?.[0]?.total || 0;
+      }
+    } catch (queryError) {
+      // Ultimate fallback: simple query
+      auditPipelineHealthy = false;
+      dataFreshness = 'stale';
+      warnings.push(
+        createDataWarning('AUDIT_QUERY_FALLBACK', 'Audit logs không thể truy vấn qua pipeline chuẩn', {
+          error: queryError.message,
+        })
+      );
+
+      let query = supabase.from('audit_logs').select('*', { count: 'exact' });
+      if (userRole !== 'SUPER_ADMIN') {
+        // Direct center scoping using audit_logs.center_id
+        const managerCenterId = getEffectiveCenterId(req);
+        if (managerCenterId) {
+          query = query.eq('center_id', managerCenterId);
+        }
+      } else if (centerId) {
+        query = query.eq('center_id', centerId);
+      }
+
+      if (query) {
+        if (userId) query = query.eq('user_id', userId);
+        if (action) query = query.eq('action', action);
+        if (entityType) query = query.eq('table_name', entityType);
+        if (status) query = query.eq('status', status);
+        if (severity) query = query.eq('severity', severity);
+        if (startDate) query = query.gte('created_at', startDate);
+        if (endDate) query = query.lte('created_at', endDate);
+        query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+        const result = await query;
+        logs = (result.data || []).map(log => ({
+          id: log.id,
+          timestamp: log.created_at,
+          actor: { id: log.user_id, name: log.user_email || 'System', role: log.user_role },
+          action: log.action,
+          entity_type: log.table_name,
+          entity_id: log.record_id,
+          changes: log.changes,
+          old_values: log.old_values,
+          new_values: log.new_values,
+          status: log.status || 'SUCCESS',
+          severity: log.severity || 'INFO',
+          center: { id: log.center_id, name: log.center_name || null }
+        }));
+        total = result.count || 0;
+      }
+    }
+
+    const governanceReadiness = buildGovernanceReadiness({
+      roleBoundaryOk: userRole === 'SUPER_ADMIN' || userRole === 'CENTER_MANAGER',
+      auditPipelineHealthy,
+      strategicFeedsFresh: dataFreshness !== 'stale',
+      failedChecks: warnings.map((w) => w.code),
+    });
+
+    res.json({
+      success: true,
+      data: {
+        logs,
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+        pipeline: {
+          healthy: auditPipelineHealthy,
+          mode: auditPipelineHealthy ? 'standard' : 'fallback',
+        },
+        governance_readiness: governanceReadiness,
+      },
+      meta: buildStrategicMeta({
+        startDate,
+        endDate,
+        dataFreshness,
+        warnings,
+      }),
+    });
+  } catch (error) {
+    console.error('Error in audit-logs:', error);
+    next(error);
+  }
+});
+
+// GET /api/admin/users - Cross-center user listing
+app.get('/api/admin/users', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    const offset = (page - 1) * limit;
+    const { role, centerId, status, search } = req.query;
+
+    let query = supabase.from('users').select('*, centers!users_center_id_fkey(name), roles(code, name)', { count: 'exact' });
+    if (role) query = query.eq('roles.code', role);
+    if (centerId) query = query.eq('center_id', centerId);
+    if (status) query = query.eq('status', status);
+    if (search) query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`);
+    query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+
+    const { data, count, error } = await query;
+    if (error) throw error;
+
+    const users = (data || []).map(u => ({
+      id: u.id,
+      full_name: u.full_name,
+      email: u.email,
+      role: u.roles?.code || null,
+      center_id: u.center_id,
+      center_name: u.centers?.name || null,
+      status: u.status || 'active',
+      avatar_url: u.avatar_url,
+      phone: u.phone,
+      created_at: u.created_at,
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        users,
+        pagination: { page, limit, total: count || 0, totalPages: Math.ceil((count || 0) / limit) },
+      },
+    });
+  } catch (error) {
+    console.error('Error in admin users:', error);
+    next(error);
+  }
+});
+
+// PATCH /api/admin/users/:id/lock - Lock user account
+app.patch('/api/admin/users/:id/lock', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { error: profileError } = await supabase.from('users').update({ status: 'suspended' }).eq('id', id);
+    if (profileError) throw profileError;
+
+    // Ban in Supabase Auth
+    try {
+      await supabase.auth.admin.updateUserById(id, { ban_duration: '876000h' });
+    } catch (authErr) {
+      console.error('Failed to ban user in auth:', authErr);
+    }
+
+    AuditLogService.log({ ...getAuditContext(req), action: 'LOCK_USER', tableName: 'users', recordId: id, newValues: { status: 'suspended' } });
+
+    res.json({ success: true, message: 'Tài khoản đã bị khóa' });
+  } catch (error) {
+    console.error('Error locking user:', error);
+    next(error);
+  }
+});
+
+// PATCH /api/admin/users/:id/unlock - Unlock user account
+app.patch('/api/admin/users/:id/unlock', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { error: profileError } = await supabase.from('users').update({ status: 'active' }).eq('id', id);
+    if (profileError) throw profileError;
+
+    // Unban in Supabase Auth
+    try {
+      await supabase.auth.admin.updateUserById(id, { ban_duration: 'none' });
+    } catch (authErr) {
+      console.error('Failed to unban user in auth:', authErr);
+    }
+
+    AuditLogService.log({ ...getAuditContext(req), action: 'UNLOCK_USER', tableName: 'users', recordId: id, newValues: { status: 'active' } });
+
+    res.json({ success: true, message: 'Tài khoản đã được mở khóa' });
+  } catch (error) {
+    console.error('Error unlocking user:', error);
+    next(error);
+  }
+});
+
+// POST /api/admin/users/:id/reset-password - Send password reset email
+app.post('/api/admin/users/:id/reset-password', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { data: user } = await supabase.from('users').select('email').eq('id', id).single();
+    if (!user?.email) {
+      return res.status(404).json({ success: false, error: 'Không tìm thấy người dùng' });
+    }
+
+    const { error } = await supabase.auth.admin.generateLink({ type: 'recovery', email: user.email });
+    if (error) throw error;
+
+    AuditLogService.log({ ...getAuditContext(req), action: 'RESET_PASSWORD', tableName: 'users', recordId: id });
+
+    res.json({ success: true, message: 'Email đặt lại mật khẩu đã được gửi' });
+  } catch (error) {
+    console.error('Error resetting password:', error);
+    next(error);
+  }
+});
+
+// GET /api/admin/users/by-class - Students grouped by center and class
+app.get('/api/admin/users/by-class', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
+  try {
+    const { data: centers } = await supabase.from('centers').select('id, name').eq('status', 'active').order('name');
+    const result = [];
+
+    for (const center of centers || []) {
+      const { data: classes } = await supabase.from('classes').select('id, name').eq('center_id', center.id).eq('status', 'active').order('name');
+      const centerNode = { id: center.id, name: center.name, classes: [], unassigned: [] };
+      const enrolledIds = new Set();
+
+      for (const cls of classes || []) {
+        const { data: enrollments } = await supabase.from('enrollments').select('student_id').eq('class_id', cls.id).eq('status', 'active');
+        const studentIds = (enrollments || []).map(e => e.student_id).filter(Boolean);
+        let students = [];
+        if (studentIds.length > 0) {
+          const { data: profiles } = await supabase.from('users').select('id, full_name, email, avatar_url, status').in('id', studentIds);
+          students = profiles || [];
+          studentIds.forEach(id => enrolledIds.add(id));
+        }
+        centerNode.classes.push({ id: cls.id, name: cls.name, students });
+      }
+
+      // Students in this center not enrolled in any active class
+      const { data: allStudents } = await supabase.from('users').select('id, full_name, email, avatar_url, status').eq('center_id', center.id).eq('role_id', 'e5a36360-8376-4aa4-b740-c7fab967a480');
+      centerNode.unassigned = (allStudents || []).filter(s => !enrolledIds.has(s.id));
+      result.push(centerNode);
+    }
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Error fetching users by class:', error);
+    next(error);
+  }
+});
+
+// POST /api/admin/users/create - Create new user account
+app.post('/api/admin/users/create', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
+  try {
+    const { email, fullName, role, centerId } = req.body;
+    if (!email || !fullName || !role || !centerId) {
+      return res.status(400).json({ success: false, error: 'Thiếu thông tin bắt buộc' });
+    }
+    const validRoles = ['CENTER_MANAGER', 'TEACHER', 'STUDENT'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ success: false, error: 'Vai trò không hợp lệ' });
+    }
+
+    // Check duplicate email
+    const { data: existCheck } = await supabase.from('users').select('id').eq('email', email).maybeSingle();
+    if (existCheck) {
+      return res.status(409).json({ success: false, error: 'Email đã tồn tại trong hệ thống' });
+    }
+
+    // Create auth user
+    const tempPassword = crypto.randomUUID() + 'A1!';
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: { full_name: fullName },
+    });
+    if (authError) throw authError;
+
+    const userId = authData.user.id;
+
+    // Get role_id
+    const { data: roleData } = await supabase.from('roles').select('id').eq('code', role).single();
+
+    // Create profile
+    const { error: profileError } = await supabase.from('users').upsert({
+      id: userId,
+      full_name: fullName,
+      email,
+      role_id: roleData?.id,
+      center_id: centerId,
+      status: 'active',
+    });
+    if (profileError) throw profileError;
+
+    // No separate students table needed — students are users with STUDENT role
+
+    // Send password reset so user can set own password
+    await supabase.auth.admin.generateLink({ type: 'recovery', email });
+
+    AuditLogService.log({ ...getAuditContext(req), action: 'CREATE', tableName: 'users', recordId: userId, newValues: { email, role, full_name: fullName } });
+
+    res.json({ success: true, data: { id: userId, email, fullName, role } });
+  } catch (error) {
+    console.error('Error creating user:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// CROSS-CENTER REPORT APIs - SUPER_ADMIN only
+// ============================================================
+
+// GET /api/admin/reports/revenue - Cross-center revenue comparison
+app.get('/api/admin/reports/revenue', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const now = new Date();
+    const start = startDate || new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString();
+    const end = endDate || now.toISOString();
+
+    const { data: centers } = await supabase.from('centers').select('id, name').eq('status', 'active');
+    const months = [];
+    const startD = new Date(start);
+    const endD = new Date(end);
+
+    for (let d = new Date(startD.getFullYear(), startD.getMonth(), 1); d <= endD; d.setMonth(d.getMonth() + 1)) {
+      const monthStart = new Date(d.getFullYear(), d.getMonth(), 1);
+      const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
+      const monthLabel = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`;
+
+      const centersData = [];
+      let monthTotal = 0;
+      for (const center of (centers || [])) {
+        const { data: payments } = await supabase.from('payments')
+          .select('amount, invoices!inner(classes!inner(center_id))')
+          .eq('verification_status', 'verified')
+          .eq('invoices.classes.center_id', center.id)
+          .gte('payment_date', monthStart.toISOString())
+          .lte('payment_date', monthEnd.toISOString());
+        const revenue = (payments || []).reduce((s, p) => s + (p.amount || 0), 0);
+        centersData.push({ center_id: center.id, center_name: center.name, revenue });
+        monthTotal += revenue;
+      }
+      months.push({ month: monthLabel, centers: centersData, total: monthTotal });
+    }
+
+    res.json({ success: true, data: months });
+  } catch (error) {
+    console.error('Error in cross-center revenue:', error);
+    next(error);
+  }
+});
+
+// GET /api/admin/reports/enrollment - Cross-center enrollment comparison
+app.get('/api/admin/reports/enrollment', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const now = new Date();
+    const start = startDate || new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString();
+    const end = endDate || now.toISOString();
+
+    const { data: centers } = await supabase.from('centers').select('id, name').eq('status', 'active');
+    const months = [];
+    const startD = new Date(start);
+    const endD = new Date(end);
+
+    for (let d = new Date(startD.getFullYear(), startD.getMonth(), 1); d <= endD; d.setMonth(d.getMonth() + 1)) {
+      const monthStart = new Date(d.getFullYear(), d.getMonth(), 1);
+      const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
+      const monthLabel = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`;
+
+      const centersData = [];
+      for (const center of (centers || [])) {
+        const { count } = await supabase.from('enrollments')
+          .select('id, classes!inner(center_id)', { count: 'exact', head: true })
+          .eq('classes.center_id', center.id)
+          .gte('created_at', monthStart.toISOString())
+          .lte('created_at', monthEnd.toISOString());
+        centersData.push({ center_id: center.id, center_name: center.name, enrollments: count || 0 });
+      }
+      months.push({ month: monthLabel, centers: centersData });
+    }
+
+    res.json({ success: true, data: months });
+  } catch (error) {
+    console.error('Error in cross-center enrollment:', error);
+    next(error);
+  }
+});
+
+// GET /api/admin/reports/attendance - Cross-center attendance comparison
+app.get('/api/admin/reports/attendance', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const now = new Date();
+    const start = startDate || new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString();
+    const end = endDate || now.toISOString();
+
+    const { data: centers } = await supabase.from('centers').select('id, name').eq('status', 'active');
+    const months = [];
+    const startD = new Date(start);
+    const endD = new Date(end);
+
+    for (let d = new Date(startD.getFullYear(), startD.getMonth(), 1); d <= endD; d.setMonth(d.getMonth() + 1)) {
+      const monthStart = new Date(d.getFullYear(), d.getMonth(), 1);
+      const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
+      const monthLabel = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`;
+
+      const centersData = [];
+      for (const center of (centers || [])) {
+        const { data: attData } = await supabase.from('attendance')
+          .select('status, enrollments!inner(classes!inner(center_id))')
+          .eq('enrollments.classes.center_id', center.id)
+          .gte('session_date', monthStart.toISOString())
+          .lte('session_date', monthEnd.toISOString());
+        const total = (attData || []).length;
+        const present = (attData || []).filter(a => a.status === 'present' || a.status === 'late').length;
+        const rate = total > 0 ? Math.round((present / total) * 100) : 0;
+        centersData.push({ center_id: center.id, center_name: center.name, attendance_rate: rate, total_records: total });
+      }
+      months.push({ month: monthLabel, centers: centersData });
+    }
+
+    res.json({ success: true, data: months });
+  } catch (error) {
+    console.error('Error in cross-center attendance:', error);
+    next(error);
+  }
+});
+
+// GET /api/admin/reports/staff - Cross-center staff comparison
+app.get('/api/admin/reports/staff', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
+  try {
+    const { data: centers } = await supabase.from('centers').select('id, name').eq('status', 'active');
+    const result = [];
+
+    for (const center of (centers || [])) {
+      const { count: staffCount } = await supabase.from('users').select('id', { count: 'exact', head: true }).eq('center_id', center.id).in('role_id', ['7d0897c4-4e72-480e-97b4-86770b0b9542', 'd16c524b-8ea5-4baa-b6b0-057ce3ab1fbb']);
+      const { count: teacherCount } = await supabase.from('users').select('id', { count: 'exact', head: true }).eq('center_id', center.id).eq('role_id', '7d0897c4-4e72-480e-97b4-86770b0b9542');
+
+      // Get payroll cost for current month
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const monthEnd = now.toISOString();
+      const { data: payrollData } = await supabase.from('payroll')
+        .select('net_salary, teacher_id, users!inner(center_id)')
+        .eq('users.center_id', center.id)
+        .gte('created_at', monthStart)
+        .lte('created_at', monthEnd);
+      const payrollCost = (payrollData || []).reduce((s, p) => s + (p.net_salary || 0), 0);
+
+      // class_sessions table does not exist — use v_teacher_performance view or skip
+      const { data: perfData } = await supabase.from('v_teacher_performance').select('total_hours_taught').eq('center_name', center.name);
+      const totalHours = Math.round((perfData || []).reduce((s, t) => s + (t.total_hours_taught || 0), 0));
+
+      result.push({
+        center_id: center.id,
+        center_name: center.name,
+        staff_count: staffCount || 0,
+        teacher_count: teacherCount || 0,
+        payroll_cost: payrollCost,
+        teaching_hours: totalHours,
+      });
+    }
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('Error in cross-center staff:', error);
+    next(error);
+  }
+});
 // ============================================================
 // INVOICES APIs - Quản lý hóa đơn
 // ============================================================
@@ -16912,6 +18494,15 @@ app.post('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) 
 
     console.log(`✅ Saved ${savedGrades?.length || 0} grades for class ${classId}, structure ${gradeStructure.name}`);
 
+    AuditLogService.log({
+      ...getAuditContext(req),
+      centerId: getEffectiveCenterId(req),
+      action: 'CREATE',
+      tableName: 'grades',
+      recordId: null,
+      newValues: { class_id: req.params.id }
+    });
+
     res.json({
       success: true,
       message: `Đã lưu ${savedGrades?.length || 0} điểm thành công`,
@@ -17140,6 +18731,15 @@ app.post('/api/teacher/classes/:id/grades/lock', requireAuth, async (req, res, n
     if (lockError) throw lockError;
 
     console.log(`✅ Locked ${lockedGrades?.length || 0} grades for class ${classId}`);
+
+    AuditLogService.log({
+      ...getAuditContext(req),
+      centerId: getEffectiveCenterId(req),
+      action: 'LOCK_GRADES',
+      tableName: 'grades',
+      recordId: null,
+      newValues: { class_id: req.params.id }
+    });
 
     res.json({
       success: true,
@@ -18696,6 +20296,134 @@ app.delete('/api/reports/saved/:id', requireAuth, async (req, res, next) => {
   }
 });
 
+// GET /api/admin/scheduled-reports - List scheduled report configs
+app.get('/api/admin/scheduled-reports', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+  try {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const centerId = getEffectiveCenterId(req);
+
+    let query = supabase
+      .from('saved_reports')
+      .select('*')
+      .not('schedule', 'is', null)
+      .order('updated_at', { ascending: false });
+
+    if (centerId) {
+      query = query.eq('center_id', centerId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json({ success: true, data: data || [] });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/admin/scheduled-reports - Create/update schedule for saved report
+app.post('/api/admin/scheduled-reports', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+  try {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const centerId = getEffectiveCenterId(req);
+    const { report_id, schedule, email_recipients, next_run_at } = req.body;
+
+    if (!report_id) {
+      return res.status(400).json({ success: false, error: 'report_id is required' });
+    }
+
+    let query = supabase
+      .from('saved_reports')
+      .update({
+        schedule,
+        email_recipients: email_recipients || [],
+        next_run_at: next_run_at || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', report_id)
+      .select('*')
+      .single();
+
+    if (centerId) {
+      query = query.eq('center_id', centerId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// DELETE /api/admin/scheduled-reports/:id - Remove report schedule
+app.delete('/api/admin/scheduled-reports/:id', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+  try {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const centerId = getEffectiveCenterId(req);
+    const { id } = req.params;
+
+    let query = supabase
+      .from('saved_reports')
+      .update({
+        schedule: null,
+        email_recipients: [],
+        next_run_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (centerId) {
+      query = query.eq('center_id', centerId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/admin/scheduled-reports/:id/run-now - Trigger immediate report generation
+app.post('/api/admin/scheduled-reports/:id/run-now', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+  try {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const centerId = getEffectiveCenterId(req);
+    const { id } = req.params;
+    const nowIso = new Date().toISOString();
+
+    let query = supabase
+      .from('saved_reports')
+      .update({
+        next_run_at: nowIso,
+        updated_at: nowIso,
+      })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (centerId) {
+      query = query.eq('center_id', centerId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // ============================================================
 // END REPORTS APIs
 // ============================================================
@@ -19600,7 +21328,7 @@ app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       }
 
       const { data: studentProfile, error: studentError } = await supabase
-        .from('profiles')
+        .from('users')
         .select('full_name')
         .eq('id', student_id)
         .single();
@@ -20358,6 +22086,192 @@ app.put('/api/admin/certificates/:id', requireAuth, requireRole(['SUPER_ADMIN', 
     });
   } catch (error) {
     console.error('Error updating certificate:', error);
+    next(error);
+  }
+});
+
+// ============ CERTIFICATE APPROVAL ENDPOINTS ============
+
+// GET /api/admin/certificates/pending-approvals - List pending certificate approvals
+app.get('/api/admin/certificates/pending-approvals', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const supabaseClient = req.supabase || supabase;
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, req.query.center_id);
+    if (permError) {
+      return res.status(403).json({ success: false, error: permError });
+    }
+
+    let query = supabaseClient
+      .from('certificates')
+      .select(`
+        id,
+        certificate_number,
+        certificate_type,
+        status,
+
+        issued_at,
+        created_at,
+        student:users!certificates_student_id_fkey(id, full_name, email),
+        class:classes(id, code, name, center_id),
+        course:courses(id, code, title),
+        certificate_type_ref:certificate_types(id, code, name)
+      `)
+      .eq('status', 'pending_approval')
+      .order('created_at', { ascending: false });
+
+    if (effectiveCenterId) {
+      query = query.eq('center_id', effectiveCenterId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json({ success: true, data: data || [] });
+  } catch (error) {
+    console.error('Error fetching pending certificate approvals:', error);
+    next(error);
+  }
+});
+
+// PUT /api/admin/certificates/:id/approve
+app.put('/api/admin/certificates/:id/approve', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const supabaseClient = req.supabase || supabase;
+
+    const { data: cert, error: certError } = await supabaseClient
+      .from('certificates')
+      .update({ status: 'approved' })
+      .eq('id', id)
+      .eq('status', 'pending_approval')
+      .select()
+      .single();
+
+    if (certError || !cert) {
+      return res.status(404).json({ success: false, error: 'Certificate not found or already processed' });
+    }
+
+    await supabaseClient
+      .from('certificate_approvals')
+      .update({
+        status: 'approved',
+        approved_by: req.user.id,
+        approved_at: new Date().toISOString()
+      })
+      .contains('certificate_ids', [id])
+      .eq('status', 'pending');
+
+    AuditLogService.log({
+      ...getAuditContext(req),
+      action: 'CERTIFICATE_APPROVED',
+      entityType: 'certificate',
+      entityId: id,
+      status: 'SUCCESS'
+    });
+
+    res.json({ success: true, data: cert });
+  } catch (error) {
+    console.error('Error approving certificate:', error);
+    next(error);
+  }
+});
+
+// PUT /api/admin/certificates/:id/reject
+app.put('/api/admin/certificates/:id/reject', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    const supabaseClient = req.supabase || supabase;
+
+    if (!reason) {
+      return res.status(400).json({ success: false, error: 'Rejection reason is required' });
+    }
+
+    const { data: cert, error: certError } = await supabaseClient
+      .from('certificates')
+      .update({ status: 'rejected' })
+      .eq('id', id)
+      .eq('status', 'pending_approval')
+      .select()
+      .single();
+
+    if (certError || !cert) {
+      return res.status(404).json({ success: false, error: 'Certificate not found or already processed' });
+    }
+
+    await supabaseClient
+      .from('certificate_approvals')
+      .update({
+        status: 'rejected',
+        rejected_by: req.user.id,
+        rejected_at: new Date().toISOString(),
+        rejection_reason: reason
+      })
+      .contains('certificate_ids', [id])
+      .eq('status', 'pending');
+
+    AuditLogService.log({
+      ...getAuditContext(req),
+      action: 'CERTIFICATE_REJECTED',
+      entityType: 'certificate',
+      entityId: id,
+      status: 'SUCCESS',
+      metadata: { reason }
+    });
+
+    res.json({ success: true, data: cert });
+  } catch (error) {
+    console.error('Error rejecting certificate:', error);
+    next(error);
+  }
+});
+
+// ============ UNIFIED PENDING APPROVALS ============
+
+// GET /api/admin/pending-approvals - Aggregate pending counts from all sources
+app.get('/api/admin/pending-approvals', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const supabaseClient = req.supabase || supabase;
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, req.query.center_id);
+    if (permError) {
+      return res.status(403).json({ success: false, error: permError });
+    }
+
+    const buildQuery = (table, statusCol, statusVal) => {
+      let q = supabaseClient.from(table).select('id', { count: 'exact', head: true });
+      if (Array.isArray(statusVal)) {
+        q = q.in(statusCol, statusVal);
+      } else {
+        q = q.eq(statusCol, statusVal);
+      }
+      if (effectiveCenterId) {
+        q = q.eq('center_id', effectiveCenterId);
+      }
+      return q;
+    };
+
+    const [enrollments, certificates, payments, payroll, disputes, leaves] = await Promise.all([
+      buildQuery('enrollment_requests', 'status', 'pending'),
+      buildQuery('certificates', 'status', 'pending_approval'),
+      buildQuery('payments', 'verification_status', 'pending'),
+      buildQuery('payroll', 'status', 'pending'),
+      buildQuery('payroll_disputes', 'status', ['pending', 'reviewing']),
+      buildQuery('leave_requests', 'status', 'pending')
+    ]);
+
+    const counts = {
+      enrollments: enrollments.count || 0,
+      certificates: certificates.count || 0,
+      payments: payments.count || 0,
+      payroll: payroll.count || 0,
+      disputes: disputes.count || 0,
+      leaves: leaves.count || 0
+    };
+    counts.total = Object.values(counts).reduce((a, b) => a + b, 0);
+
+    res.json({ success: true, data: counts });
+  } catch (error) {
+    console.error('Error fetching pending approvals:', error);
     next(error);
   }
 });
@@ -21814,6 +23728,323 @@ app.get('/api/admin/waiting-list/statistics', requireAuth, requireRole(['SUPER_A
   }
 });
 
+/**
+ * GET /api/admin/enrollment-requests
+ * List enrollment requests with filters and pagination
+ */
+app.get('/api/admin/enrollment-requests', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const supabaseClient = req.supabase || supabase;
+    const {
+      status,
+      class_id,
+      start_date,
+      end_date,
+      page = 1,
+      limit = 20
+    } = req.query;
+
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, req.query.center_id || req.body?.center_id);
+    if (permError) return res.status(403).json({ success: false, error: permError });
+
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, Math.min(parseInt(limit, 10) || 20, 100));
+    const offset = (pageNum - 1) * limitNum;
+
+    let query = supabaseClient
+      .from('enrollment_requests')
+      .select(`
+        id, student_id, class_id, center_id, status, message, admin_note, reviewed_by, reviewed_at, created_at,
+        student:users!enrollment_requests_student_id_fkey(id, full_name, email, phone),
+        class:classes(id, name, code, course:courses(id, title))
+      `, { count: 'exact' })
+
+    if (effectiveCenterId) {
+      query = query.eq('center_id', effectiveCenterId);
+    }
+
+    if (status) query = query.eq('status', status);
+    if (class_id) query = query.eq('class_id', class_id);
+    if (start_date) query = query.gte('created_at', `${start_date}T00:00:00.000Z`);
+    if (end_date) query = query.lte('created_at', `${end_date}T23:59:59.999Z`);
+
+    query = query.range(offset, offset + limitNum - 1);
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    const requests = (data || []).sort((a, b) => {
+      const aPending = a.status === 'pending' ? 0 : 1;
+      const bPending = b.status === 'pending' ? 0 : 1;
+      if (aPending !== bPending) return aPending - bPending;
+      return new Date(a.created_at) - new Date(b.created_at);
+    });
+
+    const paginatedRequests = requests.slice(offset, offset + limitNum);
+
+    let pendingQuery = supabaseClient
+      .from('enrollment_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending');
+
+    if (effectiveCenterId) {
+      pendingQuery = pendingQuery.eq('center_id', effectiveCenterId);
+    }
+
+    const { count: pendingCount, error: pendingError } = await pendingQuery;
+
+    if (pendingError) throw pendingError;
+
+    res.json({
+      success: true,
+      data: paginatedRequests,
+      metadata: {
+        pending_count: pendingCount || 0,
+        pagination: {
+          total: count || 0,
+          page: pageNum,
+          limit: limitNum,
+          totalPages: Math.ceil((count || 0) / limitNum)
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching enrollment requests:', error);
+    next(error);
+  }
+});
+
+/**
+ * PATCH /api/admin/enrollment-requests/:id/approve
+ * Approve enrollment request and create enrollment + draft invoice
+ */
+app.patch('/api/admin/enrollment-requests/:id/approve', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const supabaseClient = req.supabase || supabase;
+    const { id } = req.params;
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, req.query.center_id || req.body?.center_id);
+    if (permError) return res.status(403).json({ success: false, error: permError });
+
+    const { data: requestData, error: requestError } = await supabaseClient
+      .from('enrollment_requests')
+      .select('id, student_id, class_id, center_id, status, created_at, class:classes(id, name, max_students, default_tuition)')
+      .eq('id', id)
+      .single();
+
+    if (requestError) {
+      if (requestError.code === 'PGRST116') {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy yêu cầu đăng ký' });
+      }
+      throw requestError;
+    }
+
+    if (requestData.center_id !== effectiveCenterId) {
+      return res.status(403).json({ success: false, message: 'Không có quyền xử lý yêu cầu này' });
+    }
+
+    if (requestData.status !== 'pending') {
+      return res.status(400).json({ success: false, message: 'Chỉ có thể duyệt yêu cầu đang chờ xử lý' });
+    }
+
+    const maxStudents = requestData.class?.max_students || 20;
+    const { count: enrolledCount, error: enrolledCountError } = await supabaseClient
+      .from('enrollments')
+      .select('id', { count: 'exact', head: true })
+      .eq('class_id', requestData.class_id)
+      .eq('status', 'active');
+
+    if (enrolledCountError) throw enrolledCountError;
+
+    if ((enrolledCount || 0) >= maxStudents) {
+      return res.status(409).json({ success: false, message: 'Lớp học đã đầy, không thể duyệt yêu cầu' });
+    }
+
+    const result = await createEnrollmentWithDraftInvoice(supabaseClient, {
+      student_id: requestData.student_id,
+      class_id: requestData.class_id,
+      tuition_fee: requestData.class?.default_tuition || 0,
+      discount_amount: 0,
+      paid_amount: 0,
+      notes: 'Đăng ký qua yêu cầu',
+      created_by: req.user.id
+    });
+
+    if (result.error) {
+      return res.status(400).json({ success: false, message: result.error });
+    }
+
+    const { data: updatedRequest, error: updateError } = await supabaseClient
+      .from('enrollment_requests')
+      .update({
+        status: 'enrolled',
+        reviewed_by: req.user.id,
+        reviewed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', requestData.id)
+      .select('id, status, reviewed_by, reviewed_at, updated_at')
+      .single();
+
+    if (updateError) throw updateError;
+
+    createNotification(supabaseClient, {
+      userId: requestData.student_id,
+      centerId: effectiveCenterId,
+      type: 'enrollment_approved',
+      title: 'Yêu cầu đăng ký được duyệt',
+      message: `Bạn đã được đăng ký vào lớp ${requestData.class?.name || ''}`,
+      referenceId: requestData.id,
+      referenceType: 'enrollment_request'
+    }).catch(err => console.warn('Approval notification failed:', err.message));
+
+    res.json({
+      success: true,
+      data: {
+        request: updatedRequest,
+        enrollment: result.enrollment,
+        invoice: result.invoice
+      }
+    });
+  } catch (error) {
+    console.error('Error approving enrollment request:', error);
+    next(error);
+  }
+});
+
+/**
+ * PATCH /api/admin/enrollment-requests/:id/reject
+ * Reject enrollment request
+ */
+app.patch('/api/admin/enrollment-requests/:id/reject', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const supabaseClient = req.supabase || supabase;
+    const { id } = req.params;
+    const { admin_note } = req.body;
+
+    if (!admin_note || !String(admin_note).trim()) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập lý do từ chối (admin_note)' });
+    }
+
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, req.query.center_id || req.body?.center_id);
+    if (permError) return res.status(403).json({ success: false, error: permError });
+
+    const { data: requestData, error: requestError } = await supabaseClient
+      .from('enrollment_requests')
+      .select('id, student_id, class_id, center_id, status, class:classes(id, name)')
+      .eq('id', id)
+      .single();
+
+    if (requestError) {
+      if (requestError.code === 'PGRST116') {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy yêu cầu đăng ký' });
+      }
+      throw requestError;
+    }
+
+    if (requestData.center_id !== effectiveCenterId) {
+      return res.status(403).json({ success: false, message: 'Không có quyền xử lý yêu cầu này' });
+    }
+
+    if (!['pending', 'waitlisted'].includes(requestData.status)) {
+      return res.status(400).json({ success: false, message: 'Chỉ có thể từ chối yêu cầu đang chờ hoặc trong danh sách chờ' });
+    }
+
+    const { data: updatedRequest, error: updateError } = await supabaseClient
+      .from('enrollment_requests')
+      .update({
+        status: 'rejected',
+        admin_note: String(admin_note).trim(),
+        reviewed_by: req.user.id,
+        reviewed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select('id, status, admin_note, reviewed_by, reviewed_at, updated_at')
+      .single();
+
+    if (updateError) throw updateError;
+
+    createNotification(supabaseClient, {
+      userId: requestData.student_id,
+      centerId: effectiveCenterId,
+      type: 'enrollment_rejected',
+      title: 'Yêu cầu đăng ký bị từ chối',
+      message: `Yêu cầu đăng ký lớp ${requestData.class?.name || ''} đã bị từ chối. Lý do: ${String(admin_note).trim()}`,
+      referenceId: requestData.id,
+      referenceType: 'enrollment_request'
+    }).catch(err => console.warn('Rejection notification failed:', err.message));
+
+    res.json({ success: true, data: updatedRequest });
+  } catch (error) {
+    console.error('Error rejecting enrollment request:', error);
+    next(error);
+  }
+});
+
+/**
+ * PATCH /api/admin/enrollment-requests/:id/waitlist
+ * Move pending request to waitlist
+ */
+app.patch('/api/admin/enrollment-requests/:id/waitlist', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const supabaseClient = req.supabase || supabase;
+    const { id } = req.params;
+
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, req.query.center_id || req.body?.center_id);
+    if (permError) return res.status(403).json({ success: false, error: permError });
+
+    const { data: requestData, error: requestError } = await supabaseClient
+      .from('enrollment_requests')
+      .select('id, student_id, center_id, status, class:classes(id, name)')
+      .eq('id', id)
+      .single();
+
+    if (requestError) {
+      if (requestError.code === 'PGRST116') {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy yêu cầu đăng ký' });
+      }
+      throw requestError;
+    }
+
+    if (requestData.center_id !== effectiveCenterId) {
+      return res.status(403).json({ success: false, message: 'Không có quyền xử lý yêu cầu này' });
+    }
+
+    if (requestData.status !== 'pending') {
+      return res.status(400).json({ success: false, message: 'Chỉ có thể chuyển yêu cầu đang chờ sang danh sách chờ' });
+    }
+
+    const { data: updatedRequest, error: updateError } = await supabaseClient
+      .from('enrollment_requests')
+      .update({
+        status: 'waitlisted',
+        reviewed_by: req.user.id,
+        reviewed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select('id, status, reviewed_by, reviewed_at, updated_at')
+      .single();
+
+    if (updateError) throw updateError;
+
+    createNotification(supabaseClient, {
+      userId: requestData.student_id,
+      centerId: effectiveCenterId,
+      type: 'enrollment_waitlisted',
+      title: 'Yêu cầu chuyển sang danh sách chờ',
+      message: `Lớp ${requestData.class?.name || ''} hiện đã đầy. Yêu cầu của bạn đã được chuyển vào danh sách chờ.`,
+      referenceId: requestData.id,
+      referenceType: 'enrollment_request'
+    }).catch(err => console.warn('Waitlist notification failed:', err.message));
+
+    res.json({ success: true, data: updatedRequest });
+  } catch (error) {
+    console.error('Error waitlisting enrollment request:', error);
+    next(error);
+  }
+});
+
 // ============================================================
 // NOTIFICATION BELL APIs (fetch, mark read)
 // ============================================================
@@ -22032,7 +24263,7 @@ app.post('/api/admin/notifications/send', requireAuth, requireRole(['SUPER_ADMIN
 
     // Fetch recipient details
     const { data: recipientProfiles, error: recipientError } = await supabase
-      .from('profiles')
+      .from('users')
       .select('id, email, phone, full_name')
       .in('id', recipients);
 
@@ -23228,7 +25459,7 @@ app.get('/api/students/:studentId/documents', requireAuth, async (req, res, next
     const { studentId } = req.params;
 
     const { data: student, error: studentError } = await supabase
-      .from('students')
+      .from('users')
       .select('id, center_id, full_name')
       .eq('id', studentId)
       .single();
@@ -23291,7 +25522,7 @@ app.post('/api/students/:studentId/documents', requireAuth, async (req, res, nex
     }
 
     const { data: student, error: studentError } = await supabase
-      .from('students')
+      .from('users')
       .select('id, center_id')
       .eq('id', studentId)
       .single();
@@ -24082,9 +26313,9 @@ app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADM
         .from('audit_logs')
         .insert({
           action: 'STUDENT_TRANSFER',
-          entity_type: 'users',
-          entity_id: id,
-          performed_by: req.user.id,
+          table_name: 'users',
+          record_id: id,
+          user_id: req.user.id,
           old_values: {
             center_id: sourceCenterId,
             center_name: sourceCenterName
@@ -24145,11 +26376,11 @@ app.get('/api/admin/students/:id/transfer-history', requireAuth, requireRole(['S
     const { data, error } = await supabase
       .from('audit_logs')
       .select(`
-        id, action, old_values, new_values, notes, created_at,
-        performed_by_user:users!audit_logs_performed_by_fkey (id, full_name)
+        id, action, old_values, new_values, created_at,
+        user:users!audit_logs_user_id_fkey (id, full_name)
       `)
-      .eq('entity_type', 'users')
-      .eq('entity_id', id)
+      .eq('table_name', 'users')
+      .eq('record_id', id)
       .eq('action', 'STUDENT_TRANSFER')
       .order('created_at', { ascending: false });
 
@@ -24961,6 +27192,465 @@ app.get('/api/student/certificates',
       });
     } catch (error) {
       console.error('❌ Error fetching student certificates:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/student/available-courses
+ * Browse available courses and classes for enrollment requests
+ */
+app.get('/api/student/available-courses',
+  requireAuth,
+  requireRole(['STUDENT']),
+  async (req, res, next) => {
+    try {
+      const supabaseClient = req.supabase || supabase;
+      const studentId = req.user.id;
+      const centerId = req.user.center_id || req.user.centerId;
+      const { search } = req.query;
+
+      let coursesQuery = supabaseClient
+        .from('courses')
+        .select(`
+          id, title, slug, description, cover_image, price, duration_weeks, level,
+          classes!inner(
+            id, name, code, schedule, room, start_date, end_date, max_students, status, teacher_id,
+            teacher:users!classes_teacher_id_fkey(full_name)
+          )
+        `)
+        .eq('classes.center_id', centerId)
+        .in('classes.status', ['upcoming', 'ongoing']);
+
+      if (search && String(search).trim()) {
+        coursesQuery = coursesQuery.ilike('title', `%${String(search).trim()}%`);
+      }
+
+      const { data: courses, error: coursesError } = await coursesQuery;
+      if (coursesError) throw coursesError;
+
+      const classIds = (courses || []).flatMap(course => (course.classes || []).map(cls => cls.id));
+
+      let activeEnrollments = [];
+      if (classIds.length > 0) {
+        const { data, error } = await supabaseClient
+          .from('enrollments')
+          .select('id, class_id')
+          .in('class_id', classIds)
+          .eq('status', 'active');
+        if (error) throw error;
+        activeEnrollments = data || [];
+      }
+
+      let requestRows = [];
+      if (classIds.length > 0) {
+        const { data, error } = await supabaseClient
+          .from('enrollment_requests')
+          .select('id, class_id, status, created_at')
+          .eq('student_id', studentId)
+          .eq('center_id', centerId)
+          .in('class_id', classIds)
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        requestRows = data || [];
+      }
+
+      const enrolledMap = {};
+      for (const enrollment of activeEnrollments) {
+        enrolledMap[enrollment.class_id] = (enrolledMap[enrollment.class_id] || 0) + 1;
+      }
+
+      const requestStatusMap = {};
+      for (const reqRow of requestRows) {
+        if (!requestStatusMap[reqRow.class_id]) {
+          requestStatusMap[reqRow.class_id] = reqRow.status;
+        }
+      }
+
+      const data = (courses || []).map(course => ({
+        id: course.id,
+        title: course.title,
+        slug: course.slug,
+        description: course.description,
+        cover_image: course.cover_image,
+        price: course.price,
+        duration_weeks: course.duration_weeks,
+        level: course.level,
+        classes: (course.classes || []).map(cls => {
+          const enrolledCount = enrolledMap[cls.id] || 0;
+          const maxStudents = cls.max_students || 20;
+          return {
+            id: cls.id,
+            name: cls.name,
+            code: cls.code,
+            schedule: cls.schedule,
+            room: cls.room,
+            start_date: cls.start_date,
+            end_date: cls.end_date,
+            max_students: maxStudents,
+            enrolled_count: enrolledCount,
+            available_slots: Math.max(0, maxStudents - enrolledCount),
+            status: cls.status,
+            teacher: cls.teacher,
+            request_status: requestStatusMap[cls.id] || null
+          };
+        })
+      }));
+
+      res.json({ success: true, data });
+    } catch (error) {
+      console.error('Error fetching available courses for student:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/student/available-courses/:courseId
+ * Get available classes and enrollment/request status for a course
+ */
+app.get('/api/student/available-courses/:courseId',
+  requireAuth,
+  requireRole(['STUDENT']),
+  async (req, res, next) => {
+    try {
+      const supabaseClient = req.supabase || supabase;
+      const studentId = req.user.id;
+      const centerId = req.user.center_id || req.user.centerId;
+      const { courseId } = req.params;
+
+      const { data: course, error: courseError } = await supabaseClient
+        .from('courses')
+        .select(`
+          id, title, slug, description, cover_image, price, duration_weeks, level,
+          classes!inner(
+            id, name, code, schedule, room, start_date, end_date, max_students, status, teacher_id,
+            teacher:users!classes_teacher_id_fkey(full_name)
+          )
+        `)
+        .eq('id', courseId)
+        .eq('classes.center_id', centerId)
+        .in('classes.status', ['upcoming', 'ongoing'])
+        .single();
+
+      if (courseError) {
+        if (courseError.code === 'PGRST116') {
+          return res.status(404).json({ success: false, message: 'Không tìm thấy khóa học' });
+        }
+        throw courseError;
+      }
+
+      const classIds = (course.classes || []).map(cls => cls.id);
+
+      let activeEnrollments = [];
+      let myEnrollments = [];
+      let requestRows = [];
+      if (classIds.length > 0) {
+        const [{ data: activeRows, error: activeError }, { data: myRows, error: myError }, { data: reqRows, error: reqError }] = await Promise.all([
+          supabaseClient
+            .from('enrollments')
+            .select('id, class_id')
+            .in('class_id', classIds)
+            .eq('status', 'active'),
+          supabaseClient
+            .from('enrollments')
+            .select('id, class_id, status')
+            .eq('student_id', studentId)
+            .in('class_id', classIds),
+          supabaseClient
+            .from('enrollment_requests')
+            .select('id, class_id, status, created_at')
+            .eq('student_id', studentId)
+            .eq('center_id', centerId)
+            .in('class_id', classIds)
+            .order('created_at', { ascending: false })
+        ]);
+
+        if (activeError) throw activeError;
+        if (myError) throw myError;
+        if (reqError) throw reqError;
+
+        activeEnrollments = activeRows || [];
+        myEnrollments = myRows || [];
+        requestRows = reqRows || [];
+      }
+
+      const enrolledMap = {};
+      for (const enrollment of activeEnrollments) {
+        enrolledMap[enrollment.class_id] = (enrolledMap[enrollment.class_id] || 0) + 1;
+      }
+
+      const myEnrollmentStatusMap = {};
+      for (const enrollment of myEnrollments) {
+        if (!myEnrollmentStatusMap[enrollment.class_id]) {
+          myEnrollmentStatusMap[enrollment.class_id] = enrollment.status;
+        }
+      }
+
+      const requestStatusMap = {};
+      for (const reqRow of requestRows) {
+        if (!requestStatusMap[reqRow.class_id]) {
+          requestStatusMap[reqRow.class_id] = reqRow.status;
+        }
+      }
+
+      const data = {
+        id: course.id,
+        title: course.title,
+        slug: course.slug,
+        description: course.description,
+        cover_image: course.cover_image,
+        price: course.price,
+        duration_weeks: course.duration_weeks,
+        level: course.level,
+        classes: (course.classes || []).map(cls => {
+          const enrolledCount = enrolledMap[cls.id] || 0;
+          const maxStudents = cls.max_students || 20;
+          return {
+            id: cls.id,
+            name: cls.name,
+            code: cls.code,
+            schedule: cls.schedule,
+            room: cls.room,
+            start_date: cls.start_date,
+            end_date: cls.end_date,
+            max_students: maxStudents,
+            enrolled_count: enrolledCount,
+            available_slots: Math.max(0, maxStudents - enrolledCount),
+            status: cls.status,
+            teacher: cls.teacher,
+            enrollment_status: myEnrollmentStatusMap[cls.id] || null,
+            request_status: requestStatusMap[cls.id] || null
+          };
+        })
+      };
+
+      res.json({ success: true, data });
+    } catch (error) {
+      console.error('Error fetching available course detail for student:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /api/student/enrollment-requests
+ * Student submits enrollment request
+ */
+app.post('/api/student/enrollment-requests',
+  requireAuth,
+  requireRole(['STUDENT']),
+  async (req, res, next) => {
+    try {
+      const supabaseClient = req.supabase || supabase;
+      const studentId = req.user.id;
+      const centerId = req.user.center_id || req.user.centerId;
+      const { class_id, message } = req.body;
+
+      if (!class_id) {
+        return res.status(400).json({ success: false, message: 'Thiếu class_id' });
+      }
+
+      const { data: classData, error: classError } = await supabaseClient
+        .from('classes')
+        .select('id, name, center_id, status, max_students')
+        .eq('id', class_id)
+        .eq('center_id', centerId)
+        .single();
+
+      if (classError) {
+        if (classError.code === 'PGRST116') {
+          return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+        }
+        throw classError;
+      }
+
+      if (!['upcoming', 'ongoing'].includes(classData.status)) {
+        return res.status(400).json({ success: false, message: 'Chỉ có thể gửi yêu cầu cho lớp sắp khai giảng hoặc đang mở' });
+      }
+
+      const { data: activeEnrollment, error: activeEnrollError } = await supabaseClient
+        .from('enrollments')
+        .select('id')
+        .eq('student_id', studentId)
+        .eq('class_id', class_id)
+        .eq('status', 'active')
+        .maybeSingle();
+      if (activeEnrollError) throw activeEnrollError;
+
+      if (activeEnrollment) {
+        return res.status(400).json({ success: false, message: 'Bạn đã ghi danh vào lớp này' });
+      }
+
+      const { data: existingRequest, error: existingRequestError } = await supabaseClient
+        .from('enrollment_requests')
+        .select('id, status')
+        .eq('student_id', studentId)
+        .eq('class_id', class_id)
+        .in('status', ['pending', 'waitlisted'])
+        .maybeSingle();
+      if (existingRequestError) throw existingRequestError;
+
+      if (existingRequest) {
+        return res.status(400).json({ success: false, message: 'Bạn đã có yêu cầu chờ xử lý cho lớp này' });
+      }
+
+      const { count: enrolledCount, error: enrolledCountError } = await supabaseClient
+        .from('enrollments')
+        .select('id', { count: 'exact', head: true })
+        .eq('class_id', class_id)
+        .eq('status', 'active');
+      if (enrolledCountError) throw enrolledCountError;
+
+      const maxStudents = classData.max_students || 20;
+      const initialStatus = (enrolledCount || 0) < maxStudents ? 'pending' : 'waitlisted';
+
+      const { data: createdRequest, error: createError } = await supabaseClient
+        .from('enrollment_requests')
+        .insert({
+          student_id: studentId,
+          class_id,
+          center_id: centerId,
+          status: initialStatus,
+          message: message || null
+        })
+        .select('id, student_id, class_id, center_id, status, message, admin_note, reviewed_by, reviewed_at, created_at, updated_at')
+        .single();
+      if (createError) throw createError;
+
+      const { data: studentData } = await supabaseClient
+        .from('users')
+        .select('id, full_name')
+        .eq('id', studentId)
+        .single();
+
+      const { data: managers } = await supabaseClient
+        .from('users')
+        .select('id, roles!inner(code)')
+        .eq('center_id', centerId)
+        .eq('roles.code', 'CENTER_MANAGER');
+
+      const studentName = studentData?.full_name || 'Học viên';
+      const className = classData?.name || 'lớp học';
+      for (const mgr of (managers || [])) {
+        createNotification(supabaseClient, {
+          userId: mgr.id,
+          centerId,
+          type: 'enrollment_request',
+          title: 'Yêu cầu đăng ký mới',
+          message: `${studentName} yêu cầu đăng ký lớp ${className}`,
+          referenceId: createdRequest.id,
+          referenceType: 'enrollment_request'
+        }).catch(err => console.warn('Manager notification failed:', err.message));
+      }
+
+      res.status(201).json({ success: true, data: createdRequest });
+    } catch (error) {
+      console.error('Error creating student enrollment request:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/student/enrollment-requests
+ * Student views own enrollment requests
+ */
+app.get('/api/student/enrollment-requests',
+  requireAuth,
+  requireRole(['STUDENT']),
+  async (req, res, next) => {
+    try {
+      const supabaseClient = req.supabase || supabase;
+      const studentId = req.user.id;
+      const centerId = req.user.center_id || req.user.centerId;
+
+      const { data, error } = await supabaseClient
+        .from('enrollment_requests')
+        .select(`
+          id, status, message, admin_note, created_at,
+          class:classes(id, name, code, schedule, course:courses(id, title))
+        `)
+        .eq('student_id', studentId)
+        .eq('center_id', centerId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const requests = (data || []).map(item => ({
+        id: item.id,
+        status: item.status,
+        message: item.message,
+        admin_note: item.admin_note,
+        created_at: item.created_at,
+        class: {
+          id: item.class?.id,
+          name: item.class?.name,
+          code: item.class?.code,
+          schedule: item.class?.schedule
+        },
+        course: {
+          title: item.class?.course?.title
+        }
+      }));
+
+      res.json({ success: true, data: requests });
+    } catch (error) {
+      console.error('Error fetching student enrollment requests:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * DELETE /api/student/enrollment-requests/:id
+ * Student cancels own pending/waitlisted request
+ */
+app.delete('/api/student/enrollment-requests/:id',
+  requireAuth,
+  requireRole(['STUDENT']),
+  async (req, res, next) => {
+    try {
+      const supabaseClient = req.supabase || supabase;
+      const studentId = req.user.id;
+      const centerId = req.user.center_id || req.user.centerId;
+      const { id } = req.params;
+
+      const { data: requestData, error: requestError } = await supabaseClient
+        .from('enrollment_requests')
+        .select('id, student_id, center_id, status')
+        .eq('id', id)
+        .single();
+
+      if (requestError) {
+        if (requestError.code === 'PGRST116') {
+          return res.status(404).json({ success: false, message: 'Không tìm thấy yêu cầu đăng ký' });
+        }
+        throw requestError;
+      }
+
+      if (requestData.student_id !== studentId || requestData.center_id !== centerId) {
+        return res.status(403).json({ success: false, message: 'Không có quyền hủy yêu cầu này' });
+      }
+
+      if (!['pending', 'waitlisted'].includes(requestData.status)) {
+        return res.status(400).json({ success: false, message: 'Chỉ có thể hủy yêu cầu đang chờ hoặc trong danh sách chờ' });
+      }
+
+      const { error: updateError } = await supabaseClient
+        .from('enrollment_requests')
+        .update({
+          status: 'cancelled',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (updateError) throw updateError;
+
+      res.json({ success: true, message: 'Đã hủy yêu cầu đăng ký' });
+    } catch (error) {
+      console.error('Error cancelling student enrollment request:', error);
       next(error);
     }
   }
@@ -26626,6 +29316,110 @@ app.delete('/api/teacher/leave-requests/:id', requireAuth, async (req, res, next
   }
 });
 
+// ============ ADMIN LEAVE REQUEST ENDPOINTS ============
+
+// GET /api/admin/leave-requests - List leave requests for admin
+app.get('/api/admin/leave-requests', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const supabaseClient = req.supabase || supabase;
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, req.query.center_id);
+    if (permError) {
+      return res.status(403).json({ success: false, error: permError });
+    }
+
+    const { status, page = 1, limit = 20 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    let query = supabaseClient
+      .from('leave_requests')
+      .select(`
+        id,
+        leave_type,
+        start_date,
+        end_date,
+        reason,
+        status,
+        reviewer_note,
+        created_at,
+        teacher:users!leave_requests_staff_id_fkey(id, full_name, email)
+      `, { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + parseInt(limit) - 1);
+
+    if (effectiveCenterId) {
+      query = query.eq('center_id', effectiveCenterId);
+    }
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: data || [],
+      pagination: { page: parseInt(page), limit: parseInt(limit), total: count || 0 }
+    });
+  } catch (error) {
+    console.error('Error fetching admin leave requests:', error);
+    next(error);
+  }
+});
+
+// PATCH /api/admin/leave-requests/:id - Approve/reject leave request
+app.patch('/api/admin/leave-requests/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status, admin_note } = req.body;
+    const supabaseClient = req.supabase || supabase;
+
+    if (!status || !['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ success: false, error: 'Status must be approved or rejected' });
+    }
+
+    const { data: existing, error: fetchError } = await supabaseClient
+      .from('leave_requests')
+      .select('id, status')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !existing) {
+      return res.status(404).json({ success: false, error: 'Leave request not found' });
+    }
+    if (existing.status !== 'pending') {
+      return res.status(400).json({ success: false, error: 'Leave request already processed' });
+    }
+
+    const { data, error } = await supabaseClient
+      .from('leave_requests')
+      .update({
+        status,
+        reviewer_note: admin_note || null,
+        reviewed_by: req.user.id,
+        reviewed_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    AuditLogService.log({
+      ...getAuditContext(req),
+      action: status === 'approved' ? 'LEAVE_APPROVED' : 'LEAVE_REJECTED',
+      entityType: 'leave_request',
+      entityId: id,
+      status: 'SUCCESS'
+    });
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error updating leave request:', error);
+    next(error);
+  }
+});
+
 // ============================================================
 // END TEACHER LEAVE REQUEST APIs
 // ============================================================
@@ -26648,6 +29442,581 @@ app.get('/api/my-support-tickets', requireAuth, async (req, res, next) => {
     res.json({ success: true, data: data || [] });
   } catch (error) {
     console.error('Error fetching user support tickets:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// AI CHATBOT MOLLY APIs
+// ============================================================
+
+// Simple in-memory rate limiter for chatbot
+const chatbotRateLimit = new Map();
+const CHATBOT_RATE_WINDOW = 60 * 1000; // 1 minute
+const CHATBOT_RATE_MAX = 5; // 5 requests per minute per IP
+
+function checkChatbotRateLimit(ip) {
+  const now = Date.now();
+  const key = `chatbot:${ip}`;
+  const record = chatbotRateLimit.get(key);
+
+  if (!record || now - record.windowStart > CHATBOT_RATE_WINDOW) {
+    chatbotRateLimit.set(key, { windowStart: now, count: 1 });
+    return { allowed: true };
+  }
+
+  if (record.count >= CHATBOT_RATE_MAX) {
+    const retryAfter = Math.ceil((record.windowStart + CHATBOT_RATE_WINDOW - now) / 1000);
+    return { allowed: false, retryAfter };
+  }
+
+  record.count++;
+  return { allowed: true };
+}
+
+// Cleanup rate limit entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, record] of chatbotRateLimit.entries()) {
+    if (now - record.windowStart > CHATBOT_RATE_WINDOW * 2) {
+      chatbotRateLimit.delete(key);
+    }
+  }
+}, 5 * 60 * 1000);
+
+// POST /api/chatbot/message - Send message to Molly (SSE streaming)
+app.post('/api/chatbot/message', async (req, res, next) => {
+  try {
+    const { message, sessionId, centerId, visitorId, pageContext, courseSlug } = req.body;
+
+    // Input validation
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
+      return res.status(400).json({ success: false, error: 'Tin nhắn không được để trống' });
+    }
+    if (message.length > 500) {
+      return res.status(400).json({ success: false, error: 'Tin nhắn tối đa 500 ký tự' });
+    }
+    if (!centerId) {
+      return res.status(400).json({ success: false, error: 'centerId là bắt buộc' });
+    }
+
+    // Rate limiting
+    const clientIp = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    const rateCheck = checkChatbotRateLimit(clientIp);
+    if (!rateCheck.allowed) {
+      return res.status(429).json({
+        success: false,
+        error: 'Bạn gửi tin nhắn quá nhanh. Thử lại sau vài giây nhé!',
+        retryAfter: rateCheck.retryAfter
+      });
+    }
+
+    // Check Groq availability
+    if (!isGroqAvailable()) {
+      return res.status(503).json({
+        success: false,
+        error: 'Molly đang nghỉ ngơi. Vui lòng liên hệ tư vấn viên trực tiếp!',
+        code: 'service_unavailable'
+      });
+    }
+
+    // Detect auth mode (optional - works without auth)
+    let userId = null;
+    let studentData = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      try {
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+        if (!authError && user) {
+          userId = user.id;
+          studentData = await loadStudentData(userId, centerId);
+        }
+      } catch (e) {
+        // Auth failed silently - continue as visitor
+      }
+    }
+
+    // Get or create session
+    const session = await getOrCreateSession(sessionId, visitorId, userId, centerId);
+
+    // Visitor → Student claim: if user logged in but session has no user_id
+    if (userId && session.id) {
+      const { data: sessionRow } = await supabase
+        .from('chat_sessions')
+        .select('user_id')
+        .eq('id', session.id)
+        .single();
+      if (sessionRow && !sessionRow.user_id) {
+        await supabase
+          .from('chat_sessions')
+          .update({ user_id: userId })
+          .eq('id', session.id);
+      }
+    }
+
+    // Check session message cap — auto-create new session if capped
+    let activeSession = session;
+    if (session.messageCount >= MAX_SESSION_MESSAGES) {
+      activeSession = await getOrCreateSession(null, visitorId, userId, centerId);
+      // Claim new session to user if logged in
+      if (userId) {
+        await supabase
+          .from('chat_sessions')
+          .update({ user_id: userId })
+          .eq('id', activeSession.id);
+      }
+    }
+
+    // Save user message
+    saveMessage(activeSession.id, 'user', message.trim());
+
+    // Load course data and conversation history
+    const [courseData, history] = await Promise.all([
+      getCourseData(centerId),
+      activeSession.isNew ? Promise.resolve([]) : loadConversationHistory(activeSession.id)
+    ]);
+
+    // Build messages array for LLM
+    const systemPrompt = buildSystemPrompt(courseData, studentData, courseSlug, courseData?.faqs || [], courseData?.centerInfo || null, courseData?.teachers || []);
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...history,
+      { role: 'user', content: message.trim() }
+    ];
+
+    // Set up SSE headers
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no'
+    });
+
+    // Send session ID event (for new sessions or auto-created when cap reached)
+    if (activeSession.isNew || activeSession.id !== session.id) {
+      res.write(`data: ${JSON.stringify({ type: 'session', sessionId: activeSession.id })}
+
+`);
+    }
+
+    // Stream response from Groq
+    const result = await streamChatCompletion(messages, res, activeSession.id);
+
+    if (result.error) {
+      res.write(`data: ${JSON.stringify({ type: 'error', error: result.message, code: result.error })}
+
+`);
+    }
+
+    // Auto-title: generate for NEW conversations with successful response (student mode only)
+    if ((activeSession.isNew || activeSession.id !== session.id) && result.success && userId) {
+      try {
+        const title = await generateConversationTitle(message.trim(), result.response);
+        await supabase
+          .from('chat_sessions')
+          .update({ title })
+          .eq('id', activeSession.id);
+        res.write(`data: ${JSON.stringify({ type: 'title', title, sessionId: activeSession.id })}\n\n`);
+      } catch (titleErr) {
+        console.error('Auto-title failed (non-blocking):', titleErr.message);
+      }
+    }
+
+    res.end();
+  } catch (error) {
+    console.error('❌ Chatbot message error:', error);
+    // If headers already sent (SSE started), send error event
+    if (res.headersSent) {
+      try {
+        res.write(`data: ${JSON.stringify({ type: 'error', error: 'Đã xảy ra lỗi. Vui lòng thử lại!' })}
+
+`);
+        res.end();
+      } catch (e) {
+        // Client disconnected
+      }
+    } else {
+      next(error);
+    }
+  }
+});
+
+
+// GET /api/chatbot/messages/:sessionId - Load message history
+app.get('/api/chatbot/messages/:sessionId', async (req, res, next) => {
+  try {
+    const { sessionId } = req.params;
+
+    if (!sessionId || typeof sessionId !== 'string') {
+      return res.status(400).json({ success: false, error: 'sessionId is required' });
+    }
+
+    // Rate limit: 10 req/min/IP
+    const clientIp = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    const rateCheck = checkChatbotRateLimit(clientIp);
+    if (!rateCheck.allowed) {
+      return res.status(429).json({ success: false, error: 'Too many requests', retryAfter: rateCheck.retryAfter });
+    }
+
+    const { data: messages, error: queryError } = await supabase
+      .from('chat_messages')
+      .select('id, role, content, rating, created_at')
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: true })
+      .limit(30);
+
+    if (queryError) {
+      console.error('Error loading chat history:', queryError);
+      return res.json({ success: true, data: { messages: [] } });
+    }
+
+    res.json({ success: true, data: { messages: messages || [] } });
+  } catch (error) {
+    console.error('❌ Chat history error:', error);
+    next(error);
+  }
+});
+
+// GET /api/chatbot/default-center - Get default center ID for anonymous visitors
+app.get('/api/chatbot/default-center', async (req, res, next) => {
+  try {
+    const { data: center, error: centerError } = await supabase
+      .from('centers')
+      .select('id')
+      .eq('status', 'active')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .single();
+
+    if (centerError || !center) {
+      return res.status(404).json({ success: false, message: 'No active center found' });
+    }
+
+    res.json({ success: true, data: { centerId: center.id } });
+  } catch (error) {
+    console.error('❌ Default center error:', error);
+    next(error);
+  }
+});
+// POST /api/chatbot/lead - Submit lead from chatbot
+app.post('/api/chatbot/lead', async (req, res, next) => {
+  try {
+    const { name, phone, preferredTime, sessionId, centerId } = req.body;
+
+    // Validate required fields
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      return res.status(400).json({ success: false, error: 'Vui lòng nhập họ tên' });
+    }
+    if (!phone || typeof phone !== 'string') {
+      return res.status(400).json({ success: false, error: 'Vui lòng nhập số điện thoại' });
+    }
+
+    // Validate Vietnamese phone number (10 digits, starts with 0)
+    const phoneClean = phone.replace(/[\s.-]/g, '');
+    const phoneRegex = /^(0[3-9]\d{8}|\+84[3-9]\d{8})$/;
+    if (!phoneRegex.test(phoneClean)) {
+      return res.status(400).json({ success: false, error: 'Số điện thoại không hợp lệ (10 số, bắt đầu bằng 0)' });
+    }
+
+    if (!centerId) {
+      return res.status(400).json({ success: false, error: 'centerId là bắt buộc' });
+    }
+
+    // Validate preferredTime
+    const validTimes = ['morning', 'afternoon', 'evening'];
+    if (preferredTime && !validTimes.includes(preferredTime)) {
+      return res.status(400).json({ success: false, error: 'Thời gian liên hệ không hợp lệ' });
+    }
+
+    // Check for duplicate phone in same center
+    const { data: existing } = await supabase
+      .from('consultation_requests')
+      .select('id, notes')
+      .eq('phone', phoneClean)
+      .eq('center_id', centerId)
+      .in('status', ['new', 'contacted'])
+      .limit(1)
+      .single();
+
+    if (existing) {
+      // Update existing record notes
+      const updatedNotes = (existing.notes || '') + `
+[Chatbot ${new Date().toLocaleDateString('vi-VN')}] Yêu cầu tư vấn lại. Tên: ${name.trim()}${preferredTime ? `, Thời gian: ${preferredTime}` : ''}`;
+      await supabase
+        .from('consultation_requests')
+        .update({
+          notes: updatedNotes.trim(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existing.id);
+    } else {
+      // Insert new consultation request
+      const timeSlotMap = { morning: 'Sáng', afternoon: 'Chiều', evening: 'Tối' };
+      const { error: insertError } = await supabase
+        .from('consultation_requests')
+        .insert({
+          full_name: name.trim(),
+          phone: phoneClean,
+          preferred_time: preferredTime ? timeSlotMap[preferredTime] : null,
+          source: 'chatbot',
+          center_id: centerId,
+          notes: sessionId ? `Chat session: ${sessionId}` : null,
+          status: 'new'
+        });
+
+      if (insertError) {
+        console.error('Error inserting chatbot lead:', insertError);
+        throw insertError;
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Tư vấn viên sẽ liên hệ bạn sớm nhất!'
+    });
+  } catch (error) {
+    console.error('❌ Chatbot lead error:', error);
+    next(error);
+  }
+});
+
+// GET /api/chatbot/conversations - List conversations for authenticated user
+app.get('/api/chatbot/conversations', requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const centerId = req.user.centerId;
+    const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+    const offset = parseInt(req.query.offset) || 0;
+    const search = req.query.search?.trim() || null;
+
+    let query = supabase
+      .from('chat_sessions')
+      .select('id, title, last_message_at, message_count, started_at', { count: 'exact' })
+      .eq('user_id', userId)
+      .is('deleted_at', null)
+      .gt('message_count', 0)
+      .order('last_message_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (centerId) {
+      query = query.eq('center_id', centerId);
+    }
+    if (search) {
+      query = query.ilike('title', `%${search}%`);
+    }
+
+    const { data: sessions, error: sessionsError, count } = await query;
+
+    if (sessionsError) {
+      console.error('Error loading conversations:', sessionsError);
+      return res.status(500).json({ success: false, error: 'Không thể tải danh sách hội thoại' });
+    }
+
+    // Get preview (last assistant message) for each session
+    const conversations = await Promise.all((sessions || []).map(async (s) => {
+      const { data: lastMsg } = await supabase
+        .from('chat_messages')
+        .select('content')
+        .eq('session_id', s.id)
+        .eq('role', 'assistant')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      return {
+        id: s.id,
+        title: s.title || 'Cuộc trò chuyện mới',
+        lastMessageAt: s.last_message_at,
+        messageCount: s.message_count,
+        startedAt: s.started_at,
+        preview: lastMsg?.content ? lastMsg.content.substring(0, 80) : null
+      };
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        conversations,
+        total: count || 0,
+        hasMore: (offset + limit) < (count || 0)
+      }
+    });
+  } catch (error) {
+    console.error('❌ List conversations error:', error);
+    next(error);
+  }
+});
+
+// POST /api/chatbot/conversations - Create new empty conversation
+app.post('/api/chatbot/conversations', requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const centerId = req.body.centerId || req.user.centerId;
+
+    if (!centerId) {
+      return res.status(400).json({ success: false, error: 'centerId là bắt buộc' });
+    }
+
+    const { data: newSession, error: insertError } = await supabase
+      .from('chat_sessions')
+      .insert({
+        user_id: userId,
+        center_id: centerId,
+        title: null,
+        message_count: 0
+      })
+      .select('id, started_at')
+      .single();
+
+    if (insertError) {
+      console.error('Error creating conversation:', insertError);
+      return res.status(500).json({ success: false, error: 'Không thể tạo cuộc trò chuyện' });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        id: newSession.id,
+        title: 'Cuộc trò chuyện mới',
+        startedAt: newSession.started_at
+      }
+    });
+  } catch (error) {
+    console.error('❌ Create conversation error:', error);
+    next(error);
+  }
+});
+
+// PATCH /api/chatbot/conversations/:id - Rename conversation
+app.patch('/api/chatbot/conversations/:id', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const { title } = req.body;
+
+    if (!title || typeof title !== 'string' || title.trim().length === 0) {
+      return res.status(400).json({ success: false, error: 'Tiêu đề không được để trống' });
+    }
+    if (title.trim().length > 100) {
+      return res.status(400).json({ success: false, error: 'Tiêu đề tối đa 100 ký tự' });
+    }
+
+    // Verify ownership
+    const { data: session, error: findError } = await supabase
+      .from('chat_sessions')
+      .select('id')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single();
+
+    if (findError || !session) {
+      return res.status(404).json({ success: false, error: 'Không tìm thấy cuộc trò chuyện' });
+    }
+
+    const { error: updateError } = await supabase
+      .from('chat_sessions')
+      .update({ title: title.trim() })
+      .eq('id', id);
+
+    if (updateError) {
+      return res.status(500).json({ success: false, error: 'Không thể đổi tên' });
+    }
+
+    res.json({ success: true, data: { id, title: title.trim() } });
+  } catch (error) {
+    console.error('❌ Rename conversation error:', error);
+    next(error);
+  }
+});
+
+// DELETE /api/chatbot/conversations/:id - Soft delete conversation
+app.delete('/api/chatbot/conversations/:id', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    // Verify ownership
+    const { data: session, error: findError } = await supabase
+      .from('chat_sessions')
+      .select('id')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .is('deleted_at', null)
+      .single();
+
+    if (findError || !session) {
+      return res.status(404).json({ success: false, error: 'Không tìm thấy cuộc trò chuyện' });
+    }
+
+    const { error: deleteError } = await supabase
+      .from('chat_sessions')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (deleteError) {
+      return res.status(500).json({ success: false, error: 'Không thể xóa cuộc trò chuyện' });
+    }
+
+    res.json({ success: true, message: 'Đã xóa cuộc trò chuyện' });
+  } catch (error) {
+    console.error('❌ Delete conversation error:', error);
+    next(error);
+  }
+});
+
+// POST /api/chatbot/messages/:id/rate - Rate a message (like/dislike)
+app.post('/api/chatbot/messages/:id/rate', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const { rating } = req.body;
+
+    // Validate rating
+    if (rating !== null && rating !== 'up' && rating !== 'down') {
+      return res.status(400).json({ success: false, error: 'Rating phải là "up", "down" hoặc null' });
+    }
+
+    // Verify message belongs to user's session
+    const { data: message, error: findError } = await supabase
+      .from('chat_messages')
+      .select('id, session_id, role')
+      .eq('id', id)
+      .single();
+
+    if (findError || !message) {
+      return res.status(404).json({ success: false, error: 'Không tìm thấy tin nhắn' });
+    }
+
+    if (message.role !== 'assistant') {
+      return res.status(400).json({ success: false, error: 'Chỉ có thể đánh giá tin nhắn của Molly' });
+    }
+
+    // Verify session ownership
+    const { data: session, error: sessionError } = await supabase
+      .from('chat_sessions')
+      .select('id')
+      .eq('id', message.session_id)
+      .eq('user_id', userId)
+      .single();
+
+    if (sessionError || !session) {
+      return res.status(403).json({ success: false, error: 'Không có quyền đánh giá tin nhắn này' });
+    }
+
+    // Update rating
+    const { error: updateError } = await supabase
+      .from('chat_messages')
+      .update({ rating: rating || null })
+      .eq('id', id);
+
+    if (updateError) {
+      return res.status(500).json({ success: false, error: 'Không thể đánh giá' });
+    }
+
+    res.json({ success: true, data: { id, rating: rating || null } });
+  } catch (error) {
+    console.error('❌ Rate message error:', error);
     next(error);
   }
 });

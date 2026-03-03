@@ -44,7 +44,7 @@ import {
 } from '@/components/ui/dialog';
 import { useStudentSchedule } from '../hooks/useStudentSchedule';
 import { Badge } from '@/components/ui/badge';
-import { toast } from 'sonner';
+import { gooeyToast } from 'goey-toast';
 
 // Configuration
 const DAYS_OF_WEEK = [
@@ -565,17 +565,23 @@ export function StudentSchedule() {
     if (notificationsEnabled) {
       setNotificationsEnabled(false);
       localStorage.setItem(NOTIFICATION_KEY, 'false');
-      toast.info('Đã tắt thông báo nhắc lịch học');
+      gooeyToast.info('Đã tắt thông báo nhắc lịch học');
     } else {
       const result = await requestNotificationPermission();
       if (result.granted) {
         setNotificationsEnabled(true);
         localStorage.setItem(NOTIFICATION_KEY, 'true');
-        toast.success('Đã bật thông báo! Bạn sẽ được nhắc trước 30 phút mỗi buổi học.');
+        gooeyToast.success('Đã bật thông báo! Bạn sẽ được nhắc trước 30 phút mỗi buổi học.');
       } else if (result.reason === 'denied') {
-        toast.error('Trình duyệt đã chặn thông báo. Vui lòng cho phép trong cài đặt.');
+        gooeyToast.error('Trình duyệt đã chặn thông báo. Vui lòng cho phép trong cài đặt.', {
+          description: 'Cho phép thông báo trong cài đặt trình duyệt để nhận lịch học',
+          action: {
+            label: 'Hướng dẫn',
+            onClick: () => window.open('https://support.google.com/chrome/answer/3220216', '_blank')
+          }
+        });
       } else {
-        toast.error('Trình duyệt không hỗ trợ thông báo.');
+        gooeyToast.error('Trình duyệt không hỗ trợ thông báo.');
       }
     }
   };
@@ -583,12 +589,12 @@ export function StudentSchedule() {
   // Export ICS handler
   const handleExportICS = () => {
     if (!sessions || sessions.length === 0) {
-      toast.error('Không có lịch học để xuất');
+      gooeyToast.error('Không có lịch học để xuất');
       return;
     }
     const fileName = `lich-hoc-${currentDate.toISOString().split('T')[0]}.ics`;
     generateICSFile(sessions, fileName);
-    toast.success('Đã tải file lịch học (.ics)');
+    gooeyToast.success('Đã tải file lịch học (.ics)');
   };
 
   // Notification effect - check sessions every minute

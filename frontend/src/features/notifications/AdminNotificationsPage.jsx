@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { gooeyToast } from 'goey-toast';
 /**
  * AdminNotificationsPage - Gửi thông báo hàng loạt cho admin
  * Cho phép lọc học viên theo khóa học, lớp, trạng thái học phí
@@ -353,7 +353,7 @@ export default function AdminNotificationsPage() {
     // Send notifications
     const handleSend = async () => {
         if (selectedStudentIds.length === 0) {
-            toast('Vui lòng chọn ít nhất một học viên');
+            gooeyToast.warning('Vui lòng chọn ít nhất một học viên');
             return;
         }
 

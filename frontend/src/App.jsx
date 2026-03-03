@@ -12,6 +12,9 @@ import { AdminLayout } from '@/layouts/admin-layout';
 import { StudentLayout } from '@/layouts/student-layout';
 import { TeacherLayout } from '@/layouts/teacher-layout';
 import { ParentLayout } from '@/layouts/parent-layout';
+import ChatWidget from '@/features/chatbot/ChatWidget';
+import { GooeyToaster } from 'goey-toast';
+import 'goey-toast/styles.css';
 import {
   StudentDashboard,
   StudentSchedule,
@@ -20,7 +23,9 @@ import {
   StudentTuition,
   StudentPayment,
   StudentCertificates,
-  StudentSupportPage
+  StudentSupportPage,
+  StudentCourseCatalog,
+  StudentCourseDetail
 } from '@/features/student-portal';
 import {
   ParentDashboard,
@@ -58,6 +63,8 @@ import { PublicCertificateVerification } from '@/features/certificates/pages/Pub
 import { SupportPage } from '@/features/support';
 import { TeacherDashboardPage } from '@/features/teacher-dashboard';
 import AdminNotificationsPage from '@/features/notifications/AdminNotificationsPage';
+import AuditTrailPage from '@/features/audit-trail/pages/AuditTrailPage';
+import UserManagementPage from '@/features/user-management/pages/UserManagementPage';
 import { TeacherSchedulePage } from '@/features/teacher-schedule';
 import { TeacherClassesPage } from '@/features/teacher-classes';
 import { TeacherAvailabilityPage } from '@/features/teacher-availability';
@@ -87,6 +94,11 @@ import { useAuth } from '@/contexts/auth-context';
 // ============================================
 // LAZY LOADED COMPONENTS (Code Splitting)
 // ============================================
+const ApprovalInboxPage = lazy(() => import('@/features/approvals/pages/ApprovalInboxPage'));
+const LeaderboardPage = lazy(() => import('@/features/leaderboard/pages/LeaderboardPage'));
+const CenterComparisonPage = lazy(() => import('@/features/center-comparison/pages/CenterComparisonPage'));
+const CustomAlertsPage = lazy(() => import('@/features/custom-alerts/pages/CustomAlertsPage'));
+const ScheduledReportsPage = lazy(() => import('@/features/scheduled-reports/pages/ScheduledReportsPage'));
 // Heavy public pages loaded on-demand for better initial bundle
 const AboutPage = lazy(() => import('@/pages/public/about').then(m => ({ default: m.AboutPage })));
 const BlogPage = lazy(() => import('@/pages/public/blog').then(m => ({ default: m.BlogPage })));
@@ -96,6 +108,10 @@ const RoadmapPage = lazy(() => import('@/pages/public/roadmap').then(m => ({ def
 const AssessmentPage = lazy(() => import('@/pages/public/resources/assessment').then(m => ({ default: m.AssessmentPage })));
 const QuizPage = lazy(() => import('@/pages/public/resources/assessment/[slug]/page').then(m => ({ default: m.QuizPage })));
 const ResultPage = lazy(() => import('@/pages/public/resources/assessment/[slug]/result').then(m => ({ default: m.ResultPage })));
+const ChinhSachPage = lazy(() => import('@/pages/public/policies').then(m => ({ default: m.ChinhSachPage })));
+const DieuKhoanPage = lazy(() => import('@/pages/public/policies').then(m => ({ default: m.DieuKhoanPage })));
+const BaoMatPage = lazy(() => import('@/pages/public/policies').then(m => ({ default: m.BaoMatPage })));
+const FaqPage = lazy(() => import('@/pages/public/policies').then(m => ({ default: m.FaqPage })));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -175,6 +191,20 @@ const UserDropdown = ({ user, profile, displayName, avatarUrl, roleCode, onLogou
     await onLogout();
   };
 
+  const getProfilePath = () => {
+    switch (roleCode) {
+      case 'SUPER_ADMIN':
+      case 'CENTER_MANAGER':
+        return '/admin/settings';
+      case 'TEACHER':
+        return '/teacher/profile';
+      case 'PARENT':
+        return '/parent/profile';
+      default:
+        return '/';
+    }
+  };
+
   const menuItems = [
     ...(hasDashboard ? [{
       label: 'Vào Dashboard',
@@ -185,12 +215,12 @@ const UserDropdown = ({ user, profile, displayName, avatarUrl, roleCode, onLogou
     {
       label: 'Hồ sơ cá nhân',
       icon: User,
-      action: () => { setIsOpen(false); navigate('/profile'); },
+      action: () => { setIsOpen(false); navigate(getProfilePath()); },
     },
     {
       label: 'Cài đặt',
       icon: Settings,
-      action: () => { setIsOpen(false); navigate('/settings'); },
+      action: () => { setIsOpen(false); navigate('/admin/settings'); },
     },
     {
       label: 'Trợ giúp',
@@ -384,6 +414,12 @@ function App() {
             <Route path="courses" element={<PublicCoursesPage />} />
             <Route path="courses/:id" element={<CourseDetailPage />} />
 
+            {/* Policy & Legal Pages */}
+            <Route path="chinh-sach" element={<Suspense fallback={<PageLoader />}><ChinhSachPage /></Suspense>} />
+            <Route path="dieu-khoan" element={<Suspense fallback={<PageLoader />}><DieuKhoanPage /></Suspense>} />
+            <Route path="bao-mat" element={<Suspense fallback={<PageLoader />}><BaoMatPage /></Suspense>} />
+            <Route path="faq" element={<Suspense fallback={<PageLoader />}><FaqPage /></Suspense>} />
+
             {/* Public Certificate Verification - No login required */}
             <Route path="verify-certificate" element={<PublicCertificateVerification />} />
               <Route path="certificates/:id/view" element={<CertificatesPage />} />
@@ -445,10 +481,21 @@ function App() {
               <Route path="certificates/:id/view" element={<CertificatesPage />} />
               <Route path="support" element={<SupportPage />} />
               <Route path="support-tickets" element={<SupportPage />} />
+              <Route path="approvals" element={<ApprovalInboxPage />} />
               <Route path="notifications" element={<AdminNotificationsPage />} />
               <Route path="settings" element={
                 <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
                   <SettingsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="audit-trail" element={
+                <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'CENTER_MANAGER']}>
+                  <AuditTrailPage />
+                </ProtectedRoute>
+              } />
+              <Route path="user-management" element={
+                <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+                  <UserManagementPage />
                 </ProtectedRoute>
               } />
               <Route path="reports" element={<ReportsPage />} />
@@ -458,6 +505,10 @@ function App() {
               <Route path="reports/grades" element={<GradesReportPage />} />
               <Route path="reports/staff" element={<StaffReportPage />} />
               <Route path="reports/courses" element={<CoursesReportPage />} />
+              <Route path="leaderboard" element={<LeaderboardPage />} />
+              <Route path="center-comparison" element={<CenterComparisonPage />} />
+              <Route path="custom-alerts" element={<CustomAlertsPage />} />
+              <Route path="scheduled-reports" element={<ScheduledReportsPage />} />
             </Route>
 
             {/* Teacher Routes - Chỉ TEACHER */}
@@ -496,6 +547,8 @@ function App() {
               <Route path="payment" element={<StudentPayment />} />
               <Route path="certificates" element={<StudentCertificates />} />
               <Route path="support" element={<StudentSupportPage />} />
+              <Route path="courses" element={<StudentCourseCatalog />} />
+              <Route path="courses/:courseId" element={<StudentCourseDetail />} />
             </Route>
 
             {/* Parent Routes - Chỉ PARENT */}
@@ -518,6 +571,8 @@ function App() {
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </BrowserRouter>
+        <ChatWidget />
+        <GooeyToaster position="top-center" />
       </ToastProvider>
     </ErrorBoundary>
   );

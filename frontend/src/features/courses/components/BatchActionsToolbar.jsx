@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { gooeyToast } from 'goey-toast';
 /**
  * BatchActionsToolbar - Thanh công cụ thao tác hàng loạt
  */
@@ -16,7 +16,8 @@ export function BatchActionsToolbar({
     selectedIds,
     onClearSelection,
     accessToken,
-    onSuccess
+    onSuccess,
+    courses
 }) {
     const [loading, setLoading] = useState(false);
     const [action, setAction] = useState(null);
@@ -46,7 +47,7 @@ export function BatchActionsToolbar({
             onClearSelection();
         } catch (err) {
             console.error('Bulk status update failed:', err);
-            toast('Có lỗi xảy ra khi cập nhật trạng thái');
+            gooeyToast.error('Có lỗi xảy ra khi cập nhật trạng thái');
         } finally {
             setLoading(false);
             setAction(null);
@@ -70,7 +71,7 @@ export function BatchActionsToolbar({
             onClearSelection();
         } catch (err) {
             console.error('Bulk delete failed:', err);
-            toast('Có lỗi xảy ra khi xóa khóa học');
+            gooeyToast.error('Có lỗi xảy ra khi xóa khóa học');
         } finally {
             setLoading(false);
             setAction(null);
@@ -80,9 +81,44 @@ export function BatchActionsToolbar({
 
     // Export to CSV
     const handleExport = () => {
+        if (!courses || courses.length === 0) {
+            gooeyToast.warning('Không có dữ liệu để export');
+            return;
+        }
+
         setAction('export');
-        // Simple CSV export - would need course data passed in for real implementation
-        toast(`Export ${count} khóa học sang CSV - Feature coming soon!`);
+
+        const selectedCourses = courses.filter(c => selectedIds.includes(c.id));
+        const dataToExport = selectedCourses.length > 0 ? selectedCourses : courses;
+
+        const headers = ['Mã', 'Tên khóa học', 'Danh mục', 'Trạng thái', 'Học phí', 'Số buổi'];
+        const rows = dataToExport.map(c => [
+            c.code || '',
+            `"${(c.title || c.name || '').replace(/"/g, '""')}"`,
+            c.category || '',
+            c.status || '',
+            c.price || c.fee || c.tuition_fee || 0,
+            c.total_sessions || c.session_count || 0,
+        ]);
+
+        const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        const dateString = new Date().toISOString().split('T')[0];
+        const fileName = `khoa-hoc-${dateString}.csv`;
+        const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+
+        a.href = url;
+        a.download = fileName;
+        a.click();
+
+        URL.revokeObjectURL(url);
+
+        gooeyToast.success(`Đã export ${dataToExport.length} khóa học`, {
+            description: `File: ${fileName}`
+        });
+
+        onClearSelection?.();
         setAction(null);
     };
 

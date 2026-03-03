@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { gooeyToast } from 'goey-toast';
 /**
  * ScheduleTab Component
  * Displays session list with attendance management
@@ -87,7 +87,7 @@ export function ScheduleTab({
       });
     } catch (error) {
       console.error('Export failed:', error);
-      toast(error.message || 'Xuất dữ liệu thất bại');
+      gooeyToast(error.message || 'Xuất dữ liệu thất bại');
     }
   };
 

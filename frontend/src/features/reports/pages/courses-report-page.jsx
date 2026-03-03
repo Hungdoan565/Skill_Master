@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { gooeyToast } from 'goey-toast';
 /**
  * Courses Report Page - Báo cáo hiệu suất khóa học
  */
@@ -60,7 +60,7 @@ export default function CoursesReportPage() {
             await exportReportToExcel('courses', data);
         } catch (err) {
             console.error('Export error:', err);
-            toast('Lỗi khi xuất Excel: ' + err.message);
+            gooeyToast('Lỗi khi xuất Excel: ' + err.message);
         } finally {
             setExporting(false);
         }

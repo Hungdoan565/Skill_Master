@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
+import { gooeyToast } from 'goey-toast';
 import {
     useCenterDetail,
     useCenterRooms,
@@ -74,7 +74,7 @@ export const CenterDetailPage = () => {
     // Handle errors
     useEffect(() => {
         if (centerError) {
-            toast.error('Không thể tải thông tin cơ sở');
+            gooeyToast.error('Không thể tải thông tin cơ sở');
             navigate('/admin/centers');
         }
     }, [centerError, navigate]);
@@ -95,19 +95,21 @@ export const CenterDetailPage = () => {
     const handleEditSuccess = () => {
         setShowEditModal(false);
         refetchCenter();
-        toast.success('Cập nhật cơ sở thành công');
+        gooeyToast.success('Cập nhật cơ sở thành công', {
+            description: center?.name || 'Thông tin cơ sở đã được cập nhật',
+        });
     };
 
     const handleDeleteSuccess = () => {
         setShowDeleteModal(false);
-        toast.success('Xóa cơ sở thành công');
+        gooeyToast.success('Xóa cơ sở thành công');
         navigate('/admin/centers');
     };
 
     const handleAssignManagerSuccess = () => {
         setShowAssignManagerModal(false);
         refetchCenter();
-        toast.success('Gán quản lý thành công');
+        gooeyToast.success('Gán quản lý thành công');
     };
 
     // Render loading state

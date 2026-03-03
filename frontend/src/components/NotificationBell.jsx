@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/auth-context';
 
 function formatRelativeTime(dateValue) {
@@ -34,7 +33,6 @@ export function NotificationBell({
   markAllAsRead,
   loading = false
 }) {
-  const { t } = useTranslation();
   const { profile } = useAuth();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
@@ -98,7 +96,7 @@ export function NotificationBell({
       <button
         onClick={() => setIsOpen((prev) => !prev)}
         className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-muted border border-border text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200"
-        aria-label={t('common:notifications')}
+        aria-label="Thông báo"
         aria-expanded={isOpen}
       >
         <Bell className="h-5 w-5" />
@@ -110,26 +108,26 @@ export function NotificationBell({
       </button>
 
       <div
-        className={`absolute right-0 top-full mt-2 w-[22rem] rounded-xl border border-border bg-popover shadow-lg z-[120] transition-all duration-150 ${
+        className={`absolute right-0 top-full mt-2 w-[22rem] rounded-xl border border-border bg-white dark:bg-zinc-900 shadow-lg z-[120] transition-all duration-150 ${
           isOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-1 pointer-events-none'
         }`}
       >
         <div className="flex items-center justify-between border-b border-border px-3 py-2">
-          <p className="text-sm font-semibold text-foreground">{t('common:notifications')}</p>
+          <p className="text-sm font-semibold text-foreground">Thông báo</p>
           <button
             onClick={() => markAllAsRead && markAllAsRead()}
             disabled={unreadCount === 0}
             className="text-xs font-medium text-blue-600 hover:text-blue-700 disabled:text-muted-foreground disabled:cursor-not-allowed"
           >
-            {t('common:markAllRead')}
+            Đánh dấu đã đọc
           </button>
         </div>
 
         <div className="max-h-96 overflow-y-auto">
           {loading ? (
-            <div className="px-4 py-8 text-center text-sm text-muted-foreground">{t('common:loadingNotifications')}</div>
+            <div className="px-4 py-8 text-center text-sm text-muted-foreground">Đang tải...</div>
           ) : recentNotifications.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-muted-foreground">{t('common:noNotifications')}</div>
+            <div className="px-4 py-8 text-center text-sm text-muted-foreground">Không có thông báo</div>
           ) : (
             recentNotifications.map((item) => {
               const isUnread = !item.read_at;
@@ -138,7 +136,7 @@ export function NotificationBell({
                   key={item.id}
                   onClick={() => handleNotificationClick(item)}
                   className={`w-full border-b border-border/60 px-3 py-3 text-left transition-colors hover:bg-accent/50 ${
-                    isUnread ? 'bg-blue-50/60 border-l-2 border-l-blue-500' : 'bg-background'
+                    isUnread ? 'bg-blue-50 dark:bg-blue-950/40 border-l-2 border-l-blue-500' : 'bg-white dark:bg-zinc-900'
                   }`}
                 >
                   <p className="text-sm font-medium text-foreground">{item.title}</p>

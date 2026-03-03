@@ -5,13 +5,14 @@ import { AdminSidebar } from '@/components/layout/admin-sidebar';
 import { AdminHeader } from '@/components/layout/admin-header';
 import { NotificationBell } from '@/components/NotificationBell';
 import { useNotifications } from '@/hooks/useNotifications';
-
+import { CenterProvider } from '@/contexts/center-context';
 export function AdminLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const notificationState = useNotifications();
 
   return (
-    <div className="flex h-screen overflow-hidden bg-muted">
+    <CenterProvider>
+      <div className="flex h-screen overflow-hidden bg-muted">
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
         <div 
@@ -61,6 +62,7 @@ export function AdminLayout() {
           </div>
         </main>
       </div>
-    </div>
+      </div>
+    </CenterProvider>
   );
 }

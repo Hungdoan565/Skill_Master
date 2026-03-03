@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { gooeyToast } from 'goey-toast';
 /**
  * Attendance Report Page - Báo cáo chuyên cần
  * 
@@ -46,6 +46,7 @@ import { Badge } from '@/components/ui/badge';
 import { useReports } from '../hooks/useReports';
 import { useAuth } from '@/contexts/auth-context';
 import { SaveReportModal, ClassFilter, ReportPDFExport } from '../components';
+import CrossCenterToggle from '../components/CrossCenterToggle';
 import {
     formatNumber,
     formatPercent,
@@ -62,6 +63,7 @@ export default function AttendanceReportPage() {
     const [searchParams] = useSearchParams();
     const reportContentRef = useRef(null);
 
+    const [isSystemWide, setIsSystemWide] = useState(false);
     const [data, setData] = useState(null);
     const [datePreset, setDatePreset] = useState('30days');
     const [customDates, setCustomDates] = useState({ start: '', end: '' });
@@ -117,7 +119,7 @@ export default function AttendanceReportPage() {
 
     useEffect(() => {
         loadReport();
-    }, [datePreset]);
+    }, [datePreset, isSystemWide]);
 
     const loadReport = async () => {
         let startDate, endDate;
@@ -134,6 +136,7 @@ export default function AttendanceReportPage() {
         const result = await fetchAttendanceReport({
             startDate,
             endDate,
+            system_wide: isSystemWide,
             courseId: selectedCourseId || undefined,
             classId: selectedClassId || undefined
         });
@@ -149,7 +152,7 @@ export default function AttendanceReportPage() {
             await exportReportToExcel('attendance', data, data.period);
         } catch (err) {
             console.error('Export error:', err);
-            toast('Lỗi khi xuất Excel: ' + err.message);
+            gooeyToast('Lỗi khi xuất Excel: ' + err.message);
         } finally {
             setExporting(false);
         }
@@ -201,6 +204,7 @@ export default function AttendanceReportPage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    <CrossCenterToggle value={isSystemWide} onChange={setIsSystemWide} />
                     <Button variant="outline" onClick={handleSaveReport}>
                         <Save className="h-4 w-4 mr-2" />
                         Lưu báo cáo

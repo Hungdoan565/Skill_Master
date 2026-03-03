@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { gooeyToast } from 'goey-toast';
 /**
  * Staff Report Page - Báo cáo nhân sự
  */
@@ -32,11 +32,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useReports } from '../hooks/useReports';
 import { SaveReportModal } from '../components';
+import CrossCenterToggle from '../components/CrossCenterToggle';
 import { formatNumber, formatCurrency, DATE_PRESETS, getDateRangeFromPreset, exportReportToExcel } from '../utils';
 
 export default function StaffReportPage() {
     const { fetchStaffReport, saveReport, loading, error } = useReports();
 
+    const [isSystemWide, setIsSystemWide] = useState(false);
     const [data, setData] = useState(null);
     const [datePreset, setDatePreset] = useState('thisMonth');
     const [customDates, setCustomDates] = useState({ start: '', end: '' });
@@ -46,7 +48,7 @@ export default function StaffReportPage() {
 
     useEffect(() => {
         loadReport();
-    }, [datePreset]);
+    }, [datePreset, isSystemWide]);
 
     const loadReport = async () => {
         let startDate, endDate;
@@ -60,7 +62,7 @@ export default function StaffReportPage() {
             endDate = range.end;
         }
 
-        const result = await fetchStaffReport({ startDate, endDate });
+        const result = await fetchStaffReport({ startDate, endDate, system_wide: isSystemWide });
         if (result) {
             setData(result);
         }
@@ -73,7 +75,7 @@ export default function StaffReportPage() {
             await exportReportToExcel('staff', data, data.period);
         } catch (err) {
             console.error('Export error:', err);
-            toast('Lỗi khi xuất Excel: ' + err.message);
+            gooeyToast('Lỗi khi xuất Excel: ' + err.message);
         } finally {
             setExporting(false);
         }
@@ -125,8 +127,8 @@ export default function StaffReportPage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    <CrossCenterToggle value={isSystemWide} onChange={setIsSystemWide} />
                     <Button variant="outline" onClick={handleSaveReport}>
-                        <Save className="h-4 w-4 mr-2" />
                         Lưu báo cáo
                     </Button>
                     <Button onClick={handleExport} disabled={exporting || !data}>

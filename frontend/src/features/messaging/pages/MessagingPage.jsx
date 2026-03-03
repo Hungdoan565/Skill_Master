@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, MessageSquare, Plus, Search, Send } from 'lucide-react';
-import { toast } from 'sonner';
+import { gooeyToast } from 'goey-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -127,7 +127,7 @@ export function MessagingPage() {
       await fetchMessages(conversationId);
       await markConversationAsRead(conversationId);
     } catch (error) {
-      toast.error(error.message || 'Không thể mở hội thoại');
+      gooeyToast.error(error.message || 'Không thể mở hội thoại');
     }
   }, [fetchMessages, markConversationAsRead]);
 
@@ -163,7 +163,7 @@ export function MessagingPage() {
           : conversation
       )).sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at)));
     } catch (error) {
-      toast.error(error.message || 'Gửi tin nhắn thất bại');
+      gooeyToast.error(error.message || 'Gửi tin nhắn thất bại');
     } finally {
       setSending(false);
     }
@@ -171,7 +171,7 @@ export function MessagingPage() {
 
   const handleCreateConversation = useCallback(async () => {
     if (!selectedContactId) {
-      toast.error('Vui lòng chọn một liên hệ');
+      gooeyToast.error('Vui lòng chọn một liên hệ');
       return;
     }
 
@@ -193,7 +193,7 @@ export function MessagingPage() {
         await handleSelectConversation(result.data.id);
       }
     } catch (error) {
-      toast.error(error.message || 'Tạo hội thoại thất bại');
+      gooeyToast.error(error.message || 'Tạo hội thoại thất bại');
     }
   }, [authHeaders, fetchConversations, handleSelectConversation, selectedContactId]);
 
@@ -204,7 +204,7 @@ export function MessagingPage() {
       try {
         await Promise.all([fetchConversations(), fetchContacts()]);
       } catch (error) {
-        toast.error(error.message || 'Không thể tải trang tin nhắn');
+        gooeyToast.error(error.message || 'Không thể tải trang tin nhắn');
       } finally {
         setLoading(false);
       }
@@ -216,7 +216,7 @@ export function MessagingPage() {
   useEffect(() => {
     if (!selectedConversationId) return;
     fetchMessages(selectedConversationId).catch((error) => {
-      toast.error(error.message || 'Không tải được tin nhắn');
+      gooeyToast.error(error.message || 'Không tải được tin nhắn');
     });
     markConversationAsRead(selectedConversationId);
   }, [fetchMessages, markConversationAsRead, selectedConversationId]);

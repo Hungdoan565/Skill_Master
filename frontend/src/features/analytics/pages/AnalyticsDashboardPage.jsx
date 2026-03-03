@@ -15,7 +15,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { toast } from 'sonner';
+import { gooeyToast } from 'goey-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
@@ -128,7 +128,7 @@ export function AnalyticsDashboardPage() {
         setRevenueForecast(forecastJson.data || []);
       } catch (error) {
         console.error('Error loading analytics dashboard:', error);
-        toast.error(error.message || 'Không thể tải dữ liệu phân tích nâng cao');
+        gooeyToast.error(error.message || 'Không thể tải dữ liệu phân tích nâng cao');
       } finally {
         setLoading(false);
       }

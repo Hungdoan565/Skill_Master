@@ -24,7 +24,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { convertTrialSchema } from '@/lib/validations';
 import { useEnrollments } from '../hooks';
-import { toast } from 'sonner';
+import { gooeyToast } from 'goey-toast';
 
 // Format currency VND
 const formatCurrency = (amount) => {
@@ -95,14 +95,14 @@ export function ConvertTrialModal({
 
       if (response.data?.invoice) {
         setResult(response.data);
-        toast.success(response.message || 'Đã chuyển đổi và tạo hóa đơn thành công');
+        gooeyToast.success(response.message || 'Đã chuyển đổi và tạo hóa đơn thành công');
       } else {
-        toast.success(response.message || 'Đã chuyển đổi thành công');
+        gooeyToast.success(response.message || 'Đã chuyển đổi thành công');
         onSuccess?.();
         handleClose();
       }
     } catch (error) {
-      toast.error(error.message || 'Có lỗi xảy ra');
+      gooeyToast.error(error.message || 'Có lỗi xảy ra');
     } finally {
       setSubmitting(false);
     }

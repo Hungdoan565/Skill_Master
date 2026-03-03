@@ -35,7 +35,7 @@ import {
 } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { useEnrollments } from '../hooks';
-import { toast } from 'sonner';
+import { gooeyToast } from 'goey-toast';
 
 export function TrialEnrollmentModal({
   isOpen,
@@ -116,22 +116,22 @@ export function TrialEnrollmentModal({
     e.preventDefault();
 
     if (!formData.student_id) {
-      toast.error('Vui lòng chọn học viên');
+      gooeyToast.error('Vui lòng chọn học viên');
       return;
     }
     if (!formData.class_id) {
-      toast.error('Vui lòng chọn lớp học');
+      gooeyToast.error('Vui lòng chọn lớp học');
       return;
     }
 
     try {
       setSubmitting(true);
       const result = await createTrialEnrollment(formData);
-      toast.success(result.message || 'Đã đăng ký học thử thành công');
+      gooeyToast.success(result.message || 'Đã đăng ký học thử thành công');
       onSuccess?.();
       handleClose();
     } catch (error) {
-      toast.error(error.message || 'Có lỗi xảy ra');
+      gooeyToast.error(error.message || 'Có lỗi xảy ra');
     } finally {
       setSubmitting(false);
     }

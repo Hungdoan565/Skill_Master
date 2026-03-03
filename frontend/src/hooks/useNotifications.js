@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { supabase } from '@/lib/supabaseClient';
+import { toast } from 'sonner';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -46,13 +47,13 @@ export function useNotifications() {
       }
 
       if (recentResponse.ok && recentJson?.success) {
-        setNotifications(recentJson.data || []);
+        setNotifications(recentJson.data?.notifications || []);
       } else {
         setNotifications([]);
       }
 
       if (unreadResponse.ok && unreadJson?.success) {
-        setUnreadCount(unreadJson.unreadCount || unreadJson.data?.length || 0);
+        setUnreadCount(unreadJson.data?.unreadCount || 0);
       } else {
         setUnreadCount(0);
       }
@@ -151,6 +152,10 @@ export function useNotifications() {
 
           if (!next.read_at) {
             setUnreadCount((prev) => prev + 1);
+            toast.info(next.title || 'Thông báo mới', {
+              description: next.message?.slice(0, 100),
+              duration: 5000,
+            });
           }
         }
       )

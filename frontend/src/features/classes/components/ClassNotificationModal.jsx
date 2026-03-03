@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { gooeyToast } from 'goey-toast';
 /**
  * ClassNotificationModal Component
  * Send notifications to class students via email/SMS
@@ -250,12 +250,12 @@ export function ClassNotificationModal({
     // Send notification
     const handleSend = async () => {
         if (selectedStudentIds.length === 0) {
-            toast('Vui lòng chọn ít nhất một học viên');
+            gooeyToast.warning('Vui lòng chọn ít nhất một học viên');
             return;
         }
 
         if (!subject.trim() || !content.trim()) {
-            toast('Vui lòng nhập tiêu đề và nội dung');
+            gooeyToast.warning('Vui lòng nhập tiêu đề và nội dung');
             return;
         }
 

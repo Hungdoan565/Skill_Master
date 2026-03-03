@@ -5,7 +5,7 @@ import { DataTable } from '@/components/ui/data-table';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
+import { gooeyToast } from 'goey-toast';
 import { useStudentCertificates } from '../hooks/useStudentCertificates';
 import { STATUS_CONFIG, CATEGORY_CONFIG, GRADE_CONFIG, getCertificateDisplayStatus } from '../constants';
 import CertificatePrintModal from '../components/CertificatePrintModal';
@@ -27,9 +27,16 @@ export default function StudentCertificatesPage() {
   const handleCopyLink = (cert) => {
     const url = `${window.location.origin}/verify-certificate?cert=${cert.certificate_number}`;
     navigator.clipboard.writeText(url).then(() => {
-      toast.success('Đã copy link xác minh!');
+      gooeyToast.success('Đã copy link xác minh!');
     }).catch(() => {
-      toast.error('Không thể copy link. Vui lòng copy thủ công.');
+      gooeyToast.error('Không thể copy link. Vui lòng copy thủ công.', {
+        description: 'Trình duyệt không hỗ trợ copy tự động',
+        action: {
+          label: 'Copy thủ công',
+          onClick: () => window.prompt('Sao chép liên kết xác minh:', url),
+          successLabel: 'Đã chọn!'
+        }
+      });
     });
   };
 

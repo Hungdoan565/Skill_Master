@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { gooeyToast } from 'goey-toast';
 /**
  * Revenue Report Page - Báo cáo doanh thu chi tiết
  */
@@ -39,6 +39,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useReports } from '../hooks/useReports';
 import { SaveReportModal } from '../components';
+import CrossCenterToggle from '../components/CrossCenterToggle';
 import {
     formatCurrency,
     formatNumber,
@@ -56,6 +57,7 @@ export default function RevenueReportPage() {
     const { fetchRevenueReport, saveReport, loading, error } = useReports();
 
     // State
+    const [isSystemWide, setIsSystemWide] = useState(false);
     const [data, setData] = useState(null);
     const [datePreset, setDatePreset] = useState('30days');
     const [customDates, setCustomDates] = useState({ start: '', end: '' });
@@ -71,7 +73,7 @@ export default function RevenueReportPage() {
     // Load data on mount and when filters change
     useEffect(() => {
         loadReport();
-    }, [datePreset, groupBy]);
+    }, [datePreset, groupBy, isSystemWide]);
 
     const loadReport = async () => {
         let startDate, endDate;
@@ -89,6 +91,7 @@ export default function RevenueReportPage() {
             startDate,
             endDate,
             groupBy,
+            system_wide: isSystemWide,
             ...filters
         });
 
@@ -104,7 +107,7 @@ export default function RevenueReportPage() {
             await exportReportToExcel('revenue', data, data.period);
         } catch (err) {
             console.error('Export error:', err);
-            toast('Lỗi khi xuất Excel: ' + err.message);
+            gooeyToast('Lỗi khi xuất Excel: ' + err.message);
         } finally {
             setExporting(false);
         }
@@ -156,6 +159,7 @@ export default function RevenueReportPage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    <CrossCenterToggle value={isSystemWide} onChange={setIsSystemWide} />
                     <Button variant="outline" onClick={handleSaveReport}>
                         <Save className="h-4 w-4 mr-2" />
                         Lưu báo cáo

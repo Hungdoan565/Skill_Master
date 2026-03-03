@@ -120,11 +120,11 @@ export default function useManagerDashboard(accessToken, centerId, dateRange) {
       // Center KPI from goals
       if (goals) {
         const kpis = [];
-        if (goals.revenue_goal) {
-          kpis.push({ label: 'Doanh thu', current: dashAll?.stats?.totalRevenue || 0, target: goals.revenue_goal, type: 'currency' });
+        if (goals.value?.revenue_goal) {
+          kpis.push({ label: 'Doanh thu', current: dashAll?.stats?.revenue?.value || 0, target: goals.value.revenue_goal, type: 'currency' });
         }
-        if (goals.students_goal) {
-          kpis.push({ label: 'Học viên mới', current: dashAll?.stats?.newStudents || 0, target: goals.students_goal, type: 'number' });
+        if (goals.value?.students_goal) {
+          kpis.push({ label: 'Học viên mới', current: dashAll?.stats?.newStudents?.value || 0, target: goals.value.students_goal, type: 'number' });
         }
         if (attendance?.overallRate !== undefined) {
           kpis.push({ label: 'Tỷ lệ điểm danh', current: Math.round(attendance.overallRate), target: 90, type: 'percentage' });

@@ -1,6 +1,6 @@
-import { toast } from "sonner";
+import { gooeyToast } from 'goey-toast';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
     Clock, ChevronLeft, ChevronRight, Check, AlertTriangle,
     Send, Loader2, Home, RotateCcw, Flag
@@ -333,7 +333,11 @@ const GuestForm = ({ onSubmit, loading }) => {
                 </form>
 
                 <p className="text-xs text-neutral-400 text-center mt-6">
-                    Bằng việc tiếp tục, bạn đồng ý với điều khoản sử dụng và chính sách bảo mật của chúng tôi.
+                    Bằng việc tiếp tục, bạn đồng ý với{' '}
+                    <Link to="/dieu-khoan" className="underline hover:text-neutral-200 transition-colors">điều khoản sử dụng</Link>
+                    {' '}và{' '}
+                    <Link to="/bao-mat" className="underline hover:text-neutral-200 transition-colors">chính sách bảo mật</Link>
+                    {' '}của chúng tôi.
                 </p>
             </div>
         </div>
@@ -473,7 +477,7 @@ export const QuizPage = () => {
             setNeedsGuestInfo(false);
         } catch (err) {
             console.error('Error starting attempt:', err);
-            toast(err.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
+            gooeyToast(err.message || 'Có lỗi xảy ra. Vui lòng thử lại.');
         } finally {
             setLoading(false);
         }
@@ -564,7 +568,7 @@ export const QuizPage = () => {
             navigate(`/assessment/${slug}/result?attempt=${attempt.id}`, { replace: true });
         } catch (err) {
             console.error('Error submitting:', err);
-            toast('Có lỗi khi nộp bài. Vui lòng thử lại.');
+            gooeyToast('Có lỗi khi nộp bài. Vui lòng thử lại.');
         } finally {
             setSubmitting(false);
             setShowSubmitModal(false);

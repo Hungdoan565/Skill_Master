@@ -73,8 +73,8 @@ export function TeacherStatusWidget({ teachers = [], loading = false }) {
             <div className="p-4 space-y-2">
                 {teachers.slice(0, 5).map((teacher, index) => {
                     const statusInfo = getStatusStyle(teacher.status);
-                    const initials = teacher.name
-                        ? teacher.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
+                    const initials = teacher.full_name
+                        ? teacher.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
                         : '??';
 
                     return (
@@ -86,10 +86,16 @@ export function TeacherStatusWidget({ teachers = [], loading = false }) {
                             
                             {/* Info */}
                             <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-foreground truncate">{teacher.name}</p>
+                                <p className="font-semibold text-foreground truncate">{teacher.full_name}</p>
                                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
                                     <Clock size={12} />
-                                    <span className="truncate">{teacher.classInfo || 'Không có lớp tiếp theo'}</span>
+                                    <span className="truncate">
+                                        {teacher.status === 'teaching' && teacher.current_class
+                                            ? `${teacher.current_class.name} (${teacher.current_class.time})`
+                                            : teacher.next_class
+                                                ? `Tiếp theo: ${teacher.next_class.name} (${teacher.next_class.time})`
+                                                : 'Không có lớp tiếp theo'}
+                                    </span>
                                 </div>
                             </div>
                             

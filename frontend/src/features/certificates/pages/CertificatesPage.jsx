@@ -3,7 +3,7 @@ import { Award, Plus, FileText, Printer, Ban, Sparkles } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/data-table';
-import { toast } from 'sonner';
+import { gooeyToast } from 'goey-toast';
 import DashboardStats from '../components/DashboardStats';
 import { getCertificateColumns } from '../components/CertificateColumns';
 import CertificateFilters from '../components/CertificateFilters';
@@ -55,9 +55,16 @@ export default function CertificatesPage() {
   const handleCopyLink = (cert) => {
     const url = `${window.location.origin}/verify-certificate?cert=${cert.certificate_number}`;
     navigator.clipboard.writeText(url).then(() => {
-      toast.success('Đã copy link xác minh');
+      gooeyToast.success('Đã copy link xác minh');
     }).catch(() => {
-      toast.error('Không thể copy link. Vui lòng copy thủ công.');
+      gooeyToast.error('Không thể copy link. Vui lòng copy thủ công.', {
+        description: 'Trình duyệt không hỗ trợ copy tự động',
+        action: {
+          label: 'Copy thủ công',
+          onClick: () => window.prompt('Sao chép liên kết xác minh:', url),
+          successLabel: 'Đã chọn!'
+        }
+      });
     });
   };
 
@@ -68,11 +75,11 @@ export default function CertificatesPage() {
   const confirmRevoke = async (id, reason) => {
     const result = await revokeCertificate(id, reason);
     if (result.success) {
-      toast.success('Đã thu hồi chứng chỉ');
+      gooeyToast.success('Đã thu hồi chứng chỉ');
       setSelectedCertificate(null);
       refresh();
     } else {
-      toast.error(result.error || 'Có lỗi xảy ra');
+      gooeyToast.error(result.error || 'Có lỗi xảy ra');
     }
   };
 
@@ -167,10 +174,10 @@ export default function CertificatesPage() {
                     chứng chỉ đã chọn
                   </span>
                 </div>
-                <Button size="sm" variant="secondary" className="hover:bg-accent transition-colors bg-background" onClick={() => toast.info('Đang phát triển...')}>
+                <Button size="sm" variant="secondary" className="hover:bg-accent transition-colors bg-background" onClick={() => gooeyToast.info('Đang phát triển...')}>
                   <Printer className="h-4 w-4 mr-2" /> In hàng loạt
                 </Button>
-                <Button size="sm" variant="destructive" className="bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20 hover:text-destructive" onClick={() => toast.info('Đang phát triển...')}>
+                <Button size="sm" variant="destructive" className="bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20 hover:text-destructive" onClick={() => gooeyToast.info('Đang phát triển...')}>
                   <Ban className="h-4 w-4 mr-2" /> Thu hồi hàng loạt
                 </Button>
               </div>

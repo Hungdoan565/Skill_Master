@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { gooeyToast } from 'goey-toast';
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { SEOHead } from '@/components/common';
@@ -537,7 +537,7 @@ const ConsultationModal = ({ isOpen, onClose, courseId, courseName }) => {
             setSuccess(true);
         } catch (err) {
             console.error('Error submitting consultation:', err);
-            toast('Có lỗi xảy ra. Vui lòng thử lại sau.');
+            gooeyToast('Có lỗi xảy ra. Vui lòng thử lại sau.');
         } finally {
             setLoading(false);
         }
@@ -643,7 +643,7 @@ const ConsultationModal = ({ isOpen, onClose, courseId, courseName }) => {
 // MOBILE FIXED ACTION BAR
 // ============================================
 
-const MobileActionBar = ({ price, onRegister, onConsult, theme }) => (
+const MobileActionBar = ({ price, courseSlug, onConsult, theme }) => (
     <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-neutral-200 p-4 shadow-[0_-10px_20px_rgba(0,0,0,0.05)] flex items-center justify-between gap-4 animate-in slide-in-from-bottom duration-500">
         <div className="flex-shrink-0">
             <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Học phí</p>
@@ -657,7 +657,7 @@ const MobileActionBar = ({ price, onRegister, onConsult, theme }) => (
                 Tư vấn
             </button>
             <Link
-                to="/register"
+                to={`/register?courseSlug=${courseSlug}`}
                 className={`flex-1 py-3 text-white text-xs font-black uppercase tracking-widest text-center ${theme.ctaBg}`}
             >
                 Đăng ký
@@ -1204,7 +1204,7 @@ export const CourseDetailPage = () => {
 
                                 <div className="space-y-3">
                                     <Link
-                                        to="/register"
+                                        to={`/register?courseSlug=${course.slug}`}
                                         className={`relative w-full py-5 ${theme.ctaBg} text-white font-black uppercase tracking-widest ${theme.ctaHover} hover:text-black transition-all flex items-center justify-center gap-2 group/btn overflow-hidden`}
                                         style={{ boxShadow: `0 10px 20px ${theme.heroAccent}30` }}
                                     >
@@ -1277,7 +1277,7 @@ export const CourseDetailPage = () => {
                 {/* MOBILE ACTION BAR */}
                 <MobileActionBar
                     price={course?.price}
-                    onRegister={() => { }}
+                    courseSlug={course?.slug}
                     onConsult={() => setShowConsultation(true)}
                     theme={theme}
                 />

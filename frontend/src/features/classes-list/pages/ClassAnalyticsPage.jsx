@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { gooeyToast } from 'goey-toast';
 /**
  * ClassAnalyticsPage - Dashboard Analytics cho Classes
  * Displays KPIs, charts, and insights about classes
@@ -115,7 +115,7 @@ export function ClassAnalyticsPage() {
 
             const content = document.getElementById('analytics-content');
             if (!content) {
-                toast('Không tìm thấy nội dung để xuất');
+                gooeyToast.warning('Không tìm thấy nội dung để xuất');
                 return;
             }
 
@@ -169,7 +169,7 @@ export function ClassAnalyticsPage() {
 
         } catch (error) {
             console.error('Error exporting PDF:', error);
-            toast('Không thể xuất PDF. Vui lòng thử lại hoặc cài đặt thư viện html2canvas và jspdf.');
+            gooeyToast('Không thể xuất PDF. Vui lòng thử lại hoặc cài đặt thư viện html2canvas và jspdf.');
         } finally {
             setRefreshing(false);
         }

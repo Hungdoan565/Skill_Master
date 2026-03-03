@@ -39,8 +39,10 @@ export const ENROLLMENT_EVENTS = {
 };
 
 import { initPgBoss, scheduleRecurringJobs, stopPgBoss, isPgBossAvailable, queueEmail, queueEnrollmentEmail, triggerPaymentReminder, triggerOverdueCheck, triggerSessionAutoComplete, triggerCertificateEligibilityCheck } from './pgboss-scheduler.js';
-import { startWorkers } from './pgboss-workers.js';
+import { startWorkers, processCustomAlertCheck, processScheduledReportRun } from './pgboss-workers.js';
 import { autoCompleteSessionsManual } from './sessionAutoComplete.job.js';
+
+export { processCustomAlertCheck, processScheduledReportRun };
 
 /**
  * Start job scheduler (called from main server)

@@ -55,6 +55,20 @@ const UserDropdown = () => {
     navigate('/', { replace: true });
   };
 
+  const getProfilePath = () => {
+    switch (roleCode) {
+      case 'SUPER_ADMIN':
+      case 'CENTER_MANAGER':
+        return '/admin/settings';
+      case 'TEACHER':
+        return '/teacher/profile';
+      case 'PARENT':
+        return '/parent/profile';
+      default:
+        return '/';
+    }
+  };
+
   const getRoleLabel = () => {
     switch (roleCode) {
       case 'SUPER_ADMIN': return 'Admin';
@@ -143,10 +157,10 @@ const UserDropdown = () => {
           <button onClick={() => { setIsOpen(false); navigate(getRedirectPath()); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors">
             <LayoutDashboard className="h-4 w-4 text-zinc-400" /> <span>Vào Dashboard</span>
           </button>
-          <button onClick={() => { setIsOpen(false); navigate('/profile'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors">
+          <button onClick={() => { setIsOpen(false); navigate(getProfilePath()); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors">
             <User className="h-4 w-4 text-zinc-400" /> <span>Hồ sơ cá nhân</span>
           </button>
-          <button onClick={() => { setIsOpen(false); navigate('/settings'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors">
+          <button onClick={() => { setIsOpen(false); navigate('/admin/settings'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors">
             <Settings className="h-4 w-4 text-zinc-400" /> <span>Cài đặt</span>
           </button>
           <div className="my-1 mx-3 border-t border-zinc-100" />

@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   CalendarDays,
+  BookOpen,
   Award,
   ClipboardCheck,
   CreditCard,
@@ -22,6 +23,7 @@ const menuGroups = [
     id: 'overview',
     items: [
       { label: 'Tổng quan', icon: LayoutDashboard, path: '/student' },
+      { label: 'Khóa học', icon: BookOpen, path: '/student/courses' },
     ],
   },
   {

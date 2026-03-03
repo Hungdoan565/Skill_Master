@@ -33,3 +33,18 @@ conductor/
 .opencode/
 openspec/
 .github/
+
+# Temp files
+nul
+temp/
+temp-shadcn-*/
+playwright-report/
+supabase/.temp/
+*.pdf
+rewrite_app.*
+scripts/debug_*
+
+# Env local
+.env.local
+frontend/.env.local
+backend/.env.local

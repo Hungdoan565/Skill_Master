@@ -6,3 +6,5 @@ export { useStudentInvoices } from './useStudentInvoices';
 export { useStudentCertificates } from './useStudentCertificates';
 export { useStudentPaymentConfig } from './useStudentPaymentConfig';
 export { useStudentSupport } from './useStudentSupport';
+export { useAvailableCourses } from './useAvailableCourses';
+export { useEnrollmentRequests } from './useEnrollmentRequests';

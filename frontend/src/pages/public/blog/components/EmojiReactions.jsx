@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { gooeyToast } from 'goey-toast';
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/auth-context';
@@ -63,7 +63,7 @@ export const EmojiReactions = ({ postSlug }) => {
 
     const handleReact = async (type) => {
         if (!user) {
-            toast('Vui lòng đăng nhập để bày tỏ cảm xúc!');
+            gooeyToast.warning('Vui lòng đăng nhập để bày tỏ cảm xúc!');
             return;
         }
 

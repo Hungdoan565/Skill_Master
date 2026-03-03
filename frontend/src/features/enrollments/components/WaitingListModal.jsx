@@ -41,7 +41,7 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useEnrollments } from '../hooks';
-import { toast } from 'sonner';
+import { gooeyToast } from 'goey-toast';
 
 // Priority options
 const PRIORITY_OPTIONS = [
@@ -130,11 +130,11 @@ export function WaitingListModal({
     e.preventDefault();
 
     if (!formData.student_id) {
-      toast.error('Vui lòng chọn học viên');
+      gooeyToast.error('Vui lòng chọn học viên');
       return;
     }
     if (!formData.class_id) {
-      toast.error('Vui lòng chọn lớp học');
+      gooeyToast.error('Vui lòng chọn lớp học');
       return;
     }
 
@@ -146,11 +146,11 @@ export function WaitingListModal({
         priority: parseInt(formData.priority),
         notes: formData.notes || null,
       });
-      toast.success(result.message || 'Đã thêm vào danh sách chờ');
+      gooeyToast.success(result.message || 'Đã thêm vào danh sách chờ');
       onSuccess?.();
       handleClose();
     } catch (error) {
-      toast.error(error.message || 'Có lỗi xảy ra');
+      gooeyToast.error(error.message || 'Có lỗi xảy ra');
     } finally {
       setSubmitting(false);
     }

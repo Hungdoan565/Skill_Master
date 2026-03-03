@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import { supabase } from '@/lib/supabaseClient';
 import { SplashLoader } from '@/components/ui/splash-loader';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
 const AuthContext = createContext(undefined);
 
 export function AuthProvider({ children }) {
@@ -245,12 +247,44 @@ export function AuthProvider({ children }) {
   // Sign in
   const signInWithEmail = async (email, password) => {
     const result = await supabase.auth.signInWithPassword({ email, password });
+    if (!result.error && result.data?.session) {
+      // Log successful login
+      try {
+        fetch(`${API_URL}/api/audit-log`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${result.data.session.access_token}` },
+          body: JSON.stringify({ action: 'LOGIN' })
+        }).catch(() => {});
+      } catch {}
+    } else if (result.error) {
+      // Log failed login attempt (unauthenticated endpoint)
+      try {
+        fetch(`${API_URL}/api/audit-log/auth`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'LOGIN_FAILED', email })
+        }).catch(() => {});
+      } catch {}
+    }
     return result;
   };
 
   // Sign out
   const signOut = async () => {
+    // Log logout event before signing out
+    if (session?.access_token) {
+      try {
+        fetch(`${API_URL}/api/audit-log`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+          body: JSON.stringify({ action: 'LOGOUT' })
+        }).catch(() => {}); // Fire-and-forget
+      } catch {} // Silent fail
+    }
+    // Clear ALL auth state immediately to prevent "Chưa hoàn tất cấu hình" flash
     setProfile(null);
+    setUser(null);
+    setSession(null);
     const result = await supabase.auth.signOut();
     return result;
   };

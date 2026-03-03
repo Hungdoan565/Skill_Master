@@ -1,6 +1,7 @@
-import { toast } from "sonner";
+import { gooeyToast } from 'goey-toast';
 import React, { useState } from 'react';
 import { SmartImage } from '@/components/common';
+import { ConsultationModal } from '@/components/common';
 import { Link } from 'react-router-dom';
 import {
     Facebook, Youtube, Instagram, Linkedin,
@@ -19,10 +20,10 @@ const iconMap = {
 export const Footer = () => {
     const [ref, isInView] = useInView();
     const [email, setEmail] = useState('');
-
+    const [showConsultation, setShowConsultation] = useState(false);
     const handleSubscribe = (e) => {
         e.preventDefault();
-        toast(`Đã đăng ký nhận tin với email: ${email}`);
+        gooeyToast.success(`Đã đăng ký nhận tin với email: ${email}`);
         setEmail('');
     };
 
@@ -91,12 +92,24 @@ export const Footer = () => {
                                 <ul className="space-y-4">
                                     {links.map((link, idx) => (
                                         <li key={idx}>
-                                            <Link to="#" className="text-sm hover:text-red-500 transition-colors inline-flex items-center gap-1 group">
-                                                <span className="w-0 overflow-hidden group-hover:w-3 transition-all duration-300 opacity-0 group-hover:opacity-100">
-                                                    <ArrowRight className="w-3 h-3" />
-                                                </span>
-                                                {link}
-                                            </Link>
+                                            {link.action === 'consultation' ? (
+                                                <button
+                                                    onClick={() => setShowConsultation(true)}
+                                                    className="text-sm hover:text-red-500 transition-colors inline-flex items-center gap-1 group text-left"
+                                                >
+                                                    <span className="w-0 overflow-hidden group-hover:w-3 transition-all duration-300 opacity-0 group-hover:opacity-100">
+                                                        <ArrowRight className="w-3 h-3" />
+                                                    </span>
+                                                    {link.label}
+                                                </button>
+                                            ) : (
+                                                <Link to={link.to || '#'} className="text-sm hover:text-red-500 transition-colors inline-flex items-center gap-1 group">
+                                                    <span className="w-0 overflow-hidden group-hover:w-3 transition-all duration-300 opacity-0 group-hover:opacity-100">
+                                                        <ArrowRight className="w-3 h-3" />
+                                                    </span>
+                                                    {link.label}
+                                                </Link>
+                                            )}
                                         </li>
                                     ))}
                                 </ul>
@@ -155,12 +168,12 @@ export const Footer = () => {
                 <div className="pt-8 mt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-stone-500">
                     <p>© 2024 Skill Master Academy. All rights reserved.</p>
                     <div className="flex gap-6">
-                        <a href="#" className="hover:text-white transition-colors">Điều khoản</a>
-                        <a href="#" className="hover:text-white transition-colors">Bảo mật</a>
-                        <a href="#" className="hover:text-white transition-colors">Sitemap</a>
+                        <Link to="/dieu-khoan" className="hover:text-white transition-colors">Điều khoản</Link>
+                        <Link to="/bao-mat" className="hover:text-white transition-colors">Bảo mật</Link>
                     </div>
                 </div>
             </div>
+                <ConsultationModal isOpen={showConsultation} onClose={() => setShowConsultation(false)} />
         </footer>
     );
 };

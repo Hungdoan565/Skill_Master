@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import {
   LayoutDashboard,
@@ -19,25 +20,96 @@ import {
   FileText,
   Award,
   Bell,
+  TrendingUp,
   Headphones,
   Calendar,
   AlertTriangle,
+  Shield,
+  ScrollText,
+  ClipboardCheck,
+  Trophy,
+  GitCompareArrows,
+  BellRing,
+  CalendarClock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // Import logo
 import logoImage from '@/assets/logo.png';
 
-// Menu được gom nhóm theo chức năng
-// badge: 'new' | 'beta' | 'coming' để hiển thị trạng thái
-const menuGroups = [
+// SUPER_ADMIN: Strategic menu — system overview, user management, audit
+const superAdminMenuGroups = [
   {
     id: 'overview',
     items: [
       { label: 'Dashboard', icon: LayoutDashboard, path: '/admin/dashboard' },
     ],
   },
-{
+  {
+    id: 'system-management',
+    title: 'QUẢN LÝ HỆ THỐNG',
+    items: [
+      { label: 'Trung tâm', icon: Building2, path: '/admin/centers' },
+      { label: 'Quản lý người dùng', icon: Shield, path: '/admin/user-management', badge: 'new' },
+      { label: 'Nhật ký hệ thống', icon: ScrollText, path: '/admin/audit-trail', badge: 'new' },
+      { label: 'Phê duyệt', icon: ClipboardCheck, path: '/admin/approvals' },
+    ],
+  },
+  {
+    id: 'training',
+    title: 'QUẢN LÝ ĐÀO TẠO',
+    items: [
+      { label: 'Khóa học', icon: BookOpen, path: '/admin/courses' },
+      { label: 'Lớp học', icon: GraduationCap, path: '/admin/classes' },
+      { label: 'Lịch dạy', icon: CalendarCheck, path: '/admin/schedule' },
+      { label: 'Phòng học', icon: DoorOpen, path: '/admin/rooms' },
+    ],
+  },
+  {
+    id: 'students-finance',
+    title: 'HỌC VIÊN & TÀI CHÍNH',
+    items: [
+      { label: 'Học viên', icon: Users, path: '/admin/students' },
+      { label: 'Ghi danh', icon: UserPlus, path: '/admin/enrollments' },
+      { label: 'Hóa đơn', icon: Receipt, path: '/admin/invoices' },
+      { label: 'Chứng chỉ', icon: Award, path: '/admin/certificates' },
+      { label: 'Hóa đơn quá hạn', icon: AlertTriangle, path: '/admin/overdue-invoices' },
+    ],
+  },
+  {
+    id: 'internal',
+    title: 'NỘI BỘ',
+    items: [
+      { label: 'Nhân sự', icon: UserCog, path: '/admin/staff' },
+      { label: 'Bảng lương', icon: Wallet, path: '/admin/payroll' },
+      { label: 'Khiếu nại lương', icon: AlertTriangle, path: '/admin/payroll-disputes' },
+    ],
+  },
+  {
+    id: 'analytics',
+    title: 'PHÂN TÍCH & BÁO CÁO',
+    items: [
+      { label: 'Báo cáo', icon: BarChart3, path: '/admin/reports' },
+      { label: 'Thông báo', icon: Bell, path: '/admin/notifications' },
+      { label: 'Bảng xếp hạng', icon: Trophy, path: '/admin/leaderboard', badge: 'new' },
+      { label: 'So sánh trung tâm', icon: GitCompareArrows, path: '/admin/center-comparison', badge: 'new' },
+      { label: 'Cảnh báo tùy chỉnh', icon: BellRing, path: '/admin/custom-alerts', badge: 'new' },
+      { label: 'Báo cáo định kỳ', icon: CalendarClock, path: '/admin/scheduled-reports', badge: 'new' },
+      { label: 'Hỗ trợ', icon: Headphones, path: '/admin/support' },
+      { label: 'Tài liệu', icon: FileText, path: '/admin/documents' },
+    ],
+  },
+];
+
+// CENTER_MANAGER: Operational menu — training, students, staff
+const managerMenuGroups = [
+  {
+    id: 'overview',
+    items: [
+      { label: 'Dashboard', icon: LayoutDashboard, path: '/admin/dashboard' },
+    ],
+  },
+  {
     id: 'training',
     title: 'QUẢN LÝ ĐÀO TẠO',
     items: [
@@ -71,7 +143,6 @@ const menuGroups = [
     title: 'HỆ THỐNG',
     items: [
       { label: 'Thông báo', icon: Bell, path: '/admin/notifications' },
-      { label: 'Trung tâm', icon: Building2, path: '/admin/centers' },
       { label: 'Tài liệu', icon: FileText, path: '/admin/documents' },
       { label: 'Báo cáo', icon: BarChart3, path: '/admin/reports' },
       { label: 'Hỗ trợ', icon: Headphones, path: '/admin/support' },
@@ -79,22 +150,32 @@ const menuGroups = [
   },
 ];
 
+const VISITED_STORAGE_KEY = 'admin_sidebar_visited';
+
+function getVisitedPaths() {
+  try {
+    return JSON.parse(localStorage.getItem(VISITED_STORAGE_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
 export function AdminSidebar() {
   const location = useLocation();
   const { isSuperAdmin } = useAuth();
+  const menuGroups = isSuperAdmin?.() ? superAdminMenuGroups : managerMenuGroups;
+  const [visitedPaths, setVisitedPaths] = useState(getVisitedPaths);
 
-  // Filter menu items dựa trên role - ẩn mục chỉ dành cho SUPER_ADMIN
-  const filteredMenuGroups = menuGroups
-    .map(group => ({
-      ...group,
-      items: group.items.filter(item => {
-        // Trung tâm - chỉ SUPER_ADMIN mới thấy
-        if (item.path === '/admin/centers') return isSuperAdmin?.();
-        return true;
-      })
-    }))
-    .filter(group => group.items.length > 0);
-
+  // Mark current path as visited (clears 'new' badge)
+  useEffect(() => {
+    const current = location.pathname;
+    setVisitedPaths(prev => {
+      if (prev.includes(current)) return prev;
+      const updated = [...prev, current];
+      localStorage.setItem(VISITED_STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  }, [location.pathname]);
   return (
     <aside className="flex h-screen w-72 flex-col bg-zinc-950 text-white">
       {/* Logo - Premium feel with glow effect */}
@@ -129,7 +210,7 @@ export function AdminSidebar() {
 
       {/* Navigation - Refined spacing and styling */}
       <nav className="flex-1 overflow-y-auto scrollbar-none px-4 py-6">
-        {filteredMenuGroups.map((group, index) => (
+        {menuGroups.map((group, index) => (
           <div key={group.id} className={cn(
             index > 0 && group.title ? 'mt-8' : 'mb-2'
           )}>
@@ -172,7 +253,7 @@ export function AdminSidebar() {
                     <span>{item.label}</span>
 
                     {/* Badge indicator */}
-                    {item.badge === 'new' && (
+                    {item.badge === 'new' && !visitedPaths.includes(item.path) && (
                       <span className="ml-auto rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
                         Mới
                       </span>
@@ -200,7 +281,7 @@ export function AdminSidebar() {
         ))}
       </nav>
 
-      {/* Footer - Settings with premium feel */}
+      {/* Footer - Settings (Super Admin only) */}
       {isSuperAdmin?.() && (
         <div className="p-4">
           {/* Divider */}

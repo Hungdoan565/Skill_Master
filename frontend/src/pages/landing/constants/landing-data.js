@@ -340,9 +340,25 @@ export const trustBadges = [
 // FOOTER LINKS
 // ============================================
 export const footerLinks = {
-    'Khóa học': ['IELTS', 'TOEIC', 'Giao tiếp', 'Tin học VP', 'IC3'],
-    'Lộ trình': ['Từ 0 lên 6.5', 'TOEIC 700+', 'IELTS 7.0+', 'Excel Pro'],
-    'Hỗ trợ': ['Tư vấn miễn phí', 'Lịch khai giảng', 'Chính sách', 'FAQ'],
+    'Khóa học': [
+        { label: 'IELTS', to: '/courses' },
+        { label: 'TOEIC', to: '/courses' },
+        { label: 'Giao tiếp', to: '/courses' },
+        { label: 'Tin học VP', to: '/courses' },
+        { label: 'IC3', to: '/courses' },
+    ],
+    'Lộ trình': [
+        { label: 'Từ 0 lên 6.5', to: '/roadmap' },
+        { label: 'TOEIC 700+', to: '/roadmap' },
+        { label: 'IELTS 7.0+', to: '/roadmap' },
+        { label: 'Excel Pro', to: '/roadmap' },
+    ],
+    'Hỗ trợ': [
+        { label: 'Tư vấn miễn phí', to: null, action: 'consultation' },
+        { label: 'Lịch khai giảng', to: '/courses' },
+        { label: 'Chính sách', to: '/chinh-sach' },
+        { label: 'FAQ', to: '/faq' },
+    ],
 };
 
 // ============================================

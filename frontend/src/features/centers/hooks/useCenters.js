@@ -39,7 +39,18 @@ export function useCenters() {
             const response = await axios.get(url, config);
 
             if (response.data?.success) {
-                setCenters(response.data.data);
+                const normalizedCenters = (response.data.data || []).map((center) => {
+                    const stats = center.stats || {};
+
+                    return {
+                        ...center,
+                        rooms_count: center.rooms_count ?? stats.roomCount ?? 0,
+                        teachers_count: center.teachers_count ?? stats.staffCount ?? 0,
+                        students_count: center.students_count ?? stats.studentCount ?? 0,
+                    };
+                });
+
+                setCenters(normalizedCenters);
             }
         } catch (err) {
             console.error('Error fetching centers:', err);

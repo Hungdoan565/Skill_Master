@@ -13,7 +13,7 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { X, Printer, Download, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { gooeyToast } from 'goey-toast';
 import { Button } from '@/components/ui/button';
 import { InvoicePrintTemplate } from './InvoicePrintTemplate';
 
@@ -35,7 +35,13 @@ export function InvoicePrintModal({ isOpen, invoice, payments = [], onClose }) {
         const printWindow = window.open('', '_blank');
 
         if (!printWindow) {
-            toast.error('Popup bị chặn. Vui lòng cho phép popup để in.');
+            gooeyToast.error('Popup bị chặn. Vui lòng cho phép popup để in.', {
+                description: 'Tắt chặn popup trong cài đặt trình duyệt',
+                action: {
+                    label: 'Thử lại',
+                    onClick: () => handlePrint()
+                }
+            });
             setPrinting(false);
             return;
         }

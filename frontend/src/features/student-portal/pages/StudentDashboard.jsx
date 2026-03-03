@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth-context';
 import { useStudentDashboard } from '../hooks';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -13,8 +13,10 @@ import {
   RefreshCw,
   Calendar,
   ChevronRight,
-  ArrowRight
+  ArrowRight,
+  GraduationCap
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 const formatCurrency = (amount) => {
@@ -293,6 +295,23 @@ export function StudentDashboard() {
           color={stats.unpaidAmount > 0 ? 'red' : 'green'}
         />
       </div>
+
+      {/* Welcome Card for new students */}
+      {(!data?.classes || data.classes.length === 0) && (
+        <Card className="border-emerald-200 bg-emerald-50/50">
+          <CardContent className="flex flex-col items-center justify-center py-8 text-center">
+            <GraduationCap className="h-12 w-12 text-emerald-500 mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Chào mừng bạn đến với trung tâm!</h3>
+            <p className="text-gray-500 mb-4">Bạn chưa đăng ký khóa học nào. Hãy khám phá các khóa học đang mở.</p>
+            <Button asChild className="bg-emerald-600 hover:bg-emerald-700">
+              <Link to="/student/courses">
+                <BookOpen className="h-4 w-4 mr-2" />
+                Xem Khóa Học
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Course Progress Section (Conditional) */}
       {enrollments.length > 0 && (

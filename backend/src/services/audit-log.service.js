@@ -5,6 +5,35 @@
 
 import { supabase } from '../lib/db.js';
 
+// Auto-severity mapping based on action type
+const SEVERITY_MAP = {
+    // CRITICAL — destructive or high-risk
+    'DELETE': 'CRITICAL',
+    'RESET_PASSWORD': 'CRITICAL',
+    'LOGIN_FAILED': 'WARNING',
+    // WARNING — sensitive operations
+    'LOCK_USER': 'WARNING',
+    'UNLOCK_USER': 'WARNING',
+    'LOCK_GRADES': 'WARNING',
+    // INFO — everything else (default)
+};
+
+// Action+table overrides (more specific than action-only)
+const SEVERITY_OVERRIDES = {
+    'UPDATE:grades': 'WARNING',
+    'UPDATE:users': 'WARNING',
+};
+
+function deriveSeverity(action, tableName) {
+    // Check specific action+table override first
+    const overrideKey = `${action}:${tableName}`;
+    if (SEVERITY_OVERRIDES[overrideKey]) return SEVERITY_OVERRIDES[overrideKey];
+    // Then check action-level mapping
+    if (SEVERITY_MAP[action]) return SEVERITY_MAP[action];
+    // Default
+    return 'INFO';
+}
+
 export class AuditLogService {
     /**
      * Log an audit event
@@ -20,6 +49,9 @@ export class AuditLogService {
      * @param {String} params.ipAddress - Request IP
      * @param {String} params.userAgent - User agent
      * @param {String} params.requestPath - Request path
+     * @param {String} params.status - Operation status (SUCCESS/FAILED/DENIED)
+     * @param {String} params.centerId - Center ID for multi-tenant scoping
+     * @param {String} params.severity - Severity level (INFO/WARNING/CRITICAL) — auto-derived if not provided
      */
     static async log({
         userId,
@@ -32,7 +64,10 @@ export class AuditLogService {
         newValues = null,
         ipAddress = null,
         userAgent = null,
-        requestPath = null
+        requestPath = null,
+        status = 'SUCCESS',
+        centerId = null,
+        severity = null
     }) {
         try {
             // Calculate changes
@@ -63,7 +98,10 @@ export class AuditLogService {
                     changes,
                     ip_address: ipAddress,
                     user_agent: userAgent,
-                    request_path: requestPath
+                    request_path: requestPath,
+                    status,
+                    center_id: centerId,
+                    severity: severity || deriveSeverity(action, tableName)
                 })
                 .select()
                 .single();

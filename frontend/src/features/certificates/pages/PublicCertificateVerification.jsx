@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { gooeyToast } from 'goey-toast';
 /**
  * PublicCertificateVerification - Trang xác thực chứng chỉ công khai
  * 
@@ -247,7 +247,7 @@ const PrintVerifiedCertificate = ({ certificate }) => {
     const handlePrint = () => {
         const printWindow = window.open('', '_blank', 'width=900,height=700');
         if (!printWindow) {
-            toast('Vui lòng cho phép popup để in');
+            gooeyToast.warning('Vui lòng cho phép popup để in');
             return;
         }
 

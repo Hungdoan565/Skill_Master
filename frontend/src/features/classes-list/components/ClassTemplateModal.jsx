@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { gooeyToast } from 'goey-toast';
 /**
  * ClassTemplateModal Component
  * Create and manage class templates for quick class creation
@@ -145,7 +145,7 @@ export function ClassTemplateModal({
     // Handle save template
     const handleSave = () => {
         if (!formData.name.trim()) {
-            toast('Vui lòng nhập tên template');
+            gooeyToast.warning('Vui lòng nhập tên template');
             return;
         }
 

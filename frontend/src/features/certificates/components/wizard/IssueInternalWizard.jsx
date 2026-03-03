@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import axios from 'axios';
-import { toast } from 'sonner';
+import { gooeyToast } from 'goey-toast';
 import { Check, ChevronRight, X, Loader2, Sparkles } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -111,7 +111,7 @@ export default function IssueInternalWizard({ open, onOpenChange, onSuccess, cen
       const missingScores = selectedIds.some(id => !scores[id] || Object.keys(scores[id]).length === 0);
       
       if (missingScores) {
-        toast.error('Vui lòng nhập điểm cho tất cả học viên được chọn');
+        gooeyToast.error('Vui lòng nhập điểm cho tất cả học viên được chọn');
         isValid = false;
       }
     }
@@ -129,60 +129,68 @@ export default function IssueInternalWizard({ open, onOpenChange, onSuccess, cen
     console.error('Form validation errors:', errors);
     const firstError = Object.values(errors)[0];
     const message = firstError?.message || firstError?.root?.message || 'Dữ liệu không hợp lệ';
-    toast.error(`Lỗi validation: ${message}`);
+    gooeyToast.error(`Lỗi validation: ${message}`);
   };
   const onSubmit = async (data) => {
     try {
       setSubmitting(true);
-      
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Chưa đăng nhập');
-      
-      const payload = {
-        certificate_type_id: data.certificateTypeId,
-        students: data.studentIds.map(studentId => {
-          const studentData = studentsList.find(s => s.student_id === studentId);
-          return {
-            student_id: studentId,
-            scores: data.scores[studentId],
-            override_reason: data.overrideReasons[studentId] || null,
-            class_id: studentData?.class_id || null,
-            course_name: studentData?.course_name || null
-          };
-        }),
-        options: {
-          show_qr: data.showQR,
-          show_serial: data.showSerial,
-          send_email: data.sendEmail
+      const issuePromise = (async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) throw new Error('Chưa đăng nhập');
+
+        const payload = {
+          certificate_type_id: data.certificateTypeId,
+          students: data.studentIds.map(studentId => {
+            const studentData = studentsList.find(s => s.student_id === studentId);
+            return {
+              student_id: studentId,
+              scores: data.scores[studentId],
+              override_reason: data.overrideReasons[studentId] || null,
+              class_id: studentData?.class_id || null,
+              course_name: studentData?.course_name || null
+            };
+          }),
+          options: {
+            show_qr: data.showQR,
+            show_serial: data.showSerial,
+            send_email: data.sendEmail
+          }
+        };
+
+        const response = await axios.post(
+          `${API_URL}/api/admin/certificates/request-approval`,
+          payload,
+          { headers: { Authorization: `Bearer ${session.access_token}` } }
+        );
+
+        if (!response.data?.success) {
+          throw new Error(response.data?.message || 'Có lỗi xảy ra khi cấp chứng chỉ');
         }
-      };
 
-      const response = await axios.post(
-        `${API_URL}/api/admin/certificates/request-approval`,
-        payload,
-        { headers: { Authorization: `Bearer ${session.access_token}` } }
-      );
-
-      if (response.data?.success) {
         const successCount = response.data?.data?.success?.length || 0;
-        const failedCount = response.data?.data?.failed?.length || 0;
-        if (successCount > 0) {
-          toast.success(`Đã cấp ${successCount} chứng chỉ thành công`);
+        if (successCount === 0) {
+          throw new Error('Không có chứng chỉ nào được cấp');
         }
-        if (failedCount > 0) {
-          toast.error(`${failedCount} chứng chỉ không thể cấp: ${response.data.data.failed.map(f => f.error).join(', ')}`);
-        }
-        if (successCount === 0 && failedCount === 0) {
-          toast.error('Không có chứng chỉ nào được cấp');
-        }
-        if (successCount > 0 && onSuccess) onSuccess();
-        if (successCount > 0) onOpenChange(false);
-      } else {
-        toast.error(response.data?.message || 'Có lỗi xảy ra khi cấp chứng chỉ');
-      }
+
+        return {
+          successCount,
+          failedCount: response.data?.data?.failed?.length || 0
+        };
+      })();
+
+      const issueResult = await gooeyToast.promise(issuePromise, {
+        loading: 'Đang cấp chứng chỉ...',
+        success: (result) => ({
+          message: 'Đã cấp chứng chỉ thành công',
+          description: `Thành công: ${result.successCount}, Thất bại: ${result.failedCount}`,
+        }),
+        error: 'Lỗi khi cấp chứng chỉ'
+      });
+
+      if (issueResult.successCount > 0 && onSuccess) onSuccess();
+      if (issueResult.successCount > 0) onOpenChange(false);
     } catch (error) {
       console.error('Lỗi khi submit:', error);
-      toast.error(error.response?.data?.message || 'Không thể cấp chứng chỉ')
     } finally {
       setSubmitting(false);
     }

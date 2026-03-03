@@ -38,6 +38,7 @@ import {
 import { ActionableAlertsWidget } from '../components/ActionableAlertsWidget';
 import { exportDashboardToCSV } from '../utils';
 import ManagerDashboardPage from './ManagerDashboardPage';
+import AdminDashboardPage from '@/features/admin-dashboard/pages/AdminDashboardPage';
 
 // Helpers
 const getValue = (val) => {
@@ -62,7 +63,10 @@ export function DashboardPage() {
   const navigate = useNavigate();
   const { user, session, profile, isSuperAdmin, isManager, getCenterId } = useAuth();
 
-  // Role-based dashboard routing: Manager gets their own dashboard
+  // Role-based dashboard routing
+  if (isSuperAdmin?.()) {
+    return <AdminDashboardPage />;
+  }
   if (isManager?.()) {
     return <ManagerDashboardPage />;
   }

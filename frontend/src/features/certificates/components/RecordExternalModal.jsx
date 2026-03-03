@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import axios from 'axios';
-import { toast } from 'sonner';
+import { gooeyToast } from 'goey-toast';
 import { X, Upload, FileText, AlertCircle, Loader2, Calendar, Check, UploadCloud } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
@@ -73,7 +73,7 @@ export default function RecordExternalModal({ open, onOpenChange, onSuccess }) {
       }
     } catch (error) {
       console.error('Lỗi khi tải học viên', error);
-      toast.error('Không thể tải danh sách học viên');
+      gooeyToast.error('Không thể tải danh sách học viên');
     } finally {
       setLoadingStudents(false);
     }
@@ -95,13 +95,13 @@ export default function RecordExternalModal({ open, onOpenChange, onSuccess }) {
     if (!file) return;
 
     if (file.size > 10 * 1024 * 1024) {
-      toast.error('Kích thước file không được vượt quá 10MB');
+      gooeyToast.error('Kích thước file không được vượt quá 10MB');
       return;
     }
 
     const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
     if (!allowedTypes.includes(file.type)) {
-      toast.error('Chỉ chấp nhận file .jpg, .png, .pdf');
+      gooeyToast.error('Chỉ chấp nhận file .jpg, .png, .pdf');
       return;
     }
 
@@ -142,44 +142,51 @@ export default function RecordExternalModal({ open, onOpenChange, onSuccess }) {
   const onSubmit = async (data) => {
     try {
       setSubmitting(true);
-      
-      let finalFileUrl = data.fileUrl;
-      
-      if (fileToUpload) {
-        finalFileUrl = await uploadFileToSupabase(fileToUpload);
-        setValue('fileUrl', finalFileUrl);
-      }
+      const submitPromise = (async () => {
+        let finalFileUrl = data.fileUrl;
 
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const payload = {
-        student_id: data.studentId,
-        certificate_type_id: data.certificateTypeId,
-        external_id: data.externalId,
-        exam_date: data.examDate,
-        scores: data.scores,
-        external_verify_url: data.externalVerifyUrl || null,
-        file_url: finalFileUrl || null,
-        notes: data.notes || null,
-        is_external: true
-      };
+        if (fileToUpload) {
+          finalFileUrl = await uploadFileToSupabase(fileToUpload);
+          setValue('fileUrl', finalFileUrl);
+        }
 
-      const response = await axios.post(
-        `${API_URL}/api/admin/certificates`,
-        payload,
-        { headers: { Authorization: `Bearer ${session.access_token}` } }
-      );
+        const { data: { session } } = await supabase.auth.getSession();
 
-      if (response.data?.success) {
-        toast.success('Đã ghi nhận chứng chỉ quốc tế thành công');
-        if (onSuccess) onSuccess();
-        onOpenChange(false);
-      } else {
-        toast.error(response.data?.message || 'Có lỗi xảy ra khi ghi nhận');
-      }
+        const payload = {
+          student_id: data.studentId,
+          certificate_type_id: data.certificateTypeId,
+          external_id: data.externalId,
+          exam_date: data.examDate,
+          scores: data.scores,
+          external_verify_url: data.externalVerifyUrl || null,
+          file_url: finalFileUrl || null,
+          notes: data.notes || null,
+          is_external: true
+        };
+
+        const response = await axios.post(
+          `${API_URL}/api/admin/certificates`,
+          payload,
+          { headers: { Authorization: `Bearer ${session.access_token}` } }
+        );
+
+        if (!response.data?.success) {
+          throw new Error(response.data?.message || 'Có lỗi xảy ra khi ghi nhận');
+        }
+
+        return response.data;
+      })();
+
+      await gooeyToast.promise(submitPromise, {
+        loading: 'Đang ghi nhận chứng chỉ...',
+        success: 'Đã ghi nhận chứng chỉ quốc tế',
+        error: 'Lỗi khi ghi nhận'
+      });
+
+      if (onSuccess) onSuccess();
+      onOpenChange(false);
     } catch (error) {
       console.error('Lỗi khi lưu chứng chỉ:', error);
-      toast.error(error.message || error.response?.data?.message || 'Không thể lưu chứng chỉ');
     } finally {
       setSubmitting(false);
     }

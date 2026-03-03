@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Clock, Check, X, Users, CheckCircle } from 'lucide-react';
 import axios from 'axios';
-import { toast } from 'sonner';
+import { gooeyToast } from 'goey-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,7 +33,7 @@ export default function PendingApprovalsDialog({ open, onOpenChange, onApprove, 
       const { data } = await axios.get(`${API_URL}/api/admin/certificates/pending-approvals`, { headers });
       setApprovals(data.data || []);
     } catch (err) {
-      toast.error('Không thể tải danh sách chờ duyệt');
+      gooeyToast.error('Không thể tải danh sách chờ duyệt');
     } finally {
       setLoading(false);
     }
@@ -48,11 +48,11 @@ export default function PendingApprovalsDialog({ open, onOpenChange, onApprove, 
       setActionLoading(approvalId);
       const headers = await getAuthHeaders();
       await axios.put(`${API_URL}/api/admin/certificates/${approvalId}/approve`, {}, { headers });
-      toast.success('Đã duyệt chứng chỉ');
+      gooeyToast.success('Đã duyệt chứng chỉ');
       setApprovals(prev => prev.filter(a => a.id !== approvalId));
       onApprove?.();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Có lỗi xảy ra');
+      gooeyToast.error(err.response?.data?.error || 'Có lỗi xảy ra');
     } finally {
       setActionLoading(null);
     }
@@ -60,7 +60,7 @@ export default function PendingApprovalsDialog({ open, onOpenChange, onApprove, 
 
   const handleReject = async (approvalId) => {
     if (!rejectReason.trim() || rejectReason.trim().length < 5) {
-      toast.error('Lý do từ chối phải có ít nhất 5 ký tự');
+      gooeyToast.error('Lý do từ chối phải có ít nhất 5 ký tự');
       return;
     }
     try {
@@ -69,13 +69,13 @@ export default function PendingApprovalsDialog({ open, onOpenChange, onApprove, 
       await axios.put(`${API_URL}/api/admin/certificates/${approvalId}/reject`, {
         rejection_reason: rejectReason,
       }, { headers });
-      toast.success('Đã từ chối yêu cầu');
+      gooeyToast.success('Đã từ chối yêu cầu');
       setApprovals(prev => prev.filter(a => a.id !== approvalId));
       setRejectingId(null);
       setRejectReason('');
       onReject?.();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Có lỗi xảy ra');
+      gooeyToast.error(err.response?.data?.error || 'Có lỗi xảy ra');
     } finally {
       setActionLoading(null);
     }

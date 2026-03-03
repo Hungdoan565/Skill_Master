@@ -22,7 +22,9 @@ import {
     Receipt,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import EnrollmentRequestsTab from '../EnrollmentRequestsTab';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/toast';
@@ -213,6 +215,8 @@ export function EnrollmentsPage() {
     const [statusFilter, setStatusFilter] = useState('');
     const [selectedCenter, setSelectedCenter] = useState('');
     const [paymentStatusFilter, setPaymentStatusFilter] = useState('');
+    const [activeTab, setActiveTab] = useState('enrollments');
+    const [pendingRequestCount, setPendingRequestCount] = useState(0);
     const [centers, setCenters] = useState([]);
     const [deleteModal, setDeleteModal] = useState({ isOpen: false, enrollment: null });
     const [currentPage, setCurrentPage] = useState(1);
@@ -369,6 +373,40 @@ export function EnrollmentsPage() {
                     Ghi danh mới
                 </Button>
             </div>
+
+            {/* Tab Navigation */}
+            <div className="flex gap-1 mb-6 border-b">
+                <button
+                    onClick={() => setActiveTab('enrollments')}
+                    className={cn(
+                        'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors',
+                        activeTab === 'enrollments'
+                            ? 'border-indigo-600 text-indigo-700'
+                            : 'border-transparent text-slate-500 hover:text-slate-700'
+                    )}
+                >
+                    Danh sách đăng ký
+                </button>
+                <button
+                    onClick={() => setActiveTab('requests')}
+                    className={cn(
+                        'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-2',
+                        activeTab === 'requests'
+                            ? 'border-indigo-600 text-indigo-700'
+                            : 'border-transparent text-slate-500 hover:text-slate-700'
+                    )}
+                >
+                    Yêu cầu đăng ký
+                    {pendingRequestCount > 0 && (
+                        <Badge variant="destructive" className="text-xs px-1.5 py-0.5 min-w-[20px] text-center">
+                            {pendingRequestCount}
+                        </Badge>
+                    )}
+                </button>
+            </div>
+
+            {activeTab === 'enrollments' ? (
+                <>
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -622,6 +660,10 @@ export function EnrollmentsPage() {
                         </div>
                     </div>
                 </div>
+            )}
+                </>
+            ) : (
+                <EnrollmentRequestsTab onPendingCountChange={setPendingRequestCount} />
             )}
         </div>
     );
