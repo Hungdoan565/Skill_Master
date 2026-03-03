@@ -103,7 +103,7 @@ function GradesTab({ studentId }) {
       <CardContent className="p-0">
         <div className="divide-y">
           {grades.map((grade, idx) => (
-            <div key={idx} className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
+            <div key={idx} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
               <div>
                 <p className="font-medium">{grade.className}</p>
                 <p className="text-sm text-muted-foreground">{grade.gradeType}</p>
@@ -140,7 +140,7 @@ function AttendanceTab({ studentId }) {
       <CardContent className="p-0">
         <div className="divide-y">
           {attendance.map((att, idx) => (
-            <div key={idx} className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
+            <div key={idx} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
               <div className="flex items-center gap-4">
                 <div className={cn(
                   "p-2 rounded-full",

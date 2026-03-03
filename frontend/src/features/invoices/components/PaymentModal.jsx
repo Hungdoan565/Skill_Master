@@ -116,7 +116,7 @@ export function PaymentModal({
                 placeholder="Nhập số tiền..."
                 className="
                   w-full h-11 pl-9 pr-14 rounded-lg 
-                  bg-background border border-input text-base font-semibold font-mono
+                  bg-white border border-input text-base font-semibold font-mono
                   focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
                 "
                 autoFocus
@@ -186,7 +186,7 @@ export function PaymentModal({
                   placeholder="VD: FT24012345678..."
                   className="
                     w-full h-10 px-3 rounded-lg 
-                    bg-background border border-input text-sm font-mono
+                    bg-white border border-input text-sm font-mono
                     focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
                     placeholder:text-muted-foreground
                   "
@@ -207,7 +207,7 @@ export function PaymentModal({
                   onChange={(e) => onFormChange('transferDate', e.target.value)}
                   className="
                     w-full h-10 px-3 rounded-lg 
-                    bg-background border border-input text-sm
+                    bg-white border border-input text-sm
                     focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
                   "
                 />
@@ -231,7 +231,7 @@ export function PaymentModal({
               rows={2}
               className="
                 w-full px-3 py-2 rounded-lg 
-                bg-background border border-input text-sm
+                bg-white border border-input text-sm
                 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent 
                 resize-none
               "

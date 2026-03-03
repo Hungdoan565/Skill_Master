@@ -188,7 +188,7 @@ export default function ParentInvoicesPage() {
                             </div>
                           </div>
                           
-                          <div className="bg-muted/50 p-4 rounded-xl md:min-w-[200px] border border-border">
+                          <div className="bg-slate-50 p-4 rounded-xl md:min-w-[200px] border border-border">
                             <div className="space-y-2">
                               <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Tổng tiền:</span>

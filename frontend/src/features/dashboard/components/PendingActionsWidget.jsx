@@ -6,7 +6,7 @@ export default function PendingActionsWidget({ categories = [], total = 0, loadi
 
   if (loading) {
     return (
-      <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
         <div className="bg-gradient-to-r from-orange-500/10 via-amber-500/5 to-transparent p-4">
           <div className="flex items-center gap-3">
             <div className="h-11 w-11 rounded-xl bg-muted animate-pulse" />
@@ -18,7 +18,7 @@ export default function PendingActionsWidget({ categories = [], total = 0, loadi
         </div>
         <div className="p-4 space-y-3">
           {[1, 2, 3, 4].map(i => (
-            <div key={i} className="h-12 bg-muted/50 rounded-xl animate-pulse" />
+            <div key={i} className="h-12 bg-slate-50 rounded-xl animate-pulse" />
           ))}
         </div>
       </div>
@@ -34,7 +34,7 @@ export default function PendingActionsWidget({ categories = [], total = 0, loadi
 
   if (total === 0) {
     return (
-      <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
         <div className="bg-gradient-to-r from-orange-500/10 via-amber-500/5 to-transparent p-4">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 shadow-lg shadow-orange-500/25">
@@ -57,7 +57,7 @@ export default function PendingActionsWidget({ categories = [], total = 0, loadi
   }
 
   return (
-    <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
       <div className="bg-gradient-to-r from-orange-500/10 via-amber-500/5 to-transparent p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -82,7 +82,7 @@ export default function PendingActionsWidget({ categories = [], total = 0, loadi
             <button
               key={cat.key}
               onClick={() => navigate(config.path || '/admin')}
-              className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors group text-left"
+              className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors group text-left"
             >
               <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${config.bg || 'bg-muted'}`}>
                 <Icon className={`h-4 w-4 ${config.color || 'text-muted-foreground'}`} />

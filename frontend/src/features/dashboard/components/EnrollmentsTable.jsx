@@ -57,7 +57,7 @@ export function EnrollmentsTable({ data = [], loading = false, itemsPerPage = 5 
 
     if (loading) {
         return (
-            <div className="bg-card rounded-2xl p-6 shadow-sm border border-border animate-pulse">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-border animate-pulse">
                 <div className="h-6 w-48 bg-muted rounded mb-6" />
                 <div className="space-y-4">
                     {[...Array(5)].map((_, i) => (
@@ -89,7 +89,7 @@ export function EnrollmentsTable({ data = [], loading = false, itemsPerPage = 5 
     };
 
     return (
-        <div className="bg-card rounded-2xl p-6 shadow-sm border border-border h-full flex flex-col">
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-border h-full flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <div>
@@ -119,7 +119,7 @@ export function EnrollmentsTable({ data = [], loading = false, itemsPerPage = 5 
             ) : (
                 <>
                     {/* Table Header */}
-                    <div className="hidden md:grid grid-cols-12 gap-4 px-4 py-3 bg-muted/50 rounded-xl text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                    <div className="hidden md:grid grid-cols-12 gap-4 px-4 py-3 bg-slate-50 rounded-xl text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                         <div className="col-span-4">Học viên</div>
                         <div className="col-span-3">Khóa học</div>
                         <div className="col-span-2">Ngày</div>
@@ -135,7 +135,7 @@ export function EnrollmentsTable({ data = [], loading = false, itemsPerPage = 5 
                             return (
                                 <div
                                     key={item.id || index}
-                                    className="grid grid-cols-12 gap-4 px-4 py-3 rounded-xl hover:bg-muted/50 transition-colors items-center"
+                                    className="grid grid-cols-12 gap-4 px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors items-center"
                                 >
                                     {/* Student */}
                                     <div className="col-span-12 md:col-span-4 flex items-center gap-3">

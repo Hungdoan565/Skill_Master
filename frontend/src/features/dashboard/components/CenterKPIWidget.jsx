@@ -3,7 +3,7 @@ import { Target } from 'lucide-react';
 export default function CenterKPIWidget({ targets = [], loading = false }) {
   if (loading) {
     return (
-      <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
         <div className="bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-transparent p-4">
           <div className="flex items-center gap-3">
             <div className="h-11 w-11 rounded-xl bg-muted animate-pulse" />
@@ -27,7 +27,7 @@ export default function CenterKPIWidget({ targets = [], loading = false }) {
 
   if (!targets || targets.length === 0) {
     return (
-      <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
         <div className="bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-transparent p-4">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 shadow-lg shadow-indigo-500/25">
@@ -67,7 +67,7 @@ export default function CenterKPIWidget({ targets = [], loading = false }) {
   };
 
   return (
-    <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
       <div className="bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-transparent p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 shadow-lg shadow-indigo-500/25">

@@ -49,7 +49,7 @@ export function CenterHealthCards({ centers }) {
       {centers.map((center) => (
         <Card 
           key={center.id || center.center_id} 
-          className={`flex flex-col bg-card border shadow-sm hover:shadow-md transition-shadow ${getCardBorderColor(center.health_status)}`}
+          className={`flex flex-col bg-white border shadow-sm hover:shadow-md transition-shadow ${getCardBorderColor(center.health_status)}`}
         >
           <CardHeader className="pb-4">
             <CardTitle className="text-lg flex items-center justify-between">

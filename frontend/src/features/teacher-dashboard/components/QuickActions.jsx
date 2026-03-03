@@ -59,7 +59,7 @@ export function QuickActions() {
     ];
 
     return (
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
             <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
                 <Zap className="h-5 w-5 text-yellow-500" />
                 Thao tác nhanh

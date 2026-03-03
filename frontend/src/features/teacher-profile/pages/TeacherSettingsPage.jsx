@@ -38,7 +38,7 @@ export default function TeacherSettingsPage() {
     );
 
     return (
-        <div className="min-h-screen bg-background pb-12">
+        <div className="min-h-screen bg-white pb-12">
             {/* Header / Hero Section */}
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white pb-16 pt-8">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -55,8 +55,8 @@ export default function TeacherSettingsPage() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 space-y-6">
                 
                 {/* Notifications Section */}
-                <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
-                    <div className="px-6 py-4 border-b border-border bg-muted/50 flex items-center">
+                <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
+                    <div className="px-6 py-4 border-b border-border bg-slate-50 flex items-center">
                         <Bell className="h-5 w-5 text-muted-foreground mr-2" />
                         <h2 className="text-lg font-semibold text-foreground">Thông báo</h2>
                     </div>
@@ -86,8 +86,8 @@ export default function TeacherSettingsPage() {
                 </div>
 
                 {/* Appearance Section */}
-                <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
-                    <div className="px-6 py-4 border-b border-border bg-muted/50 flex items-center">
+                <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
+                    <div className="px-6 py-4 border-b border-border bg-slate-50 flex items-center">
                         <Palette className="h-5 w-5 text-muted-foreground mr-2" />
                         <h2 className="text-lg font-semibold text-foreground">Giao diện</h2>
                     </div>
@@ -110,8 +110,8 @@ export default function TeacherSettingsPage() {
                 </div>
 
                 {/* Security Section */}
-                <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
-                    <div className="px-6 py-4 border-b border-border bg-muted/50 flex items-center">
+                <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
+                    <div className="px-6 py-4 border-b border-border bg-slate-50 flex items-center">
                         <Shield className="h-5 w-5 text-muted-foreground mr-2" />
                         <h2 className="text-lg font-semibold text-foreground">Bảo mật</h2>
                     </div>

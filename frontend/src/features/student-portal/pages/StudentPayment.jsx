@@ -302,10 +302,10 @@ export function StudentPayment() {
                     <div
                       key={invoice.id}
                       className={cn(
-                        'flex items-center gap-3 p-4 rounded-lg border transition-all cursor-pointer bg-card',
+                        'flex items-center gap-3 p-4 rounded-lg border transition-all cursor-pointer bg-white',
                         isSelected 
                           ? 'border-emerald-500 bg-emerald-500/10 shadow-sm' 
-                          : 'border-border hover:bg-muted/50'
+                          : 'border-border hover:bg-slate-50'
                       )}
                       onClick={() => toggleSelect(invoice)}
                     >
@@ -527,13 +527,13 @@ export function StudentPayment() {
                           <img src={bankProofUrl} alt="Minh chứng" className="w-full max-h-48 object-cover rounded-lg border" />
                           <button
                             onClick={() => setBankProofUrl(null)}
-                            className="absolute top-2 right-2 p-1.5 rounded-full bg-background/90 border border-border hover:bg-background transition-colors"
+                            className="absolute top-2 right-2 p-1.5 rounded-full bg-white/90 border border-border hover:bg-white transition-colors"
                           >
                             <X className="h-4 w-4" />
                           </button>
                         </div>
                       ) : (
-                        <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-border rounded-lg cursor-pointer bg-muted/30 hover:bg-muted/50 transition-colors">
+                        <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-border rounded-lg cursor-pointer bg-muted/30 hover:bg-slate-50 transition-colors">
                           <Upload className="h-6 w-6 text-muted-foreground mb-2" />
                           <span className="text-sm text-muted-foreground">Kéo thả hoặc click để tải ảnh</span>
                           <span className="text-xs text-muted-foreground mt-1">PNG, JPG (tối đa 5MB)</span>

@@ -160,7 +160,7 @@ export default function LeaderboardPage() {
     return (
       <TableHead 
         className={cn(
-          "cursor-pointer select-none hover:bg-muted/50 transition-colors whitespace-nowrap", 
+          "cursor-pointer select-none hover:bg-slate-50 transition-colors whitespace-nowrap", 
           align === 'right' && "text-right", 
           align === 'center' && "text-center"
         )} 
@@ -199,7 +199,7 @@ export default function LeaderboardPage() {
         
         <div className="flex items-center gap-3">
           <Select value={period} onValueChange={setPeriod} disabled={loading}>
-            <SelectTrigger className="w-[180px] bg-background">
+            <SelectTrigger className="w-[180px] bg-white">
               <SelectValue placeholder="Chọn kỳ báo cáo" />
             </SelectTrigger>
             <SelectContent>

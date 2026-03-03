@@ -37,7 +37,7 @@ export function TeacherLayout() {
       {/* Main content area */}
       <div className="flex flex-1 flex-col overflow-hidden w-full relative">
         {/* Header - reuse AdminHeader for consistency */}
-        <div className="relative z-[100] flex items-center bg-card border-b border-border shadow-sm h-16 md:h-auto md:block md:border-0 md:bg-transparent">
+        <div className="relative z-[100] flex items-center bg-white border-b border-border shadow-sm h-16 md:h-auto md:block md:border-0 md:bg-transparent">
           <button
             onClick={() => setIsSidebarOpen(true)}
             className="md:hidden ml-4 p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"

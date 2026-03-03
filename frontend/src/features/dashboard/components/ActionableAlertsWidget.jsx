@@ -72,7 +72,7 @@ const AlertItem = ({ type, item }) => {
         return (
             <Link
                 to={`/admin/invoices?highlight=${item.invoice_id}`}
-                className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg transition-colors group"
+                className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg transition-colors group"
             >
                 <div className="flex-1 min-w-0">
                     <p className="font-medium text-foreground truncate">
@@ -97,7 +97,7 @@ const AlertItem = ({ type, item }) => {
         return (
             <Link
                 to={`/admin/classes/${item.class_id}`}
-                className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg transition-colors group"
+                className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg transition-colors group"
             >
                 <div className="flex-1 min-w-0">
                     <p className="font-medium text-foreground truncate">
@@ -117,7 +117,7 @@ const AlertItem = ({ type, item }) => {
         return (
             <Link
                 to={`/admin/certificates?student=${item.student_id}&class=${item.class_id}`}
-                className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg transition-colors group"
+                className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg transition-colors group"
             >
                 <div className="flex-1 min-w-0">
                     <p className="font-medium text-foreground truncate">
@@ -138,7 +138,7 @@ const AlertItem = ({ type, item }) => {
         return (
             <Link
                 to={`/admin/invoices?highlight=${item.invoice_id}`}
-                className="flex items-center justify-between p-3 hover:bg-muted/50 rounded-lg transition-colors group"
+                className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg transition-colors group"
             >
                 <div className="flex-1 min-w-0">
                     <p className="font-medium text-foreground truncate">

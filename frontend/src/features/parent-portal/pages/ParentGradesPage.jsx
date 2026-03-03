@@ -63,7 +63,7 @@ function GradesList({ studentId }) {
       <CardContent className="p-0">
         <div className="divide-y">
           {grades.map((grade, idx) => (
-            <div key={idx} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-muted/50 transition-colors">
+            <div key={idx} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
               <div>
                 <p className="font-medium text-lg">{grade.className}</p>
                 <p className="text-sm text-muted-foreground">{grade.courseTitle}</p>

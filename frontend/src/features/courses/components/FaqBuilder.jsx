@@ -68,7 +68,7 @@ export function FaqBuilder({
                                     onChange={(e) => onUpdate(index, 'answer', e.target.value)}
                                     placeholder="Nhập nội dung câu trả lời..."
                                     rows={2}
-                                    className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                                    className="w-full px-3 py-2 rounded-md border border-input bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                                 />
                             </div>
                         </div>

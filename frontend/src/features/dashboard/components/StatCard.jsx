@@ -27,7 +27,7 @@ export function StatCard({
 }) {
     if (loading) {
         return (
-            <div className="bg-card rounded-2xl p-6 shadow-sm border border-border animate-pulse">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-border animate-pulse">
                 <div className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-2xl bg-muted" />
                     <div className="flex-1">
@@ -48,7 +48,7 @@ export function StatCard({
         <div
             onClick={onClick}
             className={`
-        bg-card rounded-2xl p-6 shadow-sm border border-border
+        bg-white rounded-2xl p-6 shadow-sm border border-border
         hover:shadow-md transition-all duration-300
         ${onClick ? 'cursor-pointer hover:border-primary/20' : ''}
       `}

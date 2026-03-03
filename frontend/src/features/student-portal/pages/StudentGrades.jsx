@@ -103,7 +103,7 @@ function SortableHeader({ label, sortKey, currentSort, onSort, className }) {
   return (
     <th 
       className={cn(
-        "px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/50 transition-colors select-none",
+        "px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-slate-50 transition-colors select-none",
         className
       )}
       onClick={() => onSort(sortKey)}
@@ -206,7 +206,7 @@ function GradesTable({ grades, classSummaries }) {
               placeholder="Tìm kiếm theo lớp, môn học..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              className="w-full pl-9 pr-4 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             />
           </div>
         </div>
@@ -275,7 +275,7 @@ function GradesTable({ grades, classSummaries }) {
                   return (
                     <tr 
                       key={grade.id || idx} 
-                      className="hover:bg-muted/50 transition-colors"
+                      className="hover:bg-slate-50 transition-colors"
                     >
                       {/* Class */}
                       <td className="px-3 py-3">
@@ -356,7 +356,7 @@ function ClassSummaryBar({ classSummaries }) {
         return (
           <div 
             key={cs.classId}
-            className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-background border hover:shadow-sm transition-shadow"
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-white border hover:shadow-sm transition-shadow"
           >
             <div className="p-2 rounded-lg bg-blue-500/10">
               <BookOpen className="h-4 w-4 text-blue-600 dark:text-blue-400" />

@@ -14,7 +14,7 @@ export function StatCard({
     variant = 'default'
 }) {
     const variants = {
-        default: 'bg-card border-border',
+        default: 'bg-white border-border',
         primary: 'bg-blue-500/10 border-blue-500/20',
         success: 'bg-green-500/10 border-green-500/20',
         warning: 'bg-amber-500/10 border-amber-500/20',

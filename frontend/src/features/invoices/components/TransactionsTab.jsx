@@ -77,7 +77,7 @@ export function TransactionsTab({
                     color="red"
                     icon={XCircle}
                 />
-                <div className="bg-card rounded-xl p-4 border shadow-sm">
+                <div className="bg-white rounded-xl p-4 border shadow-sm">
                     <p className="text-xs text-muted-foreground">Tổng GD</p>
                     <p className="text-2xl font-bold">{pagination?.total || 0}</p>
                 </div>
@@ -133,7 +133,7 @@ export function TransactionsTab({
             </div>
 
             {/* Table */}
-            <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+            <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
                 {loading ? (
                     <div className="flex items-center justify-center h-48">
                         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -146,7 +146,7 @@ export function TransactionsTab({
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
-                            <thead className="bg-muted/50">
+                            <thead className="bg-slate-50">
                                 <tr className="text-left text-xs font-medium text-muted-foreground">
                                     <th className="p-3 w-10">
                                         <input
@@ -239,7 +239,7 @@ function SummaryCard({ label, value, amount, color, icon: Icon }) {
     };
 
     return (
-        <div className={`rounded-xl p-4 border ${colorClasses[color] || 'bg-card'}`}>
+        <div className={`rounded-xl p-4 border ${colorClasses[color] || 'bg-white'}`}>
             <div className="flex items-center gap-2 mb-1">
                 <Icon className="w-4 h-4" />
                 <span className="text-xs font-medium">{label}</span>
@@ -268,7 +268,7 @@ function TransactionRow({ transaction, isSelected, onToggle, onPreviewImage }) {
     const StatusIcon = status.icon;
 
     return (
-        <tr className={`hover:bg-muted/50 ${isPending ? 'bg-amber-50/30' : ''}`}>
+        <tr className={`hover:bg-slate-50 ${isPending ? 'bg-amber-50/30' : ''}`}>
             <td className="p-3">
                 <input
                     type="checkbox"

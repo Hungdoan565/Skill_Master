@@ -147,7 +147,7 @@ export function TeacherAttendancePage() {
     return (
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24">
             {/* Header */}
-            <div className="bg-card rounded-2xl shadow-sm border border-border p-6 mb-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-border p-6 mb-6">
                 <div className="flex items-center gap-4">
                     <Button
                         variant="outline"
@@ -194,7 +194,7 @@ export function TeacherAttendancePage() {
             />
 
             {/* Sticky Footer */}
-            <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-lg z-50">
+            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-border shadow-lg z-50">
                 <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
                     <div className="text-sm text-muted-foreground">
                         {hasChanges ? (
@@ -233,7 +233,7 @@ export function TeacherAttendancePage() {
 
 function SessionSelector({ sessions, selectedSession, onSelect, editStatus, formatDate }) {
     return (
-        <div className="bg-card rounded-2xl shadow-sm border border-border p-4 mb-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-border p-4 mb-4">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                 <div className="flex-1">
                     <label className="block text-sm font-medium text-foreground mb-2">
@@ -245,7 +245,7 @@ function SessionSelector({ sessions, selectedSession, onSelect, editStatus, form
                             const session = sessions.find(s => s.id === e.target.value);
                             onSelect(session);
                         }}
-                        className="w-full h-10 rounded-lg border border-border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        className="w-full h-10 rounded-lg border border-border bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
                     >
                         <option value="">-- Chọn buổi học --</option>
                         {sessions.map((session) => (
@@ -313,7 +313,7 @@ function EditStatusBadge({ editStatus }) {
 
 function BulkActionsBar({ summary, onMarkAllPresent, onMarkAllAbsent, canEdit }) {
     return (
-        <div className="bg-card rounded-2xl shadow-sm border border-border p-4 mb-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-border p-4 mb-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-center gap-2">
                     <Button
@@ -361,7 +361,7 @@ function BulkActionsBar({ summary, onMarkAllPresent, onMarkAllAbsent, canEdit })
 function StudentAttendanceList({ attendance, onUpdateStatus, canEdit, loading }) {
     if (loading) {
         return (
-            <div className="bg-card rounded-2xl shadow-sm border border-border p-8">
+            <div className="bg-white rounded-2xl shadow-sm border border-border p-8">
                 <div className="flex items-center justify-center">
                     <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
                     <span className="ml-3 text-muted-foreground">Đang tải danh sách...</span>
@@ -372,7 +372,7 @@ function StudentAttendanceList({ attendance, onUpdateStatus, canEdit, loading })
 
     if (!attendance || attendance.length === 0) {
         return (
-            <div className="bg-card rounded-2xl shadow-sm border border-border p-12 text-center">
+            <div className="bg-white rounded-2xl shadow-sm border border-border p-12 text-center">
                 <Users className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-foreground mb-2">Chưa có dữ liệu điểm danh</h3>
                 <p className="text-muted-foreground">Vui lòng chọn buổi học để xem danh sách học viên</p>
@@ -381,11 +381,11 @@ function StudentAttendanceList({ attendance, onUpdateStatus, canEdit, loading })
     }
 
     return (
-        <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
             <div className="overflow-x-auto">
                 <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                     <thead>
-                        <tr className="bg-muted/50 border-b border-border">
+                        <tr className="bg-slate-50 border-b border-border">
                             <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground w-12">#</th>
                             <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Học viên</th>
                             <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">Trạng thái điểm danh</th>
@@ -413,7 +413,7 @@ function StudentRow({ index, record, onUpdateStatus, canEdit }) {
     const initials = studentName.split(' ').map(n => n[0]).slice(-2).join('').toUpperCase();
 
     return (
-        <tr className="border-b border-border hover:bg-muted/50 transition-colors">
+        <tr className="border-b border-border hover:bg-slate-50 transition-colors">
             <td className="py-3 px-4 text-sm text-muted-foreground font-medium">{index}</td>
             <td className="py-3 px-4">
                 <div className="flex items-center gap-3">

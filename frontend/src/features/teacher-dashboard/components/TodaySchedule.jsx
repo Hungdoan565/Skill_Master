@@ -7,7 +7,7 @@ import { Clock, MapPin, Users, CheckCircle, AlertCircle, CalendarDays } from 'lu
 export function TodaySchedule({ sessions = [], onMarkAttendance }) {
     if (sessions.length === 0) {
         return (
-            <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+            <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
                 <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
                     <CalendarDays className="h-5 w-5 text-blue-500" />
                     Lịch dạy hôm nay
@@ -67,7 +67,7 @@ export function TodaySchedule({ sessions = [], onMarkAttendance }) {
     };
 
     return (
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
                     <CalendarDays className="h-5 w-5 text-blue-500" />

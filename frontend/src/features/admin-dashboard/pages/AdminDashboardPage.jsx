@@ -78,7 +78,7 @@ export function AdminDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-white">
       <div className="max-w-[1600px] mx-auto p-6 lg:p-8 space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b">
@@ -89,7 +89,7 @@ export function AdminDashboardPage() {
           
           <div className="flex items-center gap-3">
             <Select value={selectedRange} onValueChange={handleRangeChange}>
-              <SelectTrigger className="w-[180px] bg-card">
+              <SelectTrigger className="w-[180px] bg-white">
                 <SelectValue placeholder="Chọn thời gian" />
               </SelectTrigger>
               <SelectContent>
@@ -107,7 +107,7 @@ export function AdminDashboardPage() {
               onClick={refresh} 
               disabled={loading}
               title="Làm mới dữ liệu"
-              className="bg-card"
+              className="bg-white"
             >
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             </Button>

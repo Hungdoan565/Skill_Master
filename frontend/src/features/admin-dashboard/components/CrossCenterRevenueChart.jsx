@@ -5,7 +5,7 @@ import { BarChart3 } from 'lucide-react';
 export function CrossCenterRevenueChart({ data }) {
   if (!data || data.length === 0) {
     return (
-      <Card className="h-full bg-card border shadow-sm">
+      <Card className="h-full bg-white border shadow-sm">
         <CardHeader>
           <CardTitle className="text-lg font-semibold text-foreground">Doanh thu theo tháng</CardTitle>
           <CardDescription className="text-sm text-muted-foreground">So sánh doanh thu giữa 3 trung tâm</CardDescription>
@@ -38,7 +38,7 @@ export function CrossCenterRevenueChart({ data }) {
   const dataKeys = Object.keys(data[0]).filter(key => key !== 'month' && key !== 'date' && key !== 'name');
 
   return (
-    <Card className="h-full bg-card border shadow-sm">
+    <Card className="h-full bg-white border shadow-sm">
       <CardHeader>
         <CardTitle className="text-lg font-semibold text-foreground">Doanh thu theo tháng</CardTitle>
         <CardDescription className="text-sm text-muted-foreground">So sánh doanh thu giữa 3 trung tâm</CardDescription>

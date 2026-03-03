@@ -130,7 +130,7 @@ export default function StepSelectTypeAndStudents({ form, onStudentsLoaded }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full min-h-[500px]">
       {/* LEFT PANEL: Certificate Types */}
-      <div className="flex flex-col border border-border rounded-xl overflow-hidden bg-card shadow-sm h-full">
+      <div className="flex flex-col border border-border rounded-xl overflow-hidden bg-white shadow-sm h-full">
         <div className="p-4 border-b border-border bg-muted shrink-0">
           <div className="flex items-center gap-2 mb-3">
             <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">1</span>
@@ -142,7 +142,7 @@ export default function StepSelectTypeAndStudents({ form, onStudentsLoaded }) {
               placeholder="Tìm loại chứng chỉ..."
               value={searchType}
               onChange={(e) => setSearchType(e.target.value)}
-              className="pl-9 bg-background border-border focus-visible:ring-primary/20 shadow-sm"
+              className="pl-9 bg-white border-border focus-visible:ring-primary/20 shadow-sm"
             />
           </div>
         </div>
@@ -178,7 +178,7 @@ export default function StepSelectTypeAndStudents({ form, onStudentsLoaded }) {
                               "relative p-4 rounded-xl cursor-pointer transition-all duration-200 border group overflow-hidden",
                               isSelected 
                                 ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/20" 
-                                : "border-border bg-card hover:border-primary/50 hover:bg-muted shadow-sm hover:shadow-md"
+                                : "border-border bg-white hover:border-primary/50 hover:bg-muted shadow-sm hover:shadow-md"
                             )}
                           >
                             {isSelected && (
@@ -215,7 +215,7 @@ export default function StepSelectTypeAndStudents({ form, onStudentsLoaded }) {
 
       {/* RIGHT PANEL: Eligible Students */}
       <div className={cn(
-        "flex flex-col border border-border rounded-xl overflow-hidden shadow-sm transition-all duration-500 h-full bg-card",
+        "flex flex-col border border-border rounded-xl overflow-hidden shadow-sm transition-all duration-500 h-full bg-white",
         selectedTypeId ? "opacity-100 ring-1 ring-border" : "opacity-50 grayscale pointer-events-none"
       )}>
         <div className="p-4 border-b border-border bg-muted shrink-0">
@@ -243,7 +243,7 @@ export default function StepSelectTypeAndStudents({ form, onStudentsLoaded }) {
               placeholder="Tìm theo tên học viên, lớp học..."
               value={searchStudent}
               onChange={(e) => setSearchStudent(e.target.value)}
-              className="pl-9 bg-background border-border focus-visible:ring-primary/20 shadow-sm"
+              className="pl-9 bg-white border-border focus-visible:ring-primary/20 shadow-sm"
               disabled={!selectedTypeId}
             />
           </div>
@@ -335,7 +335,7 @@ export default function StepSelectTypeAndStudents({ form, onStudentsLoaded }) {
                                 value={overrideReasons[student.student_id] || ''}
                                 onChange={(e) => handleReasonChange(student.student_id, e.target.value)}
                                 className={cn(
-                                  "h-9 text-sm bg-background border-border focus-visible:ring-amber-500",
+                                  "h-9 text-sm bg-white border-border focus-visible:ring-amber-500",
                                   !overrideReasons[student.student_id] ? "border-amber-400 focus-visible:ring-amber-500 bg-amber-500/5 shadow-sm" : ""
                                 )}
                               />

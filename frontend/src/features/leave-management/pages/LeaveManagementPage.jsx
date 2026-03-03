@@ -198,7 +198,7 @@ export function LeaveManagementPage() {
         </div>
       </div>
 
-      <div className="rounded-lg border bg-card">
+      <div className="rounded-lg border bg-white">
         <div className="border-b px-4 py-3 text-sm text-muted-foreground">
           Tổng đơn: <span className="font-medium text-foreground">{requests.length}</span> · Chờ duyệt: <span className="font-medium text-foreground">{pendingCount}</span>
         </div>

@@ -19,7 +19,7 @@ function StatCard({ title, value, icon: Icon, description, trend, variant = 'def
   const iconStyles = variants[variant] || variants.default;
 
   return (
-    <Card className="relative overflow-hidden group hover:shadow-md transition-all duration-300 border-border/50 bg-card">
+    <Card className="relative overflow-hidden group hover:shadow-md transition-all duration-300 border-border/50 bg-white">
       <div className="p-6">
         <div className="flex justify-between items-start mb-4">
           <div className="space-y-2">
@@ -132,7 +132,7 @@ export default function DashboardStats({ onViewPending }) {
             <Button 
               variant="outline" 
               onClick={onViewPending} 
-              className="border-amber-500/30 text-amber-700 dark:text-amber-500 hover:bg-amber-500/20 bg-background shadow-sm whitespace-nowrap"
+              className="border-amber-500/30 text-amber-700 dark:text-amber-500 hover:bg-amber-500/20 bg-white shadow-sm whitespace-nowrap"
             >
               Xử lý ngay <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
             </Button>
@@ -143,7 +143,7 @@ export default function DashboardStats({ onViewPending }) {
       {/* Two columns: Recent + Top */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Certificates */}
-        <Card className="flex flex-col border-border/50 shadow-sm overflow-hidden bg-card">
+        <Card className="flex flex-col border-border/50 shadow-sm overflow-hidden bg-white">
           <div className="p-5 border-b border-border/50 flex items-center justify-between bg-muted">
             <div className="flex items-center gap-2">
               <Activity className="h-5 w-5 text-primary" />
@@ -202,7 +202,7 @@ export default function DashboardStats({ onViewPending }) {
         </Card>
 
         {/* Top Certificate Types */}
-        <Card className="flex flex-col border-border/50 shadow-sm overflow-hidden bg-card">
+        <Card className="flex flex-col border-border/50 shadow-sm overflow-hidden bg-white">
           <div className="p-5 border-b border-border/50 flex items-center justify-between bg-muted">
             <div className="flex items-center gap-2">
               <Award className="h-5 w-5 text-primary" />
@@ -254,13 +254,13 @@ export default function DashboardStats({ onViewPending }) {
                             </div>
                           </div>
                         </div>
-                        <Badge variant="outline" className="font-mono bg-card text-foreground font-bold border-border/50 shadow-sm shrink-0 ml-4">
+                        <Badge variant="outline" className="font-mono bg-white text-foreground font-bold border-border/50 shadow-sm shrink-0 ml-4">
                           {type.count}
                         </Badge>
                       </div>
                       
                       {/* Progress bar */}
-                      <div className="h-2.5 w-full bg-muted/50 overflow-hidden rounded-full ml-[42px] shadow-inner" style={{ width: 'calc(100% - 42px)' }}>
+                      <div className="h-2.5 w-full bg-slate-50 overflow-hidden rounded-full ml-[42px] shadow-inner" style={{ width: 'calc(100% - 42px)' }}>
                         <div 
                           className="h-full rounded-full transition-all duration-1000 ease-out relative overflow-hidden"
                           style={{ 

@@ -228,7 +228,7 @@ export function TeacherAvailabilityPage() {
                             className="bg-white rounded-xl border overflow-hidden"
                         >
                             {/* Day Header */}
-                            <div className="flex items-center justify-between px-4 py-3 bg-muted/50 border-b border-border">
+                            <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-border">
                                 <div className="flex items-center gap-3">
                                     <span className="w-10 h-10 flex items-center justify-center bg-blue-500/20 text-blue-500 font-bold rounded-xl">
                                         {day.short}
@@ -258,7 +258,7 @@ export function TeacherAvailabilityPage() {
                                         {daySlots.map((slot) => (
                                             <div
                                                 key={slot._id}
-                                                className="flex items-center gap-4 p-3 bg-muted/50 rounded-xl border border-border"
+                                                className="flex items-center gap-4 p-3 bg-slate-50 rounded-xl border border-border"
                                             >
                                                 <Clock className="h-5 w-5 text-muted-foreground" />
 
@@ -269,7 +269,7 @@ export function TeacherAvailabilityPage() {
                                                         type="time"
                                                         value={slot.start_time}
                                                         onChange={(e) => updateSlot(slot._id, 'start_time', e.target.value)}
-                                                        className="px-3 py-1.5 border border-border bg-background text-foreground rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                        className="px-3 py-1.5 border border-border bg-white text-foreground rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                                     />
                                                 </div>
 
@@ -280,7 +280,7 @@ export function TeacherAvailabilityPage() {
                                                         type="time"
                                                         value={slot.end_time}
                                                         onChange={(e) => updateSlot(slot._id, 'end_time', e.target.value)}
-                                                        className="px-3 py-1.5 border border-border bg-background text-foreground rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                        className="px-3 py-1.5 border border-border bg-white text-foreground rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                                     />
                                                 </div>
 
@@ -290,7 +290,7 @@ export function TeacherAvailabilityPage() {
                                                         value={slot.type || 'available'}
                                                         onChange={(e) => updateSlot(slot._id, 'type', e.target.value)}
                                                         className={cn(
-                                                            'px-3 py-1.5 border rounded-lg text-sm bg-background text-foreground focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
+                                                            'px-3 py-1.5 border rounded-lg text-sm bg-white text-foreground focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
                                                             slot.type === 'preferred' ? 'border-green-500/20 bg-green-500/10 text-green-500' : 'border-border'
                                                         )}
                                                     >
@@ -319,7 +319,7 @@ export function TeacherAvailabilityPage() {
 
             {/* Sticky Save Bar (when has changes) */}
             {hasChanges && (
-                <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-lg p-4 z-50">
+                <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-border shadow-lg p-4 z-50">
                     <div className="max-w-5xl mx-auto flex items-center justify-between">
                         <p className="text-sm text-muted-foreground">
                             <span className="inline-block w-2 h-2 bg-amber-500 rounded-full mr-2"></span>
@@ -328,7 +328,7 @@ export function TeacherAvailabilityPage() {
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={handleDiscard}
-                                className="px-4 py-2 text-sm font-medium text-foreground bg-card border border-border rounded-lg hover:bg-muted/50"
+                                className="px-4 py-2 text-sm font-medium text-foreground bg-white border border-border rounded-lg hover:bg-slate-50"
                             >
                                 Hủy
                             </button>

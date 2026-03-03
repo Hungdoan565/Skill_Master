@@ -73,7 +73,7 @@ export function CenterSelector({
         <div className="relative" ref={dropdownRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg text-sm font-medium text-foreground hover:bg-muted hover:border-border transition-colors min-w-[180px]"
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-border rounded-lg text-sm font-medium text-foreground hover:bg-muted hover:border-border transition-colors min-w-[180px]"
             >
                 <Building2 size={16} className="text-muted-foreground" />
                 <span className="flex-1 text-left truncate">{displayName}</span>
@@ -84,7 +84,7 @@ export function CenterSelector({
             </button>
 
             {isOpen && (
-                <div className="absolute z-50 mt-1 w-64 bg-card border border-border rounded-xl shadow-lg py-1 max-h-64 overflow-auto">
+                <div className="absolute z-50 mt-1 w-64 bg-white border border-border rounded-xl shadow-lg py-1 max-h-64 overflow-auto">
                     {showAllOption && (
                         <button
                             onClick={() => {

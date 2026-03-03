@@ -246,7 +246,7 @@ export function EditCourseModal({ isOpen, onClose, onSuccess, course, accessToke
                                                 name="category"
                                                 value={formData.category}
                                                 onChange={handleChange}
-                                                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                className="w-full h-10 px-3 rounded-md border border-input bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                             >
                                                 {CATEGORIES.map(cat => (
                                                     <option key={cat.value} value={cat.value}>{cat.label}</option>
@@ -264,7 +264,7 @@ export function EditCourseModal({ isOpen, onClose, onSuccess, course, accessToke
                                                 name="level"
                                                 value={formData.level}
                                                 onChange={handleChange}
-                                                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                className="w-full h-10 px-3 rounded-md border border-input bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                             >
                                                 {LEVELS.map(lv => (
                                                     <option key={lv.value} value={lv.value}>{lv.label}</option>
@@ -390,7 +390,7 @@ export function EditCourseModal({ isOpen, onClose, onSuccess, course, accessToke
                                                 onChange={handleChange}
                                                 placeholder="Mô tả về khóa học, đối tượng học viên phù hợp, mục tiêu đầu ra..."
                                                 rows={4}
-                                                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                                                className="w-full px-3 py-2 rounded-md border border-input bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                                             />
                                         </div>
 

@@ -229,7 +229,7 @@ export function TeacherSchedulePage() {
                         Tuần này
                     </button>
 
-                    <div className="px-4 py-2 bg-card border border-border rounded-lg text-sm font-medium text-foreground min-w-[180px] text-center">
+                    <div className="px-4 py-2 bg-white border border-border rounded-lg text-sm font-medium text-foreground min-w-[180px] text-center">
                         {formatWeekRange()}
                     </div>
 
@@ -254,15 +254,15 @@ export function TeacherSchedulePage() {
             {/* Stats Summary */}
             {stats && (
                 <div className="grid grid-cols-3 gap-4 mb-6">
-                    <div className="bg-card rounded-2xl border border-border p-4 text-center">
+                    <div className="bg-white rounded-2xl border border-border p-4 text-center">
                         <p className="text-2xl font-bold text-blue-600">{stats.totalSessions}</p>
                         <p className="text-sm text-muted-foreground">Tổng buổi dạy</p>
                     </div>
-                    <div className="bg-card rounded-2xl border border-border p-4 text-center">
+                    <div className="bg-white rounded-2xl border border-border p-4 text-center">
                         <p className="text-2xl font-bold text-green-600">{stats.completedSessions}</p>
                         <p className="text-sm text-muted-foreground">Đã hoàn thành</p>
                     </div>
-                    <div className="bg-card rounded-2xl border border-border p-4 text-center">
+                    <div className="bg-white rounded-2xl border border-border p-4 text-center">
                         <p className="text-2xl font-bold text-purple-600">{stats.totalHours}h</p>
                         <p className="text-sm text-muted-foreground">Tổng số giờ</p>
                     </div>
@@ -270,9 +270,9 @@ export function TeacherSchedulePage() {
             )}
 
             {/* Schedule Grid - with Sáng/Chiều/Tối grouping */}
-            <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
                 {/* Days Header */}
-                <div className="grid grid-cols-8 border-b border-border bg-muted/50">
+                <div className="grid grid-cols-8 border-b border-border bg-slate-50">
                     {/* Empty cell for time slot labels */}
                     <div className="p-3 text-center border-r border-border bg-muted">
                         <p className="text-xs font-medium text-muted-foreground">Buổi</p>

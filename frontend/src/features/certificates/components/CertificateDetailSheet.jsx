@@ -45,7 +45,7 @@ function renderScores(scores) {
             {Object.entries(scores)
               .filter(([k]) => !['overall', 'total', 'band'].includes(k))
               .map(([key, val]) => (
-                <div key={key} className="flex justify-between items-center bg-muted/50 px-2 py-1 rounded text-xs">
+                <div key={key} className="flex justify-between items-center bg-slate-50 px-2 py-1 rounded text-xs">
                   <span className="text-muted-foreground capitalize">{key}</span>
                   <span className="font-semibold">{val}</span>
                 </div>
@@ -108,7 +108,7 @@ export default function CertificateDetailSheet({ certificate, open, onOpenChange
           
           <SheetHeader className="relative z-10">
             <div className="flex items-start justify-between mb-4">
-              <div className="p-3 bg-background rounded-xl shadow-sm border border-border/50 text-primary">
+              <div className="p-3 bg-white rounded-xl shadow-sm border border-border/50 text-primary">
                 <Award className="h-8 w-8" />
               </div>
               <Badge variant="outline" className={`px-2.5 py-1 text-xs border shadow-sm ${badgeStyle}`}>
@@ -132,7 +132,7 @@ export default function CertificateDetailSheet({ certificate, open, onOpenChange
               <User className="h-4 w-4 text-primary" />
               Thông tin chung
             </h4>
-            <div className="bg-background rounded-xl border border-border/50 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-xl border border-border/50 shadow-sm overflow-hidden">
               <div className="px-4">
                 <InfoRow label="Học viên" icon={User}>
                   <span className="font-semibold text-foreground">{certificate.student_name}</span>
@@ -165,7 +165,7 @@ export default function CertificateDetailSheet({ certificate, open, onOpenChange
               <Calendar className="h-4 w-4 text-primary" />
               Thời gian
             </h4>
-            <div className="bg-background rounded-xl border border-border/50 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-xl border border-border/50 shadow-sm overflow-hidden">
               <div className="px-4">
                 <InfoRow label="Ngày hoàn thành">
                   {certificate.completion_date ? format(new Date(certificate.completion_date), 'dd/MM/yyyy') : '—'}
@@ -195,7 +195,7 @@ export default function CertificateDetailSheet({ certificate, open, onOpenChange
                 <div className="px-4">
                   {certificate.external_id && (
                     <InfoRow label="Mã chứng chỉ gốc">
-                      <code className="bg-background px-1.5 py-0.5 rounded text-xs border border-border/50">{certificate.external_id}</code>
+                      <code className="bg-white px-1.5 py-0.5 rounded text-xs border border-border/50">{certificate.external_id}</code>
                     </InfoRow>
                   )}
                   {certificate.exam_date && (
@@ -220,14 +220,14 @@ export default function CertificateDetailSheet({ certificate, open, onOpenChange
             <h4 className="text-sm font-semibold text-foreground">Thao tác</h4>
             <div className="grid grid-cols-2 gap-3">
               {!isExternal && (
-                <Button variant="outline" className="w-full bg-background hover:bg-muted border-border/50 shadow-sm" onClick={() => onPrint?.(certificate)}>
+                <Button variant="outline" className="w-full bg-white hover:bg-muted border-border/50 shadow-sm" onClick={() => onPrint?.(certificate)}>
                   <Printer className="h-4 w-4 mr-2 text-muted-foreground" /> In / PDF
                 </Button>
               )}
-              <Button variant="outline" className="w-full bg-background hover:bg-muted border-border/50 shadow-sm" onClick={handleCopyLink}>
+              <Button variant="outline" className="w-full bg-white hover:bg-muted border-border/50 shadow-sm" onClick={handleCopyLink}>
                 <Link2 className="h-4 w-4 mr-2 text-muted-foreground" /> Copy link
               </Button>
-              <Button variant="outline" className={`${isExternal ? 'col-span-2' : 'col-span-2'} w-full bg-background hover:bg-muted border-border/50 shadow-sm`} onClick={() => {
+              <Button variant="outline" className={`${isExternal ? 'col-span-2' : 'col-span-2'} w-full bg-white hover:bg-muted border-border/50 shadow-sm`} onClick={() => {
                 const url = `${window.location.origin}/verify-certificate?cert=${certificate.certificate_number}`;
                 window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
               }}>

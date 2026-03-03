@@ -231,7 +231,7 @@ export function BulkPaymentModal({ isOpen, onClose, selectedInvoices = [], onSuc
           <div className="border border-border rounded-lg overflow-hidden">
             <button
               onClick={() => setShowInvoiceList(!showInvoiceList)}
-              className="w-full flex items-center justify-between p-3 bg-muted/50 hover:bg-muted transition-colors"
+              className="w-full flex items-center justify-between p-3 bg-slate-50 hover:bg-muted transition-colors"
             >
               <div className="flex items-center gap-2">
                 <input
@@ -368,7 +368,7 @@ export function BulkPaymentModal({ isOpen, onClose, selectedInvoices = [], onSuc
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Nhập ghi chú cho đợt thanh toán này..."
               rows={2}
-              className="w-full px-3 py-2 rounded-lg bg-background border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent resize-none"
+              className="w-full px-3 py-2 rounded-lg bg-white border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent resize-none"
             />
           </div>
         </div>

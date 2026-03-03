@@ -172,7 +172,7 @@ export function AnalyticsDashboardPage() {
   }, [revenueForecast]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-white">
       <div className="mx-auto max-w-[1600px] space-y-6 p-6 lg:p-8">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>

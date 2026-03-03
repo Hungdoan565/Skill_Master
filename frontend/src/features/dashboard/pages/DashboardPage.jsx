@@ -220,7 +220,7 @@ export function DashboardPage() {
   }));
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-white">
       <div className="max-w-[1600px] mx-auto p-6 lg:p-8 space-y-6">
 
         {/* ========== HEADER ========== */}
@@ -266,7 +266,7 @@ export function DashboardPage() {
             <button
               onClick={() => refresh()}
               disabled={refreshing}
-              className="p-2.5 rounded-xl bg-card border border-border hover:bg-muted transition-colors disabled:opacity-50"
+              className="p-2.5 rounded-xl bg-white border border-border hover:bg-muted transition-colors disabled:opacity-50"
               title="Làm mới dữ liệu"
             >
               <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
@@ -274,7 +274,7 @@ export function DashboardPage() {
 
             <button
               onClick={handleExport}
-              className="p-2.5 rounded-xl bg-card border border-border hover:bg-muted transition-colors"
+              className="p-2.5 rounded-xl bg-white border border-border hover:bg-muted transition-colors"
               title="Xuất báo cáo"
             >
               <Download size={18} />

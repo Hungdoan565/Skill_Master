@@ -151,7 +151,7 @@ export default function StudentSupportPage() {
 
       {/* Ticket List */}
       {tickets.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground bg-card rounded-2xl border border-border shadow-sm">
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground bg-white rounded-2xl border border-border shadow-sm">
           <div className="h-20 w-20 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4">
             <HeadphonesIcon className="h-10 w-10 text-emerald-600 dark:text-emerald-400" />
           </div>
@@ -168,7 +168,7 @@ export default function StudentSupportPage() {
             const priorityConfig = PRIORITY_MAP[ticket.priority] || PRIORITY_MAP.medium;
             
             return (
-              <Card key={ticket.id} className={cn("hover:shadow-md transition-shadow group overflow-hidden border-l-4 rounded-2xl bg-card border-y-border border-r-border", statusConfig.border)}>
+              <Card key={ticket.id} className={cn("hover:shadow-md transition-shadow group overflow-hidden border-l-4 rounded-2xl bg-white border-y-border border-r-border", statusConfig.border)}>
                 <CardContent className="p-5">
                   <div className="flex justify-between items-start mb-3">
                     <span className="font-mono text-xs font-semibold text-muted-foreground bg-muted px-2 py-1 rounded">

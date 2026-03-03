@@ -422,7 +422,7 @@ export function PaymentImportModal({ isOpen, onClose, onSuccess }) {
           'relative border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer',
           dragActive
             ? 'border-primary bg-primary/5'
-            : 'border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50',
+            : 'border-muted-foreground/25 hover:border-primary/50 hover:bg-slate-50',
           selectedFile && 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/20'
         )}
         onDragEnter={handleDrag}
@@ -474,7 +474,7 @@ export function PaymentImportModal({ isOpen, onClose, onSuccess }) {
   const renderPreviewStep = () => (
     <div className="space-y-4">
       {/* Match statistics */}
-      <div className="grid grid-cols-4 gap-3 p-3 bg-muted/50 rounded-lg">
+      <div className="grid grid-cols-4 gap-3 p-3 bg-slate-50 rounded-lg">
         <div className="text-center">
           <p className="text-2xl font-bold text-foreground">{matchStats.total}</p>
           <p className="text-xs text-muted-foreground">Tổng GD</p>
@@ -512,7 +512,7 @@ export function PaymentImportModal({ isOpen, onClose, onSuccess }) {
       {/* Transactions table */}
       <div className="border rounded-lg overflow-hidden max-h-[400px] overflow-y-auto">
         <table className="w-full text-sm">
-          <thead className="bg-muted/50 sticky top-0">
+          <thead className="bg-slate-50 sticky top-0">
             <tr>
               <th className="p-2 text-left w-10">
                 <Checkbox
@@ -564,7 +564,7 @@ export function PaymentImportModal({ isOpen, onClose, onSuccess }) {
                         autoFocus
                       />
                       {searchResults.length > 0 && (
-                        <div className="absolute z-10 w-full mt-1 bg-background border rounded-md shadow-lg max-h-40 overflow-y-auto">
+                        <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-40 overflow-y-auto">
                           {searchResults.map(invoice => (
                             <button
                               key={invoice.id}
@@ -617,7 +617,7 @@ export function PaymentImportModal({ isOpen, onClose, onSuccess }) {
   const renderConfirmStep = () => (
     <div className="space-y-6">
       {/* Summary */}
-      <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+      <div className="p-4 bg-slate-50 rounded-lg space-y-3">
         <h4 className="font-medium">Tóm tắt</h4>
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>

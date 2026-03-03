@@ -17,7 +17,7 @@ const COLORS = ['#f97316', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b'
 const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
         return (
-            <div className="bg-card border border-border p-3 rounded-xl shadow-xl">
+            <div className="bg-white border border-border p-3 rounded-xl shadow-xl">
                 <p className="text-sm font-bold text-foreground">{payload[0].name}</p>
                 <p className="text-xs text-muted-foreground mt-1">
                     {payload[0].value} học viên ({payload[0].payload.percentage}%)
@@ -31,10 +31,10 @@ const CustomTooltip = ({ active, payload }) => {
 export function DistributionDonut({ data = [], loading = false }) {
     if (loading) {
         return (
-            <div className="bg-card rounded-2xl p-6 shadow-sm border border-border animate-pulse h-full">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-border animate-pulse h-full">
                 <div className="h-6 w-40 bg-muted rounded mb-2" />
                 <div className="h-4 w-28 bg-muted rounded mb-6" />
-                <div className="h-[200px] bg-muted/50 rounded-full mx-auto w-[200px]" />
+                <div className="h-[200px] bg-slate-50 rounded-full mx-auto w-[200px]" />
             </div>
         );
     }
@@ -50,7 +50,7 @@ export function DistributionDonut({ data = [], loading = false }) {
         .slice(0, 6);
 
     return (
-        <div className="bg-card rounded-2xl p-6 shadow-sm border border-border h-full flex flex-col">
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-border h-full flex flex-col">
             {/* Header */}
             <div className="mb-4">
                 <h3 className="text-lg font-bold text-foreground">Phân bố học viên</h3>

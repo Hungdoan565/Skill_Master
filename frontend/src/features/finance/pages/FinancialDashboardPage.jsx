@@ -87,7 +87,7 @@ export function FinancialDashboardPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-white">
       <div className="max-w-[1600px] mx-auto p-6 lg:p-8 space-y-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -103,7 +103,7 @@ export function FinancialDashboardPage() {
               <select
                 value={centerId}
                 onChange={(e) => setCenterId(e.target.value)}
-                className="h-10 rounded-md border bg-background px-3 text-sm"
+                className="h-10 rounded-md border bg-white px-3 text-sm"
               >
                 <option value="">Tất cả trung tâm</option>
                 {centers.map((center) => (
@@ -117,7 +117,7 @@ export function FinancialDashboardPage() {
             <select
               value={period}
               onChange={(e) => setPeriod(e.target.value)}
-              className="h-10 rounded-md border bg-background px-3 text-sm"
+              className="h-10 rounded-md border bg-white px-3 text-sm"
             >
               <option value="month">Tháng</option>
               <option value="quarter">Quý</option>
@@ -130,14 +130,14 @@ export function FinancialDashboardPage() {
               max="2100"
               value={year}
               onChange={(e) => setYear(Number(e.target.value || now.getFullYear()))}
-              className="h-10 w-24 rounded-md border bg-background px-3 text-sm"
+              className="h-10 w-24 rounded-md border bg-white px-3 text-sm"
             />
 
             {period !== 'year' && (
               <select
                 value={month}
                 onChange={(e) => setMonth(Number(e.target.value))}
-                className="h-10 rounded-md border bg-background px-3 text-sm"
+                className="h-10 rounded-md border bg-white px-3 text-sm"
               >
                 {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                   <option key={m} value={m}>{`Tháng ${m}`}</option>

@@ -42,7 +42,7 @@ export function QuickActionsCard() {
   ];
 
   return (
-    <div className="bg-card rounded-2xl shadow-sm border border-border flex flex-col relative overflow-hidden h-full">
+    <div className="bg-white rounded-2xl shadow-sm border border-border flex flex-col relative overflow-hidden h-full">
       <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500" />
       <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent pointer-events-none" />
       

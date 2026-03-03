@@ -29,7 +29,7 @@ export function EnrollmentRow({ enrollment, onView, onDelete, onViewInvoice, sel
     const remaining = calculateRemaining(tuition, discount, paid);
 
     return (
-        <tr className={`hover:bg-muted/50 transition-colors ${selected ? 'bg-indigo-50/50' : ''}`}>
+        <tr className={`hover:bg-slate-50 transition-colors ${selected ? 'bg-indigo-50/50' : ''}`}>
             <td className="px-4 py-3 w-[50px]">
                 <input
                     type="checkbox"

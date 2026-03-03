@@ -244,8 +244,8 @@ export default function IssueInternalWizard({ open, onOpenChange, onSuccess, cen
                     <div className={cn(
                       "w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-all duration-300 shadow-sm",
                       isCompleted ? "bg-primary border-primary text-primary-foreground scale-100" :
-                      isCurrent ? "bg-background border-primary text-primary scale-110 shadow-[0_0_15px_rgba(var(--primary),0.3)] ring-4 ring-primary/10" :
-                      "bg-background border-border text-muted-foreground scale-95"
+                      isCurrent ? "bg-white border-primary text-primary scale-110 shadow-[0_0_15px_rgba(var(--primary),0.3)] ring-4 ring-primary/10" :
+                      "bg-white border-border text-muted-foreground scale-95"
                     )}>
                       {isCompleted ? <Check className="w-5 h-5 animate-in zoom-in duration-300" /> : idx + 1}
                     </div>
@@ -301,7 +301,7 @@ export default function IssueInternalWizard({ open, onOpenChange, onSuccess, cen
                 variant="outline" 
                 onClick={handlePrev}
                 disabled={activeStep === 0 || submitting}
-                className="border-border bg-background hover:bg-muted font-semibold px-6"
+                className="border-border bg-white hover:bg-muted font-semibold px-6"
               >
                 Quay lại
               </Button>

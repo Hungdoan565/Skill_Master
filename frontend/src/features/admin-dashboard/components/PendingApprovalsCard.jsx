@@ -62,7 +62,7 @@ export function PendingApprovalsCard() {
   }, [session?.access_token, selectedCenterId]);
 
   return (
-    <Card className="bg-card border shadow-sm">
+    <Card className="bg-white border shadow-sm">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -95,7 +95,7 @@ export function PendingApprovalsCard() {
                     key={key}
                     className={cn(
                       "flex items-center justify-between rounded-lg px-3 py-2 transition-colors",
-                      count > 0 ? "bg-muted/50" : ""
+                      count > 0 ? "bg-slate-50" : ""
                     )}
                   >
                     <div className="flex items-center gap-2.5">

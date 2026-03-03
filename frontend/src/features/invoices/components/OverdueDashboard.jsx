@@ -419,7 +419,7 @@ function OverdueTable({
 }) {
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-48 bg-card rounded-lg border">
+      <div className="flex items-center justify-center h-48 bg-white rounded-lg border">
         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -427,7 +427,7 @@ function OverdueTable({
 
   if (!invoices || invoices.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-48 bg-card rounded-lg border">
+      <div className="flex flex-col items-center justify-center h-48 bg-white rounded-lg border">
         <CheckCircle className="w-10 h-10 mb-2 text-emerald-500" />
         <p className="text-sm font-medium text-foreground">Không có hóa đơn quá hạn</p>
         <p className="text-xs text-muted-foreground mt-1">Tất cả hóa đơn đã được thanh toán đúng hạn</p>
@@ -436,7 +436,7 @@ function OverdueTable({
   }
 
   return (
-    <div className="bg-card rounded-lg border overflow-hidden">
+    <div className="bg-white rounded-lg border overflow-hidden">
       {/* Filters */}
       <div className="px-4 py-3 border-b bg-muted/30 flex items-center gap-4 flex-wrap">
         <div className="flex items-center gap-2">
@@ -458,7 +458,7 @@ function OverdueTable({
       {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
-          <thead className="bg-muted/50">
+          <thead className="bg-slate-50">
             <tr className="border-b">
               <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">
                 Học viên
@@ -498,7 +498,7 @@ function OverdueTable({
               const severityConfig = SEVERITY_CONFIG[severity];
 
               return (
-                <tr key={invoice.id} className={`hover:bg-muted/50 ${severityConfig.bgRow}`}>
+                <tr key={invoice.id} className={`hover:bg-slate-50 ${severityConfig.bgRow}`}>
                   <td className="px-4 py-3">
                     <p className="font-medium text-foreground">{invoice.student?.full_name || 'N/A'}</p>
                   </td>
@@ -588,7 +588,7 @@ function OverdueTable({
 function CallListTable({ items, onUpdateItem, editingNote, setEditingNote, noteText, setNoteText }) {
   if (!items || items.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-48 bg-card rounded-lg border">
+      <div className="flex flex-col items-center justify-center h-48 bg-white rounded-lg border">
         <Phone className="w-10 h-10 mb-2 text-muted-foreground/40" />
         <p className="text-sm font-medium text-foreground">Danh sách gọi trống</p>
         <p className="text-xs text-muted-foreground mt-1">Thêm hóa đơn quá hạn vào danh sách để theo dõi</p>
@@ -597,10 +597,10 @@ function CallListTable({ items, onUpdateItem, editingNote, setEditingNote, noteT
   }
 
   return (
-    <div className="bg-card rounded-lg border overflow-hidden">
+    <div className="bg-white rounded-lg border overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
-          <thead className="bg-muted/50">
+          <thead className="bg-slate-50">
             <tr className="border-b">
               <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">
                 Học viên
@@ -634,7 +634,7 @@ function CallListTable({ items, onUpdateItem, editingNote, setEditingNote, noteT
               const statusConfig = CALL_STATUS_CONFIG[item.status] || CALL_STATUS_CONFIG.pending;
 
               return (
-                <tr key={item.id} className="hover:bg-muted/50">
+                <tr key={item.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3">
                     <p className="font-medium text-foreground">{item.student?.full_name || 'N/A'}</p>
                   </td>
@@ -675,7 +675,7 @@ function CallListTable({ items, onUpdateItem, editingNote, setEditingNote, noteT
                           type="text"
                           value={noteText}
                           onChange={(e) => setNoteText(e.target.value)}
-                          className="flex-1 text-sm border rounded px-2 py-1 bg-background"
+                          className="flex-1 text-sm border rounded px-2 py-1 bg-white"
                           placeholder="Nhập ghi chú..."
                           autoFocus
                         />

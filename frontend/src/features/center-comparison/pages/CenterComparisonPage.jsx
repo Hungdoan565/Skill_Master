@@ -147,7 +147,7 @@ export default function CenterComparisonPage() {
   const CustomRadarTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-background border border-border rounded-lg shadow-lg p-3">
+        <div className="bg-white border border-border rounded-lg shadow-lg p-3">
           <p className="font-medium text-sm mb-2">{payload[0].payload.subject}</p>
           {payload.map((entry, index) => {
             const val = entry.payload[`rawValue_${index}`];
@@ -170,7 +170,7 @@ export default function CenterComparisonPage() {
   const CustomBarTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-background border border-border rounded-lg shadow-lg p-3">
+        <div className="bg-white border border-border rounded-lg shadow-lg p-3">
           <p className="font-medium text-sm mb-2">{label}</p>
           {payload.map((entry, index) => {
             const name = entry.payload[`centerName_${index}`];
@@ -192,7 +192,7 @@ export default function CenterComparisonPage() {
 
   if (loading) {
     return (
-      <div className="p-6 max-w-[1600px] mx-auto space-y-6 bg-background">
+      <div className="p-6 max-w-[1600px] mx-auto space-y-6 bg-white">
         <Skeleton className="h-10 w-[200px]" />
         <Skeleton className="h-24 w-full" />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -204,7 +204,7 @@ export default function CenterComparisonPage() {
   }
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto space-y-6 bg-background">
+    <div className="p-6 max-w-[1600px] mx-auto space-y-6 bg-white">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-foreground tracking-tight">So sánh Trung tâm</h1>

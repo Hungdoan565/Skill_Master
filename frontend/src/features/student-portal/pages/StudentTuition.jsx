@@ -101,7 +101,7 @@ function InvoiceItem({ invoice, onClick }) {
   return (
     <div
       onClick={() => onClick(invoice)}
-      className="flex items-center justify-between p-4 rounded-lg bg-card hover:bg-muted/50 transition-colors border border-border cursor-pointer"
+      className="flex items-center justify-between p-4 rounded-lg bg-white hover:bg-slate-50 transition-colors border border-border cursor-pointer"
     >
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <div className={cn(

@@ -36,7 +36,7 @@ export default function ChatInput() {
   const hasText = text.trim().length > 0;
 
   return (
-    <div className="shrink-0 border-t border-border bg-card p-3">
+    <div className="shrink-0 border-t border-border bg-white p-3">
       <div className="flex items-end gap-2">
         <textarea
           ref={textareaRef}
@@ -47,7 +47,7 @@ export default function ChatInput() {
           disabled={isStreaming}
           rows={1}
           maxLength={500}
-          className="flex-1 resize-none rounded-xl border border-border bg-background px-3.5 py-3 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 resize-none rounded-xl border border-border bg-white px-3.5 py-3 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ minHeight: '48px', maxHeight: '120px' }}
         />
         <button

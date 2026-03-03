@@ -196,7 +196,7 @@ export function AuditLogPage() {
         <p className="text-sm text-muted-foreground">Theo dõi thao tác quan trọng của người dùng.</p>
       </div>
 
-      <div className="rounded-lg border bg-card p-4">
+      <div className="rounded-lg border bg-white p-4">
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
           <Input type="date" value={filters.from} onChange={(event) => setFilters((prev) => ({ ...prev, from: event.target.value }))} />
           <Input type="date" value={filters.to} onChange={(event) => setFilters((prev) => ({ ...prev, to: event.target.value }))} />
@@ -235,7 +235,7 @@ export function AuditLogPage() {
         </div>
       </div>
 
-      <div className="rounded-lg border bg-card">
+      <div className="rounded-lg border bg-white">
         <Table>
           <TableHeader>
             <TableRow>
@@ -292,11 +292,11 @@ export function AuditLogPage() {
                         <div className="grid gap-4 lg:grid-cols-2">
                           <div>
                             <div className="mb-2 text-sm font-semibold">Giá trị cũ</div>
-                            <pre className="max-h-64 overflow-auto rounded-md border bg-background p-3 text-xs">{formatJson(log.old_values)}</pre>
+                            <pre className="max-h-64 overflow-auto rounded-md border bg-white p-3 text-xs">{formatJson(log.old_values)}</pre>
                           </div>
                           <div>
                             <div className="mb-2 text-sm font-semibold">Giá trị mới</div>
-                            <pre className="max-h-64 overflow-auto rounded-md border bg-background p-3 text-xs">{formatJson(log.new_values)}</pre>
+                            <pre className="max-h-64 overflow-auto rounded-md border bg-white p-3 text-xs">{formatJson(log.new_values)}</pre>
                           </div>
                         </div>
 
@@ -307,7 +307,7 @@ export function AuditLogPage() {
                           ) : (
                             <div className="space-y-2">
                               {diffs.map((item) => (
-                                <div key={item.key} className="rounded-md border bg-background p-3">
+                                <div key={item.key} className="rounded-md border bg-white p-3">
                                   <div className="mb-1 flex items-center gap-2">
                                     <Badge variant="outline">{item.key}</Badge>
                                   </div>

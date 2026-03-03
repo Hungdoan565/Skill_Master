@@ -158,7 +158,7 @@ export function InvoiceDetailModal({
         </div>
 
         {/* Footer */}
-        <div className="flex-shrink-0 px-4 py-3 bg-muted/50 border-t border-border flex gap-2">
+        <div className="flex-shrink-0 px-4 py-3 bg-slate-50 border-t border-border flex gap-2">
           <Button variant="outline" className="flex-1" onClick={() => setShowPrintModal(true)}>
             <Printer className="w-4 h-4 mr-2" />
             In hóa đơn

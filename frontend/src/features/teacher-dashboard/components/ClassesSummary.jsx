@@ -8,7 +8,7 @@ import { Link } from 'react-router-dom';
 export function ClassesSummary({ classes = [] }) {
     if (classes.length === 0) {
         return (
-            <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+            <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
                 <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
                     <BookOpen className="h-5 w-5 text-purple-500" />
                     Lớp học đang dạy
@@ -36,7 +36,7 @@ export function ClassesSummary({ classes = [] }) {
     };
 
     return (
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
                     <BookOpen className="h-5 w-5 text-purple-500" />

@@ -190,7 +190,7 @@ export function InvoiceFilters({
             flex items-center gap-1.5 transition-colors
             ${filters.overdueOnly
               ? 'bg-red-100 dark:bg-red-900/30 border-red-300 dark:border-red-800 text-red-700 dark:text-red-300'
-              : 'bg-muted/50 border-border text-muted-foreground hover:bg-muted'
+              : 'bg-slate-50 border-border text-muted-foreground hover:bg-muted'
             }
           `}
         >
@@ -207,7 +207,7 @@ export function InvoiceFilters({
             onChange={(e) => onFilterChange('dateStart', e.target.value)}
             className="
               h-9 px-2 rounded-lg text-sm
-              bg-muted/50 border border-border text-foreground
+              bg-slate-50 border border-border text-foreground
               focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
             "
           />
@@ -218,7 +218,7 @@ export function InvoiceFilters({
             onChange={(e) => onFilterChange('dateEnd', e.target.value)}
             className="
               h-9 px-2 rounded-lg text-sm
-              bg-muted/50 border border-border text-foreground
+              bg-slate-50 border border-border text-foreground
               focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
             "
           />

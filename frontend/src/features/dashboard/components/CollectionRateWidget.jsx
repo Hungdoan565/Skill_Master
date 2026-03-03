@@ -3,7 +3,7 @@ import { Wallet } from 'lucide-react';
 export default function CollectionRateWidget({ data = {}, loading = false }) {
   if (loading) {
     return (
-      <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
         <div className="bg-gradient-to-r from-teal-500/10 via-cyan-500/5 to-transparent p-4">
           <div className="flex items-center gap-3">
             <div className="h-11 w-11 rounded-xl bg-muted animate-pulse" />
@@ -14,8 +14,8 @@ export default function CollectionRateWidget({ data = {}, loading = false }) {
           </div>
         </div>
         <div className="p-4 space-y-3">
-          <div className="h-24 bg-muted/50 rounded-xl animate-pulse" />
-          <div className="h-16 bg-muted/50 rounded-xl animate-pulse" />
+          <div className="h-24 bg-slate-50 rounded-xl animate-pulse" />
+          <div className="h-16 bg-slate-50 rounded-xl animate-pulse" />
         </div>
       </div>
     );
@@ -42,7 +42,7 @@ export default function CollectionRateWidget({ data = {}, loading = false }) {
   ];
 
   return (
-    <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
       <div className="bg-gradient-to-r from-teal-500/10 via-cyan-500/5 to-transparent p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-cyan-500 shadow-lg shadow-teal-500/25">

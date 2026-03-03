@@ -3,7 +3,7 @@ import { Users, Clock } from 'lucide-react';
 export function TeacherStatusWidget({ teachers = [], loading = false }) {
     if (loading) {
         return (
-            <div className="bg-card rounded-2xl p-6 shadow-sm border border-border animate-pulse">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-border animate-pulse">
                 <div className="h-6 w-40 bg-muted rounded mb-6" />
                 <div className="space-y-3">
                     {[...Array(4)].map((_, i) => (
@@ -23,7 +23,7 @@ export function TeacherStatusWidget({ teachers = [], loading = false }) {
 
     if (teachers.length === 0) {
         return (
-            <div className="bg-card rounded-2xl p-6 shadow-sm border border-border h-full">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-border h-full">
                 <div className="flex items-center gap-3 mb-4">
                     <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
                         <Users size={22} className="text-white" />
@@ -55,7 +55,7 @@ export function TeacherStatusWidget({ teachers = [], loading = false }) {
     };
 
     return (
-        <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden h-full">
+        <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden h-full">
             {/* Header with gradient */}
             <div className="bg-gradient-to-r from-emerald-500/10 via-green-500/5 to-transparent p-6 pb-4">
                 <div className="flex items-center gap-3">
@@ -78,7 +78,7 @@ export function TeacherStatusWidget({ teachers = [], loading = false }) {
                         : '??';
 
                     return (
-                        <div key={teacher.id || index} className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors">
+                        <div key={teacher.id || index} className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors">
                             {/* Avatar */}
                             <div className="w-11 h-11 rounded-full bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 flex flex-shrink-0 items-center justify-center font-bold text-sm ring-2 ring-emerald-500/10">
                                 {initials}

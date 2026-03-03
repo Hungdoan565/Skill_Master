@@ -45,7 +45,7 @@ export function KPISummaryBar({ data }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {/* Revenue Card */}
-      <Card className="bg-card border shadow-sm border-l-4 border-l-emerald-500">
+      <Card className="bg-white border shadow-sm border-l-4 border-l-emerald-500">
         <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
           <div className="flex flex-col space-y-1">
             <CardDescription className="text-sm text-muted-foreground font-medium">Tổng doanh thu</CardDescription>
@@ -61,7 +61,7 @@ export function KPISummaryBar({ data }) {
       </Card>
 
       {/* Students Card */}
-      <Card className="bg-card border shadow-sm border-l-4 border-l-blue-500">
+      <Card className="bg-white border shadow-sm border-l-4 border-l-blue-500">
         <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
           <div className="flex flex-col space-y-1">
             <CardDescription className="text-sm text-muted-foreground font-medium">Tổng học viên</CardDescription>
@@ -77,7 +77,7 @@ export function KPISummaryBar({ data }) {
       </Card>
 
       {/* Classes Card */}
-      <Card className="bg-card border shadow-sm border-l-4 border-l-purple-500">
+      <Card className="bg-white border shadow-sm border-l-4 border-l-purple-500">
         <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
           <div className="flex flex-col space-y-1">
             <CardDescription className="text-sm text-muted-foreground font-medium">Lớp đang học</CardDescription>
@@ -95,7 +95,7 @@ export function KPISummaryBar({ data }) {
       </Card>
 
       {/* Debt Card */}
-      <Card className="bg-card border shadow-sm border-l-4 border-l-red-500">
+      <Card className="bg-white border shadow-sm border-l-4 border-l-red-500">
         <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
           <div className="flex flex-col space-y-1">
             <CardDescription className="text-sm text-muted-foreground font-medium">Công nợ</CardDescription>

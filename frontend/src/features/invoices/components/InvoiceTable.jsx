@@ -195,7 +195,7 @@ function InvoiceTableRow({ invoice, onViewDetail, onPayment, onEdit, onCancel, o
 
   return (
     <tr className={cn(
-      'hover:bg-muted/50 transition-colors',
+      'hover:bg-slate-50 transition-colors',
       isOverdue && 'bg-red-50/50 dark:bg-red-950/20',
       isSelected && 'bg-primary/5 dark:bg-primary/10'
     )}>

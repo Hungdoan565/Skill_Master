@@ -71,15 +71,15 @@ function ScheduleList({ studentId }) {
                 <h4 className="font-semibold text-lg">{cls.className}</h4>
                 <p className="text-muted-foreground">{cls.courseTitle}</p>
                 <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1 bg-muted/50 px-2 py-1 rounded">
+                  <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded">
                     <Calendar className="h-4 w-4" />
                     <span>{cls.dayOfWeek === 8 ? 'Chủ nhật' : `Thứ ${cls.dayOfWeek}`}</span>
                   </div>
-                  <div className="flex items-center gap-1 bg-muted/50 px-2 py-1 rounded">
+                  <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded">
                     <Clock className="h-4 w-4" />
                     <span>{formatTime(cls.startTime)} - {formatTime(cls.endTime)}</span>
                   </div>
-                  <div className="flex items-center gap-1 bg-muted/50 px-2 py-1 rounded">
+                  <div className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded">
                     <MapPin className="h-4 w-4" />
                     <span>{cls.roomName || 'Chưa xếp phòng'}</span>
                   </div>
@@ -127,7 +127,7 @@ export default function ParentSchedulePage() {
       </div>
 
       {children && children.length > 0 ? (
-        <div className="bg-card p-6 rounded-xl border shadow-sm">
+        <div className="bg-white p-6 rounded-xl border shadow-sm">
           <ChildSelector 
             children={children} 
             selectedId={selectedChildId} 
@@ -145,7 +145,7 @@ export default function ParentSchedulePage() {
           </div>
         </div>
       ) : (
-        <div className="text-center py-12 bg-card rounded-xl border shadow-sm">
+        <div className="text-center py-12 bg-white rounded-xl border shadow-sm">
           <GraduationCap className="h-12 w-12 mx-auto text-muted-foreground mb-3 opacity-50" />
           <h3 className="text-lg font-medium text-foreground">Chưa có dữ liệu học viên</h3>
           <p className="text-sm text-muted-foreground mt-1">Không tìm thấy thông tin học viên nào liên kết với tài khoản này.</p>

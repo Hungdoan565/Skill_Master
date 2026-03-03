@@ -203,7 +203,7 @@ export function TeacherGradebookPage() {
             )}
 
             {/* Sticky Footer */}
-            <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-lg z-50">
+            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-border shadow-lg z-50">
                 <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
                     <div className="text-sm text-muted-foreground">
                         {hasChanges ? (
@@ -250,7 +250,7 @@ function PageHeader({ classId, className, isLocked, lockStatus, selectedGradeTyp
     const lockInfo = lockStatus[selectedGradeType];
 
     return (
-        <div className="bg-card rounded-2xl shadow-sm border border-border p-6 mb-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-border p-6 mb-6">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                     <Button
@@ -305,7 +305,7 @@ function GradeTypeTabs({ gradeTypes, selectedGradeType, onSelect, lockStatus }) 
     const tabs = gradeTypes.length > 0 ? gradeTypes : GRADE_TYPE_TABS;
 
     return (
-        <div className="bg-card rounded-2xl shadow-sm border border-border p-4 mb-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-border p-4 mb-4">
             <div className="flex flex-wrap gap-2">
                 {tabs.map((type) => {
                     const isActive = selectedGradeType === type.value;
@@ -334,7 +334,7 @@ function GradeTypeTabs({ gradeTypes, selectedGradeType, onSelect, lockStatus }) 
 
 function SummaryStatsBar({ stats, gradeType }) {
     return (
-        <div className="bg-card rounded-2xl shadow-sm border border-border p-4 mb-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-border p-4 mb-4">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="flex items-center gap-3 p-3 bg-blue-500/10 rounded-2xl">
                     <div className="p-2 bg-blue-500/20 rounded-lg">
@@ -383,7 +383,7 @@ function SummaryStatsBar({ stats, gradeType }) {
 function GradeInputTable({ students, getStudentGrade, onScoreChange, isLocked, loading, maxScore }) {
     if (loading) {
         return (
-            <div className="bg-card rounded-2xl shadow-sm border border-border p-8">
+            <div className="bg-white rounded-2xl shadow-sm border border-border p-8">
                 <div className="flex items-center justify-center">
                     <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
                     <span className="ml-3 text-muted-foreground">Đang tải danh sách...</span>
@@ -394,7 +394,7 @@ function GradeInputTable({ students, getStudentGrade, onScoreChange, isLocked, l
 
     if (!students || students.length === 0) {
         return (
-            <div className="bg-card rounded-2xl shadow-sm border border-border p-12 text-center">
+            <div className="bg-white rounded-2xl shadow-sm border border-border p-12 text-center">
                 <Users className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-foreground mb-2">Chưa có học viên</h3>
                 <p className="text-muted-foreground">Lớp học chưa có học viên nào được ghi danh</p>
@@ -403,11 +403,11 @@ function GradeInputTable({ students, getStudentGrade, onScoreChange, isLocked, l
     }
 
     return (
-        <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
             <div className="overflow-x-auto">
                 <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                     <thead>
-                        <tr className="bg-muted/50 border-b border-border">
+                        <tr className="bg-slate-50 border-b border-border">
                             <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground w-12">#</th>
                             <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground w-12">Ảnh</th>
                             <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Họ tên học viên</th>
@@ -448,7 +448,7 @@ function StudentGradeRow({ index, student, grade, onScoreChange, isLocked, maxSc
         : '-';
 
     return (
-        <tr className="border-b border-border hover:bg-muted/50 transition-colors">
+        <tr className="border-b border-border hover:bg-slate-50 transition-colors">
             <td className="py-3 px-4 text-sm text-muted-foreground font-medium">{index}</td>
             <td className="py-3 px-4">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white font-medium text-sm">
@@ -482,7 +482,7 @@ function StudentGradeRow({ index, student, grade, onScoreChange, isLocked, maxSc
                     disabled={isLocked}
                     placeholder="--"
                     className={cn(
-                        'w-full h-10 text-center rounded-lg border bg-background px-3 text-sm',
+                        'w-full h-10 text-center rounded-lg border bg-white px-3 text-sm',
                         'focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent',
                         isLocked
                             ? 'bg-muted text-muted-foreground cursor-not-allowed border-border'
@@ -512,7 +512,7 @@ function StudentGradeRow({ index, student, grade, onScoreChange, isLocked, maxSc
                     disabled={isLocked}
                     placeholder="Ghi chú..."
                     className={cn(
-                        'w-full h-10 rounded-lg border bg-background px-3 text-sm',
+                        'w-full h-10 rounded-lg border bg-white px-3 text-sm',
                         'focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent',
                         isLocked
                             ? 'bg-muted text-muted-foreground cursor-not-allowed border-border'
@@ -527,7 +527,7 @@ function StudentGradeRow({ index, student, grade, onScoreChange, isLocked, maxSc
 function LockConfirmModal({ gradeType, onConfirm, onCancel, loading }) {
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
-            <div className="bg-card rounded-2xl shadow-xl max-w-md w-full mx-4 p-6">
+            <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 p-6">
                 <div className="text-center">
                     <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
                         <Lock className="h-8 w-8 text-red-500" />

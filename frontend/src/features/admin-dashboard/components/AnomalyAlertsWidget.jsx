@@ -24,14 +24,14 @@ export function AnomalyAlertsWidget({ data }) {
   const alertCount = filteredAnomalies.length;
 
   return (
-    <Card className="flex flex-col h-full bg-card border shadow-sm">
+    <Card className="flex flex-col h-full bg-white border shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
         <CardTitle className="text-lg font-semibold text-foreground">Cảnh báo</CardTitle>
         <div className="flex items-center gap-2">
           <select
             value={stateFilter}
             onChange={(event) => setStateFilter(event.target.value)}
-            className="h-7 rounded-md border bg-background px-2 text-xs text-foreground"
+            className="h-7 rounded-md border bg-white px-2 text-xs text-foreground"
           >
             <option value="all">Tất cả trạng thái</option>
             {Object.entries(STATE_LABELS).map(([value, label]) => (

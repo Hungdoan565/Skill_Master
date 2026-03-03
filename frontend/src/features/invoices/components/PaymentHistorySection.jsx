@@ -175,7 +175,7 @@ function PaymentRow({
         <div className={`p-3 rounded-lg border ${status.color}`}>
             <div className="flex items-start gap-3">
                 {/* Index & Icon */}
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-card flex items-center justify-center text-xs font-bold text-muted-foreground border">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-white flex items-center justify-center text-xs font-bold text-muted-foreground border">
                     #{index}
                 </div>
 

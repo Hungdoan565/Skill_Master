@@ -173,7 +173,7 @@ export function GoalProgressWidget({
 }) {
     if (loading) {
         return (
-            <div className="bg-card rounded-2xl p-6 shadow-sm border border-border animate-pulse">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-border animate-pulse">
                 <div className="h-6 w-40 bg-muted rounded mb-6" />
                 <div className="flex items-center gap-6">
                     <div className="w-[140px] h-[140px] bg-muted rounded-full" />
@@ -192,7 +192,7 @@ export function GoalProgressWidget({
     const daysRemaining = getDaysRemaining();
 
     return (
-        <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
             {/* Header with gradient */}
             <div className="bg-gradient-to-r from-orange-500/10 via-amber-500/5 to-transparent p-6 pb-4">
                 <div className="flex items-center justify-between">

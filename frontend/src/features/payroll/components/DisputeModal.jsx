@@ -207,7 +207,7 @@ export function DisputeModal({
                             value={formData.reason}
                             onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
                             rows={4}
-                            className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                            className="w-full px-3 py-2 rounded-md border border-input bg-white text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
                         />
                         <p className="text-xs text-muted-foreground">
                             Tối thiểu 20 ký tự. Hiện tại: {formData.reason.length} ký tự

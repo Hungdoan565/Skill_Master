@@ -150,7 +150,7 @@ export function BankInfoTab({ onMessage }) {
                             id="bank_name"
                             value={bankInfo.bank_name}
                             onChange={(e) => handleChange('bank_name', e.target.value)}
-                            className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                            className="w-full h-10 px-3 rounded-md border border-input bg-white text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                         >
                             <option value="">-- Chọn ngân hàng --</option>
                             {BANK_OPTIONS.map(bank => (

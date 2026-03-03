@@ -279,7 +279,7 @@ export default function StudentCourseDetail() {
           
           {selectedClass && (
             <div className="space-y-4 py-4">
-              <div className="p-4 bg-muted/50 rounded-lg space-y-3">
+              <div className="p-4 bg-slate-50 rounded-lg space-y-3">
                 <h4 className="font-semibold text-lg">{selectedClass.name}</h4>
                 <div className="space-y-1 text-sm text-muted-foreground">
                   <p className="flex items-center"><User className="mr-2 h-4 w-4" /> {selectedClass.teacher_name || 'Chưa phân công'}</p>

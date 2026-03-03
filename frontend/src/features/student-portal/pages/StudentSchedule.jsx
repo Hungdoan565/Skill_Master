@@ -371,7 +371,7 @@ const ScheduleEvent = ({ event, onClick, isCompact = false }) => {
           </div>
           
           <div className="flex items-center gap-2 mt-2 flex-wrap">
-             <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 h-5 bg-background/50 border-0', status.text)}>
+             <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 h-5 bg-white/50 border-0', status.text)}>
                 {status.label}
              </Badge>
              {isUpcoming && <CountdownBadge targetDateTime={eventDateTime} />}
@@ -409,7 +409,7 @@ const ClassDetailModal = ({ isOpen, onClose, event }) => {
               <h3 className={cn('font-semibold text-lg', colorScheme.text)}>
                 {event.className}
               </h3>
-              <span className={cn('text-xs px-2 py-1 rounded-full bg-background/80 font-medium', status.text)}>
+              <span className={cn('text-xs px-2 py-1 rounded-full bg-white/80 font-medium', status.text)}>
                 {status.label}
               </span>
             </div>
@@ -718,7 +718,7 @@ export function StudentSchedule() {
             <Button
                variant={viewType === 'week' ? 'white' : 'ghost'}
                size="sm"
-               className={cn("h-8", viewType === 'week' && "shadow-sm bg-background")}
+               className={cn("h-8", viewType === 'week' && "shadow-sm bg-white")}
             >
                <LayoutGrid className="w-4 h-4 mr-2" />
                Tuần
@@ -726,7 +726,7 @@ export function StudentSchedule() {
              <Button
                variant={viewType === 'month' ? 'white' : 'ghost'}
                size="sm"
-               className={cn("h-8", viewType === 'month' && "shadow-sm bg-background")}
+               className={cn("h-8", viewType === 'month' && "shadow-sm bg-white")}
              >
                <Calendar className="w-4 h-4 mr-2" />
                Tháng
@@ -798,14 +798,14 @@ export function StudentSchedule() {
       {/* Views - Swipeable */}
       <div 
         {...swipeHandlers}
-        className="bg-card rounded-xl border border-border overflow-hidden shadow-sm touch-pan-y"
+        className="bg-white rounded-xl border border-border overflow-hidden shadow-sm touch-pan-y"
       >
-        <div className="sm:hidden text-center text-xs text-muted-foreground py-1 bg-muted/50 border-b border-border">
+        <div className="sm:hidden text-center text-xs text-muted-foreground py-1 bg-slate-50 border-b border-border">
         </div>
         
         {/* Header Grid */}
         <div className={cn(
-          "grid grid-cols-7 border-b border-border bg-muted/50",
+          "grid grid-cols-7 border-b border-border bg-slate-50",
         )}>
           {DAYS_OF_WEEK.map((day) => (
             <div key={day.value} className="p-3 text-center border-r border-border last:border-r-0">
@@ -934,7 +934,7 @@ export function StudentSchedule() {
       </div>
       
       {/* Legend */}
-      <div className="flex flex-wrap items-center gap-4 text-sm p-4 bg-muted/50 rounded-lg">
+      <div className="flex flex-wrap items-center gap-4 text-sm p-4 bg-slate-50 rounded-lg">
         <span className="font-medium text-foreground">Trạng thái:</span>
         {Object.entries(STATUS_CONFIG).map(([key, config]) => (
           <div key={key} className="flex items-center gap-2">

@@ -137,7 +137,7 @@ export function TeacherClassesPage() {
 
                 <button
                     onClick={refetch}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:bg-muted transition-colors"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-border rounded-lg hover:bg-muted transition-colors"
                 >
                     <RefreshCw className="h-4 w-4" />
                     Làm mới
@@ -150,7 +150,7 @@ export function TeacherClassesPage() {
                     onClick={() => setStatusFilter('all')}
                     className={cn(
                         'p-4 rounded-2xl border text-left transition-all',
-                        statusFilter === 'all' ? 'border-blue-500/50 bg-blue-500/10 ring-2 ring-blue-500/20' : 'bg-card border-border hover:border-border/80'
+                        statusFilter === 'all' ? 'border-blue-500/50 bg-blue-500/10 ring-2 ring-blue-500/20' : 'bg-white border-border hover:border-border/80'
                     )}
                 >
                     <p className="text-2xl font-bold text-foreground">{statusCounts.all}</p>
@@ -160,7 +160,7 @@ export function TeacherClassesPage() {
                     onClick={() => setStatusFilter('active')}
                     className={cn(
                         'p-4 rounded-2xl border text-left transition-all',
-                        statusFilter === 'active' ? 'border-green-500/50 bg-green-500/10 ring-2 ring-green-500/20' : 'bg-card border-border hover:border-border/80'
+                        statusFilter === 'active' ? 'border-green-500/50 bg-green-500/10 ring-2 ring-green-500/20' : 'bg-white border-border hover:border-border/80'
                     )}
                 >
                     <p className="text-2xl font-bold text-green-600 dark:text-green-400">{statusCounts.active}</p>
@@ -170,7 +170,7 @@ export function TeacherClassesPage() {
                     onClick={() => setStatusFilter('upcoming')}
                     className={cn(
                         'p-4 rounded-2xl border text-left transition-all',
-                        statusFilter === 'upcoming' ? 'border-blue-500/50 bg-blue-500/10 ring-2 ring-blue-500/20' : 'bg-card border-border hover:border-border/80'
+                        statusFilter === 'upcoming' ? 'border-blue-500/50 bg-blue-500/10 ring-2 ring-blue-500/20' : 'bg-white border-border hover:border-border/80'
                     )}
                 >
                     <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{statusCounts.upcoming}</p>
@@ -180,7 +180,7 @@ export function TeacherClassesPage() {
                     onClick={() => setStatusFilter('completed')}
                     className={cn(
                         'p-4 rounded-2xl border text-left transition-all',
-                        statusFilter === 'completed' ? 'border-muted-foreground bg-muted ring-2 ring-muted' : 'bg-card border-border hover:border-border/80'
+                        statusFilter === 'completed' ? 'border-muted-foreground bg-muted ring-2 ring-muted' : 'bg-white border-border hover:border-border/80'
                     )}
                 >
                     <p className="text-2xl font-bold text-muted-foreground">{statusCounts.completed}</p>
@@ -189,7 +189,7 @@ export function TeacherClassesPage() {
             </div>
 
             {/* Search */}
-            <div className="bg-card rounded-2xl border border-border p-4 mb-6">
+            <div className="bg-white rounded-2xl border border-border p-4 mb-6">
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/50" />
                     <input
@@ -204,7 +204,7 @@ export function TeacherClassesPage() {
 
             {/* Classes List */}
             {filteredClasses.length === 0 ? (
-                <div className="bg-card rounded-2xl border border-border p-12 text-center">
+                <div className="bg-white rounded-2xl border border-border p-12 text-center">
                     <BookOpen className="h-16 w-16 text-muted-foreground/30 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-foreground mb-2">Không tìm thấy lớp học</h3>
                     <p className="text-muted-foreground">
@@ -223,7 +223,7 @@ export function TeacherClassesPage() {
                         return (
                             <div
                                 key={cls.id}
-                                className="bg-card rounded-2xl border border-border hover:border-blue-500/50 hover:shadow-md transition-all overflow-hidden"
+                                className="bg-white rounded-2xl border border-border hover:border-blue-500/50 hover:shadow-md transition-all overflow-hidden"
                             >
                                 {/* Header */}
                                 <div className="p-4 border-b border-border bg-gradient-to-r from-blue-500/10 to-purple-500/10">
@@ -295,7 +295,7 @@ export function TeacherClassesPage() {
                                 </div>
 
                                 {/* Actions */}
-                                <div className="p-4 border-t border-border bg-muted/50 flex items-center gap-2">
+                                <div className="p-4 border-t border-border bg-slate-50 flex items-center gap-2">
                                     <Link
                                         to={`/teacher/classes/${cls.id}/attendance`}
                                         className="flex-1 px-3 py-2 text-sm font-medium text-center text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"

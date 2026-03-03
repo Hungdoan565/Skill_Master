@@ -82,7 +82,7 @@ function QuickAction({ icon: Icon, label, onClick, color = 'blue' }) {
         colorStyles[color]
       )}
     >
-      <div className="p-2 bg-card rounded-full shadow-sm">
+      <div className="p-2 bg-white rounded-full shadow-sm">
         <Icon className="h-5 w-5" />
       </div>
       <span className="text-sm font-medium">{label}</span>
@@ -115,7 +115,7 @@ function CourseProgressItem({ course }) {
 
 function ClassItem({ classItem }) {
   return (
-    <div className="group flex items-center gap-4 p-4 rounded-2xl border bg-card hover:bg-accent/50 transition-all duration-200">
+    <div className="group flex items-center gap-4 p-4 rounded-2xl border bg-white hover:bg-accent/50 transition-all duration-200">
       <div className="flex-shrink-0 w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center group-hover:scale-105 transition-transform">
         <BookOpen className="h-5 w-5 text-blue-600 dark:text-blue-400" />
       </div>
@@ -143,7 +143,7 @@ function GradeItem({ grade }) {
                      grade.score >= 5 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400';
   
   return (
-    <div className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors border-b last:border-0 border-border/50">
+    <div className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition-colors border-b last:border-0 border-border/50">
       <div className="flex-1 min-w-0">
         <p className="font-medium truncate">{grade.class_name}</p>
         <p className="text-sm text-muted-foreground">{grade.grade_type || grade.type}</p>

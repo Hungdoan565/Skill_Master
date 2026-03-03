@@ -160,7 +160,7 @@ function AttendanceHeatmap({ records }) {
   };
 
   return (
-    <Card className="overflow-hidden border-none shadow-none bg-transparent sm:bg-card sm:border sm:shadow-sm">
+    <Card className="overflow-hidden border-none shadow-none bg-transparent sm:bg-white sm:border sm:shadow-sm">
       <CardHeader className="px-0 sm:px-6 pb-2">
         <CardTitle className="text-base font-semibold flex items-center gap-2">
           <CalendarIcon className="h-5 w-5 text-primary" />
@@ -263,7 +263,7 @@ function HistoryTable({ records }) {
       <div className="rounded-md border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="bg-muted/50 text-muted-foreground font-medium">
+            <thead className="bg-slate-50 text-muted-foreground font-medium">
               <tr>
                 <th className="px-4 py-3">Ngày</th>
                 <th className="px-4 py-3">Lớp học</th>
@@ -373,7 +373,7 @@ export function StudentAttendance() {
         
         <div className="flex items-center gap-2 w-full md:w-auto">
           <Select value={classFilter} onValueChange={setClassFilter}>
-            <SelectTrigger className="w-full md:w-[220px] bg-background">
+            <SelectTrigger className="w-full md:w-[220px] bg-white">
               <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
               <SelectValue placeholder="Tất cả lớp học" />
             </SelectTrigger>
@@ -389,7 +389,7 @@ export function StudentAttendance() {
           
           <button
             onClick={refresh}
-            className="p-2.5 rounded-lg border bg-background hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+            className="p-2.5 rounded-lg border bg-white hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
             title="Làm mới dữ liệu"
           >
             <RefreshCw className="h-4 w-4" />

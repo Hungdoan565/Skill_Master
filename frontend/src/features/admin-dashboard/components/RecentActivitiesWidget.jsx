@@ -52,15 +52,15 @@ export function RecentActivitiesWidget({ activities }) {
   };
 
   return (
-    <Card className="bg-card border shadow-sm">
+    <Card className="bg-white border shadow-sm">
       <CardHeader className="pb-4">
         <CardTitle className="text-lg font-semibold text-foreground">Hoạt động gần đây</CardTitle>
       </CardHeader>
       <CardContent className="p-0 sm:p-6 sm:pt-0">
         <div className="overflow-auto max-h-[400px]">
           <Table>
-            <TableHeader className="bg-muted/50 sticky top-0 z-10">
-              <TableRow className="hover:bg-muted/50">
+            <TableHeader className="bg-slate-50 sticky top-0 z-10">
+              <TableRow className="hover:bg-slate-50">
                 <TableHead className="w-[120px]">Thời gian</TableHead>
                 <TableHead>Người thực hiện</TableHead>
                 <TableHead>Hành động</TableHead>
@@ -70,7 +70,7 @@ export function RecentActivitiesWidget({ activities }) {
             </TableHeader>
             <TableBody>
               {activities.map((activity, index) => (
-                <TableRow key={activity.id || index} className="hover:bg-muted/50 transition-colors">
+                <TableRow key={activity.id || index} className="hover:bg-slate-50 transition-colors">
                   <TableCell className="text-muted-foreground whitespace-nowrap text-sm">
                     {formatRelativeTime(activity.created_at)}
                   </TableCell>

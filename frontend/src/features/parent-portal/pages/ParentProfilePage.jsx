@@ -123,7 +123,7 @@ export function ParentProfilePage() {
                   {children.map((child) => (
                     <div 
                       key={child.id} 
-                      className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted/50 hover:border-orange-500/30 transition-colors"
+                      className="flex items-center justify-between p-4 rounded-lg border border-border bg-slate-50 hover:border-orange-500/30 transition-colors"
                     >
                       <div className="flex items-center gap-4">
                         <div className="h-12 w-12 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-600 font-bold text-lg">
@@ -139,7 +139,7 @@ export function ParentProfilePage() {
                         </div>
                       </div>
                       
-                      <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground bg-card px-3 py-1.5 rounded border border-border shadow-sm">
+                      <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground bg-white px-3 py-1.5 rounded border border-border shadow-sm">
                         <GraduationCap className="h-4 w-4 text-orange-500" />
                         <span>{child.active_classes_count || 0} lớp đang học</span>
                       </div>

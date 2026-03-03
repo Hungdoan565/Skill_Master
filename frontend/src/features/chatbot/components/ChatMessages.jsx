@@ -126,7 +126,7 @@ export default function ChatMessages() {
       {showScrollButton && (
         <button
           onClick={scrollToBottom}
-          className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-full bg-card border border-border px-3 py-1.5 text-xs text-muted-foreground shadow-md transition-all hover:bg-muted animate-in fade-in slide-in-from-bottom-2 duration-200"
+          className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-full bg-white border border-border px-3 py-1.5 text-xs text-muted-foreground shadow-md transition-all hover:bg-muted animate-in fade-in slide-in-from-bottom-2 duration-200"
         >
           <ArrowDown className="h-3 w-3" />
           Tin nhắn mới

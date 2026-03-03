@@ -221,7 +221,7 @@ export function RefundInvoiceModal({ isOpen, invoice, onClose, onSuccess }) {
                     value={formatCurrency(formData.amount)}
                     onChange={(e) => updateField('amount', e.target.value)}
                     placeholder="Nhập số tiền"
-                    className="w-full h-11 pl-9 pr-14 rounded-lg bg-background border border-input text-base font-semibold font-mono focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="w-full h-11 pl-9 pr-14 rounded-lg bg-white border border-input text-base font-semibold font-mono focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
                     VNĐ
@@ -286,7 +286,7 @@ export function RefundInvoiceModal({ isOpen, invoice, onClose, onSuccess }) {
                   placeholder="Nhập lý do hoàn tiền..."
                   rows={3}
                   required
-                  className="w-full px-3 py-2 rounded-lg bg-background border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                  className="w-full px-3 py-2 rounded-lg bg-white border border-input text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
                 />
               </div>
 

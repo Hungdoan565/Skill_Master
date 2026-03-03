@@ -163,7 +163,7 @@ export function AdminHeader({ notificationBell }) {
         <input
           type="search"
           placeholder="Tìm kiếm học viên, khóa học..."
-          className="w-full h-10 pl-10 pr-4 rounded-xl border border-input bg-muted/50 
+          className="w-full h-10 pl-10 pr-4 rounded-xl border border-input bg-slate-50 
                      text-sm text-foreground placeholder:text-muted-foreground
                      focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30
                      transition-all duration-200"

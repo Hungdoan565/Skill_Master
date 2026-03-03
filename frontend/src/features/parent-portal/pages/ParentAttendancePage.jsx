@@ -122,7 +122,7 @@ export default function ParentAttendancePage() {
               <CardContent className="p-0">
                 <div className="divide-y">
                   {attendance.map((att, idx) => (
-                    <div key={idx} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-muted/50 transition-colors">
+                    <div key={idx} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
                       <div className="flex items-start sm:items-center gap-4">
                         <div className={cn(
                           "p-2 rounded-full flex-shrink-0 mt-1 sm:mt-0",

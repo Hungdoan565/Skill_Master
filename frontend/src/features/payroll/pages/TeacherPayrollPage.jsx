@@ -240,7 +240,7 @@ export function TeacherPayrollPage() {
                                         onClick={() => handleViewDetail(payroll)}
                                         className={`p-4 rounded-2xl border cursor-pointer transition-colors ${selectedPayroll?.id === payroll.id
                                                 ? 'border-indigo-500 bg-indigo-500/10'
-                                                : 'border-border hover:bg-muted/50'
+                                                : 'border-border hover:bg-slate-50'
                                             }`}
                                     >
                                         <div className="flex items-center justify-between">
@@ -369,7 +369,7 @@ export function TeacherPayrollPage() {
                                             <img 
                                                 src={selectedPayroll.payment_proof_url} 
                                                 alt="Payment proof" 
-                                                className="w-full max-h-48 object-contain bg-muted/50"
+                                                className="w-full max-h-48 object-contain bg-slate-50"
                                                 onClick={() => window.open(selectedPayroll.payment_proof_url, '_blank')}
                                                 style={{ cursor: 'pointer' }}
                                             />

@@ -87,7 +87,7 @@ export function TeacherDashboardPage() {
     }
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-white">
             {/* Header */}
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -175,19 +175,19 @@ export function TeacherDashboardPage() {
                         Mẹo hôm nay
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="bg-background/60 rounded-lg p-4">
+                        <div className="bg-white/60 rounded-lg p-4">
                             <h4 className="font-medium text-amber-800">Điểm danh đúng hạn</h4>
                             <p className="text-sm text-amber-700 mt-1">
                                 Hãy điểm danh ngay sau mỗi buổi học để đảm bảo dữ liệu chính xác và nhận lương đầy đủ.
                             </p>
                         </div>
-                        <div className="bg-background/60 rounded-lg p-4">
+                        <div className="bg-white/60 rounded-lg p-4">
                             <h4 className="font-medium text-amber-800">Cập nhật lịch trống</h4>
                             <p className="text-sm text-amber-700 mt-1">
                                 Luôn cập nhật lịch trống để admin có thể xếp lịch phù hợp cho bạn.
                             </p>
                         </div>
-                        <div className="bg-background/60 rounded-lg p-4">
+                        <div className="bg-white/60 rounded-lg p-4">
                             <h4 className="font-medium text-amber-800">Kiểm tra bảng lương</h4>
                             <p className="text-sm text-amber-700 mt-1">
                                 Kiểm tra bảng lương định kỳ và báo cáo ngay nếu có sai sót.

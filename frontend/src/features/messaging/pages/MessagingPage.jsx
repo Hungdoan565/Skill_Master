@@ -416,7 +416,7 @@ export function MessagingPage() {
                   key={contact.id}
                   type="button"
                   onClick={() => setSelectedContactId(contact.id)}
-                  className={`mb-2 flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors ${selected ? 'border-blue-500 bg-blue-50' : 'hover:bg-muted/50'}`}
+                  className={`mb-2 flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors ${selected ? 'border-blue-500 bg-blue-50' : 'hover:bg-slate-50'}`}
                 >
                   <Avatar className="h-9 w-9">
                     <AvatarImage src={contact.avatar_url || ''} alt={contact.name} />

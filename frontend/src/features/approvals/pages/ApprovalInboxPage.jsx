@@ -323,7 +323,7 @@ export default function ApprovalInboxPage() {
             <p>Đang tải danh sách...</p>
           </div>
         ) : items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 bg-card rounded-xl border border-dashed">
+          <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed">
             <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
               <Inbox className="w-8 h-8 text-muted-foreground" />
             </div>
@@ -342,7 +342,7 @@ export default function ApprovalInboxPage() {
               const date = new Date(item.created_at || item.createdAt || Date.now());
 
               return (
-                <div key={`${item._type}-${item.id}`} className="flex flex-col sm:flex-row sm:items-center justify-between bg-card rounded-xl border p-4 hover:bg-muted/50 transition-colors gap-4">
+                <div key={`${item._type}-${item.id}`} className="flex flex-col sm:flex-row sm:items-center justify-between bg-white rounded-xl border p-4 hover:bg-slate-50 transition-colors gap-4">
                   <div className="flex items-start space-x-4">
                     <div className={`mt-1 flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${colors.bg} ${colors.text}`}>
                       <Icon className="w-5 h-5" />
@@ -387,7 +387,7 @@ export default function ApprovalInboxPage() {
 
       {rejectDialog.isOpen && (
         <div className="fixed inset-0 z-[300] bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-card rounded-2xl p-6 w-full max-w-md shadow-xl">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
             <h3 className="text-lg font-semibold mb-2">Lý do từ chối</h3>
             <p className="text-sm text-muted-foreground mb-4">
               Vui lòng nhập lý do từ chối yêu cầu này. Lý do sẽ được gửi cho người tạo yêu cầu.

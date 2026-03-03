@@ -28,7 +28,7 @@ const formatCompact = (value) => {
 const CustomTooltip = ({ active, payload }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-card border border-border p-3 rounded-xl shadow-xl">
+      <div className="bg-white border border-border p-3 rounded-xl shadow-xl">
         <p className="text-sm font-bold text-foreground">{payload[0].name}</p>
         <p className="text-xs text-muted-foreground mt-1">
           {formatCurrency(payload[0].value)}
@@ -47,7 +47,7 @@ export function PaymentMethodChart({ data = [], loading = false }) {
           <div className="h-6 w-40 bg-muted rounded animate-pulse" />
         </CardHeader>
         <CardContent className="h-[280px] flex items-center justify-center">
-          <div className="h-[200px] bg-muted/50 rounded-full w-[200px] animate-pulse" />
+          <div className="h-[200px] bg-slate-50 rounded-full w-[200px] animate-pulse" />
         </CardContent>
       </Card>
     );

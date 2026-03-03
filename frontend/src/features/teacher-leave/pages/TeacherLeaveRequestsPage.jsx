@@ -120,7 +120,7 @@ export function TeacherLeaveRequestsPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-background">
+            <div className="min-h-screen flex items-center justify-center bg-white">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
                     <p className="mt-4 text-muted-foreground">Đang tải danh sách đơn xin nghỉ...</p>
@@ -131,7 +131,7 @@ export function TeacherLeaveRequestsPage() {
 
     if (error && requests.length === 0) {
         return (
-            <div className="min-h-screen flex items-center justify-center px-4 bg-background">
+            <div className="min-h-screen flex items-center justify-center px-4 bg-white">
                 <div className="text-center p-6 bg-red-500/10 rounded-2xl max-w-md border border-red-500/20 shadow-sm">
                     <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
                     <h2 className="text-lg font-semibold text-red-700 dark:text-red-400 mb-2">Không thể tải dữ liệu</h2>
@@ -149,7 +149,7 @@ export function TeacherLeaveRequestsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-white">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -184,7 +184,7 @@ export function TeacherLeaveRequestsPage() {
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-card rounded-2xl border border-border p-5 shadow-sm">
+                    <div className="bg-white rounded-2xl border border-border p-5 shadow-sm">
                         <p className="text-sm text-muted-foreground mb-1">Tổng số đơn</p>
                         <p className="text-2xl font-bold text-foreground">{stats.total}</p>
                     </div>
@@ -210,7 +210,7 @@ export function TeacherLeaveRequestsPage() {
 
                 <div className="space-y-4">
                     {requests.length === 0 ? (
-                        <div className="bg-card rounded-2xl border border-border p-10 text-center shadow-sm">
+                        <div className="bg-white rounded-2xl border border-border p-10 text-center shadow-sm">
                             <FileText className="h-10 w-10 mx-auto text-blue-400 mb-3" />
                             <h3 className="text-lg font-semibold text-foreground">Chưa có đơn xin nghỉ nào</h3>
                             <p className="text-muted-foreground mt-1">Hãy tạo đơn mới khi bạn cần xin nghỉ dạy.</p>
@@ -221,7 +221,7 @@ export function TeacherLeaveRequestsPage() {
                             const canDelete = request.status === 'pending';
 
                             return (
-                                <div key={request.id} className="bg-card rounded-2xl border border-border p-5 shadow-sm">
+                                <div key={request.id} className="bg-white rounded-2xl border border-border p-5 shadow-sm">
                                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                                         <div className="space-y-2">
                                             <div className="flex items-center gap-2">
@@ -291,7 +291,7 @@ export function TeacherLeaveRequestsPage() {
             {isModalOpen && (
                 <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/45" onClick={closeModal}></div>
-                    <div className="relative w-full max-w-lg bg-card rounded-2xl shadow-xl border border-border p-6">
+                    <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-xl border border-border p-6">
                         <h2 className="text-xl font-bold text-foreground mb-1">Tạo đơn xin nghỉ</h2>
                         <p className="text-sm text-muted-foreground mb-5">Điền thông tin để gửi yêu cầu xin nghỉ đến quản lý.</p>
 
@@ -301,7 +301,7 @@ export function TeacherLeaveRequestsPage() {
                                 <select
                                     value={formData.leave_type}
                                     onChange={(event) => setFormData((prev) => ({ ...prev, leave_type: event.target.value }))}
-                                    className="w-full rounded-lg border border-border bg-background text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    className="w-full rounded-lg border border-border bg-white text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 >
                                     {LEAVE_TYPE_OPTIONS.map((option) => (
                                         <option key={option.value} value={option.value}>{option.label}</option>
@@ -316,7 +316,7 @@ export function TeacherLeaveRequestsPage() {
                                         type="date"
                                         value={formData.start_date}
                                         onChange={(event) => setFormData((prev) => ({ ...prev, start_date: event.target.value }))}
-                                        className="w-full rounded-lg border border-border bg-background text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full rounded-lg border border-border bg-white text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     />
                                 </div>
                                 <div>
@@ -325,7 +325,7 @@ export function TeacherLeaveRequestsPage() {
                                         type="date"
                                         value={formData.end_date}
                                         onChange={(event) => setFormData((prev) => ({ ...prev, end_date: event.target.value }))}
-                                        className="w-full rounded-lg border border-border bg-background text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full rounded-lg border border-border bg-white text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                     />
                                 </div>
                             </div>
@@ -337,7 +337,7 @@ export function TeacherLeaveRequestsPage() {
                                     value={formData.reason}
                                     onChange={(event) => setFormData((prev) => ({ ...prev, reason: event.target.value }))}
                                     placeholder="Nhập lý do xin nghỉ..."
-                                    className="w-full rounded-lg border border-border bg-background text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    className="w-full rounded-lg border border-border bg-white text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 />
                             </div>
 

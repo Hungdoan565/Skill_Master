@@ -56,7 +56,7 @@ const Switch = React.forwardRef(({ checked, onCheckedChange, disabled, className
   >
     <span
       data-state={checked ? 'checked' : 'unchecked'}
-      className={`pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'}`}
+      className={`pointer-events-none block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'}`}
     />
   </button>
 ));
@@ -123,7 +123,7 @@ const EmailTagsInput = ({ value = [], onChange, error }) => {
 
   return (
     <div className="space-y-2">
-      <div className={`flex flex-wrap gap-2 p-2 min-h-10 border rounded-md bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ${error ? 'border-destructive' : 'border-input'}`}>
+      <div className={`flex flex-wrap gap-2 p-2 min-h-10 border rounded-md bg-white focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ${error ? 'border-destructive' : 'border-input'}`}>
         {value.map(email => (
           <Badge key={email} variant="secondary" className="flex items-center gap-1 hover:bg-secondary/80 text-xs">
             {email}
@@ -534,7 +534,7 @@ export default function ScheduledReportsPage() {
                 </div>
               </CardContent>
               
-              <div className="bg-muted/50 p-4 flex items-center gap-2 mt-auto border-t">
+              <div className="bg-slate-50 p-4 flex items-center gap-2 mt-auto border-t">
                 <Button 
                   variant="default" 
                   size="sm" 

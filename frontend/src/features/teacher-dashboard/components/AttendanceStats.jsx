@@ -52,7 +52,7 @@ export function AttendanceStats({ stats }) {
     };
 
     return (
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
                     <BarChart3 className="h-5 w-5 text-blue-500" />
@@ -75,7 +75,7 @@ export function AttendanceStats({ stats }) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Overall completion rate */}
-                <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-muted/50">
+                <div className="flex flex-col items-center justify-center p-4 rounded-lg bg-slate-50">
                     <CircularProgress percentage={completion_rate || 0} />
                     <p className="mt-3 text-sm text-muted-foreground text-center">
                         Tỷ lệ điểm danh đúng hạn

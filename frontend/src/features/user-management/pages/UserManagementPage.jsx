@@ -260,7 +260,7 @@ export default function UserManagementPage() {
     const statusConfig = STATUS_CONFIG[user.status] || STATUS_CONFIG.active;
     const StatusIcon = statusConfig.icon;
     return (
-      <div key={user.id} className="flex items-center justify-between py-2.5 px-4 border-b border-border last:border-b-0 hover:bg-muted/50 transition-colors" style={{ paddingLeft: `${indent + 16}px` }}>
+      <div key={user.id} className="flex items-center justify-between py-2.5 px-4 border-b border-border last:border-b-0 hover:bg-slate-50 transition-colors" style={{ paddingLeft: `${indent + 16}px` }}>
         <div className="flex items-center gap-3">
           {user.avatar_url ? (
             <img src={user.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
@@ -328,7 +328,7 @@ export default function UserManagementPage() {
               {/* Center header */}
               <button
                 onClick={() => toggleCenter(center.id)}
-                className="flex items-center gap-2 w-full px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
+                className="flex items-center gap-2 w-full px-4 py-3 bg-muted/30 hover:bg-slate-50 transition-colors text-left"
               >
                 {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRightIcon className="h-4 w-4 text-muted-foreground" />}
                 <Building2 className="h-4 w-4 text-blue-600" />
@@ -427,7 +427,7 @@ export default function UserManagementPage() {
                 onClick={() => setActiveTab(tab.value)}
                 className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
                   activeTab === tab.value
-                    ? 'bg-background text-foreground shadow-sm'
+                    ? 'bg-white text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -480,7 +480,7 @@ export default function UserManagementPage() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b bg-muted/50">
+                  <tr className="border-b bg-slate-50">
                     <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Người dùng</th>
                     <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Vai trò</th>
                     <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase">Trung tâm</th>
@@ -510,7 +510,7 @@ export default function UserManagementPage() {
                       const statusConfig = STATUS_CONFIG[user.status] || STATUS_CONFIG.active;
                       const StatusIcon = statusConfig.icon;
                       return (
-                        <tr key={user.id} className="hover:bg-muted/50 transition-colors">
+                        <tr key={user.id} className="hover:bg-slate-50 transition-colors">
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-3">
                               {user.avatar_url ? (

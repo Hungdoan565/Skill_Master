@@ -14,7 +14,7 @@ export default function StepScoreInput({ form, selectedStudents, certificateType
   
   if (!certificateType || !certificateType.score_config) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-center h-64 bg-card rounded-xl border border-border">
+      <div className="flex flex-col items-center justify-center p-12 text-center h-64 bg-white rounded-xl border border-border">
         <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin mb-4" />
         <p className="text-muted-foreground font-medium">Đang tải cấu hình điểm...</p>
       </div>
@@ -45,7 +45,7 @@ export default function StepScoreInput({ form, selectedStudents, certificateType
     <div className="space-y-6 h-full flex flex-col">
       <div className="bg-primary/10 border border-primary/20 rounded-xl p-5 flex items-start gap-4 shadow-sm relative overflow-hidden">
         <div className="absolute top-0 right-0 -mt-10 -mr-10 w-32 h-32 bg-primary/20 rounded-full blur-2xl" />
-        <div className="h-12 w-12 bg-background rounded-full flex items-center justify-center border border-primary/20 shadow-sm shrink-0 z-10">
+        <div className="h-12 w-12 bg-white rounded-full flex items-center justify-center border border-primary/20 shadow-sm shrink-0 z-10">
           <Calculator className="w-6 h-6 text-primary" />
         </div>
         <div className="z-10 relative">
@@ -87,13 +87,13 @@ function GradeInputTable({ selectedStudents, form }) {
   };
 
   return (
-    <Card className="border-border bg-card overflow-hidden shadow-sm">
+    <Card className="border-border bg-white overflow-hidden shadow-sm">
       <div className="p-4 bg-muted border-b border-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h4 className="font-semibold text-foreground flex items-center gap-2">
           <div className="w-2 h-6 bg-primary rounded-full" />
           Nhập xếp loại hàng loạt
         </h4>
-        <div className="flex items-center gap-2 w-full sm:w-auto bg-background p-1.5 rounded-lg border border-border shadow-sm">
+        <div className="flex items-center gap-2 w-full sm:w-auto bg-white p-1.5 rounded-lg border border-border shadow-sm">
           <Select value={globalGrade} onValueChange={setGlobalGrade}>
             <SelectTrigger className="w-[180px] h-9 bg-transparent border-0 focus:ring-0 shadow-none font-medium">
               <SelectValue placeholder="Chọn xếp loại..." />
@@ -142,7 +142,7 @@ function GradeInputTable({ selectedStudents, form }) {
                     render={({ field, fieldState }) => (
                       <div className="relative">
                         <Select value={field.value || undefined} onValueChange={field.onChange}>
-                          <SelectTrigger className={cn("w-full h-10 bg-background font-medium", fieldState.error ? "border-destructive ring-1 ring-destructive/20" : "border-border")}>
+                          <SelectTrigger className={cn("w-full h-10 bg-white font-medium", fieldState.error ? "border-destructive ring-1 ring-destructive/20" : "border-border")}>
                             <SelectValue placeholder="Chọn loại..." />
                           </SelectTrigger>
                           <SelectContent>
@@ -161,7 +161,7 @@ function GradeInputTable({ selectedStudents, form }) {
                     control={form.control}
                     name={`scores.${student.student_id}.notes`}
                     render={({ field }) => (
-                      <Input {...field} value={field.value || ''} placeholder="Ghi chú thêm..." className="h-10 text-sm bg-background border-border/50 focus-visible:border-primary shadow-none" />
+                      <Input {...field} value={field.value || ''} placeholder="Ghi chú thêm..." className="h-10 text-sm bg-white border-border/50 focus-visible:border-primary shadow-none" />
                     )}
                   />
                 </td>
@@ -183,7 +183,7 @@ function BandInputCards({ selectedStudents, form, subScores }) {
   return (
     <div className="space-y-5">
       {selectedStudents.map((student, idx) => (
-        <Card key={student.student_id} className="overflow-hidden border-border bg-card shadow-sm hover:shadow-md transition-shadow relative group">
+        <Card key={student.student_id} className="overflow-hidden border-border bg-white shadow-sm hover:shadow-md transition-shadow relative group">
           <div className="absolute left-0 top-0 bottom-0 w-1 bg-border group-hover:bg-primary/50 transition-colors" />
           
           <div className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-border">
@@ -199,7 +199,7 @@ function BandInputCards({ selectedStudents, form, subScores }) {
                 {student.class_name || student.class_code || 'Không có lớp'}
               </p>
               
-              <div className="bg-background p-4 rounded-xl border border-primary/20 shadow-sm relative overflow-hidden group-hover:border-primary/40 transition-colors ml-10">
+              <div className="bg-white p-4 rounded-xl border border-primary/20 shadow-sm relative overflow-hidden group-hover:border-primary/40 transition-colors ml-10">
                 <div className="absolute top-0 right-0 w-16 h-16 bg-primary/10 rounded-full blur-xl -mr-8 -mt-8" />
                 <label className="text-xs font-bold uppercase tracking-wider text-primary mb-2 block relative z-10">
                   Overall Band <span className="text-destructive">*</span>
@@ -216,7 +216,7 @@ function BandInputCards({ selectedStudents, form, subScores }) {
                         value={field.value ?? ''}
                         onChange={e => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                         className={cn(
-                          "bg-background font-bold text-lg h-12 shadow-inner", 
+                          "bg-white font-bold text-lg h-12 shadow-inner", 
                           fieldState.error ? "border-destructive ring-2 ring-destructive/20 focus-visible:ring-destructive/30" : "border-primary/30 focus-visible:ring-primary/30"
                         )}
                       />
@@ -228,7 +228,7 @@ function BandInputCards({ selectedStudents, form, subScores }) {
             </div>
             
             {/* Sub Scores */}
-            <div className="flex-1 w-full p-5 bg-card relative">
+            <div className="flex-1 w-full p-5 bg-white relative">
               {hasSubScores ? (
                 <div className="h-full flex flex-col">
                   <div className="flex items-center justify-between mb-4">
@@ -243,7 +243,7 @@ function BandInputCards({ selectedStudents, form, subScores }) {
                   
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-auto mb-auto">
                     {subScores.map((skill, sIdx) => (
-                      <div key={skill} className="bg-muted p-3 rounded-lg border border-border/50 hover:border-primary/30 hover:bg-card transition-colors">
+                      <div key={skill} className="bg-muted p-3 rounded-lg border border-border/50 hover:border-primary/30 hover:bg-white transition-colors">
                         <label className="text-xs font-bold text-foreground mb-2 block capitalize tracking-wide opacity-80">{skill}</label>
                         <Controller
                           control={form.control}
@@ -256,7 +256,7 @@ function BandInputCards({ selectedStudents, form, subScores }) {
                                 value={field.value ?? ''}
                                 onChange={e => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                                 className={cn(
-                                  "h-10 text-base font-semibold bg-background shadow-inner", 
+                                  "h-10 text-base font-semibold bg-white shadow-inner", 
                                   fieldState.error ? "border-destructive focus-visible:ring-destructive/20" : "border-border focus-visible:border-primary/50"
                                 )}
                               />
@@ -290,7 +290,7 @@ function NumericInputCards({ selectedStudents, form, subScores, maxScore }) {
   return (
     <div className="space-y-5">
       {selectedStudents.map((student, idx) => (
-        <Card key={student.student_id} className="p-0 overflow-hidden border-border bg-card shadow-sm relative group hover:shadow-md transition-shadow">
+        <Card key={student.student_id} className="p-0 overflow-hidden border-border bg-white shadow-sm relative group hover:shadow-md transition-shadow">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
           
           <div className="p-5">
@@ -312,11 +312,11 @@ function NumericInputCards({ selectedStudents, form, subScores, maxScore }) {
 
               {/* Total Score */}
               <div className="w-full md:w-1/4 shrink-0 flex flex-col justify-center">
-                <div className="bg-background p-4 rounded-xl border border-primary/20 shadow-sm relative overflow-hidden group-hover:border-primary/40 transition-colors">
+                <div className="bg-white p-4 rounded-xl border border-primary/20 shadow-sm relative overflow-hidden group-hover:border-primary/40 transition-colors">
                   <div className="absolute bottom-0 right-0 w-16 h-16 bg-primary/10 rounded-full blur-xl -mr-8 -mb-8" />
                   <div className="flex justify-between items-center mb-2 relative z-10">
                     <label className="text-xs font-bold uppercase tracking-wider text-primary">Tổng điểm <span className="text-destructive">*</span></label>
-                    <span className="text-[10px] font-bold bg-background text-primary/70 px-1.5 py-0.5 rounded shadow-sm border border-primary/10">Max: {maxScore || '---'}</span>
+                    <span className="text-[10px] font-bold bg-white text-primary/70 px-1.5 py-0.5 rounded shadow-sm border border-primary/10">Max: {maxScore || '---'}</span>
                   </div>
                   <Controller
                     control={form.control}
@@ -330,7 +330,7 @@ function NumericInputCards({ selectedStudents, form, subScores, maxScore }) {
                           value={field.value ?? ''}
                           onChange={e => field.onChange(e.target.value ? parseInt(e.target.value, 10) : undefined)}
                           className={cn(
-                            "bg-background font-bold text-lg h-12 shadow-inner pr-12", 
+                            "bg-white font-bold text-lg h-12 shadow-inner pr-12", 
                             fieldState.error ? "border-destructive ring-2 ring-destructive/20 focus-visible:ring-destructive/30" : "border-primary/30 focus-visible:ring-primary/30"
                           )}
                         />
@@ -363,7 +363,7 @@ function NumericInputCards({ selectedStudents, form, subScores, maxScore }) {
                                 {...field}
                                 value={field.value ?? ''}
                                 onChange={e => field.onChange(e.target.value ? parseInt(e.target.value, 10) : undefined)}
-                                className="h-9 text-sm font-semibold bg-background border-border/70 focus-visible:border-primary/50 shadow-inner"
+                                className="h-9 text-sm font-semibold bg-white border-border/70 focus-visible:border-primary/50 shadow-inner"
                               />
                             )}
                           />

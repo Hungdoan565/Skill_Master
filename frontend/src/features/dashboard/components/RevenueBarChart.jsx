@@ -27,7 +27,7 @@ const formatCurrency = (value) => {
 const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
         return (
-            <div className="bg-card border border-border p-3 rounded-xl shadow-xl">
+            <div className="bg-white border border-border p-3 rounded-xl shadow-xl">
                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
                     {label}
                 </p>
@@ -58,10 +58,10 @@ export function RevenueBarChart({ data = [], previousData = [], loading = false,
 
     if (loading) {
         return (
-            <div className="bg-card rounded-2xl p-6 shadow-sm border border-border animate-pulse">
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-border animate-pulse">
                 <div className="h-6 w-48 bg-muted rounded mb-2" />
                 <div className="h-4 w-32 bg-muted rounded mb-6" />
-                <div className="h-[280px] bg-muted/50 rounded-xl" />
+                <div className="h-[280px] bg-slate-50 rounded-xl" />
             </div>
         );
     }
@@ -76,7 +76,7 @@ export function RevenueBarChart({ data = [], previousData = [], loading = false,
     }));
 
     return (
-        <div className="bg-card rounded-2xl p-6 shadow-sm border border-border h-full">
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-border h-full">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <div>

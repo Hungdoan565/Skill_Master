@@ -149,7 +149,7 @@ export function GeneratePayrollModal({
                             placeholder="Ghi chú thêm về bảng lương..."
                             value={formData.notes}
                             onChange={(e) => handleChange('notes', e.target.value)}
-                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="w-full rounded-md border border-input bg-white px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         />
                     </div>
 

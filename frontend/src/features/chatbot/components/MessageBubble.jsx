@@ -100,7 +100,7 @@ const MessageBubble = memo(function MessageBubble({
                 value={editText}
                 onChange={(e) => setEditText(e.target.value)}
                 onKeyDown={handleEditKeyDown}
-                className="w-full min-h-[60px] max-h-[120px] resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full min-h-[60px] max-h-[120px] resize-none rounded-xl border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                 rows={1}
               />
               <div className="flex justify-end gap-1.5">
@@ -182,7 +182,7 @@ const MessageBubble = memo(function MessageBubble({
           <GraduationCap className="h-3.5 w-3.5 text-primary" />
         </div>
         <div className="max-w-[85%]">
-          <div className="rounded-2xl rounded-bl-md border border-border bg-muted/50 px-3.5 py-3 text-sm">
+          <div className="rounded-2xl rounded-bl-md border border-border bg-slate-50 px-3.5 py-3 text-sm">
             <p className="font-medium text-foreground">Cuộc trò chuyện đã đạt giới hạn</p>
             <p className="mt-1 text-muted-foreground">Bạn có thể bắt đầu cuộc trò chuyện mới hoặc liên hệ tư vấn viên trực tiếp!</p>
             <button

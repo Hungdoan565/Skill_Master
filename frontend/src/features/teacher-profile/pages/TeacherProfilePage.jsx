@@ -17,7 +17,7 @@ export default function TeacherProfilePage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-background">
+            <div className="min-h-screen flex items-center justify-center bg-white">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
                     <p className="mt-4 text-muted-foreground">Đang tải dữ liệu...</p>
@@ -28,7 +28,7 @@ export default function TeacherProfilePage() {
 
     if (error) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-background">
+            <div className="min-h-screen flex items-center justify-center bg-white">
                 <div className="text-center p-6 bg-red-500/10 border border-red-500/20 rounded-2xl max-w-md shadow-sm">
                     <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
                     <h2 className="text-lg font-semibold text-red-700 dark:text-red-400 mb-2">Đã có lỗi xảy ra</h2>
@@ -85,7 +85,7 @@ export default function TeacherProfilePage() {
     const primaryCenter = centers.length > 0 ? centers[0] : null;
 
     return (
-        <div className="min-h-screen bg-background pb-12">
+        <div className="min-h-screen bg-white pb-12">
             {/* Header / Hero Section */}
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white pb-16 pt-8">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -136,7 +136,7 @@ export default function TeacherProfilePage() {
                 {/* Stats Row */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Classes Stat */}
-                    <div className="bg-card rounded-2xl shadow-sm border border-border p-5 flex items-center">
+                    <div className="bg-white rounded-2xl shadow-sm border border-border p-5 flex items-center">
                         <div className="p-3 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 mr-4">
                             <BookOpen className="h-6 w-6" />
                         </div>
@@ -147,7 +147,7 @@ export default function TeacherProfilePage() {
                     </div>
                     
                     {/* Sessions Stat */}
-                    <div className="bg-card rounded-2xl shadow-sm border border-border p-5 flex items-center">
+                    <div className="bg-white rounded-2xl shadow-sm border border-border p-5 flex items-center">
                         <div className="p-3 rounded-lg bg-green-500/10 text-green-600 dark:text-green-400 mr-4">
                             <GraduationCap className="h-6 w-6" />
                         </div>
@@ -158,7 +158,7 @@ export default function TeacherProfilePage() {
                     </div>
 
                     {/* Hours Stat */}
-                    <div className="bg-card rounded-2xl shadow-sm border border-border p-5 flex items-center">
+                    <div className="bg-white rounded-2xl shadow-sm border border-border p-5 flex items-center">
                         <div className="p-3 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 mr-4">
                             <Clock className="h-6 w-6" />
                         </div>
@@ -172,8 +172,8 @@ export default function TeacherProfilePage() {
                 {/* Info Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Left Column: Personal Info */}
-                    <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
-                        <div className="px-6 py-4 border-b border-border bg-muted/50">
+                    <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
+                        <div className="px-6 py-4 border-b border-border bg-slate-50">
                             <h2 className="text-lg font-semibold text-foreground">Thông tin cá nhân</h2>
                         </div>
                         <div className="p-6">
@@ -219,8 +219,8 @@ export default function TeacherProfilePage() {
                     </div>
 
                     {/* Right Column: Center Info */}
-                    <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
-                        <div className="px-6 py-4 border-b border-border bg-muted/50">
+                    <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
+                        <div className="px-6 py-4 border-b border-border bg-slate-50">
                             <h2 className="text-lg font-semibold text-foreground">Trung tâm</h2>
                         </div>
                         <div className="p-6">

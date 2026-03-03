@@ -39,7 +39,7 @@ export default function SuggestionChips({ pageContext }) {
         <button
           key={chip}
           onClick={() => sendMessage(chip)}
-          className="rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground transition-all hover:bg-primary/10 hover:border-primary/30 animate-in fade-in duration-200"
+          className="rounded-full border border-border bg-white px-3 py-1.5 text-xs text-foreground transition-all hover:bg-primary/10 hover:border-primary/30 animate-in fade-in duration-200"
           style={{ animationDelay: `${index * 50}ms` }}
         >
           {chip}

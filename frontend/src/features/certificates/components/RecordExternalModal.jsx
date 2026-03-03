@@ -205,7 +205,7 @@ export default function RecordExternalModal({ open, onOpenChange, onSuccess }) {
             name="scores.grade"
             render={({ field }) => (
               <Select value={field.value || undefined} onValueChange={field.onChange}>
-                <SelectTrigger className="w-full bg-background border-border">
+                <SelectTrigger className="w-full bg-white border-border">
                   <SelectValue placeholder="Chọn xếp loại..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -233,7 +233,7 @@ export default function RecordExternalModal({ open, onOpenChange, onSuccess }) {
                   type="number" step="0.5" min="0" max="9" placeholder="VD: 6.5"
                   {...field} value={field.value ?? ''}
                   onChange={e => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                  className="bg-background border-border w-full md:w-1/3"
+                  className="bg-white border-border w-full md:w-1/3"
                 />
               )}
             />
@@ -253,7 +253,7 @@ export default function RecordExternalModal({ open, onOpenChange, onSuccess }) {
                           type="number" step="0.5" min="0" max="9" placeholder="0.0"
                           {...field} value={field.value ?? ''}
                           onChange={e => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                          className="bg-background border-border"
+                          className="bg-white border-border"
                         />
                       )}
                     />
@@ -283,7 +283,7 @@ export default function RecordExternalModal({ open, onOpenChange, onSuccess }) {
                   type="number" min="0" max={max_score} placeholder="Nhập điểm số"
                   {...field} value={field.value ?? ''}
                   onChange={e => field.onChange(e.target.value ? parseInt(e.target.value, 10) : undefined)}
-                  className="bg-background border-border w-full md:w-1/3"
+                  className="bg-white border-border w-full md:w-1/3"
                 />
               )}
             />
@@ -293,7 +293,7 @@ export default function RecordExternalModal({ open, onOpenChange, onSuccess }) {
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 block">Điểm thành phần</label>
               <div className="grid grid-cols-2 gap-4">
                 {sub_scores.map(skill => (
-                  <div key={skill} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 bg-background p-2 rounded-md border border-border">
+                  <div key={skill} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 bg-white p-2 rounded-md border border-border">
                     <label className="text-sm font-medium text-foreground capitalize sm:w-24 shrink-0 px-1">{skill}</label>
                     <Controller
                       control={control}
@@ -303,7 +303,7 @@ export default function RecordExternalModal({ open, onOpenChange, onSuccess }) {
                           type="number" min="0" placeholder="0"
                           {...field} value={field.value ?? ''}
                           onChange={e => field.onChange(e.target.value ? parseInt(e.target.value, 10) : undefined)}
-                          className="bg-background border-border/50 shadow-none h-8"
+                          className="bg-white border-border/50 shadow-none h-8"
                         />
                       )}
                     />
@@ -359,7 +359,7 @@ export default function RecordExternalModal({ open, onOpenChange, onSuccess }) {
                     render={({ field, fieldState }) => (
                       <div>
                         <Select value={field.value} onValueChange={field.onChange} disabled={loadingStudents}>
-                          <SelectTrigger className={cn("w-full bg-background border-border", fieldState.error && "border-destructive focus:ring-destructive/20")}>
+                          <SelectTrigger className={cn("w-full bg-white border-border", fieldState.error && "border-destructive focus:ring-destructive/20")}>
                             <SelectValue placeholder={loadingStudents ? "Đang tải..." : "Chọn học viên..."} />
                           </SelectTrigger>
                           <SelectContent>
@@ -387,7 +387,7 @@ export default function RecordExternalModal({ open, onOpenChange, onSuccess }) {
                           field.onChange(val);
                           setValue('scores', {});
                         }}>
-                          <SelectTrigger className={cn("w-full bg-background border-border", fieldState.error && "border-destructive focus:ring-destructive/20")}>
+                          <SelectTrigger className={cn("w-full bg-white border-border", fieldState.error && "border-destructive focus:ring-destructive/20")}>
                             <SelectValue placeholder="Chọn loại chứng chỉ..." />
                           </SelectTrigger>
                           <SelectContent>
@@ -421,7 +421,7 @@ export default function RecordExternalModal({ open, onOpenChange, onSuccess }) {
                     name="externalId"
                     render={({ field, fieldState }) => (
                       <div>
-                        <Input {...field} placeholder="VD: 001234567" className={cn("bg-background border-border", fieldState.error && "border-destructive focus-visible:ring-destructive/20")} />
+                        <Input {...field} placeholder="VD: 001234567" className={cn("bg-white border-border", fieldState.error && "border-destructive focus-visible:ring-destructive/20")} />
                         {fieldState.error && <p className="text-[10px] text-destructive mt-1.5 font-medium flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {fieldState.error.message}</p>}
                       </div>
                     )}
@@ -435,7 +435,7 @@ export default function RecordExternalModal({ open, onOpenChange, onSuccess }) {
                     name="examDate"
                     render={({ field, fieldState }) => (
                       <div>
-                        <Input type="date" {...field} className={cn("bg-background border-border", fieldState.error && "border-destructive focus-visible:ring-destructive/20")} />
+                        <Input type="date" {...field} className={cn("bg-white border-border", fieldState.error && "border-destructive focus-visible:ring-destructive/20")} />
                         {fieldState.error && <p className="text-[10px] text-destructive mt-1.5 font-medium flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {fieldState.error.message}</p>}
                       </div>
                     )}
@@ -472,7 +472,7 @@ export default function RecordExternalModal({ open, onOpenChange, onSuccess }) {
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                     />
                     <div className="flex flex-col items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-background border border-border flex items-center justify-center group-hover:bg-primary/5 group-hover:text-primary transition-colors">
+                      <div className="w-12 h-12 rounded-full bg-white border border-border flex items-center justify-center group-hover:bg-primary/5 group-hover:text-primary transition-colors">
                         <UploadCloud className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors" />
                       </div>
                       <div>
@@ -506,7 +506,7 @@ export default function RecordExternalModal({ open, onOpenChange, onSuccess }) {
                     name="externalVerifyUrl"
                     render={({ field, fieldState }) => (
                       <div>
-                        <Input {...field} placeholder="https://..." className={cn("bg-background border-border", fieldState.error && "border-destructive")} />
+                        <Input {...field} placeholder="https://..." className={cn("bg-white border-border", fieldState.error && "border-destructive")} />
                         {fieldState.error && <p className="text-[10px] text-destructive mt-1.5 font-medium"><AlertCircle className="w-3 h-3 inline mr-1" /> {fieldState.error.message}</p>}
                       </div>
                     )}
@@ -519,7 +519,7 @@ export default function RecordExternalModal({ open, onOpenChange, onSuccess }) {
                     control={control}
                     name="notes"
                     render={({ field }) => (
-                      <Textarea {...field} placeholder="Thêm thông tin ghi chú..." className="resize-none h-24 bg-background border-border" />
+                      <Textarea {...field} placeholder="Thêm thông tin ghi chú..." className="resize-none h-24 bg-white border-border" />
                     )}
                   />
                 </div>
@@ -530,7 +530,7 @@ export default function RecordExternalModal({ open, onOpenChange, onSuccess }) {
         </div>
 
         <DialogFooter className="p-4 border-t border-border bg-zinc-50 dark:bg-zinc-900 shrink-0 px-6">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting} className="border-border bg-background hover:bg-muted">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting} className="border-border bg-white hover:bg-muted">
             Hủy bỏ
           </Button>
           <Button 

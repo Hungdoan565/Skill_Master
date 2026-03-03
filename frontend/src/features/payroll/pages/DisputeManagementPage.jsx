@@ -491,7 +491,7 @@ export function DisputeManagementPage() {
                                     onChange={(e) => setResponseData(prev => ({ ...prev, admin_response: e.target.value }))}
                                     placeholder="Nhập phản hồi của bạn..."
                                     rows={4}
-                                    className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm resize-none"
+                                    className="w-full px-3 py-2 rounded-md border border-input bg-white text-sm resize-none"
                                 />
                             </div>
 

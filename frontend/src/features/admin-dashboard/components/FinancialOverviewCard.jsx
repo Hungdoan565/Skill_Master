@@ -55,7 +55,7 @@ export function FinancialOverviewCard({ data }) {
   ];
 
   return (
-    <Card className="bg-card border shadow-sm">
+    <Card className="bg-white border shadow-sm">
       <CardHeader className="pb-3">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10">

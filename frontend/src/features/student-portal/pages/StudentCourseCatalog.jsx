@@ -99,7 +99,7 @@ export default function StudentCourseCatalog() {
         </div>
       ) : !courses || courses.length === 0 ? (
         <Card className="flex flex-col items-center justify-center py-12 text-center border-dashed">
-          <div className="p-4 rounded-full bg-muted/50 mb-4">
+          <div className="p-4 rounded-full bg-slate-50 mb-4">
             <BookOpen className="h-8 w-8 text-muted-foreground" />
           </div>
           <h3 className="text-lg font-semibold">Không có khóa học nào đang mở tại trung tâm</h3>

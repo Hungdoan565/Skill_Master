@@ -126,7 +126,7 @@ export default function StudentCertificatesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-xl bg-card border border-border p-6 shadow-sm">
+      <div className="relative overflow-hidden rounded-xl bg-white border border-border p-6 shadow-sm">
         <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-primary/5 rounded-full blur-3xl" />
         <div className="relative z-10 flex items-start gap-4">
           <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
@@ -141,7 +141,7 @@ export default function StudentCertificatesPage() {
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
         <DataTable
           columns={columns}
           data={certificates}
@@ -154,14 +154,14 @@ export default function StudentCertificatesPage() {
       </div>
 
       <Sheet open={!!selected} onOpenChange={(open) => { if (!open) setSelected(null); }}>
-        <SheetContent side="right" className="sm:max-w-md w-full overflow-y-auto bg-card border-l-border p-0">
+        <SheetContent side="right" className="sm:max-w-md w-full overflow-y-auto bg-white border-l-border p-0">
           {selected && (
             <div className="flex flex-col h-full">
               <div className="bg-muted/30 p-6 border-b border-border relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-2xl -mr-10 -mt-10" />
                 <SheetHeader className="relative z-10 space-y-4">
                   <div className="flex justify-between items-start gap-4">
-                    <div className="h-14 w-14 rounded-xl bg-background border border-border shadow-sm flex items-center justify-center shrink-0">
+                    <div className="h-14 w-14 rounded-xl bg-white border border-border shadow-sm flex items-center justify-center shrink-0">
                       <Award className="h-7 w-7 text-primary" />
                     </div>
                     <Badge variant="outline" className={STATUS_BADGE_MAP[getCertificateDisplayStatus(selected)] || STATUS_BADGE_MAP.expired}>
@@ -171,7 +171,7 @@ export default function StudentCertificatesPage() {
                   <div>
                     <SheetTitle className="text-xl leading-tight text-foreground">{selected.certificate_type?.name || selected.type_name}</SheetTitle>
                     {selected.certificate_number && (
-                      <p className="font-mono text-sm text-muted-foreground mt-2 bg-background border border-border px-2 py-1 rounded-md inline-block">
+                      <p className="font-mono text-sm text-muted-foreground mt-2 bg-white border border-border px-2 py-1 rounded-md inline-block">
                         {selected.certificate_number}
                       </p>
                     )}
@@ -228,12 +228,12 @@ export default function StudentCertificatesPage() {
                   )}
                   
                   <div className="flex gap-3">
-                    <Button variant="outline" onClick={() => handleCopyLink(selected)} className="flex-1 h-10 border-border bg-background hover:bg-muted text-foreground">
+                    <Button variant="outline" onClick={() => handleCopyLink(selected)} className="flex-1 h-10 border-border bg-white hover:bg-muted text-foreground">
                       <Share2 className="h-4 w-4 mr-2" /> Chia sẻ link
                     </Button>
                     
                     {selected.external_verify_url && (
-                      <Button variant="outline" onClick={() => window.open(selected.external_verify_url, '_blank')} className="flex-1 h-10 border-border bg-background hover:bg-muted text-foreground">
+                      <Button variant="outline" onClick={() => window.open(selected.external_verify_url, '_blank')} className="flex-1 h-10 border-border bg-white hover:bg-muted text-foreground">
                         <ExternalLink className="h-4 w-4 mr-2" /> Link gốc
                       </Button>
                     )}
