@@ -523,14 +523,14 @@ export function CreateCourseModal({ isOpen, onClose, onSuccess, accessToken, ini
                 </div>
 
                 {/* Progress Stepper */}
-                <div className="flex items-center justify-center w-full px-4 md:px-8 py-5 border-b border-orange-200/50 bg-white shadow-sm z-10 shrink-0">
+                <div className="flex items-center justify-center w-full px-6 md:px-12 lg:px-16 py-6 pb-10 border-b border-orange-200/50 bg-white shadow-sm z-10 shrink-0">
                     {activeSteps.map((step, index) => {
                         const isCompleted = currentStep > step.id;
                         const isActive = currentStep === step.id;
                         const isLast = index === activeSteps.length - 1;
 
                         return (
-                            <div key={step.id} className="flex items-center">
+                            <div key={step.id} className="flex items-center flex-1 last:flex-none">
                                 <div className="flex flex-col items-center relative">
                                     <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all duration-300 ${
                                         isActive ? 'bg-orange-50 border-orange-500 text-orange-600 shadow-md scale-110' :
@@ -548,7 +548,7 @@ export function CreateCourseModal({ isOpen, onClose, onSuccess, accessToken, ini
                                     </span>
                                 </div>
                                 {!isLast && (
-                                    <div className={`h-[2px] w-8 md:w-16 lg:w-24 mx-2 md:mx-4 transition-colors duration-300 ${
+                                    <div className={`h-[2px] flex-1 min-w-6 mx-3 md:mx-4 transition-colors duration-300 ${
                                         isCompleted ? 'bg-green-500' : 'bg-zinc-200'
                                     }`} />
                                 )}
