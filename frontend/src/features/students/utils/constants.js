@@ -12,8 +12,8 @@ export const STATUS_OPTIONS = [
 
 // Role options for promotion
 export const ROLE_OPTIONS = [
-  { value: 'TEACHER', label: '👨‍🏫 Giáo viên' },
-  { value: 'CENTER_MANAGER', label: '👔 Quản lý Trung tâm' },
+  { value: 'TEACHER', label: 'Giáo viên', icon: 'GraduationCap', color: 'text-emerald-600 bg-emerald-50' },
+  { value: 'CENTER_MANAGER', label: 'Quản lý Trung tâm', icon: 'Building2', color: 'text-blue-600 bg-blue-50' },
 ];
 
 // Avatar gradients

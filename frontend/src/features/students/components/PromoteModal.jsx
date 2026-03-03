@@ -4,11 +4,11 @@
  */
 
 import { useState } from 'react';
-import { AlertCircle, Check } from 'lucide-react';
+import { AlertCircle, Check, GraduationCap, Building2, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { SimpleModal } from './SimpleModal';
-import { SimpleSelect } from './SimpleSelect';
+
 import { ColorAvatar } from './ColorAvatar';
 import { ROLE_OPTIONS } from '../utils';
 
@@ -16,6 +16,7 @@ export function PromoteModal({ isOpen, onClose, student, onConfirm }) {
   const { toast } = useToast();
   const [selectedRole, setSelectedRole] = useState('TEACHER');
   const [promoting, setPromoting] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   const handleConfirm = async () => {
     setPromoting(true);
@@ -62,12 +63,40 @@ export function PromoteModal({ isOpen, onClose, student, onConfirm }) {
         {/* Role Select */}
         <div className="space-y-2">
           <label className="text-sm font-medium">Chọn vai trò mới</label>
-          <SimpleSelect
-            value={selectedRole}
-            onChange={setSelectedRole}
-            placeholder="Chọn vai trò"
-            options={ROLE_OPTIONS}
-          />
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              className="flex h-10 w-full items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <span className="flex items-center gap-2">
+                {selectedRole === 'TEACHER' ? (
+                  <><GraduationCap className="h-4 w-4 text-emerald-600" /> Giáo viên</>
+                ) : (
+                  <><Building2 className="h-4 w-4 text-blue-600" /> Quản lý Trung tâm</>
+                )}
+              </span>
+              <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {dropdownOpen && (
+              <div className="absolute z-10 mt-1 w-full rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                <button
+                  type="button"
+                  onClick={() => { setSelectedRole('TEACHER'); setDropdownOpen(false); }}
+                  className={`flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 ${selectedRole === 'TEACHER' ? 'bg-indigo-50 text-indigo-700 font-medium' : ''}`}
+                >
+                  <GraduationCap className="h-4 w-4 text-emerald-600" /> Giáo viên
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setSelectedRole('CENTER_MANAGER'); setDropdownOpen(false); }}
+                  className={`flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 ${selectedRole === 'CENTER_MANAGER' ? 'bg-indigo-50 text-indigo-700 font-medium' : ''}`}
+                >
+                  <Building2 className="h-4 w-4 text-blue-600" /> Quản lý Trung tâm
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Actions */}
@@ -81,7 +110,7 @@ export function PromoteModal({ isOpen, onClose, student, onConfirm }) {
           <Button
             onClick={handleConfirm}
             disabled={promoting}
-            className="bg-indigo-600 hover:bg-indigo-700"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white"
           >
             {promoting ? (
               <>
