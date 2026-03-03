@@ -401,7 +401,7 @@ function EditConfigModal({ config, onClose, onSave, submitting }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-[300] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative z-10 w-full max-w-md rounded-lg bg-white shadow-xl mx-4">
         <div className="p-6">
@@ -505,7 +505,7 @@ function EditConfigModal({ config, onClose, onSave, submitting }) {
 // History Modal Component
 function HistoryModal({ history, onClose }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-[300] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative z-10 w-full max-w-lg rounded-lg bg-white shadow-xl mx-4 max-h-[80vh] overflow-y-auto">
         <div className="p-6">

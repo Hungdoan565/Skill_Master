@@ -28,7 +28,7 @@ export function SimpleModal({ isOpen, onClose, title, children }) {
   return (
     <div 
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 z-[300] flex items-center justify-center"
       onClick={(e) => e.target === overlayRef.current && onClose()}
     >
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />

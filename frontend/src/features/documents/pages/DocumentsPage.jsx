@@ -217,7 +217,7 @@ const AnalyticsModal = ({ isOpen, onClose, document }) => {
     if (!isOpen || !document) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80">
             <div className="bg-white rounded-xl w-full max-w-3xl mx-4 overflow-hidden">
                 <div className="flex items-center justify-between p-4 border-b">
                     <div className="flex items-center gap-3">
@@ -397,7 +397,7 @@ const VideoPreviewModal = ({ isOpen, onClose, document }) => {
     const isDirectVideo = isVideoFile(document.file_name) && !embedUrl;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80">
             <div className="bg-white rounded-xl w-full max-w-4xl mx-4 overflow-hidden">
                 <div className="flex items-center justify-between p-4 border-b">
                     <div>
@@ -479,7 +479,7 @@ const UploadModal = ({ isOpen, onClose, courses, classes, onSubmit, submitting }
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50">
             <div className="bg-white rounded-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center justify-between p-4 border-b">
                     <h2 className="text-lg font-semibold">Tải lên tài liệu mới</h2>
@@ -620,7 +620,7 @@ const EditModal = ({ isOpen, onClose, document, onSubmit, submitting }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50">
             <div className="bg-white rounded-xl w-full max-w-2xl mx-4 overflow-hidden">
                 <div className="flex items-center justify-between p-4 border-b">
                     <h2 className="text-lg font-semibold">Chỉnh sửa tài liệu</h2>
@@ -1057,7 +1057,7 @@ export function DocumentsPage() {
 
             {/* Delete Modal */}
             {deleteModal.isOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50">
                     <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
                         <h3 className="text-lg font-semibold text-slate-900">Xác nhận xóa</h3>
                         <p className="text-slate-500 mt-2">

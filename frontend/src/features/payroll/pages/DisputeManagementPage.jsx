@@ -470,7 +470,7 @@ export function DisputeManagementPage() {
 
             {/* Response Modal */}
             {responseModal.isOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                <div className="fixed inset-0 z-[300] flex items-center justify-center">
                     <div
                         className="absolute inset-0 bg-black/50"
                         onClick={() => setResponseModal({ isOpen: false, dispute: null })}

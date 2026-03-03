@@ -386,7 +386,7 @@ export default function ApprovalInboxPage() {
       </div>
 
       {rejectDialog.isOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[300] bg-black/50 flex items-center justify-center p-4">
           <div className="bg-card rounded-2xl p-6 w-full max-w-md shadow-xl">
             <h3 className="text-lg font-semibold mb-2">Lý do từ chối</h3>
             <p className="text-sm text-muted-foreground mb-4">

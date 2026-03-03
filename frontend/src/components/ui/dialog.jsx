@@ -23,14 +23,14 @@ const Dialog = ({ open, onOpenChange, children }) => {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-[300] flex items-center justify-center">
       {/* Backdrop - SOLID dark overlay, no blur */}
       <div
         className="fixed inset-0 bg-black/60"
         onClick={() => onOpenChange?.(false)}
       />
       {/* Content wrapper */}
-      <div className="relative z-50 w-full px-4 flex justify-center pointer-events-none">{children}</div>
+      <div className="relative z-[301] w-full px-4 flex justify-center pointer-events-none">{children}</div>
     </div>
   );
 };

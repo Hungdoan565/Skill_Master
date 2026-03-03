@@ -616,7 +616,7 @@ export function EnrollmentsPage() {
 
             {/* Delete Modal */}
             {deleteModal.isOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50">
                     <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
                         <h3 className="text-lg font-semibold text-slate-900">Xác nhận hủy ghi danh</h3>
                         <p className="text-slate-500 mt-2">
@@ -641,7 +641,7 @@ export function EnrollmentsPage() {
 
             {/* Bulk Delete Modal */}
             {bulkDeleteModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50">
                     <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 animate-in fade-in zoom-in-95">
                         <h3 className="text-lg font-semibold text-slate-900">Xác nhận hủy hàng loạt</h3>
                         <p className="text-slate-500 mt-2">

@@ -211,7 +211,7 @@ export function TransactionsTab({
             {/* Image Preview Modal */}
             {previewImage && (
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+                    className="fixed inset-0 z-[300] flex items-center justify-center bg-black/70"
                     onClick={() => setPreviewImage(null)}
                 >
                     <div className="relative max-w-3xl max-h-[90vh] p-2">

@@ -544,7 +544,7 @@ const ConsultationModal = ({ isOpen, onClose, courseId, courseName }) => {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-900/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-neutral-900/80 backdrop-blur-sm">
             <div className="bg-white max-w-lg w-full shadow-2xl relative border-4 border-neutral-900 animate-in fade-in zoom-in duration-300">
                 <button
                     onClick={onClose}

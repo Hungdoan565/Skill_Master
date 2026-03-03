@@ -47,7 +47,7 @@ const Sheet = ({ open, onOpenChange, children }) => {
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-[300]">
             {/* Backdrop - SOLID dark overlay, no blur to keep crisp edges */}
             <div
                 className="fixed inset-0 bg-black/60 transition-opacity"

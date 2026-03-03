@@ -235,7 +235,7 @@ export const ReadingModeOverlay = ({ post, content, onClose }) => {
     }, []);
 
     return (
-        <div className="fixed inset-0 z-50 bg-stone-50 overflow-y-auto">
+        <div className="fixed inset-0 z-[300] bg-stone-50 overflow-y-auto">
             {/* Close button */}
             <button
                 onClick={onClose}

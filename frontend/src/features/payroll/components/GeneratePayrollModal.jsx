@@ -59,7 +59,7 @@ export function GeneratePayrollModal({
         (parseFloat(formData.deduction) || 0);
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-[300] flex items-center justify-center">
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/50"
