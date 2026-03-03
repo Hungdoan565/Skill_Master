@@ -34,7 +34,7 @@ import {
 import { createNotification } from './services/notification.service.js';
 import { buildSystemPrompt, loadStudentData, loadConversationHistory, getOrCreateSession, saveMessage, streamChatCompletion, generateConversationTitle, deleteMessagesAfter, deleteLastAssistantMessage, syncMessageCount, MAX_SESSION_MESSAGES } from './services/chatbot.js';
 import { getCourseData } from './services/courseCache.js';
-import { isGroqAvailable } from './services/groq.js';
+import { getGroqClient, isGroqAvailable } from './services/groq.js';
 import { AuditLogService } from './services/audit-log.service.js';
 
 // Lazy import for enrollment notifications (requires Redis)
@@ -29449,6 +29449,109 @@ app.get('/api/my-support-tickets', requireAuth, async (req, res, next) => {
 // ============================================================
 // AI CHATBOT MOLLY APIs
 // ============================================================
+
+function buildCoursePrompt(title, category, level) {
+  return `Tạo nội dung chi tiết cho khóa học có tên: "${title}"
+${category ? `Danh mục: ${category}` : 'Hãy đề xuất danh mục phù hợp nhất'}
+${level ? `Trình độ: ${level}` : 'Hãy đề xuất trình độ phù hợp nhất'}
+
+Trả về JSON với cấu trúc:
+{
+  "description": "Mô tả khóa học 2-3 câu bằng tiếng Việt, nêu mục tiêu và đối tượng phù hợp",
+  "total_sessions": <số buổi học hợp lý, từ 8-48>,
+  "duration_weeks": <thời lượng tuần hợp lý, từ 4-24>,
+  "category": "<một trong: ielts, toeic, english, communication, programming, it, office>",
+  "level": "<một trong: Beginner, Intermediate, Advanced>",
+  "syllabus": [
+    { "title": "Tên module", "topics": ["topic 1", "topic 2", "topic 3"] }
+  ],
+  "outcomes": ["kết quả đạt được 1", "kết quả 2", ...],
+  "features": ["đặc điểm/tính năng khóa học 1", ...],
+  "faq": [
+    { "question": "Câu hỏi thường gặp", "answer": "Trả lời chi tiết" }
+  ]
+}
+
+Yêu cầu:
+- Nội dung chuyên nghiệp, phù hợp trung tâm đào tạo tại Việt Nam
+- Syllabus: 4-8 modules, mỗi module 3-5 topics cụ thể
+- Outcomes: 5-7 mục rõ ràng, đo lường được
+- Features: 4-6 đặc điểm nổi bật của khóa học
+- FAQ: 4-5 câu hỏi phổ biến nhất
+- total_sessions và duration_weeks phải hợp lý với khối lượng nội dung
+- Tất cả nội dung bằng tiếng Việt`;
+}
+
+function validateCategory(aiCategory, userCategory) {
+  const validCategories = ['ielts', 'toeic', 'english', 'communication', 'programming', 'it', 'office'];
+  if (userCategory && validCategories.includes(userCategory)) return userCategory;
+  if (aiCategory && validCategories.includes(aiCategory)) return aiCategory;
+  return 'it';
+}
+
+function validateLevel(aiLevel, userLevel) {
+  const validLevels = ['Beginner', 'Intermediate', 'Advanced'];
+  if (userLevel && validLevels.includes(userLevel)) return userLevel;
+  if (aiLevel && validLevels.includes(aiLevel)) return aiLevel;
+  return 'Beginner';
+}
+
+app.post('/api/courses/ai-generate', requireAuth, async (req, res) => {
+  try {
+    const { title, category, level } = req.body;
+    if (!title || title.trim().length < 2) {
+      return res.status(400).json({ success: false, error: 'Tên khóa học là bắt buộc' });
+    }
+
+    if (!isGroqAvailable()) {
+      return res.status(503).json({ success: false, error: 'AI service không khả dụng' });
+    }
+
+    const groq = getGroqClient();
+    if (!groq) {
+      return res.status(503).json({ success: false, error: 'AI service không khả dụng' });
+    }
+
+    const prompt = buildCoursePrompt(title.trim(), category, level);
+
+    const completion = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      messages: [
+        {
+          role: 'system',
+          content: 'Bạn là chuyên gia thiết kế khóa học tại trung tâm đào tạo Việt Nam. Luôn trả về JSON hợp lệ, KHÔNG markdown, KHÔNG giải thích thêm.'
+        },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 2000,
+      response_format: { type: 'json_object' }
+    });
+
+    const content = completion.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error('Empty Groq response content');
+    }
+
+    const data = JSON.parse(content);
+    const result = {
+      description: data.description || '',
+      total_sessions: Number(data.total_sessions) || 24,
+      duration_weeks: Number(data.duration_weeks) || 12,
+      category: validateCategory(data.category, category),
+      level: validateLevel(data.level, level),
+      syllabus: Array.isArray(data.syllabus) ? data.syllabus : [],
+      outcomes: Array.isArray(data.outcomes) ? data.outcomes : [],
+      features: Array.isArray(data.features) ? data.features : [],
+      faq: Array.isArray(data.faq) ? data.faq : []
+    };
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('AI generate error:', error);
+    res.status(500).json({ success: false, error: 'Không thể tạo nội dung AI' });
+  }
+});
 
 // Simple in-memory rate limiter for chatbot
 const chatbotRateLimit = new Map();
