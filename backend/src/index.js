@@ -89,6 +89,32 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
+const chatbotConversationRateWindowMs = 60 * 1000;
+const chatbotConversationRateMax = 30;
+const chatbotConversationRateStore = new Map();
+
+function chatbotConversationRateLimit(req, res, next) {
+  const actorKey = req.user?.id || req.ip;
+  const now = Date.now();
+  const windowStart = now - chatbotConversationRateWindowMs;
+  const recentHits = (chatbotConversationRateStore.get(actorKey) || []).filter(ts => ts > windowStart);
+
+  if (recentHits.length >= chatbotConversationRateMax) {
+    return res.status(429).json({
+      success: false,
+      error: 'Bạn thao tác quá nhanh. Vui lòng thử lại sau ít phút.'
+    });
+  }
+
+  recentHits.push(now);
+  chatbotConversationRateStore.set(actorKey, recentHits);
+
+  res.setHeader('X-RateLimit-Limit', String(chatbotConversationRateMax));
+  res.setHeader('X-RateLimit-Remaining', String(Math.max(0, chatbotConversationRateMax - recentHits.length)));
+
+  next();
+}
+
 function getAuditContext(req) {
   return {
     userId: req.user?.id,
@@ -2423,12 +2449,21 @@ app.get('/api/students/search', requireAuth, async (req, res, next) => {
 });
 
 // Lấy danh sách học viên (STUDENT)
-app.get('/api/admin/students', requireAuth, async (req, res, next) => {
+app.get('/api/admin/students', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
-    const { search, status, centerId, limit = '50', page = '1' } = req.query;
+    const {
+      search,
+      status,
+      centerId,
+      classId,
+      courseId,
+      enrollmentState,
+      limit = '20',
+      page = '1',
+    } = req.query;
 
-    const pageNum = parseInt(page) || 1;
-    const limitNum = Math.min(parseInt(limit) || 50, 100); // Max 100 items
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = Math.min(parseInt(limit, 10) || 20, 100);
     const offset = (pageNum - 1) * limitNum;
 
     // ====== PERMISSION CHECK ======
@@ -2446,6 +2481,66 @@ app.get('/api/admin/students', requireAuth, async (req, res, next) => {
 
     if (!studentRole) {
       return res.json({ success: true, data: [], pagination: { total: 0, page: pageNum, limit: limitNum } });
+    }
+
+    let eligibleStudentIds = null;
+
+    if (classId || courseId || enrollmentState) {
+      let enrollmentQuery = supabase
+        .from('enrollments')
+        .select(`
+          student_id,
+          status,
+          class_id,
+          classes!inner (
+            id,
+            course_id,
+            center_id
+          )
+        `);
+
+      if (effectiveCenterId) {
+        enrollmentQuery = enrollmentQuery.eq('classes.center_id', effectiveCenterId);
+      }
+      if (classId) {
+        enrollmentQuery = enrollmentQuery.eq('class_id', classId);
+      }
+      if (courseId) {
+        enrollmentQuery = enrollmentQuery.eq('classes.course_id', courseId);
+      }
+
+      if (enrollmentState === 'active') {
+        enrollmentQuery = enrollmentQuery.eq('status', 'active');
+      } else if (enrollmentState === 'pending') {
+        enrollmentQuery = enrollmentQuery.eq('status', 'pending');
+      } else if (enrollmentState === 'completed') {
+        enrollmentQuery = enrollmentQuery.eq('status', 'completed');
+      } else if (enrollmentState === 'inactive') {
+        enrollmentQuery = enrollmentQuery.eq('status', 'inactive');
+      } else if (enrollmentState === 'has_class' || enrollmentState === 'no_class') {
+        enrollmentQuery = enrollmentQuery.in('status', ['active', 'pending', 'completed']);
+      }
+
+      const { data: enrollmentRows, error: enrollmentError } = await enrollmentQuery;
+      if (enrollmentError) throw enrollmentError;
+
+      const matchedIds = [...new Set((enrollmentRows || []).map((row) => row.student_id).filter(Boolean))];
+      eligibleStudentIds = enrollmentState === 'no_class'
+        ? { exclude: matchedIds }
+        : { include: matchedIds };
+
+      if (!eligibleStudentIds.exclude && (!eligibleStudentIds.include || eligibleStudentIds.include.length === 0)) {
+        return res.json({
+          success: true,
+          data: [],
+          pagination: {
+            total: 0,
+            page: pageNum,
+            limit: limitNum,
+            totalPages: 0,
+          },
+        });
+      }
     }
 
     let query = supabase
@@ -2486,23 +2581,26 @@ app.get('/api/admin/students', requireAuth, async (req, res, next) => {
       query = query.eq('center_id', effectiveCenterId);
     }
 
+    if (eligibleStudentIds?.include) {
+      query = query.in('id', eligibleStudentIds.include);
+    }
+
+    if (eligibleStudentIds?.exclude?.length) {
+      const quotedIds = eligibleStudentIds.exclude.map((id) => `"${id}"`).join(',');
+      query = query.not('id', 'in', `(${quotedIds})`);
+    }
+
+    const trimmedSearch = String(search || '').trim();
+    if (trimmedSearch) {
+      query = query.or(`full_name.ilike.%${trimmedSearch}%,email.ilike.%${trimmedSearch}%,phone.ilike.%${trimmedSearch}%`);
+    }
+
     const { data, error, count } = await query;
     if (error) throw error;
 
-    // Filter theo search (tên hoặc email) - client side vì Supabase không hỗ trợ OR search tốt
-    let result = data || [];
-    if (search) {
-      const searchLower = search.toLowerCase();
-      result = result.filter(u =>
-        u.full_name?.toLowerCase().includes(searchLower) ||
-        u.email?.toLowerCase().includes(searchLower) ||
-        u.phone?.includes(search)
-      );
-    }
-
     res.json({
       success: true,
-      data: result,
+      data: data || [],
       pagination: {
         total: count || 0,
         page: pageNum,
@@ -2512,6 +2610,228 @@ app.get('/api/admin/students', requireAuth, async (req, res, next) => {
     });
   } catch (error) {
     console.error('Error fetching students:', error);
+    next(error);
+  }
+});
+
+app.patch('/api/admin/students/bulk/status', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { studentIds = [], status } = req.body;
+
+    if (!Array.isArray(studentIds) || studentIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn ít nhất một học viên' });
+    }
+
+    if (!['active', 'inactive'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Trạng thái không hợp lệ' });
+    }
+
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, null);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    let studentsQuery = supabase
+      .from('users')
+      .select('id, full_name, center_id, roles(code)')
+      .in('id', studentIds);
+
+    if (effectiveCenterId) {
+      studentsQuery = studentsQuery.eq('center_id', effectiveCenterId);
+    }
+
+    const { data: students, error: studentsError } = await studentsQuery;
+    if (studentsError) throw studentsError;
+
+    const validStudents = (students || []).filter((student) => student.roles?.code === 'STUDENT');
+    if (validStudents.length === 0) {
+      return res.status(400).json({ success: false, message: 'Không có học viên hợp lệ để cập nhật' });
+    }
+
+    if (status === 'inactive') {
+      const { data: activeEnrollments, error: enrollmentError } = await supabase
+        .from('enrollments')
+        .select('student_id')
+        .in('student_id', validStudents.map((student) => student.id))
+        .eq('status', 'active');
+      if (enrollmentError) throw enrollmentError;
+
+      const blockedStudentIds = new Set((activeEnrollments || []).map((row) => row.student_id));
+      const allowedStudents = validStudents.filter((student) => !blockedStudentIds.has(student.id));
+
+      if (allowedStudents.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Không thể vô hiệu hóa các học viên đang học lớp active',
+          blockedStudentIds: [...blockedStudentIds],
+        });
+      }
+
+      const { data: updatedStudents, error: updateError } = await supabase
+        .from('users')
+        .update({ status: 'inactive', updated_at: new Date().toISOString() })
+        .in('id', allowedStudents.map((student) => student.id))
+        .select('id, full_name, status');
+      if (updateError) throw updateError;
+
+      return res.json({
+        success: true,
+        message: `Đã vô hiệu hóa ${updatedStudents?.length || 0} học viên`,
+        data: updatedStudents || [],
+        blockedStudentIds: [...blockedStudentIds],
+      });
+    }
+
+    const { data: updatedStudents, error: updateError } = await supabase
+      .from('users')
+      .update({ status: 'active', updated_at: new Date().toISOString() })
+      .in('id', validStudents.map((student) => student.id))
+      .select('id, full_name, status');
+    if (updateError) throw updateError;
+
+    res.json({
+      success: true,
+      message: `Đã khôi phục ${updatedStudents?.length || 0} học viên`,
+      data: updatedStudents || [],
+    });
+  } catch (error) {
+    console.error('Error bulk updating students status:', error);
+    next(error);
+  }
+});
+
+app.post('/api/admin/students/bulk-delete-check', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { studentIds = [] } = req.body;
+
+    if (!Array.isArray(studentIds) || studentIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn ít nhất một học viên' });
+    }
+
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, null);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    let studentsQuery = supabase
+      .from('users')
+      .select('id, full_name, center_id, roles(code)')
+      .in('id', studentIds);
+
+    if (effectiveCenterId) {
+      studentsQuery = studentsQuery.eq('center_id', effectiveCenterId);
+    }
+
+    const { data: students, error: studentsError } = await studentsQuery;
+    if (studentsError) throw studentsError;
+
+    const validStudents = (students || []).filter((student) => student.roles?.code === 'STUDENT');
+    const validIds = validStudents.map((student) => student.id);
+
+    const [enrollmentsRes, invoicesRes, certificatesRes] = await Promise.all([
+      supabase.from('enrollments').select('student_id, status').in('student_id', validIds),
+      supabase.from('invoices').select('student_id, status').in('student_id', validIds),
+      supabase.from('certificates').select('student_id, status').in('student_id', validIds),
+    ]);
+
+    if (enrollmentsRes.error || invoicesRes.error || certificatesRes.error) {
+      throw enrollmentsRes.error || invoicesRes.error || certificatesRes.error;
+    }
+
+    const blockedReasonsByStudentId = new Map();
+    const addReason = (studentId, reason) => {
+      const reasons = blockedReasonsByStudentId.get(studentId) || [];
+      reasons.push(reason);
+      blockedReasonsByStudentId.set(studentId, reasons);
+    };
+
+    (enrollmentsRes.data || []).forEach((row) => addReason(row.student_id, `Đã có ghi danh/lớp (${row.status})`));
+    (invoicesRes.data || []).forEach((row) => addReason(row.student_id, `Đã có hóa đơn (${row.status})`));
+    (certificatesRes.data || []).forEach((row) => addReason(row.student_id, `Đã có chứng chỉ (${row.status})`));
+
+    const blocked = validStudents.filter((student) => blockedReasonsByStudentId.has(student.id)).map((student) => ({
+      id: student.id,
+      full_name: student.full_name,
+      reasons: blockedReasonsByStudentId.get(student.id),
+    }));
+
+    const allowed = validStudents.filter((student) => !blockedReasonsByStudentId.has(student.id));
+
+    res.json({ success: true, data: { allowed, blocked } });
+  } catch (error) {
+    console.error('Error checking bulk delete eligibility:', error);
+    next(error);
+  }
+});
+
+app.delete('/api/admin/students/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const { studentIds = [] } = req.body;
+
+    if (!Array.isArray(studentIds) || studentIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn ít nhất một học viên' });
+    }
+
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, null);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    let studentsQuery = supabase
+      .from('users')
+      .select('id, full_name, center_id, roles(code)')
+      .in('id', studentIds);
+
+    if (effectiveCenterId) {
+      studentsQuery = studentsQuery.eq('center_id', effectiveCenterId);
+    }
+
+    const { data: students, error: studentsError } = await studentsQuery;
+    if (studentsError) throw studentsError;
+
+    const validStudents = (students || []).filter((student) => student.roles?.code === 'STUDENT');
+    const validIds = validStudents.map((student) => student.id);
+
+    const [enrollmentsRes, invoicesRes, certificatesRes] = await Promise.all([
+      supabase.from('enrollments').select('student_id').in('student_id', validIds),
+      supabase.from('invoices').select('student_id').in('student_id', validIds),
+      supabase.from('certificates').select('student_id').in('student_id', validIds),
+    ]);
+
+    if (enrollmentsRes.error || invoicesRes.error || certificatesRes.error) {
+      throw enrollmentsRes.error || invoicesRes.error || certificatesRes.error;
+    }
+
+    const blockedIds = new Set([
+      ...(enrollmentsRes.data || []).map((row) => row.student_id),
+      ...(invoicesRes.data || []).map((row) => row.student_id),
+      ...(certificatesRes.data || []).map((row) => row.student_id),
+    ]);
+
+    const deletableIds = validIds.filter((id) => !blockedIds.has(id));
+    if (deletableIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không có học viên nào đủ điều kiện xóa hàng loạt',
+        blockedStudentIds: [...blockedIds],
+      });
+    }
+
+    const { data: updatedStudents, error: updateError } = await supabase
+      .from('users')
+      .update({ status: 'inactive', updated_at: new Date().toISOString() })
+      .in('id', deletableIds)
+      .select('id, full_name, status');
+    if (updateError) throw updateError;
+
+    res.json({
+      success: true,
+      message: `Đã vô hiệu hóa ${updatedStudents?.length || 0} học viên đủ điều kiện`,
+      data: updatedStudents || [],
+      blockedStudentIds: [...blockedIds],
+    });
+  } catch (error) {
+    console.error('Error bulk deleting students:', error);
     next(error);
   }
 });
@@ -5678,7 +5998,7 @@ app.get('/api/admin/classes/:classId/students', requireAuth, requireRole(['SUPER
     const studentIds = Array.from(new Set(enrollmentList.map(e => e.student_id).filter(Boolean)));
     const { data: students, error: studentsError } = await supabase
       .from('users')
-      .select('id, full_name, email, avatar_url')
+      .select('id, full_name, email, phone, avatar_url')
       .in('id', studentIds);
 
     if (studentsError) throw studentsError;
@@ -5692,6 +6012,7 @@ app.get('/api/admin/classes/:classId/students', requireAuth, requireRole(['SUPER
           id: s.id,
           full_name: s.full_name,
           email: s.email,
+          phone: s.phone,
           avatar_url: s.avatar_url,
           enrollment_status: e.status
         };
@@ -6505,50 +6826,6 @@ app.get('/api/classes/:id/students', requireAuth, async (req, res, next) => {
     });
   } catch (error) {
     console.error('Error fetching class students:', error);
-    next(error);
-  }
-});
-
-// Alias cho admin - Lấy danh sách học viên trong lớp (dùng cho điểm danh)
-app.get('/api/admin/classes/:classId/students', requireAuth, async (req, res, next) => {
-  try {
-    const { classId } = req.params;
-
-    // Query đơn giản - chỉ lấy học viên active
-    const { data, error } = await supabase
-      .from('enrollments')
-      .select(`
-        id,
-        student_id,
-        users!enrollments_student_id_fkey(
-          id, 
-          full_name, 
-          email, 
-          avatar_url
-        )
-      `)
-      .eq('class_id', classId)
-      .eq('status', 'active');
-
-    if (error) throw error;
-
-    // Transform data
-    const students = (data || []).map(e => ({
-      id: e.id,
-      student_id: e.student_id || e.users?.id,
-      full_name: e.users?.full_name,
-      email: e.users?.email,
-      avatar_url: e.users?.avatar_url,
-      users: e.users // Giữ nguyên để compatible với modal
-    }));
-
-    res.json({
-      success: true,
-      data: students,
-      count: students.length
-    });
-  } catch (error) {
-    console.error('Error fetching class students for attendance:', error);
     next(error);
   }
 });
@@ -9322,6 +9599,7 @@ app.get('/api/dashboard/alerts', requireAuth, async (req, res, next) => {
 
     const today = new Date().toISOString().split('T')[0];
     const alerts = {};
+    let dataFreshness = 'fresh';
 
     // 1. Overdue Invoices
     let overdueQuery = supabase
@@ -9434,10 +9712,50 @@ app.get('/api/dashboard/alerts', requireAuth, async (req, res, next) => {
       })
     };
 
-    // 4. Certificates Pending (placeholder - implement if needed)
-    alerts.certificates_pending = {
-      data: []
-    };
+    // 4. Certificates Pending Approval
+    let pendingCertificatesQuery = supabase
+      .from('certificates')
+      .select(`
+        id,
+        certificate_number,
+        created_at,
+        student:users!certificates_student_id_fkey(id, full_name, email),
+        class:classes(id, name, center_id),
+        course:courses(id, title),
+        certificate_type_ref:certificate_types(id, code, name)
+      `)
+      .eq('status', 'pending_approval')
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (effectiveCenterId) {
+      pendingCertificatesQuery = pendingCertificatesQuery.eq('center_id', effectiveCenterId);
+    }
+
+    const { data: pendingCertificates, error: pendingCertificatesError } = await pendingCertificatesQuery;
+
+    if (pendingCertificatesError) {
+      dataFreshness = 'degraded';
+      alerts.certificates_pending = {
+        data: [],
+        degraded: true,
+        warning: 'Không thể tải danh sách chứng chỉ chờ duyệt',
+      };
+    } else {
+      alerts.certificates_pending = {
+        data: (pendingCertificates || []).map((item) => ({
+          certificate_id: item.id,
+          certificate_number: item.certificate_number,
+          student_id: item.student?.id || null,
+          student_name: item.student?.full_name || 'N/A',
+          class_id: item.class?.id || null,
+          class_name: item.class?.name || item.course?.title || 'N/A',
+          course_name: item.course?.title || null,
+          certificate_type_name: item.certificate_type_ref?.name || item.certificate_type_ref?.code || 'Chứng chỉ',
+          requested_at: item.created_at,
+        })),
+      };
+    }
 
     // Count total alerts
     const totalAlerts = Object.keys(alerts).reduce((sum, key) => {
@@ -10566,167 +10884,210 @@ app.post('/api/audit-log/auth', async (req, res, next) => {
 // GET /api/admin/audit-logs - Paginated, filterable audit logs
 app.get('/api/admin/audit-logs', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
     const offset = (page - 1) * limit;
-    const { userId, centerId, action, entityType, startDate, endDate, status, severity } = req.query;
     const userRole = req.user?.roleCode;
-    const userCenterId = req.user?.center_id;
+    const {
+      userId,
+      centerId,
+      action,
+      status,
+      severity,
+      search: rawSearch,
+      entityType: rawEntityType,
+      entity_type: legacyEntityType,
+      startDate: rawStartDate,
+      from: legacyStartDate,
+      endDate: rawEndDate,
+      to: legacyEndDate,
+    } = req.query;
+    const entityType = rawEntityType || legacyEntityType || null;
+    const startDate = rawStartDate || legacyStartDate || null;
+    const endDate = rawEndDate || legacyEndDate || null;
+    const search = String(rawSearch || '').trim();
+
     const warnings = [];
     let dataFreshness = 'fresh';
     let auditPipelineHealthy = true;
 
-    // Build query with raw SQL for audit schema access
-    let conditions = [];
-    let params = [];
-    let paramIdx = 1;
-
-    // CENTER_MANAGER scoped to own center
-    if (userRole === 'CENTER_MANAGER') {
-      conditions.push(`u_center.id = $${paramIdx}`);
-      params.push(userCenterId);
-      paramIdx++;
-    } else if (centerId) {
-      conditions.push(`u_center.id = $${paramIdx}`);
-      params.push(centerId);
-      paramIdx++;
+    const { effectiveCenterId, error: centerScopeError } = getEffectiveCenterId(req.user, centerId || null);
+    if (centerScopeError) {
+      return res.status(403).json({ success: false, error: centerScopeError });
     }
 
-    if (userId) { conditions.push(`l.user_id = $${paramIdx}`); params.push(userId); paramIdx++; }
-    if (action) { conditions.push(`l.action = $${paramIdx}`); params.push(action); paramIdx++; }
-    if (entityType) { conditions.push(`l.table_name = $${paramIdx}`); params.push(entityType); paramIdx++; }
-    if (status) { conditions.push(`l.status = $${paramIdx}`); params.push(status); paramIdx++; }
-    if (severity) { conditions.push(`l.severity = $${paramIdx}`); params.push(severity); paramIdx++; }
-    if (startDate) { conditions.push(`l.created_at >= $${paramIdx}`); params.push(startDate); paramIdx++; }
-    if (endDate) { conditions.push(`l.created_at <= $${paramIdx}`); params.push(endDate); paramIdx++; }
+    const sanitizedSearch = search.replace(/[%,()']/g, ' ').trim();
+    let matchingUserIds = [];
 
-    const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+    const applyAuditLogFilters = (baseQuery, { includeMatchedUsers = true } = {}) => {
+      let scopedQuery = baseQuery;
 
-    // If rpc doesn't work, fallback to direct query
-    let logs = [];
-    let total = 0;
-    try {
-      const countQuery = `SELECT COUNT(*)::int as total FROM public.audit_logs l LEFT JOIN public.users u_center ON u_center.id = l.user_id LEFT JOIN public.centers c_center ON c_center.id = u_center.center_id ${whereClause}`;
-      const dataQuery = `
-        SELECT l.*,
-          u.full_name as actor_name,
-          c.name as center_name
-        FROM public.audit_logs l
-        LEFT JOIN public.users u ON u.id = l.user_id
-        LEFT JOIN public.centers c ON c.id = u.center_id
-        ${whereClause}
-        ORDER BY l.created_at DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `;
+      if (effectiveCenterId) scopedQuery = scopedQuery.eq('center_id', effectiveCenterId);
+      if (userId) scopedQuery = scopedQuery.eq('user_id', userId);
+      if (action) scopedQuery = scopedQuery.eq('action', action);
+      if (entityType) scopedQuery = scopedQuery.eq('table_name', entityType);
+      if (status) scopedQuery = scopedQuery.eq('status', status);
+      if (severity) scopedQuery = scopedQuery.eq('severity', severity);
+      if (startDate) scopedQuery = scopedQuery.gte('created_at', startDate);
+      if (endDate) scopedQuery = scopedQuery.lte('created_at', endDate);
 
-      const [countRes, dataRes] = await Promise.all([
-        supabase.rpc('raw_sql', { sql: countQuery }),
-        supabase.rpc('raw_sql', { sql: dataQuery })
-      ]);
+      if (sanitizedSearch) {
+        const searchClauses = [
+          `action.ilike.%${sanitizedSearch}%`,
+          `table_name.ilike.%${sanitizedSearch}%`,
+          `record_id.ilike.%${sanitizedSearch}%`,
+          `request_path.ilike.%${sanitizedSearch}%`,
+          `user_email.ilike.%${sanitizedSearch}%`,
+        ];
 
-      // Fallback: use supabase schema if rpc not available
-      if (countRes.error || dataRes.error) {
+        if (includeMatchedUsers && matchingUserIds.length > 0) {
+          searchClauses.push(`user_id.in.(${matchingUserIds.join(',')})`);
+        }
+
+        scopedQuery = scopedQuery.or(searchClauses.join(','));
+      }
+
+      return scopedQuery;
+    };
+
+    if (sanitizedSearch) {
+      const userSearchQuery = supabase
+        .from('users')
+        .select('id')
+        .or(`full_name.ilike.%${sanitizedSearch}%,email.ilike.%${sanitizedSearch}%`);
+
+      if (effectiveCenterId) {
+        userSearchQuery.eq('center_id', effectiveCenterId);
+      }
+
+      const { data: matchingUsers, error: userSearchError } = await userSearchQuery.limit(200);
+      if (userSearchError) {
         auditPipelineHealthy = false;
         dataFreshness = 'degraded';
         warnings.push(
-          createDataWarning('AUDIT_SQL_RPC_FALLBACK', 'Audit logs đang dùng chế độ truy vấn fallback', {
-            countError: countRes.error?.message || null,
-            dataError: dataRes.error?.message || null,
+          createDataWarning('AUDIT_USER_SEARCH_DEGRADED', 'Không thể mở rộng tìm kiếm audit theo người dùng', {
+            error: userSearchError.message,
           })
         );
-
-        let query = supabase.from('audit_logs').select('*', { count: 'exact' });
-        if (userRole !== 'SUPER_ADMIN') {
-          // Direct center scoping using audit_logs.center_id
-          const managerCenterId = getEffectiveCenterId(req);
-          if (managerCenterId) {
-            query = query.eq('center_id', managerCenterId);
-          }
-        } else if (centerId) {
-          query = query.eq('center_id', centerId);
-        }
-
-        // Filter by center through user's center_id (audit_logs has user_id, users has center_id)
-        if (query) {
-          if (userId) query = query.eq('user_id', userId);
-          if (action) query = query.eq('action', action);
-          if (entityType) query = query.eq('table_name', entityType);
-          if (status) query = query.eq('status', status);
-          if (severity) query = query.eq('severity', severity);
-          if (startDate) query = query.gte('created_at', startDate);
-          if (endDate) query = query.lte('created_at', endDate);
-          query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
-          const result = await query;
-          logs = (result.data || []).map(log => ({
-            id: log.id,
-            timestamp: log.created_at,
-            actor: { id: log.user_id, name: log.user_email || 'System', role: log.user_role },
-            action: log.action,
-            entity_type: log.table_name,
-            entity_id: log.record_id,
-            changes: log.changes,
-            old_values: log.old_values,
-            new_values: log.new_values,
-            ip_address: log.ip_address,
-            request_path: log.request_path,
-            status: log.status || 'SUCCESS',
-            severity: log.severity || 'INFO',
-            center: { id: log.center_id, name: log.center_name || null }
-          }));
-          total = result.count || 0;
-        }
       } else {
-        logs = (dataRes.data || []);
-        total = countRes.data?.[0]?.total || 0;
+        matchingUserIds = (matchingUsers || []).map((user) => user.id).filter(Boolean);
       }
-    } catch (queryError) {
-      // Ultimate fallback: simple query
+    }
+
+    let result;
+
+    try {
+      const query = applyAuditLogFilters(supabase.from('audit_logs').select('*', { count: 'exact' }));
+      result = await query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+
+      if (result.error) {
+        throw result.error;
+      }
+    } catch (primaryQueryError) {
       auditPipelineHealthy = false;
-      dataFreshness = 'stale';
+      dataFreshness = 'degraded';
       warnings.push(
-        createDataWarning('AUDIT_QUERY_FALLBACK', 'Audit logs không thể truy vấn qua pipeline chuẩn', {
-          error: queryError.message,
+        createDataWarning('AUDIT_QUERY_FALLBACK', 'Nhật ký hệ thống đang dùng chế độ truy vấn fallback', {
+          error: primaryQueryError.message,
         })
       );
 
-      let query = supabase.from('audit_logs').select('*', { count: 'exact' });
-      if (userRole !== 'SUPER_ADMIN') {
-        // Direct center scoping using audit_logs.center_id
-        const managerCenterId = getEffectiveCenterId(req);
-        if (managerCenterId) {
-          query = query.eq('center_id', managerCenterId);
-        }
-      } else if (centerId) {
-        query = query.eq('center_id', centerId);
+      const runFallbackQuery = async (includeMatchedUsers) => {
+        const fallbackQuery = applyAuditLogFilters(
+          supabase.from('audit_logs').select('*', { count: 'exact' }),
+          { includeMatchedUsers }
+        );
+
+        return fallbackQuery.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+      };
+
+      result = await runFallbackQuery(true);
+
+      if (result.error && sanitizedSearch && matchingUserIds.length > 0) {
+        warnings.push(
+          createDataWarning('AUDIT_SEARCH_DEGRADED', 'Tìm kiếm audit đang dùng chế độ rút gọn', {
+            error: result.error.message,
+          })
+        );
+
+        result = await runFallbackQuery(false);
       }
 
-      if (query) {
-        if (userId) query = query.eq('user_id', userId);
-        if (action) query = query.eq('action', action);
-        if (entityType) query = query.eq('table_name', entityType);
-        if (status) query = query.eq('status', status);
-        if (severity) query = query.eq('severity', severity);
-        if (startDate) query = query.gte('created_at', startDate);
-        if (endDate) query = query.lte('created_at', endDate);
-        query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
-        const result = await query;
-        logs = (result.data || []).map(log => ({
-          id: log.id,
-          timestamp: log.created_at,
-          actor: { id: log.user_id, name: log.user_email || 'System', role: log.user_role },
-          action: log.action,
-          entity_type: log.table_name,
-          entity_id: log.record_id,
-          changes: log.changes,
-          old_values: log.old_values,
-          new_values: log.new_values,
-          status: log.status || 'SUCCESS',
-          severity: log.severity || 'INFO',
-          center: { id: log.center_id, name: log.center_name || null }
-        }));
-        total = result.count || 0;
+      if (result.error) {
+        throw result.error;
       }
     }
+
+    const rawLogs = result.data || [];
+    const total = result.count || 0;
+
+    const userIds = [...new Set(rawLogs.map((log) => log.user_id).filter(Boolean))];
+    const centerIds = [...new Set(rawLogs.map((log) => log.center_id).filter(Boolean))];
+
+    let usersById = new Map();
+    let centersById = new Map();
+
+    try {
+      const [usersResult, centersResult] = await Promise.all([
+        userIds.length > 0
+          ? supabase.from('users').select('id, full_name, email').in('id', userIds)
+          : Promise.resolve({ data: [], error: null }),
+        centerIds.length > 0
+          ? supabase.from('centers').select('id, name').in('id', centerIds)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+
+      if (usersResult.error || centersResult.error) {
+        throw usersResult.error || centersResult.error;
+      }
+
+      usersById = new Map((usersResult.data || []).map((user) => [user.id, user]));
+      centersById = new Map((centersResult.data || []).map((center) => [center.id, center]));
+    } catch (enrichmentError) {
+      auditPipelineHealthy = false;
+      dataFreshness = 'degraded';
+      warnings.push(
+        createDataWarning('AUDIT_ENRICHMENT_DEGRADED', 'Nhật ký hệ thống đang dùng dữ liệu rút gọn', {
+          error: enrichmentError.message,
+        })
+      );
+    }
+
+    const logs = rawLogs.map((log) => {
+      const actor = usersById.get(log.user_id);
+      const center = centersById.get(log.center_id);
+
+      return {
+        id: log.id,
+        created_at: log.created_at,
+        timestamp: log.created_at,
+        user_id: log.user_id,
+        user: {
+          full_name: actor?.full_name || log.user_email || 'System',
+          email: actor?.email || log.user_email || null,
+          role: log.user_role || null,
+        },
+        actor: {
+          id: log.user_id,
+          name: actor?.full_name || log.user_email || 'System',
+          role: log.user_role || null,
+        },
+        action: log.action,
+        entity_type: log.table_name,
+        entity_id: log.record_id,
+        changes: log.changes,
+        old_values: log.old_values,
+        new_values: log.new_values,
+        ip_address: log.ip_address,
+        request_path: log.request_path,
+        status: log.status || 'SUCCESS',
+        severity: log.severity || 'INFO',
+        center: {
+          id: log.center_id,
+          name: center?.name || null,
+        },
+      };
+    });
 
     const governanceReadiness = buildGovernanceReadiness({
       roleBoundaryOk: userRole === 'SUPER_ADMIN' || userRole === 'CENTER_MANAGER',
@@ -21999,6 +22360,10 @@ app.get('/api/admin/certificates/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
 
+    if (id === 'pending-approvals' || id === 'cert_pending_approvals') {
+      return next('route');
+    }
+
     const { data, error } = await supabase
       .from('certificates')
       .select(`
@@ -22092,38 +22457,51 @@ app.put('/api/admin/certificates/:id', requireAuth, requireRole(['SUPER_ADMIN', 
 
 // ============ CERTIFICATE APPROVAL ENDPOINTS ============
 
-// GET /api/admin/certificates/pending-approvals - List pending certificate approvals
-app.get('/api/admin/certificates/pending-approvals', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+const listPendingCertificateApprovals = async (req, res, next) => {
   try {
-    const supabaseClient = req.supabase || supabase;
+    const supabaseClient = supabase;
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, req.query.center_id);
     if (permError) {
       return res.status(403).json({ success: false, error: permError });
     }
 
-    let query = supabaseClient
-      .from('certificates')
-      .select(`
+    const buildPendingCertificatesSelect = (includeTypeRelation = true) => `
         id,
         certificate_number,
-        certificate_type,
+        certificate_type_id,
         status,
-
         issued_at,
         created_at,
         student:users!certificates_student_id_fkey(id, full_name, email),
         class:classes(id, code, name, center_id),
-        course:courses(id, code, title),
-        certificate_type_ref:certificate_types(id, code, name)
-      `)
-      .eq('status', 'pending_approval')
-      .order('created_at', { ascending: false });
+        course:courses(id, code, title)
+        ${includeTypeRelation ? ',\n        certificate_type_ref:certificate_types!certificates_certificate_type_id_fkey(id, code, name)' : ''}
+      `;
 
-    if (effectiveCenterId) {
-      query = query.eq('center_id', effectiveCenterId);
+    const relationStrategies = [true, false];
+    let data = null;
+    let error = null;
+
+    for (const includeTypeRelation of relationStrategies) {
+      let query = supabaseClient
+        .from('certificates')
+        .select(buildPendingCertificatesSelect(includeTypeRelation))
+        .eq('status', 'pending_approval')
+        .order('created_at', { ascending: false });
+
+      if (effectiveCenterId) {
+        query = query.eq('center_id', effectiveCenterId);
+      }
+
+      const result = await query;
+      data = result.data;
+      error = result.error;
+
+      if (!error) {
+        break;
+      }
     }
 
-    const { data, error } = await query;
     if (error) throw error;
 
     res.json({ success: true, data: data || [] });
@@ -22131,23 +22509,34 @@ app.get('/api/admin/certificates/pending-approvals', requireAuth, requireRole(['
     console.error('Error fetching pending certificate approvals:', error);
     next(error);
   }
-});
+};
+
+// GET /api/admin/certificates/pending-approvals - List pending certificate approvals
+app.get('/api/admin/certificates/pending-approvals', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), listPendingCertificateApprovals);
+
+// Backward-compatible alias for older frontend bundles
+app.get('/api/admin/cert_pending_approvals', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), listPendingCertificateApprovals);
 
 // PUT /api/admin/certificates/:id/approve
 app.put('/api/admin/certificates/:id/approve', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const { id: rawId } = req.params;
+    const id = typeof rawId === 'string' && rawId.startsWith('cert_') ? rawId.slice(5) : rawId;
     const supabaseClient = req.supabase || supabase;
 
     const { data: cert, error: certError } = await supabaseClient
       .from('certificates')
-      .update({ status: 'approved' })
+      .update({ status: 'issued' })
       .eq('id', id)
       .eq('status', 'pending_approval')
       .select()
-      .single();
+      .maybeSingle();
 
-    if (certError || !cert) {
+    if (certError) {
+      throw certError;
+    }
+
+    if (!cert) {
       return res.status(404).json({ success: false, error: 'Certificate not found or already processed' });
     }
 
@@ -22179,7 +22568,8 @@ app.put('/api/admin/certificates/:id/approve', requireAuth, requireRole(['SUPER_
 // PUT /api/admin/certificates/:id/reject
 app.put('/api/admin/certificates/:id/reject', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const { id: rawId } = req.params;
+    const id = typeof rawId === 'string' && rawId.startsWith('cert_') ? rawId.slice(5) : rawId;
     const { reason } = req.body;
     const supabaseClient = req.supabase || supabase;
 
@@ -22189,13 +22579,17 @@ app.put('/api/admin/certificates/:id/reject', requireAuth, requireRole(['SUPER_A
 
     const { data: cert, error: certError } = await supabaseClient
       .from('certificates')
-      .update({ status: 'rejected' })
+      .update({ status: 'revoked' })
       .eq('id', id)
       .eq('status', 'pending_approval')
       .select()
-      .single();
+      .maybeSingle();
 
-    if (certError || !cert) {
+    if (certError) {
+      throw certError;
+    }
+
+    if (!cert) {
       return res.status(404).json({ success: false, error: 'Certificate not found or already processed' });
     }
 
@@ -26143,6 +26537,235 @@ app.get('/api/admin/support-tickets/stats', requireAuth, requireRole(['SUPER_ADM
   }
 });
 
+/**
+ * GET /api/admin/consultation-requests
+ * Danh sách yêu cầu tư vấn cho advisor inbox
+ */
+app.get('/api/admin/consultation-requests', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const { status, source, search, assigned_to, center_id: queryCenterId, page = 1, limit = 50 } = req.query;
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, queryCenterId);
+
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    let query = supabase
+      .from('consultation_requests')
+      .select(`
+        *,
+        assigned_to_user:users!consultation_requests_assigned_to_fkey (id, full_name, email),
+        courses!consultation_requests_course_id_fkey (id, title),
+        classes!consultation_requests_class_id_fkey (id, name)
+      `, { count: 'exact' })
+      .order('updated_at', { ascending: false });
+
+    if (effectiveCenterId) {
+      query = query.eq('center_id', effectiveCenterId);
+    }
+    if (status) {
+      query = query.eq('status', status);
+    }
+    if (source) {
+      query = query.eq('source', source);
+    }
+    if (assigned_to) {
+      query = query.eq('assigned_to', assigned_to);
+    }
+    if (search && search.trim().length >= 2) {
+      const term = search.trim();
+      query = query.or(`full_name.ilike.%${term}%,phone.ilike.%${term}%,email.ilike.%${term}%`);
+    }
+
+    const pageNum = parseInt(page, 10) || 1;
+    const limitNum = Math.min(parseInt(limit, 10) || 50, 100);
+    const offset = (pageNum - 1) * limitNum;
+    query = query.range(offset, offset + limitNum - 1);
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    const transformedData = (data || []).map(request => ({
+      ...request,
+      assigned_to: request.assigned_to_user || null,
+      course: request.courses || null,
+      class: request.classes || null
+    }));
+
+    res.json({
+      success: true,
+      data: transformedData,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total: count || transformedData.length
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error fetching consultation requests:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/consultation-requests/:id
+ * Chi tiết một yêu cầu tư vấn
+ */
+app.get('/api/admin/consultation-requests/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const { data: request, error } = await supabase
+      .from('consultation_requests')
+      .select(`
+        *,
+        assigned_to_user:users!consultation_requests_assigned_to_fkey (id, full_name, email),
+        courses!consultation_requests_course_id_fkey (id, title),
+        classes!consultation_requests_class_id_fkey (id, name)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({ success: false, message: 'Yêu cầu tư vấn không tồn tại' });
+      }
+      throw error;
+    }
+
+    if (req.user.roleCode !== 'SUPER_ADMIN' && request.center_id && request.center_id !== req.user.centerId) {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền xem yêu cầu tư vấn này' });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        ...request,
+        assigned_to: request.assigned_to_user || null,
+        course: request.courses || null,
+        class: request.classes || null
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error fetching consultation request:', error);
+    next(error);
+  }
+});
+
+/**
+ * PUT /api/admin/consultation-requests/:id
+ * Cập nhật advisor assignment, trạng thái, notes
+ */
+app.put('/api/admin/consultation-requests/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const {
+      status,
+      assigned_to,
+      notes,
+      follow_up_date,
+      handoff_reason,
+      transcript_summary
+    } = req.body;
+
+    const { data: existingRequest, error: fetchError } = await supabase
+      .from('consultation_requests')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !existingRequest) {
+      return res.status(404).json({ success: false, message: 'Yêu cầu tư vấn không tồn tại' });
+    }
+
+    const isSuperAdmin = req.user.roleCode === 'SUPER_ADMIN';
+    const isSameCenter = existingRequest.center_id === req.user.centerId;
+    const isAssigned = existingRequest.assigned_to === req.user.id;
+
+    if (!isSuperAdmin && !isSameCenter && !isAssigned) {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền cập nhật yêu cầu tư vấn này' });
+    }
+
+    const validStatuses = ['new', 'assigned', 'contacted', 'scheduled', 'closed', 'lost'];
+    const updateData = { updated_at: new Date().toISOString() };
+    const nowIso = new Date().toISOString();
+
+    if (status !== undefined) {
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: `Trạng thái không hợp lệ. Cho phép: ${validStatuses.join(', ')}`
+        });
+      }
+
+      updateData.status = status;
+
+      if (status === 'assigned' && !existingRequest.assigned_at) {
+        updateData.assigned_at = nowIso;
+      }
+      if (status === 'contacted' && !existingRequest.contacted_at) {
+        updateData.contacted_at = nowIso;
+      }
+      if (status === 'scheduled' && !existingRequest.scheduled_at) {
+        updateData.scheduled_at = nowIso;
+      }
+      if ((status === 'closed' || status === 'lost') && !existingRequest.closed_at) {
+        updateData.closed_at = nowIso;
+      }
+    }
+
+    if (assigned_to !== undefined) {
+      updateData.assigned_to = assigned_to || null;
+      updateData.assigned_at = assigned_to ? nowIso : null;
+
+      if (assigned_to && existingRequest.status === 'new' && status === undefined) {
+        updateData.status = 'assigned';
+      }
+    }
+
+    if (notes !== undefined) {
+      updateData.notes = notes?.trim() || null;
+    }
+    if (follow_up_date !== undefined) {
+      updateData.follow_up_date = follow_up_date || null;
+    }
+    if (handoff_reason !== undefined) {
+      updateData.handoff_reason = handoff_reason?.trim() || null;
+    }
+    if (transcript_summary !== undefined) {
+      updateData.transcript_summary = transcript_summary?.trim() || null;
+    }
+
+    const { data, error } = await supabase
+      .from('consultation_requests')
+      .update(updateData)
+      .eq('id', id)
+      .select(`
+        *,
+        assigned_to_user:users!consultation_requests_assigned_to_fkey (id, full_name, email),
+        courses!consultation_requests_course_id_fkey (id, title),
+        classes!consultation_requests_class_id_fkey (id, name)
+      `)
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: 'Cập nhật yêu cầu tư vấn thành công',
+      data: {
+        ...data,
+        assigned_to: data.assigned_to_user || null,
+        course: data.courses || null,
+        class: data.classes || null
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error updating consultation request:', error);
+    next(error);
+  }
+});
+
 // ============================================================
 // END SUPPORT TICKETS MANAGEMENT APIs
 // ============================================================
@@ -29330,30 +29953,47 @@ app.get('/api/admin/leave-requests', requireAuth, requireRole(['SUPER_ADMIN', 'C
     const { status, page = 1, limit = 20 } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    let query = supabaseClient
-      .from('leave_requests')
-      .select(`
+    const buildLeaveRequestsSelect = (relationAlias) => `
         id,
         leave_type,
         start_date,
         end_date,
         reason,
         status,
-        reviewer_note,
+        reviewer_note:reviewer_notes,
         created_at,
-        teacher:users!leave_requests_staff_id_fkey(id, full_name, email)
-      `, { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(offset, offset + parseInt(limit) - 1);
+        teacher:users!${relationAlias}(id, full_name, email)
+      `;
 
-    if (effectiveCenterId) {
-      query = query.eq('center_id', effectiveCenterId);
-    }
-    if (status) {
-      query = query.eq('status', status);
+    const relationAliases = ['leave_requests_staff_id_fkey', 'leave_requests_teacher_id_fkey'];
+    let data = null;
+    let error = null;
+    let count = 0;
+
+    for (const relationAlias of relationAliases) {
+      let query = supabaseClient
+        .from('leave_requests')
+        .select(buildLeaveRequestsSelect(relationAlias), { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(offset, offset + parseInt(limit) - 1);
+
+      if (effectiveCenterId) {
+        query = query.eq('center_id', effectiveCenterId);
+      }
+      if (status) {
+        query = query.eq('status', status);
+      }
+
+      const result = await query;
+      data = result.data;
+      error = result.error;
+      count = result.count;
+
+      if (!error) {
+        break;
+      }
     }
 
-    const { data, error, count } = await query;
     if (error) throw error;
 
     res.json({
@@ -29395,7 +30035,7 @@ app.patch('/api/admin/leave-requests/:id', requireAuth, requireRole(['SUPER_ADMI
       .from('leave_requests')
       .update({
         status,
-        reviewer_note: admin_note || null,
+        reviewer_notes: admin_note || null,
         reviewed_by: req.user.id,
         reviewed_at: new Date().toISOString()
       })
@@ -29750,6 +30390,8 @@ app.post('/api/chatbot/message', async (req, res, next) => {
 app.get('/api/chatbot/messages/:sessionId', async (req, res, next) => {
   try {
     const { sessionId } = req.params;
+    const visitorId = req.query.visitorId;
+    let userId = null;
 
     if (!sessionId || typeof sessionId !== 'string') {
       return res.status(400).json({ success: false, error: 'sessionId is required' });
@@ -29760,6 +30402,46 @@ app.get('/api/chatbot/messages/:sessionId', async (req, res, next) => {
     const rateCheck = checkChatbotRateLimit(clientIp);
     if (!rateCheck.allowed) {
       return res.status(429).json({ success: false, error: 'Too many requests', retryAfter: rateCheck.retryAfter });
+    }
+
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: authData, error: authError } = await supabase.auth.getUser(token);
+
+      if (authError) {
+        return res.status(401).json({ success: false, error: 'Phiên đăng nhập không hợp lệ' });
+      }
+
+      userId = authData?.user?.id || null;
+    }
+
+    const { data: session, error: sessionError } = await supabase
+      .from('chat_sessions')
+      .select('id, user_id, visitor_id, deleted_at')
+      .eq('id', sessionId)
+      .maybeSingle();
+
+    if (sessionError) {
+      return res.status(500).json({ success: false, error: 'Không thể kiểm tra cuộc trò chuyện' });
+    }
+
+    if (!session || session.deleted_at) {
+      return res.status(404).json({ success: false, error: 'Không tìm thấy cuộc trò chuyện' });
+    }
+
+    if (userId) {
+      if (session.user_id !== userId) {
+        return res.status(403).json({ success: false, error: 'Không có quyền xem lịch sử cuộc trò chuyện này' });
+      }
+    } else {
+      if (!visitorId || typeof visitorId !== 'string') {
+        return res.status(401).json({ success: false, error: 'visitorId là bắt buộc cho khách vãng lai' });
+      }
+
+      if (!session.visitor_id || session.visitor_id !== visitorId) {
+        return res.status(403).json({ success: false, error: 'Không có quyền xem lịch sử cuộc trò chuyện này' });
+      }
     }
 
     const { data: messages, error: queryError } = await supabase
@@ -29802,10 +30484,103 @@ app.get('/api/chatbot/default-center', async (req, res, next) => {
     next(error);
   }
 });
+
+function compactLeadText(text, maxLength = 200) {
+  if (!text || typeof text !== 'string') {
+    return null;
+  }
+
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, maxLength - 1).trim()}…`;
+}
+
+function inferLeadUrgency(primaryNeed, userMessages = []) {
+  const corpus = [primaryNeed, ...userMessages].filter(Boolean).join(' ').toLowerCase();
+
+  const hotSignals = [
+    'đăng ký', 'liên hệ', 'gọi lại', 'gọi cho', 'ngay', 'hôm nay', 'sớm nhất',
+    'đặt lịch', 'cọc', 'chốt', 'học thử', 'khai giảng', 'đóng học phí'
+  ];
+  const warmSignals = [
+    'học phí', 'ưu đãi', 'lộ trình', 'khóa nào', 'thời khóa biểu', 'nên học',
+    'tư vấn', 'so sánh', 'đầu ra', 'trình độ'
+  ];
+
+  if (hotSignals.some(keyword => corpus.includes(keyword))) {
+    return 'hot';
+  }
+  if (warmSignals.some(keyword => corpus.includes(keyword))) {
+    return 'warm';
+  }
+  return 'cold';
+}
+
+function urgencyLabel(urgencyLevel) {
+  if (urgencyLevel === 'hot') return 'Cao';
+  if (urgencyLevel === 'warm') return 'Trung bình';
+  return 'Thấp';
+}
+
+function buildChatbotHandoffContext(recentMessages, { preferredTimeLabel, pageContext }) {
+  const chronological = (recentMessages || []).slice().reverse();
+
+  const userMessages = chronological
+    .filter(message => message.role === 'user')
+    .map(message => compactLeadText(message.content, 220))
+    .filter(Boolean);
+
+  const assistantMessages = chronological
+    .filter(message => message.role === 'assistant')
+    .map(message => compactLeadText(message.content, 180))
+    .filter(Boolean);
+
+  const primaryNeed = userMessages.at(-1) || 'Khách cần tư vấn thêm về khóa học phù hợp';
+  const urgencyLevel = inferLeadUrgency(primaryNeed, userMessages);
+  const summaryLine = compactLeadText(primaryNeed, 120);
+  const advisorBriefLines = [
+    `Nhu cầu chính: ${primaryNeed}`,
+    `Mức độ ưu tiên: ${urgencyLabel(urgencyLevel)}`,
+    preferredTimeLabel ? `Khung giờ mong muốn: ${preferredTimeLabel}` : null,
+    pageContext ? `Nguồn vào: ${pageContext}` : null,
+    assistantMessages.at(-1) ? `Molly đã tư vấn: ${assistantMessages.at(-1)}` : null
+  ].filter(Boolean);
+
+  const transcriptExcerpt = chronological
+    .map(message => `${message.role === 'assistant' ? 'Molly' : 'Khách'}: ${compactLeadText(message.content, 240) || ''}`)
+    .filter(Boolean)
+    .join('\n')
+    .slice(0, 1200);
+
+  return {
+    transcriptSummary: advisorBriefLines.join('\n'),
+    transcriptExcerpt: transcriptExcerpt || null,
+    primaryNeed,
+    summaryLine,
+    urgencyLevel
+  };
+}
+
 // POST /api/chatbot/lead - Submit lead from chatbot
 app.post('/api/chatbot/lead', async (req, res, next) => {
   try {
-    const { name, phone, preferredTime, sessionId, centerId } = req.body;
+    const { name, phone, preferredTime, sessionId, centerId, pageContext } = req.body;
+    const timeSlotMap = { morning: 'Sáng', afternoon: 'Chiều', evening: 'Tối' };
+    let userId = null;
+
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: authData } = await supabase.auth.getUser(token);
+      userId = authData?.user?.id || null;
+    }
 
     // Validate required fields
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
@@ -29832,39 +30607,99 @@ app.post('/api/chatbot/lead', async (req, res, next) => {
       return res.status(400).json({ success: false, error: 'Thời gian liên hệ không hợp lệ' });
     }
 
+    let transcriptSummary = null;
+    let transcriptExcerpt = null;
+    let primaryNeed = null;
+    let summaryLine = null;
+    let urgencyLevel = null;
+    if (sessionId) {
+      const { data: recentMessages } = await supabase
+        .from('chat_messages')
+        .select('role, content')
+        .eq('session_id', sessionId)
+        .order('created_at', { ascending: false })
+        .limit(4);
+
+      if (recentMessages?.length) {
+        const handoffContext = buildChatbotHandoffContext(recentMessages, {
+          preferredTimeLabel: preferredTime ? timeSlotMap[preferredTime] : null,
+          pageContext
+        });
+        transcriptSummary = handoffContext.transcriptSummary;
+        transcriptExcerpt = handoffContext.transcriptExcerpt;
+        primaryNeed = handoffContext.primaryNeed;
+        summaryLine = handoffContext.summaryLine;
+        urgencyLevel = handoffContext.urgencyLevel;
+      }
+    }
+
+    const handoffReason = 'chatbot_consultation_request';
+    const metadata = {
+      preferred_time_key: preferredTime || null,
+      source_page: pageContext || null,
+      primary_need: primaryNeed,
+      summary_line: summaryLine,
+      urgency_level: urgencyLevel,
+      advisor_brief: transcriptSummary,
+      raw_transcript_excerpt: transcriptExcerpt
+    };
+    const baseNotes = [
+      pageContext ? `Nguồn: ${pageContext}` : null,
+      sessionId ? `Chat session: ${sessionId}` : null,
+      transcriptSummary ? `Tóm tắt nhanh:\n${transcriptSummary}` : null
+    ].filter(Boolean).join('\n\n');
+
     // Check for duplicate phone in same center
     const { data: existing } = await supabase
       .from('consultation_requests')
-      .select('id, notes')
+      .select('id, notes, metadata')
       .eq('phone', phoneClean)
       .eq('center_id', centerId)
-      .in('status', ['new', 'contacted'])
+      .in('status', ['new', 'contacted', 'scheduled'])
       .limit(1)
       .single();
 
     if (existing) {
-      // Update existing record notes
-      const updatedNotes = (existing.notes || '') + `
-[Chatbot ${new Date().toLocaleDateString('vi-VN')}] Yêu cầu tư vấn lại. Tên: ${name.trim()}${preferredTime ? `, Thời gian: ${preferredTime}` : ''}`;
+      const updatedNotes = [
+        existing.notes || '',
+        `[Chatbot ${new Date().toLocaleDateString('vi-VN')}] Yêu cầu tư vấn lại. Tên: ${name.trim()}${preferredTime ? `, Thời gian: ${timeSlotMap[preferredTime]}` : ''}`,
+        baseNotes
+      ].filter(Boolean).join('\n\n').trim();
+
       await supabase
         .from('consultation_requests')
         .update({
-          notes: updatedNotes.trim(),
+          full_name: name.trim(),
+          email: req.body.email || null,
+          preferred_time: preferredTime ? timeSlotMap[preferredTime] : null,
+          notes: updatedNotes,
+          source: 'chatbot',
+          source_page: pageContext || null,
+          user_id: userId,
+          session_id: sessionId || null,
+          handoff_reason: handoffReason,
+          transcript_summary: transcriptSummary,
+          metadata: { ...(existing.metadata || {}), ...metadata },
           updated_at: new Date().toISOString()
         })
         .eq('id', existing.id);
     } else {
-      // Insert new consultation request
-      const timeSlotMap = { morning: 'Sáng', afternoon: 'Chiều', evening: 'Tối' };
       const { error: insertError } = await supabase
         .from('consultation_requests')
         .insert({
           full_name: name.trim(),
           phone: phoneClean,
+          email: req.body.email || null,
           preferred_time: preferredTime ? timeSlotMap[preferredTime] : null,
           source: 'chatbot',
+          source_page: pageContext || null,
           center_id: centerId,
-          notes: sessionId ? `Chat session: ${sessionId}` : null,
+          user_id: userId,
+          session_id: sessionId || null,
+          handoff_reason: handoffReason,
+          transcript_summary: transcriptSummary,
+          metadata,
+          notes: baseNotes || null,
           status: 'new'
         });
 
@@ -29885,13 +30720,18 @@ app.post('/api/chatbot/lead', async (req, res, next) => {
 });
 
 // GET /api/chatbot/conversations - List conversations for authenticated user
-app.get('/api/chatbot/conversations', requireAuth, async (req, res, next) => {
+app.get('/api/chatbot/conversations', requireAuth, chatbotConversationRateLimit, async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const centerId = req.user.centerId;
+    const requestedCenterId = req.query.center_id || req.query.centerId || null;
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, requestedCenterId);
     const limit = Math.min(parseInt(req.query.limit) || 20, 50);
     const offset = parseInt(req.query.offset) || 0;
     const search = req.query.search?.trim() || null;
+
+    if (permError) {
+      return res.status(403).json({ success: false, error: permError });
+    }
 
     let query = supabase
       .from('chat_sessions')
@@ -29902,8 +30742,8 @@ app.get('/api/chatbot/conversations', requireAuth, async (req, res, next) => {
       .order('last_message_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (centerId) {
-      query = query.eq('center_id', centerId);
+    if (effectiveCenterId) {
+      query = query.eq('center_id', effectiveCenterId);
     }
     if (search) {
       query = query.ilike('title', `%${search}%`);
@@ -29922,10 +30762,9 @@ app.get('/api/chatbot/conversations', requireAuth, async (req, res, next) => {
         .from('chat_messages')
         .select('content')
         .eq('session_id', s.id)
-        .eq('role', 'assistant')
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       return {
         id: s.id,
@@ -29936,6 +30775,8 @@ app.get('/api/chatbot/conversations', requireAuth, async (req, res, next) => {
         preview: lastMsg?.content ? lastMsg.content.substring(0, 80) : null
       };
     }));
+
+    res.setHeader('X-Total-Count', String(count || 0));
 
     res.json({
       success: true,
@@ -29952,12 +30793,17 @@ app.get('/api/chatbot/conversations', requireAuth, async (req, res, next) => {
 });
 
 // POST /api/chatbot/conversations - Create new empty conversation
-app.post('/api/chatbot/conversations', requireAuth, async (req, res, next) => {
+app.post('/api/chatbot/conversations', requireAuth, chatbotConversationRateLimit, async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const centerId = req.body.centerId || req.user.centerId;
+    const requestedCenterId = req.body.center_id || req.body.centerId || null;
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, requestedCenterId);
 
-    if (!centerId) {
+    if (permError) {
+      return res.status(403).json({ success: false, error: permError });
+    }
+
+    if (!effectiveCenterId) {
       return res.status(400).json({ success: false, error: 'centerId là bắt buộc' });
     }
 
@@ -29965,7 +30811,7 @@ app.post('/api/chatbot/conversations', requireAuth, async (req, res, next) => {
       .from('chat_sessions')
       .insert({
         user_id: userId,
-        center_id: centerId,
+        center_id: effectiveCenterId,
         title: null,
         message_count: 0
       })
@@ -29992,29 +30838,34 @@ app.post('/api/chatbot/conversations', requireAuth, async (req, res, next) => {
 });
 
 // PATCH /api/chatbot/conversations/:id - Rename conversation
-app.patch('/api/chatbot/conversations/:id', requireAuth, async (req, res, next) => {
+app.patch('/api/chatbot/conversations/:id', requireAuth, chatbotConversationRateLimit, async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
     const { title } = req.body;
 
     if (!title || typeof title !== 'string' || title.trim().length === 0) {
-      return res.status(400).json({ success: false, error: 'Tiêu đề không được để trống' });
+      return res.status(422).json({ success: false, error: 'Tiêu đề không được để trống' });
     }
     if (title.trim().length > 100) {
-      return res.status(400).json({ success: false, error: 'Tiêu đề tối đa 100 ký tự' });
+      return res.status(422).json({ success: false, error: 'Tiêu đề tối đa 100 ký tự' });
     }
 
-    // Verify ownership
     const { data: session, error: findError } = await supabase
       .from('chat_sessions')
-      .select('id')
+      .select('id, user_id')
       .eq('id', id)
-      .eq('user_id', userId)
-      .single();
+      .is('deleted_at', null)
+      .maybeSingle();
 
-    if (findError || !session) {
+    if (findError) {
+      return res.status(500).json({ success: false, error: 'Không thể kiểm tra cuộc trò chuyện' });
+    }
+    if (!session) {
       return res.status(404).json({ success: false, error: 'Không tìm thấy cuộc trò chuyện' });
+    }
+    if (session.user_id !== userId) {
+      return res.status(403).json({ success: false, error: 'Không có quyền chỉnh sửa cuộc trò chuyện này' });
     }
 
     const { error: updateError } = await supabase
@@ -30034,22 +30885,26 @@ app.patch('/api/chatbot/conversations/:id', requireAuth, async (req, res, next) 
 });
 
 // DELETE /api/chatbot/conversations/:id - Soft delete conversation
-app.delete('/api/chatbot/conversations/:id', requireAuth, async (req, res, next) => {
+app.delete('/api/chatbot/conversations/:id', requireAuth, chatbotConversationRateLimit, async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
 
-    // Verify ownership
     const { data: session, error: findError } = await supabase
       .from('chat_sessions')
-      .select('id')
+      .select('id, user_id')
       .eq('id', id)
-      .eq('user_id', userId)
       .is('deleted_at', null)
-      .single();
+      .maybeSingle();
 
-    if (findError || !session) {
+    if (findError) {
+      return res.status(500).json({ success: false, error: 'Không thể kiểm tra cuộc trò chuyện' });
+    }
+    if (!session) {
       return res.status(404).json({ success: false, error: 'Không tìm thấy cuộc trò chuyện' });
+    }
+    if (session.user_id !== userId) {
+      return res.status(403).json({ success: false, error: 'Không có quyền xóa cuộc trò chuyện này' });
     }
 
     const { error: deleteError } = await supabase
@@ -30069,15 +30924,20 @@ app.delete('/api/chatbot/conversations/:id', requireAuth, async (req, res, next)
 });
 
 // POST /api/chatbot/messages/:id/rate - Rate a message (like/dislike)
-app.post('/api/chatbot/messages/:id/rate', requireAuth, async (req, res, next) => {
+app.post('/api/chatbot/messages/:id/rate', requireAuth, chatbotConversationRateLimit, async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
     const { rating } = req.body;
+    const normalizedRating = rating === 'like'
+      ? 'up'
+      : rating === 'dislike'
+        ? 'down'
+        : rating;
 
     // Validate rating
-    if (rating !== null && rating !== 'up' && rating !== 'down') {
-      return res.status(400).json({ success: false, error: 'Rating phải là "up", "down" hoặc null' });
+    if (normalizedRating !== null && normalizedRating !== 'up' && normalizedRating !== 'down') {
+      return res.status(400).json({ success: false, error: 'Rating phải là "like", "dislike", "up", "down" hoặc null' });
     }
 
     // Verify message belongs to user's session
@@ -30098,26 +30958,31 @@ app.post('/api/chatbot/messages/:id/rate', requireAuth, async (req, res, next) =
     // Verify session ownership
     const { data: session, error: sessionError } = await supabase
       .from('chat_sessions')
-      .select('id')
+      .select('id, user_id')
       .eq('id', message.session_id)
-      .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
-    if (sessionError || !session) {
+    if (sessionError) {
+      return res.status(500).json({ success: false, error: 'Không thể kiểm tra quyền đánh giá' });
+    }
+    if (!session) {
+      return res.status(404).json({ success: false, error: 'Không tìm thấy cuộc trò chuyện' });
+    }
+    if (session.user_id !== userId) {
       return res.status(403).json({ success: false, error: 'Không có quyền đánh giá tin nhắn này' });
     }
 
     // Update rating
     const { error: updateError } = await supabase
       .from('chat_messages')
-      .update({ rating: rating || null })
+      .update({ rating: normalizedRating || null })
       .eq('id', id);
 
     if (updateError) {
       return res.status(500).json({ success: false, error: 'Không thể đánh giá' });
     }
 
-    res.json({ success: true, data: { id, rating: rating || null } });
+    res.json({ success: true, data: { id, rating: normalizedRating || null } });
   } catch (error) {
     console.error('❌ Rate message error:', error);
     next(error);
@@ -30127,6 +30992,16 @@ app.post('/api/chatbot/messages/:id/rate', requireAuth, async (req, res, next) =
 // Test endpoint không cần auth
 app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'Backend is running', time: new Date().toISOString() });
+});
+
+// Ensure errors from routes defined late in this file also return JSON (not default HTML)
+app.use((err, _req, res, _next) => {
+  console.error('Unhandled Error:', err);
+  res.status(500).json({
+    success: false,
+    message: 'Internal server error',
+    error: err.message
+  });
 });
 
 const PORT = process.env.PORT || 3000;
