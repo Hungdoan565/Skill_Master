@@ -19,6 +19,48 @@ const METRICS = [
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b'];
 
+const normalizeCenter = (center) => ({
+  ...center,
+  id: center.id ?? center.center_id,
+  name: center.name ?? center.center_name ?? 'Chưa đặt tên',
+});
+
+const normalizeRevenueData = (data) => {
+  if (!Array.isArray(data)) {
+    return data || { months: [], centers: {} };
+  }
+
+  const centers = {};
+
+  data.forEach((monthEntry) => {
+    (monthEntry.centers || []).forEach((center) => {
+      const normalizedCenter = normalizeCenter(center);
+
+      if (!normalizedCenter.id) {
+        return;
+      }
+
+      if (!centers[normalizedCenter.id]) {
+        centers[normalizedCenter.id] = {
+          id: normalizedCenter.id,
+          name: normalizedCenter.name,
+          monthly: [],
+        };
+      }
+
+      centers[normalizedCenter.id].monthly.push({
+        month: monthEntry.month,
+        revenue: Number(center.revenue) || 0,
+      });
+    });
+  });
+
+  return {
+    months: data.map((monthEntry) => monthEntry.month),
+    centers,
+  };
+};
+
 export default function CenterComparisonPage() {
   const { session } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -27,8 +69,12 @@ export default function CenterComparisonPage() {
   const [selectedCenterIds, setSelectedCenterIds] = useState([]);
 
   useEffect(() => {
+    if (!session?.access_token) {
+      return;
+    }
+
     fetchData();
-  }, []);
+  }, [session?.access_token]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -48,15 +94,19 @@ export default function CenterComparisonPage() {
       const revData = await revenueRes.json();
 
       if (healthData.success) {
-        setCentersHealth(healthData.data.centers || []);
-        const ids = (healthData.data.centers || []).slice(0, 3).map(c => c.id);
+        const normalizedCenters = (Array.isArray(healthData.data) ? healthData.data : (healthData.data?.centers || []))
+          .map(normalizeCenter)
+          .filter((center) => center.id);
+
+        setCentersHealth(normalizedCenters);
+        const ids = normalizedCenters.slice(0, 3).map((center) => center.id);
         setSelectedCenterIds(ids);
       } else {
         throw new Error(healthData.error || healthData.message || 'Lỗi tải sức khỏe trung tâm');
       }
 
       if (revData.success) {
-        setRevenueData(revData.data);
+        setRevenueData(normalizeRevenueData(revData.data));
       } else {
         throw new Error(revData.error || revData.message || 'Lỗi tải doanh thu');
       }

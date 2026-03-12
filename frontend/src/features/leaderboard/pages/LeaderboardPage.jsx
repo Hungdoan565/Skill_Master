@@ -38,6 +38,12 @@ import {
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 
+const normalizeCenter = (center) => ({
+  ...center,
+  id: center.id ?? center.center_id,
+  name: center.name ?? center.center_name ?? 'Chưa đặt tên',
+});
+
 export default function LeaderboardPage() {
   const { session } = useAuth();
   const [centers, setCenters] = useState([]);
@@ -60,7 +66,8 @@ export default function LeaderboardPage() {
       const data = await res.json();
       
       if (data.success) {
-        setCenters(data.data.centers || []);
+        const rawCenters = Array.isArray(data.data) ? data.data : (data.data?.centers || []);
+        setCenters(rawCenters.map(normalizeCenter));
       } else {
         gooeyToast.error(data.message || 'Lỗi khi tải dữ liệu bảng xếp hạng');
       }

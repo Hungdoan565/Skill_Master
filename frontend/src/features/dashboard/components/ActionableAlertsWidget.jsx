@@ -116,17 +116,18 @@ const AlertItem = ({ type, item }) => {
     if (type === 'certificates_pending') {
         return (
             <Link
-                to={`/admin/certificates?student=${item.student_id}&class=${item.class_id}`}
+                to={`/admin/certificates?highlight=${item.certificate_id}`}
                 className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg transition-colors group"
             >
                 <div className="flex-1 min-w-0">
                     <p className="font-medium text-foreground truncate">
                         {item.student_name}
                     </p>
-                    <p className="text-sm text-muted-foreground truncate">{item.class_name}</p>
+                    <p className="text-sm text-muted-foreground truncate">{item.certificate_type_name}</p>
                     <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                        <span>Điểm danh: {item.attendance_rate?.toFixed(0)}%</span>
-                        <span>Điểm TB: {item.average_grade?.toFixed(1)}</span>
+                        <span>#{item.certificate_number}</span>
+                        <span>{item.class_name}</span>
+                        <span>Yêu cầu: {new Date(item.requested_at).toLocaleDateString('vi-VN')}</span>
                     </div>
                 </div>
                 <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-indigo-600 flex-shrink-0" />

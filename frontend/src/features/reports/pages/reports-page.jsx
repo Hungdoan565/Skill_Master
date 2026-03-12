@@ -257,7 +257,6 @@ export default function ReportsPage() {
                                     </div>
                                     <CardTitle className="text-lg mt-3">{report.title}</CardTitle>
                                     <CardDescription>{report.description}</CardDescription>
-                                    <p className="text-xs text-muted-foreground mt-2">Metric: {report.metricId}</p>
                                 </CardHeader>
                             </Card>
                         </Link>

@@ -53,14 +53,37 @@ export function QuickAttendanceModal({
         
         const headers = { Authorization: `Bearer ${authSession.access_token}` };
 
+        const fetchClassStudents = async () => {
+          const allStudents = [];
+          let page = 1;
+          let hasNextPage = true;
+
+          while (hasNextPage) {
+            const params = new URLSearchParams({
+              page: String(page),
+              limit: '100',
+            });
+
+            const studentsRes = await fetch(
+              `${API_URL}/api/classes/${session.class_id}/students?${params.toString()}`,
+              { headers }
+            );
+
+            if (!studentsRes.ok) throw new Error('Không thể tải danh sách học viên');
+
+            const studentsData = await studentsRes.json();
+            allStudents.push(...(studentsData.data || []));
+
+            hasNextPage = Boolean(studentsData.pagination?.hasNextPage);
+            page += 1;
+          }
+
+          return allStudents;
+        };
+
         // Fetch enrolled students
-        const studentsRes = await fetch(
-          `${API_URL}/api/admin/classes/${session.class_id}/students`, 
-          { headers }
-        );
-        if (!studentsRes.ok) throw new Error('Không thể tải danh sách học viên');
-        const studentsData = await studentsRes.json();
-        setStudents(studentsData.data || []);
+        const classStudents = await fetchClassStudents();
+        setStudents(classStudents);
 
         // Fetch existing attendance for this session
         const attendanceRes = await fetch(

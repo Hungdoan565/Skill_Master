@@ -116,10 +116,10 @@ export function AuditLogPage() {
         limit: String(nextLimit),
       });
 
-      if (activeFilters.from) query.set('from', activeFilters.from);
-      if (activeFilters.to) query.set('to', activeFilters.to);
+      if (activeFilters.from) query.set('startDate', activeFilters.from);
+      if (activeFilters.to) query.set('endDate', activeFilters.to);
       if (activeFilters.action !== 'ALL') query.set('action', activeFilters.action);
-      if (activeFilters.entity_type !== 'ALL') query.set('entity_type', activeFilters.entity_type);
+      if (activeFilters.entity_type !== 'ALL') query.set('entityType', activeFilters.entity_type);
       if (activeFilters.search?.trim()) query.set('search', activeFilters.search.trim());
 
       const response = await fetch(`${API_URL}/api/admin/audit-logs?${query.toString()}`, {
@@ -131,11 +131,11 @@ export function AuditLogPage() {
         throw new Error(result?.message || 'Không thể tải nhật ký hoạt động');
       }
 
-      setLogs(result.data || []);
+      setLogs(result.data?.logs || []);
       setPagination({
-        page: result.pagination?.page || nextPage,
-        limit: result.pagination?.limit || nextLimit,
-        total: result.pagination?.total || 0,
+        page: result.data?.pagination?.page || nextPage,
+        limit: result.data?.pagination?.limit || nextLimit,
+        total: result.data?.pagination?.total || 0,
       });
       setExpandedRows(new Set());
     } catch (error) {

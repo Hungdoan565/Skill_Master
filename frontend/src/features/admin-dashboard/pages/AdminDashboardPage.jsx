@@ -68,7 +68,7 @@ export function AdminDashboardPage() {
           <div>
             <h3 className="text-sm font-medium text-red-800 dark:text-red-300">Lỗi tải dữ liệu</h3>
             <p className="text-sm text-red-700 dark:text-red-400 mt-1">{error}</p>
-            <Button variant="outline" size="sm" onClick={refresh} className="mt-3 bg-white dark:bg-transparent">
+            <Button variant="outline" size="sm" onClick={refresh} className="mt-3 bg-white hover:bg-slate-50">
               Thử lại
             </Button>
           </div>

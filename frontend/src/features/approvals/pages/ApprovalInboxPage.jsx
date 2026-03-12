@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+// @refresh reset
+import { useState, useEffect, useCallback } from 'react';
 import { 
   ClipboardCheck, UserPlus, Award, CreditCard, Wallet, 
   AlertTriangle, CalendarOff, Check, X, Loader2, Inbox, Clock 
@@ -115,12 +116,100 @@ export default function ApprovalInboxPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [partialErrorMessage, setPartialErrorMessage] = useState('');
   const [rejectDialog, setRejectDialog] = useState({ isOpen: false, type: null, itemId: null, reason: '' });
 
   const getQueryString = useCallback((url) => {
     if (!selectedCenterId) return url;
-    return url.includes('?') ? `${url}&centerId=${selectedCenterId}` : `${url}?centerId=${selectedCenterId}`;
+    return url.includes('?') ? `${url}&center_id=${selectedCenterId}` : `${url}?center_id=${selectedCenterId}`;
   }, [selectedCenterId]);
+
+  const extractListFromResponse = useCallback((payload) => {
+    if (!payload || typeof payload !== 'object') return [];
+
+    if (Array.isArray(payload.data)) return payload.data;
+
+    const topLevelCandidates = [
+      payload.enrollments,
+      payload.items,
+      payload.requests,
+      payload.leave_requests,
+      payload.approvals,
+      payload.certificates,
+      payload.payments,
+      payload.payrolls,
+      payload.disputes,
+    ];
+
+    const topLevelArray = topLevelCandidates.find(Array.isArray);
+    if (topLevelArray) return topLevelArray;
+
+    if (payload.data && typeof payload.data === 'object') {
+      const nestedCandidates = [
+        payload.data.items,
+        payload.data.requests,
+        payload.data.enrollments,
+        payload.data.approvals,
+      ];
+
+      const nestedArray = nestedCandidates.find(Array.isArray);
+      if (nestedArray) return nestedArray;
+
+      const firstArrayValue = Object.values(payload.data).find(Array.isArray);
+      if (firstArrayValue) return firstArrayValue;
+    }
+
+    return [];
+  }, []);
+
+  const fetchListFromEndpoint = useCallback(async (endpoint) => {
+    const url = getQueryString(`${API_URL}${endpoint}`);
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${session.access_token}` }
+    });
+
+    const raw = await response.text();
+    let data = null;
+    try {
+      data = raw ? JSON.parse(raw) : {};
+    } catch {
+      throw new Error(`Phản hồi không hợp lệ từ ${endpoint}`);
+    }
+
+    if (!response.ok || data.success === false) {
+      throw new Error(data.message || data.error || 'Không thể tải danh sách phê duyệt');
+    }
+
+    return extractListFromResponse(data);
+  }, [extractListFromResponse, getQueryString, session?.access_token]);
+
+  const fetchItemsByType = useCallback(async (typeKey, config) => {
+    if (typeKey === 'disputes') {
+      const disputeStatuses = ['pending', 'reviewing'];
+      const disputeResults = await Promise.allSettled(
+        disputeStatuses.map((status) => fetchListFromEndpoint(`/api/admin/payroll-disputes?status=${status}`))
+      );
+
+      const successfulLists = disputeResults
+        .filter((result) => result.status === 'fulfilled')
+        .map((result) => result.value);
+
+      if (successfulLists.length === 0) {
+        throw new Error('Không thể tải danh sách khiếu nại');
+      }
+
+      const merged = successfulLists.flat();
+      const uniqueById = new Map();
+      merged.forEach((item) => {
+        uniqueById.set(item.id, item);
+      });
+
+      return Array.from(uniqueById.values()).map((item) => ({ ...item, _type: typeKey }));
+    }
+
+    const list = await fetchListFromEndpoint(config.endpoint);
+    return list.map((item) => ({ ...item, _type: typeKey }));
+  }, [fetchListFromEndpoint]);
 
   const fetchCounts = useCallback(async () => {
     if (!session?.access_token) return;
@@ -132,7 +221,11 @@ export default function ApprovalInboxPage() {
       const data = await response.json();
       if (data.success && data.data) {
         setCounts(data.data);
-        const total = Object.values(data.data).reduce((sum, count) => sum + (count || 0), 0);
+        const total = typeof data.data.total === 'number'
+          ? data.data.total
+          : Object.entries(data.data)
+              .filter(([key]) => key !== 'total')
+              .reduce((sum, [, count]) => sum + (Number(count) || 0), 0);
         setTotalCount(total);
       }
     } catch (error) {
@@ -144,37 +237,67 @@ export default function ApprovalInboxPage() {
     if (!session?.access_token) return;
     
     setIsLoading(true);
+    setPartialErrorMessage('');
     try {
       if (activeTab === 'all') {
-        const fetchPromises = Object.entries(APPROVAL_TYPES).map(async ([typeKey, config]) => {
-          const url = getQueryString(`${API_URL}${config.endpoint}`);
-          const res = await fetch(url, {
-            headers: { Authorization: `Bearer ${session.access_token}` }
-          });
-          const data = await res.json();
-          const list = data.data || data.enrollments || data.items || [];
-          return list.map(item => ({ ...item, _type: typeKey }));
-        });
-        
-        const results = await Promise.all(fetchPromises);
-        const allItems = results.flat().sort((a, b) => new Date(b.created_at || b.createdAt || 0) - new Date(a.created_at || a.createdAt || 0));
+        const entries = Object.entries(APPROVAL_TYPES);
+        const results = await Promise.all(
+          entries.map(async ([typeKey, config]) => {
+            try {
+              const value = await fetchItemsByType(typeKey, config);
+              return { status: 'fulfilled', value, label: config.label };
+            } catch (error) {
+              return { status: 'rejected', reason: error, label: config.label };
+            }
+          })
+        );
+
+        const allItems = results
+          .filter((result) => result.status === 'fulfilled')
+          .flatMap((result) => result.value)
+          .sort((a, b) => new Date(b.created_at || b.createdAt || 0) - new Date(a.created_at || a.createdAt || 0));
+
         setItems(allItems);
-      } else {
+
+        const failedItems = results
+          .filter((result) => result.status === 'rejected')
+          .map((result) => ({
+            label: result.label,
+            reason: result.reason?.message || 'Lỗi không xác định',
+          }));
+
+        if (failedItems.length > 0) {
+          const message = `Chưa tải được: ${failedItems.map((item) => item.label).join(', ')}`;
+          const details = failedItems
+            .map((item) => `${item.label}: ${item.reason}`)
+            .join(' | ');
+          setPartialErrorMessage(message);
+          gooeyToast.warning('Một số danh mục chưa tải được', {
+            description: details,
+          });
+        }
+
+        return;
+      }
+
+      {
         const config = APPROVAL_TYPES[activeTab];
-        const url = getQueryString(`${API_URL}${config.endpoint}`);
-        const res = await fetch(url, {
-          headers: { Authorization: `Bearer ${session.access_token}` }
-        });
-        const data = await res.json();
-        const list = data.data || data.enrollments || data.items || [];
-        setItems(list.map(item => ({ ...item, _type: activeTab })));
+        const list = await fetchItemsByType(activeTab, config);
+        setItems(list);
       }
     } catch (error) {
-      gooeyToast.error('Không thể tải danh sách phê duyệt');
+      setItems([]);
+      if (activeTab === 'all') {
+        setPartialErrorMessage('Một số danh mục chưa tải được dữ liệu. Vui lòng thử tải lại.');
+        gooeyToast.warning('Một số danh mục chưa tải được');
+      } else {
+        setPartialErrorMessage('');
+        gooeyToast.error('Không thể tải danh sách phê duyệt');
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [activeTab, session?.access_token, getQueryString]);
+  }, [activeTab, session?.access_token, fetchItemsByType]);
 
   useEffect(() => {
     fetchCounts();
@@ -187,7 +310,10 @@ export default function ApprovalInboxPage() {
   const handleApprove = async (type, itemId) => {
     try {
       const config = APPROVAL_TYPES[type];
-      const url = getQueryString(`${API_URL}${config.approveEndpoint(itemId)}`);
+      const normalizedItemId = type === 'certificates' && typeof itemId === 'string' && itemId.startsWith('cert_')
+        ? itemId.slice(5)
+        : itemId;
+      const url = getQueryString(`${API_URL}${config.approveEndpoint(normalizedItemId)}`);
       const body = config.approveBody || {};
       
       const response = await fetch(url, {
@@ -199,7 +325,8 @@ export default function ApprovalInboxPage() {
         body: JSON.stringify(body),
       });
       
-      const data = await response.json();
+      const raw = await response.text();
+      const data = raw ? JSON.parse(raw) : {};
       if (!response.ok || !data.success) throw new Error(data.message || 'Lỗi phê duyệt');
       
       gooeyToast.success('Đã phê duyệt yêu cầu', {
@@ -220,7 +347,10 @@ export default function ApprovalInboxPage() {
     
     try {
       const config = APPROVAL_TYPES[rejectDialog.type];
-      const url = getQueryString(`${API_URL}${config.rejectEndpoint(rejectDialog.itemId)}`);
+      const normalizedItemId = rejectDialog.type === 'certificates' && typeof rejectDialog.itemId === 'string' && rejectDialog.itemId.startsWith('cert_')
+        ? rejectDialog.itemId.slice(5)
+        : rejectDialog.itemId;
+      const url = getQueryString(`${API_URL}${config.rejectEndpoint(normalizedItemId)}`);
       
       let body;
       if (config.rejectBody) {
@@ -238,7 +368,8 @@ export default function ApprovalInboxPage() {
         body: JSON.stringify(body),
       });
       
-      const data = await response.json();
+      const raw = await response.text();
+      const data = raw ? JSON.parse(raw) : {};
       if (!response.ok || !data.success) throw new Error(data.message || 'Lỗi từ chối');
       
       gooeyToast.success('Đã từ chối yêu cầu');
@@ -327,9 +458,11 @@ export default function ApprovalInboxPage() {
             <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
               <Inbox className="w-8 h-8 text-muted-foreground" />
             </div>
-            <h3 className="text-lg font-medium text-foreground">Không có yêu cầu nào</h3>
+            <h3 className="text-lg font-medium text-foreground">
+              {partialErrorMessage ? 'Dữ liệu chưa đầy đủ' : 'Không có yêu cầu nào'}
+            </h3>
             <p className="text-sm text-muted-foreground mt-1">
-              Hiện tại không có yêu cầu nào cần phê duyệt trong mục này.
+              {partialErrorMessage || 'Hiện tại không có yêu cầu nào cần phê duyệt trong mục này.'}
             </p>
           </div>
         ) : (
@@ -396,7 +529,7 @@ export default function ApprovalInboxPage() {
               value={rejectDialog.reason}
               onChange={(e) => setRejectDialog(prev => ({ ...prev, reason: e.target.value }))}
               placeholder="Nhập lý do..."
-              className="w-full rounded-xl border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring min-h-[100px] resize-none mb-6"
+              className="w-full rounded-xl border border-input bg-white px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring min-h-[100px] resize-none mb-6"
               autoFocus
             />
             <div className="flex items-center justify-end space-x-2">
