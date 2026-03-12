@@ -60,6 +60,7 @@ import { EnrollmentsPage, NewEnrollmentPage } from '@/features/enrollments';
 import { DocumentsPage } from '@/features/documents';
 import { CertificatesPage } from '@/features/certificates';
 import { PublicCertificateVerification } from '@/features/certificates/pages/PublicCertificateVerification';
+import { ConsultationRequestsPage } from '@/features/consultation-requests';
 import { SupportPage } from '@/features/support';
 import { TeacherDashboardPage } from '@/features/teacher-dashboard';
 import AdminNotificationsPage from '@/features/notifications/AdminNotificationsPage';
@@ -479,9 +480,10 @@ function App() {
               <Route path="certificates/type/:id" element={<CertificatesPage />} />
               <Route path="certificates/:id/print" element={<CertificatesPage />} />
               <Route path="certificates/:id/view" element={<CertificatesPage />} />
+              <Route path="consultation-requests" element={<ConsultationRequestsPage />} />
               <Route path="support" element={<SupportPage />} />
               <Route path="support-tickets" element={<SupportPage />} />
-              <Route path="approvals" element={<ApprovalInboxPage />} />
+              <Route path="approvals" element={<Suspense fallback={<PageLoader />}><ApprovalInboxPage /></Suspense>} />
               <Route path="notifications" element={<AdminNotificationsPage />} />
               <Route path="settings" element={
                 <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
@@ -505,10 +507,12 @@ function App() {
               <Route path="reports/grades" element={<GradesReportPage />} />
               <Route path="reports/staff" element={<StaffReportPage />} />
               <Route path="reports/courses" element={<CoursesReportPage />} />
-              <Route path="leaderboard" element={<LeaderboardPage />} />
-              <Route path="center-comparison" element={<CenterComparisonPage />} />
-              <Route path="custom-alerts" element={<CustomAlertsPage />} />
-              <Route path="scheduled-reports" element={<ScheduledReportsPage />} />
+              <Route path="invoices/overdue" element={<OverdueDashboardPage />} />
+              <Route path="overdue-invoices" element={<OverdueDashboardPage />} />
+              <Route path="leaderboard" element={<Suspense fallback={<PageLoader />}><LeaderboardPage /></Suspense>} />
+              <Route path="center-comparison" element={<Suspense fallback={<PageLoader />}><CenterComparisonPage /></Suspense>} />
+              <Route path="custom-alerts" element={<Suspense fallback={<PageLoader />}><CustomAlertsPage /></Suspense>} />
+              <Route path="scheduled-reports" element={<Suspense fallback={<PageLoader />}><ScheduledReportsPage /></Suspense>} />
             </Route>
 
             {/* Teacher Routes - Chỉ TEACHER */}

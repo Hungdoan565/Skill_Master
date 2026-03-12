@@ -7,15 +7,17 @@ import SuggestionChips from './SuggestionChips';
 import LeadCaptureCard from './LeadCaptureCard';
 
 function WelcomeMessage() {
-  const { mode, userName } = useChat();
+  const { mode, chatMode, userName } = useChat();
 
   const greeting = mode === 'student' && userName
     ? `Chào ${userName}! 👋`
     : 'Chào bạn! 👋';
 
-  const subtitle = mode === 'student'
-    ? 'Mình là Molly — trợ lý AI của Skill Master. Mình có thể giúp bạn xem lịch học, kết quả, hoặc giải đáp thắc mắc!'
-    : 'Mình là Molly — trợ lý AI của Skill Master Academy. Mình có thể giúp bạn tìm hiểu về khóa học, học phí và lộ trình phù hợp!';
+  const subtitle = chatMode === 'student-guidance'
+    ? 'Mình là Molly — trợ lý AI của Skill Master. Mình có thể giúp bạn xem lịch học, kết quả, lộ trình học và các bước tiếp theo.'
+    : chatMode === 'parent-guidance'
+      ? 'Mình là Molly — trợ lý AI của Skill Master. Mình có thể hỗ trợ phụ huynh tìm lộ trình phù hợp và hiểu rõ tiến trình học của con.'
+      : 'Mình là Molly — trợ lý AI của Skill Master Academy. Mình có thể giúp bạn tìm hiểu khóa học, học phí và gợi ý lộ trình phù hợp!';
 
   return (
     <div className="flex flex-col items-center px-4 pb-4 pt-6 text-center">
@@ -37,7 +39,8 @@ export default function ChatMessages() {
     rateMessage,
     regenerateResponse,
     editAndResend,
-    createConversation
+    createConversation,
+    pageContext
   } = useChat();
   const scrollRef = useRef(null);
   const bottomRef = useRef(null);
@@ -102,7 +105,7 @@ export default function ChatMessages() {
         <div className="flex flex-col gap-3 p-4">
           <WelcomeMessage />
 
-          <SuggestionChips pageContext={window.location.pathname} />
+          <SuggestionChips pageContext={pageContext} />
 
           {enhancedMessages.map((msg) => (
             <MessageBubble

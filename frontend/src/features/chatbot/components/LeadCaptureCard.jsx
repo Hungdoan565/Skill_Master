@@ -7,8 +7,10 @@ const TIME_OPTIONS = [
   { value: 'evening', label: 'Tối' }
 ];
 
+const TIME_LABELS = Object.fromEntries(TIME_OPTIONS.map(option => [option.value, option.label]));
+
 export default function LeadCaptureCard() {
-  const { submitLead, dismissLead, userName, leadTriggered, leadCaptured } = useChat();
+  const { submitLead, dismissLead, userName, leadTriggered, leadCaptured, allowLeadHandoff } = useChat();
   const [formData, setFormData] = useState({
     name: userName || '',
     phone: '',
@@ -36,7 +38,7 @@ export default function LeadCaptureCard() {
     setSubmitting(false);
   }, [formData, submitting, submitLead]);
 
-  if (!leadTriggered || leadCaptured) return null;
+  if (!allowLeadHandoff || !leadTriggered || leadCaptured) return null;
 
 
   if (submitted) {
@@ -47,6 +49,9 @@ export default function LeadCaptureCard() {
         </p>
         <p className="mt-1 text-xs text-green-600 dark:text-green-400">
           Cảm ơn bạn đã quan tâm đến Skill Master Academy.
+        </p>
+        <p className="mt-2 text-xs font-medium text-green-700 dark:text-green-300">
+          Khung giờ mong muốn: {TIME_LABELS[formData.preferredTime] || 'Chưa chọn'}
         </p>
       </div>
     );

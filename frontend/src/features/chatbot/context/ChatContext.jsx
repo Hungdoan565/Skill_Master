@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { gooeyToast } from 'goey-toast';
+import { getRoleCode, resolveChatMode } from '../utils/mode-policy';
 
 const ChatContext = createContext(null);
 
@@ -9,7 +10,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 // Default center ID - will be overridden by auth context
 const DEFAULT_CENTER_ID = import.meta.env.VITE_DEFAULT_CENTER_ID || null;
 
-export function ChatProvider({ children }) {
+export function ChatProvider({ children, pathname }) {
   const { user, session, profile } = useAuth();
 
   // --- Core state ---
@@ -39,6 +40,14 @@ export function ChatProvider({ children }) {
   const abortControllerRef = useRef(null);
   const loadedSessionsRef = useRef(new Set());
 
+  const pageContext = pathname || window.location.pathname || '/';
+  const roleCode = getRoleCode(profile);
+  const chatMode = resolveChatMode({
+    pathname: pageContext,
+    roleCode,
+    isAuthenticated: Boolean(user)
+  });
+  const allowLeadHandoff = chatMode !== 'internal';
   const mode = user ? 'student' : 'visitor';
 
   // --- Auth headers helper ---
@@ -145,7 +154,8 @@ export function ChatProvider({ children }) {
 
     setIsLoadingHistory(true);
     try {
-      const response = await fetch(`${API_URL}/api/chatbot/messages/${sessionIdToLoad}`, {
+      const query = !user ? `?visitorId=${encodeURIComponent(visitorId)}` : '';
+      const response = await fetch(`${API_URL}/api/chatbot/messages/${sessionIdToLoad}${query}`, {
         headers: getAuthHeaders()
       });
       const data = await response.ok ? await response.json() : null;
@@ -168,7 +178,7 @@ export function ChatProvider({ children }) {
     } finally {
       setIsLoadingHistory(false);
     }
-  }, [getAuthHeaders]);
+  }, [getAuthHeaders, user, visitorId]);
 
   // Load messages when activeSessionId changes
   useEffect(() => {
@@ -426,7 +436,7 @@ export function ChatProvider({ children }) {
           sessionId: activeSessionId,
           centerId,
           visitorId: !user ? visitorId : undefined,
-          pageContext: window.location.pathname
+          pageContext
         }),
         signal: controller.signal
       });
@@ -498,7 +508,7 @@ export function ChatProvider({ children }) {
                 break;
 
               case 'lead_trigger':
-                if (!leadCaptured) {
+                if (!leadCaptured && allowLeadHandoff) {
                   setLeadTriggered(true);
                 }
                 break;
@@ -540,17 +550,21 @@ export function ChatProvider({ children }) {
       setIsStreaming(false);
       abortControllerRef.current = null;
     }
-  }, [isStreaming, activeSessionId, centerId, visitorId, user, session, leadCaptured, getAuthHeaders, mode, loadConversationList]);
+  }, [isStreaming, activeSessionId, centerId, visitorId, user, session, leadCaptured, allowLeadHandoff, getAuthHeaders, mode, loadConversationList, pageContext]);
 
   const submitLead = useCallback(async (leadData) => {
     try {
       const response = await fetch(`${API_URL}/api/chatbot/lead`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
         body: JSON.stringify({
           ...leadData,
           sessionId: activeSessionId,
-          centerId
+          centerId,
+          pageContext
         })
       });
 
@@ -566,7 +580,7 @@ export function ChatProvider({ children }) {
     } catch (err) {
       return { success: false, error: 'Không thể gửi. Vui lòng thử lại!' };
     }
-  }, [activeSessionId, centerId]);
+  }, [activeSessionId, centerId, getAuthHeaders, pageContext]);
 
   const dismissLead = useCallback(() => {
     setLeadTriggered(false);
@@ -591,6 +605,10 @@ export function ChatProvider({ children }) {
     isOffline,
     isLoadingHistory,
     mode,
+    chatMode,
+    pageContext,
+    roleCode,
+    allowLeadHandoff,
     leadCaptured,
     leadTriggered,
     error,

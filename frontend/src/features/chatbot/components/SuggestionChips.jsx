@@ -1,40 +1,60 @@
 import { useChat } from '../context/ChatContext';
 
-const VISITOR_CHIPS = {
+const PUBLIC_CHIPS = {
   default: [
-    'Có những khóa học nào?',
+    'Tư vấn khóa học',
+    'Lộ trình học',
+    'Kiểm tra nhanh đầu vào',
     'Học phí bao nhiêu?',
-    'Lịch học như thế nào?',
-    'Chính sách hoàn tiền?'
   ],
   'course-detail': [
-    'Khóa này học gì?',
-    'Có lớp nào sắp mở?',
+    'Tư vấn khóa học này',
+    'Lộ trình phù hợp',
+    'Kiểm tra nhanh đầu vào',
     'Học phí và ưu đãi?',
     'Đầu ra sau khóa học?'
   ]
 };
 
 const STUDENT_CHIPS = [
+  'Lộ trình học',
+  'Kiểm tra nhanh đầu vào',
   'Lịch học tuần này?',
   'Kết quả học tập?',
-  'Chính sách bảo lưu?',
   'Liên hệ giáo viên?'
 ];
 
+const PARENT_CHIPS = [
+  'Tư vấn khóa học',
+  'Lộ trình học',
+  'Kiểm tra nhanh đầu vào',
+  'Con đang học thế nào?'
+];
+
 export default function SuggestionChips({ pageContext }) {
-  const { sendMessage, messages, isStreaming } = useChat();
-  const { mode } = useChat();
+  const { sendMessage, messages, isStreaming, chatMode } = useChat();
 
   // Only show if no messages yet
   if (messages.length > 0 || isStreaming) return null;
 
-  const chips = mode === 'student'
+  const chips = chatMode === 'student-guidance'
     ? STUDENT_CHIPS
-    : (pageContext?.includes('course') ? VISITOR_CHIPS['course-detail'] : VISITOR_CHIPS.default);
+    : chatMode === 'parent-guidance'
+      ? PARENT_CHIPS
+      : (pageContext?.includes('course') ? PUBLIC_CHIPS['course-detail'] : PUBLIC_CHIPS.default);
+
+  const label = chatMode === 'student-guidance'
+    ? 'Bắt đầu nhanh'
+    : chatMode === 'parent-guidance'
+      ? 'Gợi ý cho phụ huynh'
+      : 'Khám phá nhanh cùng Molly';
 
   return (
-    <div className="flex flex-wrap gap-2 px-1">
+    <div className="px-1">
+      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+      <div className="flex flex-wrap gap-2">
       {chips.map((chip, index) => (
         <button
           key={chip}
@@ -45,6 +65,7 @@ export default function SuggestionChips({ pageContext }) {
           {chip}
         </button>
       ))}
+      </div>
     </div>
   );
 }
