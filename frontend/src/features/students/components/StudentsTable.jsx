@@ -16,6 +16,13 @@ import { formatDate } from '../utils';
 export function StudentsTable({ 
   students = [], 
   loading = false,
+  selectedRows = [],
+  onSelectionChange,
+  currentPage = 1,
+  pageSize = 20,
+  totalItems = 0,
+  onPageChange,
+  onPageSizeChange,
   onViewDetails, 
   onEdit, 
   onPromote 
@@ -120,7 +127,15 @@ export function StudentsTable({
       data={students}
       loading={loading}
       rowKey="id"
+      selectable
+      selectedRows={selectedRows}
+      onSelectionChange={onSelectionChange}
       pagination
+      currentPage={currentPage}
+      pageSize={pageSize}
+      totalItems={totalItems}
+      onPageChange={onPageChange}
+      onPageSizeChange={onPageSizeChange}
       pageSizeOptions={[10, 20, 50, 100]}
       emptyVariant="search"
       emptyTitle="Không tìm thấy học viên"

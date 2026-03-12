@@ -10,6 +10,21 @@ export const STATUS_OPTIONS = [
   { value: 'inactive', label: 'Ngừng hoạt động' },
 ];
 
+export const VIEW_MODE_OPTIONS = [
+  { value: 'list', label: 'Danh sách học viên' },
+  { value: 'roster', label: 'Theo lớp / khóa học' },
+];
+
+export const ENROLLMENT_STATE_OPTIONS = [
+  { value: 'all', label: 'Tất cả ghi danh' },
+  { value: 'active', label: 'Đang học' },
+  { value: 'pending', label: 'Chờ xếp lớp' },
+  { value: 'completed', label: 'Đã hoàn thành' },
+  { value: 'inactive', label: 'Ngừng học' },
+  { value: 'has_class', label: 'Đã có lớp' },
+  { value: 'no_class', label: 'Chưa có lớp' },
+];
+
 // Role options for promotion
 export const ROLE_OPTIONS = [
   { value: 'TEACHER', label: 'Giáo viên', icon: 'GraduationCap', color: 'text-emerald-600 bg-emerald-50' },

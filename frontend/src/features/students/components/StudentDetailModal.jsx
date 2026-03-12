@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { ColorAvatar } from './ColorAvatar';
 import { formatDate } from '../utils';
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '@/contexts/auth-context';
 import { useStudents } from '../hooks';
 import StudentTransferModal from './StudentTransferModal';
@@ -68,12 +69,12 @@ export function StudentDetailModal({
         } catch (err) {
             console.error('Error transferring student:', err);
             setTransferModal(prev => ({ ...prev, submitting: false }));
-            gooeyToast('❌ Lỗi: ' + (err.message || 'Không thể chuyển chi nhánh'));
+            gooeyToast.error(err.message || 'Không thể chuyển chi nhánh');
         }
     };
 
-    return (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center">
+    return createPortal(
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center">
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -308,7 +309,8 @@ export function StudentDetailModal({
                     </div>
                 )}
             </div>
-        </div >
+        </div >,
+        document.body
     );
 }
 

@@ -118,6 +118,12 @@ export function StudentImportModal({ isOpen, onClose, onImportSuccess }) {
     return genderMap[String(value).trim().toLowerCase()] || '';
   };
 
+  const normalizeHeaderLabel = (value) => String(value || '')
+    .toLowerCase()
+    .replace(/\*/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
   const handleDrag = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -166,17 +172,79 @@ export function StudentImportModal({ isOpen, onClose, onImportSuccess }) {
       const workbook = XLSX.read(data, { type: 'array' });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+      const sheetRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', raw: false });
 
-      if (jsonData.length === 0) {
+      if (sheetRows.length === 0) {
         throw new Error('File không có dữ liệu');
+      }
+
+      const headerRowIndex = sheetRows.findIndex((row) => {
+        const normalizedCells = row.map((cell) => normalizeHeaderLabel(cell));
+        return normalizedCells.some((cell) => ['họ tên', 'ho ten', 'full_name', 'name', 'họ và tên', 'ho va ten'].includes(cell));
+      });
+
+      if (headerRowIndex === -1) {
+        throw new Error('Không tìm thấy dòng tiêu đề hợp lệ trong file import');
+      }
+
+      const headerRow = sheetRows[headerRowIndex].map((cell) => normalizeHeaderLabel(cell));
+      const dataRows = sheetRows
+        .slice(headerRowIndex + 1)
+        .map((row, index) => ({
+          values: row,
+          excelRowIndex: headerRowIndex + index + 2,
+        }))
+        .filter(({ values }) => {
+          const normalizedCells = values.map((cell) => normalizeHeaderLabel(cell)).filter(Boolean);
+          const hasAnyValue = normalizedCells.length > 0;
+
+          if (!hasAnyValue) return false;
+
+          const helperRowText = normalizedCells.join(' | ');
+          const helperRowMarkers = [
+            'hướng dẫn',
+            'huong dan',
+            'cột có dấu',
+            'cot co dau',
+            'ngày sinh hỗ trợ',
+            'ngay sinh ho tro',
+            'giới tính nên dùng',
+            'gioi tinh nen dung',
+            'email và số điện thoại',
+            'email va so dien thoai',
+            'người lập biểu',
+            'nguoi lap bieu',
+            'ký ghi rõ họ tên',
+            'ky ghi ro ho ten',
+            'ký xác nhận',
+            'ky xac nhan',
+            'bộ phận tuyển sinh',
+            'bo phan tuyen sinh',
+          ];
+
+          if (normalizedCells.some((cell) => cell.startsWith('•'))) {
+            return false;
+          }
+
+          if (helperRowMarkers.some((marker) => helperRowText.includes(marker))) {
+            return false;
+          }
+
+          return true;
+        });
+
+      if (dataRows.length === 0) {
+        throw new Error('File không có dòng dữ liệu hợp lệ để import');
       }
 
       const columnMap = {
         'họ tên': 'full_name',
+        'họ và tên': 'full_name',
         'ho ten': 'full_name',
+        'ho va ten': 'full_name',
         full_name: 'full_name',
         name: 'full_name',
+        stt: null,
         email: 'email',
         'số điện thoại': 'phone',
         'so dien thoai': 'phone',
@@ -197,8 +265,8 @@ export function StudentImportModal({ isOpen, onClose, onImportSuccess }) {
       };
 
       const errors = [];
-      const normalized = jsonData.map((row, index) => {
-        const rowIndex = index + 2;
+      const normalized = dataRows.map(({ values, excelRowIndex }) => {
+        const rowIndex = excelRowIndex;
         const normalizedRow = {
           rowIndex,
           full_name: '',
@@ -210,8 +278,12 @@ export function StudentImportModal({ isOpen, onClose, onImportSuccess }) {
           notes: '',
         };
 
+        const row = Object.fromEntries(
+          headerRow.map((header, index) => [header, values[index] ?? ''])
+        );
+
         Object.keys(row).forEach((key) => {
-          const normalizedKey = columnMap[key.toLowerCase().trim()];
+          const normalizedKey = columnMap[normalizeHeaderLabel(key)];
           if (!normalizedKey) return;
 
           if (normalizedKey === 'date_of_birth') {
@@ -239,12 +311,12 @@ export function StudentImportModal({ isOpen, onClose, onImportSuccess }) {
           errors.push({ row: rowIndex, field: 'phone', message: 'Số điện thoại không hợp lệ' });
         }
 
-        const originalDob = row['Ngày sinh'] || row['ngày sinh'] || row.date_of_birth || row.birthday;
+        const originalDob = row['ngày sinh'] || row.date_of_birth || row.birthday;
         if (originalDob && !normalizedRow.date_of_birth) {
           errors.push({ row: rowIndex, field: 'date_of_birth', message: 'Ngày sinh không hợp lệ' });
         }
 
-        const originalGender = row['Giới tính'] || row['giới tính'] || row.gender;
+        const originalGender = row['giới tính'] || row.gender;
         if (originalGender && !normalizedRow.gender) {
           errors.push({ row: rowIndex, field: 'gender', message: 'Giới tính không hợp lệ (Nam/Nữ/Khác)' });
         }
@@ -307,32 +379,195 @@ export function StudentImportModal({ isOpen, onClose, onImportSuccess }) {
     }
   }, [previewData, validationErrors, session, onImportSuccess]);
 
-  const downloadTemplate = useCallback(() => {
-    const template = [
-      {
-        'Họ tên': 'Nguyen Van An',
-        Email: 'an.nguyen@example.com',
-        'Số điện thoại': '0912345678',
-        'Ngày sinh': '15/08/2010',
-        'Giới tính': 'Nam',
-        'Địa chỉ': '12 Nguyen Trai, Quan 1, TP HCM',
-        'Ghi chú': 'Hoc sinh moi',
+  const downloadTemplate = useCallback(async () => {
+    const XLSXStyled = await import('xlsx-js-style');
+    const today = new Date().toLocaleDateString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+
+    const styles = {
+      title: {
+        font: { bold: true, sz: 16, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '1E40AF' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
       },
-      {
-        'Họ tên': 'Tran Thi Binh',
-        Email: 'binh.tran@example.com',
-        'Số điện thoại': '0987654321',
-        'Ngày sinh': '22/03/2011',
-        'Giới tính': 'Nữ',
-        'Địa chỉ': '45 Le Loi, Hai Chau, Da Nang',
-        'Ghi chú': 'Da hoc co ban',
+      subtitle: {
+        font: { bold: true, sz: 13, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '1E40AF' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
       },
+      info: {
+        font: { sz: 11, color: { rgb: '374151' } },
+        alignment: { horizontal: 'center' },
+      },
+      date: {
+        font: { sz: 10, color: { rgb: '6B7280' } },
+        alignment: { horizontal: 'center' },
+      },
+      header: {
+        font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '1E40AF' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: {
+          top: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          bottom: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          left: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          right: { style: 'thin', color: { rgb: 'D1D5DB' } },
+        },
+      },
+      dataEven: {
+        font: { sz: 10 },
+        alignment: { vertical: 'center' },
+        border: {
+          top: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          bottom: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          left: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          right: { style: 'thin', color: { rgb: 'D1D5DB' } },
+        },
+      },
+      dataOdd: {
+        font: { sz: 10 },
+        fill: { fgColor: { rgb: 'F8FAFC' } },
+        alignment: { vertical: 'center' },
+        border: {
+          top: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          bottom: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          left: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          right: { style: 'thin', color: { rgb: 'D1D5DB' } },
+        },
+      },
+      instruction: { font: { bold: true, sz: 11, color: { rgb: '1E40AF' } } },
+      note: { font: { sz: 10, color: { rgb: '374151' } } },
+      signTitle: { font: { bold: true, sz: 11 }, alignment: { horizontal: 'center' } },
+      signNote: {
+        font: { italic: true, sz: 9, color: { rgb: '9CA3AF' } },
+        alignment: { horizontal: 'center' },
+      },
+    };
+
+    const headers = ['STT', 'Họ tên *', 'Email', 'Số điện thoại', 'Ngày sinh', 'Giới tính', 'Địa chỉ', 'Ghi chú'];
+    const samples = [
+      [1, 'Nguyễn Văn An', 'an.nguyen@example.com', '0912345678', '15/08/2010', 'Nam', '12 Nguyễn Trãi, Quận 1, TP.HCM', 'Học sinh mới'],
+      [2, 'Trần Thị Bình', 'binh.tran@example.com', '0987654321', '22/03/2011', 'Nữ', '45 Lê Lợi, Hải Châu, Đà Nẵng', 'Đã học cơ bản'],
+      [3, 'Lê Hoàng Minh', 'minh.le@example.com', '0909123456', '05/11/2012', 'Nam', '88 Phan Đình Phùng, Phú Nhuận, TP.HCM', 'Cần tư vấn xếp lớp'],
     ];
 
-    const ws = XLSX.utils.json_to_sheet(template);
+    const wsData = [
+      [{ v: 'SKILL MASTER', s: styles.title }],
+      [{ v: 'MẪU IMPORT DANH SÁCH HỌC VIÊN', s: styles.subtitle }],
+      [{ v: 'Phạm vi: Hệ thống quản lý học viên', s: styles.info }],
+      [{ v: `Ngày tải: ${today}`, s: styles.date }],
+      [],
+      headers.map((header) => ({ v: header, s: styles.header })),
+      samples[0].map((value) => ({ v: value, s: styles.dataOdd })),
+      samples[1].map((value) => ({ v: value, s: styles.dataEven })),
+      samples[2].map((value) => ({ v: value, s: styles.dataOdd })),
+      [],
+      [],
+      [{ v: 'HƯỚNG DẪN:', s: styles.instruction }],
+      [{ v: '• Cột có dấu (*) là bắt buộc', s: styles.note }],
+      [{ v: '• Ngày sinh hỗ trợ định dạng dd/mm/yyyy hoặc yyyy-mm-dd', s: styles.note }],
+      [{ v: '• Giới tính nên dùng: Nam, Nữ hoặc Khác', s: styles.note }],
+      [{ v: '• Email và số điện thoại nếu có phải hợp lệ để import thành công', s: styles.note }],
+      [],
+      [],
+      [],
+      [
+        { v: '' },
+        { v: '' },
+        { v: 'Người lập biểu', s: styles.signTitle },
+        { v: '' },
+        { v: '' },
+        { v: 'Bộ phận tuyển sinh', s: styles.signTitle },
+        { v: '' },
+        { v: '' },
+      ],
+      [
+        { v: '' },
+        { v: '' },
+        { v: '(Ký ghi rõ họ tên)', s: styles.signNote },
+        { v: '' },
+        { v: '' },
+        { v: '(Ký xác nhận)', s: styles.signNote },
+        { v: '' },
+        { v: '' },
+      ],
+    ];
+
+    const ws = XLSXStyled.utils.aoa_to_sheet(wsData);
+    ws['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: 7 } },
+      { s: { r: 3, c: 0 }, e: { r: 3, c: 7 } },
+      { s: { r: 11, c: 0 }, e: { r: 11, c: 7 } },
+      { s: { r: 12, c: 0 }, e: { r: 12, c: 7 } },
+      { s: { r: 13, c: 0 }, e: { r: 13, c: 7 } },
+      { s: { r: 14, c: 0 }, e: { r: 14, c: 7 } },
+      { s: { r: 15, c: 0 }, e: { r: 15, c: 7 } },
+    ];
+    ws['!cols'] = [
+      { wch: 5 },
+      { wch: 24 },
+      { wch: 28 },
+      { wch: 16 },
+      { wch: 14 },
+      { wch: 12 },
+      { wch: 34 },
+      { wch: 24 },
+    ];
+    ws['!rows'] = [
+      { hpt: 35 },
+      { hpt: 28 },
+      { hpt: 22 },
+      { hpt: 20 },
+      { hpt: 10 },
+      { hpt: 28 },
+    ];
+
+    const wb = XLSXStyled.utils.book_new();
+    XLSXStyled.utils.book_append_sheet(wb, ws, 'Mẫu học viên');
+    XLSXStyled.writeFile(wb, 'mau_import_hoc_vien.xlsx');
+  }, []);
+
+  const downloadRawSample = useCallback((type) => {
+    const headers = ['Họ tên *', 'Email', 'Số điện thoại', 'Ngày sinh', 'Giới tính', 'Địa chỉ', 'Ghi chú'];
+
+    const datasets = {
+      valid: [
+        { 'Họ tên *': 'Nguyễn Minh Anh', Email: 'minhanh.nguyen@example.com', 'Số điện thoại': '0912345678', 'Ngày sinh': '15/08/2010', 'Giới tính': 'Nam', 'Địa chỉ': '12 Nguyễn Trãi, Quận 1, TP.HCM', 'Ghi chú': 'Học sinh mới' },
+        { 'Họ tên *': 'Trần Thu Hà', Email: 'thuhatran@example.com', 'Số điện thoại': '0987654321', 'Ngày sinh': '22/03/2011', 'Giới tính': 'Nữ', 'Địa chỉ': '45 Lê Lợi, Hải Châu, Đà Nẵng', 'Ghi chú': 'Đăng ký lớp giao tiếp' },
+        { 'Họ tên *': 'Phạm Đức Long', Email: 'long.pham@example.com', 'Số điện thoại': '0909123456', 'Ngày sinh': '05/11/2012', 'Giới tính': 'Nam', 'Địa chỉ': '88 Phan Đình Phùng, Phú Nhuận, TP.HCM', 'Ghi chú': '' },
+      ],
+      mixed: [
+        { 'Họ tên *': 'Lê Hoàng Nam', Email: 'hoangnam@example.com', 'Số điện thoại': '0933555777', 'Ngày sinh': '14/02/2010', 'Giới tính': 'Nam', 'Địa chỉ': 'TP.HCM', 'Ghi chú': '' },
+        { 'Họ tên *': '', Email: 'missing-name@example.com', 'Số điện thoại': '0900000000', 'Ngày sinh': '10/10/2010', 'Giới tính': 'Nam', 'Địa chỉ': 'Đà Nẵng', 'Ghi chú': 'Thiếu họ tên' },
+        { 'Họ tên *': 'Ngô Bảo Vy', Email: 'invalid-email', 'Số điện thoại': '0988777666', 'Ngày sinh': '12/05/2011', 'Giới tính': 'Nữ', 'Địa chỉ': 'Nha Trang', 'Ghi chú': 'Email sai định dạng' },
+        { 'Họ tên *': 'Trịnh Minh Quân', Email: 'quan.trinh@example.com', 'Số điện thoại': 'abc123', 'Ngày sinh': '01/01/2011', 'Giới tính': 'Nam', 'Địa chỉ': 'Huế', 'Ghi chú': 'SĐT sai' },
+        { 'Họ tên *': 'Đặng Khánh Linh', Email: 'linh.dang@example.com', 'Số điện thoại': '0911222333', 'Ngày sinh': '31-02-2011', 'Giới tính': 'Nữ', 'Địa chỉ': 'Cần Thơ', 'Ghi chú': 'Ngày sinh sai' },
+      ],
+      edge: [
+        { 'Họ tên *': '  Nguyễn  Văn    Khoảng  Trắng  ', Email: 'space.name@example.com', 'Số điện thoại': '0912345678', 'Ngày sinh': '2010-08-15', 'Giới tính': 'nam', 'Địa chỉ': '  123 Trần Hưng Đạo  ', 'Ghi chú': 'Tên và địa chỉ có khoảng trắng dư' },
+        { 'Họ tên *': 'Lý Ánh🌟', Email: 'unicode.student@example.com', 'Số điện thoại': '0981234567', 'Ngày sinh': '20/12/2011', 'Giới tính': 'Nu', 'Địa chỉ': 'Biên Hòa', 'Ghi chú': 'Có ký tự unicode' },
+        { 'Họ tên *': 'Đỗ Hoài Nam', Email: '', 'Số điện thoại': '', 'Ngày sinh': '', 'Giới tính': '', 'Địa chỉ': '', 'Ghi chú': 'Thiếu dữ liệu không bắt buộc' },
+        { 'Họ tên *': 'Tên Rất Dài '.repeat(6).trim(), Email: 'long.name.student@example.com', 'Số điện thoại': '0909123000', 'Ngày sinh': '01/09/2012', 'Giới tính': 'Khác', 'Địa chỉ': 'Hà Nội', 'Ghi chú': 'Kiểm tra độ dài chuỗi' },
+      ],
+    };
+
+    const rows = datasets[type] || datasets.valid;
+    const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Students');
-    XLSX.writeFile(wb, 'mau_import_hoc_vien.xlsx');
+    XLSX.utils.book_append_sheet(wb, ws, 'RawStudents');
+
+    const filename = {
+      valid: 'students-import-valid.xlsx',
+      mixed: 'students-import-mixed-errors.xlsx',
+      edge: 'students-import-edge-cases.xlsx',
+    }[type] || 'students-import-valid.xlsx';
+
+    XLSX.writeFile(wb, filename);
   }, []);
 
   const validImportCount = previewData.filter((student) => {
@@ -400,6 +635,24 @@ export function StudentImportModal({ isOpen, onClose, onImportSuccess }) {
           <Download className="w-4 h-4 mr-2" />
           Tải mẫu
         </Button>
+      </div>
+
+      <div className="rounded-lg border border-slate-200 bg-white p-3 space-y-3">
+        <div>
+          <p className="text-sm font-medium">Bộ dữ liệu test import (raw)</p>
+          <p className="text-xs text-muted-foreground">Dùng để QA luồng import với dữ liệu sạch, dữ liệu lỗi và edge-cases.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => downloadRawSample('valid')}>
+            <Download className="w-4 h-4 mr-2" /> Raw hợp lệ
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => downloadRawSample('mixed')}>
+            <Download className="w-4 h-4 mr-2" /> Raw mixed lỗi
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => downloadRawSample('edge')}>
+            <Download className="w-4 h-4 mr-2" /> Raw edge-cases
+          </Button>
+        </div>
       </div>
 
       <div className="text-xs text-muted-foreground space-y-1">

@@ -14,3 +14,5 @@ export { StudentDetailModal } from './StudentDetailModal';
 export { EditStudentModal } from './EditStudentModal';
 export { StudentTransferModal } from './StudentTransferModal';
 export { StudentImportModal } from './StudentImportModal';
+export { StudentBulkActionsBar } from './StudentBulkActionsBar';
+export { StudentRosterView } from './StudentRosterView';

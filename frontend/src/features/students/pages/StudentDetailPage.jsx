@@ -603,7 +603,7 @@ export function StudentDetailPage() {
         } catch (err) {
             console.error('Error transferring student:', err);
             setTransferModal(prev => ({ ...prev, submitting: false }));
-            gooeyToast('❌ Lỗi: ' + (err.message || 'Không thể chuyển chi nhánh'));
+            gooeyToast.error(err.message || 'Không thể chuyển chi nhánh');
         }
     };
 

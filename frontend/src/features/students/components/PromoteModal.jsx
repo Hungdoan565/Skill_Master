@@ -6,14 +6,13 @@
 import { useState } from 'react';
 import { AlertCircle, Check, GraduationCap, Building2, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/toast';
+import { gooeyToast } from 'goey-toast';
 import { SimpleModal } from './SimpleModal';
 
 import { ColorAvatar } from './ColorAvatar';
 import { ROLE_OPTIONS } from '../utils';
 
 export function PromoteModal({ isOpen, onClose, student, onConfirm }) {
-  const { toast } = useToast();
   const [selectedRole, setSelectedRole] = useState('TEACHER');
   const [promoting, setPromoting] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -23,11 +22,11 @@ export function PromoteModal({ isOpen, onClose, student, onConfirm }) {
     try {
       await onConfirm(student.id, selectedRole);
       const roleLabel = selectedRole === 'TEACHER' ? 'Giáo viên' : 'Quản lý';
-      toast.success(`Đã chuyển ${student.full_name} thành ${roleLabel}`);
+      gooeyToast.success(`Đã chuyển ${student.full_name} thành ${roleLabel}`);
       onClose();
     } catch (error) {
       console.error('Error promoting student:', error);
-      toast.error(error.response?.data?.message || error.message || 'Có lỗi xảy ra');
+      gooeyToast.error(error.response?.data?.message || error.message || 'Có lỗi xảy ra');
     } finally {
       setPromoting(false);
     }
