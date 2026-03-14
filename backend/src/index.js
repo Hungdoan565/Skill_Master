@@ -32,6 +32,13 @@ import {
   deactivateParentStudentLink,
 } from './services/parentStudentLinkService.js';
 import { createNotification } from './services/notification.service.js';
+import {
+  normalizeFollowUpPriority,
+  buildFollowUpMetadata,
+  enrichStudentSupportTickets,
+  buildSupportReplyNotificationEvents
+} from './services/consultation-followup.service.js';
+import { buildCoursesWithStudentVisibility } from './services/course-visibility.service.js';
 import { buildSystemPrompt, loadStudentData, loadConversationHistory, getOrCreateSession, saveMessage, streamChatCompletion, generateConversationTitle, deleteMessagesAfter, deleteLastAssistantMessage, syncMessageCount, MAX_SESSION_MESSAGES } from './services/chatbot.js';
 import { getCourseData } from './services/courseCache.js';
 import { getGroqClient, isGroqAvailable } from './services/groq.js';
@@ -332,6 +339,65 @@ app.get('/api/courses', async (req, res, next) => {
     res.json({ success: true, data });
   } catch (error) {
     console.error('Error fetching courses:', error);
+    next(error);
+  }
+});
+
+// Danh sách khóa học cho admin + chẩn đoán hiển thị phía học viên
+app.get('/api/admin/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const { status, search, center_id } = req.query;
+    const { effectiveCenterId, error: centerError } = getEffectiveCenterId(req.user, center_id);
+
+    if (centerError) {
+      return res.status(403).json({ success: false, message: centerError });
+    }
+
+    let query = supabase
+      .from('courses')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    if (search && search.trim().length >= 2) {
+      const term = search.trim().toLowerCase();
+      query = query.or(`title.ilike.%${term}%,code.ilike.%${term}%`);
+    }
+
+    const { data: courses, error: coursesError } = await query;
+    if (coursesError) throw coursesError;
+
+    const courseIds = (courses || []).map(course => course.id).filter(Boolean);
+    let classRows = [];
+
+    if (courseIds.length > 0) {
+      const { data, error } = await supabase
+        .from('classes')
+        .select('course_id, center_id, status')
+        .in('course_id', courseIds);
+
+      if (error) throw error;
+      classRows = data || [];
+    }
+
+    const coursesWithVisibility = buildCoursesWithStudentVisibility({
+      courses: courses || [],
+      classRows,
+      effectiveCenterId
+    });
+
+    res.json({
+      success: true,
+      data: coursesWithVisibility,
+      meta: {
+        effective_center_id: effectiveCenterId
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching admin courses:', error);
     next(error);
   }
 });
@@ -22782,11 +22848,14 @@ app.get('/api/public/verify-certificate/:certificateNumber', async (req, res, ne
 });
 
 // ============================================================
-// SUPPORT TICKETS APIs - Hệ thống hỗ trợ
+// SUPPORT TICKETS APIs - Hệ thống hỗ trợ (LEGACY)
+// Deprecated route group kept for backward compatibility only.
+// Authoritative support ticket APIs are defined later in
+// SUPPORT TICKETS MANAGEMENT APIs section.
 // ============================================================
 
 // Lấy danh sách tickets
-app.get('/api/admin/support-tickets', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+app.get('/api/legacy/admin/support-tickets', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
     const { centerId, status, priority, category, assignedTo, search, page = 1, limit = 20 } = req.query;
 
@@ -22850,7 +22919,7 @@ app.get('/api/admin/support-tickets', requireAuth, requireRole(['SUPER_ADMIN', '
 });
 
 // Lấy chi tiết ticket kèm messages
-app.get('/api/admin/support-tickets/:id', requireAuth, async (req, res, next) => {
+app.get('/api/legacy/admin/support-tickets/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -22898,7 +22967,7 @@ app.get('/api/admin/support-tickets/:id', requireAuth, async (req, res, next) =>
 });
 
 // Tạo ticket mới (từ admin hoặc student)
-app.post('/api/support-tickets', requireAuth, async (req, res, next) => {
+app.post('/api/legacy/support-tickets', requireAuth, async (req, res, next) => {
   try {
     const { subject, message, category, priority, class_id } = req.body;
 
@@ -22951,7 +23020,7 @@ app.post('/api/support-tickets', requireAuth, async (req, res, next) => {
 });
 
 // Cập nhật ticket (gán người xử lý, đổi trạng thái, priority)
-app.put('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+app.put('/api/legacy/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { status, priority, assigned_to, resolution_notes } = req.body;
@@ -22992,7 +23061,7 @@ app.put('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN
 });
 
 // Gửi reply vào ticket
-app.post('/api/support-tickets/:id/messages', requireAuth, async (req, res, next) => {
+app.post('/api/legacy/support-tickets/:id/messages', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
     const { message, is_internal, attachment_url, attachment_name } = req.body;
@@ -26188,6 +26257,106 @@ app.get('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN
 });
 
 /**
+ * POST /api/support-tickets
+ * Student/self-service ticket creation (authoritative route)
+ */
+app.post('/api/support-tickets', requireAuth, async (req, res, next) => {
+  try {
+    const {
+      subject,
+      message,
+      description,
+      category = 'general',
+      priority = 'normal',
+      class_id,
+      enrollment_id
+    } = req.body;
+
+    if (!subject || !String(subject).trim()) {
+      return res.status(400).json({ success: false, message: 'Tiêu đề là bắt buộc' });
+    }
+
+    const normalizedCategory = {
+      academic: 'course',
+      financial: 'billing',
+      technical: 'technical',
+      other: 'other',
+      general: 'general',
+      billing: 'billing',
+      course: 'course'
+    }[category] || 'general';
+
+    const normalizedPriority = {
+      medium: 'normal',
+      low: 'low',
+      normal: 'normal',
+      high: 'high',
+      urgent: 'urgent'
+    }[priority] || 'normal';
+
+    const validCategories = ['general', 'technical', 'billing', 'course', 'other'];
+    if (!validCategories.includes(normalizedCategory)) {
+      return res.status(400).json({ success: false, message: 'Danh mục không hợp lệ' });
+    }
+
+    const validPriorities = ['low', 'normal', 'high', 'urgent'];
+    if (!validPriorities.includes(normalizedPriority)) {
+      return res.status(400).json({ success: false, message: 'Độ ưu tiên không hợp lệ' });
+    }
+
+    const { effectiveCenterId } = getEffectiveCenterId(req.user, req.body.center_id);
+
+    const { data: ticketNumber, error: numberError } = await supabase.rpc('generate_ticket_number');
+    if (numberError) throw numberError;
+
+    const { data: createdTicket, error: createError } = await supabase
+      .from('support_tickets')
+      .insert({
+        ticket_number: ticketNumber,
+        subject: String(subject).trim(),
+        category: normalizedCategory,
+        priority: normalizedPriority,
+        status: 'open',
+        created_by: req.user.id,
+        assigned_to: null,
+        center_id: effectiveCenterId || req.user.centerId || null,
+        class_id: class_id || null,
+        enrollment_id: enrollment_id || null
+      })
+      .select('*')
+      .single();
+
+    if (createError) throw createError;
+
+    const initialMessage = (message || description || '').trim();
+    if (initialMessage) {
+      const { error: messageError } = await supabase
+        .from('ticket_messages')
+        .insert({
+          ticket_id: createdTicket.id,
+          message: initialMessage,
+          sender_id: req.user.id,
+          is_internal: false
+        });
+
+      if (messageError) throw messageError;
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Đã tạo yêu cầu hỗ trợ',
+      data: {
+        ...createdTicket,
+        message_count: initialMessage ? 1 : 0
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error creating support ticket for self-service route:', error);
+    next(error);
+  }
+});
+
+/**
  * POST /api/admin/support-tickets
  * Tạo ticket mới (admin tạo thay cho student)
  */
@@ -26484,6 +26653,20 @@ app.post('/api/support-tickets/:id/messages', requireAuth, async (req, res, next
       .update(ticketUpdate)
       .eq('id', id);
 
+    const notificationEvents = buildSupportReplyNotificationEvents({
+      ticket: { ...ticket, id },
+      actorId: req.user.id,
+      actorIsAdmin: isAdmin,
+      actorIsCreator: isCreator,
+      isInternal: actualIsInternal,
+      message,
+      fallbackCenterId: req.user.centerId
+    });
+
+    for (const event of notificationEvents) {
+      await createNotification(supabase, event);
+    }
+
     console.log(`💬 Message sent to ticket ${ticket.ticket_number} by ${req.user.email}${actualIsInternal ? ' (internal)' : ''}`);
 
     res.status(201).json({
@@ -26537,6 +26720,29 @@ app.get('/api/admin/support-tickets/stats', requireAuth, requireRole(['SUPER_ADM
   }
 });
 
+function extractConsultationFollowUp(metadata) {
+  const safeMetadata = metadata && typeof metadata === 'object' ? metadata : {};
+  const followUpTicketId = safeMetadata.follow_up_ticket_id || null;
+
+  return {
+    follow_up_ticket_id: followUpTicketId,
+    follow_up_ticket_number: safeMetadata.follow_up_ticket_number || null,
+    follow_up_linked_at: safeMetadata.follow_up_linked_at || null,
+    has_follow_up_thread: Boolean(followUpTicketId)
+  };
+}
+
+function withConsultationFollowUp(request) {
+  if (!request) {
+    return request;
+  }
+
+  return {
+    ...request,
+    ...extractConsultationFollowUp(request.metadata)
+  };
+}
+
 /**
  * GET /api/admin/consultation-requests
  * Danh sách yêu cầu tư vấn cho advisor inbox
@@ -26585,7 +26791,7 @@ app.get('/api/admin/consultation-requests', requireAuth, requireRole(['SUPER_ADM
     const { data, error, count } = await query;
     if (error) throw error;
 
-    const transformedData = (data || []).map(request => ({
+    const transformedData = (data || []).map(request => withConsultationFollowUp({
       ...request,
       assigned_to: request.assigned_to_user || null,
       course: request.courses || null,
@@ -26639,12 +26845,12 @@ app.get('/api/admin/consultation-requests/:id', requireAuth, requireRole(['SUPER
 
     res.json({
       success: true,
-      data: {
+      data: withConsultationFollowUp({
         ...request,
         assigned_to: request.assigned_to_user || null,
         course: request.courses || null,
         class: request.classes || null
-      }
+      })
     });
   } catch (error) {
     console.error('❌ Error fetching consultation request:', error);
@@ -26753,15 +26959,241 @@ app.put('/api/admin/consultation-requests/:id', requireAuth, requireRole(['SUPER
     res.json({
       success: true,
       message: 'Cập nhật yêu cầu tư vấn thành công',
-      data: {
+      data: withConsultationFollowUp({
         ...data,
         assigned_to: data.assigned_to_user || null,
         course: data.courses || null,
         class: data.classes || null
-      }
+      })
     });
   } catch (error) {
     console.error('❌ Error updating consultation request:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/consultation-requests/:id/follow-up-thread
+ * Tạo hoặc gắn thread follow-up cho yêu cầu tư vấn (idempotent)
+ */
+app.post('/api/admin/consultation-requests/:id/follow-up-thread', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const nowIso = new Date().toISOString();
+
+    const { data: existingRequest, error: fetchError } = await supabase
+      .from('consultation_requests')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !existingRequest) {
+      return res.status(404).json({ success: false, message: 'Yêu cầu tư vấn không tồn tại' });
+    }
+
+    const isSuperAdmin = req.user.roleCode === 'SUPER_ADMIN';
+    const isSameCenter = existingRequest.center_id === req.user.centerId;
+    const isAssigned = existingRequest.assigned_to === req.user.id;
+
+    if (!isSuperAdmin && !isSameCenter && !isAssigned) {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền xử lý follow-up cho yêu cầu này' });
+    }
+
+    const existingFollowUp = extractConsultationFollowUp(existingRequest.metadata);
+    let supportsConsultationRequestColumn = true;
+
+    if (existingFollowUp.follow_up_ticket_id) {
+      const { data: linkedTicket } = await supabase
+        .from('support_tickets')
+        .select('id, ticket_number, status, center_id')
+        .eq('id', existingFollowUp.follow_up_ticket_id)
+        .single();
+
+      if (linkedTicket && (!existingRequest.center_id || linkedTicket.center_id === existingRequest.center_id)) {
+        return res.json({
+          success: true,
+          message: 'Yêu cầu tư vấn đã có thread follow-up',
+          data: {
+            request: withConsultationFollowUp(existingRequest),
+            follow_up_ticket: {
+              id: linkedTicket.id,
+              ticket_number: linkedTicket.ticket_number,
+              status: linkedTicket.status
+            }
+          }
+        });
+      }
+    }
+
+    const { data: linkedByRequestId, error: linkedByRequestIdError } = await supabase
+      .from('support_tickets')
+      .select('id, ticket_number, status, center_id')
+      .eq('consultation_request_id', id)
+      .maybeSingle();
+
+    if (linkedByRequestIdError && linkedByRequestIdError.code !== '42703') {
+      throw linkedByRequestIdError;
+    }
+
+    if (linkedByRequestIdError?.code === '42703') {
+      supportsConsultationRequestColumn = false;
+    }
+
+    if (linkedByRequestId) {
+      const mergedMetadata = buildFollowUpMetadata({
+        existingMetadata: existingRequest.metadata,
+        ticketId: linkedByRequestId.id,
+        ticketNumber: linkedByRequestId.ticket_number,
+        actorId: req.user.id,
+        linkedAt: nowIso
+      });
+
+      const { data: updatedRequest, error: updateExistingError } = await supabase
+        .from('consultation_requests')
+        .update({ metadata: mergedMetadata, updated_at: nowIso })
+        .eq('id', id)
+        .select(`
+          *,
+          assigned_to_user:users!consultation_requests_assigned_to_fkey (id, full_name, email),
+          courses!consultation_requests_course_id_fkey (id, title),
+          classes!consultation_requests_class_id_fkey (id, name)
+        `)
+        .single();
+
+      if (updateExistingError) throw updateExistingError;
+
+      return res.json({
+        success: true,
+        message: 'Yêu cầu tư vấn đã có thread follow-up',
+        data: {
+          request: withConsultationFollowUp({
+            ...updatedRequest,
+            assigned_to: updatedRequest.assigned_to_user || null,
+            course: updatedRequest.courses || null,
+            class: updatedRequest.classes || null
+          }),
+          follow_up_ticket: {
+            id: linkedByRequestId.id,
+            ticket_number: linkedByRequestId.ticket_number,
+            status: linkedByRequestId.status
+          }
+        }
+      });
+    }
+
+    const urgencyLevel = existingRequest.metadata?.urgency_level;
+    const mappedPriority = normalizeFollowUpPriority(urgencyLevel);
+    const summaryLine = existingRequest.metadata?.summary_line || existingRequest.metadata?.primary_need || existingRequest.transcript_summary || existingRequest.notes || 'Theo dõi nhu cầu tư vấn';
+    const cleanSummary = String(summaryLine).replace(/\s+/g, ' ').trim();
+    const subject = `Follow-up tư vấn: ${cleanSummary}`.slice(0, 180);
+
+    const { data: ticketNumber, error: ticketNumberError } = await supabase.rpc('generate_ticket_number');
+    if (ticketNumberError) throw ticketNumberError;
+
+    const centerId = existingRequest.center_id || req.user.centerId || null;
+    const ticketOwnerId = existingRequest.user_id || req.user.id;
+
+    const ticketInsertPayload = {
+      ticket_number: ticketNumber,
+      subject,
+      category: 'course',
+      priority: mappedPriority,
+      status: 'in_progress',
+      created_by: ticketOwnerId,
+      assigned_to: req.user.id,
+      center_id: centerId
+    };
+
+    if (supportsConsultationRequestColumn) {
+      ticketInsertPayload.consultation_request_id = id;
+    }
+
+    let { data: newTicket, error: createTicketError } = await supabase
+      .from('support_tickets')
+      .insert(ticketInsertPayload)
+      .select('id, ticket_number, status, center_id')
+      .single();
+
+    if (createTicketError?.code === '23505' && supportsConsultationRequestColumn) {
+      const { data: racedTicket, error: racedTicketError } = await supabase
+        .from('support_tickets')
+        .select('id, ticket_number, status, center_id')
+        .eq('consultation_request_id', id)
+        .maybeSingle();
+
+      if (racedTicketError) throw racedTicketError;
+
+      if (racedTicket) {
+        newTicket = racedTicket;
+        createTicketError = null;
+      }
+    }
+
+    if (createTicketError) throw createTicketError;
+
+    const kickoffLines = [
+      'Khởi tạo follow-up từ yêu cầu tư vấn Molly.',
+      existingRequest.full_name ? `Học viên: ${existingRequest.full_name}` : null,
+      existingRequest.phone ? `Số điện thoại: ${existingRequest.phone}` : null,
+      cleanSummary ? `Nhu cầu chính: ${cleanSummary}` : null,
+      existingRequest.handoff_reason ? `Handoff reason: ${existingRequest.handoff_reason}` : null
+    ].filter(Boolean);
+
+    const { error: kickoffError } = await supabase
+      .from('ticket_messages')
+      .insert({
+        ticket_id: newTicket.id,
+        message: kickoffLines.join('\n'),
+        sender_id: req.user.id,
+        is_internal: true
+      });
+
+    if (kickoffError) throw kickoffError;
+
+    const mergedMetadata = buildFollowUpMetadata({
+      existingMetadata: existingRequest.metadata,
+      ticketId: newTicket.id,
+      ticketNumber: newTicket.ticket_number,
+      actorId: req.user.id,
+      linkedAt: nowIso
+    });
+
+    const { data: updatedRequest, error: updateError } = await supabase
+      .from('consultation_requests')
+      .update({
+        metadata: mergedMetadata,
+        updated_at: nowIso
+      })
+      .eq('id', id)
+      .select(`
+        *,
+        assigned_to_user:users!consultation_requests_assigned_to_fkey (id, full_name, email),
+        courses!consultation_requests_course_id_fkey (id, title),
+        classes!consultation_requests_class_id_fkey (id, name)
+      `)
+      .single();
+
+    if (updateError) throw updateError;
+
+    return res.status(201).json({
+      success: true,
+      message: 'Đã tạo thread follow-up cho yêu cầu tư vấn',
+      data: {
+        request: withConsultationFollowUp({
+          ...updatedRequest,
+          assigned_to: updatedRequest.assigned_to_user || null,
+          course: updatedRequest.courses || null,
+          class: updatedRequest.classes || null
+        }),
+        follow_up_ticket: {
+          id: newTicket.id,
+          ticket_number: newTicket.ticket_number,
+          status: newTicket.status
+        }
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error creating follow-up thread for consultation request:', error);
     next(error);
   }
 });
@@ -27105,9 +27537,20 @@ app.get('/api/student/dashboard',
   async (req, res, next) => {
     try {
       const studentId = req.user.id;
-      const today = new Date().toISOString().split('T')[0];
-      const dayOfWeek = new Date().getDay() || 7; // 1-7, Sunday = 7
-      const dayNumber = dayOfWeek + 1; // Convert to 2-8 format (2=Monday, 8=Sunday)
+      const vnDateParts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Ho_Chi_Minh',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      })
+        .formatToParts(new Date())
+        .reduce((acc, part) => {
+          if (part.type !== 'literal') {
+            acc[part.type] = part.value;
+          }
+          return acc;
+        }, {});
+      const todayDateInVN = `${vnDateParts.year}-${vnDateParts.month}-${vnDateParts.day}`;
 
       // 1. Get enrolled classes
       const { data: enrollments } = await supabase
@@ -27123,30 +27566,84 @@ app.get('/api/student/dashboard',
         .eq('student_id', studentId)
         .eq('status', 'active');
 
-      // 2. Filter today's classes based on schedule
-      // Helper to parse schedule (may be JSON string or array)
-      const parseSchedule = (schedule) => {
-        if (!schedule) return [];
-        if (Array.isArray(schedule)) return schedule;
-        if (typeof schedule === 'string') {
-          try { return JSON.parse(schedule); } catch { return []; }
+      // 2. Build today's classes from sessions (single source of truth with schedule page)
+      const activeClassIds = (enrollments || []).map(e => e.class?.id).filter(Boolean);
+      let todayClasses = [];
+      let nextClass = null;
+
+      const mapSessionToClassItem = (session) => ({
+        id: session.id,
+        class_id: session.class_id,
+        class_name: session.class?.name,
+        class_code: session.class?.code,
+        name: session.class?.name,
+        course_name: session.class?.course?.title,
+        teacher_name: session.class?.teacher?.full_name,
+        session_date: session.session_date,
+        start_time: session.start_time,
+        end_time: session.end_time,
+        room_name: session.class?.room || null,
+        status: session.status || 'scheduled'
+      });
+
+      if (activeClassIds.length > 0) {
+        const { data: todaySessions, error: todaySessionsError } = await supabase
+          .from('sessions')
+          .select(`
+            id,
+            class_id,
+            session_date,
+            start_time,
+            end_time,
+            status,
+            class:classes(
+              id, name, code, room,
+              course:courses(id, title),
+              teacher:users!classes_teacher_id_fkey(id, full_name)
+            )
+          `)
+          .in('class_id', activeClassIds)
+          .eq('session_date', todayDateInVN)
+          .order('start_time', { ascending: true });
+
+        if (todaySessionsError) throw todaySessionsError;
+
+        todayClasses = (todaySessions || [])
+          .filter((session) => String(session.status || '').toLowerCase() !== 'cancelled')
+          .map(mapSessionToClassItem);
+
+        const { data: upcomingSessions, error: upcomingSessionsError } = await supabase
+          .from('sessions')
+          .select(`
+            id,
+            class_id,
+            session_date,
+            start_time,
+            end_time,
+            status,
+            class:classes(
+              id, name, code, room,
+              course:courses(id, title),
+              teacher:users!classes_teacher_id_fkey(id, full_name)
+            )
+          `)
+          .in('class_id', activeClassIds)
+          .gte('session_date', todayDateInVN)
+          .order('session_date', { ascending: true })
+          .order('start_time', { ascending: true })
+          .limit(10);
+
+        if (upcomingSessionsError) throw upcomingSessionsError;
+
+        const firstUpcoming = (upcomingSessions || []).find((session) => {
+          const normalizedStatus = String(session.status || '').toLowerCase();
+          return normalizedStatus !== 'cancelled' && normalizedStatus !== 'completed';
+        });
+
+        if (firstUpcoming) {
+          nextClass = mapSessionToClassItem(firstUpcoming);
         }
-        return [];
-      };
-      
-      const todayClasses = (enrollments || [])
-        .filter(e => {
-          const schedule = parseSchedule(e.class?.schedule);
-          return schedule.some(s => s.day === dayNumber);
-        })
-        .map(e => {
-          const schedule = parseSchedule(e.class?.schedule);
-          return {
-            ...e.class,
-            todaySchedule: schedule.find(s => s.day === dayNumber)
-          };
-        })
-        .sort((a, b) => (a.todaySchedule?.start || '').localeCompare(b.todaySchedule?.start || ''));
+      }
 
       // 3. Get recent grades (last 5) - via enrollments
       const { data: recentGrades } = await supabase
@@ -27173,23 +27670,74 @@ app.get('/api/student/dashboard',
         class: g.enrollment?.class
       }));
 
-      // 4. Get upcoming/unpaid invoices
-      const { data: unpaidInvoices } = await supabase
+      const activeEnrollmentIds = (enrollments || []).map(enrollment => enrollment.id).filter(Boolean);
+
+      // 4. Get all outstanding invoices for accurate unpaid amount
+      const outstandingStatuses = ['unpaid', 'partial', 'overdue', 'pending'];
+      const { data: allOutstandingInvoices, error: outstandingInvoicesError } = await supabase
         .from('invoices')
         .select('id, invoice_code, final_amount, paid_amount, due_date, status')
         .eq('student_id', studentId)
-        .in('status', ['pending', 'partial', 'overdue'])
-        .order('due_date', { ascending: true })
-        .limit(3);
+        .in('status', outstandingStatuses)
+        .order('due_date', { ascending: true });
+
+      if (outstandingInvoicesError) throw outstandingInvoicesError;
+
+      const unpaidInvoices = (allOutstandingInvoices || []).slice(0, 3);
+
+      const unpaidAmount = (allOutstandingInvoices || []).reduce((sum, invoice) => {
+        const finalAmount = Number(invoice.final_amount) || 0;
+        const paidAmount = Number(invoice.paid_amount) || 0;
+        const remaining = Math.max(0, finalAmount - paidAmount);
+        return sum + remaining;
+      }, 0);
 
       // 5. Get attendance rate
-      const { data: attendanceStats } = await supabase
+      // NOTE: attendance schema differs between deployments:
+      // - some have `student_id`
+      // - some only have `enrollment_id`
+      // We query both paths with graceful fallback when a column doesn't exist (42703).
+      let attendanceByStudentData = [];
+      const attendanceByStudentRes = await supabase
         .from('attendance')
-        .select('status')
+        .select('id, status')
         .eq('student_id', studentId);
 
+      if (attendanceByStudentRes.error) {
+        if (attendanceByStudentRes.error.code !== '42703') {
+          throw attendanceByStudentRes.error;
+        }
+      } else {
+        attendanceByStudentData = attendanceByStudentRes.data || [];
+      }
+
+      let attendanceByEnrollmentData = [];
+      if (activeEnrollmentIds.length > 0) {
+        const attendanceByEnrollmentRes = await supabase
+          .from('attendance')
+          .select('id, status')
+          .in('enrollment_id', activeEnrollmentIds);
+
+        if (attendanceByEnrollmentRes.error) {
+          if (attendanceByEnrollmentRes.error.code !== '42703') {
+            throw attendanceByEnrollmentRes.error;
+          }
+        } else {
+          attendanceByEnrollmentData = attendanceByEnrollmentRes.data || [];
+        }
+      }
+
+      const attendanceMap = new Map();
+      for (const attendance of attendanceByStudentData) {
+        attendanceMap.set(attendance.id, attendance);
+      }
+      for (const attendance of attendanceByEnrollmentData) {
+        attendanceMap.set(attendance.id, attendance);
+      }
+      const attendanceStats = Array.from(attendanceMap.values());
+
       const totalSessions = attendanceStats?.length || 0;
-      const presentSessions = attendanceStats?.filter(a => a.status === 'present').length || 0;
+      const presentSessions = attendanceStats?.filter(a => a.status === 'present' || a.status === 'late').length || 0;
       const attendanceRate = totalSessions > 0 ? Math.round((presentSessions / totalSessions) * 100) : 0;
 
       // 6. Calculate average grade - via enrollments
@@ -27207,15 +27755,16 @@ app.get('/api/student/dashboard',
       res.json({
         success: true,
         data: {
+          activeEnrollmentCount: enrollments?.length || 0,
           todayClasses,
+          nextClass,
           recentGrades: formattedRecentGrades,
           unpaidInvoices: unpaidInvoices || [],
           stats: {
             totalClasses: enrollments?.length || 0,
             attendanceRate,
             avgGrade,
-            unpaidAmount: (unpaidInvoices || []).reduce((sum, inv) =>
-              sum + (inv.final_amount - inv.paid_amount), 0)
+            unpaidAmount
           }
         }
       });
@@ -27238,18 +27787,27 @@ app.get('/api/student/schedule',
   async (req, res, next) => {
     try {
       const studentId = req.user.id;
-      const { view = 'week', startDate, endDate, classId } = req.query;
+      const { view = 'week', startDate, endDate, classId, enrollmentScope = 'active' } = req.query;
+
+      const enrollmentStatuses = enrollmentScope === 'all_enrolled'
+        ? ['active', 'completed', 'pending']
+        : ['active'];
 
       // 1. Get enrolled classes (for filter list and permission check)
-      const { data: enrollments, error: enrollError } = await supabase
+      let enrollmentQuery = supabase
         .from('enrollments')
         .select(`
           class:classes(
             id, name, code
           )
         `)
-        .eq('student_id', studentId)
-        .eq('status', 'active');
+        .eq('student_id', studentId);
+
+      enrollmentQuery = enrollmentStatuses.length === 1
+        ? enrollmentQuery.eq('status', enrollmentStatuses[0])
+        : enrollmentQuery.in('status', enrollmentStatuses);
+
+      const { data: enrollments, error: enrollError } = await enrollmentQuery;
 
       if (enrollError) throw enrollError;
 
@@ -27279,10 +27837,9 @@ app.get('/api/student/schedule',
           start_time,
           end_time,
           status,
-          room_name,
           session_number,
           class:classes(
-            id, name, code,
+            id, name, code, room,
             course:courses(id, title),
             teacher:users!classes_teacher_id_fkey(id, full_name)
           )
@@ -27325,7 +27882,7 @@ app.get('/api/student/schedule',
           courseName: session.class?.course?.title,
           courseId: session.class?.course?.id,
           teacherName: session.class?.teacher?.full_name,
-          roomName: session.room_name,
+          roomName: session.class?.room || null,
           sessionDate: session.session_date,
           dayOfWeek: dayOfWeek,
           startTime: session.start_time,
@@ -27344,9 +27901,14 @@ app.get('/api/student/schedule',
       };
 
       // 5. Unique classes list for filter dropdown
-      const uniqueClasses = Array.from(new Map(
-        enrollments.map(e => [e.class.id, e.class])
-      ).values());
+      const uniqueClasses = Array.from(
+        new Map(
+          (enrollments || [])
+            .map((e) => e?.class)
+            .filter(Boolean)
+            .map((cls) => [cls.id, cls])
+        ).values()
+      );
 
       console.log(`📅 Fetched ${sessions.length} sessions for student ${studentId}`);
 
@@ -27820,6 +28382,40 @@ app.get('/api/student/certificates',
   }
 );
 
+const STUDENT_JOURNEY_STATUS_PRIORITY = {
+  active: 1,
+  enrolled: 1,
+  completed: 2,
+  dropped: 3,
+  pending: 4,
+  waitlisted: 5,
+  approved: 6,
+  rejected: 7,
+  cancelled: 8
+};
+
+function getStudentJourneyStatus(enrollmentStatus, requestStatus) {
+  if (enrollmentStatus === 'active' || enrollmentStatus === 'enrolled') return 'enrolled';
+  if (enrollmentStatus === 'completed') return 'completed';
+  if (enrollmentStatus === 'dropped') return 'dropped';
+  if (requestStatus === 'pending') return 'pending';
+  if (requestStatus === 'waitlisted') return 'waitlisted';
+  if (requestStatus === 'approved') return 'approved';
+  if (requestStatus === 'rejected') return 'rejected';
+  if (requestStatus === 'cancelled') return 'cancelled';
+  return null;
+}
+
+function getStudentJourneyGroup(status) {
+  if (['pending', 'waitlisted', 'approved'].includes(status)) return 'processing';
+  if (['enrolled', 'completed', 'dropped', 'rejected', 'cancelled'].includes(status)) return 'history';
+  return 'unknown';
+}
+
+function getJourneyPriority(status) {
+  return STUDENT_JOURNEY_STATUS_PRIORITY[status] || 999;
+}
+
 /**
  * GET /api/student/available-courses
  * Browse available courses and classes for enrollment requests
@@ -27843,6 +28439,7 @@ app.get('/api/student/available-courses',
             teacher:users!classes_teacher_id_fkey(full_name)
           )
         `)
+        .eq('status', 'active')
         .eq('classes.center_id', centerId)
         .in('classes.status', ['upcoming', 'ongoing']);
 
@@ -27953,6 +28550,7 @@ app.get('/api/student/available-courses/:courseId',
           )
         `)
         .eq('id', courseId)
+        .eq('status', 'active')
         .eq('classes.center_id', centerId)
         .in('classes.status', ['upcoming', 'ongoing'])
         .single();
@@ -28044,7 +28642,8 @@ app.get('/api/student/available-courses/:courseId',
             status: cls.status,
             teacher: cls.teacher,
             enrollment_status: myEnrollmentStatusMap[cls.id] || null,
-            request_status: requestStatusMap[cls.id] || null
+            request_status: requestStatusMap[cls.id] || null,
+            journey_status: getStudentJourneyStatus(myEnrollmentStatusMap[cls.id] || null, requestStatusMap[cls.id] || null)
           };
         })
       };
@@ -28052,6 +28651,148 @@ app.get('/api/student/available-courses/:courseId',
       res.json({ success: true, data });
     } catch (error) {
       console.error('Error fetching available course detail for student:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/student/enrollment-journey
+ * Student views canonical enrollment journey (requests + enrollments)
+ */
+app.get('/api/student/enrollment-journey',
+  requireAuth,
+  requireRole(['STUDENT']),
+  async (req, res, next) => {
+    try {
+      const supabaseClient = req.supabase || supabase;
+      const studentId = req.user.id;
+      const centerId = req.user.center_id || req.user.centerId;
+
+      const [{ data: enrollmentRows, error: enrollmentError }, { data: requestRows, error: requestError }] = await Promise.all([
+        supabaseClient
+          .from('enrollments')
+          .select(`
+            id, class_id, status, created_at, updated_at,
+            class:classes!inner(id, name, code, schedule, center_id, course:courses(id, title))
+          `)
+          .eq('student_id', studentId)
+          .eq('class.center_id', centerId)
+          .order('updated_at', { ascending: false }),
+        supabaseClient
+          .from('enrollment_requests')
+          .select(`
+            id, class_id, status, message, admin_note, created_at, updated_at,
+            class:classes!inner(id, name, code, schedule, center_id, course:courses(id, title))
+          `)
+          .eq('student_id', studentId)
+          .eq('center_id', centerId)
+          .eq('class.center_id', centerId)
+          .order('updated_at', { ascending: false })
+      ]);
+
+      if (enrollmentError) throw enrollmentError;
+      if (requestError) throw requestError;
+
+      const journeyMap = new Map();
+
+      for (const enrollment of (enrollmentRows || [])) {
+        if (!enrollment?.class_id || !enrollment?.class) continue;
+
+        const existing = journeyMap.get(enrollment.class_id) || {};
+        const next = {
+          ...existing,
+          class_id: enrollment.class_id,
+          class_name: enrollment.class.name,
+          class_code: enrollment.class.code,
+          class_schedule: enrollment.class.schedule,
+          course_id: enrollment.class.course?.id || null,
+          course_name: enrollment.class.course?.title || null,
+          enrollment_id: enrollment.id,
+          enrollment_status: enrollment.status,
+          enrollment_created_at: enrollment.created_at,
+          enrollment_updated_at: enrollment.updated_at
+        };
+
+        journeyMap.set(enrollment.class_id, next);
+      }
+
+      for (const request of (requestRows || [])) {
+        if (!request?.class_id || !request?.class) continue;
+
+        const existing = journeyMap.get(request.class_id) || {};
+        const next = {
+          ...existing,
+          class_id: request.class_id,
+          class_name: existing.class_name || request.class.name,
+          class_code: existing.class_code || request.class.code,
+          class_schedule: existing.class_schedule || request.class.schedule,
+          course_id: existing.course_id || request.class.course?.id || null,
+          course_name: existing.course_name || request.class.course?.title || null,
+          request_id: request.id,
+          request_status: request.status,
+          request_message: request.message,
+          request_admin_note: request.admin_note,
+          request_created_at: request.created_at,
+          request_updated_at: request.updated_at
+        };
+
+        journeyMap.set(request.class_id, next);
+      }
+
+      const items = Array.from(journeyMap.values())
+        .map((row) => {
+          const status = getStudentJourneyStatus(row.enrollment_status, row.request_status);
+          const status_group = getStudentJourneyGroup(status);
+          const can_cancel = Boolean(row.request_id) && ['pending', 'waitlisted'].includes(row.request_status);
+
+          return {
+            id: `journey-${row.class_id}`,
+            class_id: row.class_id,
+            class_name: row.class_name,
+            class_code: row.class_code,
+            class_schedule: row.class_schedule,
+            course_id: row.course_id,
+            course_name: row.course_name,
+            status,
+            status_group,
+            enrollment_id: row.enrollment_id || null,
+            enrollment_status: row.enrollment_status || null,
+            request_id: row.request_id || null,
+            request_status: row.request_status || null,
+            request_message: row.request_message || null,
+            request_admin_note: row.request_admin_note || null,
+            can_cancel,
+            created_at: row.request_created_at || row.enrollment_created_at || null,
+            updated_at: row.request_updated_at || row.enrollment_updated_at || row.request_created_at || row.enrollment_created_at || null
+          };
+        })
+        .filter((row) => row.status)
+        .sort((a, b) => {
+          const priorityDiff = getJourneyPriority(a.status) - getJourneyPriority(b.status);
+          if (priorityDiff !== 0) return priorityDiff;
+          return new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime();
+        });
+
+      const groups = {
+        processing: items.filter((item) => item.status_group === 'processing'),
+        history: items.filter((item) => item.status_group === 'history')
+      };
+
+      res.json({
+        success: true,
+        data: {
+          items,
+          groups,
+          summary: {
+            total: items.length,
+            processing_count: groups.processing.length,
+            history_count: groups.history.length
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching student enrollment journey:', error);
       next(error);
     }
   }
@@ -30071,17 +30812,115 @@ app.patch('/api/admin/leave-requests/:id', requireAuth, requireRole(['SUPER_ADMI
 // GET /api/my-support-tickets - Get current user's support tickets
 app.get('/api/my-support-tickets', requireAuth, async (req, res, next) => {
   try {
-    const { data, error } = await supabase
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, req.query.center_id);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    let ticketQuery = supabase
       .from('support_tickets')
       .select('*')
       .eq('created_by', req.user.id)
       .order('created_at', { ascending: false });
 
+    if (effectiveCenterId) {
+      ticketQuery = ticketQuery.eq('center_id', effectiveCenterId);
+    }
+
+    const { data, error } = await ticketQuery;
+
     if (error) throw error;
 
-    res.json({ success: true, data: data || [] });
+    const tickets = data || [];
+    const ticketIds = tickets.map(ticket => ticket.id).filter(Boolean);
+
+    let messageCounts = {};
+    if (ticketIds.length > 0) {
+      const { data: msgRows, error: msgError } = await supabase
+        .from('ticket_messages')
+        .select('ticket_id')
+        .in('ticket_id', ticketIds);
+
+      if (msgError) throw msgError;
+
+      messageCounts = (msgRows || []).reduce((acc, row) => {
+        acc[row.ticket_id] = (acc[row.ticket_id] || 0) + 1;
+        return acc;
+      }, {});
+    }
+
+    let consultationRowsQuery = supabase
+      .from('consultation_requests')
+      .select('id, status, metadata')
+      .eq('user_id', req.user.id);
+
+    if (effectiveCenterId) {
+      consultationRowsQuery = consultationRowsQuery.eq('center_id', effectiveCenterId);
+    }
+
+    const { data: consultationRows, error: consultationError } = await consultationRowsQuery;
+
+    if (consultationError) throw consultationError;
+
+    const enrichedTickets = enrichStudentSupportTickets({
+      tickets,
+      messageCounts,
+      consultationRows: consultationRows || []
+    });
+
+    res.json({ success: true, data: enrichedTickets });
   } catch (error) {
     console.error('Error fetching user support tickets:', error);
+    next(error);
+  }
+});
+
+// GET /api/my-support-tickets/:id - Get current student ticket detail with visible thread
+app.get('/api/my-support-tickets/:id', requireAuth, requireRole(['STUDENT']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, req.query.center_id);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    let ticketQuery = supabase
+      .from('support_tickets')
+      .select('*')
+      .eq('id', id)
+      .eq('created_by', req.user.id);
+
+    if (effectiveCenterId) {
+      ticketQuery = ticketQuery.eq('center_id', effectiveCenterId);
+    }
+
+    const { data: ticket, error: ticketError } = await ticketQuery.single();
+
+    if (ticketError || !ticket) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy yêu cầu hỗ trợ' });
+    }
+
+    const { data: messages, error: messageError } = await supabase
+      .from('ticket_messages')
+      .select(`
+        *,
+        sender:users!ticket_messages_sender_id_fkey (id, full_name, email, roles!users_role_id_fkey (code))
+      `)
+      .eq('ticket_id', id)
+      .eq('is_internal', false)
+      .order('created_at', { ascending: true });
+
+    if (messageError) throw messageError;
+
+    res.json({
+      success: true,
+      data: {
+        ...ticket,
+        messages: messages || []
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching support ticket detail for student:', error);
     next(error);
   }
 });
