@@ -1,10 +1,32 @@
-/**
- * StudentAttendance Page - Trang xem điểm danh cho học viên
- * Redesigned with Calendar Heatmap + Hybrid layout
- */
+import { useEffect, useMemo, useState } from 'react';
+import {
+  format,
+  isWithinInterval,
+  startOfDay,
+} from 'date-fns';
+import { vi as localeVi } from 'date-fns/locale';
+import {
+  AlertCircle,
+  Calendar,
+  Check,
+  Clock,
+  RefreshCw,
+  X,
+  Minus,
+  ChevronLeft,
+  ChevronRight,
+  RotateCcw,
+} from 'lucide-react';
 
-import { useState } from 'react';
 import { useStudentAttendance } from '../hooks';
+import {
+  PERIOD_PRESETS,
+  buildCalendarGridDays,
+  buildPeriodRange,
+  deriveDayStatus,
+  filterByStatus,
+  paginateRecords,
+} from '../utils/attendanceView';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
@@ -13,230 +35,364 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  CalendarCheck,
-  CheckCircle,
-  XCircle,
-  Clock,
-  AlertTriangle,
-  RefreshCw,
-  BookOpen,
-  Calendar as CalendarIcon,
-  Percent,
-  FileText,
-  ChevronDown,
-  ChevronUp,
-  Filter,
-  Info
-} from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import {
-  format,
-  subWeeks,
-  startOfWeek,
-  endOfWeek,
-  eachDayOfInterval,
-  isSameDay,
-  isAfter,
-  isToday,
-  startOfDay,
-  addWeeks
-} from 'date-fns';
-import { vi } from 'date-fns/locale';
 
-// Configuration for status colors and labels
-const STATUS_CONFIG = {
-  present: { 
-    label: 'Có mặt', 
-    color: 'bg-green-500/10 text-green-600 dark:text-green-400',
-    dotColor: 'bg-green-500',
-    borderColor: 'border-green-500/20'
+const STATUS_STYLES = {
+  present: {
+    label: 'Có mặt',
+    badge: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    dot: 'bg-emerald-500',
+    icon: Check,
+    iconClass: 'text-white',
   },
-  absent: { 
-    label: 'Vắng mặt', 
-    color: 'bg-red-500/10 text-red-600 dark:text-red-400',
-    dotColor: 'bg-red-500',
-    borderColor: 'border-red-500/20'
+  absent: {
+    label: 'Vắng mặt',
+    badge: 'bg-rose-100 text-rose-700 border-rose-200',
+    dot: 'bg-rose-500',
+    icon: X,
+    iconClass: 'text-white',
   },
-  late: { 
-    label: 'Đi trễ', 
-    color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-    dotColor: 'bg-amber-500',
-    borderColor: 'border-amber-500/20'
+  late: {
+    label: 'Đi trễ',
+    badge: 'bg-amber-100 text-amber-700 border-amber-200',
+    dot: 'bg-amber-500',
+    icon: Clock,
+    iconClass: 'text-white',
   },
-  excused: { 
-    label: 'Có phép', 
-    color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-    dotColor: 'bg-blue-500',
-    borderColor: 'border-blue-500/20'
-  }
+  excused: {
+    label: 'Có phép',
+    badge: 'bg-blue-100 text-blue-700 border-blue-200',
+    dot: 'bg-blue-500',
+    icon: Minus,
+    iconClass: 'text-white',
+  },
+  none: {
+    label: 'Không học',
+    badge: 'bg-slate-100 text-slate-600 border-slate-200',
+    dot: 'bg-slate-200',
+    icon: null,
+    iconClass: '',
+  },
+  future: {
+    label: 'Tương lai',
+    badge: 'bg-slate-100 text-slate-500 border-slate-200',
+    dot: 'bg-transparent border border-dashed border-slate-300',
+    icon: null,
+    iconClass: '',
+  },
 };
+
+const PERIOD_OPTIONS = [
+  { value: 'd7', label: PERIOD_PRESETS.d7 },
+  { value: 'd30', label: PERIOD_PRESETS.d30 },
+  { value: 'term', label: PERIOD_PRESETS.term },
+];
+
+const PAGE_SIZE_OPTIONS = [10, 20, 30];
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '--';
-  return new Date(dateStr).toLocaleDateString('vi-VN', {
-    weekday: 'short',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  });
+  return format(new Date(dateStr), 'dd/MM/yyyy', { locale: localeVi });
 };
 
-// Compact Stat Card Component
-function CompactStatCard({ icon: Icon, label, value, color = 'default' }) {
-  const colorStyles = {
-    default: 'bg-muted text-muted-foreground',
-    green: 'bg-green-500/10 text-green-600 dark:text-green-400',
-    blue: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-    red: 'bg-red-500/10 text-red-600 dark:text-red-400',
-    amber: 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+const formatPercent = (value) => {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return '--';
+  return `${Number(value).toFixed(1)}%`;
+};
+
+const formatTime = (timeStr) => {
+  if (!timeStr) return '--:--';
+  return String(timeStr).slice(0, 5);
+};
+
+function StatCard({ title, value, color = 'default', icon: Icon }) {
+  const colorMap = {
+    default: 'bg-slate-100 text-slate-700 border-slate-200',
+    success: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    danger: 'bg-rose-100 text-rose-700 border-rose-200',
+    warning: 'bg-amber-100 text-amber-700 border-amber-200',
   };
+
   return (
-    <Card className="hover:shadow-sm transition-shadow">
-      <CardContent className="p-4 flex flex-col items-center justify-center text-center h-full">
-        <div className={cn('p-2 rounded-full mb-2', colorStyles[color])}>
-          <Icon className="h-5 w-5" />
+    <Card className="shadow-sm border-slate-200">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">{title}</p>
+            <p className="text-2xl font-semibold mt-1">{value}</p>
+          </div>
+          <div className={cn('h-10 w-10 rounded-full border flex items-center justify-center', colorMap[color])}>
+            <Icon className="h-5 w-5" />
+          </div>
         </div>
-        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{label}</p>
-        <p className="text-xl font-bold mt-1">{value}</p>
       </CardContent>
     </Card>
   );
 }
 
-// Status Badge Component
 function StatusBadge({ status }) {
-  const config = STATUS_CONFIG[status] || STATUS_CONFIG.absent;
+  const config = STATUS_STYLES[status] || STATUS_STYLES.none;
   return (
-    <span className={cn('px-2 py-0.5 rounded-full text-[10px] uppercase font-bold tracking-wider', config.color)}>
+    <span className={cn('inline-flex items-center gap-1 px-2.5 py-1 rounded-md border text-xs font-medium', config.badge)}>
+      <span className={cn('h-2 w-2 rounded-full', config.dot)} />
       {config.label}
     </span>
   );
 }
 
-// Class Summary Chip Component
-function ClassSummaryChip({ summary }) {
-  const rate = typeof summary.attendanceRate === 'number' 
-    ? summary.attendanceRate.toFixed(0) 
-    : (summary.attendanceRate || 0);
-    
-  let colorClass = 'bg-muted text-foreground border-border';
-  if (rate >= 80) colorClass = 'bg-green-500/10 text-green-600 border-green-500/20 dark:text-green-400';
-  else if (rate >= 60) colorClass = 'bg-amber-500/10 text-amber-600 border-amber-500/20 dark:text-amber-400';
-  else colorClass = 'bg-red-500/10 text-red-600 border-red-500/20 dark:text-red-400';
+function ClassSummaryChip({ summary, isActive, onClick }) {
   return (
-    <div className={cn('flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-medium whitespace-nowrap', colorClass)}>
-      <BookOpen className="h-3.5 w-3.5" />
-      <span>{summary.className}</span>
-      <span className="font-bold border-l border-current/20 pl-2">{rate}%</span>
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'px-3 py-2 rounded-lg border text-left transition-all min-w-[220px]',
+        isActive ? 'bg-primary/10 border-primary/30 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50'
+      )}
+    >
+      <p className="font-medium text-sm truncate">{summary.className}</p>
+      <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+        <span>{summary.totalSessions || 0} buổi</span>
+        <span className="font-medium text-foreground">{formatPercent(summary.attendanceRate || 0)}</span>
+      </div>
+    </button>
   );
 }
 
-// Calendar Heatmap Component
-function AttendanceHeatmap({ records }) {
+function AttendanceHeatmap({ records, rangeStart, rangeEnd, statusFocus, onStatusFocusChange }) {
   const today = startOfDay(new Date());
-  // Generate last 5 weeks
-  const endDate = endOfWeek(today, { weekStartsOn: 1 });
-  const startDate = subWeeks(startOfWeek(today, { weekStartsOn: 1 }), 4);
-  
-  const calendarDays = eachDayOfInterval({ start: startDate, end: endDate });
-  const weekDays = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+  const calendarDays = useMemo(() => buildCalendarGridDays(rangeStart, rangeEnd), [rangeStart, rangeEnd]);
 
-  // Helper to get status for a day
-  const getStatusForDay = (date) => {
-    // Check if future
-    if (isAfter(date, today)) return 'future';
+  const weeks = useMemo(() => {
+    const chunks = [];
+    for (let i = 0; i < calendarDays.length; i += 7) {
+      chunks.push(calendarDays.slice(i, i + 7));
+    }
+    return chunks;
+  }, [calendarDays]);
 
-    // Find records
-    const dayRecords = records.filter(r => isSameDay(new Date(r.session_date), date));
-    if (dayRecords.length === 0) return 'none';
+  const statusCounts = useMemo(() => {
+    const base = {
+      present: 0,
+      absent: 0,
+      late: 0,
+      excused: 0,
+    };
+    (records || []).forEach((record) => {
+      if (base[record.status] !== undefined) {
+        base[record.status] += 1;
+      }
+    });
+    return base;
+  }, [records]);
 
-    // Priority: Absent > Late > Excused > Present
-    if (dayRecords.some(r => r.status === 'absent')) return 'absent';
-    if (dayRecords.some(r => r.status === 'late')) return 'late';
-    if (dayRecords.some(r => r.status === 'excused')) return 'excused';
-    return 'present';
-  };
+  const weekdayLabels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
   return (
-    <Card className="overflow-hidden border-none shadow-none bg-transparent sm:bg-white sm:border sm:shadow-sm">
-      <CardHeader className="px-0 sm:px-6 pb-2">
-        <CardTitle className="text-base font-semibold flex items-center gap-2">
-          <CalendarIcon className="h-5 w-5 text-primary" />
-          Biểu đồ chuyên cần
-        </CardTitle>
+    <Card className="shadow-sm border-slate-200">
+      <CardHeader className="pb-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Calendar className="h-5 w-5" />
+            Biểu đồ chuyên cần
+          </CardTitle>
+          <div className="text-xs text-muted-foreground">
+            {format(rangeStart, "dd/MM/yyyy", { locale: localeVi })} - {format(rangeEnd, "dd/MM/yyyy", { locale: localeVi })}
+          </div>
+        </div>
       </CardHeader>
-      <CardContent className="px-0 sm:px-6">
-        <div className="w-full overflow-x-auto pb-2">
-          <div className="min-w-[300px]">
-            {/* Weekday Headers */}
-            <div className="grid grid-cols-7 gap-2 mb-2 text-center">
-              {weekDays.map(day => (
-                <div key={day} className="text-xs text-muted-foreground font-medium">{day}</div>
-              ))}
-            </div>
-            
-            {/* Days Grid */}
-            <div className="grid grid-cols-7 gap-2">
-              {calendarDays.map((day, idx) => {
-                const status = getStatusForDay(day);
-                const isDayToday = isToday(day);
-                const dateNum = format(day, 'd');
-                
-                let dotClass = '';
-                
-                if (status === 'future') {
-                  dotClass = 'bg-transparent border-2 border-dashed border-border';
-                } else if (status === 'none') {
-                  dotClass = 'bg-muted'; // Empty/No Class
-                } else {
-                  dotClass = STATUS_CONFIG[status]?.dotColor || 'bg-muted';
-                }
+
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-7 gap-2 text-center text-xs text-muted-foreground font-medium">
+          {weekdayLabels.map((label) => (
+            <div key={label}>{label}</div>
+          ))}
+        </div>
+
+        <div className="space-y-2">
+          {weeks.map((week, weekIndex) => (
+            <div key={weekIndex} className="grid grid-cols-7 gap-2">
+              {week.map((day) => {
+                const dayStatus = deriveDayStatus(records, day, today);
+                const isInRequestedRange = isWithinInterval(day, { start: rangeStart, end: rangeEnd });
+                const isDimmed = statusFocus !== 'all' && dayStatus !== statusFocus && dayStatus !== 'future' && dayStatus !== 'none';
+
+                const config = STATUS_STYLES[dayStatus] || STATUS_STYLES.none;
+                const Icon = config.icon;
+                const dayRecords = (records || []).filter((record) =>
+                  format(new Date(record.session_date), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd')
+                );
 
                 return (
-                  <div key={idx} className="flex flex-col items-center gap-1">
-                    <div 
-                      className={cn(
-                        "h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center transition-all relative group",
-                        dotClass,
-                        isDayToday && "ring-2 ring-offset-2 ring-primary dark:ring-offset-background"
+                  <div
+                    key={day.toISOString()}
+                    className={cn(
+                      'relative rounded-xl border p-2 h-16 transition-all bg-white',
+                      isInRequestedRange ? 'border-slate-200' : 'border-slate-100 bg-slate-50',
+                      isDimmed ? 'opacity-35' : 'opacity-100'
+                    )}
+                    title={
+                      dayStatus === 'none'
+                        ? `${format(day, 'dd/MM/yyyy')}: Không có dữ liệu`
+                        : `${format(day, 'dd/MM/yyyy')}: ${config.label} (${dayRecords.length})`
+                    }
+                  >
+                    <div className="relative z-10 text-[11px] text-slate-500">{format(day, 'd')}</div>
+
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      {Icon ? (
+                        <div className={cn('h-8 w-8 rounded-full flex items-center justify-center', config.dot)}>
+                          <Icon className={cn('h-4 w-4 shrink-0', config.iconClass)} />
+                        </div>
+                      ) : (
+                        <div className={cn('h-8 w-8 rounded-full flex items-center justify-center', config.dot)} />
                       )}
-                      title={`${format(day, 'dd/MM/yyyy')}${status !== 'none' && status !== 'future' ? `: ${STATUS_CONFIG[status]?.label}` : ''}`}
-                    >
-                      {/* For none/future, show date number nicely */}
-                      {(status === 'none' || status === 'future') && (
-                        <span className="text-[10px] text-muted-foreground font-medium">{dateNum}</span>
-                      )}
-                      {/* For statuses, show check/x or just color */}
-                      {status === 'present' && <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-white opacity-90" />}
-                      {status === 'absent' && <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-white opacity-90" />}
-                      {status === 'late' && <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-white opacity-90" />}
-                      {status === 'excused' && <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-white opacity-90" />}
-                    
-                      {/* Tooltip on hover */}
-                      <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 hidden group-hover:block z-10 whitespace-nowrap bg-popover text-popover-foreground text-xs px-2 py-1 rounded shadow-md border">
-                        {format(day, 'dd/MM')}
-                      </div>
                     </div>
                   </div>
                 );
               })}
             </div>
-          </div>
+          ))}
         </div>
 
-        {/* Legend */}
-        <div className="flex flex-wrap items-center justify-center gap-4 mt-4 pt-4 border-t border-border/50">
-          {Object.entries(STATUS_CONFIG).map(([key, config]) => (
-            <div key={key} className="flex items-center gap-2">
-              <div className={cn("h-3 w-3 rounded-full", config.dotColor)} />
-              <span className="text-xs text-muted-foreground">{config.label}</span>
-            </div>
-          ))}
+        <div className="pt-3 border-t border-slate-200 flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant={statusFocus === 'all' ? 'default' : 'outline'}
+            onClick={() => onStatusFocusChange('all')}
+          >
+            Tất cả ({records.length})
+          </Button>
+          {['present', 'absent', 'late', 'excused', 'none'].map((statusKey) => {
+            const config = STATUS_STYLES[statusKey];
+            const count = statusKey === 'none' ? 0 : statusCounts[statusKey] || 0;
+            return (
+              <Button
+                key={statusKey}
+                type="button"
+                size="sm"
+                variant={statusFocus === statusKey ? 'default' : 'outline'}
+                className="gap-2"
+                onClick={() => onStatusFocusChange(statusKey)}
+              >
+                <span className={cn('h-2 w-2 rounded-full', config.dot)} />
+                {config.label} {statusKey === 'none' ? '' : `(${count})`}
+              </Button>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function HistoryTable({ records, hasActiveFilters, onResetFilters }) {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  useEffect(() => {
+    setPage(1);
+  }, [records.length, pageSize]);
+
+  const pagination = useMemo(() => paginateRecords(records, page, pageSize), [records, page, pageSize]);
+
+  if (records.length === 0) {
+    return (
+      <Card className="shadow-sm border-slate-200">
+        <CardContent className="py-10 text-center space-y-3">
+          <p className="font-medium">Không tìm thấy dữ liệu điểm danh</p>
+          <p className="text-sm text-muted-foreground">
+            {hasActiveFilters
+              ? 'Bộ lọc hiện tại không có kết quả. Bạn có thể reset để xem toàn bộ dữ liệu.'
+              : 'Dữ liệu điểm danh sẽ xuất hiện khi có buổi học được ghi nhận.'}
+          </p>
+          {hasActiveFilters ? (
+            <Button type="button" variant="outline" onClick={onResetFilters}>
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Reset bộ lọc
+            </Button>
+          ) : null}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="shadow-sm border-slate-200">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg">Lịch sử điểm danh</CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px]">
+            <thead className="bg-slate-50 border-y border-slate-200">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Ngày</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Lớp học</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Trạng thái</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Giờ vào</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {pagination.items.map((record) => (
+                <tr key={record.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-4 py-3 text-sm font-medium">{formatDate(record.session_date)}</td>
+                  <td className="px-4 py-3 text-sm">
+                    <p className="font-medium">{record.class_name}</p>
+                    <p className="text-xs text-muted-foreground">{record.course_title}</p>
+                  </td>
+                  <td className="px-4 py-3 text-sm">
+                    <StatusBadge status={record.status} />
+                  </td>
+                  <td className="px-4 py-3 text-sm">{formatTime(record.check_in_time)}</td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">{record.notes || '--'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="px-4 py-3 border-t border-slate-200 bg-slate-50/70 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-sm text-muted-foreground">
+          <div>
+            Hiển thị {pagination.startItem}-{pagination.endItem} / {pagination.totalItems} bản ghi
+          </div>
+
           <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded-full bg-muted border border-border" />
-            <span className="text-xs text-muted-foreground">Không học</span>
+            <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
+              <SelectTrigger className="h-8 w-[110px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <SelectItem key={size} value={String(size)}>
+                    {size}/trang
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+              disabled={pagination.page <= 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span>{pagination.page}/{pagination.totalPages}</span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setPage((prev) => Math.min(pagination.totalPages, prev + 1))}
+              disabled={pagination.page >= pagination.totalPages}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </CardContent>
@@ -244,215 +400,196 @@ function AttendanceHeatmap({ records }) {
   );
 }
 
-// Attendance History Table
-function HistoryTable({ records }) {
-  const [expanded, setExpanded] = useState(false);
-  const displayRecords = expanded ? records : records.slice(0, 10);
-
-  if (records.length === 0) {
-    return (
-      <div className="text-center py-10 text-muted-foreground bg-muted/20 rounded-lg">
-        <Clock className="h-10 w-10 mx-auto mb-3 opacity-20" />
-        <p>Chưa có dữ liệu điểm danh</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="rounded-md border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-slate-50 text-muted-foreground font-medium">
-              <tr>
-                <th className="px-4 py-3">Ngày</th>
-                <th className="px-4 py-3">Lớp học</th>
-                <th className="px-4 py-3 text-center">Trạng thái</th>
-                <th className="px-4 py-3">Ghi chú</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {displayRecords.map((record) => (
-                <tr key={record.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3 font-medium whitespace-nowrap text-foreground">
-                    {formatDate(record.session_date)}
-                  </td>
-                  <td className="px-4 py-3 text-foreground">
-                    {record.class_name}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <StatusBadge status={record.status} />
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground max-w-[200px] truncate" title={record.notes || ''}>
-                    {record.notes || '--'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      
-      {records.length > 10 && (
-        <div className="flex justify-center">
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="flex items-center gap-2 text-sm text-primary font-medium hover:underline p-2"
-          >
-            {expanded ? (
-              <>Thu gọn <ChevronUp className="h-4 w-4" /></>
-            ) : (
-              <>Xem tất cả ({records.length}) <ChevronDown className="h-4 w-4" /></>
-            )}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function StudentAttendance() {
-  const { records, classSummaries, statistics, loading, error, refresh } = useStudentAttendance();
   const [classFilter, setClassFilter] = useState('all');
+  const [periodPreset, setPeriodPreset] = useState('d30');
+  const [statusFocus, setStatusFocus] = useState('all');
 
-  // Filter logic
-  const filteredRecords = classFilter && classFilter !== 'all'
-    ? records.filter(r => r.class_id === classFilter)
-    : records;
+  const periodRange = useMemo(() => buildPeriodRange(periodPreset), [periodPreset]);
 
-  const filteredSummaries = classFilter && classFilter !== 'all'
-    ? classSummaries.filter(cs => cs.classId === classFilter)
-    : classSummaries;
+  const { records, classSummaries, statistics, loading, error, refresh } = useStudentAttendance({
+    classId: classFilter !== 'all' ? classFilter : null,
+    startDate: periodRange.startKey,
+    endDate: periodRange.endKey,
+  });
 
-  // Derive unique classes for filter
-  const uniqueClasses = classSummaries.map(cs => ({
-    id: cs.classId,
-    name: cs.className
-  }));
+  const filteredRecords = useMemo(
+    () => filterByStatus(records || [], statusFocus),
+    [records, statusFocus]
+  );
 
-  const stats = statistics || {};
+  const activeClassSummary = classFilter === 'all'
+    ? null
+    : classSummaries.find((summary) => summary.classId === classFilter) || null;
+
+  const hasActiveFilters = classFilter !== 'all' || periodPreset !== 'd30' || statusFocus !== 'all';
+
+  const handleResetFilters = () => {
+    setClassFilter('all');
+    setPeriodPreset('d30');
+    setStatusFocus('all');
+  };
 
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-4">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
-        <p className="text-muted-foreground text-sm animate-pulse">Đang tải dữ liệu điểm danh...</p>
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center p-4">
-        <div className="text-center p-6 bg-destructive/5 rounded-xl border border-destructive/20 max-w-md w-full">
-          <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-destructive mb-2">Đã có lỗi xảy ra</h2>
-          <p className="text-muted-foreground text-sm mb-6">{error}</p>
-          <button
-            onClick={refresh}
-            className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors w-full font-medium"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Thử lại
-          </button>
-        </div>
+      <div className="min-h-[60vh] flex items-center justify-center px-4">
+        <Card className="w-full max-w-lg border-rose-200 bg-rose-50/70">
+          <CardContent className="p-6 text-center">
+            <AlertCircle className="h-10 w-10 mx-auto text-rose-600 mb-3" />
+            <h2 className="text-lg font-semibold text-rose-700 mb-2">Không thể tải điểm danh</h2>
+            <p className="text-sm text-rose-600 mb-4">{error}</p>
+            <Button onClick={refresh} variant="destructive">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Thử lại
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 p-4 sm:p-6 max-w-7xl mx-auto">
-      {/* 1. Header & Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6 p-6">
+      <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Điểm danh</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Theo dõi chuyên cần và lịch sử điểm danh của bạn
-          </p>
+          <h1 className="text-2xl font-bold">Điểm danh</h1>
+          <p className="text-muted-foreground">Theo dõi chuyên cần theo lớp, trạng thái và thời gian</p>
         </div>
-        
-        <div className="flex items-center gap-2 w-full md:w-auto">
+
+        <div className="flex flex-wrap items-center gap-2">
           <Select value={classFilter} onValueChange={setClassFilter}>
-            <SelectTrigger className="w-full md:w-[220px] bg-white">
-              <Filter className="h-4 w-4 mr-2 text-muted-foreground" />
-              <SelectValue placeholder="Tất cả lớp học" />
+            <SelectTrigger className="w-[220px]">
+              <SelectValue placeholder="Tất cả lớp" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Tất cả lớp học</SelectItem>
-              {uniqueClasses.map((cls) => (
-                <SelectItem key={cls.id} value={cls.id}>
-                  {cls.name}
+              <SelectItem value="all">Tất cả lớp</SelectItem>
+              {classSummaries.map((summary) => (
+                <SelectItem key={summary.classId} value={summary.classId}>
+                  {summary.className}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          
-          <button
-            onClick={refresh}
-            className="p-2.5 rounded-lg border bg-white hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-            title="Làm mới dữ liệu"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </button>
+
+          <Select value={periodPreset} onValueChange={setPeriodPreset}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PERIOD_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {hasActiveFilters ? (
+            <Button type="button" variant="outline" onClick={handleResetFilters}>
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Reset bộ lọc
+            </Button>
+          ) : null}
+
+          <Button type="button" variant="outline" onClick={refresh}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Làm mới
+          </Button>
         </div>
       </div>
 
-      {/* 2. Class Summaries Bar (Chips) */}
-      {classSummaries.length > 0 && (
-        <div className="flex flex-wrap gap-3 pb-2">
-          {filteredSummaries.map(summary => (
-            <ClassSummaryChip key={summary.classId} summary={summary} />
-          ))}
-        </div>
-      )}
-
-      {/* 3. Compact Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-        <CompactStatCard
-          icon={CalendarCheck}
-          label="Tổng số buổi"
-          value={stats.totalSessions || 0}
-        />
-        <CompactStatCard
-          icon={CheckCircle}
-          label="Có mặt"
-          value={stats.presentCount || 0}
-          color="green"
-        />
-        <CompactStatCard
-          icon={XCircle}
-          label="Vắng mặt"
-          value={stats.absentCount || 0}
-          color="red"
-        />
-        <CompactStatCard
-          icon={Percent}
-          label="Tỷ lệ chuyên cần"
-          value={`${typeof stats.attendanceRate === 'number' ? stats.attendanceRate.toFixed(0) : (stats.attendanceRate || 0)}%`}
-          color="blue"
-        />
-      </div>
-
-      {/* 4. Calendar Heatmap */}
-      <AttendanceHeatmap records={filteredRecords} />
-
-      {/* 5. Recent History Table */}
-      <Card>
-        <CardHeader className="px-6 py-4 border-b">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <Clock className="h-5 w-5 text-primary" />
-              Lịch sử gần đây
-            </CardTitle>
-            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-              {filteredRecords.length} bản ghi
-            </span>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <HistoryTable records={filteredRecords} />
+      <Card className="border-slate-200 shadow-sm bg-white">
+        <CardContent className="p-4 flex flex-wrap items-center gap-3 text-sm">
+          <span className="text-muted-foreground">Khoảng thời gian:</span>
+          <span className="font-medium">
+            {format(periodRange.startDate, 'dd/MM/yyyy', { locale: localeVi })} - {format(periodRange.endDate, 'dd/MM/yyyy', { locale: localeVi })}
+          </span>
+          {activeClassSummary ? (
+            <>
+              <span className="text-muted-foreground">|</span>
+              <span>Lớp:</span>
+              <span className="font-medium">{activeClassSummary.className}</span>
+            </>
+          ) : null}
+          {statusFocus !== 'all' ? (
+            <>
+              <span className="text-muted-foreground">|</span>
+              <span>Trạng thái:</span>
+              <span className="font-medium">{STATUS_STYLES[statusFocus]?.label}</span>
+            </>
+          ) : null}
         </CardContent>
       </Card>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <StatCard
+          title="Tỷ lệ chuyên cần"
+          value={formatPercent(statistics.attendanceRate || 0)}
+          color="default"
+          icon={Calendar}
+        />
+        <StatCard
+          title="Có mặt"
+          value={statistics.presentCount || 0}
+          color="success"
+          icon={Check}
+        />
+        <StatCard
+          title="Vắng mặt"
+          value={statistics.absentCount || 0}
+          color="danger"
+          icon={X}
+        />
+        <StatCard
+          title="Đi trễ"
+          value={statistics.lateCount || 0}
+          color="warning"
+          icon={Clock}
+        />
+      </div>
+
+      <Card className="shadow-sm border-slate-200">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Theo lớp học</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-3">
+          <ClassSummaryChip
+            summary={{ classId: 'all', className: 'Tất cả lớp', totalSessions: statistics.totalSessions || 0, attendanceRate: statistics.attendanceRate || 0 }}
+            isActive={classFilter === 'all'}
+            onClick={() => setClassFilter('all')}
+          />
+          {classSummaries.map((summary) => (
+            <ClassSummaryChip
+              key={summary.classId}
+              summary={summary}
+              isActive={classFilter === summary.classId}
+              onClick={() => setClassFilter(summary.classId)}
+            />
+          ))}
+        </CardContent>
+      </Card>
+
+      <AttendanceHeatmap
+        records={filteredRecords}
+        rangeStart={periodRange.startDate}
+        rangeEnd={periodRange.endDate}
+        statusFocus={statusFocus}
+        onStatusFocusChange={setStatusFocus}
+      />
+
+      <HistoryTable
+        records={filteredRecords}
+        hasActiveFilters={hasActiveFilters}
+        onResetFilters={handleResetFilters}
+      />
     </div>
   );
 }

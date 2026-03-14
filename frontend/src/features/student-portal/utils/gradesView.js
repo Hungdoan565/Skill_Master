@@ -49,6 +49,21 @@ export function sortGrades(grades, sortConfig) {
   return rows;
 }
 
+export function nextSortConfig(previousSort, sortKey) {
+  const base = previousSort || { key: 'date', order: 'desc' };
+  return {
+    key: sortKey,
+    order: base.key === sortKey && base.order === 'desc' ? 'asc' : 'desc',
+  };
+}
+
+export function toggleExpandedGroupState(previousState, groupId) {
+  return {
+    ...(previousState || {}),
+    [groupId]: !(previousState || {})[groupId],
+  };
+}
+
 export function paginateRecords(rows, page, pageSize) {
   const totalItems = rows.length;
   const safePageSize = Math.max(1, Number(pageSize) || 10);
