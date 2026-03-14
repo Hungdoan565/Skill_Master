@@ -248,7 +248,7 @@ export function CoursesPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Quản lý Khóa học</h1>
           <p className="text-muted-foreground">
-            Danh sách tất cả khóa học của trung tâm
+            Danh mục khóa học và trạng thái hiển thị cho học viên
           </p>
         </div>
         <Button

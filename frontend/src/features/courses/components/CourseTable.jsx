@@ -26,6 +26,34 @@ function StatusBadge({ status }) {
   );
 }
 
+function StudentVisibilityBadge({ course }) {
+  const visibleNow = course?.student_visible_now ?? course?.student_visibility?.visible_now ?? false;
+  const reasonLabels = course?.student_visibility_reason_labels || course?.student_visibility?.reason_labels || [];
+
+  if (visibleNow) {
+    return (
+      <div className="space-y-1">
+        <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+          Visible now
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1 max-w-[220px]">
+      <span className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700">
+        Not visible
+      </span>
+      {reasonLabels.length > 0 ? (
+        <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2" title={reasonLabels.join(', ')}>
+          {reasonLabels.join(' • ')}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export function CourseTable({
   courses,
   loading,
@@ -124,6 +152,7 @@ export function CourseTable({
             <th className="pb-3 pr-4">Tên khóa học</th>
             <th className="pb-3 pr-4">Danh mục</th>
             <th className="pb-3 pr-4">Trạng thái</th>
+            <th className="pb-3 pr-4">Hiển thị học viên</th>
             <th className="pb-3 pr-4 text-right">Học phí</th>
             <th className="pb-3 pr-4 text-center">Số buổi</th>
             <th className="pb-3 text-right">Hành động</th>
@@ -213,6 +242,11 @@ function CourseRow({
       {/* Trạng thái - NEW COLUMN */}
       <td className="py-4 pr-4">
         <StatusBadge status={course.status} />
+      </td>
+
+      {/* Hiển thị học viên */}
+      <td className="py-4 pr-4">
+        <StudentVisibilityBadge course={course} />
       </td>
 
       {/* Học phí */}

@@ -152,7 +152,7 @@ const UserDropdown = () => {
   );
 };
 
-export function AdminHeader({ notificationBell }) {
+export function AdminHeader({ notificationBell, showCenterSwitcher = false }) {
   return (
     <header className="flex h-16 items-center justify-between border-b border-border bg-card/80 backdrop-blur-sm px-6">
       {/* Search - Enhanced with glassmorphism feel */}
@@ -178,8 +178,8 @@ export function AdminHeader({ notificationBell }) {
         </div>
       </div>
 
-      {/* Center Switcher - Global center selection for SUPER_ADMIN */}
-      <CenterSwitcher />
+      {/* Center Switcher - only where CenterProvider exists */}
+      {showCenterSwitcher ? <CenterSwitcher /> : <div aria-hidden="true" className="w-[240px]" />}
       {/* Right section */}
       <div className="flex items-center gap-3">
         {/* Notifications */}

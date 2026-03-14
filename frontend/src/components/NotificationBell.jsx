@@ -69,6 +69,16 @@ export function NotificationBell({
       return '/classes';
     }
 
+    if (refType === 'support_ticket' || refType === 'consultation_follow_up') {
+      if (roleCode === 'STUDENT') {
+        if (item?.reference_id) {
+          return `/student/support?ticketId=${item.reference_id}`;
+        }
+        return '/student/support';
+      }
+      return '/admin/support-tickets';
+    }
+
     if (item?.type === 'grade_published') {
       if (roleCode === 'STUDENT') return '/student/grades';
       return '/reports/grades';

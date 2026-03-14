@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useStudentSupport } from '../hooks';
+import { useAuth } from '@/contexts/auth-context';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,20 +24,42 @@ const STATUS_MAP = {
 const CATEGORY_MAP = {
   academic: 'Học vụ',
   technical: 'Kỹ thuật',
+  billing: 'Tài chính',
+  course: 'Khóa học',
+  general: 'Tổng quát',
   financial: 'Tài chính',
   other: 'Khác'
 };
 
 const PRIORITY_MAP = {
   low: { label: 'Thấp', color: 'bg-muted text-muted-foreground' },
+  normal: { label: 'Trung bình', color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
   medium: { label: 'Trung bình', color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
-  high: { label: 'Cao', color: 'bg-red-500/10 text-red-600 dark:text-red-400' }
+  high: { label: 'Cao', color: 'bg-red-500/10 text-red-600 dark:text-red-400' },
+  urgent: { label: 'Khẩn cấp', color: 'bg-rose-500/10 text-rose-600 dark:text-rose-400' }
 };
 
 export default function StudentSupportPage() {
-  const { tickets, loading, error, createTicket, refetch } = useStudentSupport();
+  const {
+    tickets,
+    ticketDetail,
+    ticketMessages,
+    loading,
+    detailLoading,
+    sendingReply,
+    error,
+    createTicket,
+    fetchTicketDetail,
+    sendReply,
+    setTicketDetail,
+    refetch
+  } = useStudentSupport();
+  const { profile } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedTicketId, setSelectedTicketId] = useState(null);
+  const [replyText, setReplyText] = useState('');
   const { toast } = useToast();
   
   const [formData, setFormData] = useState({
@@ -82,6 +106,76 @@ export default function StudentSupportPage() {
       hour: '2-digit', minute: '2-digit'
     }).format(new Date(dateString));
   };
+
+  const syncTicketQuery = (ticketId) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (ticketId) {
+      nextParams.set('ticketId', ticketId);
+    } else {
+      nextParams.delete('ticketId');
+    }
+    setSearchParams(nextParams, { replace: true });
+  };
+
+  const handleOpenTicket = async (ticketId) => {
+    if (!ticketId) return;
+    setSelectedTicketId(ticketId);
+    syncTicketQuery(ticketId);
+    await fetchTicketDetail(ticketId);
+  };
+
+  const handleCloseTicket = () => {
+    setSelectedTicketId(null);
+    setReplyText('');
+    setTicketDetail(null);
+    syncTicketQuery(null);
+  };
+
+  const handleSendReply = async () => {
+    if (!selectedTicketId || !replyText.trim()) return;
+
+    const result = await sendReply(selectedTicketId, replyText);
+    if (result.success) {
+      setReplyText('');
+      toast({
+        title: 'Đã gửi phản hồi',
+        description: 'Tin nhắn của bạn đã được gửi đến trung tâm.',
+        type: 'success'
+      });
+      return;
+    }
+
+    toast({
+      title: 'Không thể gửi phản hồi',
+      description: result.error || 'Vui lòng thử lại sau.',
+      type: 'error'
+    });
+  };
+
+  useEffect(() => {
+    const ticketId = searchParams.get('ticketId');
+    if (!ticketId || selectedTicketId === ticketId) return;
+
+    const existsInList = tickets.some(ticket => ticket.id === ticketId);
+    if (existsInList) {
+      setSelectedTicketId(ticketId);
+      fetchTicketDetail(ticketId);
+    }
+  }, [fetchTicketDetail, searchParams, selectedTicketId, tickets]);
+
+  useEffect(() => {
+    if (!selectedTicketId) return undefined;
+
+    const pollTimer = setInterval(() => {
+      fetchTicketDetail(selectedTicketId);
+      refetch();
+    }, 20000);
+
+    return () => clearInterval(pollTimer);
+  }, [fetchTicketDetail, refetch, selectedTicketId]);
+
+  const selectedTicket = ticketDetail || tickets.find(ticket => ticket.id === selectedTicketId) || null;
+  const canReply = selectedTicket && selectedTicket.status !== 'closed';
 
   if (loading && !tickets.length) {
     return (
@@ -182,6 +276,19 @@ export default function StudentSupportPage() {
                   <h3 className="font-semibold text-base line-clamp-2 mb-3 group-hover:text-emerald-600 transition-colors">
                     {ticket.subject}
                   </h3>
+
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    {ticket.is_consultation_follow_up ? (
+                      <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
+                        Follow-up tư vấn
+                      </Badge>
+                    ) : null}
+                    {ticket.message_count > 0 ? (
+                      <Badge variant="secondary" className="text-xs">
+                        {ticket.message_count} tin nhắn
+                      </Badge>
+                    ) : null}
+                  </div>
                   
                   <div className="space-y-2 text-sm text-muted-foreground mb-4">
                     <div className="flex items-center gap-2">
@@ -198,7 +305,12 @@ export default function StudentSupportPage() {
                     <Badge variant="secondary" className={cn("text-xs border-0", priorityConfig.color)}>
                       {priorityConfig.label}
                     </Badge>
-                    <Button variant="ghost" size="sm" className="h-8 text-emerald-600 dark:text-emerald-400 px-2 group-hover:bg-emerald-500/10">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-emerald-600 dark:text-emerald-400 px-2 group-hover:bg-emerald-500/10"
+                      onClick={() => handleOpenTicket(ticket.id)}
+                    >
                       Chi tiết <ChevronRight className="h-4 w-4 ml-1" />
                     </Button>
                   </div>
@@ -208,6 +320,97 @@ export default function StudentSupportPage() {
           })}
         </div>
       )}
+
+      {selectedTicketId ? (
+        <Card className="rounded-2xl border shadow-sm">
+          <CardContent className="p-5 md:p-6 space-y-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {selectedTicket?.ticket_number ? `#${selectedTicket.ticket_number}` : 'Ticket'}
+                </p>
+                <h3 className="mt-1 text-lg font-semibold text-foreground">{selectedTicket?.subject || 'Chi tiết yêu cầu'}</h3>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {selectedTicket?.status ? (
+                    <Badge variant="outline" className={cn('border-0', (STATUS_MAP[selectedTicket.status] || STATUS_MAP.open).color)}>
+                      {(STATUS_MAP[selectedTicket.status] || STATUS_MAP.open).label}
+                    </Badge>
+                  ) : null}
+                  {selectedTicket?.is_consultation_follow_up ? (
+                    <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
+                      Follow-up tư vấn
+                    </Badge>
+                  ) : null}
+                </div>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={handleCloseTicket}>
+                Đóng chi tiết
+              </Button>
+            </div>
+
+            <div className="rounded-xl border bg-muted/20 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Lịch sử trao đổi</p>
+              {detailLoading && !ticketMessages.length ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  Đang tải hội thoại...
+                </div>
+              ) : ticketMessages.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Chưa có phản hồi nào. Trung tâm sẽ phản hồi sớm nhất.</p>
+              ) : (
+                <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
+                  {ticketMessages.map((msg) => {
+                    const isMine = msg.sender_id === profile?.id;
+                    return (
+                      <div key={msg.id} className={cn('flex', isMine ? 'justify-end' : 'justify-start')}>
+                        <div
+                          className={cn(
+                            'max-w-[85%] rounded-2xl px-3 py-2 text-sm',
+                            isMine
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-white border border-border text-slate-800'
+                          )}
+                        >
+                          <p className={cn('font-medium text-xs mb-1', isMine ? 'text-emerald-50' : 'text-muted-foreground')}>
+                            {isMine ? 'Bạn' : (msg.sender?.full_name || 'Trung tâm')}
+                          </p>
+                          <p className="whitespace-pre-wrap break-words">{msg.message}</p>
+                          <p className={cn('mt-1 text-[11px]', isMine ? 'text-emerald-100' : 'text-muted-foreground')}>
+                            {formatDate(msg.created_at)}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <Label htmlFor="ticket-reply" className="font-medium">Phản hồi cho trung tâm</Label>
+              <Textarea
+                id="ticket-reply"
+                placeholder={canReply ? 'Nhập thắc mắc hoặc phản hồi của bạn...' : 'Ticket đã đóng, không thể phản hồi thêm.'}
+                value={replyText}
+                onChange={(event) => setReplyText(event.target.value)}
+                className="min-h-[110px] resize-none"
+                disabled={!canReply || sendingReply}
+              />
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  onClick={handleSendReply}
+                  disabled={!canReply || sendingReply || !replyText.trim()}
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                >
+                  {sendingReply ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                  Gửi phản hồi
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* Create Ticket Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>

@@ -29,7 +29,7 @@ export function useCourses(accessToken) {
 
       const queryStr = params.toString();
       const response = await axios.get(
-        `${API_URL}/api/courses${queryStr ? `?${queryStr}` : ''}`,
+        `${API_URL}/api/admin/courses${queryStr ? `?${queryStr}` : ''}`,
         { headers: { 'Authorization': `Bearer ${accessToken}` } }
       );
 

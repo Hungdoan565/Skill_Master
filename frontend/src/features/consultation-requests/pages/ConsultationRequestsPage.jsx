@@ -107,6 +107,7 @@ function RequestItem({ request, selected, onClick }) {
       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
         <Badge variant="secondary" className="bg-slate-100 text-slate-700">{sourceLabel}</Badge>
         {urgency ? <Badge variant="outline" className={urgency.className}>{urgency.label}</Badge> : null}
+        {request.has_follow_up_thread ? <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">Follow-up</Badge> : null}
         {request.preferred_time ? <span>{request.preferred_time}</span> : null}
         <span>{formatRelativeTime(request.updated_at)}</span>
       </div>
@@ -123,6 +124,8 @@ function RequestDetail({
   onStatusChange,
   onClaim,
   onRelease,
+  onEnsureFollowUp,
+  followUpBusy,
   saving,
   profile
 }) {
@@ -153,6 +156,8 @@ function RequestDetail({
   const advisorBrief = metadata.advisor_brief || (!hasLegacyTranscript ? request.transcript_summary : null);
   const transcriptExcerpt = metadata.raw_transcript_excerpt || (hasLegacyTranscript ? request.transcript_summary : null);
   const urgency = getUrgencyConfig(metadata.urgency_level);
+  const hasFollowUpThread = Boolean(request.follow_up_ticket_id);
+  const followUpTicketNumber = request.follow_up_ticket_number || null;
 
   const handleCopyPhone = async () => {
     if (!request.phone) return;
@@ -275,6 +280,33 @@ function RequestDetail({
           </div>
         ) : null}
 
+        <div className="rounded-xl border bg-indigo-50/60 p-4">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-slate-900">Luồng follow-up học viên</p>
+            {hasFollowUpThread ? (
+              <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">Đã liên kết</Badge>
+            ) : (
+              <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">Chưa liên kết</Badge>
+            )}
+          </div>
+          <p className="text-sm text-slate-600">
+            {hasFollowUpThread
+              ? `Ticket: #${followUpTicketNumber || request.follow_up_ticket_id}`
+              : 'Tạo luồng follow-up để học viên nhận phản hồi và hỏi đáp hai chiều trong mục Hỗ trợ.'}
+          </p>
+          <div className="mt-3">
+            <Button
+              type="button"
+              variant={hasFollowUpThread ? 'outline' : 'default'}
+              size="sm"
+              onClick={onEnsureFollowUp}
+              disabled={saving || followUpBusy}
+            >
+              {followUpBusy ? 'Đang xử lý...' : hasFollowUpThread ? 'Đồng bộ luồng follow-up' : 'Tạo luồng follow-up'}
+            </Button>
+          </div>
+        </div>
+
         <div>
           <p className="mb-2 text-sm font-semibold text-slate-900">Ghi chú follow-up</p>
           <Textarea
@@ -304,7 +336,8 @@ export function ConsultationRequestsPage() {
     fetchRequestDetail,
     updateRequest,
     claimRequest,
-    releaseRequest
+    releaseRequest,
+    ensureFollowUpThread
   } = useConsultationRequests();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -312,6 +345,7 @@ export function ConsultationRequestsPage() {
   const [sourceFilter, setSourceFilter] = useState('');
   const [mobileShowDetail, setMobileShowDetail] = useState(false);
   const [notesDraft, setNotesDraft] = useState('');
+  const [followUpBusy, setFollowUpBusy] = useState(false);
 
   useEffect(() => {
     fetchRequests({ search: searchTerm, status: statusFilter, source: sourceFilter });
@@ -352,6 +386,16 @@ export function ConsultationRequestsPage() {
   const handleRelease = async () => {
     if (!currentRequest) return;
     await releaseRequest(currentRequest.id);
+  };
+
+  const handleEnsureFollowUp = async () => {
+    if (!currentRequest) return;
+    setFollowUpBusy(true);
+    try {
+      await ensureFollowUpThread(currentRequest.id);
+    } finally {
+      setFollowUpBusy(false);
+    }
   };
 
   return (
@@ -427,6 +471,8 @@ export function ConsultationRequestsPage() {
             onStatusChange={handleStatusChange}
             onClaim={handleClaim}
             onRelease={handleRelease}
+            onEnsureFollowUp={handleEnsureFollowUp}
+            followUpBusy={followUpBusy}
             saving={saving}
             profile={profile}
           />

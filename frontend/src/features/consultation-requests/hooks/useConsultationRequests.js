@@ -98,6 +98,33 @@ export function useConsultationRequests() {
     return updateRequest(requestId, { assigned_to: null });
   }, [updateRequest]);
 
+  const ensureFollowUpThread = useCallback(async (requestId) => {
+    if (!session?.access_token || !requestId) return null;
+
+    setSaving(true);
+    try {
+      const response = await fetch(`${API_URL}/api/admin/consultation-requests/${requestId}/follow-up-thread`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.message || result.error || 'Không thể tạo luồng follow-up');
+      }
+
+      const requestData = result.data?.request || null;
+      if (requestData) {
+        setCurrentRequest(requestData);
+        setRequests(prev => prev.map(item => item.id === requestData.id ? requestData : item));
+      }
+
+      return result.data || null;
+    } finally {
+      setSaving(false);
+    }
+  }, [getAuthHeaders, session?.access_token]);
+
   return {
     requests,
     currentRequest,
@@ -108,6 +135,7 @@ export function useConsultationRequests() {
     fetchRequestDetail,
     updateRequest,
     claimRequest,
-    releaseRequest
+    releaseRequest,
+    ensureFollowUpThread
   };
 }
