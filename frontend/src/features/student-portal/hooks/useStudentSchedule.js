@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/auth-context';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-export function useStudentSchedule({ classId, startDate, endDate, viewType = 'week' } = {}) {
+export function useStudentSchedule({ classId, classScope = 'active', startDate, endDate, viewType = 'week' } = {}) {
   const { session } = useAuth();
   const [data, setData] = useState({ sessions: [], classes: [], statistics: {} });
   const [loading, setLoading] = useState(true);
@@ -19,9 +19,11 @@ export function useStudentSchedule({ classId, startDate, endDate, viewType = 'we
     if (!startDate || !endDate) return;
 
     setLoading(true);
+    setError(null);
     try {
       const params = new URLSearchParams();
       if (classId && classId !== 'all') params.append('classId', classId);
+      params.append('enrollmentScope', classScope);
       
       // Format dates as YYYY-MM-DD safely using local time
       const formatDate = (date) => {
@@ -51,7 +53,7 @@ export function useStudentSchedule({ classId, startDate, endDate, viewType = 'we
     } finally {
       setLoading(false);
     }
-  }, [session?.access_token, classId, startDate, endDate, viewType]);
+  }, [session?.access_token, classId, classScope, startDate, endDate, viewType]);
 
   useEffect(() => {
     fetchSchedule();

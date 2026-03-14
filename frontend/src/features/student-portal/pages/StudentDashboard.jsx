@@ -42,6 +42,18 @@ const formatDate = (date) => {
   }).format(date);
 };
 
+const formatSessionDate = (dateString) => {
+  if (!dateString) return '';
+  const [year, month, day] = String(dateString).split('-').map(Number);
+  if (!year || !month || !day) return String(dateString);
+
+  return new Intl.DateTimeFormat('vi-VN', {
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit'
+  }).format(new Date(year, month - 1, day));
+};
+
 function StatCard({ icon: Icon, label, value, color = 'default' }) {
   const colorStyles = {
     default: 'bg-muted text-muted-foreground',
@@ -114,6 +126,10 @@ function CourseProgressItem({ course }) {
 }
 
 function ClassItem({ classItem }) {
+  const startTime = classItem.start_time || classItem.todaySchedule?.start || null;
+  const endTime = classItem.end_time || classItem.todaySchedule?.end || null;
+  const roomName = classItem.room_name || classItem.room || classItem.todaySchedule?.room_name || 'Chưa xếp phòng';
+
   return (
     <div className="group flex items-center gap-4 p-4 rounded-2xl border bg-white hover:bg-accent/50 transition-all duration-200">
       <div className="flex-shrink-0 w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center group-hover:scale-105 transition-transform">
@@ -126,11 +142,11 @@ function ClassItem({ classItem }) {
       <div className="text-right text-sm">
         <div className="flex items-center justify-end gap-1.5 font-medium text-foreground">
           <Clock className="h-4 w-4 text-blue-500" />
-          <span>{formatTime(classItem.start_time)} - {formatTime(classItem.end_time)}</span>
+          <span>{formatTime(startTime)} - {formatTime(endTime)}</span>
         </div>
         <div className="flex items-center justify-end gap-1.5 text-muted-foreground mt-1">
           <MapPin className="h-4 w-4" />
-          <span>{classItem.room_name || 'Chưa xếp phòng'}</span>
+          <span>{roomName}</span>
         </div>
       </div>
     </div>
@@ -155,11 +171,17 @@ function GradeItem({ grade }) {
   );
 }
 
-function EmptyState({ icon: Icon, message }) {
+function EmptyState({ icon: Icon, message, description, actionLabel, onAction }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-muted-foreground bg-muted/30 rounded-2xl border-border border-dashed border">
       <Icon className="h-10 w-10 mb-3 opacity-50" />
       <p className="text-sm font-medium">{message}</p>
+      {description ? <p className="mt-1 text-xs text-muted-foreground/90">{description}</p> : null}
+      {actionLabel && typeof onAction === 'function' ? (
+        <Button type="button" variant="outline" className="mt-4" onClick={onAction}>
+          {actionLabel}
+        </Button>
+      ) : null}
     </div>
   );
 }
@@ -205,8 +227,10 @@ export function StudentDashboard() {
   const displayClasses = data?.upcomingClasses || todayClasses;
   const recentGrades = data?.recentGrades || [];
   const unpaidInvoices = data?.unpaidInvoices || [];
+  const nextClass = data?.nextClass || null;
   const studentName = data?.student?.full_name || profile?.full_name || 'Học viên';
   const enrollments = data?.enrollments || [];
+  const activeEnrollmentCount = data?.activeEnrollmentCount ?? stats.totalClasses ?? 0;
 
   const isToday = !data?.upcomingClasses;
   const scheduleTitle = isToday ? "Lịch học hôm nay" : "Lịch học sắp tới";
@@ -224,7 +248,7 @@ export function StudentDashboard() {
               <Calendar className="h-4 w-4" />
               {formatDate(new Date())}
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold mb-2">Xin chào, {studentName}! 👋</h1>
+            <h1 className="text-3xl md:text-4xl font-bold mb-2">Xin chào, {studentName}!</h1>
             <p className="text-orange-100/90 text-lg font-medium max-w-lg">
               "Học, học nữa, học mãi" - V.I. Lenin
             </p>
@@ -297,13 +321,13 @@ export function StudentDashboard() {
       </div>
 
       {/* Welcome Card for new students */}
-      {(!data?.classes || data.classes.length === 0) && (
+      {activeEnrollmentCount === 0 && (
         <Card className="border-emerald-200 bg-emerald-50/50">
           <CardContent className="flex flex-col items-center justify-center py-8 text-center">
             <GraduationCap className="h-12 w-12 text-emerald-500 mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Chào mừng bạn đến với trung tâm!</h3>
             <p className="text-gray-500 mb-4">Bạn chưa đăng ký khóa học nào. Hãy khám phá các khóa học đang mở.</p>
-            <Button asChild className="bg-emerald-600 hover:bg-emerald-700">
+            <Button asChild className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm">
               <Link to="/student/courses">
                 <BookOpen className="h-4 w-4 mr-2" />
                 Xem Khóa Học
@@ -354,7 +378,16 @@ export function StudentDashboard() {
             ) : (
               <EmptyState 
                 icon={Calendar} 
-                message={isToday ? "Không có lớp học nào hôm nay" : "Không có lịch học sắp tới"} 
+                message={isToday
+                  ? (activeEnrollmentCount > 0
+                      ? 'Hôm nay bạn không có lớp.'
+                      : 'Không có lớp học nào hôm nay')
+                  : "Không có lịch học sắp tới"}
+                description={isToday && activeEnrollmentCount > 0 && nextClass
+                  ? `Buổi gần nhất: ${nextClass.class_name || nextClass.name} - ${formatSessionDate(nextClass.session_date)}, ${formatTime(nextClass.start_time)}-${formatTime(nextClass.end_time)}.`
+                  : undefined}
+                actionLabel="Xem thời khóa biểu"
+                onAction={() => navigate('/student/schedule')}
               />
             )}
           </div>

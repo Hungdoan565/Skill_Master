@@ -4,7 +4,7 @@
  * - Week/Month view với navigation
  * - Swipe gestures cho mobile
  * - Countdown timer cho buổi sắp bắt đầu
- * - Export calendar ra ICS
+ * - Export lịch học ra Excel/PDF
  * - Push notification nhắc trước 30 phút
  */
 import { useState, useMemo, useEffect, useCallback } from 'react';
@@ -24,6 +24,8 @@ import {
   LayoutGrid,
   List,
   Download,
+  FileSpreadsheet,
+  FileText,
   Bell,
   BellOff,
   Timer
@@ -42,9 +44,24 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useAuth } from '@/contexts/auth-context';
 import { useStudentSchedule } from '../hooks/useStudentSchedule';
 import { Badge } from '@/components/ui/badge';
 import { gooeyToast } from 'goey-toast';
+import {
+  formatScheduleRange,
+  getCalendarGridRange,
+  getEmptyScheduleMessage,
+  getScheduleRange,
+  getToolbarState,
+} from '../utils/scheduleState';
+import { exportScheduleToExcel, exportScheduleToPDF } from '../utils/scheduleExport';
 
 // Configuration
 const DAYS_OF_WEEK = [
@@ -73,71 +90,6 @@ const STATUS_CONFIG = {
   completed: { bg: 'bg-green-100', text: 'text-green-700', label: 'Đã học' },
   cancelled: { bg: 'bg-red-100', text: 'text-red-700', label: 'Đã hủy' },
   in_progress: { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Đang học' }
-};
-
-// ============ ICS EXPORT UTILITY ============
-const generateICSFile = (sessions, fileName = 'lich-hoc.ics') => {
-  const formatICSDate = (dateStr, timeStr) => {
-    const date = new Date(`${dateStr}T${timeStr}`);
-    return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-  };
-
-  const escapeICS = (text) => {
-    if (!text) return '';
-    return text.replace(/[,;\\]/g, (match) => '\\' + match).replace(/\n/g, '\\n');
-  };
-
-  let icsContent = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//Skill Master//Student Schedule//VI',
-    'CALSCALE:GREGORIAN',
-    'METHOD:PUBLISH',
-    'X-WR-CALNAME:Lịch học Skill Master',
-    'X-WR-TIMEZONE:Asia/Ho_Chi_Minh'
-  ];
-
-  sessions.forEach((session, index) => {
-    if (session.status === 'cancelled') return; // Skip cancelled sessions
-    
-    const uid = `${session.sessionId || index}@skillmaster.edu.vn`;
-    const dtStart = formatICSDate(session.sessionDate, session.startTime);
-    const dtEnd = formatICSDate(session.sessionDate, session.endTime);
-    const summary = escapeICS(`${session.className} - Buổi ${session.sessionNumber || ''}`);
-    const description = escapeICS(`Khóa học: ${session.courseName || 'N/A'}\\nGiáo viên: ${session.teacherName || 'N/A'}`);
-    const location = escapeICS(session.roomName || '');
-
-    icsContent.push(
-      'BEGIN:VEVENT',
-      `UID:${uid}`,
-      `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
-      `DTSTART:${dtStart}`,
-      `DTEND:${dtEnd}`,
-      `SUMMARY:${summary}`,
-      `DESCRIPTION:${description}`,
-      location ? `LOCATION:${location}` : '',
-      'STATUS:CONFIRMED',
-      // Alarm 30 minutes before
-      'BEGIN:VALARM',
-      'TRIGGER:-PT30M',
-      'ACTION:DISPLAY',
-      'DESCRIPTION:Nhắc nhở: Buổi học sắp bắt đầu trong 30 phút',
-      'END:VALARM',
-      'END:VEVENT'
-    );
-  });
-
-  icsContent.push('END:VCALENDAR');
-  
-  const blob = new Blob([icsContent.filter(Boolean).join('\r\n')], { type: 'text/calendar;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
 };
 
 // ============ NOTIFICATION UTILITY ============
@@ -249,6 +201,13 @@ const formatTime = (time) => {
 
 const formatDate = (date) => {
   return new Date(date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+};
+
+const toLocalDateKey = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 // ============ TIME SLOT GROUPING ============
@@ -470,7 +429,9 @@ const ClassDetailModal = ({ isOpen, onClose, event }) => {
 };
 
 export function StudentSchedule() {
+  const { profile, user } = useAuth();
   const [classFilter, setClassFilter] = useState('all');
+  const [classScope, setClassScope] = useState('active');
   const [viewType, setViewType] = useState('week'); // 'week' | 'month'
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -511,57 +472,48 @@ export function StudentSchedule() {
   });
 
   // Calculate Start/End Date based on View Type
-  const { startDate, endDate } = useMemo(() => {
-    const start = new Date(currentDate);
-    const end = new Date(currentDate);
+  const { startDate: queryStartDate, endDate: queryEndDate } = useMemo(
+    () => getScheduleRange(currentDate, viewType),
+    [currentDate, viewType]
+  );
 
-    if (viewType === 'week') {
-      // Get Monday
-      const day = start.getDay();
-      const diff = start.getDate() - day + (day === 0 ? -6 : 1);
-      start.setDate(diff);
-      start.setHours(0, 0, 0, 0);
-      
-      // Get Sunday
-      end.setDate(start.getDate() + 6);
-      end.setHours(23, 59, 59, 999);
-    } else {
-      // First day of month
-      start.setDate(1);
-      start.setHours(0, 0, 0, 0);
-      
-      // Last day of month
-      end.setMonth(end.getMonth() + 1);
-      end.setDate(0);
-      end.setHours(23, 59, 59, 999);
-      
-      // Expand to cover full weeks for calendar grid (start on Monday)
-      const startDay = start.getDay(); // 0=Sun, 1=Mon...
-      const prevDays = startDay === 0 ? 6 : startDay - 1;
-      start.setDate(start.getDate() - prevDays);
-      
-      // Expand end to finish week (end on Sunday)
-      const endDay = end.getDay();
-      const nextDays = endDay === 0 ? 0 : 7 - endDay;
-      end.setDate(end.getDate() + nextDays);
-    }
-
-    return { startDate: start, endDate: end };
-  }, [currentDate, viewType]);
+  const { startDate, endDate } = useMemo(
+    () => getCalendarGridRange(currentDate, viewType),
+    [currentDate, viewType]
+  );
 
   const { sessions, classes, statistics, loading, error, refresh } = useStudentSchedule({
     classId: classFilter,
-    startDate,
-    endDate,
+    classScope,
+    startDate: queryStartDate,
+    endDate: queryEndDate,
     viewType
   });
+
+  const notificationSupported = typeof window !== 'undefined' && 'Notification' in window;
+  const toolbarState = useMemo(
+    () => getToolbarState({ sessions, loading, notificationSupported }),
+    [sessions, loading, notificationSupported]
+  );
+  const selectedClass = classes?.find((item) => item.id === classFilter);
 
   const handleToday = () => {
     setCurrentDate(new Date());
   };
 
+  const handleViewTypeChange = useCallback((nextViewType) => {
+    if (nextViewType !== viewType) {
+      setViewType(nextViewType);
+    }
+  }, [viewType]);
+
   // Toggle notifications
   const handleToggleNotifications = async () => {
+    if (!notificationSupported) {
+      gooeyToast.error('Trình duyệt không hỗ trợ thông báo.');
+      return;
+    }
+
     if (notificationsEnabled) {
       setNotificationsEnabled(false);
       localStorage.setItem(NOTIFICATION_KEY, 'false');
@@ -586,15 +538,34 @@ export function StudentSchedule() {
     }
   };
 
-  // Export ICS handler
-  const handleExportICS = () => {
-    if (!sessions || sessions.length === 0) {
-      gooeyToast.error('Không có lịch học để xuất');
-      return;
+  const handleExportFile = async (format) => {
+    try {
+      if (!sessions || sessions.length === 0) {
+        gooeyToast.error('Không có lịch học để xuất');
+        return;
+      }
+
+      const payload = {
+        sessions,
+        currentDate,
+        rangeLabel: formatScheduleRange(currentDate, viewType),
+        classScope,
+        classLabel: selectedClass?.name || 'Tất cả lớp',
+        studentName: profile?.full_name || user?.email || 'Học viên',
+      };
+
+      if (format === 'excel') {
+        await exportScheduleToExcel(payload);
+        gooeyToast.success('Đã xuất file Excel lịch học');
+        return;
+      }
+
+      await exportScheduleToPDF(payload);
+      gooeyToast.success('Đã xuất file PDF lịch học');
+    } catch (exportError) {
+      console.error('Export schedule failed:', exportError);
+      gooeyToast.error('Xuất lịch thất bại. Vui lòng thử lại.');
     }
-    const fileName = `lich-hoc-${currentDate.toISOString().split('T')[0]}.ics`;
-    generateICSFile(sessions, fileName);
-    gooeyToast.success('Đã tải file lịch học (.ics)');
   };
 
   // Notification effect - check sessions every minute
@@ -631,20 +602,7 @@ export function StudentSchedule() {
   }, [notificationsEnabled, sessions]);
 
   const formatRange = () => {
-    if (viewType === 'week') {
-      // Re-calculate actual week start/end for display (not including padding)
-      const d = new Date(currentDate);
-      const day = d.getDay();
-      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-      const start = new Date(d);
-      start.setDate(diff);
-      const end = new Date(start);
-      end.setDate(start.getDate() + 6);
-      
-      return `${start.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })} - ${end.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}`;
-    } else {
-      return currentDate.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
-    }
+    return formatScheduleRange(currentDate, viewType);
   };
 
   // Group sessions by date string YYYY-MM-DD
@@ -686,7 +644,7 @@ export function StudentSchedule() {
     setDetailModalOpen(true);
   };
 
-  if (loading && !sessions.length) {
+  if (loading && !sessions.length && !error) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
@@ -714,60 +672,92 @@ export function StudentSchedule() {
         </div>
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-          <div className="flex items-center bg-muted p-1 rounded-lg border border-border">
+          <div className="flex items-center bg-muted p-1 rounded-lg border border-border" role="group" aria-label="Chế độ hiển thị lịch">
             <Button
-               variant={viewType === 'week' ? 'white' : 'ghost'}
+               variant={viewType === 'week' ? 'secondary' : 'ghost'}
                size="sm"
-               className={cn("h-8", viewType === 'week' && "shadow-sm bg-white")}
+               className={cn("h-8", viewType === 'week' && "shadow-sm")}
+               onClick={() => handleViewTypeChange('week')}
+               aria-pressed={viewType === 'week'}
             >
                <LayoutGrid className="w-4 h-4 mr-2" />
                Tuần
              </Button>
              <Button
-               variant={viewType === 'month' ? 'white' : 'ghost'}
+               variant={viewType === 'month' ? 'secondary' : 'ghost'}
                size="sm"
-               className={cn("h-8", viewType === 'month' && "shadow-sm bg-white")}
+               className={cn("h-8", viewType === 'month' && "shadow-sm")}
+               onClick={() => handleViewTypeChange('month')}
+               aria-pressed={viewType === 'month'}
              >
                <Calendar className="w-4 h-4 mr-2" />
                Tháng
              </Button>
           </div>
 
+          <Select value={classScope} onValueChange={setClassScope}>
+            <SelectTrigger className="w-[190px]" aria-label="Phạm vi lớp">
+              <SelectValue placeholder="Phạm vi lớp" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="active">Lớp đang học</SelectItem>
+              <SelectItem value="all_enrolled">Đã và đang học</SelectItem>
+            </SelectContent>
+          </Select>
+
           <Select value={classFilter} onValueChange={setClassFilter}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[200px]" aria-label="Lọc theo lớp học">
               <SelectValue placeholder="Tất cả lớp" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tất cả lớp</SelectItem>
               {classes?.map(c => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                <SelectItem key={c.id} value={c.id}>{c.name}{c.code ? ` (${c.code})` : ''}</SelectItem>
               ))}
             </SelectContent>
           </Select>
           
           <div className="flex items-center gap-1">
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={handleExportICS} 
-              title="Xuất file lịch (.ics)"
-              disabled={!sessions?.length}
-            >
-              <Download className="h-4 w-4" />
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-label="Tùy chọn xuất lịch học"
+                  title={toolbarState.canExport ? 'Xuất lịch học' : toolbarState.exportDisabledReason}
+                  disabled={!toolbarState.canExport}
+                  className="h-9 gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  <span>Tải xuống</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => handleExportFile('excel')} className="cursor-pointer">
+                  <FileSpreadsheet className="mr-2 h-4 w-4 text-emerald-600" />
+                  <span>Xuất Excel (.xlsx)</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExportFile('pdf')} className="cursor-pointer">
+                  <FileText className="mr-2 h-4 w-4 text-rose-600" />
+                  <span>Xuất PDF chuẩn trung tâm</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             
             <Button 
               variant={notificationsEnabled ? "default" : "outline"}
               size="icon" 
               onClick={handleToggleNotifications} 
-              title={notificationsEnabled ? "Tắt thông báo" : "Bật thông báo nhắc lịch"}
+              aria-label={notificationsEnabled ? 'Tắt nhắc lịch học' : 'Bật nhắc lịch học'}
+              title={!toolbarState.canToggleNotifications ? toolbarState.notificationDisabledReason : (notificationsEnabled ? "Tắt thông báo" : "Bật thông báo nhắc lịch")}
               className={notificationsEnabled ? "bg-green-600 hover:bg-green-700" : ""}
+              disabled={!toolbarState.canToggleNotifications}
             >
               {notificationsEnabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
             </Button>
             
-            <Button variant="outline" size="icon" onClick={refresh} title="Làm mới">
-              <RefreshCw className="h-4 w-4" />
+            <Button variant="outline" size="icon" onClick={refresh} title="Làm mới" aria-label="Làm mới dữ liệu lịch học" disabled={!toolbarState.canRefresh}>
+              <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
             </Button>
           </div>
         </div>
@@ -775,12 +765,12 @@ export function StudentSchedule() {
 
       <div className="flex items-center justify-between mt-4">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={handlePrev}>
+          <Button variant="ghost" size="icon" onClick={handlePrev} aria-label="Lùi về trước đó">
             <ChevronLeft className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold capitalize text-foreground">
-              {currentDate.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}
+            <h2 className="text-lg font-semibold text-foreground" aria-live="polite">
+              {formatRange()}
             </h2>
             {!isToday(currentDate) && (
               <Button variant="outline" size="xs" onClick={handleToday} className="h-7 text-xs">
@@ -788,11 +778,15 @@ export function StudentSchedule() {
               </Button>
             )}
           </div>
-          <Button variant="ghost" size="icon" onClick={handleNext}>
+          <Button variant="ghost" size="icon" onClick={handleNext} aria-label="Tới khoảng thời gian kế tiếp">
             <ChevronRight className="h-5 w-5" />
           </Button>
         </div>
       </div>
+
+      <p className="text-xs text-muted-foreground mt-2">
+        Phạm vi: <span className="font-medium text-foreground">{classScope === 'all_enrolled' ? 'Đã và đang học' : 'Lớp đang học'}</span> · {classes?.length || 0} lớp khả dụng.
+      </p>
     </div>
 
       {/* Views - Swipeable */}
@@ -815,13 +809,39 @@ export function StudentSchedule() {
           ))}
         </div>
 
+        {error && (
+          <div className="mx-4 mt-4 rounded-xl border border-red-200 bg-red-50 p-4" role="alert" aria-live="assertive">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-red-700">Không thể tải lịch học</p>
+                  <p className="text-sm text-red-600 mt-1">{error}</p>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" onClick={refresh}>
+                Thử lại
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {!error && !loading && sessions.length === 0 && (
+          <div className="mx-4 mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4" role="status" aria-live="polite">
+            <p className="font-semibold text-amber-700">Chưa có buổi học phù hợp</p>
+            <p className="text-sm text-amber-600 mt-1">
+              {getEmptyScheduleMessage({ classFilter, selectedClassName: selectedClass?.name })}
+            </p>
+          </div>
+        )}
+
         {/* Calendar Grid */}
         <div className={cn(
            "grid",
-           viewType === 'month' ? "grid-cols-7 auto-rows-[minmax(100px,auto)]" : "grid-cols-1 sm:grid-cols-7 min-h-[500px]"
+          viewType === 'month' ? "grid-cols-7 auto-rows-[minmax(100px,auto)]" : "grid-cols-1 sm:grid-cols-7 min-h-[500px]"
         )}>
           {calendarDays.map((date, index) => {
-            const dateKey = date.toISOString().split('T')[0];
+            const dateKey = toLocalDateKey(date);
             const daySessions = sessionsByDate[dateKey] || [];
             const isDayToday = isToday(date);
             const isCurrMonth = isCurrentMonth(date);
