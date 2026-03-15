@@ -5,6 +5,7 @@
  */
 
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -22,7 +23,7 @@ const Dialog = ({ open, onOpenChange, children }) => {
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[300] flex items-center justify-center">
       {/* Backdrop - SOLID dark overlay, no blur */}
       <div
@@ -31,7 +32,8 @@ const Dialog = ({ open, onOpenChange, children }) => {
       />
       {/* Content wrapper */}
       <div className="relative z-[301] w-full px-4 flex justify-center pointer-events-none">{children}</div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { supabase } from '@/lib/supabaseClient';
-import { toast } from 'sonner';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -152,10 +151,6 @@ export function useNotifications() {
 
           if (!next.read_at) {
             setUnreadCount((prev) => prev + 1);
-            toast.info(next.title || 'Thông báo mới', {
-              description: next.message?.slice(0, 100),
-              duration: 5000,
-            });
           }
         }
       )
