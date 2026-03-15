@@ -29,6 +29,7 @@ export function useTransactions() {
     const [filters, setFilters] = useState({
         status: 'all',
         method: 'all',
+        search: '',
         dateStart: '',
         dateEnd: ''
     });
@@ -40,13 +41,19 @@ export function useTransactions() {
 
         setLoading(true);
         try {
-            const queryParams = new URLSearchParams({
+            const params = new URLSearchParams({
                 page: pagination.page,
-                limit: pagination.limit,
-                ...filters
+                limit: pagination.limit
             });
 
-            const res = await fetch(`${API_URL}/api/transactions?${queryParams}`, {
+            // Only add non-empty filter values
+            if (filters.status && filters.status !== 'all') params.set('status', filters.status);
+            if (filters.method && filters.method !== 'all') params.set('method', filters.method);
+            if (filters.search && filters.search.trim()) params.set('search', filters.search.trim());
+            if (filters.dateStart) params.set('dateStart', filters.dateStart);
+            if (filters.dateEnd) params.set('dateEnd', filters.dateEnd);
+
+            const res = await fetch(`${API_URL}/api/transactions?${params}`, {
                 headers: { Authorization: `Bearer ${session.access_token}` }
             });
             const result = await res.json();
@@ -75,7 +82,7 @@ export function useTransactions() {
     }, []);
 
     const resetFilters = useCallback(() => {
-        setFilters({ status: 'all', method: 'all', dateStart: '', dateEnd: '' });
+        setFilters({ status: 'all', method: 'all', search: '', dateStart: '', dateEnd: '' });
         setPagination(prev => ({ ...prev, page: 1 }));
     }, []);
 

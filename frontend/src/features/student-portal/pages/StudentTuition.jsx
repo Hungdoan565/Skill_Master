@@ -29,7 +29,8 @@ import {
   Clock,
   RefreshCw,
   FileText,
-  Banknote
+  Banknote,
+  XCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -49,9 +50,12 @@ const formatDate = (dateStr) => {
 
 const STATUS_CONFIG = {
   paid: { label: 'Đã thanh toán', color: 'bg-green-500/10 text-green-600 dark:text-green-400' },
-  pending: { label: 'Chờ xác minh', color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
+  unpaid: { label: 'Chưa thanh toán', color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
+  pending: { label: 'Chờ xác minh', color: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400' },
   overdue: { label: 'Quá hạn', color: 'bg-red-500/10 text-red-600 dark:text-red-400' },
-  partial: { label: 'Thanh toán một phần', color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' }
+  partial: { label: 'Thanh toán một phần', color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
+  draft: { label: 'Bản nháp', color: 'bg-slate-500/10 text-slate-600 dark:text-slate-400' },
+  cancelled: { label: 'Đã hủy', color: 'bg-zinc-500/10 text-zinc-500 dark:text-zinc-400' }
 };
 
 function StatCard({ icon: Icon, label, value, color = 'default' }) {
@@ -81,7 +85,7 @@ function StatCard({ icon: Icon, label, value, color = 'default' }) {
 }
 
 function StatusBadge({ status }) {
-  const config = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
+  const config = STATUS_CONFIG[status] || STATUS_CONFIG.unpaid;
   return (
     <Badge variant="secondary" className={cn('font-medium', config.color)}>
       {config.label}
@@ -92,9 +96,12 @@ function StatusBadge({ status }) {
 function InvoiceItem({ invoice, onClick }) {
   const statusIcon = {
     paid: CheckCircle,
+    unpaid: Clock,
     pending: Clock,
     overdue: AlertTriangle,
-    partial: CreditCard
+    partial: CreditCard,
+    draft: FileText,
+    cancelled: XCircle
   };
   const Icon = statusIcon[invoice.status] || Clock;
 
@@ -137,73 +144,122 @@ function InvoiceItem({ invoice, onClick }) {
 function InvoiceDetailModal({ invoice, open, onClose, onPay }) {
   if (!invoice) return null;
 
+  const remaining = (invoice.final_amount || invoice.amount) - (invoice.paid_amount || 0);
+  const total = invoice.final_amount || invoice.amount || 1;
+  const paidPercent = Math.min(100, Math.round(((invoice.paid_amount || 0) / total) * 100));
+  const statusConfig = STATUS_CONFIG[invoice.status] || STATUS_CONFIG.unpaid;
+
+  const statusBannerStyles = {
+    paid: 'from-emerald-500 to-emerald-600',
+    unpaid: 'from-amber-500 to-amber-600',
+    pending: 'from-yellow-500 to-yellow-600',
+    overdue: 'from-rose-500 to-rose-600',
+    partial: 'from-blue-500 to-blue-600',
+    draft: 'from-slate-400 to-slate-500',
+    cancelled: 'from-zinc-400 to-zinc-500',
+  };
+
+  const statusIcon = {
+    paid: CheckCircle,
+    unpaid: Clock,
+    pending: Clock,
+    overdue: AlertTriangle,
+    partial: CreditCard,
+    draft: FileText,
+    cancelled: XCircle,
+  };
+  const StatusIcon = statusIcon[invoice.status] || Clock;
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
-            Chi tiết hóa đơn
-          </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Mã hóa đơn</span>
-            <span className="font-medium">{invoice.invoice_code || `HD-${invoice.id}`}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Mô tả</span>
-            <span className="font-medium text-right max-w-[200px] truncate">
-              {invoice.description || invoice.class_name || 'Học phí'}
-            </span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Số tiền</span>
-            <span className="font-semibold text-lg">{formatCurrency(invoice.final_amount || invoice.amount)}</span>
-          </div>
-          {invoice.paid_amount > 0 && (
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Đã thanh toán</span>
-              <span className="font-medium text-green-600">{formatCurrency(invoice.paid_amount)}</span>
+      <DialogContent className="max-w-md p-0 overflow-hidden">
+        {/* Status Banner */}
+        <div className={cn('bg-gradient-to-r text-white px-6 py-5', statusBannerStyles[invoice.status] || statusBannerStyles.pending)}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium opacity-90">Hóa đơn</p>
+              <p className="text-lg font-bold mt-0.5">{invoice.invoice_code || `HD-${invoice.id}`}</p>
             </div>
-          )}
-          {invoice.status !== 'paid' && (
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Còn lại</span>
-              <span className="font-medium text-red-600">
-                {formatCurrency((invoice.final_amount || invoice.amount) - (invoice.paid_amount || 0))}
-              </span>
+            <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1.5">
+              <StatusIcon className="h-4 w-4" />
+              <span className="text-sm font-semibold">{statusConfig.label}</span>
             </div>
-          )}
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Hạn thanh toán</span>
-            <span className="font-medium">{formatDate(invoice.due_date)}</span>
           </div>
-          {invoice.paid_at && (
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Ngày thanh toán</span>
-              <span className="font-medium text-green-600">{formatDate(invoice.paid_at)}</span>
+        </div>
+
+        <div className="px-6 py-5 space-y-5">
+          {/* Description */}
+          <div>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Mô tả</p>
+            <p className="font-medium text-sm">{invoice.description || invoice.class_name || 'Học phí'}</p>
+          </div>
+
+          {/* Financial Breakdown */}
+          <div className="bg-slate-50 rounded-xl p-4 space-y-3">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-muted-foreground">Tổng tiền</span>
+              <span className="font-semibold text-lg">{formatCurrency(total)}</span>
             </div>
-          )}
-          <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Trạng thái</span>
-            <StatusBadge status={invoice.status} />
+            {(invoice.paid_amount > 0 || invoice.status === 'partial') && (
+              <>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">Đã thanh toán</span>
+                  <span className="font-medium text-emerald-600">{formatCurrency(invoice.paid_amount || 0)}</span>
+                </div>
+                {/* Progress bar */}
+                <div>
+                  <div className="flex justify-between items-center text-xs text-muted-foreground mb-1.5">
+                    <span>Tiến độ thanh toán</span>
+                    <span className="font-medium">{paidPercent}%</span>
+                  </div>
+                  <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                      style={{ width: `${paidPercent}%` }}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+            {invoice.status !== 'paid' && remaining > 0 && (
+              <div className="flex justify-between items-center text-sm pt-2 border-t border-slate-200">
+                <span className="text-muted-foreground font-medium">Còn lại</span>
+                <span className="font-bold text-rose-600">{formatCurrency(remaining)}</span>
+              </div>
+            )}
           </div>
+
+          {/* Date Info */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Hạn thanh toán</p>
+              <p className="text-sm font-medium">{formatDate(invoice.due_date)}</p>
+            </div>
+            {invoice.paid_at ? (
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Ngày thanh toán</p>
+                <p className="text-sm font-medium text-emerald-600">{formatDate(invoice.paid_at)}</p>
+              </div>
+            ) : null}
+          </div>
+
+          {/* Notes */}
           {invoice.notes && (
-            <div className="pt-2 border-t border-border">
-              <p className="text-sm text-muted-foreground mb-1">Ghi chú</p>
-              <p className="text-sm">{invoice.notes}</p>
+            <div className="border-t border-slate-100 pt-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Ghi chú</p>
+              <p className="text-sm text-slate-600">{invoice.notes}</p>
             </div>
           )}
+
+          {/* CTA Button */}
           {invoice.status !== 'paid' && (
-            <div className="pt-3 border-t border-border">
-              <Button
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-                onClick={() => onPay?.(invoice)}
-              >
-                Gửi minh chứng thanh toán
-              </Button>
-            </div>
+            <Button
+              className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl shadow-sm"
+              onClick={() => onPay?.(invoice)}
+            >
+              <CreditCard className="h-4 w-4 mr-2" />
+              Gửi minh chứng thanh toán
+            </Button>
           )}
         </div>
       </DialogContent>
@@ -291,8 +347,9 @@ export function StudentTuition() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tất cả</SelectItem>
-              <SelectItem value="pending">Chờ xác minh</SelectItem>
+              <SelectItem value="unpaid">Chưa thanh toán</SelectItem>
               <SelectItem value="paid">Đã thanh toán</SelectItem>
+              <SelectItem value="partial">Thanh toán một phần</SelectItem>
               <SelectItem value="overdue">Quá hạn</SelectItem>
             </SelectContent>
           </Select>

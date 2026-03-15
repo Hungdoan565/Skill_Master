@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { supabase, getDbStatus } from './lib/db.js';
+import { supabase, supabaseAdmin, getDbStatus } from './lib/db.js';
 import { getEffectiveCenterId } from './lib/center-scope.js';
 import {
   STRATEGIC_KPI_DICTIONARY,
@@ -12449,8 +12449,7 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
       bank_proof_url: req.body.bank_proof_url || null,
       verification_status: verificationStatus,
       verified_by: autoVerified ? userId : null,
-      verified_at: autoVerified ? new Date().toISOString() : null,
-      confirmation_method: autoVerified ? (payment_method === 'cash' ? 'cash_direct' : 'auto_reconciliation') : (userRole === 'STUDENT' ? 'student_upload' : null)
+      verified_at: autoVerified ? new Date().toISOString() : null
     };
 
     // Use transfer_date if provided (for bank transfers), otherwise use current timestamp
@@ -12469,6 +12468,82 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
     if (paymentError) {
       console.error('❌ Payment insert error:', paymentError);
       throw paymentError;
+    }
+
+    // ============================================
+    // NOTIFY ADMIN/CENTER_MANAGER of student payment
+    // ============================================
+    if (userRole === 'STUDENT') {
+      try {
+        // Use supabaseAdmin (service_role key) to bypass RLS for notifications
+        const adminSupabase = supabaseAdmin;
+
+        const centerId = invoice.class?.center_id || invoice.student?.center_id;
+        console.log(`🔔 Creating payment notification, centerId: ${centerId}, userId: ${userId}`);
+
+        // Get student name
+        const { data: studentProfile } = await adminSupabase
+          .from('users')
+          .select('full_name')
+          .eq('id', userId)
+          .single();
+        const studentName = studentProfile?.full_name || 'Học viên';
+        const amountText = parseFloat(amount).toLocaleString('vi-VN') + ' đ';
+
+        if (centerId) {
+          // Get role IDs for admin roles
+          const { data: adminRoles } = await adminSupabase
+            .from('roles')
+            .select('id, code')
+            .in('code', ['SUPER_ADMIN', 'CENTER_MANAGER']);
+
+          const adminRoleIds = (adminRoles || []).map(r => r.id);
+          console.log(`🔔 Found ${adminRoleIds.length} admin role(s)`);
+
+          if (adminRoleIds.length > 0) {
+            // Find all users with admin roles (center-scoped + super admins)
+            const { data: allAdminUsers } = await adminSupabase
+              .from('users')
+              .select('id, center_id, role_id')
+              .in('role_id', adminRoleIds);
+
+            // Filter: center admins for this center + all super admins
+            const superAdminRoleId = adminRoles.find(r => r.code === 'SUPER_ADMIN')?.id;
+            const relevantAdmins = (allAdminUsers || []).filter(u =>
+              u.center_id === centerId || u.role_id === superAdminRoleId
+            );
+
+            console.log(`🔔 Found ${relevantAdmins.length} admin(s) to notify`);
+
+            if (relevantAdmins.length > 0) {
+              const notifRecords = relevantAdmins.map(admin => ({
+                user_id: admin.id,
+                center_id: centerId,
+                type: 'payment_submitted',
+                title: `Học viên gửi minh chứng thanh toán`,
+                message: `${studentName} đã gửi minh chứng chuyển khoản ${amountText} cho hóa đơn ${invoice.invoice_code || id.slice(0, 8)}. Vui lòng xác nhận.`,
+                reference_id: payment.id,
+                reference_type: 'payment'
+              }));
+
+              const { error: notifError } = await adminSupabase
+                .from('notifications')
+                .insert(notifRecords);
+
+              if (notifError) {
+                console.error('❌ Failed to create payment notification:', notifError);
+              } else {
+                console.log(`✅ Sent payment notification to ${relevantAdmins.length} admin(s)`);
+              }
+            }
+          }
+        } else {
+          console.warn('⚠️ No centerId found for notification');
+        }
+      } catch (notifErr) {
+        // Don't fail the payment if notification fails
+        console.error('⚠️ Notification error (non-fatal):', notifErr);
+      }
     }
 
     // Lấy lại invoice đã cập nhật
@@ -12538,16 +12613,19 @@ app.patch('/api/payments/:id/verify', requireAuth, requireRole(['SUPER_ADMIN', '
     const { id } = req.params;
     const userId = req.user?.id;
 
-    // Get payment
+    // Get payment with student info for notification
     const { data: payment, error: fetchError } = await supabase
       .from('payments')
       .select(`
         *,
         invoice:invoice_id(
           id,
+          invoice_code,
           status,
+          final_amount,
+          student_id,
           class:class_id(id, center_id),
-          student:student_id(id, center_id)
+          student:student_id(id, full_name, center_id)
         )
       `)
       .eq('id', id)
@@ -12573,14 +12651,38 @@ app.patch('/api/payments/:id/verify', requireAuth, requireRole(['SUPER_ADMIN', '
       });
     }
 
+    // Check if invoice is already fully paid (prevent duplicate verification)
+    const invoiceStatus = payment.invoice?.status;
+    const invoiceFinal = parseFloat(payment.invoice?.final_amount || 0);
+    const { data: verifiedPayments } = await supabaseAdmin
+      .from('payments')
+      .select('amount')
+      .eq('invoice_id', payment.invoice_id)
+      .eq('verification_status', 'verified');
+    const totalVerified = (verifiedPayments || []).reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+    
+    if (totalVerified >= invoiceFinal) {
+      // Auto-reject this duplicate payment
+      await supabaseAdmin.from('payments').update({
+        verification_status: 'rejected',
+        rejection_reason: 'Hóa đơn đã được thanh toán đầy đủ. Giao dịch trùng lặp.',
+        verified_by: userId,
+        verified_at: new Date().toISOString()
+      }).eq('id', id);
+
+      return res.status(400).json({
+        success: false,
+        message: 'Hóa đơn đã được thanh toán đầy đủ. Giao dịch này là trùng lặp và đã bị từ chối tự động.'
+      });
+    }
+
     // Update to verified (trigger will update invoice)
-    const { data: updated, error: updateError } = await supabase
+    const { data: updated, error: updateError } = await supabaseAdmin
       .from('payments')
       .update({
         verification_status: 'verified',
         verified_by: userId,
-        verified_at: new Date().toISOString(),
-        confirmation_method: 'manual'
+        verified_at: new Date().toISOString()
       })
       .eq('id', id)
       .select()
@@ -12594,6 +12696,28 @@ app.patch('/api/payments/:id/verify', requireAuth, requireRole(['SUPER_ADMIN', '
       .select('*')
       .eq('id', payment.invoice_id)
       .single();
+
+    // Notify student that payment was verified
+    try {
+      const adminSupabase = supabaseAdmin;
+      const studentId = payment.invoice?.student_id;
+      const centerId = payment.invoice?.class?.center_id || payment.invoice?.student?.center_id;
+      const amountText = parseFloat(payment.amount).toLocaleString('vi-VN') + ' đ';
+      if (studentId && centerId) {
+        await adminSupabase.from('notifications').insert({
+          user_id: studentId,
+          center_id: centerId,
+          type: 'payment_verified',
+          title: 'Thanh toán đã được xác nhận',
+          message: `Thanh toán ${amountText} cho hóa đơn ${payment.invoice?.invoice_code || ''} đã được xác nhận.`,
+          reference_id: payment.id,
+          reference_type: 'payment'
+        });
+        console.log(`✅ Notified student ${studentId} of payment verification`);
+      }
+    } catch (notifErr) {
+      console.warn('⚠️ Verify notification error (non-fatal):', notifErr.message);
+    }
 
     res.json({
       success: true,
@@ -12617,15 +12741,17 @@ app.patch('/api/payments/:id/reject', requireAuth, requireRole(['SUPER_ADMIN', '
       return res.status(400).json({ success: false, message: 'Vui lòng nhập lý do từ chối' });
     }
 
-    // Get payment
+    // Get payment with student info for notification
     const { data: payment, error: fetchError } = await supabase
       .from('payments')
       .select(`
         *,
         invoice:invoice_id(
           id,
+          invoice_code,
+          student_id,
           class:class_id(id, center_id),
-          student:student_id(id, center_id)
+          student:student_id(id, full_name, center_id)
         )
       `)
       .eq('id', id)
@@ -12665,6 +12791,28 @@ app.patch('/api/payments/:id/reject', requireAuth, requireRole(['SUPER_ADMIN', '
       .single();
 
     if (updateError) throw updateError;
+
+    // Notify student that payment was rejected
+    try {
+      const adminSupabase = supabaseAdmin;
+      const studentId = payment.invoice?.student_id;
+      const centerId = payment.invoice?.class?.center_id || payment.invoice?.student?.center_id;
+      const amountText = parseFloat(payment.amount).toLocaleString('vi-VN') + ' đ';
+      if (studentId && centerId) {
+        await adminSupabase.from('notifications').insert({
+          user_id: studentId,
+          center_id: centerId,
+          type: 'payment_rejected',
+          title: 'Thanh toán bị từ chối',
+          message: `Thanh toán ${amountText} cho hóa đơn ${payment.invoice?.invoice_code || ''} bị từ chối. Lý do: ${String(reason).trim()}`,
+          reference_id: payment.id,
+          reference_type: 'payment'
+        });
+        console.log(`✅ Notified student ${studentId} of payment rejection`);
+      }
+    } catch (notifErr) {
+      console.warn('⚠️ Reject notification error (non-fatal):', notifErr.message);
+    }
 
     res.json({
       success: true,
@@ -12908,28 +13056,74 @@ app.patch('/api/transactions/bulk-verify', requireAuth, requireRole(['SUPER_ADMI
       });
     }
 
-    // Update all selected payments
-    const { data: updated, error } = await supabase
-      .from('payments').update({
-      verification_status: 'verified',
-      verified_by: userId,
-      verified_at: new Date().toISOString(),
-      confirmation_method: 'bulk_manual'
-    })
-      .in('id', paymentIds)
-      .eq('verification_status', 'pending')
-      .select();
+    // Filter out payments for invoices already fully paid (prevent constraint violation)
+    const validPaymentIds = [];
+    const duplicatePaymentIds = [];
+    
+    for (const payment of candidatePayments || []) {
+      const invoiceId = payment.invoice?.id;
+      if (!invoiceId) { validPaymentIds.push(payment.id); continue; }
+      
+      const { data: verifiedPayments } = await supabaseAdmin
+        .from('payments')
+        .select('amount')
+        .eq('invoice_id', invoiceId)
+        .eq('verification_status', 'verified');
+      const totalVerified = (verifiedPayments || []).reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+      
+      const { data: inv } = await supabaseAdmin
+        .from('invoices')
+        .select('final_amount')
+        .eq('id', invoiceId)
+        .single();
+      
+      if (inv && totalVerified >= parseFloat(inv.final_amount || 0)) {
+        duplicatePaymentIds.push(payment.id);
+      } else {
+        validPaymentIds.push(payment.id);
+      }
+    }
 
-    if (error) throw error;
+    // Auto-reject duplicate payments
+    if (duplicatePaymentIds.length > 0) {
+      await supabaseAdmin.from('payments').update({
+        verification_status: 'rejected',
+        rejection_reason: 'Hóa đơn đã được thanh toán đầy đủ. Giao dịch trùng lặp.',
+        verified_by: userId,
+        verified_at: new Date().toISOString()
+      }).in('id', duplicatePaymentIds);
+    }
 
-    // Trigger invoice updates for each payment
-    // (The database trigger should handle this, but we can force refresh)
+    let updated = [];
+    if (validPaymentIds.length > 0) {
+      // Update valid payments
+      const { data, error } = await supabaseAdmin
+        .from('payments').update({
+        verification_status: 'verified',
+        verified_by: userId,
+        verified_at: new Date().toISOString()
+      })
+        .in('id', validPaymentIds)
+        .eq('verification_status', 'pending')
+        .select();
 
+      if (error) throw error;
+      updated = data || [];
+    }
+
+    const rejectedCount = duplicatePaymentIds.length;
+    const verifiedCount = updated?.length || 0;
+    let message = `Đã xác nhận ${verifiedCount} giao dịch`;
+    if (rejectedCount > 0) {
+      message += `. ${rejectedCount} giao dịch trùng lặp đã bị từ chối tự động.`;
+    }
+    
     res.json({
       success: true,
-      message: `Đã xác nhận ${updated?.length || 0} giao dịch`,
+      message,
       data: updated,
-      count: updated?.length || 0
+      count: verifiedCount,
+      rejectedCount
     });
   } catch (error) {
     console.error('Error bulk verifying transactions:', error);
@@ -24527,8 +24721,14 @@ app.get('/api/notifications', requireAuth, async (req, res, next) => {
     let query = supabase
       .from('notifications')
       .select('id, type, title, message, reference_id, reference_type, read_at, created_at', { count: 'exact' })
-      .eq('user_id', userId)
-      .eq('center_id', effectiveCenterId)
+      .eq('user_id', userId);
+    
+    // Only filter by center if effectiveCenterId is set (CENTER_MANAGER or SUPER_ADMIN with specific center)
+    if (effectiveCenterId) {
+      query = query.eq('center_id', effectiveCenterId);
+    }
+    
+    query = query
       .order('created_at', { ascending: false })
       .range(offsetNum, offsetNum + limitNum - 1);
 
@@ -24540,12 +24740,17 @@ app.get('/api/notifications', requireAuth, async (req, res, next) => {
     if (error) throw error;
 
     // Get unread count separately
-    const { count: unreadCount, error: unreadError } = await supabase
+    let unreadQuery = supabase
       .from('notifications')
       .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('center_id', effectiveCenterId)
-      .is('read_at', null);
+      .eq('user_id', userId);
+    
+    if (effectiveCenterId) {
+      unreadQuery = unreadQuery.eq('center_id', effectiveCenterId);
+    }
+    unreadQuery = unreadQuery.is('read_at', null);
+
+    const { count: unreadCount, error: unreadError } = await unreadQuery;
 
     if (unreadError) throw unreadError;
 
@@ -24572,12 +24777,17 @@ app.patch('/api/notifications/read-all', requireAuth, async (req, res, next) => 
     const userId = req.user.id;
     const { effectiveCenterId } = getEffectiveCenterId(req.user);
 
-    const { data, error } = await supabase
+    let updateQuery = supabase
       .from('notifications')
       .update({ read_at: new Date().toISOString() })
-      .eq('user_id', userId)
-      .eq('center_id', effectiveCenterId)
-      .is('read_at', null)
+      .eq('user_id', userId);
+    
+    if (effectiveCenterId) {
+      updateQuery = updateQuery.eq('center_id', effectiveCenterId);
+    }
+    updateQuery = updateQuery.is('read_at', null);
+
+    const { data, error } = await updateQuery
       .select('id');
 
     if (error) throw error;
@@ -28250,7 +28460,7 @@ app.get('/api/student/invoices',
           id, invoice_code, amount, discount_amount, final_amount,
           paid_amount, status, due_date, description, created_at,
           class:classes(id, name, code, course:courses(id, title)),
-          payments(id, amount, payment_method, payment_date, reference_code, notes)
+          payments(id, amount, payment_method, payment_date, reference_code, notes, verification_status)
         `)
         .eq('student_id', studentId)
         .order('created_at', { ascending: false });
@@ -28330,7 +28540,7 @@ app.get('/api/student/certificates',
         .select(`
           id, certificate_number, issued_at, status, pdf_url,
           course_name, student_name, grade, completion_date, scores,
-          certificate_type_id, class_id,
+          certificate_type_id, class_id, issued_by,
           certificate_type:certificate_types(id, name, code, category),
           class:classes(id, name, code)
         `)

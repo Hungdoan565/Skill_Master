@@ -2,7 +2,7 @@
  * StudentPayment Page - Trang thanh toán và QR cho học viên/phụ huynh
  */
 
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo, useEffect, useState, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   QrCode,
@@ -13,21 +13,28 @@ import {
   Upload,
   X,
   Receipt,
-  ArrowRight,
   CheckCircle2,
-  Wallet
+  Wallet,
+  ListChecks,
+  ScanLine,
+  SendHorizontal,
+  PartyPopper,
+  ArrowLeft,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/components/ui/toast';
+import { Skeleton } from '@/components/ui/skeleton';
+import { gooeyToast } from 'goey-toast';
 import { useAuth } from '@/contexts/auth-context';
 import { useStudentInvoices } from '../hooks';
 import { useStudentPaymentConfig } from '../hooks/useStudentPaymentConfig';
 import { formatCurrency, parseCurrency } from '@/features/invoices/utils/formatters';
 import { cn } from '@/lib/utils';
+
+/* ────────────────────── Helpers ────────────────────── */
 
 const formatMoney = (amount) => {
   if (!amount && amount !== 0) return '0 đ';
@@ -43,42 +50,188 @@ const formatDate = (dateStr) => {
   return new Date(dateStr).toLocaleDateString('vi-VN');
 };
 
+const getPendingAmount = (invoice) => {
+  if (!invoice.payments || !Array.isArray(invoice.payments)) return 0;
+  return invoice.payments
+    .filter(p => p.verification_status === 'pending')
+    .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+};
+
 const getRemaining = (invoice) => {
   const total = invoice.final_amount ?? invoice.amount ?? 0;
   const paid = invoice.paid_amount ?? 0;
-  return Math.max(total - paid, 0);
+  const pending = getPendingAmount(invoice);
+  return Math.max(total - paid - pending, 0);
 };
 
-// Generate transfer content for multiple invoices
 const getTransferContent = (invoices) => {
   if (!invoices || invoices.length === 0) return '';
   if (invoices.length === 1) {
     const inv = invoices[0];
     return inv.invoice_code ? `HP ${inv.invoice_code}` : `HP ${inv.id?.slice(0, 6) || ''}`;
   }
-  // Multiple invoices: HP INV1 INV2 INV3
   const codes = invoices.map(inv => inv.invoice_code || inv.id?.slice(0, 6)).join(' ');
   return `HP ${codes}`;
 };
 
+/* ────────────────────── Steps ────────────────────── */
+
+const STEPS = [
+  { id: 1, label: 'Chọn hóa đơn', icon: ListChecks },
+  { id: 2, label: 'Quét QR', icon: ScanLine },
+  { id: 3, label: 'Gửi minh chứng', icon: SendHorizontal },
+];
+
+function StepIndicator({ currentStep }) {
+  return (
+    <div className="flex items-center justify-center gap-0 mb-6">
+      {STEPS.map((step, idx) => {
+        const Icon = step.icon;
+        const isActive = currentStep === step.id;
+        const isDone = currentStep > step.id;
+        return (
+          <div key={step.id} className="flex items-center">
+            <div className="flex flex-col items-center gap-1.5">
+              <div
+                className={cn(
+                  'h-9 w-9 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300',
+                  isDone
+                    ? 'bg-emerald-500 text-white'
+                    : isActive
+                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200'
+                    : 'bg-slate-100 text-slate-400'
+                )}
+              >
+                {isDone ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+              </div>
+              <span
+                className={cn(
+                  'text-[11px] font-medium transition-colors',
+                  isActive ? 'text-emerald-700' : isDone ? 'text-emerald-600' : 'text-slate-400'
+                )}
+              >
+                {step.label}
+              </span>
+            </div>
+            {idx < STEPS.length - 1 && (
+              <div
+                className={cn(
+                  'w-14 h-0.5 mx-2 rounded-full transition-colors duration-300 mb-5',
+                  currentStep > step.id ? 'bg-emerald-400' : 'bg-slate-200'
+                )}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ────────────────────── Skeleton ────────────────────── */
+
+function PaymentSkeleton() {
+  return (
+    <div className="space-y-6 p-6">
+      <div className="space-y-2">
+        <Skeleton className="h-8 w-56" />
+        <Skeleton className="h-4 w-96" />
+      </div>
+      <div className="flex justify-center gap-4 py-2">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="flex flex-col items-center gap-1.5">
+            <Skeleton className="h-9 w-9 rounded-full" />
+            <Skeleton className="h-3 w-16" />
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <Card className="lg:col-span-3 rounded-2xl">
+          <CardContent className="p-6 space-y-3">
+            <Skeleton className="h-5 w-48 mb-4" />
+            {[1, 2, 3].map(i => (
+              <div key={i} className="flex items-center gap-3 p-4 rounded-lg border">
+                <Skeleton className="h-5 w-5 rounded" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-44" />
+                  <Skeleton className="h-3 w-64" />
+                </div>
+                <Skeleton className="h-5 w-28" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+        <div className="lg:col-span-2 space-y-6">
+          <Card className="rounded-2xl">
+            <CardContent className="p-6 space-y-3">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+            </CardContent>
+          </Card>
+          <Card className="rounded-2xl">
+            <CardContent className="p-6 flex flex-col items-center gap-3">
+              <Skeleton className="h-5 w-40" />
+              <Skeleton className="h-48 w-48 rounded-xl" />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ────────────────────── Success State ────────────────────── */
+
+function SuccessState({ invoiceCount, amount, onBack }) {
+  return (
+    <div className="min-h-[60vh] flex items-center justify-center px-4">
+      <div className="text-center max-w-md space-y-5">
+        <div className="mx-auto h-20 w-20 rounded-full bg-emerald-100 flex items-center justify-center animate-in zoom-in-50 duration-500">
+          <PartyPopper className="h-10 w-10 text-emerald-600" />
+        </div>
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 delay-200 space-y-2">
+          <h2 className="text-2xl font-bold text-slate-900">Gửi thành công!</h2>
+          <p className="text-muted-foreground">
+            Đã gửi xác nhận thanh toán {formatMoney(amount)} cho {invoiceCount} hóa đơn.
+            Trung tâm sẽ xác minh trong thời gian sớm nhất.
+          </p>
+        </div>
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 delay-300 flex flex-col gap-2 pt-2">
+          <Button onClick={onBack} variant="outline" className="mx-auto">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Quay lại thanh toán
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ────────────────────── Main Component ────────────────────── */
+
 export function StudentPayment() {
   const { session } = useAuth();
-  const { toast } = useToast();
+
   const { invoices, loading, error, refresh } = useStudentInvoices('unpaid');
   const { config, loading: loadingConfig, error: configError } = useStudentPaymentConfig();
   const [searchParams] = useSearchParams();
 
   const [selectedIds, setSelectedIds] = useState([]);
-  const [paymentMode, setPaymentMode] = useState('combined'); // 'combined' or 'individual'
   const [customAmount, setCustomAmount] = useState('');
   const [notes, setNotes] = useState('');
   const [bankProofUrl, setBankProofUrl] = useState(null);
   const [copiedField, setCopiedField] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [successInfo, setSuccessInfo] = useState(null);
 
   const unpaidInvoices = useMemo(() => {
     const list = invoices || [];
-    return list.filter(inv => getRemaining(inv) > 0 && !['paid', 'cancelled', 'refunded'].includes(inv.status));
+    return list.filter(inv => {
+      if (['paid', 'cancelled', 'refunded'].includes(inv.status)) return false;
+      // Hide invoices where pending+verified payments cover full amount
+      return getRemaining(inv) > 0;
+    });
   }, [invoices]);
 
   const selectedInvoices = useMemo(
@@ -91,19 +244,16 @@ export function StudentPayment() {
     [selectedInvoices]
   );
 
-  // Payment amount (custom or total)
   const paymentAmount = useMemo(() => {
     const custom = parseCurrency(customAmount);
     return custom > 0 ? custom : totalSelectedAmount;
   }, [customAmount, totalSelectedAmount]);
 
-  // Transfer content for QR
   const transferContent = useMemo(
     () => getTransferContent(selectedInvoices),
     [selectedInvoices]
   );
 
-  // QR URL generation
   const qrUrl = useMemo(() => {
     if (!selectedInvoices.length || !config?.bankId || !config?.accountNo || paymentAmount <= 0) {
       return '';
@@ -111,17 +261,26 @@ export function StudentPayment() {
     return `https://img.vietqr.io/image/${config.bankId}-${config.accountNo}-${config.template || 'compact2'}.png?amount=${paymentAmount}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(config.accountName || '')}`;
   }, [selectedInvoices.length, config, paymentAmount, transferContent]);
 
-  // Preselect from URL
+  // Derive current step
+  const currentStep = useMemo(() => {
+    if (selectedInvoices.length === 0) return 1;
+    if (!bankProofUrl) return 2;
+    return 3;
+  }, [selectedInvoices.length, bankProofUrl]);
+
+  // Preselect from URL (only once)
+  const hasPreselected = useRef(false);
   useEffect(() => {
+    if (hasPreselected.current) return;
     const preselectId = searchParams.get('invoice_id');
-    if (!preselectId || selectedIds.length > 0) return;
+    if (!preselectId) return;
     const exists = unpaidInvoices.find(inv => inv.id === preselectId);
     if (exists) {
       setSelectedIds([preselectId]);
+      hasPreselected.current = true;
     }
-  }, [searchParams, unpaidInvoices, selectedIds.length]);
+  }, [searchParams, unpaidInvoices]);
 
-  // Reset custom amount when selection changes
   useEffect(() => {
     setCustomAmount('');
     setBankProofUrl(null);
@@ -134,19 +293,14 @@ export function StudentPayment() {
     });
   };
 
-  const selectAll = () => {
-    setSelectedIds(unpaidInvoices.map(inv => inv.id));
-  };
-
-  const clearSelection = () => {
-    setSelectedIds([]);
-  };
+  const selectAll = () => setSelectedIds(unpaidInvoices.map(inv => inv.id));
+  const clearSelection = () => setSelectedIds([]);
 
   const handleCopy = (field, value) => {
     if (!value) return;
     navigator.clipboard.writeText(value);
     setCopiedField(field);
-    toast.success('Đã sao chép vào clipboard');
+    gooeyToast.success('Đã sao chép vào clipboard');
     setTimeout(() => setCopiedField(null), 2000);
   };
 
@@ -154,42 +308,36 @@ export function StudentPayment() {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
-      setBankProofUrl(reader.result);
-    };
+    reader.onload = () => setBankProofUrl(reader.result);
     reader.readAsDataURL(file);
   };
 
   const handleSubmit = async () => {
     if (!selectedInvoices.length) return;
-    
     if (paymentAmount <= 0) {
-      toast.error('Vui lòng nhập số tiền thanh toán hợp lệ');
+      gooeyToast.error('Vui lòng nhập số tiền thanh toán hợp lệ');
       return;
     }
     if (paymentAmount > totalSelectedAmount) {
-      toast.error(`Số tiền vượt quá tổng nợ (${formatMoney(totalSelectedAmount)})`);
+      gooeyToast.error(`Số tiền vượt quá tổng nợ (${formatMoney(totalSelectedAmount)})`);
       return;
     }
     if (!bankProofUrl) {
-      toast.error('Vui lòng tải lên ảnh minh chứng chuyển khoản');
+      gooeyToast.error('Vui lòng tải lên ảnh minh chứng chuyển khoản');
       return;
     }
 
     setSubmitting(true);
     try {
-      // Distribute payment across invoices (pay each invoice's remaining amount)
       let remainingPayment = paymentAmount;
       const results = [];
-      
+
       for (const invoice of selectedInvoices) {
         if (remainingPayment <= 0) break;
-        
         const invoiceRemaining = getRemaining(invoice);
         const amountForThisInvoice = Math.min(remainingPayment, invoiceRemaining);
-        
         if (amountForThisInvoice <= 0) continue;
-        
+
         const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/invoices/${invoice.id}/payments`, {
           method: 'POST',
           headers: {
@@ -203,48 +351,40 @@ export function StudentPayment() {
             bank_proof_url: bankProofUrl
           })
         });
-        
+
         const result = await res.json();
         results.push({ invoice: invoice.invoice_code, success: result.success, message: result.message });
-        
-        if (result.success) {
-          remainingPayment -= amountForThisInvoice;
-        }
+        if (result.success) remainingPayment -= amountForThisInvoice;
       }
-      
+
       const successCount = results.filter(r => r.success).length;
-      if (successCount === selectedInvoices.length) {
-        toast.success(`Đã gửi xác nhận thanh toán cho ${successCount} hóa đơn. Trung tâm sẽ xác minh sớm.`);
-      } else if (successCount > 0) {
-        toast.success(`Đã gửi minh chứng cho ${successCount}/${selectedInvoices.length} hóa đơn.`);
+      if (successCount > 0) {
+        setSuccessInfo({ count: successCount, total: selectedInvoices.length, amount: paymentAmount });
+        refresh();
+        setSelectedIds([]);
+        setCustomAmount('');
+        setNotes('');
+        setBankProofUrl(null);
       } else {
         const firstError = results.find(r => !r.success);
-        toast.error(firstError?.message || 'Có lỗi xảy ra khi gửi thanh toán');
+        gooeyToast.error(firstError?.message || 'Có lỗi xảy ra khi gửi thanh toán');
       }
-      
-      refresh();
-      setSelectedIds([]);
-      setCustomAmount('');
-      setNotes('');
-      setBankProofUrl(null);
-    } catch (err) {
-      toast.error('Không thể gửi thanh toán lúc này');
+    } catch {
+      gooeyToast.error('Không thể gửi thanh toán lúc này');
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
-          <p className="mt-4 text-muted-foreground">Đang tải hóa đơn...</p>
-        </div>
-      </div>
-    );
-  }
+  const handleBackFromSuccess = useCallback(() => {
+    setSuccessInfo(null);
+    refresh();
+  }, [refresh]);
 
+  /* ── Loading ── */
+  if (loading) return <PaymentSkeleton />;
+
+  /* ── Error ── */
   if (error) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
@@ -258,6 +398,17 @@ export function StudentPayment() {
     );
   }
 
+  /* ── Success ── */
+  if (successInfo) {
+    return (
+      <SuccessState
+        invoiceCount={successInfo.count}
+        amount={successInfo.amount}
+        onBack={handleBackFromSuccess}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
@@ -267,6 +418,9 @@ export function StudentPayment() {
           Chọn hóa đơn, quét mã QR và gửi minh chứng chuyển khoản.
         </p>
       </div>
+
+      {/* Step Indicator */}
+      <StepIndicator currentStep={currentStep} />
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Invoice List */}
@@ -303,16 +457,16 @@ export function StudentPayment() {
                       key={invoice.id}
                       className={cn(
                         'flex items-center gap-3 p-4 rounded-lg border transition-all cursor-pointer bg-white',
-                        isSelected 
-                          ? 'border-emerald-500 bg-emerald-500/10 shadow-sm' 
+                        isSelected
+                          ? 'border-emerald-500 bg-emerald-500/10 shadow-sm'
                           : 'border-border hover:bg-slate-50'
                       )}
                       onClick={() => toggleSelect(invoice)}
                     >
                       <div className={cn(
                         'flex items-center justify-center w-5 h-5 rounded border-2 transition-colors',
-                        isSelected 
-                          ? 'bg-emerald-500 border-emerald-500' 
+                        isSelected
+                          ? 'bg-emerald-500 border-emerald-500'
                           : 'border-muted-foreground/30'
                       )}>
                         {isSelected && <Check className="h-3 w-3 text-white" />}
@@ -321,8 +475,8 @@ export function StudentPayment() {
                         <div className="flex items-center gap-2">
                           <p className="font-medium truncate">{invoice.invoice_code || `HD-${invoice.id.slice(0, 6)}`}</p>
                           <Badge variant="secondary" className={cn(
-                            isOverdue 
-                              ? 'bg-red-500/10 text-red-600 dark:text-red-400' 
+                            isOverdue
+                              ? 'bg-red-500/10 text-red-600 dark:text-red-400'
                               : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
                           )}>
                             {isOverdue ? 'Quá hạn' : 'Chờ thanh toán'}
@@ -376,7 +530,7 @@ export function StudentPayment() {
                   {formatMoney(totalSelectedAmount)}
                 </span>
               </div>
-              
+
               {selectedInvoices.length > 0 && (
                 <div className="space-y-2 pt-3 border-t border-border">
                   <p className="text-sm font-medium text-muted-foreground">Hóa đơn đã chọn:</p>
@@ -457,7 +611,7 @@ export function StudentPayment() {
                       Đang tải thông tin ngân hàng...
                     </div>
                   )}
-                  
+
                   {configError && (
                     <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-lg">
                       Chưa cấu hình thông tin ngân hàng. Vui lòng liên hệ trung tâm.

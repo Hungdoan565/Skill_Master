@@ -14,6 +14,12 @@ if (!supabaseUrl || !supabaseKey) {
 // Đây là client dùng để gọi Database qua API
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Service role client - bypasses RLS (for notifications, admin operations)
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+export const supabaseAdmin = serviceRoleKey
+  ? createClient(supabaseUrl, serviceRoleKey)
+  : supabase;
+
 // Hàm kiểm tra kết nối
 export const getDbStatus = async () => {
   try {

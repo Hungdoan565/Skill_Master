@@ -85,7 +85,10 @@ export function InvoicesPage() {
   // ============================================
   // LOCAL STATE - UI only
   // ============================================
-  const [activeTab, setActiveTab] = useState('invoices'); // 'invoices' | 'transactions'
+  const [activeTab, setActiveTab] = useState(() => {
+    const tabParam = searchParams.get('tab');
+    return tabParam === 'transactions' ? 'transactions' : 'invoices';
+  });
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   // Invoice Detail Modal
