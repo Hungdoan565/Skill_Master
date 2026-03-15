@@ -109,7 +109,6 @@ export function usePayroll() {
         );
 
         if (response.data?.success) {
-            // Refresh danh sách
             return response.data.data;
         }
 
@@ -201,37 +200,28 @@ export function usePayroll() {
         throw new Error(response.data?.message || 'Có lỗi xảy ra');
     }, []);
 
-    // Export payroll to CSV/Excel
-    const exportPayroll = useCallback(async (month, year, format = 'csv') => {
+    // Export payroll to Excel (.xlsx)
+    const exportPayroll = useCallback(async (month, year) => {
         const headers = await getAuthHeaders();
 
-        if (format === 'csv') {
-            // Download CSV file directly
-            const response = await axios.get(
-                `${API_URL}/api/admin/payroll/export?month=${month}&year=${year}&format=csv`,
-                {
-                    headers,
-                    responseType: 'blob'
-                }
-            );
+        const response = await axios.get(
+            `${API_URL}/api/admin/payroll/export?month=${month}&year=${year}`,
+            {
+                headers,
+                responseType: 'blob'
+            }
+        );
 
-            // Create download link
-            const url = window.URL.createObjectURL(new Blob([response.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `payroll_${month}_${year}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            window.URL.revokeObjectURL(url);
-            return true;
-        } else {
-            const response = await axios.get(
-                `${API_URL}/api/admin/payroll/export?month=${month}&year=${year}&format=json`,
-                { headers }
-            );
-            return response.data?.data;
-        }
+        // Create download link
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `BangLuong_T${month}_${year}.xlsx`);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        return true;
     }, []);
 
     // Fetch audit trail for a payroll

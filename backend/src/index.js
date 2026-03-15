@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import ExcelJS from 'exceljs';
 import { supabase, supabaseAdmin, getDbStatus } from './lib/db.js';
 import { getEffectiveCenterId } from './lib/center-scope.js';
 import {
@@ -10347,8 +10348,37 @@ app.get('/api/admin/system-dashboard', requireAuth, requireRole(['SUPER_ADMIN'])
 app.get('/api/admin/center-health', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
   try {
     const now = new Date();
-    const startDate = req.query.startDate || new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-    const endDate = req.query.endDate || now.toISOString();
+    let startDate, endDate;
+
+    // Parse period param from frontend (this_month, last_month, this_quarter, this_year)
+    const period = req.query.period;
+    if (period) {
+      switch (period) {
+        case 'last_month':
+          startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
+          endDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59).toISOString();
+          break;
+        case 'this_quarter': {
+          const quarterStart = Math.floor(now.getMonth() / 3) * 3;
+          startDate = new Date(now.getFullYear(), quarterStart, 1).toISOString();
+          endDate = now.toISOString();
+          break;
+        }
+        case 'this_year':
+          startDate = new Date(now.getFullYear(), 0, 1).toISOString();
+          endDate = now.toISOString();
+          break;
+        case 'this_month':
+        default:
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+          endDate = now.toISOString();
+          break;
+      }
+    } else {
+      startDate = req.query.startDate || new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      endDate = req.query.endDate || now.toISOString();
+    }
+
     const prevStart = new Date(new Date(startDate).getFullYear(), new Date(startDate).getMonth() - 1, 1).toISOString();
     const prevEnd = new Date(new Date(startDate).getFullYear(), new Date(startDate).getMonth(), 0).toISOString();
 
@@ -10357,67 +10387,109 @@ app.get('/api/admin/center-health', requireAuth, requireRole(['SUPER_ADMIN']), a
       .select('id, name')
       .eq('status', 'active');
 
-    const results = [];
-    for (const center of (centers || [])) {
-      // Revenue
-      const { data: payments } = await supabase.from('payments')
-        .select('amount, invoices!inner(classes!inner(center_id))')
-        .eq('verification_status', 'verified')
-        .eq('invoices.classes.center_id', center.id)
-        .gte('payment_date', startDate)
-        .lte('payment_date', endDate);
-      const revenue = (payments || []).reduce((s, p) => s + (p.amount || 0), 0);
+    // Process all centers in parallel (batch of 5 to avoid overwhelming DB)
+    const processCenterHealth = async (center) => {
+      // Run all independent queries in parallel
+      const [
+        { data: payments },
+        { data: prevPayments },
+        { count: studentCount },
+        { count: classCount },
+        { data: attendanceData },
+        { data: invoiceData },
+        { count: staffCount },
+        { count: curEnrollments },
+        { count: prevEnrollments },
+        { data: classData },
+      ] = await Promise.all([
+        // Revenue - current period
+        supabase.from('payments')
+          .select('amount, invoices!inner(classes!inner(center_id))')
+          .eq('verification_status', 'verified')
+          .eq('invoices.classes.center_id', center.id)
+          .gte('payment_date', startDate)
+          .lte('payment_date', endDate),
+        // Revenue - previous period
+        supabase.from('payments')
+          .select('amount, invoices!inner(classes!inner(center_id))')
+          .eq('verification_status', 'verified')
+          .eq('invoices.classes.center_id', center.id)
+          .gte('payment_date', prevStart)
+          .lte('payment_date', prevEnd),
+        // Student count
+        supabase.from('users')
+          .select('id', { count: 'exact', head: true })
+          .eq('role_id', 'e5a36360-8376-4aa4-b740-c7fab967a480')
+          .eq('status', 'active')
+          .eq('center_id', center.id),
+        // Class count
+        supabase.from('classes')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'active')
+          .eq('center_id', center.id),
+        // Attendance
+        supabase.from('attendance')
+          .select('status, enrollments!inner(classes!inner(center_id))')
+          .eq('enrollments.classes.center_id', center.id)
+          .gte('session_date', startDate)
+          .lte('session_date', endDate),
+        // Invoices / collection
+        supabase.from('invoices')
+          .select('final_amount, paid_amount, status, classes!inner(center_id)')
+          .eq('classes.center_id', center.id)
+          .gte('created_at', startDate)
+          .lte('created_at', endDate),
+        // Staff count
+        supabase.from('users')
+          .select('id', { count: 'exact', head: true })
+          .eq('center_id', center.id)
+          .in('role_id', ['7d0897c4-4e72-480e-97b4-86770b0b9542', 'd16c524b-8ea5-4baa-b6b0-057ce3ab1fbb']),
+        // Current enrollments
+        supabase.from('enrollments')
+          .select('id, classes!inner(center_id)', { count: 'exact', head: true })
+          .eq('classes.center_id', center.id)
+          .gte('created_at', startDate)
+          .lte('created_at', endDate),
+        // Previous enrollments
+        supabase.from('enrollments')
+          .select('id, classes!inner(center_id)', { count: 'exact', head: true })
+          .eq('classes.center_id', center.id)
+          .gte('created_at', prevStart)
+          .lte('created_at', prevEnd),
+        // Classes with capacity
+        supabase.from('classes')
+          .select('id, max_students')
+          .eq('status', 'active')
+          .eq('center_id', center.id),
+      ]);
 
-      const { data: prevPayments } = await supabase.from('payments')
-        .select('amount, invoices!inner(classes!inner(center_id))')
-        .eq('verification_status', 'verified')
-        .eq('invoices.classes.center_id', center.id)
-        .gte('payment_date', prevStart)
-        .lte('payment_date', prevEnd);
+      // Revenue calc
+      const revenue = (payments || []).reduce((s, p) => s + (p.amount || 0), 0);
       const prevRevenue = (prevPayments || []).reduce((s, p) => s + (p.amount || 0), 0);
       const revenueGrowth = prevRevenue ? ((revenue - prevRevenue) / prevRevenue) * 100 : 0;
 
-      // Students
-      const { count: studentCount } = await supabase.from('users').select('id', { count: 'exact', head: true }).eq('role_id', 'e5a36360-8376-4aa4-b740-c7fab967a480').eq('status', 'active').eq('center_id', center.id);
-
-      // Classes
-      const { count: classCount } = await supabase.from('classes').select('id', { count: 'exact', head: true }).eq('status', 'active').eq('center_id', center.id);
-
       // Attendance rate
-      const { data: attendanceData } = await supabase.from('attendance')
-        .select('status, enrollments!inner(classes!inner(center_id))')
-        .eq('enrollments.classes.center_id', center.id)
-        .gte('session_date', startDate)
-        .lte('session_date', endDate);
       const totalAtt = (attendanceData || []).length;
       const presentAtt = (attendanceData || []).filter(a => a.status === 'present' || a.status === 'late').length;
       const attendanceRate = totalAtt > 0 ? Math.round((presentAtt / totalAtt) * 100) : 0;
 
       // Collection rate
-      const { data: invoiceData } = await supabase.from('invoices')
-        .select('final_amount, paid_amount, status, classes!inner(center_id)')
-        .eq('classes.center_id', center.id)
-        .gte('created_at', startDate)
-        .lte('created_at', endDate);
       const totalInvoiced = (invoiceData || []).reduce((s, i) => s + (i.final_amount || 0), 0);
       const totalPaid = (invoiceData || []).reduce((s, i) => s + (i.paid_amount || 0), 0);
       const collectionRate = totalInvoiced > 0 ? Math.round((totalPaid / totalInvoiced) * 100) : 0;
 
-      // Staff count
-      const { count: staffCount } = await supabase.from('users').select('id', { count: 'exact', head: true }).eq('center_id', center.id).in('role_id', ['7d0897c4-4e72-480e-97b4-86770b0b9542', 'd16c524b-8ea5-4baa-b6b0-057ce3ab1fbb']);
-
       // Enrollment growth
-      const { count: curEnrollments } = await supabase.from('enrollments').select('id, classes!inner(center_id)', { count: 'exact', head: true }).eq('classes.center_id', center.id).gte('created_at', startDate).lte('created_at', endDate);
-      const { count: prevEnrollments } = await supabase.from('enrollments').select('id, classes!inner(center_id)', { count: 'exact', head: true }).eq('classes.center_id', center.id).gte('created_at', prevStart).lte('created_at', prevEnd);
       const enrollmentGrowth = (prevEnrollments || 0) > 0 ? (((curEnrollments || 0) - (prevEnrollments || 0)) / (prevEnrollments || 1)) * 100 : 0;
 
-      // Fill rate (students / max capacity)
-      const { data: classData } = await supabase.from('classes').select('id, max_students').eq('status', 'active').eq('center_id', center.id);
-      // Count enrolled students per class since there's no current_students column
+      // Fill rate — bulk count all active enrollments for this center's classes (eliminates inner N+1 loop)
+      const classIds = (classData || []).map(c => c.id);
       let totalFilled = 0;
-      for (const cls of (classData || [])) {
-        const { count } = await supabase.from('enrollments').select('id', { count: 'exact', head: true }).eq('class_id', cls.id).eq('status', 'active');
-        totalFilled += (count || 0);
+      if (classIds.length > 0) {
+        const { count: enrolledCount } = await supabase.from('enrollments')
+          .select('id', { count: 'exact', head: true })
+          .in('class_id', classIds)
+          .eq('status', 'active');
+        totalFilled = enrolledCount || 0;
       }
       const totalCapacity = (classData || []).reduce((s, c) => s + (c.max_students || 0), 0);
       const fillRate = totalCapacity > 0 ? (totalFilled / totalCapacity) * 100 : 0;
@@ -10430,9 +10502,9 @@ app.get('/api/admin/center-health', requireAuth, requireRole(['SUPER_ADMIN']), a
         Math.min(Math.max(enrollmentGrowth + 50, 0), 100) * 0.15 +
         Math.min(Math.max(revenueGrowth + 50, 0), 100) * 0.15
       );
-      const healthStatus = healthScore >= 80 ? 'good' : healthScore >= 60 ? 'warning' : 'critical';
+      const healthStatus = healthScore >= 80 ? 'healthy' : healthScore >= 60 ? 'warning' : 'critical';
 
-      results.push({
+      return {
         center_id: center.id,
         center_name: center.name,
         revenue,
@@ -10454,7 +10526,16 @@ app.get('/api/admin/center-health', requireAuth, requireRole(['SUPER_ADMIN']), a
           enrollment_growth_mom: STRATEGIC_METRIC_IDS.ENROLLMENT_GROWTH_MOM,
           revenue_growth_mom: STRATEGIC_METRIC_IDS.REVENUE_GROWTH_MOM,
         },
-      });
+      };
+    };
+
+    // Process centers in parallel batches of 5
+    const centerList = centers || [];
+    const results = [];
+    for (let i = 0; i < centerList.length; i += 5) {
+      const batch = centerList.slice(i, i + 5);
+      const batchResults = await Promise.all(batch.map(processCenterHealth));
+      results.push(...batchResults);
     }
 
     res.json({
@@ -13614,108 +13695,143 @@ app.post('/api/admin/invoices/bulk-payment', requireAuth, requireRole(['SUPER_AD
 /**
  * GET /api/admin/invoices/overdue
  * Get list of overdue invoices with student contact info
- * Query: ?centerId=xxx&daysOverdue=7&page=1&limit=20
+ * Query: ?center_id=xxx&daysOverdueMin=1&daysOverdueMax=7&page=1&limit=20&sortBy=days_overdue&sortOrder=desc
  * 🔒 SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/invoices/overdue', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const {
-      centerId,
-      daysOverdue = 7,
+      center_id,
+      daysOverdueMin,
+      daysOverdueMax,
+      sortBy = 'days_overdue',
+      sortOrder = 'desc',
       page = 1,
       limit = 20
     } = req.query;
 
-    const userRole = req.user.roleCode;
-    const userCenterId = req.user.centerId;
-
-    // Determine effective center ID based on role
-    let effectiveCenterId = centerId;
-    if (userRole !== 'SUPER_ADMIN') {
-      if (!userCenterId) {
-        return res.status(403).json({
-          success: false,
-          message: 'Bạn chưa được gán vào trung tâm nào.'
-        });
-      }
-      effectiveCenterId = userCenterId;
+    // Use standard center scoping (consistent with rest of codebase)
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, center_id);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
     }
 
-    const minDaysOverdue = parseInt(daysOverdue) || 7;
     const pageNum = parseInt(page) || 1;
-    const limitNum = parseInt(limit) || 20;
+    const limitNum = Math.min(parseInt(limit) || 20, 100); // Cap at 100
     const offset = (pageNum - 1) * limitNum;
 
-    console.log('📋 Fetching overdue invoices:', { effectiveCenterId, minDaysOverdue, pageNum, limitNum });
+    // Calculate date thresholds from days overdue for SQL-level filtering
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split('T')[0];
 
-    // Build query for overdue invoices
+    // daysOverdueMin=8 → invoice must be at least 8 days overdue → due_date <= today - 8
+    let maxDueDate = todayStr; // Default: all overdue (due_date < today)
+    if (daysOverdueMin && parseInt(daysOverdueMin) > 0) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - parseInt(daysOverdueMin) + 1);
+      maxDueDate = d.toISOString().split('T')[0];
+    }
+
+    // daysOverdueMax=14 → invoice is at most 14 days overdue → due_date >= today - 14
+    let minDueDate = null;
+    if (daysOverdueMax && parseInt(daysOverdueMax) > 0) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - parseInt(daysOverdueMax));
+      minDueDate = d.toISOString().split('T')[0];
+    }
+
+    console.log('📋 Fetching overdue invoices:', { effectiveCenterId, daysOverdueMin, daysOverdueMax, maxDueDate, minDueDate, pageNum, limitNum });
+
+    // ---------- STATS QUERY (all overdue, no pagination, no day filter) ----------
+    const statsSelect = effectiveCenterId
+      ? 'due_date, final_amount, paid_amount, class:classes!inner(center_id)'
+      : 'due_date, final_amount, paid_amount';
+
+    let statsQuery = supabase
+      .from('invoices')
+      .select(statsSelect)
+      .in('status', ['unpaid', 'partial', 'overdue'])
+      .lt('due_date', todayStr);
+
+    if (effectiveCenterId) {
+      statsQuery = statsQuery.eq('class.center_id', effectiveCenterId);
+    }
+
+    const { data: allOverdue } = await statsQuery;
+
+    // Compute global stats & severity breakdown
+    const bySeverity = { low: 0, medium: 0, high: 0, critical: 0 };
+    let totalAmount = 0;
+    let totalDaysOverdue = 0;
+    (allOverdue || []).forEach(inv => {
+      const dueDate = new Date(inv.due_date);
+      dueDate.setHours(0, 0, 0, 0);
+      const daysOver = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
+      const remaining = (inv.final_amount || 0) - (inv.paid_amount || 0);
+      totalAmount += remaining;
+      totalDaysOverdue += daysOver;
+      if (daysOver <= 7) bySeverity.low++;
+      else if (daysOver <= 14) bySeverity.medium++;
+      else if (daysOver <= 30) bySeverity.high++;
+      else bySeverity.critical++;
+    });
+    const totalOverdue = (allOverdue || []).length;
+    const avgDaysOverdue = totalOverdue > 0 ? Math.round(totalDaysOverdue / totalOverdue) : 0;
+
+    // ---------- DATA QUERY (filtered, paginated) ----------
+    // Use !inner join when center filter is active for proper SQL-level filtering
+    const classJoin = effectiveCenterId ? 'class:classes!inner' : 'class:classes';
+    const dataSelect = `
+      id, invoice_code, invoice_type, amount, discount_amount, final_amount,
+      paid_amount, status, due_date, created_at,
+      student:users!invoices_student_id_fkey(id, full_name, email, phone),
+      ${classJoin}(id, code, name, center_id, course:courses(id, title))
+    `;
+
     let query = supabase
       .from('invoices')
-      .select(`
-        id,
-        invoice_code,
-        invoice_type,
-        amount,
-        discount_amount,
-        final_amount,
-        paid_amount,
-        status,
-        due_date,
-        created_at,
-        student:users!invoices_student_id_fkey (
-          id,
-          full_name,
-          email,
-          phone
-        ),
-        class:classes (
-          id,
-          code,
-          name,
-          center_id,
-          course:courses (
-            id,
-            title
-          )
-        )
-      `, { count: 'exact' })
-      .in('status', ['unpaid', 'partial'])
-      .lt('due_date', new Date().toISOString().split('T')[0]);
+      .select(dataSelect, { count: 'exact' })
+      .in('status', ['unpaid', 'partial', 'overdue'])
+      .lt('due_date', maxDueDate);
 
-    // Filter by center if specified
+    // Apply day range filter at SQL level
+    if (minDueDate) {
+      query = query.gte('due_date', minDueDate);
+    }
+
+    // Center filter at SQL level via inner join
     if (effectiveCenterId) {
       query = query.eq('class.center_id', effectiveCenterId);
     }
 
-    // Execute query with pagination
+    // Sorting
+    if (sortBy === 'amount') {
+      query = query.order('final_amount', { ascending: sortOrder === 'asc' });
+    } else {
+      // days_overdue → sort by due_date (ascending = most overdue first when sortOrder=desc)
+      query = query.order('due_date', { ascending: sortOrder !== 'desc' });
+    }
+
+    // Execute with pagination
     const { data: invoices, error, count } = await query
-      .order('due_date', { ascending: true })
       .range(offset, offset + limitNum - 1);
 
     if (error) throw error;
 
-    // Calculate days overdue and filter by minimum days
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Enrich with computed fields
+    const enrichedInvoices = (invoices || []).map(invoice => {
+      const dueDate = new Date(invoice.due_date);
+      dueDate.setHours(0, 0, 0, 0);
+      return {
+        ...invoice,
+        days_overdue: Math.floor((today - dueDate) / (1000 * 60 * 60 * 24)),
+        remaining_amount: (invoice.final_amount || 0) - (invoice.paid_amount || 0)
+      };
+    });
 
-    const overdueInvoices = (invoices || [])
-      .map(invoice => {
-        const dueDate = new Date(invoice.due_date);
-        dueDate.setHours(0, 0, 0, 0);
-        const daysOverdueCalc = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
-
-        return {
-          ...invoice,
-          days_overdue: daysOverdueCalc,
-          remaining_amount: (invoice.final_amount || 0) - (invoice.paid_amount || 0)
-        };
-      })
-      .filter(invoice => invoice.days_overdue >= minDaysOverdue)
-      .filter(invoice => !effectiveCenterId || invoice.class?.center_id === effectiveCenterId);
-
-    // Get last payment date for each invoice
-    const invoiceIds = overdueInvoices.map(inv => inv.id);
-
+    // Batch fetch last payment dates
+    const invoiceIds = enrichedInvoices.map(inv => inv.id);
     let lastPayments = {};
     if (invoiceIds.length > 0) {
       const { data: payments } = await supabase
@@ -13733,31 +13849,29 @@ app.get('/api/admin/invoices/overdue', requireAuth, requireRole(['SUPER_ADMIN', 
       }
     }
 
-    // Add last payment date to results
-    const resultsWithPayments = overdueInvoices
-      .map(invoice => ({
-        ...invoice,
-        last_payment_date: lastPayments[invoice.id] || null
-      }))
-      .sort((a, b) => b.days_overdue - a.days_overdue);
+    const results = enrichedInvoices.map(invoice => ({
+      ...invoice,
+      last_payment_date: lastPayments[invoice.id] || null
+    }));
 
-    console.log(`📋 Found ${resultsWithPayments.length} overdue invoices (>= ${minDaysOverdue} days)`);
+    const total = count || 0;
+    console.log(`📋 Found ${total} overdue invoices (page ${pageNum})`);
 
+    // Response format matches frontend expectations
     res.json({
       success: true,
-      data: resultsWithPayments,
+      invoices: results,
+      stats: {
+        totalOverdue: totalOverdue,
+        totalAmount: totalAmount,
+        avgDaysOverdue: avgDaysOverdue,
+        bySeverity
+      },
       pagination: {
         page: pageNum,
         limit: limitNum,
-        total: resultsWithPayments.length,
-        totalPages: Math.ceil(resultsWithPayments.length / limitNum)
-      },
-      summary: {
-        total_overdue: resultsWithPayments.length,
-        total_amount: resultsWithPayments.reduce((sum, inv) => sum + (inv.remaining_amount || 0), 0),
-        avg_days_overdue: resultsWithPayments.length > 0
-          ? Math.round(resultsWithPayments.reduce((sum, inv) => sum + inv.days_overdue, 0) / resultsWithPayments.length)
-          : 0
+        total,
+        totalPages: Math.ceil(total / limitNum)
       }
     });
 
@@ -13811,18 +13925,17 @@ app.get('/api/admin/payroll',
       if (status) query = query.eq('status', status);
       if (teacher_id) query = query.eq('teacher_id', teacher_id);
 
+      // Apply center filter at SQL level (not client-side)
+      if (effectiveCenterId) {
+        query = query.eq('teacher.center_id', effectiveCenterId);
+      }
+
       const { data, error } = await query;
       if (error) throw error;
 
-      // Filter by center if needed
-      let filteredData = data || [];
-      if (effectiveCenterId) {
-        filteredData = filteredData.filter(p => p.teacher?.center_id === effectiveCenterId);
-      }
-
       res.json({
         success: true,
-        data: filteredData
+        data: data || []
       });
     } catch (error) {
       console.error('❌ Error fetching payrolls:', error);
@@ -14288,6 +14401,359 @@ app.post('/api/admin/payroll/bulk-generate',
 );
 
 /**
+ * GET /api/admin/payroll/export
+ * Export payrolls to professional Excel (.xlsx)
+ * Query: ?month=2&year=2026
+ * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ */
+app.get('/api/admin/payroll/export',
+  requireAuth,
+  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
+  async (req, res, next) => {
+    try {
+      const { month, year, center_id } = req.query;
+
+      if (!month || !year) {
+        return res.status(400).json({
+          success: false,
+          message: 'month và year là bắt buộc'
+        });
+      }
+
+      const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, center_id);
+      if (permError) {
+        return res.status(403).json({ success: false, message: permError });
+      }
+
+      console.log(`💰 Admin ${req.user.email} exporting payrolls (Excel) - ${month}/${year}`);
+
+      const { data: payrolls, error } = await supabase
+        .from('payroll')
+        .select(`
+          *,
+          teacher:users!payroll_teacher_id_fkey (
+            id, full_name, email, phone, center_id
+          )
+        `)
+        .eq('period_month', parseInt(month))
+        .eq('period_year', parseInt(year))
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Filter by center
+      let filtered = payrolls || [];
+      if (effectiveCenterId) {
+        filtered = filtered.filter(p => p.teacher?.center_id === effectiveCenterId);
+      }
+
+      // ═══════════════════════════════════════════════
+      // BUILD PROFESSIONAL EXCEL WITH ExcelJS
+      // ═══════════════════════════════════════════════
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'Skill Master';
+      workbook.created = new Date();
+
+      const ws = workbook.addWorksheet(`Bảng lương T${month}-${year}`, {
+        properties: { defaultRowHeight: 22 },
+        pageSetup: {
+          paperSize: 9, // A4
+          orientation: 'landscape',
+          fitToPage: true,
+          fitToWidth: 1,
+          fitToHeight: 0,
+          margins: { left: 0.4, right: 0.4, top: 0.6, bottom: 0.6, header: 0.3, footer: 0.3 }
+        }
+      });
+
+      // ── Color palette ──
+      const COLORS = {
+        primaryDark: '1B5E20',    // Dark green
+        primary: '2E7D32',        // Green
+        primaryLight: 'E8F5E9',   // Light green bg
+        accent: 'FF8F00',         // Amber for totals
+        accentLight: 'FFF8E1',    // Light amber bg
+        white: 'FFFFFF',
+        headerText: 'FFFFFF',
+        darkText: '212121',
+        grayText: '616161',
+        lightGray: 'F5F5F5',
+        borderColor: 'BDBDBD',
+        borderDark: '9E9E9E',
+        statusPaid: '1B5E20',
+        statusApproved: '1565C0',
+        statusPending: 'E65100',
+        statusDraft: '757575',
+      };
+
+      const thinBorder = { style: 'thin', color: { argb: COLORS.borderColor } };
+      const allBorders = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
+
+      // ── Column widths ──
+      ws.columns = [
+        { width: 6 },   // A: STT
+        { width: 24 },  // B: Họ tên
+        { width: 28 },  // C: Email
+        { width: 16 },  // D: SĐT
+        { width: 10 },  // E: Số buổi
+        { width: 10 },  // F: Số giờ
+        { width: 18 },  // G: Lương cơ bản
+        { width: 18 },  // H: Lương cố định
+        { width: 15 },  // I: Thưởng
+        { width: 15 },  // J: Khấu trừ
+        { width: 20 },  // K: Thực nhận
+        { width: 16 },  // L: Trạng thái
+      ];
+
+      // ═══════════════════════════════════════════════
+      // ROW 1: Company Header
+      // ═══════════════════════════════════════════════
+      ws.mergeCells('A1:L1');
+      const titleCell = ws.getCell('A1');
+      titleCell.value = 'SKILL MASTER - TRUNG TÂM ĐÀO TẠO';
+      titleCell.font = { name: 'Arial', size: 14, bold: true, color: { argb: COLORS.primaryDark } };
+      titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.primaryLight } };
+      ws.getRow(1).height = 32;
+
+      // ═══════════════════════════════════════════════
+      // ROW 2: Report Title
+      // ═══════════════════════════════════════════════
+      ws.mergeCells('A2:L2');
+      const subTitleCell = ws.getCell('A2');
+      subTitleCell.value = `BẢNG LƯƠNG GIÁO VIÊN — THÁNG ${month}/${year}`;
+      subTitleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: COLORS.white } };
+      subTitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      subTitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.primary } };
+      ws.getRow(2).height = 38;
+
+      // ═══════════════════════════════════════════════
+      // ROW 3: Meta info
+      // ═══════════════════════════════════════════════
+      ws.mergeCells('A3:F3');
+      const metaLeft = ws.getCell('A3');
+      metaLeft.value = `Kỳ lương: Tháng ${month}/${year}  •  Tổng số: ${filtered.length} bảng lương`;
+      metaLeft.font = { name: 'Arial', size: 10, italic: true, color: { argb: COLORS.grayText } };
+      metaLeft.alignment = { horizontal: 'left', vertical: 'middle' };
+
+      ws.mergeCells('G3:L3');
+      const metaRight = ws.getCell('G3');
+      const exportDate = new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      metaRight.value = `Ngày xuất: ${exportDate}  •  Người xuất: ${req.user.full_name || req.user.email}`;
+      metaRight.font = { name: 'Arial', size: 10, italic: true, color: { argb: COLORS.grayText } };
+      metaRight.alignment = { horizontal: 'right', vertical: 'middle' };
+      ws.getRow(3).height = 22;
+
+      // ═══════════════════════════════════════════════
+      // ROW 4: Spacer
+      // ═══════════════════════════════════════════════
+      ws.getRow(4).height = 8;
+
+      // ═══════════════════════════════════════════════
+      // ROW 5: Column Headers
+      // ═══════════════════════════════════════════════
+      const headerLabels = [
+        'STT', 'Họ tên giáo viên', 'Email', 'Số điện thoại',
+        'Số buổi', 'Số giờ', 'Lương giảng dạy',
+        'Lương cố định', 'Thưởng', 'Khấu trừ', 'THỰC NHẬN', 'Trạng thái'
+      ];
+
+      const headerRow = ws.getRow(5);
+      headerRow.height = 30;
+      headerLabels.forEach((label, idx) => {
+        const cell = headerRow.getCell(idx + 1);
+        cell.value = label;
+        cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: COLORS.headerText } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.primaryDark } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        cell.border = {
+          top: { style: 'medium', color: { argb: COLORS.primaryDark } },
+          bottom: { style: 'medium', color: { argb: COLORS.primaryDark } },
+          left: { style: 'thin', color: { argb: COLORS.primary } },
+          right: { style: 'thin', color: { argb: COLORS.primary } },
+        };
+      });
+
+      // ═══════════════════════════════════════════════
+      // DATA ROWS
+      // ═══════════════════════════════════════════════
+      const statusLabels = {
+        draft: 'Nháp',
+        pending: 'Chờ duyệt',
+        approved: 'Đã duyệt',
+        paid: 'Đã thanh toán'
+      };
+      const statusColors = {
+        draft: COLORS.statusDraft,
+        pending: COLORS.statusPending,
+        approved: COLORS.statusApproved,
+        paid: COLORS.statusPaid,
+      };
+
+      const VND_FORMAT = '#,##0 "đ"';
+      let totalSessions = 0, totalHours = 0, totalBase = 0, totalFixed = 0, totalBonus = 0, totalDeduction = 0, totalNet = 0;
+
+      filtered.forEach((p, idx) => {
+        const rowNum = 6 + idx;
+        const row = ws.getRow(rowNum);
+        row.height = 24;
+
+        const isEven = idx % 2 === 0;
+        const rowBg = isEven ? COLORS.white : COLORS.lightGray;
+
+        const sessions = p.total_sessions || 0;
+        const hours = parseFloat(p.total_hours) || 0;
+        const baseSalary = parseFloat(p.base_salary) || 0;
+        const fixedSalary = parseFloat(p.fixed_salary) || 0;
+        const bonus = parseFloat(p.bonus) || 0;
+        const deduction = parseFloat(p.deduction) || 0;
+        const netSalary = parseFloat(p.net_salary) || 0;
+
+        totalSessions += sessions;
+        totalHours += hours;
+        totalBase += baseSalary;
+        totalFixed += fixedSalary;
+        totalBonus += bonus;
+        totalDeduction += deduction;
+        totalNet += netSalary;
+
+        const values = [
+          idx + 1,
+          p.teacher?.full_name || '',
+          p.teacher?.email || '',
+          p.teacher?.phone || '',
+          sessions,
+          hours,
+          baseSalary,
+          fixedSalary,
+          bonus,
+          deduction,
+          netSalary,
+          statusLabels[p.status] || p.status
+        ];
+
+        values.forEach((val, colIdx) => {
+          const cell = row.getCell(colIdx + 1);
+          cell.value = val;
+          cell.border = allBorders;
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBg } };
+          cell.font = { name: 'Arial', size: 10, color: { argb: COLORS.darkText } };
+
+          // Alignment
+          if (colIdx === 0) {
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+          } else if (colIdx === 1) {
+            cell.alignment = { horizontal: 'left', vertical: 'middle' };
+            cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: COLORS.darkText } };
+          } else if (colIdx >= 4 && colIdx <= 5) {
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+          } else if (colIdx >= 6 && colIdx <= 10) {
+            cell.numFmt = VND_FORMAT;
+            cell.alignment = { horizontal: 'right', vertical: 'middle' };
+            if (colIdx === 10) {
+              // Net salary column - bold and green
+              cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: COLORS.primaryDark } };
+            }
+          } else if (colIdx === 11) {
+            // Status column with color
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            cell.font = {
+              name: 'Arial', size: 9, bold: true,
+              color: { argb: statusColors[p.status] || COLORS.grayText }
+            };
+          } else {
+            cell.alignment = { horizontal: 'left', vertical: 'middle' };
+          }
+        });
+      });
+
+      // ═══════════════════════════════════════════════
+      // SUMMARY ROW
+      // ═══════════════════════════════════════════════
+      if (filtered.length > 0) {
+        const summaryRowNum = 6 + filtered.length;
+        const summaryRow = ws.getRow(summaryRowNum);
+        summaryRow.height = 30;
+
+        // Merge A-D for "TỔNG CỘNG"
+        ws.mergeCells(`A${summaryRowNum}:D${summaryRowNum}`);
+        const totalLabelCell = summaryRow.getCell(1);
+        totalLabelCell.value = 'TỔNG CỘNG';
+        totalLabelCell.font = { name: 'Arial', size: 11, bold: true, color: { argb: COLORS.darkText } };
+        totalLabelCell.alignment = { horizontal: 'center', vertical: 'middle' };
+        totalLabelCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.accentLight } };
+        totalLabelCell.border = { top: { style: 'medium', color: { argb: COLORS.accent } }, bottom: { style: 'medium', color: { argb: COLORS.accent } }, left: thinBorder, right: thinBorder };
+
+        const summaryValues = [
+          null, null, null, null,
+          totalSessions,   // E
+          totalHours,       // F
+          totalBase,        // G
+          totalFixed,       // H
+          totalBonus,       // I
+          totalDeduction,   // J
+          totalNet,         // K
+          `${filtered.length} bảng lương` // L
+        ];
+
+        summaryValues.forEach((val, colIdx) => {
+          if (colIdx < 4) return; // Already merged
+          const cell = summaryRow.getCell(colIdx + 1);
+          cell.value = val;
+          cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: COLORS.darkText } };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.accentLight } };
+          cell.border = { top: { style: 'medium', color: { argb: COLORS.accent } }, bottom: { style: 'medium', color: { argb: COLORS.accent } }, left: thinBorder, right: thinBorder };
+
+          if (colIdx >= 4 && colIdx <= 5) {
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+          } else if (colIdx >= 6 && colIdx <= 10) {
+            cell.numFmt = VND_FORMAT;
+            cell.alignment = { horizontal: 'right', vertical: 'middle' };
+            if (colIdx === 10) {
+              cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: COLORS.primaryDark } };
+            }
+          } else {
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            cell.font = { name: 'Arial', size: 9, italic: true, color: { argb: COLORS.grayText } };
+          }
+        });
+
+        // ── Footer note ──
+        const footerRowNum = summaryRowNum + 2;
+        ws.mergeCells(`A${footerRowNum}:L${footerRowNum}`);
+        const footerCell = ws.getCell(`A${footerRowNum}`);
+        footerCell.value = '※ Báo cáo được tạo tự động bởi hệ thống Skill Master. Mọi thắc mắc xin liên hệ bộ phận quản lý.';
+        footerCell.font = { name: 'Arial', size: 9, italic: true, color: { argb: COLORS.grayText } };
+        footerCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      }
+
+      // ── Freeze header ──
+      ws.views = [{ state: 'frozen', ySplit: 5, activeCell: 'A6' }];
+
+      // ── Auto-filter ──
+      ws.autoFilter = { from: 'A5', to: `L${5 + filtered.length}` };
+
+      // ── Print area ──
+      ws.pageSetup.printArea = `A1:L${6 + filtered.length + 2}`;
+
+      // ═══════════════════════════════════════════════
+      // SEND RESPONSE
+      // ═══════════════════════════════════════════════
+      const buffer = await workbook.xlsx.writeBuffer();
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename=BangLuong_T${month}_${year}.xlsx`);
+      res.setHeader('Content-Length', buffer.length);
+      res.send(Buffer.from(buffer));
+
+    } catch (error) {
+      console.error('❌ Error exporting payrolls:', error);
+      next(error);
+    }
+  }
+);
+
+/**
  * GET /api/admin/payroll/:id
  * Get payroll detail with sessions
  * 🔒 SUPER_ADMIN, CENTER_MANAGER
@@ -14484,6 +14950,21 @@ app.patch('/api/admin/payroll/:id/status',
         });
       }
 
+      // State transition validation
+      const validTransitions = {
+        draft: ['pending'],
+        pending: ['approved', 'draft'],
+        approved: ['paid'],
+        paid: [] // terminal state
+      };
+      const allowedNext = validTransitions[existing.status] || [];
+      if (!allowedNext.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: `Không thể chuyển từ "${existing.status}" sang "${status}". Trạng thái tiếp theo hợp lệ: ${allowedNext.join(', ') || 'không có (trạng thái cuối)'}`
+        });
+      }
+
       // Permission check
       const { effectiveCenterId } = getEffectiveCenterId(req.user, null);
       if (effectiveCenterId && existing.teacher?.center_id !== effectiveCenterId) {
@@ -14520,6 +15001,26 @@ app.patch('/api/admin/payroll/:id/status',
           console.error('⚠️ Error locking sessions:', lockError);
         } else {
           console.log(`🔒 Locked sessions for payroll ${id}`);
+        }
+      }
+
+      // If reverting from pending to draft, unlock sessions
+      if (status === 'draft' && existing.status === 'pending') {
+        const startDate = `${existing.period_year}-${String(existing.period_month).padStart(2, '0')}-01`;
+        const endDate = new Date(existing.period_year, existing.period_month, 0).toISOString().split('T')[0];
+
+        const { error: unlockError } = await supabase
+          .from('sessions')
+          .update({ is_locked: false, payroll_id: null })
+          .eq('teacher_id', existing.teacher_id)
+          .eq('payroll_id', id)
+          .gte('session_date', startDate)
+          .lte('session_date', endDate);
+
+        if (unlockError) {
+          console.error('⚠️ Error unlocking sessions:', unlockError);
+        } else {
+          console.log(`🔓 Unlocked sessions for payroll ${id}`);
         }
       }
 
@@ -14700,101 +15201,6 @@ app.delete('/api/admin/payroll/:id',
   }
 );
 
-/**
- * GET /api/admin/payroll/export
- * Export payrolls to CSV
- * Query: ?month=2&year=2026&format=csv
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
- */
-app.get('/api/admin/payroll/export',
-  requireAuth,
-  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
-  async (req, res, next) => {
-    try {
-      const { month, year, format = 'csv', center_id } = req.query;
-
-      if (!month || !year) {
-        return res.status(400).json({
-          success: false,
-          message: 'month và year là bắt buộc'
-        });
-      }
-
-      const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, center_id);
-      if (permError) {
-        return res.status(403).json({ success: false, message: permError });
-      }
-
-      console.log(`💰 Admin ${req.user.email} exporting payrolls - ${month}/${year}`);
-
-      const { data: payrolls, error } = await supabase
-        .from('payroll')
-        .select(`
-          *,
-          teacher:users!payroll_teacher_id_fkey (
-            id, full_name, email, phone, center_id
-          )
-        `)
-        .eq('period_month', parseInt(month))
-        .eq('period_year', parseInt(year))
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      // Filter by center
-      let filtered = payrolls || [];
-      if (effectiveCenterId) {
-        filtered = filtered.filter(p => p.teacher?.center_id === effectiveCenterId);
-      }
-
-      if (format === 'json') {
-        return res.json({ success: true, data: filtered });
-      }
-
-      // Generate CSV
-      const headers = [
-        'STT', 'Họ tên', 'Email', 'SĐT',
-        'Số buổi', 'Số giờ', 'Lương cơ bản',
-        'Thưởng', 'Khấu trừ', 'Thực nhận', 'Trạng thái'
-      ];
-
-      const statusLabels = {
-        draft: 'Nháp',
-        pending: 'Chờ duyệt',
-        approved: 'Đã duyệt',
-        paid: 'Đã thanh toán'
-      };
-
-      const rows = filtered.map((p, idx) => [
-        idx + 1,
-        p.teacher?.full_name || '',
-        p.teacher?.email || '',
-        p.teacher?.phone || '',
-        p.total_sessions || 0,
-        p.total_hours || 0,
-        p.base_salary || 0,
-        p.bonus || 0,
-        p.deduction || 0,
-        p.net_salary || 0,
-        statusLabels[p.status] || p.status
-      ]);
-
-      // BOM for UTF-8
-      const BOM = '\uFEFF';
-      const csvContent = BOM + [
-        headers.join(','),
-        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-      ].join('\n');
-
-      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename=payroll_${month}_${year}.csv`);
-      res.send(csvContent);
-    } catch (error) {
-      console.error('❌ Error exporting payrolls:', error);
-      next(error);
-    }
-  }
-);
 
 /**
  * GET /api/admin/payroll/:id/audit
@@ -16695,42 +17101,40 @@ app.patch('/api/admin/call-list/:id',
       const { id } = req.params;
       const { status, priority, callNotes, nextCallDate, assignedTo } = req.body;
 
+      // Verify item exists before updating
+      const { data: existing, error: fetchError } = await supabase
+        .from('payment_call_list')
+        .select('id, call_count')
+        .eq('id', id)
+        .single();
+
+      if (fetchError || !existing) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy mục trong danh sách gọi'
+        });
+      }
+
       const updates = {};
+
       if (status) {
         updates.status = status;
+
+        // Handle call_count increment — single atomic operation, no double-increment
         if (status === 'called') {
+          updates.call_count = (existing.call_count || 0) + 1;
           updates.last_call_at = new Date().toISOString();
-          updates.call_count = supabase.rpc('increment_call_count', { row_id: id });
         }
+
         if (status === 'paid' || status === 'escalated') {
           updates.resolved_at = new Date().toISOString();
         }
       }
+
       if (priority) updates.priority = priority;
       if (callNotes !== undefined) updates.call_notes = callNotes;
       if (nextCallDate) updates.next_call_date = nextCallDate;
       if (assignedTo) updates.assigned_to = assignedTo;
-
-      // Handle call_count increment separately
-      if (status === 'called') {
-        await supabase.rpc('increment', {
-          table_name: 'payment_call_list',
-          column_name: 'call_count',
-          row_id: id
-        }).catch(() => {
-          // If RPC doesn't exist, do manual increment
-        });
-
-        // Manual increment fallback
-        const { data: current } = await supabase
-          .from('payment_call_list')
-          .select('call_count')
-          .eq('id', id)
-          .single();
-
-        updates.call_count = (current?.call_count || 0) + 1;
-        updates.last_call_at = new Date().toISOString();
-      }
 
       const { data, error } = await supabase
         .from('payment_call_list')
@@ -17123,868 +17527,7 @@ app.post('/api/admin/sessions/:id/exception', requireAuth, requireRole(['SUPER_A
 // END NEW SCHEDULE FEATURES
 // ============================================================
 
-// ============================================================
-// PAYROLL MANAGEMENT APIs - Quản lý bảng lương giáo viên
-// ============================================================
-
-/**
- * GET /api/admin/payroll - Lấy danh sách bảng lương
- * Query params:
- * - month (int): Tháng (1-12)
- * - year (int): Năm
- * - status: draft, pending, approved, paid
- * - teacher_id (uuid): Filter theo giáo viên
- */
-app.get('/api/admin/payroll', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
-  try {
-    const { month, year, status, teacher_id } = req.query;
-
-    let query = supabase
-      .from('payroll')
-      .select(`
-        *,
-        teacher:users!payroll_teacher_id_fkey (id, full_name, email, avatar_url, hourly_rate),
-        approver:users!payroll_approved_by_fkey (id, full_name)
-      `)
-      .order('period_year', { ascending: false })
-      .order('period_month', { ascending: false });
-
-    if (month) query = query.eq('period_month', parseInt(month));
-    if (year) query = query.eq('period_year', parseInt(year));
-    if (status) query = query.eq('status', status);
-    if (teacher_id) query = query.eq('teacher_id', teacher_id);
-
-    const { data, error } = await query;
-    if (error) throw error;
-
-    res.json({ success: true, data: data || [] });
-  } catch (error) {
-    console.error('Error fetching payroll:', error);
-    next(error);
-  }
-});
-
-/**
- * GET /api/admin/payroll/stats - Thống kê payroll nhanh cho tháng hiện tại
- */
-app.get('/api/admin/payroll/stats', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
-  try {
-    const { month, year } = req.query;
-    const currentMonth = month ? parseInt(month) : new Date().getMonth() + 1;
-    const currentYear = year ? parseInt(year) : new Date().getFullYear();
-
-    // Lấy thống kê payroll theo status
-    const { data: payrollData, error: payrollError } = await supabase
-      .from('payroll')
-      .select('status, net_salary')
-      .eq('period_month', currentMonth)
-      .eq('period_year', currentYear);
-
-    if (payrollError) throw payrollError;
-
-    // Tính toán thống kê
-    const stats = {
-      total_payrolls: payrollData?.length || 0,
-      draft: 0,
-      pending: 0,
-      approved: 0,
-      paid: 0,
-      total_amount: 0,
-      pending_amount: 0,
-      paid_amount: 0
-    };
-
-    (payrollData || []).forEach(p => {
-      stats[p.status] = (stats[p.status] || 0) + 1;
-      stats.total_amount += parseInt(p.net_salary) || 0;
-      if (p.status === 'pending' || p.status === 'approved') {
-        stats.pending_amount += parseInt(p.net_salary) || 0;
-      }
-      if (p.status === 'paid') {
-        stats.paid_amount += parseInt(p.net_salary) || 0;
-      }
-    });
-
-    res.json({
-      success: true,
-      data: {
-        ...stats,
-        month: currentMonth,
-        year: currentYear
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching payroll stats:', error);
-    next(error);
-  }
-});
-
-/**
- * GET /api/admin/payroll/teachers - Lấy danh sách GV với thống kê giờ dạy tháng
- */
-app.get('/api/admin/payroll/teachers', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
-  try {
-    const { month, year } = req.query;
-    const currentMonth = month ? parseInt(month) : new Date().getMonth() + 1;
-    const currentYear = year ? parseInt(year) : new Date().getFullYear();
-
-    // Lấy role_id của TEACHER từ bảng roles
-    const { data: teacherRole } = await supabase
-      .from('roles')
-      .select('id')
-      .eq('code', 'TEACHER')
-      .single();
-
-    if (!teacherRole) {
-      return res.json({ success: true, data: [] });
-    }
-
-    // Lấy tất cả giáo viên
-    const { data: teachers, error: teachersError } = await supabase
-      .from('users')
-      .select('id, full_name, email, avatar_url, hourly_rate, status')
-      .eq('role_id', teacherRole.id)
-      .eq('status', 'active');
-
-    if (teachersError) throw teachersError;
-
-    if (!teachers || teachers.length === 0) {
-      return res.json({ success: true, data: [] });
-    }
-
-    // OPTIMIZED: Fetch tất cả sessions và payrolls trong 2 query thay vì N+1
-    const teacherIds = teachers.map(t => t.id);
-    const startDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
-    const endDate = currentMonth === 12
-      ? `${currentYear + 1}-01-01`
-      : `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
-
-    // Query all sessions for all teachers in one call
-    const { data: allSessions } = await supabase
-      .from('sessions')
-      .select('id, teacher_id, duration_hours, teacher_rate')
-      .in('teacher_id', teacherIds)
-      .eq('status', 'completed')
-      .gte('session_date', startDate)
-      .lt('session_date', endDate);
-
-    // Query all payrolls for the period in one call
-    const { data: allPayrolls } = await supabase
-      .from('payroll')
-      .select('id, teacher_id, status, net_salary')
-      .in('teacher_id', teacherIds)
-      .eq('period_month', currentMonth)
-      .eq('period_year', currentYear);
-
-    // Group sessions by teacher_id
-    const sessionsByTeacher = (allSessions || []).reduce((acc, session) => {
-      if (!acc[session.teacher_id]) acc[session.teacher_id] = [];
-      acc[session.teacher_id].push(session);
-      return acc;
-    }, {});
-
-    // Index payrolls by teacher_id
-    const payrollByTeacher = (allPayrolls || []).reduce((acc, payroll) => {
-      acc[payroll.teacher_id] = payroll;
-      return acc;
-    }, {});
-
-    // Map teachers with their stats (no additional queries needed)
-    const teacherStats = teachers.map(teacher => {
-      const sessions = sessionsByTeacher[teacher.id] || [];
-      const existingPayroll = payrollByTeacher[teacher.id] || null;
-
-      const totalSessions = sessions.length;
-      const totalHours = sessions.reduce((sum, s) => sum + (parseFloat(s.duration_hours) || 0), 0);
-      const baseSalary = sessions.reduce((sum, s) => {
-        const hours = parseFloat(s.duration_hours) || 0;
-        const rate = parseFloat(s.teacher_rate) || parseFloat(teacher.hourly_rate) || 150000;
-        return sum + (hours * rate);
-      }, 0);
-
-      return {
-        ...teacher,
-        month: currentMonth,
-        year: currentYear,
-        total_sessions: totalSessions,
-        total_hours: totalHours,
-        base_salary: baseSalary,
-        payroll: existingPayroll
-      };
-    });
-
-    res.json({ success: true, data: teacherStats });
-  } catch (error) {
-    console.error('Error fetching payroll teachers:', error);
-    next(error);
-  }
-});
-
-/**
- * POST /api/admin/payroll/generate - Tạo bảng lương cho GV
- */
-app.post('/api/admin/payroll/generate', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
-  try {
-    const { teacher_id, month, year, bonus = 0, deduction = 0, notes = '' } = req.body;
-
-    if (!teacher_id || !month || !year) {
-      return res.status(400).json({
-        success: false,
-        message: 'Thiếu thông tin teacher_id, month, year'
-      });
-    }
-
-    // Kiểm tra đã có payroll chưa
-    const { data: existing } = await supabase
-      .from('payroll')
-      .select('id')
-      .eq('teacher_id', teacher_id)
-      .eq('period_month', month)
-      .eq('period_year', year)
-      .single();
-
-    if (existing) {
-      return res.status(400).json({
-        success: false,
-        message: 'Bảng lương tháng này đã tồn tại'
-      });
-    }
-
-    // Lấy thông tin sessions đã completed
-    const { data: sessions } = await supabase
-      .from('sessions')
-      .select('id, duration_hours, teacher_rate')
-      .eq('teacher_id', teacher_id)
-      .eq('status', 'completed')
-      .gte('session_date', `${year}-${String(month).padStart(2, '0')}-01`)
-      .lt('session_date', month === 12
-        ? `${year + 1}-01-01`
-        : `${year}-${String(month + 1).padStart(2, '0')}-01`
-      );
-
-    // Lấy hourly_rate của GV
-    const { data: teacher } = await supabase
-      .from('users')
-      .select('hourly_rate')
-      .eq('id', teacher_id)
-      .single();
-
-    const totalSessions = sessions?.length || 0;
-    const totalHours = (sessions || []).reduce((sum, s) => sum + (parseFloat(s.duration_hours) || 0), 0);
-    const baseSalary = (sessions || []).reduce((sum, s) => {
-      const hours = parseFloat(s.duration_hours) || 0;
-      const rate = parseFloat(s.teacher_rate) || parseFloat(teacher?.hourly_rate) || 150000;
-      return sum + (hours * rate);
-    }, 0);
-
-    const netSalary = baseSalary + parseFloat(bonus || 0) - parseFloat(deduction || 0);
-
-    // Tạo bảng lương
-    const { data: payroll, error } = await supabase
-      .from('payroll')
-      .insert({
-        teacher_id,
-        period_month: month,
-        period_year: year,
-        total_sessions: totalSessions,
-        total_hours: totalHours,
-        base_salary: baseSalary,
-        bonus: parseFloat(bonus || 0),
-        deduction: parseFloat(deduction || 0),
-        net_salary: netSalary,
-        notes,
-        status: 'draft'
-      })
-      .select(`
-        *,
-        teacher:users!payroll_teacher_id_fkey (id, full_name, email)
-      `)
-      .single();
-
-    if (error) throw error;
-
-    // Cập nhật payroll_id cho các sessions
-    if (sessions && sessions.length > 0) {
-      const sessionIds = sessions.map(s => s.id);
-      await supabase
-        .from('sessions')
-        .update({ payroll_id: payroll.id })
-        .in('id', sessionIds);
-    }
-
-    res.json({ success: true, data: payroll });
-  } catch (error) {
-    console.error('Error generating payroll:', error);
-    next(error);
-  }
-});
-
-/**
- * GET /api/admin/payroll/:id - Lấy chi tiết bảng lương
- */
-app.get('/api/admin/payroll/:id', requireAuth, async (req, res, next) => {
-  try {
-    const { id } = req.params;
-
-    // Lấy thông tin payroll
-    const { data: payroll, error: payrollError } = await supabase
-      .from('payroll')
-      .select(`
-        *,
-        teacher:users!payroll_teacher_id_fkey (id, full_name, email, avatar_url, hourly_rate, phone),
-        approver:users!payroll_approved_by_fkey (id, full_name)
-      `)
-      .eq('id', id)
-      .single();
-
-    if (payrollError) throw payrollError;
-    if (!payroll) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy bảng lương' });
-    }
-
-    // Lấy danh sách sessions liên quan
-    const { data: sessions } = await supabase
-      .from('sessions')
-      .select(`
-        id,
-        session_date,
-        start_time,
-        end_time,
-        duration_hours,
-        teacher_rate,
-        status,
-        topic,
-        classes (id, name)
-      `)
-      .eq('teacher_id', payroll.teacher_id)
-      .eq('status', 'completed')
-      .gte('session_date', `${payroll.period_year}-${String(payroll.period_month).padStart(2, '0')}-01`)
-      .lt('session_date', payroll.period_month === 12
-        ? `${payroll.period_year + 1}-01-01`
-        : `${payroll.period_year}-${String(payroll.period_month + 1).padStart(2, '0')}-01`
-      )
-      .order('session_date', { ascending: true });
-
-    res.json({
-      success: true,
-      data: {
-        ...payroll,
-        sessions: sessions || []
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching payroll detail:', error);
-    next(error);
-  }
-});
-
-/**
- * PUT /api/admin/payroll/:id - Cập nhật bảng lương
- */
-app.put('/api/admin/payroll/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { bonus, deduction, notes } = req.body;
-
-    // Lấy payroll hiện tại
-    const { data: current, error: fetchError } = await supabase
-      .from('payroll')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (fetchError) throw fetchError;
-    if (!current) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy bảng lương' });
-    }
-
-    // Không cho sửa nếu đã approved hoặc paid
-    if (['approved', 'paid'].includes(current.status)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Không thể sửa bảng lương đã duyệt hoặc đã thanh toán'
-      });
-    }
-
-    const newBonus = bonus !== undefined ? parseFloat(bonus) : current.bonus;
-    const newDeduction = deduction !== undefined ? parseFloat(deduction) : current.deduction;
-    const netSalary = parseFloat(current.base_salary) + newBonus - newDeduction;
-
-    const { data: updated, error: updateError } = await supabase
-      .from('payroll')
-      .update({
-        bonus: newBonus,
-        deduction: newDeduction,
-        net_salary: netSalary,
-        notes: notes !== undefined ? notes : current.notes,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .select(`
-        *,
-        teacher:users!payroll_teacher_id_fkey (id, full_name, email)
-      `)
-      .single();
-
-    if (updateError) throw updateError;
-
-    res.json({ success: true, data: updated });
-  } catch (error) {
-    console.error('Error updating payroll:', error);
-    next(error);
-  }
-});
-
-/**
- * PATCH /api/admin/payroll/:id/status - Cập nhật trạng thái bảng lương
- */
-app.patch('/api/admin/payroll/:id/status', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { status } = req.body;
-    const userId = req.user.id;
-
-    const validStatuses = ['draft', 'pending', 'approved', 'paid'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Trạng thái không hợp lệ'
-      });
-    }
-
-    const updateData = {
-      status,
-      updated_at: new Date().toISOString()
-    };
-
-    // Ghi nhận người duyệt khi approved
-    if (status === 'approved') {
-      updateData.approved_by = userId;
-      updateData.approved_at = new Date().toISOString();
-    }
-
-    // Lock sessions khi approved
-    if (status === 'approved' || status === 'paid') {
-      // Lấy payroll để lấy thông tin
-      const { data: payroll } = await supabase
-        .from('payroll')
-        .select('teacher_id, period_month, period_year')
-        .eq('id', id)
-        .single();
-
-      if (payroll) {
-        await supabase
-          .from('sessions')
-          .update({ is_locked: true })
-          .eq('teacher_id', payroll.teacher_id)
-          .eq('status', 'completed')
-          .gte('session_date', `${payroll.period_year}-${String(payroll.period_month).padStart(2, '0')}-01`)
-          .lt('session_date', payroll.period_month === 12
-            ? `${payroll.period_year + 1}-01-01`
-            : `${payroll.period_year}-${String(payroll.period_month + 1).padStart(2, '0')}-01`
-          );
-      }
-    }
-
-    const { data: updated, error } = await supabase
-      .from('payroll')
-      .update(updateData)
-      .eq('id', id)
-      .select(`
-        *,
-        teacher:users!payroll_teacher_id_fkey (id, full_name, email),
-        approver:users!payroll_approved_by_fkey (id, full_name)
-      `)
-      .single();
-
-    if (error) throw error;
-
-    res.json({ success: true, data: updated });
-  } catch (error) {
-    console.error('Error updating payroll status:', error);
-    next(error);
-  }
-});
-
-/**
- * DELETE /api/admin/payroll/:id - Xóa bảng lương (chỉ draft)
- */
-app.delete('/api/admin/payroll/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
-  try {
-    const { id } = req.params;
-
-    // Kiểm tra status
-    const { data: payroll, error: fetchError } = await supabase
-      .from('payroll')
-      .select('status')
-      .eq('id', id)
-      .single();
-
-    if (fetchError) throw fetchError;
-    if (!payroll) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy bảng lương' });
-    }
-
-    if (payroll.status !== 'draft') {
-      return res.status(400).json({
-        success: false,
-        message: 'Chỉ có thể xóa bảng lương ở trạng thái nháp'
-      });
-    }
-
-    // Xóa payroll_id trong sessions
-    await supabase
-      .from('sessions')
-      .update({ payroll_id: null })
-      .eq('payroll_id', id);
-
-    // Xóa payroll
-    const { error: deleteError } = await supabase
-      .from('payroll')
-      .delete()
-      .eq('id', id);
-
-    if (deleteError) throw deleteError;
-
-    res.json({ success: true, message: 'Đã xóa bảng lương' });
-  } catch (error) {
-    console.error('Error deleting payroll:', error);
-    next(error);
-  }
-});
-
-/**
- * POST /api/admin/payroll/bulk-generate - Tạo bảng lương hàng loạt cho nhiều GV
- */
-app.post('/api/admin/payroll/bulk-generate', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
-  try {
-    const { teacher_ids, month, year, bonus = 0, deduction = 0, notes = '' } = req.body;
-
-    if (!teacher_ids || !Array.isArray(teacher_ids) || teacher_ids.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cần cung cấp danh sách teacher_ids'
-      });
-    }
-
-    if (!month || !year) {
-      return res.status(400).json({
-        success: false,
-        message: 'Thiếu thông tin month, year'
-      });
-    }
-
-    const results = { success: [], failed: [] };
-
-    for (const teacher_id of teacher_ids) {
-      try {
-        // Kiểm tra đã có payroll chưa
-        const { data: existing } = await supabase
-          .from('payroll')
-          .select('id')
-          .eq('teacher_id', teacher_id)
-          .eq('period_month', month)
-          .eq('period_year', year)
-          .single();
-
-        if (existing) {
-          results.failed.push({ teacher_id, reason: 'Đã tồn tại bảng lương' });
-          continue;
-        }
-
-        // Lấy sessions đã completed
-        const { data: sessions } = await supabase
-          .from('sessions')
-          .select('id, duration_hours, teacher_rate')
-          .eq('teacher_id', teacher_id)
-          .eq('status', 'completed')
-          .gte('session_date', `${year}-${String(month).padStart(2, '0')}-01`)
-          .lt('session_date', month === 12
-            ? `${year + 1}-01-01`
-            : `${year}-${String(month + 1).padStart(2, '0')}-01`
-          );
-
-        // Lấy hourly_rate của GV
-        const { data: teacher } = await supabase
-          .from('users')
-          .select('hourly_rate, full_name')
-          .eq('id', teacher_id)
-          .single();
-
-        const totalSessions = sessions?.length || 0;
-        if (totalSessions === 0) {
-          results.failed.push({ teacher_id, teacher_name: teacher?.full_name, reason: 'Không có buổi dạy' });
-          continue;
-        }
-
-        const totalHours = (sessions || []).reduce((sum, s) => sum + (parseFloat(s.duration_hours) || 0), 0);
-        const baseSalary = (sessions || []).reduce((sum, s) => {
-          const hours = parseFloat(s.duration_hours) || 0;
-          const rate = parseFloat(s.teacher_rate) || parseFloat(teacher?.hourly_rate) || 150000;
-          return sum + (hours * rate);
-        }, 0);
-
-        const netSalary = baseSalary + parseFloat(bonus || 0) - parseFloat(deduction || 0);
-
-        // Tạo bảng lương
-        const { data: payroll, error } = await supabase
-          .from('payroll')
-          .insert({
-            teacher_id,
-            period_month: month,
-            period_year: year,
-            total_sessions: totalSessions,
-            total_hours: totalHours,
-            base_salary: baseSalary,
-            bonus: parseFloat(bonus || 0),
-            deduction: parseFloat(deduction || 0),
-            net_salary: netSalary,
-            notes,
-            status: 'draft'
-          })
-          .select()
-          .single();
-
-        if (error) {
-          results.failed.push({ teacher_id, teacher_name: teacher?.full_name, reason: error.message });
-          continue;
-        }
-
-        // Cập nhật payroll_id cho các sessions
-        if (sessions && sessions.length > 0) {
-          const sessionIds = sessions.map(s => s.id);
-          await supabase
-            .from('sessions')
-            .update({ payroll_id: payroll.id })
-            .in('id', sessionIds);
-        }
-
-        results.success.push({ teacher_id, teacher_name: teacher?.full_name, payroll_id: payroll.id });
-      } catch (err) {
-        results.failed.push({ teacher_id, reason: err.message });
-      }
-    }
-
-    res.json({
-      success: true,
-      message: `Tạo thành công ${results.success.length}/${teacher_ids.length} bảng lương`,
-      data: results
-    });
-  } catch (error) {
-    console.error('Error bulk generating payroll:', error);
-    next(error);
-  }
-});
-
-/**
- * GET /api/admin/payroll/export - Export danh sách bảng lương ra Excel/CSV
- */
-app.get('/api/admin/payroll/export', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
-  try {
-    const { month, year, format = 'json' } = req.query;
-
-    let query = supabase
-      .from('payroll')
-      .select(`
-        id,
-        period_month,
-        period_year,
-        total_sessions,
-        total_hours,
-        base_salary,
-        bonus,
-        deduction,
-        net_salary,
-        status,
-        notes,
-        created_at,
-        approved_at,
-        teacher:users!payroll_teacher_id_fkey (id, full_name, email, phone),
-        approver:users!payroll_approved_by_fkey (id, full_name)
-      `)
-      .order('created_at', { ascending: false });
-
-    if (month) query = query.eq('period_month', parseInt(month));
-    if (year) query = query.eq('period_year', parseInt(year));
-
-    const { data: payrolls, error } = await query;
-    if (error) throw error;
-
-    // Format dữ liệu cho export
-    const exportData = (payrolls || []).map(p => ({
-      'Mã bảng lương': p.id,
-      'Giáo viên': p.teacher?.full_name || '',
-      'Email': p.teacher?.email || '',
-      'SĐT': p.teacher?.phone || '',
-      'Tháng': p.period_month,
-      'Năm': p.period_year,
-      'Số buổi': p.total_sessions,
-      'Tổng giờ': p.total_hours,
-      'Lương cơ bản': p.base_salary,
-      'Thưởng': p.bonus || 0,
-      'Khấu trừ': p.deduction || 0,
-      'Thực nhận': p.net_salary,
-      'Trạng thái': p.status === 'draft' ? 'Nháp' : p.status === 'pending' ? 'Chờ duyệt' : p.status === 'approved' ? 'Đã duyệt' : 'Đã thanh toán',
-      'Người duyệt': p.approver?.full_name || '',
-      'Ngày duyệt': p.approved_at || '',
-      'Ghi chú': p.notes || ''
-    }));
-
-    if (format === 'csv') {
-      // Export CSV
-      const headers = Object.keys(exportData[0] || {}).join(',');
-      const rows = exportData.map(row =>
-        Object.values(row).map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
-      ).join('\n');
-      const csv = headers + '\n' + rows;
-
-      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename=payroll_${month}_${year}.csv`);
-      res.send('\ufeff' + csv); // BOM for Excel UTF-8
-    } else {
-      res.json({ success: true, data: exportData });
-    }
-  } catch (error) {
-    console.error('Error exporting payroll:', error);
-    next(error);
-  }
-});
-
-/**
- * GET /api/teacher/payroll - Giáo viên xem bảng lương của mình
- */
-app.get('/api/teacher/payroll', requireAuth, async (req, res, next) => {
-  try {
-    const userId = req.user.id;
-    const { month, year } = req.query;
-
-    let query = supabase
-      .from('payroll')
-      .select(`
-        id,
-        period_month,
-        period_year,
-        total_sessions,
-        total_hours,
-        base_salary,
-        bonus,
-        deduction,
-        net_salary,
-        status,
-        notes,
-        created_at,
-        approved_at,
-        approver:users!payroll_approved_by_fkey (id, full_name)
-      `)
-      .eq('teacher_id', userId)
-      .order('period_year', { ascending: false })
-      .order('period_month', { ascending: false });
-
-    if (month) query = query.eq('period_month', parseInt(month));
-    if (year) query = query.eq('period_year', parseInt(year));
-
-    const { data: payrolls, error } = await query;
-    if (error) throw error;
-
-    res.json({ success: true, data: payrolls || [] });
-  } catch (error) {
-    console.error('Error fetching teacher payroll:', error);
-    next(error);
-  }
-});
-
-/**
- * GET /api/teacher/payroll/:id - Giáo viên xem chi tiết một bảng lương
- */
-app.get('/api/teacher/payroll/:id', requireAuth, async (req, res, next) => {
-  try {
-    const userId = req.user.id;
-    const { id } = req.params;
-
-    // Lấy payroll và verify là của user này
-    const { data: payroll, error: payrollError } = await supabase
-      .from('payroll')
-      .select(`
-        *,
-        approver:users!payroll_approved_by_fkey (id, full_name)
-      `)
-      .eq('id', id)
-      .eq('teacher_id', userId)
-      .single();
-
-    if (payrollError || !payroll) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy bảng lương' });
-    }
-
-    // Lấy sessions liên quan
-    const { data: sessions } = await supabase
-      .from('sessions')
-      .select(`
-        id,
-        session_date,
-        start_time,
-        end_time,
-        duration_hours,
-        teacher_rate,
-        topic,
-        classes (id, name)
-      `)
-      .eq('teacher_id', userId)
-      .eq('status', 'completed')
-      .gte('session_date', `${payroll.period_year}-${String(payroll.period_month).padStart(2, '0')}-01`)
-      .lt('session_date', payroll.period_month === 12
-        ? `${payroll.period_year + 1}-01-01`
-        : `${payroll.period_year}-${String(payroll.period_month + 1).padStart(2, '0')}-01`
-      )
-      .order('session_date', { ascending: true });
-
-    res.json({
-      success: true,
-      data: { ...payroll, sessions: sessions || [] }
-    });
-  } catch (error) {
-    console.error('Error fetching teacher payroll detail:', error);
-    next(error);
-  }
-});
-
-/**
- * GET /api/admin/payroll/:id/audit - Lấy audit trail của một bảng lương
- */
-app.get('/api/admin/payroll/:id/audit', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
-  try {
-    const { id } = req.params;
-
-    const { data: auditLogs, error } = await supabase
-      .from('payroll_audit_log')
-      .select(`
-        id,
-        action,
-        old_values,
-        new_values,
-        changed_at,
-        notes,
-        changed_by_user:users!payroll_audit_log_changed_by_fkey (id, full_name, email)
-      `)
-      .eq('payroll_id', id)
-      .order('changed_at', { ascending: false });
-
-    if (error) {
-      // Bảng audit có thể chưa tồn tại
-      console.log('Audit log table may not exist:', error.message);
-      return res.json({ success: true, data: [] });
-    }
-
-    res.json({ success: true, data: auditLogs || [] });
-  } catch (error) {
-    console.error('Error fetching payroll audit:', error);
-    next(error);
-  }
-});
-
-// ============================================================
-// END PAYROLL APIs
-// ============================================================
+// NOTE: Duplicate payroll routes removed (were shadowed by earlier definitions at L13813-16000)
 
 // ============================================================
 // TEACHER DASHBOARD APIs - Dashboard cho giáo viên
@@ -19979,20 +19522,22 @@ app.get('/api/reports/revenue', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
       endDate,
       centerId,
       courseId,
-      groupBy = 'day' // 'day', 'week', 'month'
+      groupBy = 'day', // 'day', 'week', 'month'
+      system_wide
     } = req.query;
 
-    console.log(`📊 Revenue report requested by ${req.user.email}`);
+    console.log(`📊 Revenue report requested by ${req.user.email}, system_wide=${system_wide}`);
 
-    // 🔥 FIX: Validate CENTER_MANAGER permissions
-    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, centerId);
+    // system_wide=true => SUPER_ADMIN xem toàn hệ thống (không filter center)
+    const skipCenterFilter = system_wide === 'true' && req.user.roleCode === 'SUPER_ADMIN';
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, skipCenterFilter ? null : centerId);
     if (permError) {
       return res.status(403).json({ success: false, message: permError });
     }
 
-    // Default: 30 ngày gần nhất
-    const end = endDate ? new Date(endDate) : new Date();
-    const start = startDate ? new Date(startDate) : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+    // Default: 30 ngày gần nhất, end-of-day để bao gồm cả ngày cuối
+    const end = endDate ? new Date(endDate + 'T23:59:59.999Z') : new Date();
+    const start = startDate ? new Date(startDate + 'T00:00:00.000Z') : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     // Query payments trong khoảng thời gian
     let paymentsQuery = supabase
@@ -20095,11 +19640,17 @@ app.get('/api/reports/revenue', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
     const prevEnd = new Date(start.getTime() - 1);
     const prevStart = new Date(prevEnd.getTime() - periodDays * 24 * 60 * 60 * 1000);
 
-    const { data: prevPayments } = await supabase
+    let prevQuery = supabase
       .from('payments')
-      .select('amount')
+      .select('amount, invoices!inner(classes!inner(center_id))')
       .gte('payment_date', prevStart.toISOString())
       .lte('payment_date', prevEnd.toISOString());
+
+    if (effectiveCenterId) {
+      prevQuery = prevQuery.eq('invoices.classes.center_id', effectiveCenterId);
+    }
+
+    const { data: prevPayments } = await prevQuery;
 
     const prevRevenue = prevPayments?.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) || 0;
     const growthPercent = prevRevenue > 0
@@ -20139,18 +19690,18 @@ app.get('/api/reports/revenue', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
 // GET /api/reports/enrollment - Báo cáo tuyển sinh
 app.get('/api/reports/enrollment', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
-    const { startDate, endDate, centerId, courseId } = req.query;
+    const { startDate, endDate, centerId, courseId, system_wide } = req.query;
 
-    console.log(`📊 Enrollment report requested by ${req.user.email}`);
+    console.log(`📊 Enrollment report requested by ${req.user.email}, system_wide=${system_wide}`);
 
-    // 🔥 FIX: Validate CENTER_MANAGER permissions
-    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, centerId);
+    const skipCenterFilter = system_wide === 'true' && req.user.roleCode === 'SUPER_ADMIN';
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, skipCenterFilter ? null : centerId);
     if (permError) {
       return res.status(403).json({ success: false, message: permError });
     }
 
-    const end = endDate ? new Date(endDate) : new Date();
-    const start = startDate ? new Date(startDate) : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const end = endDate ? new Date(endDate + 'T23:59:59.999Z') : new Date();
+    const start = startDate ? new Date(startDate + 'T00:00:00.000Z') : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     // Query enrollments
     let query = supabase
@@ -20219,11 +19770,17 @@ app.get('/api/reports/enrollment', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
     const prevEnd = new Date(start.getTime() - 1);
     const prevStart = new Date(prevEnd.getTime() - periodDays * 24 * 60 * 60 * 1000);
 
-    const { count: prevCount } = await supabase
+    let prevQuery = supabase
       .from('enrollments')
-      .select('*', { count: 'exact', head: true })
+      .select('*, classes!inner(center_id)', { count: 'exact', head: true })
       .gte('created_at', prevStart.toISOString())
       .lte('created_at', prevEnd.toISOString());
+
+    if (effectiveCenterId) {
+      prevQuery = prevQuery.eq('classes.center_id', effectiveCenterId);
+    }
+
+    const { count: prevCount } = await prevQuery;
 
     const growthPercent = prevCount > 0
       ? Math.round(((totalEnrollments - prevCount) / prevCount) * 100)
@@ -20273,9 +19830,15 @@ app.get('/api/reports/enrollment', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
 // GET /api/reports/attendance - Báo cáo chuyên cần
 app.get('/api/reports/attendance', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
-    const { startDate, endDate, classId, courseId } = req.query;
+    const { startDate, endDate, classId, courseId, centerId, system_wide } = req.query;
 
-    console.log(`📊 Attendance report requested by ${req.user.email}`);
+    console.log(`📊 Attendance report requested by ${req.user.email}, system_wide=${system_wide}`);
+
+    const skipCenterFilter = system_wide === 'true' && req.user.roleCode === 'SUPER_ADMIN';
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, skipCenterFilter ? null : centerId);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
 
     const end = endDate ? new Date(endDate) : new Date();
     const start = startDate ? new Date(startDate) : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -20299,6 +19862,11 @@ app.get('/api/reports/attendance', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
       `)
       .gte('session_date', start.toISOString().split('T')[0])
       .lte('session_date', end.toISOString().split('T')[0]);
+
+    // 🔥 FIX: Query-level center filter
+    if (effectiveCenterId) {
+      query = query.eq('enrollments.classes.center_id', effectiveCenterId);
+    }
 
     const { data: attendances, error } = await query;
     if (error) throw error;
@@ -20403,9 +19971,15 @@ app.get('/api/reports/attendance', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
 // GET /api/reports/grades - Báo cáo điểm số
 app.get('/api/reports/grades', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
-    const { classId, courseId, centerId } = req.query;
+    const { classId, courseId, centerId, system_wide } = req.query;
 
-    console.log(`📊 Grades report requested by ${req.user.email}`);
+    console.log(`📊 Grades report requested by ${req.user.email}, system_wide=${system_wide}`);
+
+    const skipCenterFilter = system_wide === 'true' && req.user.roleCode === 'SUPER_ADMIN';
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, skipCenterFilter ? null : centerId);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
 
     // Query grades (đúng table name)
     let query = supabase
@@ -20425,6 +19999,11 @@ app.get('/api/reports/grades', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
         grade_structures (id, name, weight, max_score)
       `);
 
+    // 🔥 FIX: Query-level center filter
+    if (effectiveCenterId) {
+      query = query.eq('enrollments.classes.center_id', effectiveCenterId);
+    }
+
     const { data: grades, error } = await query;
     if (error) throw error;
 
@@ -20435,9 +20014,6 @@ app.get('/api/reports/grades', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
     }
     if (courseId) {
       filtered = filtered.filter(g => g.enrollments?.classes?.courses?.id === courseId);
-    }
-    if (centerId) {
-      filtered = filtered.filter(g => g.enrollments?.classes?.center_id === centerId);
     }
 
     // Calculate averages per student
@@ -20572,18 +20148,18 @@ app.get('/api/reports/grades', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
 // GET /api/reports/staff - Báo cáo nhân sự
 app.get('/api/reports/staff', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
-    const { startDate, endDate, centerId } = req.query;
+    const { startDate, endDate, centerId, system_wide } = req.query;
 
-    console.log(`📊 Staff report requested by ${req.user.email}`);
+    console.log(`📊 Staff report requested by ${req.user.email}, system_wide=${system_wide}`);
 
-    // 🔥 FIX: Validate CENTER_MANAGER permissions
-    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, centerId);
+    const skipCenterFilter = system_wide === 'true' && req.user.roleCode === 'SUPER_ADMIN';
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, skipCenterFilter ? null : centerId);
     if (permError) {
       return res.status(403).json({ success: false, message: permError });
     }
 
-    const end = endDate ? new Date(endDate) : new Date();
-    const start = startDate ? new Date(startDate) : new Date(end.getFullYear(), end.getMonth(), 1);
+    const end = endDate ? new Date(endDate + 'T23:59:59.999Z') : new Date();
+    const start = startDate ? new Date(startDate + 'T00:00:00.000Z') : new Date(end.getFullYear(), end.getMonth(), 1);
 
     // Query staff
     let staffQuery = supabase
@@ -20708,9 +20284,15 @@ app.get('/api/reports/staff', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_M
 // GET /api/reports/courses - Báo cáo hiệu suất khóa học
 app.get('/api/reports/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
-    const { centerId } = req.query;
+    const { centerId, system_wide } = req.query;
 
-    console.log(`📊 Courses report requested by ${req.user.email}`);
+    console.log(`📊 Courses report requested by ${req.user.email}, system_wide=${system_wide}`);
+
+    const skipCenterFilter = system_wide === 'true' && req.user.roleCode === 'SUPER_ADMIN';
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, skipCenterFilter ? null : centerId);
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
 
     // Get all courses with stats
     const { data: courses, error: coursesError } = await supabase
@@ -20738,9 +20320,9 @@ app.get('/api/reports/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
     const courseStats = courses?.map(course => {
       let classes = course.classes || [];
 
-      // Filter by center if needed
-      if (centerId) {
-        classes = classes.filter(c => c.center_id === centerId);
+      // 🔥 FIX: Filter by effectiveCenterId (validated)
+      if (effectiveCenterId) {
+        classes = classes.filter(c => c.center_id === effectiveCenterId);
       }
 
       const totalClasses = classes.length;
@@ -20925,7 +20507,7 @@ app.get('/api/admin/scheduled-reports', requireAuth, requireRole(['SUPER_ADMIN']
 
     let query = supabase
       .from('saved_reports')
-      .select('*')
+      .select('*, centers(name)')
       .not('schedule', 'is', null)
       .order('updated_at', { ascending: false });
 
@@ -20936,7 +20518,13 @@ app.get('/api/admin/scheduled-reports', requireAuth, requireRole(['SUPER_ADMIN']
     const { data, error } = await query;
     if (error) throw error;
 
-    res.json({ success: true, data: data || [] });
+    // Format data to include center_name
+    const formattedData = (data || []).map(row => ({
+      ...row,
+      center_name: row.centers ? row.centers.name : null
+    }));
+
+    res.json({ success: true, data: formattedData });
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -20948,32 +20536,72 @@ app.post('/api/admin/scheduled-reports', requireAuth, requireRole(['SUPER_ADMIN'
   try {
     const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
     const centerId = getEffectiveCenterId(req);
-    const { report_id, schedule, email_recipients, next_run_at } = req.body;
+    const { 
+      report_id, name, description, report_type, filters, 
+      schedule, email_recipients, next_run_at, center_id: reqCenterId, is_active 
+    } = req.body;
 
-    if (!report_id) {
-      return res.status(400).json({ success: false, error: 'report_id is required' });
+    const reportCenterId = centerId || (reqCenterId || null);
+    
+    // If is_active is explicitly false, we'll store schedule as null 
+    // to match current execution logic where null schedule means inactive
+    const effectiveSchedule = is_active === false ? null : schedule;
+
+    let resultData;
+    
+    if (report_id) {
+      // Update existing
+      let query = supabase
+        .from('saved_reports')
+        .update({
+          // Allow updating name/description if provided
+          ...(name && { name }),
+          ...(description !== undefined && { description }),
+          ...(report_type && { report_type }),
+          schedule: effectiveSchedule,
+          email_recipients: email_recipients || [],
+          next_run_at: next_run_at || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', report_id)
+        .select('*')
+        .single();
+
+      if (centerId) {
+        query = query.eq('center_id', centerId);
+      }
+      
+      const { data, error } = await query;
+      if (error) throw error;
+      resultData = data;
+    } else {
+      // Create new
+      if (!name || !report_type || !schedule) {
+        return res.status(400).json({ success: false, error: 'name, report_type, and schedule are required to create a new report' });
+      }
+      
+      const { data, error } = await supabase
+        .from('saved_reports')
+        .insert([{
+          name,
+          description: description || '',
+          report_type,
+          filters: filters || {},
+          schedule: effectiveSchedule,
+          email_recipients: email_recipients || [],
+          center_id: reportCenterId,
+          created_by: req.user.id,
+          is_public: false,
+          next_run_at: next_run_at || null
+        }])
+        .select('*')
+        .single();
+        
+      if (error) throw error;
+      resultData = data;
     }
 
-    let query = supabase
-      .from('saved_reports')
-      .update({
-        schedule,
-        email_recipients: email_recipients || [],
-        next_run_at: next_run_at || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', report_id)
-      .select('*')
-      .single();
-
-    if (centerId) {
-      query = query.eq('center_id', centerId);
-    }
-
-    const { data, error } = await query;
-    if (error) throw error;
-
-    res.json({ success: true, data });
+    res.json({ success: true, data: resultData });
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -20987,26 +20615,22 @@ app.delete('/api/admin/scheduled-reports/:id', requireAuth, requireRole(['SUPER_
     const centerId = getEffectiveCenterId(req);
     const { id } = req.params;
 
+    // Delete the entire record, not just nullify the schedule
+    // Since this is a "scheduled reports" endpoint creating auto reports,
+    // users expect deleting it to remove the entire config.
     let query = supabase
       .from('saved_reports')
-      .update({
-        schedule: null,
-        email_recipients: [],
-        next_run_at: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select('*')
-      .single();
+      .delete()
+      .eq('id', id);
 
     if (centerId) {
       query = query.eq('center_id', centerId);
     }
 
-    const { data, error } = await query;
+    const { error } = await query;
     if (error) throw error;
 
-    res.json({ success: true, data });
+    res.json({ success: true });
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -25553,6 +25177,14 @@ app.post('/api/notifications/send-bulk', requireAuth, requireRole(['SUPER_ADMIN'
     let sent = 0;
     let failed = 0;
 
+    // Template name map for readable titles
+    const TEMPLATE_NAMES = {
+      payment_reminder: 'Nhắc nhở học phí',
+      class_reminder: 'Nhắc nhở buổi học',
+      general_announcement: 'Thông báo chung',
+      course_completion: 'Chúc mừng hoàn thành khóa học'
+    };
+
     // Process each enrollment
     for (const enrollment of enrollments) {
       try {
@@ -25567,43 +25199,42 @@ app.post('/api/notifications/send-bulk', requireAuth, requireRole(['SUPER_ADMIN'
         const paidAmount = enrollment.paid_amount || 0;
         const remainingAmount = totalFee - discountAmount - paidAmount;
 
-        // Prepare student data for template
-        const studentData = {
-          studentName: studentInfo.full_name,
-          email: studentInfo.email,
-          phone: studentInfo.phone,
-          className: classInfo.name,
-          courseName: courseInfo.title,
-          teacherName: teacherInfo.full_name,
-          centerName: centerInfo.name,
-          totalFee: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(totalFee),
-          paidAmount: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(paidAmount),
-          remainingAmount: new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(remainingAmount),
-          ...template_fields
-        };
+        const fmtCurrency = (v) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v);
 
-        // Log notification (in production, would send email/SMS)
-        console.log(`📧 Sending notification to: ${studentData.email}`);
-        console.log(`   Template: ${template_id}`);
-        console.log(`   Type: ${notification_type}`);
+        // Build readable notification message
+        const templateTitle = TEMPLATE_NAMES[template_id] || 'Thông báo';
+        const readableTitle = `${templateTitle} - ${courseInfo.title || classInfo.name || ''}`;
+        const readableMessage = [
+          `Kính gửi ${studentInfo.full_name || 'Học viên'},`,
+          '',
+          courseInfo.title ? `Khóa học: ${courseInfo.title}` : null,
+          classInfo.name ? `Lớp: ${classInfo.name}` : null,
+          template_id === 'payment_reminder' ? `Học phí: ${fmtCurrency(totalFee)} | Đã thanh toán: ${fmtCurrency(paidAmount)} | Còn lại: ${fmtCurrency(remainingAmount)}` : null,
+          teacherInfo.full_name ? `Giáo viên: ${teacherInfo.full_name}` : null,
+          '',
+          `Trân trọng, ${centerInfo.name || 'Trung tâm'}`
+        ].filter(Boolean).join('\n');
 
-        // Try to save notification record (table may not exist)
-        try {
-          await supabase
-            .from('notifications')
-            .insert({
-              user_id: enrollment.student_id,
-              title: `Thông báo - ${template_id}`,
-              message: JSON.stringify(studentData),
-              type: notification_type,
-              is_read: false,
-              created_at: new Date().toISOString()
-            });
-        } catch (notifErr) {
-          console.log('Notification table insert skipped:', notifErr.message);
+        // Save notification record
+        const { error: insertErr } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: enrollment.student_id,
+            center_id: classInfo.center_id || getEffectiveCenterId(req),
+            title: readableTitle,
+            message: readableMessage,
+            type: notification_type || 'system',
+            reference_type: 'enrollment',
+            reference_id: enrollment.id,
+            created_at: new Date().toISOString()
+          });
+
+        if (insertErr) {
+          console.error(`❌ Notification insert failed for ${studentInfo.email}:`, insertErr.message);
+          failed++;
+        } else {
+          sent++;
         }
-
-        sent++;
       } catch (err) {
         console.error(`Failed to send to enrollment ${enrollment.id}:`, err);
         failed++;

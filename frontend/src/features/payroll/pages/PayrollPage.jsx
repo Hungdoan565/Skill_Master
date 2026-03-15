@@ -12,7 +12,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/toast';
+import { gooeyToast } from 'goey-toast';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { usePayroll } from '../hooks';
 import {
@@ -32,7 +32,7 @@ import {
 import { getCurrentMonth } from '../utils';
 
 export function PayrollPage() {
-    const { toast } = useToast();
+
 
     // Filters
     const currentPeriod = getCurrentMonth();
@@ -109,10 +109,10 @@ export function PayrollPage() {
             fetchTeachers(month, year);
             fetchPayrolls({ month, year, status: statusFilter });
             fetchStats(month, year);
-            toast.success('Tạo bảng lương thành công!');
+            gooeyToast.success('Tạo bảng lương thành công!');
         } catch (error) {
             console.error('Error generating payroll:', error);
-            toast.error(error.message || 'Có lỗi xảy ra khi tạo bảng lương');
+            gooeyToast.error(error.message || 'Có lỗi xảy ra khi tạo bảng lương');
             setGenerateModal(prev => ({ ...prev, submitting: false }));
         }
     };
@@ -140,10 +140,10 @@ export function PayrollPage() {
             await updatePayroll(payrollId, data);
             setEditModal({ isOpen: false, payroll: null, submitting: false });
             fetchStats(month, year);
-            toast.success('Cập nhật bảng lương thành công!');
+            gooeyToast.success('Cập nhật bảng lương thành công!');
         } catch (error) {
             console.error('Error updating payroll:', error);
-            toast.error(error.message || 'Có lỗi xảy ra khi cập nhật');
+            gooeyToast.error(error.message || 'Có lỗi xảy ra khi cập nhật');
             setEditModal(prev => ({ ...prev, submitting: false }));
         }
     };
@@ -161,10 +161,10 @@ export function PayrollPage() {
             // Refresh data
             fetchTeachers(month, year);
             fetchStats(month, year);
-            toast.success('Đã xóa bảng lương!');
+            gooeyToast.success('Đã xóa bảng lương!');
         } catch (error) {
             console.error('Error deleting payroll:', error);
-            toast.error(error.message || 'Có lỗi xảy ra khi xóa');
+            gooeyToast.error(error.message || 'Có lỗi xảy ra khi xóa');
             setDeleteModal(prev => ({ ...prev, submitting: false }));
         }
     };
@@ -200,10 +200,10 @@ export function PayrollPage() {
             fetchStats(month, year);
             fetchTeachers(month, year);
             fetchPayrolls({ month, year, status: statusFilter });
-            toast.success('Đã thanh toán thành công!');
+            gooeyToast.success('Đã thanh toán thành công!');
         } catch (error) {
             console.error('Error submitting payment proof:', error);
-            toast.error(error.message || 'Có lỗi xảy ra khi thanh toán');
+            gooeyToast.error(error.message || 'Có lỗi xảy ra khi thanh toán');
             setPaymentProofModal(prev => ({ ...prev, submitting: false }));
         }
     };
@@ -223,10 +223,10 @@ export function PayrollPage() {
                 pending: 'Chờ duyệt',
                 draft: 'Nháp'
             };
-            toast.success(`Đã cập nhật trạng thái thành "${statusLabels[status]}"`);
+            gooeyToast.success(`Đã cập nhật trạng thái thành "${statusLabels[status]}"`);
         } catch (error) {
             console.error('Error updating status:', error);
-            toast.error(error.message || 'Có lỗi xảy ra khi cập nhật trạng thái');
+            gooeyToast.error(error.message || 'Có lỗi xảy ra khi cập nhật trạng thái');
         }
     };
 
@@ -243,26 +243,26 @@ export function PayrollPage() {
             fetchTeachers(month, year);
             fetchPayrolls({ month, year, status: statusFilter });
             fetchStats(month, year);
-            toast.success(result.message || 'Tạo bảng lương hàng loạt thành công!');
+            gooeyToast.success(result.message || 'Tạo bảng lương hàng loạt thành công!');
             return result;
         } catch (error) {
             console.error('Error bulk generating:', error);
-            toast.error(error.message || 'Có lỗi xảy ra');
+            gooeyToast.error(error.message || 'Có lỗi xảy ra');
             throw error;
         } finally {
             setBulkGenerateModal(prev => ({ ...prev, submitting: false }));
         }
     };
 
-    // Handle export to Excel/CSV
+    // Handle export to Excel
     const handleExport = async () => {
         try {
-            toast.info('Đang xuất file...');
-            await exportPayroll(month, year, 'csv');
-            toast.success('Đã tải xuống file Excel!');
+            gooeyToast.info('Đang xuất file Excel...');
+            await exportPayroll(month, year);
+            gooeyToast.success('Đã tải xuống file Excel!');
         } catch (error) {
             console.error('Error exporting:', error);
-            toast.error('Có lỗi xảy ra khi xuất file');
+            gooeyToast.error('Có lỗi xảy ra khi xuất file');
         }
     };
 
@@ -273,7 +273,7 @@ export function PayrollPage() {
             setPrintModal({ isOpen: true, payrollData: data });
         } catch (error) {
             console.error('Error fetching for print:', error);
-            toast.error('Không thể tải dữ liệu để in');
+            gooeyToast.error('Không thể tải dữ liệu để in');
         }
     };
 
