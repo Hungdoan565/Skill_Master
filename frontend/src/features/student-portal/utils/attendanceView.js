@@ -1,10 +1,13 @@
 import {
   eachDayOfInterval,
+  eachWeekOfInterval,
   endOfDay,
   endOfWeek,
   format,
   isAfter,
+  isBefore,
   isSameDay,
+  isWithinInterval,
   startOfDay,
   startOfWeek,
   subDays,
@@ -83,4 +86,25 @@ export function paginateRecords(rows, page, pageSize) {
     startItem: totalItems === 0 ? 0 : startIndex + 1,
     endItem: totalItems === 0 ? 0 : Math.min(endIndex, totalItems),
   };
+}
+
+export function aggregateWeeklyRates(records, startDate, endDate) {
+  if (!records || records.length === 0) return [];
+
+  const weeks = eachWeekOfInterval(
+    { start: startOfDay(startDate), end: endOfDay(endDate) },
+    { weekStartsOn: 1 }
+  );
+
+  return weeks.map((weekStart) => {
+    const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+    const weekRecords = records.filter((r) => {
+      const d = new Date(r.session_date);
+      return isWithinInterval(d, { start: weekStart, end: weekEnd });
+    });
+
+    if (weekRecords.length === 0) return 0;
+    const present = weekRecords.filter((r) => r.status === 'present' || r.status === 'late').length;
+    return (present / weekRecords.length) * 100;
+  });
 }

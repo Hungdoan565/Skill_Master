@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 
 import { useStudentAttendance } from '../hooks';
+import { useCountUp } from '../hooks/useCountUp';
 import {
   PERIOD_PRESETS,
   buildCalendarGridDays,
@@ -26,7 +27,12 @@ import {
   deriveDayStatus,
   filterByStatus,
   paginateRecords,
+  aggregateWeeklyRates,
 } from '../utils/attendanceView';
+import { ProgressRing } from '../components/ProgressRing';
+import { TrendSparkline } from '../components/TrendSparkline';
+import { AttendancePopover } from '../components/AttendancePopover';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
@@ -36,7 +42,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+
+/* ────────────────────── Constants ────────────────────── */
 
 const STATUS_STYLES = {
   present: {
@@ -91,6 +100,8 @@ const PERIOD_OPTIONS = [
 
 const PAGE_SIZE_OPTIONS = [10, 20, 30];
 
+/* ────────────────────── Helpers ────────────────────── */
+
 const formatDate = (dateStr) => {
   if (!dateStr) return '--';
   return format(new Date(dateStr), 'dd/MM/yyyy', { locale: localeVi });
@@ -106,25 +117,34 @@ const formatTime = (timeStr) => {
   return String(timeStr).slice(0, 5);
 };
 
-function StatCard({ title, value, color = 'default', icon: Icon }) {
+/* ────────────────────── Sub-components ────────────────────── */
+
+function CountUpValue({ value }) {
+  const animated = useCountUp(value);
+  return <>{animated}</>;
+}
+
+function StatCard({ title, value, color = 'default', icon: Icon, children }) {
   const colorMap = {
-    default: 'bg-slate-100 text-slate-700 border-slate-200',
-    success: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    danger: 'bg-rose-100 text-rose-700 border-rose-200',
-    warning: 'bg-amber-100 text-amber-700 border-amber-200',
+    default: 'bg-slate-50 text-slate-700 border-slate-200',
+    success: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    danger: 'bg-rose-50 text-rose-700 border-rose-200',
+    warning: 'bg-amber-50 text-amber-700 border-amber-200',
   };
 
   return (
-    <Card className="shadow-sm border-slate-200">
+    <Card className="shadow-sm border-slate-200 overflow-hidden">
       <CardContent className="p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">{title}</p>
             <p className="text-2xl font-semibold mt-1">{value}</p>
           </div>
-          <div className={cn('h-10 w-10 rounded-full border flex items-center justify-center', colorMap[color])}>
-            <Icon className="h-5 w-5" />
-          </div>
+          {children || (
+            <div className={cn('h-10 w-10 rounded-full border flex items-center justify-center', colorMap[color])}>
+              <Icon className="h-5 w-5" />
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -147,7 +167,7 @@ function ClassSummaryChip({ summary, isActive, onClick }) {
       type="button"
       onClick={onClick}
       className={cn(
-        'px-3 py-2 rounded-lg border text-left transition-all min-w-[220px]',
+        'px-3 py-2 rounded-lg border text-left transition-all min-w-[180px] shrink-0',
         isActive ? 'bg-primary/10 border-primary/30 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50'
       )}
     >
@@ -159,6 +179,8 @@ function ClassSummaryChip({ summary, isActive, onClick }) {
     </button>
   );
 }
+
+/* ────────────────────── Compact Heatmap ────────────────────── */
 
 function AttendanceHeatmap({ records, rangeStart, rangeEnd, statusFocus, onStatusFocusChange }) {
   const today = startOfDay(new Date());
@@ -173,16 +195,9 @@ function AttendanceHeatmap({ records, rangeStart, rangeEnd, statusFocus, onStatu
   }, [calendarDays]);
 
   const statusCounts = useMemo(() => {
-    const base = {
-      present: 0,
-      absent: 0,
-      late: 0,
-      excused: 0,
-    };
+    const base = { present: 0, absent: 0, late: 0, excused: 0 };
     (records || []).forEach((record) => {
-      if (base[record.status] !== undefined) {
-        base[record.status] += 1;
-      }
+      if (base[record.status] !== undefined) base[record.status] += 1;
     });
     return base;
   }, [records]);
@@ -203,16 +218,18 @@ function AttendanceHeatmap({ records, rangeStart, rangeEnd, statusFocus, onStatu
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-7 gap-2 text-center text-xs text-muted-foreground font-medium">
+      <CardContent className="space-y-3">
+        {/* Weekday headers */}
+        <div className="grid grid-cols-7 gap-1.5 text-center text-xs text-muted-foreground font-medium">
           {weekdayLabels.map((label) => (
             <div key={label}>{label}</div>
           ))}
         </div>
 
-        <div className="space-y-2">
+        {/* Calendar grid — compact cells */}
+        <div className="space-y-1.5">
           {weeks.map((week, weekIndex) => (
-            <div key={weekIndex} className="grid grid-cols-7 gap-2">
+            <div key={weekIndex} className="grid grid-cols-7 gap-1.5">
               {week.map((day) => {
                 const dayStatus = deriveDayStatus(records, day, today);
                 const isInRequestedRange = isWithinInterval(day, { start: rangeStart, end: rangeEnd });
@@ -224,62 +241,78 @@ function AttendanceHeatmap({ records, rangeStart, rangeEnd, statusFocus, onStatu
                   format(new Date(record.session_date), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd')
                 );
 
-                return (
+                const cellContent = (
                   <div
-                    key={day.toISOString()}
                     className={cn(
-                      'relative rounded-xl border p-2 h-16 transition-all bg-white',
-                      isInRequestedRange ? 'border-slate-200' : 'border-slate-100 bg-slate-50',
-                      isDimmed ? 'opacity-35' : 'opacity-100'
+                      'relative rounded-lg p-1 h-10 transition-all cursor-default group',
+                      isInRequestedRange ? 'bg-white' : 'bg-slate-50/60',
+                      isDimmed ? 'opacity-35' : 'opacity-100',
+                      dayRecords.length > 0 && 'cursor-pointer hover:scale-105 motion-reduce:hover:scale-100'
                     )}
-                    title={
-                      dayStatus === 'none'
-                        ? `${format(day, 'dd/MM/yyyy')}: Không có dữ liệu`
-                        : `${format(day, 'dd/MM/yyyy')}: ${config.label} (${dayRecords.length})`
-                    }
+                    style={{ transition: 'transform 150ms ease, opacity 200ms ease' }}
                   >
-                    <div className="relative z-10 text-[11px] text-slate-500">{format(day, 'd')}</div>
-
+                    <div className="relative z-10 text-[10px] leading-none text-slate-400 font-medium">
+                      {format(day, 'd')}
+                    </div>
                     <div className="absolute inset-0 flex items-center justify-center">
                       {Icon ? (
-                        <div className={cn('h-8 w-8 rounded-full flex items-center justify-center', config.dot)}>
-                          <Icon className={cn('h-4 w-4 shrink-0', config.iconClass)} />
+                        <div className={cn('h-6 w-6 rounded-full flex items-center justify-center', config.dot)}>
+                          <Icon className={cn('h-3 w-3 shrink-0', config.iconClass)} />
                         </div>
                       ) : (
-                        <div className={cn('h-8 w-8 rounded-full flex items-center justify-center', config.dot)} />
+                        <div className={cn('h-6 w-6 rounded-full flex items-center justify-center', config.dot)} />
                       )}
                     </div>
                   </div>
                 );
+
+                // Wrap with popover if there are records
+                if (dayRecords.length > 0) {
+                  return (
+                    <AttendancePopover key={day.toISOString()} date={day} records={dayRecords}>
+                      {cellContent}
+                    </AttendancePopover>
+                  );
+                }
+
+                return <div key={day.toISOString()}>{cellContent}</div>;
               })}
             </div>
           ))}
         </div>
 
-        <div className="pt-3 border-t border-slate-200 flex flex-wrap items-center gap-2">
-          <Button
+        {/* Legend — lighter chips */}
+        <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center gap-1.5">
+          <button
             type="button"
-            size="sm"
-            variant={statusFocus === 'all' ? 'default' : 'outline'}
             onClick={() => onStatusFocusChange('all')}
+            className={cn(
+              'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
+              statusFocus === 'all'
+                ? 'bg-slate-900 text-white'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            )}
           >
             Tất cả ({records.length})
-          </Button>
+          </button>
           {['present', 'absent', 'late', 'excused', 'none'].map((statusKey) => {
             const config = STATUS_STYLES[statusKey];
             const count = statusKey === 'none' ? 0 : statusCounts[statusKey] || 0;
             return (
-              <Button
+              <button
                 key={statusKey}
                 type="button"
-                size="sm"
-                variant={statusFocus === statusKey ? 'default' : 'outline'}
-                className="gap-2"
                 onClick={() => onStatusFocusChange(statusKey)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
+                  statusFocus === statusKey
+                    ? 'bg-slate-900 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                )}
               >
                 <span className={cn('h-2 w-2 rounded-full', config.dot)} />
                 {config.label} {statusKey === 'none' ? '' : `(${count})`}
-              </Button>
+              </button>
             );
           })}
         </div>
@@ -287,6 +320,8 @@ function AttendanceHeatmap({ records, rangeStart, rangeEnd, statusFocus, onStatu
     </Card>
   );
 }
+
+/* ────────────────────── History Table ────────────────────── */
 
 function HistoryTable({ records, hasActiveFilters, onResetFilters }) {
   const [page, setPage] = useState(1);
@@ -400,6 +435,86 @@ function HistoryTable({ records, hasActiveFilters, onResetFilters }) {
   );
 }
 
+/* ────────────────────── Skeleton Loading ────────────────────── */
+
+function AttendanceSkeleton() {
+  return (
+    <div className="space-y-6 p-6">
+      {/* Header skeleton */}
+      <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          <Skeleton className="h-7 w-40" />
+          <Skeleton className="h-4 w-72" />
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-9 w-44" />
+          <Skeleton className="h-9 w-36" />
+        </div>
+      </div>
+
+      {/* Stat cards skeleton */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card key={i} className="shadow-sm">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-7 w-16" />
+                </div>
+                <Skeleton className="h-10 w-10 rounded-full" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Class chips skeleton */}
+      <div className="flex gap-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-16 w-44 rounded-lg" />
+        ))}
+      </div>
+
+      {/* Heatmap skeleton */}
+      <Card className="shadow-sm">
+        <CardContent className="p-5">
+          <Skeleton className="h-5 w-48 mb-4" />
+          <div className="space-y-1.5">
+            {Array.from({ length: 5 }).map((_, row) => (
+              <div key={row} className="grid grid-cols-7 gap-1.5">
+                {Array.from({ length: 7 }).map((_, col) => (
+                  <Skeleton key={col} className="h-10 rounded-lg" />
+                ))}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Table skeleton */}
+      <Card className="shadow-sm">
+        <CardContent className="p-0">
+          <div className="p-4">
+            <Skeleton className="h-5 w-36 mb-4" />
+          </div>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="px-4 py-3 border-t border-slate-100 flex gap-4">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+/* ────────────────────── Main Component ────────────────────── */
+
 export function StudentAttendance() {
   const [classFilter, setClassFilter] = useState('all');
   const [periodPreset, setPeriodPreset] = useState('d30');
@@ -418,9 +533,10 @@ export function StudentAttendance() {
     [records, statusFocus]
   );
 
-  const activeClassSummary = classFilter === 'all'
-    ? null
-    : classSummaries.find((summary) => summary.classId === classFilter) || null;
+  const weeklyRates = useMemo(
+    () => aggregateWeeklyRates(records || [], periodRange.startDate, periodRange.endDate),
+    [records, periodRange.startDate, periodRange.endDate]
+  );
 
   const hasActiveFilters = classFilter !== 'all' || periodPreset !== 'd30' || statusFocus !== 'all';
 
@@ -430,14 +546,12 @@ export function StudentAttendance() {
     setStatusFocus('all');
   };
 
+  /* ── Loading ── */
   if (loading) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-      </div>
-    );
+    return <AttendanceSkeleton />;
   }
 
+  /* ── Error ── */
   if (error) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center px-4">
@@ -457,11 +571,17 @@ export function StudentAttendance() {
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+    <div className="space-y-5 p-6">
+      {/* ── Section 1: Header + Filters + Date Range (inline) ── */}
+      <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Điểm danh</h1>
-          <p className="text-muted-foreground">Theo dõi chuyên cần theo lớp, trạng thái và thời gian</p>
+          <p className="text-muted-foreground">
+            Theo dõi chuyên cần theo lớp, trạng thái và thời gian
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {format(periodRange.startDate, 'dd/MM/yyyy', { locale: localeVi })} – {format(periodRange.endDate, 'dd/MM/yyyy', { locale: localeVi })}
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -506,61 +626,47 @@ export function StudentAttendance() {
         </div>
       </div>
 
-      <Card className="border-slate-200 shadow-sm bg-white">
-        <CardContent className="p-4 flex flex-wrap items-center gap-3 text-sm">
-          <span className="text-muted-foreground">Khoảng thời gian:</span>
-          <span className="font-medium">
-            {format(periodRange.startDate, 'dd/MM/yyyy', { locale: localeVi })} - {format(periodRange.endDate, 'dd/MM/yyyy', { locale: localeVi })}
-          </span>
-          {activeClassSummary ? (
-            <>
-              <span className="text-muted-foreground">|</span>
-              <span>Lớp:</span>
-              <span className="font-medium">{activeClassSummary.className}</span>
-            </>
-          ) : null}
-          {statusFocus !== 'all' ? (
-            <>
-              <span className="text-muted-foreground">|</span>
-              <span>Trạng thái:</span>
-              <span className="font-medium">{STATUS_STYLES[statusFocus]?.label}</span>
-            </>
-          ) : null}
-        </CardContent>
-      </Card>
-
+      {/* ── Section 2: Stat Cards + Sparkline + Class Chips ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard
           title="Tỷ lệ chuyên cần"
           value={formatPercent(statistics.attendanceRate || 0)}
           color="default"
           icon={Calendar}
-        />
+        >
+          <ProgressRing value={Number(statistics.attendanceRate) || 0} />
+        </StatCard>
         <StatCard
           title="Có mặt"
-          value={statistics.presentCount || 0}
+          value={<CountUpValue value={statistics.presentCount || 0} />}
           color="success"
           icon={Check}
         />
         <StatCard
           title="Vắng mặt"
-          value={statistics.absentCount || 0}
+          value={<CountUpValue value={statistics.absentCount || 0} />}
           color="danger"
           icon={X}
         />
         <StatCard
           title="Đi trễ"
-          value={statistics.lateCount || 0}
+          value={<CountUpValue value={statistics.lateCount || 0} />}
           color="warning"
           icon={Clock}
         />
       </div>
 
+      {/* Trend sparkline */}
       <Card className="shadow-sm border-slate-200">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Theo lớp học</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-3">
+        <CardContent className="p-4">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Xu hướng chuyên cần theo tuần</p>
+          <TrendSparkline data={weeklyRates} height={60} />
+        </CardContent>
+      </Card>
+
+      {/* Class chips — no Card wrapper, horizontal scroll */}
+      {classSummaries.length > 0 && (
+        <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1">
           <ClassSummaryChip
             summary={{ classId: 'all', className: 'Tất cả lớp', totalSessions: statistics.totalSessions || 0, attendanceRate: statistics.attendanceRate || 0 }}
             isActive={classFilter === 'all'}
@@ -574,9 +680,10 @@ export function StudentAttendance() {
               onClick={() => setClassFilter(summary.classId)}
             />
           ))}
-        </CardContent>
-      </Card>
+        </div>
+      )}
 
+      {/* ── Section 3: Compact Heatmap ── */}
       <AttendanceHeatmap
         records={filteredRecords}
         rangeStart={periodRange.startDate}
@@ -585,6 +692,7 @@ export function StudentAttendance() {
         onStatusFocusChange={setStatusFocus}
       />
 
+      {/* ── Section 4: History Table ── */}
       <HistoryTable
         records={filteredRecords}
         hasActiveFilters={hasActiveFilters}
