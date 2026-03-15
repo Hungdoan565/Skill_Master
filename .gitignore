@@ -32,6 +32,7 @@ auggie_shell.sh
 conductor/
 .opencode/
 openspec/
+skills/
 .github/
 
 # Temp files
