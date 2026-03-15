@@ -14,15 +14,9 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
+import { CERTIFICATE_STATUS_CONFIG } from '../constants/certificate-status';
 import CertificateTemplate from '../../certificates/components/CertificateTemplate';
 
-const STATUS_CONFIG = {
-  active: { label: 'Còn hiệu lực', className: 'bg-green-500/10 text-green-600 border-green-500/20' },
-  issued: { label: 'Đã cấp', className: 'bg-green-500/10 text-green-600 border-green-500/20' },
-  pending_approval: { label: 'Đang chờ duyệt', className: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
-  expired: { label: 'Hết hạn', className: 'bg-red-500/10 text-red-600 border-red-500/20' },
-  revoked: { label: 'Đã thu hồi', className: 'bg-muted text-muted-foreground border-border' },
-};
 
 
 
@@ -31,7 +25,7 @@ export default function CertificateDetailModal({ certificate, open, onClose }) {
   
   if (!certificate) return null;
 
-  const status = STATUS_CONFIG[certificate.status] || STATUS_CONFIG.issued;
+  const status = CERTIFICATE_STATUS_CONFIG[certificate.status] || CERTIFICATE_STATUS_CONFIG.issued;
   const isPending = certificate.status === 'pending_approval';
   const isRevoked = certificate.status === 'revoked';
   const isVerifiable = !isPending && !isRevoked;

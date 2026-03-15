@@ -253,6 +253,10 @@ const PrintVerifiedCertificate = ({ certificate }) => {
 
         const verifyUrl = `${window.location.origin}/verify-certificate?cert=${certificate.certificate_number}`;
         const certType = certificate.certificate_type || {};
+        const issuedDate = certificate.issued_at ? new Date(certificate.issued_at).toLocaleDateString('vi-VN') : 'N/A';
+        const completionDate = certificate.completion_date ? new Date(certificate.completion_date).toLocaleDateString('vi-VN') : null;
+        const gradeMapping = { 'Xuất sắc': 'Distinction', 'Giỏi': 'Merit', 'Khá': 'Credit', 'Đạt': 'Pass' };
+        const gradeEn = gradeMapping[certificate.grade] || '';
 
         printWindow.document.write(`
 <!DOCTYPE html>
@@ -260,200 +264,480 @@ const PrintVerifiedCertificate = ({ certificate }) => {
 <head>
     <meta charset="UTF-8">
     <title>Xác nhận chứng chỉ - ${certificate.certificate_number}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        @page { size: A4 portrait; margin: 20mm; }
+        @page { size: A4 portrait; margin: 15mm; }
         body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: white;
-            color: #1e293b;
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            background: #f8f9fa;
+            color: #1a1a2e;
             line-height: 1.6;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
         }
-        .container {
-            max-width: 700px;
-            margin: 0 auto;
-            padding: 40px;
+
+        .page {
+            max-width: 750px;
+            margin: 20px auto;
+            background: #FFFDF7;
             position: relative;
+            overflow: hidden;
         }
-        /* Watermark */
+
+        /* Ornamental outer border */
+        .border-outer {
+            position: absolute;
+            inset: 12px;
+            border: 2px solid rgba(34, 120, 80, 0.2);
+            pointer-events: none;
+        }
+        .border-inner {
+            position: absolute;
+            inset: 18px;
+            border: 1px double rgba(34, 120, 80, 0.15);
+            pointer-events: none;
+        }
+
+        /* Corner flourishes via CSS */
+        .corner { position: absolute; width: 40px; height: 40px; pointer-events: none; }
+        .corner::before, .corner::after {
+            content: '';
+            position: absolute;
+            background: rgba(34, 120, 80, 0.25);
+        }
+        .corner::before { width: 100%; height: 2px; top: 0; left: 0; }
+        .corner::after { width: 2px; height: 100%; top: 0; left: 0; }
+        .corner.tl { top: 10px; left: 10px; }
+        .corner.tr { top: 10px; right: 10px; transform: scaleX(-1); }
+        .corner.bl { bottom: 10px; left: 10px; transform: scaleY(-1); }
+        .corner.br { bottom: 10px; right: 10px; transform: scale(-1); }
+
+        /* Subtle watermark */
         .watermark {
-            position: fixed;
+            position: absolute;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%) rotate(-30deg);
-            font-size: 100px;
-            font-weight: bold;
-            color: rgba(34, 197, 94, 0.08);
+            transform: translate(-50%, -50%) rotate(-25deg);
+            font-family: 'Playfair Display', serif;
+            font-size: 80px;
+            font-weight: 800;
+            color: rgba(34, 197, 94, 0.04);
             white-space: nowrap;
             pointer-events: none;
-            z-index: 0;
+            letter-spacing: 20px;
         }
-        .content { position: relative; z-index: 1; }
-        /* Header */
+
+        .content {
+            position: relative;
+            z-index: 1;
+            padding: 50px 48px;
+        }
+
+        /* ── Header ── */
         .header {
             text-align: center;
-            padding-bottom: 24px;
-            border-bottom: 3px solid #22c55e;
-            margin-bottom: 24px;
+            padding-bottom: 28px;
+            margin-bottom: 32px;
+            position: relative;
         }
-        .logo {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, #3b82f6, #6366f1);
-            border-radius: 16px;
-            margin: 0 auto 16px;
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 2px;
+            background: linear-gradient(to right, transparent, #16a34a, transparent);
+        }
+
+        .sm-logo {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 12px;
+            border: 2px solid rgba(34, 120, 80, 0.3);
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-size: 32px;
+            background: linear-gradient(135deg, rgba(34, 120, 80, 0.05), rgba(34, 120, 80, 0.1));
         }
-        .title { font-size: 28px; color: #22c55e; margin-bottom: 8px; }
-        .subtitle { color: #64748b; font-size: 14px; }
-        /* Verified badge */
-        .verified-badge {
+        .sm-logo span {
+            font-family: 'Playfair Display', serif;
+            font-size: 22px;
+            font-weight: 700;
+            color: #16a34a;
+            letter-spacing: 2px;
+        }
+
+        .org-subtitle {
+            font-size: 10px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: #94a3b8;
+            margin-bottom: 2px;
+        }
+        .org-name {
+            font-family: 'Playfair Display', serif;
+            font-size: 20px;
+            font-weight: 700;
+            color: #16a34a;
+            letter-spacing: 3px;
+        }
+        .doc-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 28px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-top: 20px;
+            letter-spacing: 4px;
+        }
+        .doc-subtitle {
+            font-size: 12px;
+            color: #94a3b8;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+
+        /* ── Verified seal ── */
+        .verified-section {
+            text-align: center;
+            margin: 28px 0;
+        }
+        .verified-seal {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            background: #dcfce7;
-            color: #166534;
-            padding: 12px 24px;
+            gap: 10px;
+            padding: 10px 28px;
+            border: 2px solid #16a34a;
             border-radius: 50px;
-            font-weight: 600;
-            margin: 24px 0;
-        }
-        .verified-badge svg { width: 24px; height: 24px; }
-        /* Info grid */
-        .info-section { margin: 24px 0; }
-        .info-title {
-            font-size: 12px;
+            color: #16a34a;
+            font-weight: 700;
+            font-size: 13px;
+            letter-spacing: 3px;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #94a3b8;
-            margin-bottom: 8px;
         }
-        .info-value { font-size: 18px; font-weight: 600; color: #1e293b; }
+        .verified-seal svg { width: 20px; height: 20px; }
+
+        /* ── Certificate number ── */
+        .cert-number {
+            text-align: center;
+            margin: 24px 0 28px;
+        }
+        .cert-number-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: #94a3b8;
+            margin-bottom: 6px;
+        }
+        .cert-number-value {
+            font-family: 'Courier New', monospace;
+            font-size: 20px;
+            font-weight: 700;
+            color: #1a1a2e;
+            letter-spacing: 2px;
+        }
+
+        /* ── Info section ── */
         .info-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            margin: 24px 0;
+            border: 1px solid #e5e7eb;
+        }
+        .info-cell {
+            padding: 16px 20px;
+            border: 1px solid #e5e7eb;
+        }
+        .info-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #94a3b8;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+        .info-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a2e;
+        }
+
+        /* ── Scores ── */
+        .scores-section {
+            margin: 20px 0;
+            padding: 16px 20px;
+            background: linear-gradient(135deg, #fef9c3, #fef3c7);
+            border: 1px solid #fde68a;
+            border-radius: 4px;
+        }
+        .scores-title {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #92400e;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        .scores-grid {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+        .score-item span { color: #92400e; text-transform: capitalize; font-size: 13px; }
+        .score-item strong { color: #78350f; margin-left: 4px; font-size: 15px; }
+
+        /* ── Grade badge ── */
+        .grade-section {
+            text-align: center;
             margin: 24px 0;
         }
-        .info-box {
-            padding: 16px;
-            background: #f8fafc;
-            border-radius: 8px;
-            border-left: 4px solid #3b82f6;
+        .grade-badge {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 90px;
+            height: 90px;
+            border: 3px double #16a34a;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(34, 197, 94, 0.03), transparent);
         }
-        /* Footer */
-        .footer {
+        .grade-badge .grade-label {
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #16a34a;
+            font-weight: 700;
+        }
+        .grade-badge .grade-value {
+            font-size: 18px;
+            font-weight: 800;
+            color: #1a1a2e;
+            line-height: 1.2;
+        }
+        .grade-badge .grade-en {
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #16a34a;
+            font-weight: 600;
+        }
+
+        /* ── Signature & Footer ── */
+        .signature-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
             margin-top: 40px;
             padding-top: 20px;
-            border-top: 1px solid #e2e8f0;
+        }
+        .signature-block {
             text-align: center;
+            width: 200px;
+        }
+        .signature-line {
+            width: 100%;
+            border-bottom: 1.5px solid #1a1a2e;
+            margin-bottom: 8px;
+        }
+        .signature-title {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #1a1a2e;
+        }
+        .signature-subtitle {
+            font-size: 8px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-top: 2px;
+        }
+
+        .verify-section {
+            text-align: center;
+            margin-top: 32px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+        .verify-label {
+            font-size: 10px;
+            color: #94a3b8;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
         }
         .verify-url {
-            font-family: monospace;
-            font-size: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
             color: #3b82f6;
             word-break: break-all;
         }
-        .timestamp {
-            font-size: 11px;
-            color: #94a3b8;
-            margin-top: 12px;
+        .verify-timestamp {
+            font-size: 9px;
+            color: #cbd5e1;
+            margin-top: 10px;
+            letter-spacing: 1px;
         }
-        /* Print button */
-        .print-btn {
+        .verify-copyright {
+            font-size: 9px;
+            color: #cbd5e1;
+            margin-top: 8px;
+        }
+
+        /* ── Toolbar (non-print) ── */
+        .toolbar {
             position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 10px 20px;
-            background: #3b82f6;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 12px 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 100;
+        }
+        .toolbar-title { font-size: 14px; font-weight: 600; color: #374151; }
+        .toolbar-btn {
+            padding: 8px 20px;
+            background: #16a34a;
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
+        .toolbar-btn:hover { background: #15803d; }
+
         @media print {
-            .print-btn { display: none; }
+            body { background: white; }
+            .toolbar { display: none !important; }
+            .page { margin: 0; box-shadow: none; }
             .watermark { position: absolute; }
         }
     </style>
 </head>
 <body>
-    <button class="print-btn" onclick="window.print()">🖨️ In</button>
-    <div class="watermark">VERIFIED COPY</div>
-    <div class="container">
+    <div class="toolbar">
+        <span class="toolbar-title">Xác nhận chứng chỉ — ${certificate.certificate_number}</span>
+        <button class="toolbar-btn" onclick="window.print()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            In
+        </button>
+    </div>
+
+    <div class="page" style="margin-top: 60px;">
+        <div class="border-outer"></div>
+        <div class="border-inner"></div>
+        <div class="corner tl"></div>
+        <div class="corner tr"></div>
+        <div class="corner bl"></div>
+        <div class="corner br"></div>
+        <div class="watermark">XÁC THỰC</div>
+
         <div class="content">
+            <!-- Header -->
             <div class="header">
-                <div class="logo">🎓</div>
-                <h1 class="title">XÁC NHẬN CHỨNG CHỈ</h1>
-                <p class="subtitle">Certificate Verification Confirmation</p>
+                <div class="sm-logo"><span>SM</span></div>
+                <div class="org-subtitle">Trung Tâm Đào Tạo</div>
+                <div class="org-name">SKILL MASTER</div>
+                <div class="doc-title">XÁC NHẬN CHỨNG CHỈ</div>
+                <div class="doc-subtitle">Certificate Verification Confirmation</div>
             </div>
-            
-            <div style="text-align: center;">
-                <div class="verified-badge">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+            <!-- Verified seal -->
+            <div class="verified-section">
+                <div class="verified-seal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                         <path d="M9 12l2 2 4-4"/>
                         <circle cx="12" cy="12" r="10"/>
                     </svg>
-                    CHỨNG CHỈ HỢP LỆ
+                    Chứng chỉ hợp lệ
                 </div>
             </div>
-            
-            <div class="info-section">
-                <div class="info-title">Mã chứng chỉ</div>
-                <div class="info-value" style="font-family: monospace; font-size: 24px; color: #3b82f6;">
-                    ${certificate.certificate_number}
-                </div>
+
+            <!-- Certificate Number -->
+            <div class="cert-number">
+                <div class="cert-number-label">Mã chứng chỉ / Certificate No.</div>
+                <div class="cert-number-value">${certificate.certificate_number}</div>
             </div>
-            
+
+            <!-- Info Grid -->
             <div class="info-grid">
-                <div class="info-box">
-                    <div class="info-title">Họ và tên</div>
+                <div class="info-cell">
+                    <div class="info-label">Họ và Tên / Full Name</div>
                     <div class="info-value">${certificate.student_name}</div>
                 </div>
-                <div class="info-box">
-                    <div class="info-title">Loại chứng chỉ</div>
+                <div class="info-cell">
+                    <div class="info-label">Chứng chỉ / Certificate</div>
                     <div class="info-value">${certType.name || certificate.course_name || 'N/A'}</div>
                 </div>
-                <div class="info-box">
-                    <div class="info-title">Ngày cấp</div>
-                    <div class="info-value">${certificate.issued_at ? new Date(certificate.issued_at).toLocaleDateString('vi-VN') : 'N/A'}</div>
+                <div class="info-cell">
+                    <div class="info-label">Ngày cấp / Issue Date</div>
+                    <div class="info-value">${issuedDate}</div>
                 </div>
-                <div class="info-box">
-                    <div class="info-title">Xếp loại</div>
-                    <div class="info-value">${certificate.grade || 'N/A'}</div>
+                <div class="info-cell">
+                    <div class="info-label">${completionDate ? 'Ngày hoàn thành / Completion' : 'Trung tâm / Center'}</div>
+                    <div class="info-value">${completionDate || 'Skill Master'}</div>
                 </div>
             </div>
-            
+
             ${certificate.scores && Object.keys(certificate.scores).length > 0 ? `
-            <div class="info-section" style="background: #fef3c7; padding: 16px; border-radius: 8px;">
-                <div class="info-title" style="color: #92400e;">Điểm số chi tiết</div>
-                <div style="display: flex; gap: 24px; margin-top: 8px; flex-wrap: wrap;">
+            <!-- Scores -->
+            <div class="scores-section">
+                <div class="scores-title">Điểm số chi tiết / Detailed Scores</div>
+                <div class="scores-grid">
                     ${Object.entries(certificate.scores).map(([key, value]) => `
-                        <div>
-                            <span style="color: #92400e; text-transform: capitalize;">${key}:</span>
-                            <strong style="color: #78350f; margin-left: 4px;">${value}</strong>
+                        <div class="score-item">
+                            <span>${key}:</span>
+                            <strong>${value}</strong>
                         </div>
                     `).join('')}
                 </div>
             </div>
             ` : ''}
-            
-            <div class="footer">
-                <p style="font-size: 13px; color: #64748b; margin-bottom: 8px;">
-                    Xác thực trực tuyến tại:
-                </p>
-                <p class="verify-url">${verifyUrl}</p>
-                <p class="timestamp">
-                    Được xác thực lúc: ${new Date().toLocaleString('vi-VN')}
-                </p>
-                <p style="font-size: 11px; color: #94a3b8; margin-top: 16px;">
-                    © ${new Date().getFullYear()} Skill Master Training Center
-                </p>
+
+            ${certificate.grade ? `
+            <!-- Grade -->
+            <div class="grade-section">
+                <div class="grade-badge">
+                    <span class="grade-label">Xếp loại</span>
+                    <span class="grade-value">${certificate.grade}</span>
+                    ${gradeEn ? `<span class="grade-en">${gradeEn}</span>` : ''}
+                </div>
+            </div>
+            ` : ''}
+
+            <!-- Signature -->
+            <div class="signature-section">
+                <div style="text-align: left; font-size: 10px; color: #94a3b8;">
+                    <div style="font-size: 9px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px;">Xác thực lúc</div>
+                    <div style="font-weight: 600; color: #64748b;">${new Date().toLocaleString('vi-VN')}</div>
+                </div>
+                <div class="signature-block">
+                    <div class="signature-line"></div>
+                    <div class="signature-title">Giám Đốc Trung Tâm</div>
+                    <div class="signature-subtitle">Center Director</div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="verify-section">
+                <div class="verify-label">Xác thực trực tuyến tại / Verify Online</div>
+                <div class="verify-url">${verifyUrl}</div>
+                <div class="verify-copyright">© ${new Date().getFullYear()} Skill Master Training Center</div>
             </div>
         </div>
     </div>
@@ -545,7 +829,7 @@ const CertificateDetailCard = ({ certificate, centerInfo, verificationStats }) =
                                 ) : (
                                     <>
                                         <Copy className="h-4 w-4" />
-                                        Copy
+                                        Copy mã
                                     </>
                                 )}
                             </Button>
@@ -553,18 +837,18 @@ const CertificateDetailCard = ({ certificate, centerInfo, verificationStats }) =
                                 variant="outline"
                                 size="sm"
                                 onClick={shareUrl}
-                                className="gap-2"
+                                className="gap-2 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
                                 aria-label="Chia sẻ link xác thực"
                             >
                                 {urlCopied ? (
                                     <>
                                         <Check className="h-4 w-4 text-green-500" />
-                                        Đã copy
+                                        Đã copy link
                                     </>
                                 ) : (
                                     <>
                                         <Share2 className="h-4 w-4" />
-                                        Chia sẻ
+                                        Chia sẻ link
                                     </>
                                 )}
                             </Button>
@@ -929,7 +1213,7 @@ export function PublicCertificateVerification() {
                             <Button
                                 type="submit"
                                 size="lg"
-                                className="h-14 px-8 bg-blue-600 hover:bg-blue-700"
+                                className="h-14 px-8 bg-blue-600 hover:bg-blue-700 text-white"
                                 disabled={loading || !certificateNumber.trim()}
                                 aria-busy={loading}
                                 aria-label="Xác thực chứng chỉ"

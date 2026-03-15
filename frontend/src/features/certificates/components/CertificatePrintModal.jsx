@@ -1,24 +1,25 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Printer, Download, X, Award, CheckCircle } from 'lucide-react';
+import { Printer, Download, X, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { gooeyToast } from 'goey-toast';
+import { QRCodeSVG } from 'qrcode.react';
 
 const CATEGORY_STYLES = {
-  language: { color: '#3B82F6', twColor: 'text-blue-600', twBorder: 'border-blue-600', twBg: 'bg-blue-600' },
-  office: { color: '#10B981', twColor: 'text-emerald-600', twBorder: 'border-emerald-600', twBg: 'bg-emerald-600' },
-  programming: { color: '#8B5CF6', twColor: 'text-purple-600', twBorder: 'border-purple-600', twBg: 'bg-purple-600' },
-  soft_skill: { color: '#F59E0B', twColor: 'text-amber-600', twBorder: 'border-amber-600', twBg: 'bg-amber-600' },
-  other: { color: '#6B7280', twColor: 'text-gray-600', twBorder: 'border-gray-600', twBg: 'bg-gray-600' }
+  language: { color: '#D97706', label: 'Ngoại ngữ' },
+  office: { color: '#3B82F6', label: 'Tin học' },
+  programming: { color: '#8B5CF6', label: 'Lập trình' },
+  soft_skill: { color: '#F59E0B', label: 'Kỹ năng mềm' },
+  other: { color: '#6B7280', label: 'Khác' }
 };
 
 const GRADE_MAPPING = {
-  'Xuất sắc': 'DISTINCTION',
-  'Giỏi': 'MERIT',
-  'Khá': 'CREDIT',
-  'Đạt': 'PASS'
+  'Xuất sắc': 'Distinction',
+  'Giỏi': 'Merit',
+  'Khá': 'Credit',
+  'Đạt': 'Pass'
 };
 
 export default function CertificatePrintModal({ certificate, open, onOpenChange }) {
@@ -28,7 +29,11 @@ export default function CertificatePrintModal({ certificate, open, onOpenChange 
 
   const categoryKey = certificate.certificate_type?.category || certificate.category || 'other';
   const style = CATEGORY_STYLES[categoryKey] || CATEGORY_STYLES.other;
-  const gradeEn = GRADE_MAPPING[certificate.grade] || 'PASS';
+  const primaryColor = style.color;
+  const gradeEn = GRADE_MAPPING[certificate.grade] || '';
+  const certNumber = certificate.certificate_number || certificate.certificate_code || '';
+  const verifyUrl = `${window.location.origin}/verify-certificate?cert=${certNumber}`;
+  const courseName = certificate.certificate_type?.name || certificate.course_name || 'Khóa học';
 
   const handleDownload = async () => {
     try {
@@ -38,12 +43,11 @@ export default function CertificatePrintModal({ certificate, open, onOpenChange 
         const jsPDF = (await import('jspdf')).default;
 
         const element = document.getElementById('certificate-print-area');
-
         const canvas = await html2canvas(element, {
-          scale: 2,
+          scale: 3,
           useCORS: true,
           logging: false,
-          backgroundColor: '#ffffff'
+          backgroundColor: '#FFFDF7'
         });
 
         const imgData = canvas.toDataURL('image/png');
@@ -57,12 +61,12 @@ export default function CertificatePrintModal({ certificate, open, onOpenChange 
         const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
         pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        pdf.save(`ChungNhan_${certificate.student_name}_${certificate.certificate_number}.pdf`);
+        pdf.save(`ChungNhan_${certificate.student_name}_${certNumber}.pdf`);
       })();
 
       await gooeyToast.promise(generatePDFPromise, {
         loading: 'Đang tạo PDF...',
-        success: 'Đã tạo PDF thành công',
+        success: 'Đã tạo PDF thành công!',
         error: 'Lỗi khi tạo PDF'
       });
     } catch (error) {
@@ -78,26 +82,26 @@ export default function CertificatePrintModal({ certificate, open, onOpenChange 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl w-full p-0 flex flex-col bg-white border-0 shadow-2xl overflow-hidden max-h-[95vh]">
+      <DialogContent className="max-w-5xl w-full p-0 flex flex-col bg-white border-0 shadow-2xl overflow-hidden max-h-[95vh]">
         {/* Toolbar */}
         <div className="flex items-center justify-between p-4 bg-slate-50 border-b shrink-0 print:hidden z-10 relative">
           <div>
             <h2 className="text-lg font-semibold text-slate-800">In & Tải Chứng nhận</h2>
-            <p className="text-sm text-slate-500">Mã: {certificate.certificate_number}</p>
+            <p className="text-sm text-slate-500">Mã: {certNumber}</p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={handlePrint}>
               <Printer className="w-4 h-4 mr-2" />
-              In / Print
+              In
             </Button>
             <Button 
-              className={cn("text-white", style.twBg, "hover:opacity-90")}
+              className="text-white hover:opacity-90"
               onClick={handleDownload}
               disabled={isDownloading}
-              style={{ backgroundColor: style.color }}
+              style={{ backgroundColor: primaryColor }}
             >
               <Download className="w-4 h-4 mr-2" />
-              {isDownloading ? 'Đang tạo PDF...' : 'Tải PDF'}
+              {isDownloading ? 'Đang tạo...' : 'Tải PDF'}
             </Button>
             <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
               <X className="w-5 h-5 text-slate-500" />
@@ -105,123 +109,193 @@ export default function CertificatePrintModal({ certificate, open, onOpenChange 
           </div>
         </div>
 
-        {/* Certificate Container */}
+        {/* Certificate Preview Container */}
         <div className="p-4 md:p-8 overflow-y-auto bg-slate-200/50 flex justify-center print:p-0 print:bg-white flex-1 min-h-0">
           
-          {/* Print Area */}
+          {/* ═══════════ PRINT AREA ═══════════ */}
           <div 
             id="certificate-print-area"
-            className="relative w-full aspect-[1.414/1] max-w-[1000px] bg-white text-slate-900 shadow-xl print:shadow-none shrink-0 overflow-hidden"
-            style={{
-              backgroundImage: `radial-gradient(circle at center, ${style.color}08 0%, transparent 60%)`
-            }}
+            className="relative w-full max-w-[1000px] bg-[#FFFDF7] text-slate-900 shadow-xl print:shadow-none shrink-0 overflow-hidden"
+            style={{ aspectRatio: '1.414 / 1' }}
           >
-            {/* Inner Border Layers */}
-            <div className={cn("absolute inset-4 sm:inset-6 md:inset-8 border-[6px] border-double", style.twBorder, "opacity-30")} />
-            <div className={cn("absolute inset-5 sm:inset-7 md:inset-9 border border-solid", style.twBorder, "opacity-20")} />
-            
-            {/* Corner Ornaments */}
-            <div className={cn("absolute top-8 left-8 w-16 h-16 border-t-[3px] border-l-[3px] opacity-40", style.twBorder)} />
-            <div className={cn("absolute top-8 right-8 w-16 h-16 border-t-[3px] border-r-[3px] opacity-40", style.twBorder)} />
-            <div className={cn("absolute bottom-8 left-8 w-16 h-16 border-b-[3px] border-l-[3px] opacity-40", style.twBorder)} />
-            <div className={cn("absolute bottom-8 right-8 w-16 h-16 border-b-[3px] border-r-[3px] opacity-40", style.twBorder)} />
+            {/* Subtle watermark pattern */}
+            <div className="absolute inset-0 opacity-[0.025] pointer-events-none"
+              style={{
+                backgroundImage: `repeating-linear-gradient(45deg, ${primaryColor} 0px, ${primaryColor} 1px, transparent 1px, transparent 30px), repeating-linear-gradient(-45deg, ${primaryColor} 0px, ${primaryColor} 1px, transparent 1px, transparent 30px)`,
+              }}
+            />
 
-            {/* Certificate Content Wrapper */}
-            <div className="relative z-10 flex flex-col items-center justify-between h-full pt-12 pb-10 px-10 md:pt-16 md:pb-14 md:px-24 text-center">
+            {/* Outer border */}
+            <div className="absolute inset-4 sm:inset-5 md:inset-6 pointer-events-none"
+              style={{ border: `3px solid ${primaryColor}30` }}
+            />
+            
+            {/* Inner ornamental border */}
+            <div className="absolute inset-6 sm:inset-7 md:inset-9 pointer-events-none"
+              style={{ border: `2px double ${primaryColor}50` }}
+            />
+
+            {/* Corner flourishes */}
+            {[
+              'top-5 left-5 md:top-7 md:left-7',
+              'top-5 right-5 md:top-7 md:right-7 -scale-x-100',
+              'bottom-5 left-5 md:bottom-7 md:left-7 -scale-y-100',
+              'bottom-5 right-5 md:bottom-7 md:right-7 -scale-x-100 -scale-y-100',
+            ].map((pos, i) => (
+              <div key={i} className={cn("absolute w-12 h-12 md:w-16 md:h-16 pointer-events-none", pos)}>
+                <svg viewBox="0 0 60 60" fill="none" className="w-full h-full" style={{ color: primaryColor }}>
+                  <path d="M2 2 C2 2, 2 30, 2 58" stroke="currentColor" strokeWidth="2" opacity="0.4"/>
+                  <path d="M2 2 C2 2, 30 2, 58 2" stroke="currentColor" strokeWidth="2" opacity="0.4"/>
+                  <path d="M2 2 C12 2, 18 8, 18 18" stroke="currentColor" strokeWidth="1.5" opacity="0.3"/>
+                  <path d="M2 2 C2 12, 8 18, 18 18" stroke="currentColor" strokeWidth="1.5" opacity="0.3"/>
+                  <circle cx="18" cy="18" r="2" fill="currentColor" opacity="0.3"/>
+                  <path d="M4 12 C8 12, 12 8, 12 4" stroke="currentColor" strokeWidth="1" opacity="0.25"/>
+                </svg>
+              </div>
+            ))}
+
+            {/* ═══ CERTIFICATE CONTENT ═══ */}
+            <div className="relative z-10 flex flex-col items-center justify-between h-full px-12 py-10 md:px-24 md:py-14 text-center">
               
-              {/* Header */}
-              <div className="flex flex-col items-center gap-3">
-                <div className={cn("w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center bg-opacity-10", style.twBg.replace('bg-', 'bg-').replace('600', '100'), style.twColor)}>
-                  <Award className="w-6 h-6 md:w-8 md:h-8" />
+              {/* ── HEADER ── */}
+              <div className="flex flex-col items-center gap-1">
+                <div 
+                  className="w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center border-2"
+                  style={{ 
+                    borderColor: `${primaryColor}60`,
+                    background: `linear-gradient(135deg, ${primaryColor}08, ${primaryColor}15)`,
+                  }}
+                >
+                  <span className="text-2xl md:text-3xl font-bold font-serif tracking-wider" style={{ color: primaryColor }}>
+                    SM
+                  </span>
                 </div>
-                <div className="space-y-1">
-                  <h2 className={cn("text-xl md:text-3xl font-bold tracking-[0.2em] uppercase font-serif", style.twColor)}>
+                <div className="mt-1">
+                  <p className="text-[9px] md:text-xs font-medium uppercase tracking-[0.3em] text-gray-400">
+                    Trung Tâm Đào Tạo
+                  </p>
+                  <h2 className="text-lg md:text-2xl font-bold uppercase tracking-[0.15em] font-serif" style={{ color: primaryColor }}>
                     Skill Master
                   </h2>
-                  <p className="text-[10px] md:text-sm tracking-[0.3em] text-slate-400 uppercase font-medium">
-                    Education Center
-                  </p>
                 </div>
               </div>
 
-              {/* Title */}
-              <div className="space-y-1 md:space-y-2 mt-2 md:mt-6">
-                <h1 className="text-3xl md:text-5xl font-serif font-bold tracking-widest text-slate-800 uppercase">
-                  Chứng Nhận
-                </h1>
-                <h3 className="text-lg md:text-2xl font-serif tracking-[0.4em] text-slate-400 uppercase">
-                  Certificate
-                </h3>
+              {/* ── TITLE ── */}
+              <div className="mt-4 md:mt-6">
+                <div className="flex items-center gap-4 justify-center mb-1">
+                  <div className="h-px w-12 md:w-20" style={{ background: `linear-gradient(to right, transparent, ${primaryColor}60)` }} />
+                  <h1 className="text-3xl md:text-5xl font-serif font-bold uppercase tracking-[0.15em]" style={{ color: primaryColor }}>
+                    Chứng Nhận
+                  </h1>
+                  <div className="h-px w-12 md:w-20" style={{ background: `linear-gradient(to left, transparent, ${primaryColor}60)` }} />
+                </div>
+                <p className="text-xs md:text-sm uppercase tracking-[0.4em] text-gray-400 font-medium">
+                  Certificate of Completion
+                </p>
               </div>
 
-              {/* Body */}
-              <div className="space-y-4 md:space-y-8 mt-4 md:mt-8 max-w-2xl w-full">
-                <p className="text-xs md:text-lg text-slate-500 italic font-serif">
-                  Chứng nhận này được trao cho / This is to certify that
+              {/* ── BODY ── */}
+              <div className="mt-5 md:mt-8 max-w-2xl w-full space-y-4 md:space-y-6">
+                <p className="text-xs md:text-sm text-gray-500 font-serif italic">
+                  Chứng nhận rằng / This is to certify that
                 </p>
                 
-                <h2 className={cn("text-3xl md:text-6xl font-bold capitalize", style.twColor)} style={{ fontFamily: 'Georgia, serif' }}>
-                  {certificate.student_name}
-                </h2>
-                
-                <div className="w-24 md:w-32 h-[1px] mx-auto bg-slate-300 my-4 md:my-8" />
-                
-                <p className="text-xs md:text-base text-slate-600 font-medium">
-                  Đã hoàn thành xuất sắc khóa học / Has successfully completed the course
+                <div className="relative py-2">
+                  <h3 className="text-3xl md:text-5xl font-bold capitalize" style={{ fontFamily: "'Georgia', serif", color: '#1a1a2e' }}>
+                    {certificate.student_name}
+                  </h3>
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3/5 h-px"
+                    style={{ background: `linear-gradient(to right, transparent, ${primaryColor}50, transparent)` }}
+                  />
+                </div>
+
+                <p className="text-xs md:text-sm text-gray-500 font-serif italic">
+                  Đã hoàn thành xuất sắc khóa đào tạo / Has successfully completed
                 </p>
-                
-                <h3 className="text-xl md:text-4xl font-bold text-slate-800 mt-2 px-4 md:px-8 font-serif leading-tight">
-                  {certificate.certificate_type?.name || 'Khóa học'}
-                </h3>
+
+                <h4 className="text-xl md:text-3xl font-bold uppercase tracking-wide font-serif px-8 leading-tight" style={{ color: '#1a1a2e' }}>
+                  {courseName}
+                </h4>
               </div>
 
-              {/* Footer / Signatures */}
-              <div className="flex justify-between items-end w-full mt-auto pt-6 md:pt-16 px-2 md:px-12">
+              {/* ── GRADE SEAL ── */}
+              {certificate.grade && (
+                <div className="mt-4 md:mt-6">
+                  <div 
+                    className="w-20 h-20 md:w-28 md:h-28 rounded-full flex flex-col items-center justify-center border-4 relative"
+                    style={{ 
+                      borderColor: `${primaryColor}50`,
+                      borderStyle: 'double',
+                      background: `radial-gradient(circle, ${primaryColor}05, transparent)`,
+                    }}
+                  >
+                    <div 
+                      className="absolute inset-1.5 md:inset-2 rounded-full border"
+                      style={{ borderColor: `${primaryColor}25` }}
+                    />
+                    <span className="text-[8px] md:text-[10px] font-bold uppercase tracking-wider" style={{ color: primaryColor }}>
+                      Xếp loại
+                    </span>
+                    <span className="text-lg md:text-2xl font-black text-gray-900 leading-tight">
+                      {certificate.grade}
+                    </span>
+                    {gradeEn && (
+                      <span className="text-[7px] md:text-[9px] font-semibold uppercase tracking-wider" style={{ color: primaryColor }}>
+                        {gradeEn}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── FOOTER ── */}
+              <div className="flex justify-between items-end w-full mt-auto pt-8 md:pt-12">
                 
-                {/* Issue Date & Number */}
-                <div className="flex flex-col items-center w-32 md:w-48">
-                  <p className="text-sm md:text-lg font-semibold text-slate-800 border-b border-slate-300 pb-1 md:pb-2 mb-1 md:mb-2 w-full text-center">
+                {/* QR + Serial */}
+                <div className="flex flex-col items-center gap-1 w-32 md:w-44">
+                  {certNumber && (
+                    <div className="bg-white border border-gray-200 rounded p-1.5 shadow-sm">
+                      <QRCodeSVG
+                        value={verifyUrl}
+                        size={48}
+                        level="M"
+                        includeMargin={false}
+                        bgColor="transparent"
+                      />
+                    </div>
+                  )}
+                  {certNumber && (
+                    <p className="font-mono text-[8px] md:text-xs text-gray-400 font-medium tracking-wider mt-1">
+                      No. {certNumber}
+                    </p>
+                  )}
+                </div>
+
+                {/* Issue Date + Director Signature */}
+                <div className="flex flex-col items-center w-36 md:w-48">
+                  <p className="text-xs md:text-sm text-gray-600 font-serif italic mb-4 md:mb-6">
                     {certificate.issued_at ? format(new Date(certificate.issued_at), 'dd/MM/yyyy') : '...'}
                   </p>
-                  <p className="text-[10px] md:text-xs text-slate-500 uppercase tracking-widest font-medium">Ngày cấp / Date</p>
-                  <p className="text-[8px] md:text-xs text-slate-400 mt-2 md:mt-4 font-mono tracking-wider">
-                    SỐ/NO: {certificate.certificate_number}
+                  <div className="w-full border-b-2 border-gray-700 mb-2" />
+                  <p className="text-[9px] md:text-xs font-bold text-gray-800 uppercase tracking-[0.15em]">
+                    Giám Đốc Trung Tâm
+                  </p>
+                  <p className="text-[8px] md:text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">
+                    Center Director
                   </p>
                 </div>
 
-                {/* Center Badge / Seal */}
-                <div className="relative flex items-center justify-center -translate-y-2 md:-translate-y-4">
-                  <div className={cn("absolute inset-[-10px] md:inset-[-15px] rotate-45 border border-dashed opacity-30", style.twBorder)} />
-                  <div className={cn("absolute inset-[-10px] md:inset-[-15px] rotate-[22.5deg] border border-dashed opacity-30", style.twBorder)} />
-                  <div className={cn(
-                    "w-24 h-24 md:w-40 md:h-40 rounded-full flex flex-col items-center justify-center border-[3px] md:border-4 border-double shadow-sm relative z-10 bg-white",
-                    style.twBorder
-                  )}>
-                    <CheckCircle className={cn("w-5 h-5 md:w-8 md:h-8 mb-0.5 md:mb-1 opacity-80", style.twColor)} />
-                    <p className={cn("text-[8px] md:text-xs font-bold uppercase tracking-widest opacity-80", style.twColor)}>
-                      Xếp loại
-                    </p>
-                    <p className="text-base md:text-2xl font-black text-slate-800 md:mt-1 uppercase tracking-wide">
-                      {certificate.grade}
-                    </p>
-                    <p className={cn("text-[8px] md:text-xs font-bold tracking-widest md:mt-1 opacity-80", style.twColor)}>
-                      {gradeEn}
-                    </p>
-                  </div>
+                {/* Head of Training Signature */}
+                <div className="flex flex-col items-center w-32 md:w-44">
+                  <div className="h-12 md:h-16" /> {/* Space for signature */}
+                  <div className="w-full border-b-2 border-gray-700 mb-2" />
+                  <p className="text-[9px] md:text-xs font-bold text-gray-800 uppercase tracking-[0.15em]">
+                    Trưởng Phòng Đào Tạo
+                  </p>
+                  <p className="text-[8px] md:text-[10px] text-gray-400 uppercase tracking-wider mt-0.5">
+                    Head of Training
+                  </p>
                 </div>
-
-                {/* Signature */}
-                <div className="flex flex-col items-center w-32 md:w-48">
-                  <div className="w-full h-12 md:h-16 relative flex items-center justify-center">
-                    <div className="text-slate-800 opacity-40 font-serif italic text-xl md:text-4xl -rotate-6 select-none">
-                      Skill Master
-                    </div>
-                  </div>
-                  <div className="w-full border-t border-slate-400 mt-1 md:mt-2 mb-1 md:mb-2" />
-                  <p className="text-[10px] md:text-xs text-slate-800 uppercase tracking-widest font-bold">Giám Đốc / Director</p>
-                  <p className="text-[8px] md:text-[10px] text-slate-500 mt-0.5 md:mt-1 uppercase tracking-wider">Skill Master Education</p>
-                </div>
-
               </div>
             </div>
           </div>
@@ -257,9 +331,6 @@ export default function CertificatePrintModal({ certificate, open, onOpenChange 
               padding: 0 !important;
               box-shadow: none !important;
               transform: none !important;
-              display: flex !important;
-              justify-content: center !important;
-              align-items: center !important;
             }
           }
         `}} />

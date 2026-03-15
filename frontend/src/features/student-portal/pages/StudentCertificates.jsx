@@ -17,22 +17,15 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import CertificateDetailModal from '../components/CertificateDetailModal';
+import { CERTIFICATE_STATUS_CONFIG } from '../constants/certificate-status';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '--';
   return new Date(dateStr).toLocaleDateString('vi-VN');
 };
 
-const STATUS_CONFIG = {
-  active: { label: 'Còn hiệu lực', variant: 'default', className: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20' },
-  issued: { label: 'Đã cấp', variant: 'default', className: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20' },
-  pending_approval: { label: 'Đang chờ duyệt', variant: 'default', className: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' },
-  expired: { label: 'Hết hạn', variant: 'destructive', className: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20' },
-  revoked: { label: 'Đã thu hồi', variant: 'secondary', className: 'bg-muted text-muted-foreground border-border' }
-};
-
 function StatusBadge({ status }) {
-  const config = STATUS_CONFIG[status] || STATUS_CONFIG.issued;
+  const config = CERTIFICATE_STATUS_CONFIG[status] || CERTIFICATE_STATUS_CONFIG.issued;
   return (
     <Badge variant={config.variant} className={config.className}>
       {config.label}
@@ -49,7 +42,13 @@ function CertificateCard({ certificate, onClick }) {
   const isRevoked = certificate.status === 'revoked';
   const handleDownload = () => {
     if (certificate.pdf_url) {
-      window.open(certificate.pdf_url, '_blank');
+      const a = document.createElement('a');
+      a.href = certificate.pdf_url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     }
   };
 

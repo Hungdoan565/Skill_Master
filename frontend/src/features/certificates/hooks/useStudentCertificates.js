@@ -27,8 +27,12 @@ export function useStudentCertificates() {
             const response = await axios.get(`${API_URL}/api/student/certificates`, { headers });
             
             if (response.data?.success) {
+                // API returns { certificates: [...], count: N } — extract the array
+                const rawData = response.data.data?.certificates || response.data.data || [];
+                const certs = Array.isArray(rawData) ? rawData : [];
+                
                 // Sort by issued_date DESC
-                const sortedData = (response.data.data || []).sort((a, b) => {
+                const sortedData = certs.sort((a, b) => {
                     const dateA = new Date(a.issued_at || a.issued_date || 0);
                     const dateB = new Date(b.issued_at || b.issued_date || 0);
                     return dateB - dateA;
