@@ -34,6 +34,7 @@ conductor/
 openspec/
 skills/
 .github/
+.agents/
 
 # Temp files
 nul
