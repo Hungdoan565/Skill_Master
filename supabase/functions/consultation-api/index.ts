@@ -1,20 +1,30 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
-const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') || '').split(',').filter(Boolean)
+
+function getCorsHeaders(req: Request) {
+    const origin = req.headers.get('origin') || ''
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
+    const isAllowed = ALLOWED_ORIGINS.includes(origin)
+        || (supabaseUrl && origin.includes(new URL(supabaseUrl).hostname))
+        || origin.includes('localhost')
+        || origin.includes('127.0.0.1')
+    return {
+        'Access-Control-Allow-Origin': isAllowed ? origin : '',
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    }
 }
 
 serve(async (req) => {
+    const corsHeaders = getCorsHeaders(req)
+
     // Handle CORS preflight requests
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders })
     }
 
     try {
-        // Initialize Supabase Client with Service Role Key (to bypass RLS for inserts if needed, or just standard admin access)
-        // IMPORTANT: Make sure SUPABASE_SERVICE_ROLE_KEY is set in your project secrets
         const supabaseClient = createClient(
             Deno.env.get('SUPABASE_URL') ?? '',
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -36,6 +46,13 @@ serve(async (req) => {
         }
 
         const normalizedPhone = String(phone).replace(/[\s.-]/g, '')
+
+        // Validate Vietnamese phone number format (10 digits starting with 0, or +84 format)
+        const phoneRegex = /^(0[3-9]\d{8}|\+84[3-9]\d{8})$/
+        if (!phoneRegex.test(normalizedPhone)) {
+            throw new Error('Số điện thoại không hợp lệ (10 số, bắt đầu bằng 0)')
+        }
+
         const preferredTimeMap: Record<string, string> = {
             morning: 'Sáng',
             afternoon: 'Chiều',
@@ -139,9 +156,6 @@ serve(async (req) => {
             throw error
         }
 
-        // Optional: Send Email Notification (Mock or Implement later)
-        // await sendEmailNotification(data[0])
-
         return new Response(
             JSON.stringify({
                 message: 'Submission successful',
@@ -155,7 +169,7 @@ serve(async (req) => {
 
     } catch (error) {
         return new Response(
-            JSON.stringify({ error: error.message }),
+            JSON.stringify({ error: (error as Error).message }),
             {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                 status: 400,

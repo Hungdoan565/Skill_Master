@@ -9,6 +9,9 @@ export function useConsultationRequests() {
   const [currentRequest, setCurrentRequest] = useState(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0 });
+  const [activities, setActivities] = useState([]);
+  const [chatHistory, setChatHistory] = useState({ messages: [], session: null });
 
   const getAuthHeaders = useCallback(() => ({
     Authorization: `Bearer ${session?.access_token}`,
@@ -37,7 +40,12 @@ export function useConsultationRequests() {
       }
 
       setRequests(result.data || []);
-      return result.data || [];
+      if (result.pagination) {
+        setPagination(result.pagination);
+      }
+      return { success: true, data: result.data || [] };
+    } catch (error) {
+      return { success: false, error: error.message };
     } finally {
       setLoading(false);
     }
@@ -59,7 +67,9 @@ export function useConsultationRequests() {
 
       setCurrentRequest(result.data);
       setRequests(prev => prev.map(item => item.id === result.data.id ? result.data : item));
-      return result.data;
+      return { success: true, data: result.data };
+    } catch (error) {
+      return { success: false, error: error.message };
     } finally {
       setLoading(false);
     }
@@ -83,7 +93,9 @@ export function useConsultationRequests() {
 
       setCurrentRequest(result.data);
       setRequests(prev => prev.map(item => item.id === result.data.id ? result.data : item));
-      return result.data;
+      return { success: true, data: result.data };
+    } catch (error) {
+      return { success: false, error: error.message };
     } finally {
       setSaving(false);
     }
@@ -119,9 +131,45 @@ export function useConsultationRequests() {
         setRequests(prev => prev.map(item => item.id === requestData.id ? requestData : item));
       }
 
-      return result.data || null;
+      return { success: true, data: result.data || null };
+    } catch (error) {
+      return { success: false, error: error.message };
     } finally {
       setSaving(false);
+    }
+  }, [getAuthHeaders, session?.access_token]);
+
+  const fetchActivities = useCallback(async (requestId) => {
+    if (!session?.access_token || !requestId) return { success: false, data: [] };
+    try {
+      const response = await fetch(`${API_URL}/api/admin/consultation-requests/${requestId}/activities`, {
+        headers: getAuthHeaders()
+      });
+      const result = await response.json();
+      if (!result.success) return { success: false, data: [] };
+      setActivities(result.data || []);
+      return { success: true, data: result.data || [] };
+    } catch {
+      return { success: false, data: [] };
+    }
+  }, [getAuthHeaders, session?.access_token]);
+
+  const fetchChatHistory = useCallback(async (requestId) => {
+    if (!session?.access_token || !requestId) return { success: false, data: [] };
+    try {
+      const response = await fetch(`${API_URL}/api/admin/consultation-requests/${requestId}/chat-history`, {
+        headers: getAuthHeaders()
+      });
+      const result = await response.json();
+      if (!result.success) {
+        setChatHistory({ messages: [], session: null });
+        return { success: false, data: [] };
+      }
+      setChatHistory({ messages: result.data || [], session: result.session || null });
+      return { success: true, data: result.data || [] };
+    } catch {
+      setChatHistory({ messages: [], session: null });
+      return { success: false, data: [] };
     }
   }, [getAuthHeaders, session?.access_token]);
 
@@ -130,9 +178,14 @@ export function useConsultationRequests() {
     currentRequest,
     loading,
     saving,
+    pagination,
+    activities,
+    chatHistory,
     setCurrentRequest,
     fetchRequests,
     fetchRequestDetail,
+    fetchActivities,
+    fetchChatHistory,
     updateRequest,
     claimRequest,
     releaseRequest,

@@ -26,6 +26,8 @@ export const PRIORITY_OPTIONS = [
 ];
 
 export const CATEGORY_OPTIONS = [
+    { value: 'general', label: 'Chung', icon: 'HelpCircle' },
+    { value: 'consultation', label: 'Tư vấn', icon: 'ClipboardList' },
     { value: 'technical', label: 'Kỹ thuật', icon: 'Settings' },
     { value: 'billing', label: 'Thanh toán', icon: 'CreditCard' },
     { value: 'course', label: 'Khóa học', icon: 'BookOpen' },

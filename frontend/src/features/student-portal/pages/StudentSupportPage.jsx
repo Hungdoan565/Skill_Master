@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { supabase as supabaseClient } from '@/lib/supabaseClient';
 import { useSearchParams } from 'react-router-dom';
 import { useStudentSupport } from '../hooks';
 import { useAuth } from '@/contexts/auth-context';
@@ -98,6 +99,31 @@ export default function StudentSupportPage() {
       });
     }
   };
+
+  // Supabase Realtime: subscribe to ticket_messages for selected ticket
+  useEffect(() => {
+    if (!selectedTicketId) return;
+
+    const channel = supabaseClient
+      .channel(`student-ticket-${selectedTicketId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'ticket_messages',
+          filter: `ticket_id=eq.${selectedTicketId}`
+        },
+        () => {
+          fetchTicketDetail(selectedTicketId);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabaseClient.removeChannel(channel);
+    };
+  }, [selectedTicketId, fetchTicketDetail]);
 
   const formatDate = (dateString) => {
     if (!dateString) return '';

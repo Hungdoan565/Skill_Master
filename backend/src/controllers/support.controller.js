@@ -10,7 +10,7 @@ export class SupportController {
      */
     static async getAllTickets(req, res, next) {
         try {
-            const { status, priority, centerId, assignedTo, search, page, limit } = req.query;
+            const { status, priority, centerId, assignedTo, search, page, limit, source, category } = req.query;
 
             // 🔒 CENTER_MANAGER chỉ thấy tickets của center mình
             const userRole = req.user.roleCode;
@@ -21,6 +21,8 @@ export class SupportController {
                 priority,
                 assignedTo,
                 search,
+                source,
+                category,
                 page: parseInt(page) || 1,
                 limit: parseInt(limit) || 20
             };
