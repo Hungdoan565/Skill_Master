@@ -51,7 +51,7 @@ const superAdminMenuGroups = [
     title: 'QUẢN LÝ HỆ THỐNG',
     items: [
       { label: 'Trung tâm', icon: Building2, path: '/admin/centers' },
-      { label: 'Quản lý người dùng', icon: Shield, path: '/admin/user-management', badge: 'new' },
+
       { label: 'Nhật ký hệ thống', icon: ScrollText, path: '/admin/audit-trail', badge: 'new' },
       { label: 'Phê duyệt', icon: ClipboardCheck, path: '/admin/approvals' },
     ],
@@ -96,8 +96,7 @@ const superAdminMenuGroups = [
       { label: 'So sánh trung tâm', icon: GitCompareArrows, path: '/admin/center-comparison', badge: 'new' },
       { label: 'Cảnh báo tùy chỉnh', icon: BellRing, path: '/admin/custom-alerts', badge: 'new' },
       { label: 'Báo cáo định kỳ', icon: CalendarClock, path: '/admin/scheduled-reports', badge: 'new' },
-      { label: 'Yêu cầu tư vấn', icon: MessageSquare, path: '/admin/consultation-requests', badge: 'new' },
-      { label: 'Hỗ trợ', icon: Headphones, path: '/admin/support' },
+      { label: 'Hỗ trợ & Tư vấn', icon: Headphones, path: '/admin/support' },
       { label: 'Tài liệu', icon: FileText, path: '/admin/documents' },
     ],
   },
@@ -147,8 +146,7 @@ const managerMenuGroups = [
       { label: 'Thông báo', icon: Bell, path: '/admin/notifications' },
       { label: 'Tài liệu', icon: FileText, path: '/admin/documents' },
       { label: 'Báo cáo', icon: BarChart3, path: '/admin/reports' },
-      { label: 'Yêu cầu tư vấn', icon: MessageSquare, path: '/admin/consultation-requests', badge: 'new' },
-      { label: 'Hỗ trợ', icon: Headphones, path: '/admin/support' },
+      { label: 'Hỗ trợ & Tư vấn', icon: Headphones, path: '/admin/support' },
     ],
   },
 ];

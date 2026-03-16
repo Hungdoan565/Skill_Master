@@ -362,7 +362,9 @@ export default function CustomAlertsPage() {
                   ) : rules.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
-                        Không có quy tắc cảnh báo nào. Hãy tạo mới một quy tắc.
+                        Không có quy tắc cảnh báo nào. Hãy{' '}
+                        <button onClick={openCreateModal} className="text-indigo-600 font-medium hover:underline">tạo mới</button>{' '}
+                        một quy tắc.
                       </TableCell>
                     </TableRow>
                   ) : (

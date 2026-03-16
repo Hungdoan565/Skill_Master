@@ -65,7 +65,7 @@ const SelectContent = React.forwardRef(({ className, children, position = "poppe
       ref={ref}
       className={cn(
         // Position & Elevation
-        "relative z-[100] max-h-96 min-w-[8rem] overflow-hidden",
+        "relative z-[400] max-h-96 min-w-[8rem] overflow-hidden",
         // Background - SOLID to prevent transparency
         "bg-white dark:bg-slate-950",
         // Border & Shadow - Professional depth

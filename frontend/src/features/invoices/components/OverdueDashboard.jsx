@@ -13,15 +13,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { API_URL } from '../utils/constants';
 import { formatMoney, formatDate } from '../utils/formatters';
+import { gooeyToast } from 'goey-toast';
 import {
-  Phone, Mail, AlertTriangle, Clock, Users, DollarSign, Calendar,
+  Phone, Mail, AlertTriangle, Clock, DollarSign, Calendar,
   ChevronRight, ChevronLeft, Loader2, RefreshCw, Plus, FileText,
-  MessageSquare, CheckCircle, ArrowUpCircle, CreditCard, Filter,
-  PhoneCall, Edit3, X, ChevronDown, FilterIcon
+  CheckCircle, ArrowUpCircle, CreditCard, Filter,
+  PhoneCall, X, ChevronDown, FilterIcon
 } from 'lucide-react';
 
 // IconSelect Component for consistent UI
@@ -157,6 +157,7 @@ export function OverdueDashboard() {
       if (!response.ok) throw new Error('Failed to fetch overdue invoices');
 
       const data = await response.json();
+      // Backend returns: { invoices: [], stats: { totalOverdue, totalAmount, avgDaysOverdue, bySeverity }, pagination: {} }
       setOverdueInvoices(data.invoices || []);
       setStats(data.stats || stats);
       setPagination(prev => ({
@@ -166,6 +167,7 @@ export function OverdueDashboard() {
       }));
     } catch (error) {
       console.error('Error fetching overdue invoices:', error);
+      gooeyToast.error('Không thể tải dữ liệu hóa đơn quá hạn');
     } finally {
       setLoading(false);
     }
@@ -183,9 +185,11 @@ export function OverdueDashboard() {
       if (!response.ok) throw new Error('Failed to fetch call list');
 
       const data = await response.json();
-      setCallList(data.items || []);
+      // Backend returns: { success, data: { items: [], pagination: {} } }
+      setCallList(data.data?.items || []);
     } catch (error) {
       console.error('Error fetching call list:', error);
+      gooeyToast.error('Không thể tải danh sách gọi');
     }
   }, [session?.access_token]);
 
@@ -206,18 +210,21 @@ export function OverdueDashboard() {
           Authorization: `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
-          invoice_id: invoice.id,
-          student_id: invoice.student_id,
-          priority,
-          notes: ''
+          invoiceId: invoice.id,
+          priority
         })
       });
 
-      if (!response.ok) throw new Error('Failed to add to call list');
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to add to call list');
+      }
 
+      gooeyToast.success('Đã thêm vào danh sách gọi điện');
       fetchCallList();
     } catch (error) {
       console.error('Error adding to call list:', error);
+      gooeyToast.error(error.message || 'Không thể thêm vào danh sách gọi');
     }
   };
 
@@ -226,21 +233,33 @@ export function OverdueDashboard() {
     if (!session?.access_token) return;
 
     try {
+      // Map frontend keys to backend expected keys
+      const backendUpdates = { ...updates };
+      if ('notes' in backendUpdates) {
+        backendUpdates.callNotes = backendUpdates.notes;
+        delete backendUpdates.notes;
+      }
+
       const response = await fetch(`${API_URL}/api/admin/call-list/${itemId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`
         },
-        body: JSON.stringify(updates)
+        body: JSON.stringify(backendUpdates)
       });
 
-      if (!response.ok) throw new Error('Failed to update call list item');
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to update call list item');
+      }
 
+      gooeyToast.success('Đã cập nhật');
       fetchCallList();
       setEditingNote(null);
     } catch (error) {
       console.error('Error updating call list item:', error);
+      gooeyToast.error(error.message || 'Không thể cập nhật');
     }
   };
 
@@ -310,17 +329,36 @@ export function OverdueDashboard() {
         />
       </div>
 
-      {/* Severity Breakdown */}
+      {/* Severity Breakdown — clickable to filter */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {Object.entries(SEVERITY_CONFIG).map(([key, config]) => (
-          <div
-            key={key}
-            className={`px-4 py-3 rounded-lg border ${config.color} flex items-center justify-between`}
-          >
-            <span className="text-sm font-medium">{config.range}</span>
-            <span className="text-lg font-bold">{stats.bySeverity?.[key] || 0}</span>
-          </div>
-        ))}
+        {Object.entries(SEVERITY_CONFIG).map(([key, config]) => {
+          // Map severity keys to day ranges for filtering
+          const dayRangeMap = { low: '1-7', medium: '8-14', high: '15-30', critical: '31-' };
+          const currentFilter = `${filters.daysOverdueMin || ''}-${filters.daysOverdueMax || ''}`;
+          const isActive = currentFilter === dayRangeMap[key];
+
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => {
+                if (isActive) {
+                  // Toggle off — show all
+                  setFilters(prev => ({ ...prev, daysOverdueMin: '', daysOverdueMax: '' }));
+                } else {
+                  const [min, max] = dayRangeMap[key].split('-');
+                  setFilters(prev => ({ ...prev, daysOverdueMin: min, daysOverdueMax: max }));
+                }
+              }}
+              className={`px-4 py-3 rounded-lg border ${config.color} flex items-center justify-between transition-all cursor-pointer hover:shadow-md ${
+                isActive ? 'ring-2 ring-offset-1 ring-current shadow-md scale-[1.02]' : 'hover:scale-[1.01]'
+              }`}
+            >
+              <span className="text-sm font-medium">{config.range}</span>
+              <span className="text-lg font-bold">{stats.bySeverity?.[key] || 0}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Tabs */}

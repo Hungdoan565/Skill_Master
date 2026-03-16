@@ -37,7 +37,7 @@ import {
   ParentProfilePage
 } from '@/features/parent-portal';
 import { TeacherLeaveRequestsPage } from '@/features/teacher-leave';
-import { TeacherProfilePage, TeacherSettingsPage } from '@/features/teacher-profile';
+import { TeacherProfilePage } from '@/features/teacher-profile';
 import NotFoundPage from '@/components/NotFoundPage';
 import { ToastProvider } from '@/components/ui/toast';
 import { ErrorBoundary } from '@/components/errors/ErrorBoundary';
@@ -60,12 +60,11 @@ import { EnrollmentsPage, NewEnrollmentPage } from '@/features/enrollments';
 import { DocumentsPage } from '@/features/documents';
 import { CertificatesPage } from '@/features/certificates';
 import { PublicCertificateVerification } from '@/features/certificates/pages/PublicCertificateVerification';
-import { ConsultationRequestsPage } from '@/features/consultation-requests';
+// ConsultationRequestsPage removed — merged into unified SupportPage inbox
 import { SupportPage } from '@/features/support';
 import { TeacherDashboardPage } from '@/features/teacher-dashboard';
 import AdminNotificationsPage from '@/features/notifications/AdminNotificationsPage';
 import AuditTrailPage from '@/features/audit-trail/pages/AuditTrailPage';
-import UserManagementPage from '@/features/user-management/pages/UserManagementPage';
 import { TeacherSchedulePage } from '@/features/teacher-schedule';
 import { TeacherClassesPage } from '@/features/teacher-classes';
 import { TeacherAvailabilityPage } from '@/features/teacher-availability';
@@ -113,6 +112,8 @@ const ChinhSachPage = lazy(() => import('@/pages/public/policies').then(m => ({ 
 const DieuKhoanPage = lazy(() => import('@/pages/public/policies').then(m => ({ default: m.DieuKhoanPage })));
 const BaoMatPage = lazy(() => import('@/pages/public/policies').then(m => ({ default: m.BaoMatPage })));
 const FaqPage = lazy(() => import('@/pages/public/policies').then(m => ({ default: m.FaqPage })));
+const TeacherSettingsPage = lazy(() => import('@/features/teacher-profile/pages/TeacherSettingsPage'));
+const StudentProgressPage = lazy(() => import('@/features/teacher-classes/pages/StudentProgressPage'));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -480,26 +481,19 @@ function App() {
               <Route path="certificates/type/:id" element={<CertificatesPage />} />
               <Route path="certificates/:id/print" element={<CertificatesPage />} />
               <Route path="certificates/:id/view" element={<CertificatesPage />} />
-              <Route path="consultation-requests" element={<ConsultationRequestsPage />} />
+              {/* consultation-requests redirects to support tab (unified inbox) */}
+              <Route path="consultation-requests" element={<SupportPage />} />
               <Route path="support" element={<SupportPage />} />
               <Route path="support-tickets" element={<SupportPage />} />
               <Route path="approvals" element={<Suspense fallback={<PageLoader />}><ApprovalInboxPage /></Suspense>} />
               <Route path="notifications" element={<AdminNotificationsPage />} />
-              <Route path="settings" element={
-                <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
-                  <SettingsPage />
-                </ProtectedRoute>
-              } />
+              <Route path="settings" element={<SettingsPage />} />
               <Route path="audit-trail" element={
                 <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'CENTER_MANAGER']}>
                   <AuditTrailPage />
                 </ProtectedRoute>
               } />
-              <Route path="user-management" element={
-                <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
-                  <UserManagementPage />
-                </ProtectedRoute>
-              } />
+
               <Route path="reports" element={<ReportsPage />} />
               <Route path="reports/revenue" element={<RevenueReportPage />} />
               <Route path="reports/enrollment" element={<EnrollmentReportPage />} />
@@ -528,12 +522,13 @@ function App() {
               <Route path="classes/:id" element={<TeacherClassDetailPage />} />
               <Route path="classes/:id/attendance" element={<TeacherAttendancePage />} />
               <Route path="classes/:id/gradebook" element={<TeacherGradebookPage />} />
+              <Route path="classes/:classId/students/:studentId" element={<Suspense fallback={<PageLoader />}><StudentProgressPage /></Suspense>} />
               <Route path="payroll" element={<TeacherPayrollPage />} />
               <Route path="availability" element={<TeacherAvailabilityPage />} />
               <Route path="leave-requests" element={<TeacherLeaveRequestsPage />} />
               <Route path="attendance" element={<TeacherQuickAttendancePage />} />
               <Route path="profile" element={<TeacherProfilePage />} />
-              <Route path="settings" element={<TeacherSettingsPage />} />
+              <Route path="settings" element={<Suspense fallback={<PageLoader />}><TeacherSettingsPage /></Suspense>} />
             </Route>
 
             {/* Student Routes - Chỉ STUDENT */}

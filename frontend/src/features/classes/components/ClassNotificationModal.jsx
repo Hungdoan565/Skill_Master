@@ -263,15 +263,14 @@ export function ClassNotificationModal({
         setResult(null);
 
         try {
-            const response = await fetch(`${API_URL}/api/admin/notifications/send`, {
+            const response = await fetch(`${API_URL}/api/notifications/send-bulk`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
-                    type: notificationType,
-                    recipients: selectedStudentIds,
-                    subject,
-                    content,
-                    classId: classData?.id
+                    student_ids: selectedStudentIds,
+                    template_id: selectedTemplate || 'general_announcement',
+                    template_fields: { ...templateFields, customContent: content },
+                    notification_type: notificationType
                 })
             });
 

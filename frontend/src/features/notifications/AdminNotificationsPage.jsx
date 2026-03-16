@@ -5,6 +5,13 @@ import { gooeyToast } from 'goey-toast';
  * và gửi thông báo với smart variables tự động điền
  */
 
+// Payment status color map — Tailwind requires static class names (no interpolation)
+const PAYMENT_STATUS_COLORS = {
+    owing: 'border-red-500 bg-red-500 text-white shadow-sm shadow-red-200',
+    paid: 'border-emerald-500 bg-emerald-500 text-white shadow-sm shadow-emerald-200',
+    all: 'border-slate-500 bg-slate-500 text-white shadow-sm shadow-slate-200',
+};
+
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import {
@@ -20,6 +27,8 @@ import {
     Search,
     ChevronDown,
     ChevronUp,
+    ChevronLeft,
+    ChevronRight,
     CheckSquare,
     Square,
     Eye,
@@ -30,7 +39,9 @@ import {
     Wallet,
     RefreshCw,
     Info,
-    X
+    X,
+    History,
+    Clock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,12 +58,12 @@ const NOTIFICATION_TEMPLATES = [
 
 Trung tâm xin thông báo về tình hình học phí của bạn:
 
-📚 Khóa học: {courseName}
-🏫 Lớp: {className}
-💰 Tổng học phí: {totalFee}
-✅ Đã thanh toán: {paidAmount}
-⚠️ Còn lại: {remainingAmount}
-📅 Hạn thanh toán: {dueDate}
+• Khóa học: {courseName}
+• Lớp: {className}
+• Tổng học phí: {totalFee}
+• Đã thanh toán: {paidAmount}
+• Còn lại: {remainingAmount}
+• Hạn thanh toán: {dueDate}
 
 Xin vui lòng thanh toán trước hạn để đảm bảo quyền lợi học tập.
 
@@ -65,10 +76,10 @@ Thông tin chuyển khoản:
 Trân trọng,
 {centerName}`,
         fields: [
-            { key: 'dueDate', label: '📅 Hạn thanh toán', type: 'date' },
-            { key: 'bankName', label: '🏦 Ngân hàng', type: 'select', options: ['Vietcombank', 'Techcombank', 'BIDV', 'Agribank', 'MB Bank', 'VPBank', 'ACB', 'Sacombank', 'TPBank', 'Khác'] },
-            { key: 'bankAccount', label: '💳 Số tài khoản', type: 'text', placeholder: 'VD: 1234567890' },
-            { key: 'accountHolder', label: '👤 Chủ tài khoản', type: 'text', placeholder: 'VD: CONG TY ABC' },
+            { key: 'dueDate', label: 'Hạn thanh toán', type: 'date' },
+            { key: 'bankName', label: 'Ngân hàng', type: 'select', options: ['Vietcombank', 'Techcombank', 'BIDV', 'Agribank', 'MB Bank', 'VPBank', 'ACB', 'Sacombank', 'TPBank', 'Khác'] },
+            { key: 'bankAccount', label: 'Số tài khoản', type: 'text', placeholder: 'VD: 1234567890' },
+            { key: 'accountHolder', label: 'Chủ tài khoản', type: 'text', placeholder: 'VD: CONG TY ABC' },
         ],
         autoFields: ['studentName', 'courseName', 'className', 'totalFee', 'paidAmount', 'remainingAmount', 'centerName']
     },
@@ -78,7 +89,7 @@ Trân trọng,
         subject: 'Nhắc nhở buổi học - {className}',
         content: `Xin chào {studentName},
 
-📚 Nhắc bạn về buổi học sắp tới:
+Nhắc bạn về buổi học sắp tới:
 - Lớp: {className}
 - Khóa học: {courseName}
 - Giáo viên: {teacherName}
@@ -102,7 +113,7 @@ Trân trọng,
 Trân trọng,
 {centerName}`,
         fields: [
-            { key: 'customContent', label: '📝 Nội dung thông báo', type: 'textarea', placeholder: 'Nhập nội dung thông báo...' }
+            { key: 'customContent', label: 'Nội dung thông báo', type: 'textarea', placeholder: 'Nhập nội dung thông báo...' }
         ],
         autoFields: ['studentName', 'centerName']
     },
@@ -112,7 +123,7 @@ Trân trọng,
         subject: 'Chúc mừng hoàn thành khóa học - {courseName}',
         content: `Kính gửi {studentName},
 
-🎉 Chúc mừng bạn đã hoàn thành khóa học {courseName}!
+Chúc mừng bạn đã hoàn thành khóa học {courseName}!
 
 Thông tin khóa học:
 - Lớp: {className}
@@ -159,6 +170,12 @@ export default function AdminNotificationsPage() {
     // Result states
     const [sending, setSending] = useState(false);
     const [result, setResult] = useState(null);
+
+    // Tab & history states
+    const [activeTab, setActiveTab] = useState('send'); // 'send' | 'history'
+    const [history, setHistory] = useState([]);
+    const [loadingHistory, setLoadingHistory] = useState(false);
+    const [previewStudentIndex, setPreviewStudentIndex] = useState(0);
 
     // Expanded sections
     const [expandedCourses, setExpandedCourses] = useState(true);
@@ -350,10 +367,42 @@ export default function AdminNotificationsPage() {
         return { subject, content };
     };
 
+    // Validate template fields
+    const hasUnfilledRequiredFields = useMemo(() => {
+        if (!currentTemplate) return false;
+        return currentTemplate.fields.some(f => !templateFields[f.key]?.toString().trim());
+    }, [currentTemplate, templateFields]);
+
+    // Fetch notification history
+    const fetchHistory = useCallback(async () => {
+        setLoadingHistory(true);
+        try {
+            const response = await fetch(`${API_URL}/api/notifications?limit=50&page=1`, {
+                headers: getAuthHeaders()
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setHistory(data.data?.notifications || data.data || []);
+            }
+        } catch (error) {
+            console.error('Error fetching history:', error);
+        } finally {
+            setLoadingHistory(false);
+        }
+    }, [getAuthHeaders]);
+
     // Send notifications
     const handleSend = async () => {
         if (selectedStudentIds.length === 0) {
             gooeyToast.warning('Vui lòng chọn ít nhất một học viên');
+            return;
+        }
+        if (!selectedTemplate) {
+            gooeyToast.warning('Vui lòng chọn mẫu thông báo');
+            return;
+        }
+        if (hasUnfilledRequiredFields) {
+            gooeyToast.warning('Vui lòng điền đầy đủ thông tin bổ sung cho mẫu thông báo');
             return;
         }
 
@@ -437,7 +486,7 @@ export default function AdminNotificationsPage() {
                         Gửi thông báo hàng loạt
                     </h1>
                     <p className="text-slate-600 mt-1">
-                        Gửi email/SMS đến nhiều học viên cùng lúc với nội dung tự động cá nhân hóa
+                        Gửi thông báo in-app đến nhiều học viên cùng lúc với nội dung tự động cá nhân hóa
                     </p>
                 </div>
 
@@ -449,7 +498,45 @@ export default function AdminNotificationsPage() {
                 )}
             </div>
 
+            {/* Tab Toggle */}
+            <div className="flex gap-1 p-1 bg-slate-100 rounded-xl w-fit">
+                <button
+                    onClick={() => setActiveTab('send')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                        activeTab === 'send'
+                            ? 'bg-white text-slate-900 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                >
+                    <Send className="w-4 h-4" />
+                    Gửi mới
+                </button>
+                <button
+                    onClick={() => { setActiveTab('history'); fetchHistory(); }}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                        activeTab === 'history'
+                            ? 'bg-white text-slate-900 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                >
+                    <History className="w-4 h-4" />
+                    Lịch sử gửi
+                </button>
+            </div>
+
+            {/* Simulation notice */}
+            {activeTab === 'send' && (
+            <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
+                <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                <div>
+                    <span className="font-semibold">Lưu ý:</span> Hiện tại hệ thống chỉ gửi <span className="font-semibold">thông báo in-app</span>.
+                    Tích hợp gửi Email/SMS thật sẽ được cập nhật trong phiên bản tiếp theo.
+                </div>
+            </div>
+            )}
+
             {/* Progress Steps */}
+            {activeTab === 'send' && (
             <div className="flex items-center justify-center gap-2">
                 {[
                     { num: 1, label: 'Chọn đối tượng' },
@@ -476,7 +563,11 @@ export default function AdminNotificationsPage() {
                     </div>
                 ))}
             </div>
+            )}
 
+            {/* === SEND TAB === */}
+            {activeTab === 'send' && (
+            <>
             {/* Step 1: Chọn đối tượng */}
             {step === 1 && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -524,9 +615,9 @@ export default function AdminNotificationsPage() {
                             </h3>
                             <div className="flex gap-2">
                                 {[
-                                    { value: 'owing', label: 'Còn nợ học phí', color: 'red' },
-                                    { value: 'paid', label: 'Đã thanh toán đủ', color: 'green' },
-                                    { value: 'all', label: 'Tất cả', color: 'slate' }
+                                    { value: 'owing', label: 'Còn nợ học phí' },
+                                    { value: 'paid', label: 'Đã thanh toán đủ' },
+                                    { value: 'all', label: 'Tất cả' }
                                 ].map(status => (
                                     <button
                                         key={status.value}
@@ -534,7 +625,7 @@ export default function AdminNotificationsPage() {
                                         className={`
                                             flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all
                                             ${paymentStatus === status.value
-                                                ? `border-${status.color}-500 bg-${status.color}-50 text-${status.color}-700`
+                                                ? PAYMENT_STATUS_COLORS[status.value]
                                                 : 'border-slate-200 hover:border-slate-300 text-slate-600'
                                             }
                                         `}
@@ -632,7 +723,7 @@ export default function AdminNotificationsPage() {
                         <Button
                             onClick={fetchStudents}
                             disabled={loadingStudents || (filterType === 'course' && selectedCourseIds.length === 0) || (filterType === 'class' && selectedClassIds.length === 0)}
-                            className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+                            className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"
                         >
                             {loadingStudents ? (
                                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -724,7 +815,7 @@ export default function AdminNotificationsPage() {
                                 <Button
                                     onClick={() => setStep(2)}
                                     disabled={selectedStudentIds.length === 0}
-                                    className="w-full bg-gradient-to-r from-orange-500 to-red-500"
+                                    className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white"
                                 >
                                     Tiếp tục ({selectedStudentIds.length} học viên)
                                 </Button>
@@ -849,22 +940,27 @@ export default function AdminNotificationsPage() {
                                     Thông tin tự động điền
                                 </h3>
                                 <div className="flex flex-wrap gap-2">
-                                    {currentTemplate.autoFields.map(field => (
+                                    {currentTemplate.autoFields.map(field => {
+                                        const FIELD_LABELS = {
+                                            studentName: 'Tên học viên',
+                                            courseName: 'Tên khóa học',
+                                            className: 'Tên lớp',
+                                            teacherName: 'Giáo viên',
+                                            roomName: 'Phòng học',
+                                            centerName: 'Trung tâm',
+                                            totalFee: 'Tổng học phí',
+                                            paidAmount: 'Đã thanh toán',
+                                            remainingAmount: 'Còn nợ'
+                                        };
+                                        return (
                                         <span
                                             key={field}
-                                            className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full"
+                                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full"
                                         >
-                                            {field === 'studentName' && '👤 Tên học viên'}
-                                            {field === 'courseName' && '📚 Tên khóa học'}
-                                            {field === 'className' && '🏫 Tên lớp'}
-                                            {field === 'teacherName' && '👨‍🏫 Giáo viên'}
-                                            {field === 'roomName' && '🚪 Phòng học'}
-                                            {field === 'centerName' && '🏢 Trung tâm'}
-                                            {field === 'totalFee' && '💰 Tổng học phí'}
-                                            {field === 'paidAmount' && '✅ Đã thanh toán'}
-                                            {field === 'remainingAmount' && '⚠️ Còn nợ'}
+                                            <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                                            {FIELD_LABELS[field] || field}
                                         </span>
-                                    ))}
+                                    );})}
                                 </div>
                             </div>
                         )}
@@ -873,13 +969,38 @@ export default function AdminNotificationsPage() {
                     {/* Right: Preview */}
                     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                         <div className="p-4 border-b border-slate-200 bg-slate-50">
-                            <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-                                <Eye className="w-4 h-4 text-orange-500" />
-                                Xem trước nội dung
-                            </h3>
-                            <p className="text-sm text-slate-500">
-                                Hiển thị cho học viên đầu tiên trong danh sách
-                            </p>
+                            <div className="flex items-center justify-between">
+                                <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                                    <Eye className="w-4 h-4 text-orange-500" />
+                                    Xem trước nội dung
+                                </h3>
+                                {selectedStudents.length > 1 && (
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => setPreviewStudentIndex(i => Math.max(0, i - 1))}
+                                            disabled={previewStudentIndex === 0}
+                                            className="p-1 rounded hover:bg-slate-200 disabled:opacity-30"
+                                        >
+                                            <ChevronLeft className="w-4 h-4" />
+                                        </button>
+                                        <span className="text-xs text-slate-500 tabular-nums">
+                                            {previewStudentIndex + 1}/{selectedStudents.length}
+                                        </span>
+                                        <button
+                                            onClick={() => setPreviewStudentIndex(i => Math.min(selectedStudents.length - 1, i + 1))}
+                                            disabled={previewStudentIndex >= selectedStudents.length - 1}
+                                            className="p-1 rounded hover:bg-slate-200 disabled:opacity-30"
+                                        >
+                                            <ChevronRight className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                            {selectedStudents.length > 0 && currentTemplate && (
+                                <p className="text-sm text-slate-500 mt-1">
+                                    Xem cho: <span className="font-medium text-slate-700">{selectedStudents[previewStudentIndex]?.full_name}</span>
+                                </p>
+                            )}
                         </div>
                         <div className="p-4">
                             {!currentTemplate ? (
@@ -898,15 +1019,21 @@ export default function AdminNotificationsPage() {
                                     <div>
                                         <label className="text-xs font-medium text-slate-500">Tiêu đề:</label>
                                         <p className="font-semibold text-slate-900">
-                                            {generatePreviewContent(selectedStudents[0]).subject}
+                                            {generatePreviewContent(selectedStudents[previewStudentIndex] || selectedStudents[0]).subject}
                                         </p>
                                     </div>
                                     <div>
                                         <label className="text-xs font-medium text-slate-500">Nội dung:</label>
                                         <div className="mt-1 p-4 bg-slate-50 rounded-lg text-sm text-slate-700 whitespace-pre-wrap">
-                                            {generatePreviewContent(selectedStudents[0]).content}
+                                            {generatePreviewContent(selectedStudents[previewStudentIndex] || selectedStudents[0]).content}
                                         </div>
                                     </div>
+                                    {hasUnfilledRequiredFields && (
+                                        <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+                                            <AlertCircle className="w-4 h-4" />
+                                            Vui lòng điền đầy đủ thông tin bổ sung trước khi gửi
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -918,7 +1045,7 @@ export default function AdminNotificationsPage() {
                             <Button
                                 onClick={() => setStep(3)}
                                 disabled={!selectedTemplate}
-                                className="flex-1 bg-gradient-to-r from-orange-500 to-red-500"
+                                className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 text-white"
                             >
                                 Xem trước & Gửi
                             </Button>
@@ -976,7 +1103,7 @@ export default function AdminNotificationsPage() {
                             <Button
                                 onClick={handleSend}
                                 disabled={sending}
-                                className="flex-1 bg-gradient-to-r from-orange-500 to-red-500"
+                                className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 text-white"
                             >
                                 {sending ? (
                                     <>
@@ -1029,10 +1156,70 @@ export default function AdminNotificationsPage() {
 
                         <Button
                             onClick={handleReset}
-                            className="bg-gradient-to-r from-orange-500 to-red-500"
+                            className="bg-gradient-to-r from-orange-500 to-red-500 text-white"
                         >
                             Gửi thông báo mới
                         </Button>
+                    </div>
+                </div>
+            )}
+            </>
+            )}
+
+            {/* === HISTORY TAB === */}
+            {activeTab === 'history' && (
+                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                    <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+                        <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                            <History className="w-4 h-4 text-orange-500" />
+                            Thông báo đã gửi gần đây
+                        </h3>
+                        <Button variant="outline" size="sm" onClick={fetchHistory} disabled={loadingHistory}>
+                            <RefreshCw className={`w-3 h-3 mr-1 ${loadingHistory ? 'animate-spin' : ''}`} />
+                            Làm mới
+                        </Button>
+                    </div>
+                    <div className="max-h-[600px] overflow-y-auto">
+                        {loadingHistory ? (
+                            <div className="flex items-center justify-center py-12">
+                                <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+                            </div>
+                        ) : history.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                                <Bell className="w-12 h-12 mb-2" />
+                                <p className="text-sm">Chưa có thông báo nào được gửi</p>
+                            </div>
+                        ) : (
+                            history.map((item) => (
+                                <div
+                                    key={item.id}
+                                    className="flex items-start gap-3 p-4 border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                                >
+                                    <div className={`p-2 rounded-lg flex-shrink-0 ${
+                                        item.read_at ? 'bg-slate-100' : 'bg-orange-100'
+                                    }`}>
+                                        <Bell className={`w-4 h-4 ${
+                                            item.read_at ? 'text-slate-400' : 'text-orange-500'
+                                        }`} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-medium text-slate-900 text-sm truncate">{item.title}</p>
+                                        <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{item.message}</p>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <Clock className="w-3 h-3 text-slate-400" />
+                                            <span className="text-xs text-slate-400">
+                                                {new Date(item.created_at).toLocaleString('vi-VN')}
+                                            </span>
+                                            {item.read_at && (
+                                                <span className="text-xs text-green-600 flex items-center gap-1">
+                                                    <CheckCircle className="w-3 h-3" /> Đã đọc
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
             )}
