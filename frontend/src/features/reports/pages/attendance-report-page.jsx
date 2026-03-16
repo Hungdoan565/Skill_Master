@@ -121,10 +121,14 @@ export default function AttendanceReportPage() {
         loadReport();
     }, [datePreset, isSystemWide]);
 
-    const loadReport = async () => {
+    const loadReport = useCallback(async () => {
         let startDate, endDate;
 
         if (datePreset === 'custom' && customDates.start && customDates.end) {
+            if (customDates.start > customDates.end) {
+                gooeyToast('Ngày bắt đầu phải trước ngày kết thúc');
+                return;
+            }
             startDate = customDates.start;
             endDate = customDates.end;
         } else {
@@ -143,7 +147,7 @@ export default function AttendanceReportPage() {
         if (result) {
             setData(result);
         }
-    };
+    }, [datePreset, customDates, isSystemWide, selectedCourseId, selectedClassId, fetchAttendanceReport]);
 
     const handleExport = async () => {
         if (!data) return;
@@ -210,12 +214,13 @@ export default function AttendanceReportPage() {
                         Lưu báo cáo
                     </Button>
                     <ReportPDFExport
-                        contentRef={reportContentRef}
+                        reportData={data}
                         reportTitle="Báo cáo Chuyên cần"
                         filename={`bao-cao-chuyen-can-${new Date().toISOString().split('T')[0]}`}
                         headerInfo={{
                             period: data ? `${data.period?.startDate} - ${data.period?.endDate}` : '',
-                            className: selectedClassId ? classes.find(c => c.id === selectedClassId)?.name : 'Tất cả lớp'
+                            className: selectedClassId ? classes.find(c => c.id === selectedClassId)?.name : 'Tất cả lớp',
+                            reportType: 'attendance'
                         }}
                         disabled={!data}
                     />
@@ -405,27 +410,33 @@ export default function AttendanceReportPage() {
                                 <CardTitle>Xu hướng điểm danh theo ngày</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart data={data.chartData}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis
-                                            dataKey="date"
-                                            tickFormatter={(val) => {
-                                                const d = new Date(val);
-                                                return `${d.getDate()}/${d.getMonth() + 1}`;
-                                            }}
-                                        />
-                                        <YAxis />
-                                        <Tooltip
-                                            labelFormatter={(val) => new Date(val).toLocaleDateString('vi-VN')}
-                                        />
-                                        <Legend />
-                                        <Bar dataKey="present" stackId="a" fill="#22c55e" name="Có mặt" />
-                                        <Bar dataKey="late" stackId="a" fill="#f59e0b" name="Trễ" />
-                                        <Bar dataKey="excused" stackId="a" fill="#3b82f6" name="Có phép" />
-                                        <Bar dataKey="absent" stackId="a" fill="#ef4444" name="Vắng" />
-                                    </BarChart>
-                                </ResponsiveContainer>
+                                {(data.chartData || []).length > 0 ? (
+                                    <ResponsiveContainer width="100%" height={300}>
+                                        <BarChart data={data.chartData}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis
+                                                dataKey="date"
+                                                tickFormatter={(val) => {
+                                                    const d = new Date(val);
+                                                    return `${d.getDate()}/${d.getMonth() + 1}`;
+                                                }}
+                                            />
+                                            <YAxis />
+                                            <Tooltip
+                                                labelFormatter={(val) => new Date(val).toLocaleDateString('vi-VN')}
+                                            />
+                                            <Legend />
+                                            <Bar dataKey="present" stackId="a" fill="#22c55e" name="Có mặt" />
+                                            <Bar dataKey="late" stackId="a" fill="#f59e0b" name="Trễ" />
+                                            <Bar dataKey="excused" stackId="a" fill="#3b82f6" name="Có phép" />
+                                            <Bar dataKey="absent" stackId="a" fill="#ef4444" name="Vắng" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="flex items-center justify-center h-[300px] text-gray-400">
+                                        <p>Chưa có dữ liệu điểm danh trong kỳ này</p>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
 
@@ -435,31 +446,37 @@ export default function AttendanceReportPage() {
                                 <CardTitle>Phân bố trạng thái</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <ResponsiveContainer width="100%" height={250}>
-                                    <PieChart>
-                                        <Pie
-                                            data={data.byStatus}
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={50}
-                                            outerRadius={80}
-                                            paddingAngle={5}
-                                            dataKey="value"
-                                        >
-                                            {data.byStatus.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={entry.color} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip />
-                                        <Legend />
-                                    </PieChart>
-                                </ResponsiveContainer>
+                                {(data.byStatus || []).length > 0 ? (
+                                    <ResponsiveContainer width="100%" height={250}>
+                                        <PieChart>
+                                            <Pie
+                                                data={data.byStatus}
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={50}
+                                                outerRadius={80}
+                                                paddingAngle={5}
+                                                dataKey="value"
+                                            >
+                                                {(data.byStatus || []).map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip />
+                                            <Legend />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="flex items-center justify-center h-[250px] text-gray-400">
+                                        <p>Chưa có dữ liệu</p>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     </div>
 
                     {/* Low Attendance Students */}
-                    {data.lowAttendanceStudents.length > 0 && (
+                    {(data.lowAttendanceStudents || []).length > 0 && (
                         <Card className="border-amber-200 bg-amber-50/50">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2 text-amber-700">

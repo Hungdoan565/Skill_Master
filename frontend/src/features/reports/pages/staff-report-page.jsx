@@ -3,7 +3,7 @@ import { gooeyToast } from 'goey-toast';
  * Staff Report Page - Báo cáo nhân sự
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
     ArrowLeft,
@@ -46,14 +46,14 @@ export default function StaffReportPage() {
     const [savingReport, setSavingReport] = useState(false);
     const [exporting, setExporting] = useState(false);
 
-    useEffect(() => {
-        loadReport();
-    }, [datePreset, isSystemWide]);
-
-    const loadReport = async () => {
+    const loadReport = useCallback(async () => {
         let startDate, endDate;
 
         if (datePreset === 'custom' && customDates.start && customDates.end) {
+            if (customDates.start > customDates.end) {
+                gooeyToast('Ngày bắt đầu phải trước ngày kết thúc');
+                return;
+            }
             startDate = customDates.start;
             endDate = customDates.end;
         } else {
@@ -66,7 +66,11 @@ export default function StaffReportPage() {
         if (result) {
             setData(result);
         }
-    };
+    }, [datePreset, customDates, isSystemWide, fetchStaffReport]);
+
+    useEffect(() => {
+        loadReport();
+    }, [loadReport]);
 
     const handleExport = async () => {
         if (!data) return;
@@ -283,17 +287,23 @@ export default function StaffReportPage() {
                             <CardTitle>Top giảng viên theo giờ dạy</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <ResponsiveContainer width="100%" height={300}>
-                                <BarChart data={data.topTeachers} layout="vertical">
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis type="number" />
-                                    <YAxis dataKey="name" type="category" width={150} />
-                                    <Tooltip />
-                                    <Legend />
-                                    <Bar dataKey="hours" fill="#8b5cf6" radius={[0, 4, 4, 0]} name="Số giờ" />
-                                    <Bar dataKey="sessions" fill="#3b82f6" radius={[0, 4, 4, 0]} name="Số buổi" />
-                                </BarChart>
-                            </ResponsiveContainer>
+                            {(data.topTeachers || []).length > 0 ? (
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <BarChart data={data.topTeachers} layout="vertical">
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis type="number" />
+                                        <YAxis dataKey="name" type="category" width={150} />
+                                        <Tooltip />
+                                        <Legend />
+                                        <Bar dataKey="hours" fill="#8b5cf6" radius={[0, 4, 4, 0]} name="Số giờ" />
+                                        <Bar dataKey="sessions" fill="#3b82f6" radius={[0, 4, 4, 0]} name="Số buổi" />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="flex items-center justify-center h-[300px] text-gray-400">
+                                    <p>Chưa có dữ liệu giảng viên</p>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 
@@ -316,24 +326,28 @@ export default function StaffReportPage() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
-                                        {data.staffList.map((staff) => (
-                                            <tr key={staff.id} className="text-sm">
-                                                <td className="py-3 font-medium">{staff.name}</td>
-                                                <td className="py-3 text-gray-500">{staff.email}</td>
-                                                <td className="py-3">
-                                                    <span className={`px-2 py-1 rounded text-xs ${staff.role === 'Teacher' ? 'bg-blue-100 text-blue-700' :
-                                                        'bg-purple-100 text-purple-700'
-                                                        }`}>
-                                                        {staff.role}
-                                                    </span>
-                                                </td>
-                                                <td className="py-3 text-center">{staff.sessions}</td>
-                                                <td className="py-3 text-center">{staff.hours}h</td>
-                                                <td className="py-3 text-right font-medium text-green-600">
-                                                    {formatCurrency(staff.totalPay)}
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {(data.staffList || []).length > 0 ? (
+                                            (data.staffList || []).map((staff) => (
+                                                <tr key={staff.id} className="text-sm">
+                                                    <td className="py-3 font-medium">{staff.name}</td>
+                                                    <td className="py-3 text-gray-500">{staff.email}</td>
+                                                    <td className="py-3">
+                                                        <span className={`px-2 py-1 rounded text-xs ${staff.role === 'Teacher' ? 'bg-blue-100 text-blue-700' :
+                                                            'bg-purple-100 text-purple-700'
+                                                            }`}>
+                                                            {staff.role}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 text-center">{staff.sessions}</td>
+                                                    <td className="py-3 text-center">{staff.hours}h</td>
+                                                    <td className="py-3 text-right font-medium text-green-600">
+                                                        {formatCurrency(staff.totalPay)}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr><td colSpan={6} className="py-8 text-center text-gray-400">Chưa có dữ liệu nhân sự</td></tr>
+                                        )}
                                     </tbody>
                                 </table>
                             </div>

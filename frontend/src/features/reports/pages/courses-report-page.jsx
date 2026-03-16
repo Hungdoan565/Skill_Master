@@ -3,7 +3,7 @@ import { gooeyToast } from 'goey-toast';
  * Courses Report Page - Báo cáo hiệu suất khóa học
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
     ArrowLeft,
@@ -33,25 +33,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { useReports } from '../hooks/useReports';
 import { SaveReportModal } from '../components';
+import CrossCenterToggle from '../components/CrossCenterToggle';
 import { formatNumber, formatCurrency, CHART_COLORS, exportReportToExcel } from '../utils';
 
 export default function CoursesReportPage() {
     const { fetchCoursesReport, saveReport, loading, error } = useReports();
     const [data, setData] = useState(null);
+    const [isSystemWide, setIsSystemWide] = useState(false);
     const [showSaveModal, setShowSaveModal] = useState(false);
     const [savingReport, setSavingReport] = useState(false);
     const [exporting, setExporting] = useState(false);
 
-    useEffect(() => {
-        loadReport();
-    }, []);
-
-    const loadReport = async () => {
-        const result = await fetchCoursesReport({});
+    const loadReport = useCallback(async () => {
+        const result = await fetchCoursesReport({ system_wide: isSystemWide });
         if (result) {
             setData(result);
         }
-    };
+    }, [isSystemWide, fetchCoursesReport]);
+
+    useEffect(() => {
+        loadReport();
+    }, [loadReport]);
 
     const handleExport = async () => {
         if (!data) return;
@@ -110,6 +112,7 @@ export default function CoursesReportPage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    <CrossCenterToggle value={isSystemWide} onChange={setIsSystemWide} />
                     <Button variant="outline" onClick={handleSaveReport}>
                         <Save className="h-4 w-4 mr-2" />
                         Lưu báo cáo
@@ -226,18 +229,24 @@ export default function CoursesReportPage() {
                                 <CardTitle>Top 5 theo doanh thu</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart data={data.topByRevenue} layout="vertical">
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis
-                                            type="number"
-                                            tickFormatter={(val) => `${(val / 1000000).toFixed(0)}M`}
-                                        />
-                                        <YAxis dataKey="title" type="category" width={120} />
-                                        <Tooltip formatter={(val) => formatCurrency(val)} />
-                                        <Bar dataKey="totalRevenue" fill="#22c55e" radius={[0, 4, 4, 0]} name="Doanh thu" />
-                                    </BarChart>
-                                </ResponsiveContainer>
+                                {(data.topByRevenue || []).length > 0 ? (
+                                    <ResponsiveContainer width="100%" height={300}>
+                                        <BarChart data={data.topByRevenue} layout="vertical">
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis
+                                                type="number"
+                                                tickFormatter={(val) => `${(val / 1000000).toFixed(0)}M`}
+                                            />
+                                            <YAxis dataKey="title" type="category" width={120} />
+                                            <Tooltip formatter={(val) => formatCurrency(val)} />
+                                            <Bar dataKey="totalRevenue" fill="#22c55e" radius={[0, 4, 4, 0]} name="Doanh thu" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="flex items-center justify-center h-[300px] text-gray-400">
+                                        <p>Chưa có dữ liệu doanh thu</p>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
 
@@ -247,15 +256,21 @@ export default function CoursesReportPage() {
                                 <CardTitle>Top 5 theo học viên</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart data={data.topByEnrollments} layout="vertical">
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis type="number" />
-                                        <YAxis dataKey="title" type="category" width={120} />
-                                        <Tooltip />
-                                        <Bar dataKey="totalEnrollments" fill="#3b82f6" radius={[0, 4, 4, 0]} name="Số học viên" />
-                                    </BarChart>
-                                </ResponsiveContainer>
+                                {(data.topByEnrollments || []).length > 0 ? (
+                                    <ResponsiveContainer width="100%" height={300}>
+                                        <BarChart data={data.topByEnrollments} layout="vertical">
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis type="number" />
+                                            <YAxis dataKey="title" type="category" width={120} />
+                                            <Tooltip />
+                                            <Bar dataKey="totalEnrollments" fill="#3b82f6" radius={[0, 4, 4, 0]} name="Số học viên" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="flex items-center justify-center h-[300px] text-gray-400">
+                                        <p>Chưa có dữ liệu học viên</p>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     </div>
@@ -266,28 +281,34 @@ export default function CoursesReportPage() {
                             <CardTitle>Thống kê theo danh mục</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <ResponsiveContainer width="100%" height={300}>
-                                <BarChart data={data.byCategory}>
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="name" />
-                                    <YAxis yAxisId="left" />
-                                    <YAxis
-                                        yAxisId="right"
-                                        orientation="right"
-                                        tickFormatter={(val) => `${(val / 1000000).toFixed(0)}M`}
-                                    />
-                                    <Tooltip
-                                        formatter={(val, name) => {
-                                            if (name === 'Doanh thu') return formatCurrency(val);
-                                            return val;
-                                        }}
-                                    />
-                                    <Legend />
-                                    <Bar yAxisId="left" dataKey="courses" fill="#3b82f6" name="Khóa học" radius={[4, 4, 0, 0]} />
-                                    <Bar yAxisId="left" dataKey="enrollments" fill="#22c55e" name="Học viên" radius={[4, 4, 0, 0]} />
-                                    <Bar yAxisId="right" dataKey="revenue" fill="#f59e0b" name="Doanh thu" radius={[4, 4, 0, 0]} />
-                                </BarChart>
-                            </ResponsiveContainer>
+                            {(data.byCategory || []).length > 0 ? (
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <BarChart data={data.byCategory}>
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis dataKey="name" />
+                                        <YAxis yAxisId="left" />
+                                        <YAxis
+                                            yAxisId="right"
+                                            orientation="right"
+                                            tickFormatter={(val) => `${(val / 1000000).toFixed(0)}M`}
+                                        />
+                                        <Tooltip
+                                            formatter={(val, name) => {
+                                                if (name === 'Doanh thu') return formatCurrency(val);
+                                                return val;
+                                            }}
+                                        />
+                                        <Legend />
+                                        <Bar yAxisId="left" dataKey="courses" fill="#3b82f6" name="Khóa học" radius={[4, 4, 0, 0]} />
+                                        <Bar yAxisId="left" dataKey="enrollments" fill="#22c55e" name="Học viên" radius={[4, 4, 0, 0]} />
+                                        <Bar yAxisId="right" dataKey="revenue" fill="#f59e0b" name="Doanh thu" radius={[4, 4, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="flex items-center justify-center h-[300px] text-gray-400">
+                                    <p>Chưa có dữ liệu danh mục</p>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 
@@ -311,27 +332,31 @@ export default function CoursesReportPage() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
-                                        {data.courseStats.map((course) => (
-                                            <tr key={course.id} className="text-sm">
-                                                <td className="py-3 font-mono text-blue-600">{course.code}</td>
-                                                <td className="py-3 font-medium">{course.title}</td>
-                                                <td className="py-3">
-                                                    <span className="px-2 py-1 bg-gray-100 rounded text-xs">
-                                                        {course.category}
-                                                    </span>
-                                                </td>
-                                                <td className="py-3 text-center">
-                                                    <span className="text-green-600">{course.ongoingClasses}</span>
-                                                    <span className="text-gray-400"> / </span>
-                                                    <span>{course.totalClasses}</span>
-                                                </td>
-                                                <td className="py-3 text-center">{course.totalEnrollments}</td>
-                                                <td className="py-3 text-center text-gray-500">{course.avgEnrollmentsPerClass}</td>
-                                                <td className="py-3 text-right font-medium text-green-600">
-                                                    {formatCurrency(course.totalRevenue)}
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {(data.courseStats || []).length > 0 ? (
+                                            (data.courseStats || []).map((course) => (
+                                                <tr key={course.id} className="text-sm">
+                                                    <td className="py-3 font-mono text-blue-600">{course.code}</td>
+                                                    <td className="py-3 font-medium">{course.title}</td>
+                                                    <td className="py-3">
+                                                        <span className="px-2 py-1 bg-gray-100 rounded text-xs">
+                                                            {course.category}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 text-center">
+                                                        <span className="text-green-600">{course.ongoingClasses}</span>
+                                                        <span className="text-gray-400"> / </span>
+                                                        <span>{course.totalClasses}</span>
+                                                    </td>
+                                                    <td className="py-3 text-center">{course.totalEnrollments}</td>
+                                                    <td className="py-3 text-center text-gray-500">{course.avgEnrollmentsPerClass}</td>
+                                                    <td className="py-3 text-right font-medium text-green-600">
+                                                        {formatCurrency(course.totalRevenue)}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr><td colSpan={7} className="py-8 text-center text-gray-400">Chưa có dữ liệu khóa học</td></tr>
+                                        )}
                                     </tbody>
                                 </table>
                             </div>

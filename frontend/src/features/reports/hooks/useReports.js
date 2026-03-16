@@ -56,57 +56,65 @@ export function useReports() {
     }, [session, getHeaders]);
 
     // Revenue Report
-    const fetchRevenueReport = useCallback(async ({ startDate, endDate, centerId, courseId, groupBy }) => {
+    const fetchRevenueReport = useCallback(async ({ startDate, endDate, centerId, courseId, groupBy, system_wide }) => {
         return fetchReport('revenue', {
             startDate: formatDateParam(startDate),
             endDate: formatDateParam(endDate),
             centerId,
             courseId,
-            groupBy
+            groupBy,
+            system_wide: system_wide ? 'true' : undefined
         });
     }, [fetchReport]);
 
     // Enrollment Report
-    const fetchEnrollmentReport = useCallback(async ({ startDate, endDate, centerId, courseId }) => {
+    const fetchEnrollmentReport = useCallback(async ({ startDate, endDate, centerId, courseId, system_wide }) => {
         return fetchReport('enrollment', {
             startDate: formatDateParam(startDate),
             endDate: formatDateParam(endDate),
             centerId,
-            courseId
+            courseId,
+            system_wide: system_wide ? 'true' : undefined
         });
     }, [fetchReport]);
 
     // Attendance Report
-    const fetchAttendanceReport = useCallback(async ({ startDate, endDate, classId, courseId }) => {
+    const fetchAttendanceReport = useCallback(async ({ startDate, endDate, classId, courseId, system_wide }) => {
         return fetchReport('attendance', {
             startDate: formatDateParam(startDate),
             endDate: formatDateParam(endDate),
             classId,
-            courseId
+            courseId,
+            system_wide: system_wide ? 'true' : undefined
         });
     }, [fetchReport]);
 
     // Grades Report
-    const fetchGradesReport = useCallback(async ({ classId, courseId, centerId }) => {
+    const fetchGradesReport = useCallback(async ({ classId, courseId, centerId, system_wide }) => {
         return fetchReport('grades', {
             classId,
             courseId,
-            centerId
+            centerId,
+            system_wide: system_wide ? 'true' : undefined
         });
     }, [fetchReport]);
 
     // Staff Report
-    const fetchStaffReport = useCallback(async ({ startDate, endDate, centerId }) => {
+    const fetchStaffReport = useCallback(async ({ startDate, endDate, centerId, system_wide }) => {
         return fetchReport('staff', {
             startDate: formatDateParam(startDate),
             endDate: formatDateParam(endDate),
-            centerId
+            centerId,
+            system_wide: system_wide ? 'true' : undefined
         });
     }, [fetchReport]);
 
     // Courses Report
-    const fetchCoursesReport = useCallback(async ({ centerId }) => {
-        return fetchReport('courses', { centerId });
+    const fetchCoursesReport = useCallback(async ({ centerId, system_wide }) => {
+        return fetchReport('courses', {
+            centerId,
+            system_wide: system_wide ? 'true' : undefined
+        });
     }, [fetchReport]);
 
     // Saved Reports

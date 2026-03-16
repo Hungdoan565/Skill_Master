@@ -41,6 +41,7 @@ import { Badge } from '@/components/ui/badge';
 import { useReports } from '../hooks/useReports';
 import { useAuth } from '@/contexts/auth-context';
 import { SaveReportModal, ClassFilter, ReportPDFExport } from '../components';
+import CrossCenterToggle from '../components/CrossCenterToggle';
 import { formatNumber, formatPercent, CHART_COLORS, API_URL, exportReportToExcel } from '../utils';
 
 export default function GradesReportPage() {
@@ -49,6 +50,7 @@ export default function GradesReportPage() {
     const [searchParams] = useSearchParams();
     const reportContentRef = useRef(null);
     const [data, setData] = useState(null);
+    const [isSystemWide, setIsSystemWide] = useState(false);
 
     // Filters state
     const [courses, setCourses] = useState([]);
@@ -96,20 +98,21 @@ export default function GradesReportPage() {
         }
     }, [session]);
 
-    useEffect(() => {
-        fetchFilterData();
-        loadReport();
-    }, []);
-
-    const loadReport = async () => {
+    const loadReport = useCallback(async () => {
         const result = await fetchGradesReport({
             courseId: selectedCourseId || undefined,
-            classId: selectedClassId || undefined
+            classId: selectedClassId || undefined,
+            system_wide: isSystemWide
         });
         if (result) {
             setData(result);
         }
-    };
+    }, [selectedCourseId, selectedClassId, isSystemWide, fetchGradesReport]);
+
+    useEffect(() => {
+        fetchFilterData();
+        loadReport();
+    }, [fetchFilterData, loadReport]);
 
     const handleExport = async () => {
         if (!data) return;
@@ -168,6 +171,7 @@ export default function GradesReportPage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    <CrossCenterToggle value={isSystemWide} onChange={setIsSystemWide} />
                     <Button variant="outline" onClick={handleSaveReport}>
                         <Save className="h-4 w-4 mr-2" />
                         Lưu báo cáo
@@ -177,7 +181,8 @@ export default function GradesReportPage() {
                         reportTitle="Báo cáo Điểm số"
                         filename={`bao-cao-diem-so-${new Date().toISOString().split('T')[0]}`}
                         headerInfo={{
-                            className: selectedClassId ? classes.find(c => c.id === selectedClassId)?.name : 'Tất cả lớp'
+                            className: selectedClassId ? classes.find(c => c.id === selectedClassId)?.name : 'Tất cả lớp',
+                            reportType: 'grades'
                         }}
                         disabled={!data}
                     />
@@ -338,15 +343,21 @@ export default function GradesReportPage() {
                                 <CardTitle>Phân bố điểm số</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <BarChart data={data.distribution}>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="range" />
-                                        <YAxis />
-                                        <Tooltip />
-                                        <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Số học viên" />
-                                    </BarChart>
-                                </ResponsiveContainer>
+                                {(data.distribution || []).length > 0 ? (
+                                    <ResponsiveContainer width="100%" height={300}>
+                                        <BarChart data={data.distribution}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="range" />
+                                            <YAxis />
+                                            <Tooltip />
+                                            <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Số học viên" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="flex items-center justify-center h-[300px] text-gray-400">
+                                        <p>Chưa có dữ liệu phân bố điểm</p>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
 
@@ -356,26 +367,32 @@ export default function GradesReportPage() {
                                 <CardTitle>Tỷ lệ đậu/rớt</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <PieChart>
-                                        <Pie
-                                            data={data.passRateChart}
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={60}
-                                            outerRadius={100}
-                                            paddingAngle={5}
-                                            dataKey="value"
-                                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                                        >
-                                            {data.passRateChart.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={entry.color} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip />
-                                        <Legend />
-                                    </PieChart>
-                                </ResponsiveContainer>
+                                {(data.passRateChart || []).length > 0 ? (
+                                    <ResponsiveContainer width="100%" height={300}>
+                                        <PieChart>
+                                            <Pie
+                                                data={data.passRateChart}
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={60}
+                                                outerRadius={100}
+                                                paddingAngle={5}
+                                                dataKey="value"
+                                                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                            >
+                                                {(data.passRateChart || []).map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip />
+                                            <Legend />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="flex items-center justify-center h-[300px] text-gray-400">
+                                        <p>Chưa có dữ liệu</p>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     </div>
@@ -401,32 +418,36 @@ export default function GradesReportPage() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
-                                        {data.topStudents.map((student, index) => (
-                                            <tr key={index} className="text-sm">
-                                                <td className="py-3">
-                                                    {index < 3 ? (
-                                                        <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-white text-xs font-bold ${index === 0 ? 'bg-amber-400' :
-                                                            index === 1 ? 'bg-gray-400' :
-                                                                'bg-amber-700'
-                                                            }`}>
-                                                            {index + 1}
+                                        {(data.topStudents || []).length > 0 ? (
+                                            (data.topStudents || []).map((student, index) => (
+                                                <tr key={index} className="text-sm">
+                                                    <td className="py-3">
+                                                        {index < 3 ? (
+                                                            <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-white text-xs font-bold ${index === 0 ? 'bg-amber-400' :
+                                                                index === 1 ? 'bg-gray-400' :
+                                                                    'bg-amber-700'
+                                                                }`}>
+                                                                {index + 1}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-gray-500">{index + 1}</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="py-3 font-medium">{student.studentName}</td>
+                                                    <td className="py-3 text-gray-600">{student.courseName}</td>
+                                                    <td className="py-3 text-center">
+                                                        <span className="font-bold text-green-600">{student.finalScore}</span>
+                                                    </td>
+                                                    <td className="py-3 text-center">
+                                                        <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">
+                                                            Đạt
                                                         </span>
-                                                    ) : (
-                                                        <span className="text-gray-500">{index + 1}</span>
-                                                    )}
-                                                </td>
-                                                <td className="py-3 font-medium">{student.studentName}</td>
-                                                <td className="py-3 text-gray-600">{student.courseName}</td>
-                                                <td className="py-3 text-center">
-                                                    <span className="font-bold text-green-600">{student.finalScore}</span>
-                                                </td>
-                                                <td className="py-3 text-center">
-                                                    <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">
-                                                        Đạt
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        ))}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr><td colSpan={5} className="py-8 text-center text-gray-400">Chưa có dữ liệu học viên</td></tr>
+                                        )}
                                     </tbody>
                                 </table>
                             </div>
@@ -434,7 +455,7 @@ export default function GradesReportPage() {
                     </Card>
 
                     {/* Low Score Students */}
-                    {data.lowScoreStudents.length > 0 && (
+                    {(data.lowScoreStudents || []).length > 0 && (
                         <Card className="border-red-200 bg-red-50/50">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2 text-red-700">

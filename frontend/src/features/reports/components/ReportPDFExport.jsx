@@ -11,11 +11,50 @@ import { Download, FileText, Loader2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-// PDF export function using jsPDF + autoTable
+async function loadFonts(pdf) {
+    try {
+        const [regRes, boldRes] = await Promise.all([
+            fetch('/fonts/NotoSans-Regular.ttf'),
+            fetch('/fonts/NotoSans-Bold.ttf')
+        ]);
+        
+        if (!regRes.ok || !boldRes.ok) return false;
+        
+        const [regBuffer, boldBuffer] = await Promise.all([
+            regRes.arrayBuffer(),
+            boldRes.arrayBuffer()
+        ]);
+        
+        const arrayBufferToBase64 = (buffer) => {
+            let binary = '';
+            const bytes = new Uint8Array(buffer);
+            const len = bytes.byteLength;
+            const chunkSize = 8192;
+            for (let i = 0; i < len; i += chunkSize) {
+                const chunk = bytes.subarray(i, Math.min(i + chunkSize, len));
+                binary += String.fromCharCode.apply(null, chunk);
+            }
+            return window.btoa(binary);
+        };
+
+        pdf.addFileToVFS('NotoSans-Regular.ttf', arrayBufferToBase64(regBuffer));
+        pdf.addFont('NotoSans-Regular.ttf', 'NotoSans', 'normal');
+        
+        pdf.addFileToVFS('NotoSans-Bold.ttf', arrayBufferToBase64(boldBuffer));
+        pdf.addFont('NotoSans-Bold.ttf', 'NotoSans', 'bold');
+        
+        return true;
+    } catch (err) {
+        console.error("Lỗi tải font PDF:", err);
+        return false;
+    }
+}
+
 async function exportToPDFFromData(data, title, options = {}) {
     try {
         const { jsPDF } = await import('jspdf');
-        await import('jspdf-autotable');
+        const autoTableModule = await import('jspdf-autotable');
+        const autoTable = autoTableModule.default || autoTableModule.autoTable || autoTableModule;
 
         const pdf = new jsPDF({
             orientation: 'landscape',
@@ -23,147 +62,195 @@ async function exportToPDFFromData(data, title, options = {}) {
             format: 'a4'
         });
 
+        const fontLoaded = await loadFonts(pdf);
+        if (fontLoaded) {
+            pdf.setFont('NotoSans');
+        }
+
         const pageWidth = pdf.internal.pageSize.getWidth();
         const pageHeight = pdf.internal.pageSize.getHeight();
-        const margin = 15;
+        const margin = 20;
 
-        // Header
-        pdf.setFontSize(18);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text(title, margin, 20);
+        // BRAND COLORS
+        const BRAND_PRIMARY = [37, 99, 235]; // Blue 600
+        const BRAND_DARK = [15, 23, 42]; // Slate 900
+        const BRAND_LIGHT = [241, 245, 249]; // Slate 100
+        const TEXT_MAIN = [51, 65, 85]; // Slate 700
+        const TEXT_MUTED = [100, 116, 139]; // Slate 500
+        const SUCCESS_COLOR = [22, 163, 74];
+        const ERROR_COLOR = [220, 38, 38];
 
-        // Metadata
-        pdf.setFontSize(10);
-        pdf.setFont('helvetica', 'normal');
-        let yPos = 28;
+        let yPos = margin;
 
-        if (options.className) {
-            pdf.text(`Lớp học: ${options.className}`, margin, yPos);
-            yPos += 6;
-        }
-        if (options.period) {
-            pdf.text(`Kỳ báo cáo: ${options.period}`, margin, yPos);
-            yPos += 6;
-        }
-
+        // ====== HEADER ======
+        pdf.setFont(fontLoaded ? 'NotoSans' : 'helvetica', 'bold');
+        pdf.setFontSize(22);
+        pdf.setTextColor(...BRAND_PRIMARY);
+        pdf.text('SKILL MASTER', margin, yPos + 6);
+        
         pdf.setFontSize(9);
-        pdf.setTextColor(100);
-        pdf.text(`Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`, margin, yPos);
-        yPos += 10;
+        pdf.setTextColor(...TEXT_MUTED);
+        pdf.setFont(fontLoaded ? 'NotoSans' : 'helvetica', 'normal');
+        pdf.text(`Thời gian xuất: ${new Date().toLocaleString('vi-VN')}`, pageWidth - margin, yPos, { align: 'right' });
+        pdf.text(`Người xuất: Admin | Hệ thống nội bộ`, pageWidth - margin, yPos + 5, { align: 'right' });
 
-        // Summary cards
-        if (data.summary) {
-            const summaryData = [
-                ['Tỷ lệ đậu', `${data.summary.passRate || 0}%`],
-                ['Điểm TB', data.summary.avgScore?.toFixed(2) || '0'],
-                ['Điểm cao nhất', data.summary.maxScore || '0'],
-                ['Điểm thấp nhất', data.summary.minScore || '0']
-            ];
-
-            pdf.autoTable({
-                startY: yPos,
-                head: [['Chỉ số', 'Giá trị']],
-                body: summaryData,
-                theme: 'grid',
-                headStyles: { fillColor: [37, 99, 235], fontSize: 11 },
-                columnStyles: {
-                    0: { cellWidth: 50, fontStyle: 'bold' },
-                    1: { cellWidth: 40, halign: 'center', fontSize: 12, textColor: [0, 128, 0] }
-                },
-                margin: { left: margin }
-            });
-
-            yPos = pdf.lastAutoTable.finalY + 10;
+        // Divider line
+        yPos += 12;
+        pdf.setDrawColor(226, 232, 240);
+        pdf.setLineWidth(0.5);
+        pdf.line(margin, yPos, pageWidth - margin, yPos);
+        
+        // ====== REPORT TITLE ======
+        yPos += 15;
+        pdf.setFont(fontLoaded ? 'NotoSans' : 'helvetica', 'bold');
+        pdf.setFontSize(20);
+        pdf.setTextColor(...BRAND_DARK);
+        pdf.text(title.toUpperCase(), pageWidth / 2, yPos, { align: 'center' });
+        
+        // Context Info
+        yPos += 8;
+        pdf.setFontSize(11);
+        pdf.setTextColor(...TEXT_MAIN);
+        pdf.setFont(fontLoaded ? 'NotoSans' : 'helvetica', 'normal');
+        
+        let subtitleText = [];
+        if (options.period) subtitleText.push(`Kỳ báo cáo: ${options.period}`);
+        if (options.className) subtitleText.push(`Lớp: ${options.className}`);
+        
+        if (subtitleText.length > 0) {
+            pdf.text(subtitleText.join('   |   '), pageWidth / 2, yPos, { align: 'center' });
         }
+        
+        yPos += 15;
 
-        // Distribution table
-        if (data.distribution?.length > 0) {
-            pdf.setFontSize(12);
-            pdf.setFont('helvetica', 'bold');
-            pdf.setTextColor(0);
-            pdf.text('Phân bố điểm', margin, yPos);
-            yPos += 6;
+        // Common table options
+        const tableStyles = {
+            theme: 'grid',
+            headStyles: { fillColor: BRAND_DARK, textColor: 255, font: fontLoaded ? 'NotoSans' : 'helvetica', fontStyle: 'bold', fontSize: 10, halign: 'center', valign: 'middle' },
+            styles: { font: fontLoaded ? 'NotoSans' : 'helvetica', fontSize: 10, textColor: TEXT_MAIN, cellPadding: 5, lineColor: [226, 232, 240] },
+            alternateRowStyles: { fillColor: BRAND_LIGHT },
+            margin: { left: margin, right: margin }
+        };
 
-            const distData = data.distribution.map((item, idx) => [
-                idx + 1,
-                item.range,
-                item.count || 0,
-                `${item.percentage?.toFixed(1) || 0}%`
-            ]);
-
-            pdf.autoTable({
-                startY: yPos,
-                head: [['STT', 'Khoảng điểm', 'Số học viên', 'Tỷ lệ']],
-                body: distData,
-                theme: 'striped',
-                headStyles: { fillColor: [37, 99, 235] },
-                columnStyles: {
-                    0: { cellWidth: 20, halign: 'center' },
-                    1: { cellWidth: 60, halign: 'center' },
-                    2: { cellWidth: 40, halign: 'center' },
-                    3: { cellWidth: 30, halign: 'center' }
-                },
-                margin: { left: margin }
-            });
-
-            yPos = pdf.lastAutoTable.finalY + 10;
-        }
-
-        // Top students table
-        if (data.topStudents?.length > 0) {
-            if (yPos > pageHeight - 60) {
-                pdf.addPage();
-                yPos = margin + 10;
+        const renderGradesData = () => {
+            if (data.summary) {
+                const s = data.summary;
+                autoTable(pdf, {
+                    ...tableStyles,
+                    startY: yPos,
+                    head: [['TỔNG QUAN ĐIỂM SỐ', 'ĐẠT YÊU CẦU', 'ĐIỂM TRUNG BÌNH', 'ĐIỂM CAO NHẤT', 'ĐIỂM THẤP NHẤT']],
+                    body: [['Chỉ số', `${s.passRate || 0}%`, s.avgScore?.toFixed(2) || '0', s.maxScore || '0', s.minScore || '0']],
+                    headStyles: { ...tableStyles.headStyles, fillColor: BRAND_PRIMARY, fontSize: 10 },
+                    bodyStyles: { fontStyle: 'bold', halign: 'center', fontSize: 12, textColor: BRAND_DARK }
+                });
+                yPos = pdf.previousAutoTable?.finalY ?? (yPos + 20);
+                yPos += 15;
             }
 
-            pdf.setFontSize(12);
-            pdf.setFont('helvetica', 'bold');
-            pdf.text('Top học viên xuất sắc', margin, yPos);
-            yPos += 6;
+            if (data.distribution?.length > 0) {
+                pdf.setFontSize(13);
+                pdf.setFont(fontLoaded ? 'NotoSans' : 'helvetica', 'bold');
+                pdf.setTextColor(...BRAND_DARK);
+                pdf.text('PHÂN BỐ ĐIỂM SỐ', margin, yPos);
+                yPos += 6;
 
-            const topData = data.topStudents.map((item, idx) => [
-                idx + 1,
-                item.studentName || 'N/A',
-                item.courseName || 'N/A',
-                item.finalScore?.toFixed(2) || '0',
-                item.passed ? 'Đạt' : 'Không đạt'
-            ]);
+                autoTable(pdf, {
+                    ...tableStyles,
+                    startY: yPos,
+                    head: [['STT', 'Khoảng điểm', 'Số lượng học viên', 'Tỷ lệ (%)']],
+                    body: data.distribution.map((d, i) => [i + 1, d.range, d.count || 0, `${d.percentage?.toFixed(1) || 0}%`]),
+                    columnStyles: { 0: { halign: 'center', cellWidth: 20 }, 1: { halign: 'center' }, 2: { halign: 'right' }, 3: { halign: 'right', fontStyle: 'bold' } }
+                });
+                yPos = pdf.previousAutoTable?.finalY ?? (yPos + 40);
+                yPos += 15;
+            }
 
-            pdf.autoTable({
-                startY: yPos,
-                head: [['STT', 'Học viên', 'Khóa học', 'Điểm', 'Kết quả']],
-                body: topData,
-                theme: 'striped',
-                headStyles: { fillColor: [37, 99, 235] },
-                columnStyles: {
-                    0: { cellWidth: 15, halign: 'center' },
-                    1: { cellWidth: 60 },
-                    2: { cellWidth: 70 },
-                    3: { cellWidth: 25, halign: 'center' },
-                    4: { cellWidth: 30, halign: 'center' }
-                },
-                margin: { left: margin },
-                didParseCell: function (data) {
-                    if (data.column.index === 4 && data.cell.raw === 'Đạt') {
-                        data.cell.styles.textColor = [0, 128, 0];
-                        data.cell.styles.fontStyle = 'bold';
-                    }
+            if (data.topStudents?.length > 0) {
+                if (yPos > pageHeight - 60) {
+                    pdf.addPage();
+                    yPos = margin + 10;
                 }
-            });
+                pdf.setFontSize(13);
+                pdf.setFont(fontLoaded ? 'NotoSans' : 'helvetica', 'bold');
+                pdf.setTextColor(...BRAND_DARK);
+                pdf.text('DANH SÁCH HỌC VIÊN XUẤT SẮC', margin, yPos);
+                yPos += 6;
+
+                autoTable(pdf, {
+                    ...tableStyles,
+                    startY: yPos,
+                    head: [['STT', 'Họ và tên', 'Khóa học', 'Mã lớp', 'Điểm TK', 'Kết quả']],
+                    body: data.topStudents.map((s, i) => [i + 1, s.studentName || 'N/A', s.courseName || 'N/A', s.classCode || 'N/A', s.finalScore?.toFixed(2) || '0', s.passed ? 'Đạt' : 'Trượt']),
+                    columnStyles: { 0: { halign: 'center', cellWidth: 15 }, 4: { halign: 'center', fontStyle: 'bold' }, 5: { halign: 'center', fontStyle: 'bold' } },
+                    didParseCell: (data) => {
+                        if (data.column.index === 5 && data.section === 'body') {
+                            data.cell.styles.textColor = data.cell.raw === 'Đạt' ? SUCCESS_COLOR : ERROR_COLOR;
+                        }
+                    }
+                });
+            }
+        };
+
+        const renderAttendanceData = () => {
+            if (data.summary) {
+                const s = data.summary;
+                autoTable(pdf, {
+                    ...tableStyles,
+                    startY: yPos,
+                    head: [['TỔNG QUAN CHUYÊN CẦN', 'TỶ LỆ HIỆN DIỆN', 'TỔNG SỐ TIẾT', 'CÓ MẶT', 'VẮNG MẶT', 'ĐI TRỄ']],
+                    body: [['Chỉ số', `${s.attendanceRate || 0}%`, s.totalRecords || 0, s.presentCount || 0, s.absentCount || 0, s.lateCount || 0]],
+                    headStyles: { ...tableStyles.headStyles, fillColor: BRAND_PRIMARY, fontSize: 10 },
+                    bodyStyles: { fontStyle: 'bold', halign: 'center', fontSize: 12, textColor: BRAND_DARK }
+                });
+                yPos = pdf.previousAutoTable?.finalY ?? (yPos + 20);
+                yPos += 15;
+            }
+
+            if (data.lowAttendanceStudents?.length > 0) {
+                pdf.setFontSize(13);
+                pdf.setFont(fontLoaded ? 'NotoSans' : 'helvetica', 'bold');
+                pdf.setTextColor(...BRAND_DARK);
+                pdf.text('HỌC VIÊN CÓ TỶ LỆ CHUYÊN CẦN THẤP (<70%)', margin, yPos);
+                yPos += 6;
+
+                autoTable(pdf, {
+                    ...tableStyles,
+                    startY: yPos,
+                    head: [['STT', 'Họ và tên', 'Khóa học', 'Mã lớp', 'Tổng tiết', 'Có mặt', 'Tỷ lệ']],
+                    body: data.lowAttendanceStudents.map((s, i) => [i + 1, s.studentName || 'N/A', s.courseName || 'N/A', s.classCode || 'N/A', s.total || 0, s.present || 0, `${s.rate || 0}%`]),
+                    columnStyles: { 0: { halign: 'center', cellWidth: 15 }, 4: { halign: 'center'}, 5: { halign: 'center' }, 6: { halign: 'center', fontStyle: 'bold', textColor: ERROR_COLOR } }
+                });
+            }
+        };
+
+        // Render based on specified type or inferred data structure
+        if (options.reportType === 'attendance' || (data.byStatus && data.lowAttendanceStudents)) {
+            renderAttendanceData();
+        } else if (options.reportType === 'grades' || data.distribution) {
+            renderGradesData();
+        } else {
+            pdf.setFontSize(12);
+            pdf.setFont(fontLoaded ? 'NotoSans' : 'helvetica', 'italic');
+            pdf.setTextColor(...TEXT_MUTED);
+            pdf.text('Dữ liệu dạng bảng cho báo cáo này đang được cập nhật thiết kế in ấn.', pageWidth / 2, yPos, { align: 'center' });
         }
 
-        // Footer
+        // ====== FOOTER ======
         const totalPages = pdf.internal.getNumberOfPages();
         for (let i = 1; i <= totalPages; i++) {
             pdf.setPage(i);
+            
+            // Footer separator
+            pdf.setDrawColor(226, 232, 240);
+            pdf.setLineWidth(0.5);
+            pdf.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
+
             pdf.setFontSize(8);
-            pdf.setTextColor(150);
-            pdf.text(
-                `Trang ${i} / ${totalPages}`,
-                pageWidth / 2,
-                pageHeight - 10,
-                { align: 'center' }
-            );
+            pdf.setTextColor(...TEXT_MUTED);
+            pdf.setFont(fontLoaded ? 'NotoSans' : 'helvetica', 'normal');
+            
+            pdf.text('Skill Master Education Center', margin, pageHeight - 10);
+            pdf.text(`Trang ${i} / ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
         }
 
         pdf.save(`${options.filename || 'bao-cao'}.pdf`);

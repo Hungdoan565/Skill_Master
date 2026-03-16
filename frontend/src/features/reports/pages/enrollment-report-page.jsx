@@ -3,7 +3,7 @@ import { gooeyToast } from 'goey-toast';
  * Enrollment Report Page - Báo cáo tuyển sinh
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
     ArrowLeft,
@@ -73,14 +73,14 @@ export default function EnrollmentReportPage() {
     const [savingReport, setSavingReport] = useState(false);
     const [exporting, setExporting] = useState(false);
 
-    useEffect(() => {
-        loadReport();
-    }, [datePreset, isSystemWide]);
-
-    const loadReport = async () => {
+    const loadReport = useCallback(async () => {
         let startDate, endDate;
 
         if (datePreset === 'custom' && customDates.start && customDates.end) {
+            if (customDates.start > customDates.end) {
+                gooeyToast('Ngày bắt đầu phải trước ngày kết thúc');
+                return;
+            }
             startDate = customDates.start;
             endDate = customDates.end;
         } else {
@@ -93,7 +93,11 @@ export default function EnrollmentReportPage() {
         if (result) {
             setData(result);
         }
-    };
+    }, [datePreset, customDates, isSystemWide, fetchEnrollmentReport]);
+
+    useEffect(() => {
+        loadReport();
+    }, [loadReport]);
 
     const handleExport = async () => {
         if (!data) return;
@@ -316,36 +320,42 @@ export default function EnrollmentReportPage() {
                                 <CardTitle>Xu hướng ghi danh</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <ResponsiveContainer width="100%" height={300}>
-                                    <AreaChart data={data.chartData}>
-                                        <defs>
-                                            <linearGradient id="colorEnroll" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                                            </linearGradient>
-                                        </defs>
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis
-                                            dataKey="date"
-                                            tickFormatter={(val) => {
-                                                const d = new Date(val);
-                                                return `${d.getDate()}/${d.getMonth() + 1}`;
-                                            }}
-                                        />
-                                        <YAxis />
-                                        <Tooltip
-                                            labelFormatter={(val) => new Date(val).toLocaleDateString('vi-VN')}
-                                        />
-                                        <Area
-                                            type="monotone"
-                                            dataKey="count"
-                                            stroke="#3b82f6"
-                                            strokeWidth={2}
-                                            fill="url(#colorEnroll)"
-                                            name="Ghi danh"
-                                        />
-                                    </AreaChart>
-                                </ResponsiveContainer>
+                                {(data.chartData || []).length > 0 ? (
+                                    <ResponsiveContainer width="100%" height={300}>
+                                        <AreaChart data={data.chartData}>
+                                            <defs>
+                                                <linearGradient id="colorEnroll" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                                                </linearGradient>
+                                            </defs>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis
+                                                dataKey="date"
+                                                tickFormatter={(val) => {
+                                                    const d = new Date(val);
+                                                    return `${d.getDate()}/${d.getMonth() + 1}`;
+                                                }}
+                                            />
+                                            <YAxis />
+                                            <Tooltip
+                                                labelFormatter={(val) => new Date(val).toLocaleDateString('vi-VN')}
+                                            />
+                                            <Area
+                                                type="monotone"
+                                                dataKey="count"
+                                                stroke="#3b82f6"
+                                                strokeWidth={2}
+                                                fill="url(#colorEnroll)"
+                                                name="Ghi danh"
+                                            />
+                                        </AreaChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="flex items-center justify-center h-[300px] text-gray-400">
+                                        <p>Chưa có dữ liệu ghi danh trong kỳ này</p>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
 
@@ -355,28 +365,34 @@ export default function EnrollmentReportPage() {
                                 <CardTitle>Theo trạng thái</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <ResponsiveContainer width="100%" height={250}>
-                                    <PieChart>
-                                        <Pie
-                                            data={data.byStatus}
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={50}
-                                            outerRadius={80}
-                                            paddingAngle={5}
-                                            dataKey="value"
-                                        >
-                                            {data.byStatus.map((entry, index) => (
-                                                <Cell
-                                                    key={`cell-${index}`}
-                                                    fill={STATUS_COLORS[entry.name] || CHART_COLORS[index]}
-                                                />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip />
-                                        <Legend formatter={(value) => STATUS_LABELS[value] || value} />
-                                    </PieChart>
-                                </ResponsiveContainer>
+                                {(data.byStatus || []).length > 0 ? (
+                                    <ResponsiveContainer width="100%" height={250}>
+                                        <PieChart>
+                                            <Pie
+                                                data={data.byStatus}
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={50}
+                                                outerRadius={80}
+                                                paddingAngle={5}
+                                                dataKey="value"
+                                            >
+                                                {(data.byStatus || []).map((entry, index) => (
+                                                    <Cell
+                                                        key={`cell-${index}`}
+                                                        fill={STATUS_COLORS[entry.name] || CHART_COLORS[index]}
+                                                    />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip />
+                                            <Legend formatter={(value) => STATUS_LABELS[value] || value} />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div className="flex items-center justify-center h-[250px] text-gray-400">
+                                        <p>Chưa có dữ liệu</p>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     </div>
@@ -387,15 +403,21 @@ export default function EnrollmentReportPage() {
                             <CardTitle>Ghi danh theo khóa học</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <ResponsiveContainer width="100%" height={300}>
-                                <BarChart data={data.byCourse.slice(0, 8)} layout="vertical">
-                                    <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis type="number" />
-                                    <YAxis dataKey="name" type="category" width={150} />
-                                    <Tooltip />
-                                    <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} name="Số ghi danh" />
-                                </BarChart>
-                            </ResponsiveContainer>
+                            {(data.byCourse || []).length > 0 ? (
+                                <ResponsiveContainer width="100%" height={300}>
+                                    <BarChart data={(data.byCourse || []).slice(0, 8)} layout="vertical">
+                                        <CartesianGrid strokeDasharray="3 3" />
+                                        <XAxis type="number" />
+                                        <YAxis dataKey="name" type="category" width={150} />
+                                        <Tooltip />
+                                        <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} name="Số ghi danh" />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="flex items-center justify-center h-[300px] text-gray-400">
+                                    <p>Chưa có dữ liệu khóa học</p>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 
@@ -418,25 +440,29 @@ export default function EnrollmentReportPage() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
-                                        {data.recentEnrollments.map((e) => (
-                                            <tr key={e.id} className="text-sm">
-                                                <td className="py-3 font-medium">{e.studentName}</td>
-                                                <td className="py-3 text-gray-500">{e.studentEmail}</td>
-                                                <td className="py-3">{e.courseName}</td>
-                                                <td className="py-3">{e.className}</td>
-                                                <td className="py-3">
-                                                    <span className={`px-2 py-1 rounded text-xs ${e.status === 'active' ? 'bg-green-100 text-green-700' :
-                                                        e.status === 'dropped' ? 'bg-red-100 text-red-700' :
-                                                            'bg-gray-100 text-gray-700'
-                                                        }`}>
-                                                        {STATUS_LABELS[e.status] || e.status}
-                                                    </span>
-                                                </td>
-                                                <td className="py-3 text-gray-500">
-                                                    {new Date(e.createdAt).toLocaleDateString('vi-VN')}
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {(data.recentEnrollments || []).length > 0 ? (
+                                            (data.recentEnrollments || []).map((e) => (
+                                                <tr key={e.id} className="text-sm">
+                                                    <td className="py-3 font-medium">{e.studentName}</td>
+                                                    <td className="py-3 text-gray-500">{e.studentEmail}</td>
+                                                    <td className="py-3">{e.courseName}</td>
+                                                    <td className="py-3">{e.className}</td>
+                                                    <td className="py-3">
+                                                        <span className={`px-2 py-1 rounded text-xs ${e.status === 'active' ? 'bg-green-100 text-green-700' :
+                                                            e.status === 'dropped' ? 'bg-red-100 text-red-700' :
+                                                                'bg-gray-100 text-gray-700'
+                                                            }`}>
+                                                            {STATUS_LABELS[e.status] || e.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 text-gray-500">
+                                                        {new Date(e.createdAt).toLocaleDateString('vi-VN')}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr><td colSpan={6} className="py-8 text-center text-gray-400">Chưa có ghi danh gần đây</td></tr>
+                                        )}
                                     </tbody>
                                 </table>
                             </div>
