@@ -95,7 +95,7 @@ export function useStaff() {
       return {
         success: true,
         data: createdUser,
-        defaultPassword: createdUser?.default_password || 'SkillMaster@123',
+        defaultPassword: createdUser?.default_password || '(xem mật khẩu trong email)',
       };
     }
 
@@ -182,6 +182,38 @@ export function useStaff() {
     );
   }, [staff]);
 
+  // Lock user account (SUPER_ADMIN only)
+  const lockUser = useCallback(async (userId) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.patch(`${API_URL}/api/admin/users/${userId}/lock`, {}, { headers });
+    if (response.data?.success) {
+      setStaff(prev => prev.map(s => s.id === userId ? { ...s, status: 'suspended' } : s));
+      return { success: true };
+    }
+    throw new Error(response.data?.message || 'Không thể khóa tài khoản');
+  }, []);
+
+  // Unlock user account (SUPER_ADMIN only)
+  const unlockUser = useCallback(async (userId) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.patch(`${API_URL}/api/admin/users/${userId}/unlock`, {}, { headers });
+    if (response.data?.success) {
+      setStaff(prev => prev.map(s => s.id === userId ? { ...s, status: 'active' } : s));
+      return { success: true };
+    }
+    throw new Error(response.data?.message || 'Không thể mở khóa tài khoản');
+  }, []);
+
+  // Reset user password (SUPER_ADMIN only)
+  const resetUserPassword = useCallback(async (userId) => {
+    const headers = await getAuthHeaders();
+    const response = await axios.post(`${API_URL}/api/admin/users/${userId}/reset-password`, {}, { headers });
+    if (response.data?.success) {
+      return { success: true };
+    }
+    throw new Error(response.data?.message || 'Không thể gửi link đặt lại mật khẩu');
+  }, []);
+
   return {
     staff,
     loading,
@@ -194,6 +226,9 @@ export function useStaff() {
     deleteStaff,
     restoreStaff,
     filterStaff,
+    lockUser,
+    unlockUser,
+    resetUserPassword,
   };
 }
 

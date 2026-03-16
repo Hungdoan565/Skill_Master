@@ -4,10 +4,11 @@
  * Bảng danh sách học viên - sử dụng DataTable component
  * ✅ Pagination, sorting, empty states
  * ✅ Consistent với các modules khác
+ * ✅ Lock/Unlock + Reset Password (Super Admin)
  */
 
 import { useMemo } from 'react';
-import { Mail, Phone, Eye, Edit, UserCog } from 'lucide-react';
+import { Mail, Phone, Eye, Edit, UserCog, Lock, Unlock, KeyRound } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { DataTable } from '@/components/ui/data-table';
 import { ColorAvatar } from './ColorAvatar';
@@ -25,7 +26,11 @@ export function StudentsTable({
   onPageSizeChange,
   onViewDetails, 
   onEdit, 
-  onPromote 
+  onPromote,
+  onLockUser,
+  onUnlockUser,
+  onResetPassword,
+  isSuperAdmin = false,
 }) {
   // Define columns for DataTable
   const columns = useMemo(() => [
@@ -74,8 +79,14 @@ export function StudentsTable({
       label: 'Trạng thái',
       sortable: true,
       render: (value) => (
-        <Badge variant={value === 'active' ? 'success' : 'secondary'}>
-          {value === 'active' ? 'Hoạt động' : 'Ngừng'}
+        <Badge variant={
+          value === 'active' ? 'success' 
+          : value === 'suspended' ? 'destructive' 
+          : 'secondary'
+        }>
+          {value === 'active' ? 'Hoạt động' 
+           : value === 'suspended' ? 'Đã khóa' 
+           : 'Ngừng'}
         </Badge>
       ),
     },
@@ -116,10 +127,42 @@ export function StudentsTable({
           >
             <UserCog className="h-4 w-4" />
           </button>
+
+          {/* Lock / Unlock (SUPER_ADMIN only) */}
+          {isSuperAdmin && (
+            student.status === 'suspended' ? (
+              <button
+                onClick={(e) => { e.stopPropagation(); onUnlockUser?.(student.id); }}
+                className="p-2 rounded-lg text-green-600 hover:text-green-700 hover:bg-green-50 transition-colors"
+                title="Mở khóa tài khoản"
+              >
+                <Unlock className="h-4 w-4" />
+              </button>
+            ) : (
+              <button
+                onClick={(e) => { e.stopPropagation(); onLockUser?.(student.id); }}
+                className="p-2 rounded-lg text-red-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                title="Khóa tài khoản"
+              >
+                <Lock className="h-4 w-4" />
+              </button>
+            )
+          )}
+
+          {/* Reset Password (SUPER_ADMIN only) */}
+          {isSuperAdmin && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onResetPassword?.(student.id); }}
+              className="p-2 rounded-lg text-amber-500 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+              title="Đặt lại mật khẩu"
+            >
+              <KeyRound className="h-4 w-4" />
+            </button>
+          )}
         </div>
       ),
     },
-  ], [onViewDetails, onEdit, onPromote]);
+  ], [onViewDetails, onEdit, onPromote, onLockUser, onUnlockUser, onResetPassword, isSuperAdmin]);
 
   return (
     <DataTable

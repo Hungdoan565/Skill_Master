@@ -3,7 +3,7 @@
  * Bảng danh sách nhân viên - Full features version
  */
 
-import { Pencil, Trash2, Eye, RotateCcw, DollarSign, Building2 } from 'lucide-react';
+import { Pencil, Trash2, Eye, RotateCcw, DollarSign, Building2, Lock, Unlock, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ColorAvatar } from './ColorAvatar';
@@ -20,7 +20,11 @@ export function StaffTable({
   onViewDetail,
   onEdit,
   onDelete,
-  onRestore
+  onRestore,
+  onLockUser,
+  onUnlockUser,
+  onResetPassword,
+  isSuperAdmin = false,
 }) {
   return (
     <div className="overflow-x-auto">
@@ -39,7 +43,7 @@ export function StaffTable({
           {staff.map((member) => (
             <tr
               key={member.id}
-              className={`border-b last:border-0 hover:bg-slate-50 transition-colors ${member.status === 'inactive' ? 'opacity-60' : ''
+              className={`border-b last:border-0 hover:bg-slate-50 transition-colors ${member.status === 'inactive' || member.status === 'suspended' ? 'opacity-60' : ''
                 }`}
             >
               {/* Avatar + Name + Center */}
@@ -92,8 +96,14 @@ export function StaffTable({
 
               {/* Status */}
               <td className="py-4 pr-4">
-                <Badge variant={member.status === 'active' ? 'success' : 'secondary'}>
-                  {member.status === 'active' ? 'Hoạt động' : 'Ngừng'}
+                <Badge variant={
+                  member.status === 'active' ? 'success' 
+                  : member.status === 'suspended' ? 'destructive' 
+                  : 'secondary'
+                }>
+                  {member.status === 'active' ? 'Hoạt động' 
+                   : member.status === 'suspended' ? 'Đã khóa' 
+                   : 'Ngừng'}
                 </Badge>
               </td>
 
@@ -119,6 +129,42 @@ export function StaffTable({
                   >
                     <Pencil className="h-4 w-4 text-blue-500" />
                   </Button>
+
+                  {/* Lock / Unlock (SUPER_ADMIN only) */}
+                  {isSuperAdmin && (
+                    member.status === 'suspended' ? (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Mở khóa tài khoản"
+                        onClick={() => onUnlockUser?.(member.id)}
+                      >
+                        <Unlock className="h-4 w-4 text-green-600" />
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Khóa tài khoản"
+                        onClick={() => onLockUser?.(member.id)}
+                        disabled={member.roles?.code === 'SUPER_ADMIN'}
+                      >
+                        <Lock className="h-4 w-4 text-red-500" />
+                      </Button>
+                    )
+                  )}
+
+                  {/* Reset Password (SUPER_ADMIN only) */}
+                  {isSuperAdmin && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Đặt lại mật khẩu"
+                      onClick={() => onResetPassword?.(member.id)}
+                    >
+                      <KeyRound className="h-4 w-4 text-amber-500" />
+                    </Button>
+                  )}
 
                   {/* Delete or Restore */}
                   {member.status === 'inactive' ? (

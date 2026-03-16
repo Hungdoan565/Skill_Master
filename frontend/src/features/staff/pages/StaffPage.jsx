@@ -11,6 +11,8 @@ import {
   CardContent,
   CardHeader,
 } from '@/components/ui/card';
+import { gooeyToast } from 'goey-toast';
+import { useAuth } from '@/contexts/auth-context';
 import { useStaff, useStaffForm } from '../hooks';
 import {
   StaffFilters,
@@ -24,6 +26,8 @@ import {
 } from '../components';
 
 export function StaffPage() {
+  const { isSuperAdmin } = useAuth();
+
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
@@ -50,7 +54,10 @@ export function StaffPage() {
     updateStaff,
     deleteStaff,
     restoreStaff,
-    filterStaff
+    filterStaff,
+    lockUser,
+    unlockUser,
+    resetUserPassword,
   } = useStaff();
 
   // Form hook for create modal
@@ -160,6 +167,36 @@ export function StaffPage() {
     }
   }, [restoreStaff, showToast]);
 
+  // Lock user handler (SUPER_ADMIN)
+  const handleLockUser = useCallback(async (userId) => {
+    try {
+      await lockUser(userId);
+      gooeyToast.success('Đã khóa tài khoản');
+    } catch (error) {
+      gooeyToast.error(error.message || 'Không thể khóa tài khoản');
+    }
+  }, [lockUser]);
+
+  // Unlock user handler (SUPER_ADMIN)
+  const handleUnlockUser = useCallback(async (userId) => {
+    try {
+      await unlockUser(userId);
+      gooeyToast.success('Đã mở khóa tài khoản');
+    } catch (error) {
+      gooeyToast.error(error.message || 'Không thể mở khóa tài khoản');
+    }
+  }, [unlockUser]);
+
+  // Reset password handler (SUPER_ADMIN)
+  const handleResetPassword = useCallback(async (userId) => {
+    try {
+      await resetUserPassword(userId);
+      gooeyToast.success('Đã gửi link đặt lại mật khẩu');
+    } catch (error) {
+      gooeyToast.error(error.message || 'Không thể gửi link đặt lại mật khẩu');
+    }
+  }, [resetUserPassword]);
+
   // Refresh handler
   const handleRefresh = useCallback(() => {
     fetchStaff(roleFilter);
@@ -223,6 +260,10 @@ export function StaffPage() {
               onEdit={handleEditClick}
               onDelete={handleDeleteClick}
               onRestore={handleRestore}
+              onLockUser={handleLockUser}
+              onUnlockUser={handleUnlockUser}
+              onResetPassword={handleResetPassword}
+              isSuperAdmin={isSuperAdmin?.() || false}
             />
           )}
         </CardContent>

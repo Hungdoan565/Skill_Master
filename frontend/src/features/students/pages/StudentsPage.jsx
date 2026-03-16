@@ -31,7 +31,7 @@ const DEFAULT_FILTERS = {
 
 export function StudentsPage() {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, isSuperAdmin } = useAuth();
 
   const [viewMode, setViewMode] = useState('list');
   const [searchTerm, setSearchTerm] = useState('');
@@ -67,6 +67,9 @@ export function StudentsPage() {
     bulkUpdateStudentsStatus,
     checkBulkDeleteEligibility,
     bulkDeleteStudents,
+    lockUser,
+    unlockUser,
+    resetUserPassword,
   } = useStudents();
 
   const centerName = profile?.centers?.name || 'Skill Master';
@@ -254,6 +257,36 @@ export function StudentsPage() {
     });
   }, [fetchStudents, filters, debouncedSearch, currentPage, pageSize]);
 
+  // Lock user handler (SUPER_ADMIN)
+  const handleLockUser = useCallback(async (userId) => {
+    try {
+      await lockUser(userId);
+      gooeyToast.success('Đã khóa tài khoản');
+    } catch (error) {
+      gooeyToast.error(error.message || 'Không thể khóa tài khoản');
+    }
+  }, [lockUser]);
+
+  // Unlock user handler (SUPER_ADMIN)
+  const handleUnlockUser = useCallback(async (userId) => {
+    try {
+      await unlockUser(userId);
+      gooeyToast.success('Đã mở khóa tài khoản');
+    } catch (error) {
+      gooeyToast.error(error.message || 'Không thể mở khóa tài khoản');
+    }
+  }, [unlockUser]);
+
+  // Reset password handler (SUPER_ADMIN)
+  const handleResetPassword = useCallback(async (userId) => {
+    try {
+      await resetUserPassword(userId);
+      gooeyToast.success('Đã gửi link đặt lại mật khẩu');
+    } catch (error) {
+      gooeyToast.error(error.message || 'Không thể gửi link đặt lại mật khẩu');
+    }
+  }, [resetUserPassword]);
+
   const handleBulkStatus = useCallback(async (status) => {
     if (selectedRows.length === 0) return;
 
@@ -412,6 +445,10 @@ export function StudentsPage() {
                 onViewDetails={handleViewDetails}
                 onEdit={(student) => setEditModal({ isOpen: true, student, submitting: false })}
                 onPromote={(student) => setPromoteModal({ isOpen: true, student })}
+                onLockUser={handleLockUser}
+                onUnlockUser={handleUnlockUser}
+                onResetPassword={handleResetPassword}
+                isSuperAdmin={isSuperAdmin?.() || false}
               />
 
               {error && (
