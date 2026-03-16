@@ -10,6 +10,8 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { useTeacherAttendance } from '../hooks';
+import { StudentNotePopover } from '../components/StudentNotePopover';
+import { TeachingNotesSection } from '../components/TeachingNotesSection';
 import {
     ArrowLeft,
     Check,
@@ -23,7 +25,8 @@ import {
     Users,
     Save,
     CheckCircle2,
-    ClipboardCheck
+    ClipboardCheck,
+    MessageSquarePlus,
 } from 'lucide-react';
 
 const STATUS_OPTIONS = [
@@ -65,6 +68,7 @@ export function TeacherAttendancePage() {
     } = useTeacherAttendance(id);
 
     const [className, setClassName] = useState('');
+    const [noteTarget, setNoteTarget] = useState(null);
 
     useEffect(() => {
         fetchSessions();
@@ -191,7 +195,28 @@ export function TeacherAttendancePage() {
                 onUpdateStatus={updateAttendance}
                 canEdit={editStatus?.canEdit}
                 loading={loading}
+                onOpenNote={(studentId, studentName) => setNoteTarget({ studentId, studentName })}
             />
+
+            {/* Student Note Popover */}
+            {noteTarget && (
+                <StudentNotePopover
+                    studentId={noteTarget.studentId}
+                    classId={id}
+                    sessionId={selectedSession?.id}
+                    studentName={noteTarget.studentName}
+                    onClose={() => setNoteTarget(null)}
+                />
+            )}
+
+            {/* Teaching Notes Section */}
+            {selectedSession && (
+                <TeachingNotesSection
+                    sessionId={selectedSession.id}
+                    initialNotes={selectedSession.teacher_notes}
+                    initialHomework={selectedSession.homework}
+                />
+            )}
 
             {/* Sticky Footer */}
             <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-border shadow-lg z-50">
@@ -282,20 +307,37 @@ function EditStatusBadge({ editStatus }) {
     if (!editStatus) return null;
 
     if (editStatus.canEdit) {
+        const hours = editStatus.hoursRemaining || 0;
+        const h = Math.floor(hours);
+        const m = Math.round((hours % 1) * 60);
+        
+        // Color based on urgency
+        let colorClasses, iconColor;
+        if (hours > 12) {
+            colorClasses = 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20';
+            iconColor = 'text-emerald-500';
+        } else if (hours > 4) {
+            colorClasses = 'bg-amber-500/10 text-amber-600 border border-amber-500/20';
+            iconColor = 'text-amber-500';
+        } else {
+            colorClasses = 'bg-red-500/10 text-red-600 border border-red-500/20 animate-pulse';
+            iconColor = 'text-red-500';
+        }
+
         return (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-500">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                Có thể chỉnh sửa
-                {editStatus.hoursRemaining && (
-                    <span className="text-emerald-500">({editStatus.hoursRemaining}h còn lại)</span>
-                )}
+            <span className={cn(
+                'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium',
+                colorClasses
+            )}>
+                <Clock className={cn('h-3.5 w-3.5', iconColor)} />
+                Còn {h > 0 ? `${h}h` : ''}{m > 0 ? `${m}p` : ''} để chỉnh sửa
             </span>
         );
     }
 
     if (editStatus.reason === 'locked') {
         return (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-red-500/10 text-red-500">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-red-500/10 text-red-500 border border-red-500/20">
                 <Lock className="h-3.5 w-3.5" />
                 Đã khóa
             </span>
@@ -303,9 +345,9 @@ function EditStatusBadge({ editStatus }) {
     }
 
     return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-500">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500 border border-slate-200">
             <AlertTriangle className="h-3.5 w-3.5" />
-            Quá 24h - Liên hệ Admin
+            Hết hạn chỉnh sửa — Liên hệ Admin
         </span>
     );
 }
@@ -358,7 +400,7 @@ function BulkActionsBar({ summary, onMarkAllPresent, onMarkAllAbsent, canEdit })
     );
 }
 
-function StudentAttendanceList({ attendance, onUpdateStatus, canEdit, loading }) {
+function StudentAttendanceList({ attendance, onUpdateStatus, canEdit, loading, onOpenNote }) {
     if (loading) {
         return (
             <div className="bg-white rounded-2xl shadow-sm border border-border p-8">
@@ -399,6 +441,7 @@ function StudentAttendanceList({ attendance, onUpdateStatus, canEdit, loading })
                                 record={record}
                                 onUpdateStatus={onUpdateStatus}
                                 canEdit={canEdit}
+                                onOpenNote={onOpenNote}
                             />
                         ))}
                     </tbody>
@@ -408,7 +451,7 @@ function StudentAttendanceList({ attendance, onUpdateStatus, canEdit, loading })
     );
 }
 
-function StudentRow({ index, record, onUpdateStatus, canEdit }) {
+function StudentRow({ index, record, onUpdateStatus, canEdit, onOpenNote }) {
     const studentName = record.student_name || record.full_name || 'Học viên';
     const initials = studentName.split(' ').map(n => n[0]).slice(-2).join('').toUpperCase();
 
@@ -426,6 +469,13 @@ function StudentRow({ index, record, onUpdateStatus, canEdit }) {
                             <p className="text-xs text-muted-foreground">{record.student_code}</p>
                         )}
                     </div>
+                    <button
+                        onClick={() => onOpenNote?.(record.student_id, studentName)}
+                        className="ml-auto p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                        title="Thêm nhận xét"
+                    >
+                        <MessageSquarePlus className="h-4 w-4" />
+                    </button>
                 </div>
             </td>
             <td className="py-3 px-4">

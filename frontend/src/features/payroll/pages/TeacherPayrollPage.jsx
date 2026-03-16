@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState, useCallback } from 'react';
-import { DollarSign, Calendar, Clock, FileText, Loader2, AlertTriangle } from 'lucide-react';
+import { DollarSign, Calendar, Clock, FileText, Loader2, AlertTriangle, Briefcase, TrendingUp } from 'lucide-react';
 import axios from 'axios';
 import {
     Card,
@@ -44,6 +44,7 @@ export function TeacherPayrollPage() {
     const currentPeriod = getCurrentMonth();
     const [year, setYear] = useState(currentPeriod.year);
     const [payrolls, setPayrolls] = useState([]);
+    const [compensation, setCompensation] = useState(null);
     const [loading, setLoading] = useState(true);
     const [selectedPayroll, setSelectedPayroll] = useState(null);
     const [detailLoading, setDetailLoading] = useState(false);
@@ -65,6 +66,9 @@ export function TeacherPayrollPage() {
             );
             if (response.data?.success) {
                 setPayrolls(response.data.data);
+                if (response.data.compensation) {
+                    setCompensation(response.data.compensation);
+                }
             }
         } catch (error) {
             console.error('Error fetching payrolls:', error);
@@ -212,6 +216,43 @@ export function TeacherPayrollPage() {
                 </Card>
             </div>
 
+            {/* Pay Scheme Info */}
+            {compensation && (
+                <Card>
+                    <CardContent className="pt-4 pb-4">
+                        <div className="flex flex-wrap items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <Briefcase className="h-4 w-4 text-indigo-500" />
+                                <span className="text-sm text-muted-foreground">Hình thức trả lương:</span>
+                                <Badge variant="outline" className="font-medium">
+                                    {compensation.pay_scheme === 'HOURLY_ONLY' && 'Theo giờ dạy'}
+                                    {compensation.pay_scheme === 'FIXED_ONLY' && 'Lương cố định'}
+                                    {compensation.pay_scheme === 'FIXED_PLUS_HOURLY' && 'Cố định + Theo giờ'}
+                                </Badge>
+                            </div>
+                            {compensation.hourly_rate > 0 && (
+                                <div className="flex items-center gap-2">
+                                    <TrendingUp className="h-4 w-4 text-green-500" />
+                                    <span className="text-sm text-muted-foreground">Đơn giá:</span>
+                                    <span className="text-sm font-semibold text-green-600">
+                                        {formatCurrency(compensation.hourly_rate)}/giờ
+                                    </span>
+                                </div>
+                            )}
+                            {compensation.fixed_monthly_salary > 0 && (
+                                <div className="flex items-center gap-2">
+                                    <DollarSign className="h-4 w-4 text-blue-500" />
+                                    <span className="text-sm text-muted-foreground">Lương cố định:</span>
+                                    <span className="text-sm font-semibold text-blue-600">
+                                        {formatCurrency(compensation.fixed_monthly_salary)}/tháng
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
             {/* Main Content */}
             <div className="grid gap-6 lg:grid-cols-2">
                 {/* Payroll List */}
@@ -307,6 +348,14 @@ export function TeacherPayrollPage() {
                                             <span className="text-muted-foreground">Tổng giờ:</span>
                                             <span className="ml-2 font-medium">{formatHours(selectedPayroll.total_hours)}</span>
                                         </div>
+                                        {compensation?.hourly_rate > 0 && selectedPayroll.total_hours > 0 && (
+                                            <div className="col-span-2 pt-1 border-t border-border/50">
+                                                <span className="text-muted-foreground">Tính lương:</span>
+                                                <span className="ml-2 font-medium text-foreground">
+                                                    {formatHours(selectedPayroll.total_hours)} × {formatCurrency(compensation.hourly_rate)} = {formatCurrency(selectedPayroll.base_salary)}
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
