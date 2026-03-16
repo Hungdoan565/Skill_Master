@@ -1,11 +1,20 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { ArrowUp } from 'lucide-react';
+import { ArrowUp, Headphones, MessageCircle, ArrowLeft } from 'lucide-react';
 import { useChat } from '../context/ChatContext';
 
 export default function ChatInput() {
-  const { sendMessage, isStreaming } = useChat();
+  const {
+    sendMessage, sendAdvisorReply, isStreaming,
+    linkedTicket, allowLeadHandoff, leadTriggered, triggerLeadForm
+  } = useChat();
   const [text, setText] = useState('');
+  const [replyMode, setReplyMode] = useState(false); // Explicit advisor reply mode
   const textareaRef = useRef(null);
+
+  const hasTicketLink = !!linkedTicket?.ticketId;
+
+  // Show contact button: allowed + not already showing form + no ticket linked yet
+  const showContactButton = allowLeadHandoff && !leadTriggered && !hasTicketLink;
 
   // Auto-resize textarea
   useEffect(() => {
@@ -18,13 +27,18 @@ export default function ChatInput() {
 
   const handleSubmit = useCallback(() => {
     if (!text.trim() || isStreaming) return;
-    sendMessage(text);
+
+    if (replyMode && hasTicketLink && sendAdvisorReply) {
+      sendAdvisorReply(text);
+    } else {
+      sendMessage(text);
+    }
+
     setText('');
-    // Reset height
     if (textareaRef.current) {
       textareaRef.current.style.height = '48px';
     }
-  }, [text, isStreaming, sendMessage]);
+  }, [text, isStreaming, replyMode, hasTicketLink, sendMessage, sendAdvisorReply]);
 
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -35,19 +49,68 @@ export default function ChatInput() {
 
   const hasText = text.trim().length > 0;
 
+  const placeholder = isStreaming
+    ? 'Molly đang trả lời...'
+    : replyMode
+      ? 'Trả lời tư vấn viên...'
+      : 'Nhập tin nhắn...';
+
   return (
     <div className="shrink-0 border-t border-border bg-white p-3">
+      {/* Reply mode indicator + toggle */}
+      {hasTicketLink && (
+        <div className="mb-2 flex items-center gap-2">
+          {replyMode ? (
+            <button
+              onClick={() => setReplyMode(false)}
+              className="flex items-center gap-1.5 rounded-lg bg-indigo-50 border border-indigo-200 px-3 py-1.5 text-xs text-indigo-700 hover:bg-indigo-100 transition-colors"
+            >
+              <ArrowLeft className="h-3 w-3" />
+              <span className="font-medium">Đang trả lời tư vấn viên</span>
+              <span className="text-indigo-400">·</span>
+              <span>Ticket #{linkedTicket.ticketNumber}</span>
+              <span className="text-indigo-400 ml-1">← Nhấn để quay về Molly</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setReplyMode(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-xs text-emerald-700 hover:bg-emerald-100 transition-colors"
+            >
+              <MessageCircle className="h-3 w-3" />
+              <span className="font-medium">Ticket #{linkedTicket.ticketNumber}</span>
+              <span className="text-emerald-500">·</span>
+              <span>Nhấn để trả lời tư vấn viên</span>
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="flex items-end gap-2">
+        {/* Contact advisor button (only before ticket is linked) */}
+        {showContactButton && (
+          <button
+            onClick={triggerLeadForm}
+            title="Liên hệ tư vấn viên"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-200 transition-all duration-150 hover:bg-indigo-100 hover:border-indigo-300"
+          >
+            <Headphones className="h-4 w-4" />
+          </button>
+        )}
+
         <textarea
           ref={textareaRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={isStreaming ? 'Molly đang trả lời...' : 'Nhập tin nhắn...'}
+          placeholder={placeholder}
           disabled={isStreaming}
           rows={1}
           maxLength={500}
-          className="flex-1 resize-none rounded-xl border border-border bg-white px-3.5 py-3 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50 disabled:cursor-not-allowed"
+          className={`flex-1 resize-none rounded-xl border bg-white px-3.5 py-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 disabled:opacity-50 disabled:cursor-not-allowed ${
+            replyMode
+              ? 'border-indigo-200 focus:border-indigo-400 focus:ring-indigo-300/30'
+              : 'border-border focus:border-primary focus:ring-primary/30'
+          }`}
           style={{ minHeight: '48px', maxHeight: '120px' }}
         />
         <button
@@ -55,10 +118,12 @@ export default function ChatInput() {
           disabled={!hasText || isStreaming}
           className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all duration-150 ${
             hasText && !isStreaming
-              ? 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90'
+              ? replyMode
+                ? 'bg-indigo-600 text-white shadow-sm hover:bg-indigo-700'
+                : 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90'
               : 'bg-muted text-muted-foreground cursor-not-allowed'
           }`}
-          aria-label="Gửi tin nhắn"
+          aria-label={replyMode ? 'Gửi phản hồi cho tư vấn viên' : 'Gửi tin nhắn'}
         >
           <ArrowUp className="h-4.5 w-4.5" />
         </button>

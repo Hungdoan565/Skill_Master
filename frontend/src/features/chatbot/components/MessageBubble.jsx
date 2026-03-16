@@ -198,6 +198,33 @@ const MessageBubble = memo(function MessageBubble({
     );
   }
 
+  // Advisor (admin) message — distinct styling for human support
+  if (message.role === 'advisor') {
+    return (
+      <div className="group flex gap-2 animate-in fade-in slide-in-from-left-2 duration-200">
+        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 mt-1">
+          <svg className="h-3.5 w-3.5 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+        </div>
+        <div className="max-w-[80%]">
+          <p className="mb-0.5 text-[10px] font-semibold text-indigo-600">
+            {message.senderName || 'Tư vấn viên'}
+          </p>
+          <div className="rounded-2xl rounded-bl-md bg-indigo-50 border border-indigo-100 px-3.5 py-2.5 text-sm text-slate-800">
+            <p className="whitespace-pre-wrap break-words">{message.content}</p>
+          </div>
+          <div className="mt-0.5 flex items-center gap-1.5">
+            <p className="text-[10px] text-muted-foreground">
+              {formatTime(message.timestamp)}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Assistant message
   return (
     <div className="group flex gap-2 animate-in fade-in duration-200">

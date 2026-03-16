@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, useRef, useEffect } f
 import { useAuth } from '@/contexts/auth-context';
 import { gooeyToast } from 'goey-toast';
 import { getRoleCode, resolveChatMode } from '../utils/mode-policy';
+import { supabase as supabaseClient } from '@/lib/supabaseClient';
 
 const ChatContext = createContext(null);
 
@@ -36,6 +37,11 @@ export function ChatProvider({ children, pathname }) {
   // --- Multi-conversation state (student mode) ---
   const [conversations, setConversations] = useState([]);
   const [isLoadingConversations, setIsLoadingConversations] = useState(false);
+
+  // --- Ticket bridge state (admin ↔ student real-time) ---
+  const [linkedTicket, setLinkedTicket] = useState(null); // { ticketId, ticketNumber, ticketStatus }
+  const [isTicketLoading, setIsTicketLoading] = useState(false);
+  const realtimeChannelRef = useRef(null);
 
   const abortControllerRef = useRef(null);
   const loadedSessionsRef = useRef(new Set());
@@ -186,6 +192,172 @@ export function ChatProvider({ children, pathname }) {
       loadSessionMessages(activeSessionId);
     }
   }, [activeSessionId, loadSessionMessages]);
+
+  // --- Ticket bridge: check link + setup Realtime subscription ---
+  const checkTicketLink = useCallback(async (sessionIdToCheck) => {
+    if (!sessionIdToCheck || mode !== 'student' || !session?.access_token) return;
+    setIsTicketLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/api/chatbot/ticket-link/${sessionIdToCheck}`, {
+        headers: getAuthHeaders()
+      });
+      const data = await response.json();
+      if (data?.success && data?.data?.linked) {
+        setLinkedTicket({
+          ticketId: data.data.ticketId,
+          ticketNumber: data.data.ticketNumber,
+          ticketStatus: data.data.ticketStatus
+        });
+        // Inject existing ticket messages into chat
+        if (data.data.messages?.length > 0) {
+          const advisorMsgs = data.data.messages.map(m => ({
+            id: `ticket-${m.id}`,
+            role: m.isAdvisor ? 'advisor' : 'user',
+            content: m.content,
+            senderName: m.senderName,
+            senderRole: m.senderRole,
+            timestamp: m.createdAt,
+            isTicketMessage: true
+          }));
+          setMessages(prev => {
+            // Merge: keep AI messages, append ticket messages at end
+            const existingTicketIds = new Set(prev.filter(m => m.isTicketMessage).map(m => m.id));
+            const newMsgs = advisorMsgs.filter(m => !existingTicketIds.has(m.id));
+            return [...prev, ...newMsgs];
+          });
+        }
+      } else {
+        setLinkedTicket(null);
+      }
+    } catch (err) {
+      console.error('Failed to check ticket link:', err);
+      setLinkedTicket(null);
+    } finally {
+      setIsTicketLoading(false);
+    }
+  }, [mode, session, getAuthHeaders]);
+
+  // Check ticket link when session changes
+  useEffect(() => {
+    if (activeSessionId && mode === 'student') {
+      checkTicketLink(activeSessionId);
+    } else {
+      setLinkedTicket(null);
+    }
+  }, [activeSessionId, mode]);
+
+  // Setup Supabase Realtime subscription for ticket messages
+  useEffect(() => {
+    // Cleanup previous subscription
+    if (realtimeChannelRef.current) {
+      supabaseClient.removeChannel(realtimeChannelRef.current);
+      realtimeChannelRef.current = null;
+    }
+
+    if (!linkedTicket?.ticketId || !user) return;
+
+    const channel = supabaseClient
+      .channel(`ticket-chat-${linkedTicket.ticketId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'ticket_messages',
+          filter: `ticket_id=eq.${linkedTicket.ticketId}`
+        },
+        (payload) => {
+          const newMsg = payload.new;
+          // Skip if it's the student's own message (already in UI)
+          if (newMsg.sender_id === user.id) return;
+          // Skip internal messages
+          if (newMsg.is_internal) return;
+
+          const msgId = `ticket-${newMsg.id}`;
+
+          // Show message IMMEDIATELY with default name
+          const advisorMessage = {
+            id: msgId,
+            role: 'advisor',
+            content: newMsg.message,
+            senderName: 'Tư vấn viên',
+            timestamp: newMsg.created_at,
+            isTicketMessage: true
+          };
+
+          setMessages(prev => {
+            if (prev.some(m => m.id === msgId)) return prev;
+            return [...prev, advisorMessage];
+          });
+
+          // Show notification toast if chat is closed
+          if (!isOpen) {
+            gooeyToast.info(`Tư vấn viên: ${newMsg.message.substring(0, 60)}...`);
+          }
+
+          // Fetch real sender name in background (non-blocking)
+          supabaseClient
+            .from('users')
+            .select('full_name')
+            .eq('id', newMsg.sender_id)
+            .maybeSingle()
+            .then(({ data }) => {
+              if (data?.full_name) {
+                setMessages(prev => prev.map(m =>
+                  m.id === msgId ? { ...m, senderName: data.full_name } : m
+                ));
+              }
+            })
+            .catch(() => {});
+        }
+      )
+      .subscribe();
+
+    realtimeChannelRef.current = channel;
+
+    return () => {
+      supabaseClient.removeChannel(channel);
+      realtimeChannelRef.current = null;
+    };
+  }, [linkedTicket?.ticketId, user?.id, isOpen]);
+
+  // Send reply to advisor from within Molly
+  const sendAdvisorReply = useCallback(async (text) => {
+    if (!text?.trim() || !linkedTicket?.ticketId) return;
+
+    // Optimistic update
+    const tempId = `ticket-temp-${Date.now()}`;
+    const userReply = {
+      id: tempId,
+      role: 'user',
+      content: text.trim(),
+      timestamp: new Date().toISOString(),
+      isTicketMessage: true
+    };
+    setMessages(prev => [...prev, userReply]);
+
+    try {
+      const response = await fetch(`${API_URL}/api/chatbot/ticket-reply`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ ticketId: linkedTicket.ticketId, message: text.trim() })
+      });
+      const data = await response.json();
+      if (data?.success) {
+        // Replace temp message with real one
+        setMessages(prev => prev.map(m =>
+          m.id === tempId ? { ...m, id: `ticket-${data.data.id}` } : m
+        ));
+      } else {
+        // Remove failed message
+        setMessages(prev => prev.filter(m => m.id !== tempId));
+        gooeyToast.error(data?.error || 'Không thể gửi phản hồi');
+      }
+    } catch (err) {
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+      gooeyToast.error('Lỗi kết nối');
+    }
+  }, [linkedTicket, getAuthHeaders]);
 
   // --- Actions ---
   const toggle = useCallback(() => {
@@ -595,6 +767,15 @@ export function ChatProvider({ children, pathname }) {
     }
   }, [messages, sendMessage]);
 
+  // Manual lead form trigger (for direct button access)
+  const triggerLeadForm = useCallback(() => {
+    if (allowLeadHandoff) {
+      setLeadCaptured(false); // Reset to allow re-contact
+      sessionStorage.removeItem('molly_lead_captured');
+      setLeadTriggered(true);
+    }
+  }, [allowLeadHandoff]);
+
   const value = {
     // Core state
     messages,
@@ -619,6 +800,10 @@ export function ChatProvider({ children, pathname }) {
     conversations,
     isLoadingConversations,
 
+    // Ticket bridge state (admin ↔ student)
+    linkedTicket,
+    isTicketLoading,
+
     // Basic actions
     toggle,
     close,
@@ -626,6 +811,7 @@ export function ChatProvider({ children, pathname }) {
     sendMessage,
     submitLead,
     dismissLead,
+    triggerLeadForm,
     retryLastMessage,
     resetSession,
 
@@ -640,7 +826,11 @@ export function ChatProvider({ children, pathname }) {
     copyMessage,
     rateMessage,
     regenerateResponse,
-    editAndResend
+    editAndResend,
+
+    // Ticket bridge actions
+    sendAdvisorReply,
+    checkTicketLink
   };
 
   return (

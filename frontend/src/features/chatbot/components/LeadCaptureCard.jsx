@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useChat } from '../context/ChatContext';
 
 const TIME_OPTIONS = [
@@ -37,6 +37,16 @@ export default function LeadCaptureCard() {
 
     setSubmitting(false);
   }, [formData, submitting, submitLead]);
+
+  // Auto-dismiss the success message after a few seconds
+  useEffect(() => {
+    if (submitted) {
+      const timer = setTimeout(() => {
+        dismissLead();
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [submitted, dismissLead]);
 
   if (!allowLeadHandoff || !leadTriggered || leadCaptured) return null;
 
