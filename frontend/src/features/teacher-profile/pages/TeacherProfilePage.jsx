@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTeacherProfile } from '../hooks/useTeacherProfile';
 import {
     Mail,
@@ -9,11 +10,20 @@ import {
     GraduationCap,
     Clock,
     AlertTriangle,
-    RefreshCw
+    RefreshCw,
+    Pencil,
+    X,
+    Save,
+    Check,
+    Loader2,
 } from 'lucide-react';
 
 export default function TeacherProfilePage() {
-    const { profile, loading, error, refetch } = useTeacherProfile();
+    const { profile, loading, saving, error, refetch, updateProfile } = useTeacherProfile();
+    const [isEditing, setIsEditing] = useState(false);
+    const [editForm, setEditForm] = useState({ phone: '' });
+    const [editError, setEditError] = useState(null);
+    const [successMessage, setSuccessMessage] = useState(null);
 
     if (loading) {
         return (
@@ -84,6 +94,48 @@ export default function TeacherProfilePage() {
     // Primary center
     const primaryCenter = centers.length > 0 ? centers[0] : null;
 
+    // Start editing
+    const handleStartEdit = () => {
+        setEditForm({
+            phone: phone === 'Chưa cập nhật' ? '' : (phone || ''),
+        });
+        setEditError(null);
+        setSuccessMessage(null);
+        setIsEditing(true);
+    };
+
+    // Cancel editing
+    const handleCancelEdit = () => {
+        setIsEditing(false);
+        setEditForm({ phone: '' });
+        setEditError(null);
+    };
+
+    // Save profile
+    const handleSave = async () => {
+        setEditError(null);
+        setSuccessMessage(null);
+
+        // Validate phone
+        const phoneClean = editForm.phone.replace(/\s/g, '');
+        if (phoneClean && !/^0\d{9}$/.test(phoneClean)) {
+            setEditError('Số điện thoại phải có 10 số, bắt đầu bằng 0');
+            return;
+        }
+
+        const result = await updateProfile({
+            phone: phoneClean || null,
+        });
+
+        if (result.success) {
+            setIsEditing(false);
+            setSuccessMessage(result.message);
+            setTimeout(() => setSuccessMessage(null), 3000);
+        } else {
+            setEditError(result.message);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-white pb-12">
             {/* Header / Hero Section */}
@@ -91,7 +143,7 @@ export default function TeacherProfilePage() {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
                         {/* Avatar */}
-                        <div className="flex-shrink-0">
+                        <div className="flex-shrink-0 relative group">
                             {avatar_url ? (
                                 <img
                                     src={avatar_url}
@@ -119,16 +171,38 @@ export default function TeacherProfilePage() {
                             </div>
                         </div>
 
-                        <button
-                            onClick={refetch}
-                            className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors self-center md:self-start mt-4 md:mt-0"
-                            title="Làm mới dữ liệu"
-                        >
-                            <RefreshCw className="h-5 w-5" />
-                        </button>
+                        <div className="flex items-center gap-2 self-center md:self-start mt-4 md:mt-0">
+                            {!isEditing && (
+                                <button
+                                    onClick={handleStartEdit}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium"
+                                    title="Chỉnh sửa hồ sơ"
+                                >
+                                    <Pencil className="h-4 w-4" />
+                                    <span className="hidden sm:inline">Chỉnh sửa</span>
+                                </button>
+                            )}
+                            <button
+                                onClick={refetch}
+                                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                                title="Làm mới dữ liệu"
+                            >
+                                <RefreshCw className="h-5 w-5" />
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
+
+            {/* Success Message */}
+            {successMessage && (
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-4 mb-2">
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm">
+                        <Check className="h-4 w-4 flex-shrink-0" />
+                        <span>{successMessage}</span>
+                    </div>
+                </div>
+            )}
 
             {/* Main Content */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 space-y-6">
@@ -173,29 +247,73 @@ export default function TeacherProfilePage() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Left Column: Personal Info */}
                     <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
-                        <div className="px-6 py-4 border-b border-border bg-slate-50">
+                        <div className="px-6 py-4 border-b border-border bg-slate-50 flex items-center justify-between">
                             <h2 className="text-lg font-semibold text-foreground">Thông tin cá nhân</h2>
+                            {isEditing && (
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={handleCancelEdit}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                                        disabled={saving}
+                                    >
+                                        <X className="h-3.5 w-3.5" />
+                                        Hủy
+                                    </button>
+                                    <button
+                                        onClick={handleSave}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                                        disabled={saving}
+                                    >
+                                        {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                                        Lưu
+                                    </button>
+                                </div>
+                            )}
                         </div>
+
+                        {editError && (
+                            <div className="mx-6 mt-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2">
+                                <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                                {editError}
+                            </div>
+                        )}
+
                         <div className="p-6">
                             <ul className="space-y-4">
+                                {/* Email — read only always */}
                                 <li className="flex items-center">
                                     <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground mr-4">
                                         <Mail className="h-5 w-5" />
                                     </div>
-                                    <div>
+                                    <div className="flex-1">
                                         <p className="text-sm font-medium text-muted-foreground">Email</p>
                                         <p className="text-base text-foreground">{email}</p>
                                     </div>
                                 </li>
+
+                                {/* Phone — editable */}
                                 <li className="flex items-center">
                                     <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground mr-4">
                                         <Phone className="h-5 w-5" />
                                     </div>
-                                    <div>
+                                    <div className="flex-1">
                                         <p className="text-sm font-medium text-muted-foreground">Số điện thoại</p>
-                                        <p className="text-base text-foreground">{phone}</p>
+                                        {isEditing ? (
+                                            <input
+                                                type="tel"
+                                                value={editForm.phone}
+                                                onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                                                placeholder="0912345678"
+                                                className="mt-1 w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 bg-white text-foreground"
+                                                maxLength={11}
+                                            />
+                                        ) : (
+                                            <p className="text-base text-foreground">{phone}</p>
+                                        )}
                                     </div>
                                 </li>
+
+                                {/* Hourly rate — read only */}
                                 <li className="flex items-center">
                                     <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground mr-4">
                                         <DollarSign className="h-5 w-5" />
@@ -205,6 +323,8 @@ export default function TeacherProfilePage() {
                                         <p className="text-base text-foreground">{formatCurrency(hourly_rate)}/h</p>
                                     </div>
                                 </li>
+
+                                {/* Join date — read only */}
                                 <li className="flex items-center">
                                     <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground mr-4">
                                         <Calendar className="h-5 w-5" />

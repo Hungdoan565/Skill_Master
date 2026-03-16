@@ -7,6 +7,7 @@ export function useTeacherProfile() {
     const { session } = useAuth();
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
 
     const fetchProfile = useCallback(async () => {
@@ -40,9 +41,42 @@ export function useTeacherProfile() {
         }
     }, [session]);
 
+    const updateProfile = useCallback(async (updates) => {
+        if (!session?.access_token) return { success: false, message: 'Chưa đăng nhập' };
+
+        try {
+            setSaving(true);
+            setError(null);
+
+            const response = await fetch(`${API}/api/teacher/profile`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(updates)
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Không thể cập nhật hồ sơ');
+            }
+
+            // Merge updated fields into current profile
+            setProfile(prev => prev ? { ...prev, ...data.data } : data.data);
+            return { success: true, message: data.message || 'Cập nhật thành công' };
+        } catch (err) {
+            setError(err.message);
+            return { success: false, message: err.message };
+        } finally {
+            setSaving(false);
+        }
+    }, [session]);
+
     useEffect(() => {
         fetchProfile();
     }, [fetchProfile]);
 
-    return { profile, loading, error, refetch: fetchProfile };
+    return { profile, loading, saving, error, refetch: fetchProfile, updateProfile };
 }

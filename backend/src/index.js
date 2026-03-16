@@ -17710,7 +17710,7 @@ app.get('/api/teacher/classes/:id', requireAuth, async (req, res, next) => {
     // Get sessions
     const { data: sessions } = await supabase
       .from('sessions')
-      .select('id, session_number, session_date, start_time, end_time, status, topic')
+      .select('id, session_number, session_date, start_time, end_time, status, topic, teacher_notes, homework')
       .eq('class_id', id)
       .order('session_date', { ascending: true });
 
@@ -30285,6 +30285,340 @@ app.get('/api/teacher/my-compensation',
 
 // ============================================================
 // END TEACHER COMPENSATION APIs
+// ============================================================
+
+// ============================================================
+// STUDENT NOTES APIs (Teacher writes notes about students)
+// ============================================================
+
+/**
+ * GET /api/teacher/classes/:classId/students/:studentId/notes
+ * Get notes for a student in a class
+ * 🔒 Teacher must own the class
+ */
+app.get('/api/teacher/classes/:classId/students/:studentId/notes', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+    const { classId, studentId } = req.params;
+    const { limit = 20, offset = 0 } = req.query;
+
+    // Verify teacher owns this class
+    const { data: classData } = await supabase
+      .from('classes')
+      .select('id')
+      .eq('id', classId)
+      .eq('teacher_id', teacherId)
+      .single();
+
+    if (!classData) {
+      return res.status(403).json({ success: false, message: 'Không có quyền truy cập lớp này' });
+    }
+
+    const { data: notes, error } = await supabase
+      .from('student_notes')
+      .select('*')
+      .eq('teacher_id', teacherId)
+      .eq('student_id', studentId)
+      .eq('class_id', classId)
+      .order('created_at', { ascending: false })
+      .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
+
+    if (error) throw error;
+
+    res.json({ success: true, data: notes || [] });
+  } catch (error) {
+    console.error('Error fetching student notes:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /api/teacher/students/notes
+ * Create a note for a student
+ * 🔒 Teacher must own the class
+ */
+app.post('/api/teacher/students/notes', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+    const { student_id, class_id, session_id, content, note_type, is_shared_with_parent } = req.body;
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({ success: false, message: 'Nội dung nhận xét không được để trống' });
+    }
+    if (content.length > 1000) {
+      return res.status(400).json({ success: false, message: 'Nội dung tối đa 1000 ký tự' });
+    }
+    if (!student_id || !class_id) {
+      return res.status(400).json({ success: false, message: 'Thiếu thông tin học viên hoặc lớp học' });
+    }
+
+    // Verify teacher owns class
+    const { data: classData } = await supabase
+      .from('classes')
+      .select('id')
+      .eq('id', class_id)
+      .eq('teacher_id', teacherId)
+      .single();
+
+    if (!classData) {
+      return res.status(403).json({ success: false, message: 'Không có quyền ghi nhận xét cho lớp này' });
+    }
+
+    const { data: note, error } = await supabase
+      .from('student_notes')
+      .insert({
+        teacher_id: teacherId,
+        student_id,
+        class_id,
+        session_id: session_id || null,
+        content: content.trim(),
+        note_type: note_type || 'general',
+        is_shared_with_parent: is_shared_with_parent || false,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log(`📝 Teacher ${req.user.email} added note for student ${student_id}`);
+    res.status(201).json({ success: true, data: note });
+  } catch (error) {
+    console.error('Error creating student note:', error);
+    next(error);
+  }
+});
+
+/**
+ * DELETE /api/teacher/students/notes/:id
+ * Delete a specific note (teacher can only delete own notes)
+ */
+app.delete('/api/teacher/students/notes/:id', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+    const { id } = req.params;
+
+    const { data, error } = await supabase
+      .from('student_notes')
+      .delete()
+      .eq('id', id)
+      .eq('teacher_id', teacherId)
+      .select()
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy nhận xét' });
+    }
+
+    res.json({ success: true, message: 'Đã xóa nhận xét' });
+  } catch (error) {
+    console.error('Error deleting student note:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// STUDENT PROGRESS API (Aggregated view)
+// ============================================================
+
+/**
+ * GET /api/teacher/classes/:classId/students/:studentId/progress
+ * Aggregated progress view for a student in a class
+ * 🔒 Teacher must own the class
+ */
+app.get('/api/teacher/classes/:classId/students/:studentId/progress', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+    const { classId, studentId } = req.params;
+
+    // Verify teacher owns class
+    const { data: classData } = await supabase
+      .from('classes')
+      .select('id, name')
+      .eq('id', classId)
+      .eq('teacher_id', teacherId)
+      .single();
+
+    if (!classData) {
+      return res.status(403).json({ success: false, message: 'Không có quyền truy cập lớp này' });
+    }
+
+    // Get student info
+    const { data: student } = await supabase
+      .from('users')
+      .select('id, full_name, email, phone, avatar_url')
+      .eq('id', studentId)
+      .single();
+
+    if (!student) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy học viên' });
+    }
+
+    // Get completed class sessions
+    const { data: completedSessions } = await supabase
+      .from('sessions')
+      .select('id')
+      .eq('class_id', classId)
+      .eq('status', 'completed');
+
+    const sessionIds = (completedSessions || []).map(s => s.id);
+
+    // Get enrollment
+    const { data: enrollment } = await supabase
+      .from('enrollments')
+      .select('id')
+      .eq('student_id', studentId)
+      .eq('class_id', classId)
+      .maybeSingle();
+
+    // Parallel queries
+    const [attendanceResult, gradesResult, notesResult] = await Promise.all([
+      // 1. Attendance via enrollment
+      enrollment
+        ? supabase
+            .from('attendance')
+            .select('status, session_date')
+            .eq('enrollment_id', enrollment.id)
+            .order('session_date', { ascending: false })
+        : Promise.resolve({ data: [] }),
+
+      // 2. Grades
+      enrollment
+        ? supabase
+            .from('grades')
+            .select('*, grade_structures(name, weight, max_score)')
+            .eq('enrollment_id', enrollment.id)
+            .order('created_at', { ascending: true })
+        : Promise.resolve({ data: [] }),
+
+      // 3. Recent notes
+      supabase
+        .from('student_notes')
+        .select('content, note_type, created_at')
+        .eq('teacher_id', teacherId)
+        .eq('student_id', studentId)
+        .eq('class_id', classId)
+        .order('created_at', { ascending: false })
+        .limit(10),
+    ]);
+
+    // Calculate attendance stats
+    const attendanceRecords = attendanceResult.data || [];
+    const totalSessions = sessionIds.length;
+    const attended = attendanceRecords.filter(a => a.status === 'present' || a.status === 'late').length;
+    const absent = attendanceRecords.filter(a => a.status === 'absent').length;
+    const late = attendanceRecords.filter(a => a.status === 'late').length;
+    const excused = attendanceRecords.filter(a => a.status === 'excused').length;
+    const attendanceRate = totalSessions > 0 ? Math.round((attended / totalSessions) * 100 * 10) / 10 : 0;
+
+    // Calculate grade stats
+    const grades = gradesResult.data || [];
+    let gradeAverage = null;
+    let trend = 'stable';
+    if (grades.length > 0) {
+      const totalScore = grades.reduce((sum, g) => {
+        const maxScore = g.grade_structures?.max_score || 10;
+        return sum + (g.score / maxScore) * 10;
+      }, 0);
+      gradeAverage = Math.round((totalScore / grades.length) * 10) / 10;
+
+      // Trend from first half vs second half
+      if (grades.length >= 4) {
+        const mid = Math.floor(grades.length / 2);
+        const firstAvg = grades.slice(0, mid).reduce((s, g) => s + g.score, 0) / mid;
+        const secondAvg = grades.slice(mid).reduce((s, g) => s + g.score, 0) / (grades.length - mid);
+        trend = secondAvg > firstAvg + 0.5 ? 'improving' : secondAvg < firstAvg - 0.5 ? 'declining' : 'stable';
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        student,
+        className: classData.name,
+        attendance: {
+          total_sessions: totalSessions,
+          attended,
+          absent,
+          late,
+          excused,
+          attendance_rate: attendanceRate,
+          recent: attendanceRecords.slice(0, 10),
+        },
+        grades: {
+          average: gradeAverage,
+          items: grades.map(g => ({
+            name: g.grade_structures?.name,
+            score: g.score,
+            max_score: g.grade_structures?.max_score || 10,
+          })),
+        },
+        trend,
+        recent_notes: notesResult.data || [],
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching student progress:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// TEACHING NOTES API (Notes per session)
+// ============================================================
+
+/**
+ * PUT /api/teacher/sessions/:id/notes
+ * Add/update teaching notes and homework for a session
+ * 🔒 Teacher must own the session's class
+ */
+app.put('/api/teacher/sessions/:id/notes', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+    const { id } = req.params;
+    const { teacher_notes, homework } = req.body;
+
+    // Verify teacher owns this session's class
+    const { data: session } = await supabase
+      .from('sessions')
+      .select('id, class_id, classes!inner(teacher_id)')
+      .eq('id', id)
+      .single();
+
+    if (!session || session.classes?.teacher_id !== teacherId) {
+      return res.status(403).json({ success: false, message: 'Không có quyền chỉnh sửa buổi học này' });
+    }
+
+    const updates = {};
+    if (teacher_notes !== undefined) {
+      updates.teacher_notes = teacher_notes ? teacher_notes.substring(0, 2000) : null;
+    }
+    if (homework !== undefined) {
+      updates.homework = homework ? homework.substring(0, 1000) : null;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ success: false, message: 'Không có thông tin nào để cập nhật' });
+    }
+
+    const { data, error } = await supabase
+      .from('sessions')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log(`📖 Teacher ${req.user.email} updated teaching notes for session ${id}`);
+    res.json({ success: true, data, message: 'Đã lưu ghi chú giảng dạy' });
+  } catch (error) {
+    console.error('Error updating teaching notes:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// END STUDENT NOTES / PROGRESS / TEACHING NOTES APIs
 // ============================================================
 
 // ============================================================

@@ -8,7 +8,9 @@ import {
   DollarSign,
   Clock,
   Home,
-  HelpCircle,
+  FileText,
+  User,
+  Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -38,6 +40,7 @@ const menuGroups = [
     items: [
       { label: 'Bảng lương', icon: DollarSign, path: '/teacher/payroll' },
       { label: 'Lịch trống', icon: Clock, path: '/teacher/availability' },
+      { label: 'Xin nghỉ phép', icon: FileText, path: '/teacher/leave-requests' },
     ],
   },
 ];
@@ -129,18 +132,45 @@ export function TeacherSidebar() {
         ))}
       </nav>
 
-      {/* Footer */}
+      {/* Footer — Profile & Settings */}
       <div className="p-4">
         <div className="mb-4 h-px bg-gradient-to-r from-transparent via-zinc-800 to-transparent" />
-        <Link
-          to="/teacher/profile"
-          className="group/support flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-400 hover:bg-zinc-800/80 hover:text-white transition-all duration-200"
-        >
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800 group-hover/support:bg-zinc-700 transition-colors">
-            <HelpCircle className="h-4 w-4" />
-          </div>
-          <span>Hỗ trợ</span>
-        </Link>
+        <div className="space-y-1">
+          <Link
+            to="/teacher/profile"
+            className={cn(
+              'group/footer flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
+              location.pathname === '/teacher/profile'
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-500 text-white shadow-lg shadow-blue-600/25'
+                : 'text-zinc-400 hover:bg-zinc-800/80 hover:text-white'
+            )}
+          >
+            <div className={cn(
+              'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
+              location.pathname === '/teacher/profile' ? 'bg-white/20' : 'bg-zinc-800 group-hover/footer:bg-zinc-700'
+            )}>
+              <User className="h-4 w-4" />
+            </div>
+            <span>Hồ sơ cá nhân</span>
+          </Link>
+          <Link
+            to="/teacher/settings"
+            className={cn(
+              'group/footer2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
+              location.pathname === '/teacher/settings'
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-500 text-white shadow-lg shadow-blue-600/25'
+                : 'text-zinc-400 hover:bg-zinc-800/80 hover:text-white'
+            )}
+          >
+            <div className={cn(
+              'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
+              location.pathname === '/teacher/settings' ? 'bg-white/20' : 'bg-zinc-800 group-hover/footer2:bg-zinc-700'
+            )}>
+              <Settings className="h-4 w-4" />
+            </div>
+            <span>Cài đặt</span>
+          </Link>
+        </div>
       </div>
     </aside>
   );
