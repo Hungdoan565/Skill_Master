@@ -1,149 +1,243 @@
 /**
  * AuditTrailModal Component
- * Modal hiển thị lịch sử thay đổi của bảng lương
+ * Modal hiển thị lịch sử thay đổi của bảng lương — human-readable diffs
  */
 
 import { useState, useEffect } from 'react';
-import { X, History, FileText, Edit, CheckCircle, Trash2, Loader2 } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { X, History, FileText, Edit, CheckCircle, Trash2, Loader2, ChevronDown, ChevronUp,
+    ArrowRight, Clock, User, DollarSign, Banknote, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { formatDate, formatCurrency } from '../utils';
+import { formatCurrency } from '../utils';
 
 const ACTION_CONFIG = {
-    created: { label: 'Tạo mới', icon: FileText, color: 'bg-blue-100 text-blue-700' },
-    updated: { label: 'Cập nhật', icon: Edit, color: 'bg-yellow-100 text-yellow-700' },
-    status_changed: { label: 'Đổi trạng thái', icon: CheckCircle, color: 'bg-green-100 text-green-700' },
-    deleted: { label: 'Xóa', icon: Trash2, color: 'bg-red-100 text-red-700' },
+    created:        { label: 'Tạo mới',         icon: FileText,    bgColor: 'bg-blue-50',   iconBg: 'bg-blue-100',   iconColor: 'text-blue-600',  dotColor: 'bg-blue-500' },
+    updated:        { label: 'Cập nhật',         icon: Edit,        bgColor: 'bg-amber-50',  iconBg: 'bg-amber-100',  iconColor: 'text-amber-600', dotColor: 'bg-amber-500' },
+    status_changed: { label: 'Đổi trạng thái',   icon: CheckCircle, bgColor: 'bg-green-50',  iconBg: 'bg-green-100',  iconColor: 'text-green-600', dotColor: 'bg-green-500' },
+    deleted:        { label: 'Xóa',              icon: Trash2,      bgColor: 'bg-red-50',    iconBg: 'bg-red-100',    iconColor: 'text-red-600',   dotColor: 'bg-red-500' },
 };
 
-const STATUS_LABELS = {
-    draft: 'Nháp',
-    pending: 'Chờ duyệt',
-    approved: 'Đã duyệt',
-    paid: 'Đã thanh toán'
+const STATUS_CONFIG = {
+    draft:    { label: 'Nháp',          className: 'bg-slate-100  text-slate-700' },
+    pending:  { label: 'Chờ duyệt',     className: 'bg-amber-100  text-amber-700' },
+    approved: { label: 'Đã duyệt',      className: 'bg-green-100  text-green-700' },
+    paid:     { label: 'Đã thanh toán',  className: 'bg-blue-100   text-blue-700' },
 };
 
-function AuditLogItem({ log }) {
+// Map raw field names to human-readable Vietnamese labels
+const FIELD_LABELS = {
+    bonus:            'Thưởng',
+    deduction:        'Khấu trừ',
+    notes:            'Ghi chú',
+    base_salary:      'Lương cơ bản',
+    net_salary:       'Thực nhận',
+    total_sessions:   'Số buổi',
+    total_hours:      'Tổng giờ',
+    status:           'Trạng thái',
+    approved_by:      'Người duyệt',
+    approved_at:      'Thời gian duyệt',
+    paid_at:          'Thời gian thanh toán',
+    paid_by:          'Người thanh toán',
+    payment_method:   'Phương thức',
+    payment_reference: 'Mã giao dịch',
+    payment_proof_url: 'Ảnh xác nhận',
+    fixed_salary:     'Lương cố định',
+};
+
+const MONEY_FIELDS = ['bonus', 'deduction', 'base_salary', 'net_salary', 'fixed_salary'];
+const SKIP_FIELDS = ['id', 'teacher_id', 'period_month', 'period_year', 'created_at', 'updated_at', 'created_by', 'compensation_id'];
+
+function formatFieldValue(field, value) {
+    if (value === null || value === undefined) return '—';
+    if (MONEY_FIELDS.includes(field)) return formatCurrency(value);
+    if (field === 'status') return STATUS_CONFIG[value]?.label || value;
+    if (field === 'total_hours') return `${value}h`;
+    if (field === 'total_sessions') return `${value} buổi`;
+    if (field === 'approved_at' || field === 'paid_at') {
+        return new Date(value).toLocaleString('vi-VN');
+    }
+    if (field === 'payment_method') {
+        const methods = { bank_transfer: 'Chuyển khoản', cash: 'Tiền mặt', momo: 'MoMo' };
+        return methods[value] || value;
+    }
+    return String(value);
+}
+
+function StatusBadge({ status }) {
+    const cfg = STATUS_CONFIG[status] || { label: status, className: 'bg-slate-100 text-slate-700' };
+    return (
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${cfg.className}`}>
+            {cfg.label}
+        </span>
+    );
+}
+
+function ChangedFields({ oldValues, newValues }) {
+    if (!oldValues && !newValues) return null;
+
+    const allFields = new Set([
+        ...Object.keys(oldValues || {}),
+        ...Object.keys(newValues || {})
+    ]);
+
+    const changes = [];
+    allFields.forEach(field => {
+        if (SKIP_FIELDS.includes(field)) return;
+        const oldVal = oldValues?.[field];
+        const newVal = newValues?.[field];
+        if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+            changes.push({ field, oldVal, newVal });
+        }
+    });
+
+    if (changes.length === 0) return <p className="text-sm text-slate-400 italic">Không có thay đổi chi tiết</p>;
+
+    return (
+        <div className="space-y-2">
+            {changes.map(({ field, oldVal, newVal }) => {
+                const label = FIELD_LABELS[field] || field;
+                const isStatus = field === 'status';
+                const isMoney = MONEY_FIELDS.includes(field);
+
+                return (
+                    <div key={field} className="flex items-center gap-2 text-sm bg-white px-3 py-2 rounded-lg border border-slate-100">
+                        {isMoney ? (
+                            <DollarSign className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                        ) : (
+                            <Edit className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                        )}
+                        <span className="text-slate-500 font-medium min-w-[90px]">{label}</span>
+
+                        {oldVal !== null && oldVal !== undefined ? (
+                            <>
+                                {isStatus ? (
+                                    <StatusBadge status={oldVal} />
+                                ) : (
+                                    <span className="text-slate-400 line-through text-xs">{formatFieldValue(field, oldVal)}</span>
+                                )}
+                                <ArrowRight className="h-3 w-3 text-slate-300 flex-shrink-0" />
+                            </>
+                        ) : null}
+
+                        {isStatus ? (
+                            <StatusBadge status={newVal} />
+                        ) : (
+                            <span className={`font-semibold ${isMoney && newVal > (oldVal || 0) ? 'text-green-600' : isMoney && newVal < (oldVal || 0) ? 'text-red-600' : 'text-slate-700'}`}>
+                                {formatFieldValue(field, newVal)}
+                            </span>
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+function AuditLogItem({ log, isFirst, isLast }) {
     const [expanded, setExpanded] = useState(false);
     const config = ACTION_CONFIG[log.action] || ACTION_CONFIG.updated;
     const Icon = config.icon;
+    const hasDetails = log.old_values || log.new_values;
 
-    const formatChanges = () => {
-        if (log.action === 'status_changed' && log.old_values && log.new_values) {
-            const oldStatus = log.old_values.status;
-            const newStatus = log.new_values.status;
+    const quickSummary = () => {
+        if (log.action === 'status_changed' && log.old_values?.status && log.new_values?.status) {
             return (
-                <div className="text-sm">
-                    <span className="text-slate-500">{STATUS_LABELS[oldStatus] || oldStatus}</span>
-                    <span className="mx-2">→</span>
-                    <span className="font-medium">{STATUS_LABELS[newStatus] || newStatus}</span>
+                <div className="flex items-center gap-2 mt-1">
+                    <StatusBadge status={log.old_values.status} />
+                    <ArrowRight className="h-3.5 w-3.5 text-slate-400" />
+                    <StatusBadge status={log.new_values.status} />
                 </div>
             );
         }
-
-        if (log.action === 'updated' && log.old_values && log.new_values) {
-            const changes = [];
-            const fields = ['bonus', 'deduction', 'notes'];
-
-            fields.forEach(field => {
-                if (log.old_values[field] !== log.new_values[field]) {
-                    if (field === 'bonus' || field === 'deduction') {
-                        changes.push(
-                            <div key={field} className="text-sm">
-                                <span className="capitalize">{field === 'bonus' ? 'Thưởng' : 'Khấu trừ'}: </span>
-                                <span className="text-slate-500">{formatCurrency(log.old_values[field])}</span>
-                                <span className="mx-2">→</span>
-                                <span className="font-medium">{formatCurrency(log.new_values[field])}</span>
-                            </div>
-                        );
-                    } else if (field === 'notes') {
-                        changes.push(
-                            <div key={field} className="text-sm">
-                                <span>Ghi chú đã được cập nhật</span>
-                            </div>
-                        );
-                    }
+        if (log.action === 'created' && log.new_values?.net_salary) {
+            return (
+                <div className="flex items-center gap-1.5 mt-1 text-sm">
+                    <Banknote className="h-3.5 w-3.5 text-green-500" />
+                    <span className="text-green-600 font-semibold">{formatCurrency(log.new_values.net_salary)}</span>
+                </div>
+            );
+        }
+        if (log.action === 'updated') {
+            const changed = [];
+            const fields = ['bonus', 'deduction', 'notes', 'base_salary'];
+            fields.forEach(f => {
+                if (log.old_values?.[f] !== log.new_values?.[f]) {
+                    changed.push(FIELD_LABELS[f] || f);
                 }
             });
-
-            return changes.length > 0 ? changes : <span className="text-sm text-slate-500">Có thay đổi</span>;
+            if (changed.length > 0) {
+                return <p className="text-sm text-slate-500 mt-1">Thay đổi: {changed.join(', ')}</p>;
+            }
         }
-
-        if (log.action === 'created' && log.new_values) {
-            return (
-                <div className="text-sm">
-                    Lương: {formatCurrency(log.new_values.net_salary)}
-                </div>
-            );
-        }
-
         return null;
     };
 
     return (
-        <div className="border rounded-lg p-4 hover:bg-slate-50 transition-colors">
-            <div className="flex items-start gap-3">
-                <div className={`p-2 rounded-lg ${config.color}`}>
-                    <Icon className="h-4 w-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium">{config.label}</span>
-                        <span className="text-xs text-muted-foreground">
-                            {new Date(log.changed_at).toLocaleString('vi-VN')}
-                        </span>
+        <div className="relative flex gap-4">
+            {/* Timeline line */}
+            <div className="flex flex-col items-center">
+                <div className={`w-3 h-3 rounded-full ${config.dotColor} ring-4 ring-white z-10 mt-1.5`}></div>
+                {!isLast && <div className="w-0.5 flex-1 bg-slate-200 mt-1"></div>}
+            </div>
+
+            {/* Content card */}
+            <div className={`flex-1 mb-4 rounded-xl border border-slate-200 overflow-hidden transition-all duration-200 ${expanded ? config.bgColor : 'bg-white hover:bg-slate-50'}`}>
+                <div
+                    className="p-4 cursor-pointer"
+                    onClick={() => hasDetails && setExpanded(!expanded)}
+                >
+                    <div className="flex items-start justify-between">
+                        <div className="flex items-start gap-3">
+                            <div className={`p-2 rounded-lg ${config.iconBg}`}>
+                                <Icon className={`h-4 w-4 ${config.iconColor}`} />
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-semibold text-sm text-slate-800">{config.label}</span>
+                                    {log.notes && (
+                                        <span className="text-xs text-slate-400 italic">• {log.notes}</span>
+                                    )}
+                                </div>
+
+                                <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
+                                    <span className="flex items-center gap-1">
+                                        <Clock className="h-3 w-3" />
+                                        {new Date(log.changed_at).toLocaleString('vi-VN')}
+                                    </span>
+                                    {log.changed_by_user && (
+                                        <span className="flex items-center gap-1">
+                                            <User className="h-3 w-3" />
+                                            {log.changed_by_user.full_name}
+                                        </span>
+                                    )}
+                                </div>
+
+                                {!expanded && quickSummary()}
+                            </div>
+                        </div>
+
+                        {hasDetails && (
+                            <button className="p-1 rounded hover:bg-slate-200 transition-colors">
+                                {expanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+                            </button>
+                        )}
                     </div>
-
-                    {log.changed_by_user && (
-                        <div className="text-sm text-muted-foreground mb-2">
-                            bởi {log.changed_by_user.full_name}
-                        </div>
-                    )}
-
-                    {formatChanges()}
-
-                    {/* Expand/Collapse raw data */}
-                    {(log.old_values || log.new_values) && (
-                        <button
-                            onClick={() => setExpanded(!expanded)}
-                            className="text-xs text-indigo-600 hover:underline mt-2"
-                        >
-                            {expanded ? 'Ẩn chi tiết' : 'Xem chi tiết'}
-                        </button>
-                    )}
-
-                    {expanded && (
-                        <div className="mt-2 p-3 bg-slate-100 rounded text-xs font-mono overflow-auto max-h-40">
-                            {log.old_values && (
-                                <div className="mb-2">
-                                    <strong className="text-red-600">- Trước:</strong>
-                                    <pre className="whitespace-pre-wrap">
-                                        {JSON.stringify(log.old_values, null, 2)}
-                                    </pre>
-                                </div>
-                            )}
-                            {log.new_values && (
-                                <div>
-                                    <strong className="text-green-600">+ Sau:</strong>
-                                    <pre className="whitespace-pre-wrap">
-                                        {JSON.stringify(log.new_values, null, 2)}
-                                    </pre>
-                                </div>
-                            )}
-                        </div>
-                    )}
                 </div>
+
+                {/* Expanded details — human-readable diffs */}
+                {expanded && hasDetails && (
+                    <div className="px-4 pb-4 pt-0">
+                        <div className="border-t border-slate-200 pt-3">
+                            <ChangedFields oldValues={log.old_values} newValues={log.new_values} />
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
 }
 
-export function AuditTrailModal({
-    isOpen,
-    onClose,
-    payrollId,
-    fetchAuditTrail,
-}) {
+export function AuditTrailModal({ isOpen, onClose, payrollId, fetchAuditTrail }) {
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -151,35 +245,28 @@ export function AuditTrailModal({
         if (isOpen && payrollId && fetchAuditTrail) {
             setLoading(true);
             fetchAuditTrail(payrollId)
-                .then(data => {
-                    setLogs(data || []);
-                })
-                .catch(err => {
-                    console.error('Error fetching audit trail:', err);
-                    setLogs([]);
-                })
-                .finally(() => {
-                    setLoading(false);
-                });
+                .then(data => setLogs(data || []))
+                .catch(err => { console.error('Error fetching audit trail:', err); setLogs([]); })
+                .finally(() => setLoading(false));
         }
     }, [isOpen, payrollId, fetchAuditTrail]);
 
     if (!isOpen) return null;
 
-    return (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center">
-            {/* Backdrop */}
-            <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+    return createPortal(
+        <div style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} onClick={onClose} />
 
-            {/* Modal */}
-            <div className="relative z-10 w-full max-w-xl max-h-[80vh] overflow-hidden rounded-lg bg-white shadow-xl mx-4 flex flex-col">
+            <div className="relative z-10 w-full max-w-lg max-h-[85vh] overflow-hidden rounded-xl bg-white shadow-2xl mx-4 flex flex-col">
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b">
-                    <h2 className="text-xl font-semibold flex items-center gap-2">
-                        <History className="h-5 w-5 text-indigo-600" />
+                <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-indigo-50 to-blue-50">
+                    <h2 className="text-lg font-semibold flex items-center gap-3">
+                        <div className="p-2 bg-indigo-100 rounded-lg">
+                            <History className="h-4 w-4 text-indigo-600" />
+                        </div>
                         Lịch sử thay đổi
                     </h2>
-                    <Button variant="ghost" size="icon" onClick={onClose}>
+                    <Button variant="ghost" size="icon" onClick={onClose} className="hover:bg-white/60">
                         <X className="h-5 w-5" />
                     </Button>
                 </div>
@@ -187,33 +274,48 @@ export function AuditTrailModal({
                 {/* Content */}
                 <div className="flex-1 overflow-auto p-6">
                     {loading ? (
-                        <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                            <Loader2 className="h-8 w-8 animate-spin mb-2" />
-                            <p>Đang tải...</p>
+                        <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                            <div className="p-4 bg-slate-100 rounded-full mb-3">
+                                <Loader2 className="h-6 w-6 animate-spin text-indigo-400" />
+                            </div>
+                            <p className="text-sm">Đang tải lịch sử...</p>
                         </div>
                     ) : logs.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                            <History className="h-12 w-12 mb-2" />
-                            <p>Chưa có lịch sử thay đổi</p>
+                        <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                            <div className="p-4 bg-slate-100 rounded-full mb-3">
+                                <History className="h-8 w-8" />
+                            </div>
+                            <p className="font-medium text-slate-500">Chưa có lịch sử thay đổi</p>
                             <p className="text-sm mt-1">Hoặc chức năng audit trail chưa được kích hoạt</p>
                         </div>
                     ) : (
-                        <div className="space-y-3">
-                            {logs.map((log) => (
-                                <AuditLogItem key={log.id} log={log} />
+                        <div>
+                            {logs.map((log, idx) => (
+                                <AuditLogItem
+                                    key={log.id}
+                                    log={log}
+                                    isFirst={idx === 0}
+                                    isLast={idx === logs.length - 1}
+                                />
                             ))}
                         </div>
                     )}
                 </div>
 
                 {/* Footer */}
-                <div className="px-6 py-4 border-t bg-slate-50">
-                    <p className="text-xs text-muted-foreground">
-                        Hiển thị {logs.length} bản ghi thay đổi
+                <div className="px-6 py-3 border-t bg-slate-50 flex items-center justify-between">
+                    <p className="text-xs text-slate-400">
+                        {logs.length > 0 ? `${logs.length} bản ghi thay đổi` : 'Không có bản ghi'}
                     </p>
+                    <div className="flex items-center gap-3 text-xs text-slate-400">
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500"></span> Tạo</span>
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500"></span> Sửa</span>
+                        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500"></span> Trạng thái</span>
+                    </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
 
