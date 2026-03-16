@@ -52,7 +52,7 @@ async function getEnrollmentNotifications() {
     try {
       enrollmentNotifications = await import('./jobs/enrollmentNotification.job.js');
     } catch (err) {
-      console.warn('⚠️ Enrollment notifications not available (Redis may not be running):', err.message);
+      console.warn('âš ï¸ Enrollment notifications not available (Redis may not be running):', err.message);
       enrollmentNotifications = false;
     }
   }
@@ -67,7 +67,7 @@ async function getQueueEmail() {
       const jobs = await import('./jobs/index.js');
       queueEmailFn = jobs.queueEmail || false;
     } catch (err) {
-      console.warn('⚠️ Email queue not available (Redis may not be running):', err.message);
+      console.warn('âš ï¸ Email queue not available (Redis may not be running):', err.message);
       queueEmailFn = false;
     }
   }
@@ -82,7 +82,7 @@ async function getTriggerCertCheck() {
       const jobs = await import('./jobs/index.js');
       triggerCertCheckFn = jobs.triggerCertificateEligibilityCheck || false;
     } catch (err) {
-      console.warn('⚠️ Certificate eligibility trigger not available:', err.message);
+      console.warn('âš ï¸ Certificate eligibility trigger not available:', err.message);
       triggerCertCheckFn = false;
     }
   }
@@ -93,7 +93,7 @@ dotenv.config();
 
 const app = express();
 app.use(cors());
-// Tăng limit để cho phép upload ảnh base64 (max 10MB)
+// TÄƒng limit Ä‘á»ƒ cho phÃ©p upload áº£nh base64 (max 10MB)
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
@@ -110,7 +110,7 @@ function chatbotConversationRateLimit(req, res, next) {
   if (recentHits.length >= chatbotConversationRateMax) {
     return res.status(429).json({
       success: false,
-      error: 'Bạn thao tác quá nhanh. Vui lòng thử lại sau ít phút.'
+      error: 'Báº¡n thao tÃ¡c quÃ¡ nhanh. Vui lÃ²ng thá»­ láº¡i sau Ã­t phÃºt.'
     });
   }
 
@@ -152,7 +152,7 @@ function isWithinEditWindow(sessionDate, sessionEndTime) {
 
   // Allow editing before session starts (for pre-marking)
   if (hoursSinceEnd < 0) {
-    return { canEdit: true, hoursRemaining: 24, message: 'Buổi học chưa kết thúc' };
+    return { canEdit: true, hoursRemaining: 24, message: 'Buá»•i há»c chÆ°a káº¿t thÃºc' };
   }
 
   // Allow editing up to 24 hours after session ends
@@ -160,51 +160,51 @@ function isWithinEditWindow(sessionDate, sessionEndTime) {
     return {
       canEdit: true,
       hoursRemaining: Math.round((24 - hoursSinceEnd) * 10) / 10,
-      message: `Còn ${Math.round((24 - hoursSinceEnd) * 10) / 10} giờ để chỉnh sửa`
+      message: `CÃ²n ${Math.round((24 - hoursSinceEnd) * 10) / 10} giá» Ä‘á»ƒ chá»‰nh sá»­a`
     };
   }
 
   return {
     canEdit: false,
     hoursRemaining: 0,
-    message: 'Đã quá 24 giờ, không thể chỉnh sửa. Liên hệ Admin để override.'
+    message: 'ÄÃ£ quÃ¡ 24 giá», khÃ´ng thá»ƒ chá»‰nh sá»­a. LiÃªn há»‡ Admin Ä‘á»ƒ override.'
   };
 }
 
 // ============ UTILITY FUNCTIONS ============
 
 /**
- * Sinh danh sách buổi học từ lịch của lớp và lưu vào bảng sessions
- * @param {string} classId - ID lớp học
- * @param {string} startDate - Ngày bắt đầu (YYYY-MM-DD)
- * @param {string} endDate - Ngày kết thúc (YYYY-MM-DD)
- * @param {Array|string} schedule - Lịch học [{day: 2, start: "18:00", end: "20:00"}, ...]
- * @param {string} teacherId - ID giáo viên
+ * Sinh danh sÃ¡ch buá»•i há»c tá»« lá»‹ch cá»§a lá»›p vÃ  lÆ°u vÃ o báº£ng sessions
+ * @param {string} classId - ID lá»›p há»c
+ * @param {string} startDate - NgÃ y báº¯t Ä‘áº§u (YYYY-MM-DD)
+ * @param {string} endDate - NgÃ y káº¿t thÃºc (YYYY-MM-DD)
+ * @param {Array|string} schedule - Lá»‹ch há»c [{day: 2, start: "18:00", end: "20:00"}, ...]
+ * @param {string} teacherId - ID giÃ¡o viÃªn
  */
 async function generateSessionsForClass(classId, startDate, endDate, schedule, teacherId = null) {
   if (!classId || !startDate || !endDate || !schedule) {
-    console.log('⚠️ Không đủ thông tin để sinh sessions');
+    console.log('âš ï¸ KhÃ´ng Ä‘á»§ thÃ´ng tin Ä‘á»ƒ sinh sessions');
     return { success: false, count: 0 };
   }
 
   try {
-    // Parse schedule nếu là string
+    // Parse schedule náº¿u lÃ  string
     let scheduleData = schedule;
     if (typeof schedule === 'string') {
       try {
         scheduleData = JSON.parse(schedule);
       } catch (e) {
-        console.log('⚠️ Không parse được schedule:', schedule);
+        console.log('âš ï¸ KhÃ´ng parse Ä‘Æ°á»£c schedule:', schedule);
         return { success: false, count: 0 };
       }
     }
 
     if (!Array.isArray(scheduleData) || scheduleData.length === 0) {
-      console.log('⚠️ Schedule rỗng hoặc không hợp lệ');
+      console.log('âš ï¸ Schedule rá»—ng hoáº·c khÃ´ng há»£p lá»‡');
       return { success: false, count: 0 };
     }
 
-    // Xóa sessions cũ của class này
+    // XÃ³a sessions cÅ© cá»§a class nÃ y
     await supabase.from('sessions').delete().eq('class_id', classId);
 
     // Map day: 2=T2(Monday), 3=T3(Tuesday), ..., 7=T7(Saturday), 8=CN(Sunday)
@@ -219,7 +219,7 @@ async function generateSessionsForClass(classId, startDate, endDate, schedule, t
       8: 0  // CN -> Sunday (0)
     };
 
-    // Tạo Set các ngày trong tuần có học
+    // Táº¡o Set cÃ¡c ngÃ y trong tuáº§n cÃ³ há»c
     const scheduleDays = new Set();
     const timeByDay = {};
     scheduleData.forEach(s => {
@@ -230,7 +230,7 @@ async function generateSessionsForClass(classId, startDate, endDate, schedule, t
       }
     });
 
-    // Danh sách ngày nghỉ lễ Việt Nam
+    // Danh sÃ¡ch ngÃ y nghá»‰ lá»… Viá»‡t Nam
     const holidays = new Set([
       '2025-01-01', '2025-01-28', '2025-01-29', '2025-01-30', '2025-01-31',
       '2025-02-01', '2025-02-02', '2025-02-03', '2025-04-30', '2025-05-01', '2025-09-02',
@@ -245,17 +245,17 @@ async function generateSessionsForClass(classId, startDate, endDate, schedule, t
     const end = new Date(endYear, endMonth - 1, endDay);
     let sessionNumber = 1;
 
-    // Duyệt từng ngày từ start đến end
+    // Duyá»‡t tá»«ng ngÃ y tá»« start Ä‘áº¿n end
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       const dayOfWeek = d.getDay(); // 0=Sunday, 1=Monday, ...
       // Format date as YYYY-MM-DD without timezone conversion
       const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-      // Kiểm tra ngày này có trong lịch học không và không phải ngày lễ
+      // Kiá»ƒm tra ngÃ y nÃ y cÃ³ trong lá»‹ch há»c khÃ´ng vÃ  khÃ´ng pháº£i ngÃ y lá»…
       if (scheduleDays.has(dayOfWeek) && !holidays.has(dateStr)) {
         const time = timeByDay[dayOfWeek] || { start: '18:00', end: '20:00' };
 
-        // Xác định status
+        // XÃ¡c Ä‘á»‹nh status
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const sessionDate = new Date(d);
@@ -277,25 +277,25 @@ async function generateSessionsForClass(classId, startDate, endDate, schedule, t
       }
     }
 
-    // Insert sessions vào DB
+    // Insert sessions vÃ o DB
     if (sessions.length > 0) {
       const { error } = await supabase.from('sessions').insert(sessions);
       if (error) {
-        console.error('❌ Lỗi insert sessions:', error);
+        console.error('âŒ Lá»—i insert sessions:', error);
         return { success: false, count: 0, error };
       }
     }
 
-    console.log(`✅ Đã sinh ${sessions.length} buổi học cho lớp ${classId}`);
+    console.log(`âœ… ÄÃ£ sinh ${sessions.length} buá»•i há»c cho lá»›p ${classId}`);
     return { success: true, count: sessions.length };
 
   } catch (error) {
-    console.error('❌ Lỗi generateSessionsForClass:', error);
+    console.error('âŒ Lá»—i generateSessionsForClass:', error);
     return { success: false, count: 0, error };
   }
 }
 
-// ============ PUBLIC APIs (Không cần đăng nhập) ============
+// ============ PUBLIC APIs (KhÃ´ng cáº§n Ä‘Äƒng nháº­p) ============
 
 app.get('/api/health', async (_req, res) => {
   const status = await getDbStatus();
@@ -311,8 +311,8 @@ app.get('/api/status', async (_req, res, next) => {
   }
 });
 
-// Xem danh sách khóa học (public - ai cũng xem được)
-// Query params: ?status=active để lọc theo trạng thái
+// Xem danh sÃ¡ch khÃ³a há»c (public - ai cÅ©ng xem Ä‘Æ°á»£c)
+// Query params: ?status=active Ä‘á»ƒ lá»c theo tráº¡ng thÃ¡i
 app.get('/api/courses', async (req, res, next) => {
   try {
     const { status, search } = req.query;
@@ -344,7 +344,7 @@ app.get('/api/courses', async (req, res, next) => {
   }
 });
 
-// Danh sách khóa học cho admin + chẩn đoán hiển thị phía học viên
+// Danh sÃ¡ch khÃ³a há»c cho admin + cháº©n Ä‘oÃ¡n hiá»ƒn thá»‹ phÃ­a há»c viÃªn
 app.get('/api/admin/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
     const { status, search, center_id } = req.query;
@@ -403,9 +403,9 @@ app.get('/api/admin/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_M
   }
 });
 
-// ============ PROTECTED APIs (Phải đăng nhập) ============
+// ============ PROTECTED APIs (Pháº£i Ä‘Äƒng nháº­p) ============
 
-// Tạo khóa học mới (chỉ admin mới được tạo)
+// Táº¡o khÃ³a há»c má»›i (chá»‰ admin má»›i Ä‘Æ°á»£c táº¡o)
 app.post('/api/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const {
@@ -421,18 +421,18 @@ app.post('/api/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGE
       status
     } = req.body;
 
-    // Log user đang tạo (từ middleware)
-    console.log(`📝 User ${req.user.email} đang tạo khóa học: ${title}`);
+    // Log user Ä‘ang táº¡o (tá»« middleware)
+    console.log(`ðŸ“ User ${req.user.email} Ä‘ang táº¡o khÃ³a há»c: ${title}`);
 
-    // Validate dữ liệu đầu vào
+    // Validate dá»¯ liá»‡u Ä‘áº§u vÃ o
     if (!code || !title || !category) {
       return res.status(400).json({
         success: false,
-        message: 'Mã khóa học, tên và danh mục là bắt buộc'
+        message: 'MÃ£ khÃ³a há»c, tÃªn vÃ  danh má»¥c lÃ  báº¯t buá»™c'
       });
     }
 
-    // Check trùng code
+    // Check trÃ¹ng code
     const { data: existing } = await supabase
       .from('courses')
       .select('id')
@@ -442,7 +442,7 @@ app.post('/api/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGE
     if (existing) {
       return res.status(400).json({
         success: false,
-        message: `Mã khóa học "${code}" đã tồn tại`
+        message: `MÃ£ khÃ³a há»c "${code}" Ä‘Ã£ tá»“n táº¡i`
       });
     }
 
@@ -477,7 +477,7 @@ app.post('/api/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGE
 
     res.status(201).json({
       success: true,
-      message: 'Tạo khóa học thành công',
+      message: 'Táº¡o khÃ³a há»c thÃ nh cÃ´ng',
       data
     });
   } catch (error) {
@@ -486,7 +486,7 @@ app.post('/api/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGE
   }
 });
 
-// Cập nhật khóa học (chỉ admin)
+// Cáº­p nháº­t khÃ³a há»c (chá»‰ admin)
 app.put('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -503,17 +503,17 @@ app.put('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MAN
       status
     } = req.body;
 
-    console.log(`✏️ User ${req.user.email} đang cập nhật khóa học: ${id}`);
+    console.log(`âœï¸ User ${req.user.email} Ä‘ang cáº­p nháº­t khÃ³a há»c: ${id}`);
 
-    // Validate dữ liệu đầu vào
+    // Validate dá»¯ liá»‡u Ä‘áº§u vÃ o
     if (!code || !title || !category) {
       return res.status(400).json({
         success: false,
-        message: 'Mã khóa học, tên và danh mục là bắt buộc'
+        message: 'MÃ£ khÃ³a há»c, tÃªn vÃ  danh má»¥c lÃ  báº¯t buá»™c'
       });
     }
 
-    // Check trùng code (ngoại trừ chính nó)
+    // Check trÃ¹ng code (ngoáº¡i trá»« chÃ­nh nÃ³)
     const { data: existing } = await supabase
       .from('courses')
       .select('id')
@@ -524,7 +524,7 @@ app.put('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MAN
     if (existing) {
       return res.status(400).json({
         success: false,
-        message: `Mã khóa học "${code}" đã được sử dụng bởi khóa học khác`
+        message: `MÃ£ khÃ³a há»c "${code}" Ä‘Ã£ Ä‘Æ°á»£c sá»­ dá»¥ng bá»Ÿi khÃ³a há»c khÃ¡c`
       });
     }
 
@@ -560,7 +560,7 @@ app.put('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MAN
 
     res.json({
       success: true,
-      message: 'Cập nhật khóa học thành công',
+      message: 'Cáº­p nháº­t khÃ³a há»c thÃ nh cÃ´ng',
       data
     });
   } catch (error) {
@@ -607,14 +607,14 @@ app.patch('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_M
   }
 });
 
-// Xóa khóa học (chỉ admin)
+// XÃ³a khÃ³a há»c (chá»‰ admin)
 app.delete('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    console.log(`🗑️ User ${req.user.email} đang xóa khóa học: ${id}`);
+    console.log(`ðŸ—‘ï¸ User ${req.user.email} Ä‘ang xÃ³a khÃ³a há»c: ${id}`);
 
-    // Kiểm tra xem có lớp học nào đang sử dụng khóa học này không
+    // Kiá»ƒm tra xem cÃ³ lá»›p há»c nÃ o Ä‘ang sá»­ dá»¥ng khÃ³a há»c nÃ y khÃ´ng
     const { count: classCount, error: countError } = await supabase
       .from('classes')
       .select('*', { count: 'exact', head: true })
@@ -627,11 +627,11 @@ app.delete('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
     if (classCount && classCount > 0) {
       return res.status(400).json({
         success: false,
-        message: `Không thể xóa khóa học này vì đang có ${classCount} lớp học đang sử dụng. Vui lòng xóa hoặc chuyển các lớp học sang khóa học khác trước.`
+        message: `KhÃ´ng thá»ƒ xÃ³a khÃ³a há»c nÃ y vÃ¬ Ä‘ang cÃ³ ${classCount} lá»›p há»c Ä‘ang sá»­ dá»¥ng. Vui lÃ²ng xÃ³a hoáº·c chuyá»ƒn cÃ¡c lá»›p há»c sang khÃ³a há»c khÃ¡c trÆ°á»›c.`
       });
     }
 
-    // Xóa grade_structures liên quan trước (nếu có)
+    // XÃ³a grade_structures liÃªn quan trÆ°á»›c (náº¿u cÃ³)
     const { error: gradeError } = await supabase
       .from('grade_structures')
       .delete()
@@ -639,10 +639,10 @@ app.delete('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
 
     if (gradeError) {
       console.error('Error deleting grade structures:', gradeError);
-      // Không throw, tiếp tục xóa course
+      // KhÃ´ng throw, tiáº¿p tá»¥c xÃ³a course
     }
 
-    // Xóa khóa học
+    // XÃ³a khÃ³a há»c
     const { error } = await supabase
       .from('courses')
       .delete()
@@ -660,7 +660,7 @@ app.delete('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
 
     res.json({
       success: true,
-      message: 'Xóa khóa học thành công'
+      message: 'XÃ³a khÃ³a há»c thÃ nh cÃ´ng'
     });
   } catch (error) {
     console.error('Error deleting course:', error);
@@ -668,14 +668,14 @@ app.delete('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
   }
 });
 
-// ============ GRADE STRUCTURES APIs (Cấu hình cột điểm) ============
+// ============ GRADE STRUCTURES APIs (Cáº¥u hÃ¬nh cá»™t Ä‘iá»ƒm) ============
 
-// Lấy cấu trúc điểm của một khóa học (bao gồm cả cấu hình tính điểm)
+// Láº¥y cáº¥u trÃºc Ä‘iá»ƒm cá»§a má»™t khÃ³a há»c (bao gá»“m cáº£ cáº¥u hÃ¬nh tÃ­nh Ä‘iá»ƒm)
 app.get('/api/courses/:courseId/grade-structures', requireAuth, async (req, res, next) => {
   try {
     const { courseId } = req.params;
 
-    // Lấy thông tin cấu hình từ course
+    // Láº¥y thÃ´ng tin cáº¥u hÃ¬nh tá»« course
     const { data: courseData, error: courseError } = await supabase
       .from('courses')
       .select('calculation_type, pass_score, max_total_score')
@@ -684,7 +684,7 @@ app.get('/api/courses/:courseId/grade-structures', requireAuth, async (req, res,
 
     if (courseError) throw courseError;
 
-    // Lấy danh sách cột điểm
+    // Láº¥y danh sÃ¡ch cá»™t Ä‘iá»ƒm
     const { data, error } = await supabase
       .from('grade_structures')
       .select('*')
@@ -693,7 +693,7 @@ app.get('/api/courses/:courseId/grade-structures', requireAuth, async (req, res,
 
     if (error) throw error;
 
-    // Tính tổng trọng số
+    // TÃ­nh tá»•ng trá»ng sá»‘
     const totalWeight = data.reduce((sum, col) => sum + parseFloat(col.weight || 0), 0);
 
     res.json({
@@ -712,7 +712,7 @@ app.get('/api/courses/:courseId/grade-structures', requireAuth, async (req, res,
   }
 });
 
-// Lưu toàn bộ cấu trúc điểm + cấu hình của một khóa học
+// LÆ°u toÃ n bá»™ cáº¥u trÃºc Ä‘iá»ƒm + cáº¥u hÃ¬nh cá»§a má»™t khÃ³a há»c
 app.put('/api/courses/:courseId/grade-structures', requireAuth, async (req, res, next) => {
   try {
     const { courseId } = req.params;
@@ -720,32 +720,32 @@ app.put('/api/courses/:courseId/grade-structures', requireAuth, async (req, res,
     // structures: Array of { name, weight, max_score, order_index }
     // config: { calculationType, passScore, maxTotalScore }
 
-    console.log(`📊 User ${req.user.email} đang cập nhật cấu trúc điểm cho khóa học: ${courseId}`);
+    console.log(`ðŸ“Š User ${req.user.email} Ä‘ang cáº­p nháº­t cáº¥u trÃºc Ä‘iá»ƒm cho khÃ³a há»c: ${courseId}`);
 
     const calculationType = config?.calculationType || 'weighted';
 
-    // Validate tổng trọng số = 100% (chỉ khi dùng weighted)
+    // Validate tá»•ng trá»ng sá»‘ = 100% (chá»‰ khi dÃ¹ng weighted)
     if (calculationType === 'weighted' && structures.length > 0) {
       const totalWeight = structures.reduce((sum, s) => sum + parseFloat(s.weight || 0), 0);
       if (Math.abs(totalWeight - 1) > 0.01) {
         return res.status(400).json({
           success: false,
-          message: `Tổng trọng số phải bằng 100%. Hiện tại: ${Math.round(totalWeight * 100)}%`
+          message: `Tá»•ng trá»ng sá»‘ pháº£i báº±ng 100%. Hiá»‡n táº¡i: ${Math.round(totalWeight * 100)}%`
         });
       }
     }
 
-    // Validate không có tên trùng
+    // Validate khÃ´ng cÃ³ tÃªn trÃ¹ng
     const names = structures.map(s => s.name.trim().toLowerCase());
     const uniqueNames = [...new Set(names)];
     if (names.length !== uniqueNames.length) {
       return res.status(400).json({
         success: false,
-        message: 'Không được có 2 cột điểm cùng tên'
+        message: 'KhÃ´ng Ä‘Æ°á»£c cÃ³ 2 cá»™t Ä‘iá»ƒm cÃ¹ng tÃªn'
       });
     }
 
-    // Cập nhật cấu hình vào bảng courses
+    // Cáº­p nháº­t cáº¥u hÃ¬nh vÃ o báº£ng courses
     const { error: configError } = await supabase
       .from('courses')
       .update({
@@ -757,7 +757,7 @@ app.put('/api/courses/:courseId/grade-structures', requireAuth, async (req, res,
 
     if (configError) throw configError;
 
-    // Xóa cấu trúc cũ
+    // XÃ³a cáº¥u trÃºc cÅ©
     const { error: deleteError } = await supabase
       .from('grade_structures')
       .delete()
@@ -765,7 +765,7 @@ app.put('/api/courses/:courseId/grade-structures', requireAuth, async (req, res,
 
     if (deleteError) throw deleteError;
 
-    // Thêm cấu trúc mới
+    // ThÃªm cáº¥u trÃºc má»›i
     if (structures.length > 0) {
       const newStructures = structures.map((s, index) => ({
         course_id: courseId,
@@ -783,7 +783,7 @@ app.put('/api/courses/:courseId/grade-structures', requireAuth, async (req, res,
       if (insertError) throw insertError;
     }
 
-    // Lấy lại data mới
+    // Láº¥y láº¡i data má»›i
     const { data, error } = await supabase
       .from('grade_structures')
       .select('*')
@@ -794,7 +794,7 @@ app.put('/api/courses/:courseId/grade-structures', requireAuth, async (req, res,
 
     res.json({
       success: true,
-      message: 'Cập nhật cấu trúc điểm thành công',
+      message: 'Cáº­p nháº­t cáº¥u trÃºc Ä‘iá»ƒm thÃ nh cÃ´ng',
       data,
       config: {
         calculationType: config?.calculationType || 'weighted',
@@ -808,7 +808,7 @@ app.put('/api/courses/:courseId/grade-structures', requireAuth, async (req, res,
   }
 });
 
-// API kiểm tra user hiện tại (debug/profile)
+// API kiá»ƒm tra user hiá»‡n táº¡i (debug/profile)
 app.get('/api/me', requireAuth, async (req, res) => {
   res.json({
     success: true,
@@ -824,7 +824,7 @@ app.get('/api/me', requireAuth, async (req, res) => {
 // ============ SYSTEM SETTINGS APIs ============
 
 /**
- * Lấy tất cả settings (global + center-specific)
+ * Láº¥y táº¥t cáº£ settings (global + center-specific)
  * GET /api/admin/settings
  */
 app.get('/api/admin/settings', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
@@ -832,7 +832,7 @@ app.get('/api/admin/settings', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
     const { centerId } = req.query;
     const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
 
-    // Lấy global settings
+    // Láº¥y global settings
     const { data: globalSettings, error: globalError } = await supabase
       .from('system_settings')
       .select('*')
@@ -841,7 +841,7 @@ app.get('/api/admin/settings', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
 
     if (globalError) throw globalError;
 
-    // Lấy center-specific settings nếu có
+    // Láº¥y center-specific settings náº¿u cÃ³
     let centerSettings = [];
     if (effectiveCenterId) {
       const { data, error } = await supabase
@@ -877,7 +877,7 @@ app.get('/api/admin/settings', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
 });
 
 /**
- * Lấy một setting cụ thể theo key
+ * Láº¥y má»™t setting cá»¥ thá»ƒ theo key
  * GET /api/admin/settings/:key
  */
 app.get('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
@@ -886,7 +886,7 @@ app.get('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     const { centerId } = req.query;
     const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
 
-    // Thử lấy center-specific trước
+    // Thá»­ láº¥y center-specific trÆ°á»›c
     if (effectiveCenterId) {
       const { data: centerSetting } = await supabase
         .from('system_settings')
@@ -900,7 +900,7 @@ app.get('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       }
     }
 
-    // Fallback về global
+    // Fallback vá» global
     const { data: globalSetting, error } = await supabase
       .from('system_settings')
       .select('*')
@@ -911,7 +911,7 @@ app.get('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     if (error && error.code !== 'PGRST116') throw error;
 
     if (!globalSetting) {
-      return res.status(404).json({ success: false, message: 'Setting không tồn tại' });
+      return res.status(404).json({ success: false, message: 'Setting khÃ´ng tá»“n táº¡i' });
     }
 
     res.json({ success: true, data: { ...globalSetting, scope: 'global' } });
@@ -922,7 +922,7 @@ app.get('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CE
 });
 
 /**
- * Cập nhật setting
+ * Cáº­p nháº­t setting
  * PUT /api/admin/settings/:key
  */
 app.put('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
@@ -930,16 +930,16 @@ app.put('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     const { key } = req.params;
     const { value, scope = 'global', centerId } = req.body;
 
-    // Security settings chỉ Super Admin được sửa
+    // Security settings chá»‰ Super Admin Ä‘Æ°á»£c sá»­a
     if (key === 'security_config' && req.user.roleCode !== 'SUPER_ADMIN') {
-      return res.status(403).json({ success: false, message: 'Chỉ Super Admin mới được sửa cấu hình bảo mật' });
+      return res.status(403).json({ success: false, message: 'Chá»‰ Super Admin má»›i Ä‘Æ°á»£c sá»­a cáº¥u hÃ¬nh báº£o máº­t' });
     }
 
     const targetCenterId = scope === 'center' ? (centerId || req.user.centerId) : null;
 
-    // CENTER_MANAGER không được sửa global settings
+    // CENTER_MANAGER khÃ´ng Ä‘Æ°á»£c sá»­a global settings
     if (req.user.roleCode === 'CENTER_MANAGER' && !targetCenterId) {
-      return res.status(403).json({ success: false, message: 'Bạn chỉ có thể sửa cấu hình của trung tâm mình' });
+      return res.status(403).json({ success: false, message: 'Báº¡n chá»‰ cÃ³ thá»ƒ sá»­a cáº¥u hÃ¬nh cá»§a trung tÃ¢m mÃ¬nh' });
     }
 
     // Upsert setting
@@ -958,8 +958,8 @@ app.put('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CE
 
     if (error) throw error;
 
-    console.log(`⚙️ Setting "${key}" updated by ${req.user.email}`);
-    res.json({ success: true, message: 'Cập nhật thành công', data });
+    console.log(`âš™ï¸ Setting "${key}" updated by ${req.user.email}`);
+    res.json({ success: true, message: 'Cáº­p nháº­t thÃ nh cÃ´ng', data });
   } catch (error) {
     console.error('Error updating setting:', error);
     next(error);
@@ -967,7 +967,7 @@ app.put('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CE
 });
 
 /**
- * Xóa setting của center (reset về global)
+ * XÃ³a setting cá»§a center (reset vá» global)
  * DELETE /api/admin/settings/:key
  */
 app.delete('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
@@ -977,14 +977,14 @@ app.delete('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 
 
     const targetCenterId = centerId || req.user.centerId;
 
-    // Chỉ cho phép xóa center-specific, không được xóa global
+    // Chá»‰ cho phÃ©p xÃ³a center-specific, khÃ´ng Ä‘Æ°á»£c xÃ³a global
     if (!targetCenterId) {
-      return res.status(400).json({ success: false, message: 'Không thể xóa cấu hình global' });
+      return res.status(400).json({ success: false, message: 'KhÃ´ng thá»ƒ xÃ³a cáº¥u hÃ¬nh global' });
     }
 
-    // CENTER_MANAGER chỉ xóa được setting của center mình
+    // CENTER_MANAGER chá»‰ xÃ³a Ä‘Æ°á»£c setting cá»§a center mÃ¬nh
     if (req.user.roleCode === 'CENTER_MANAGER' && targetCenterId !== req.user.centerId) {
-      return res.status(403).json({ success: false, message: 'Bạn chỉ có thể xóa cấu hình của trung tâm mình' });
+      return res.status(403).json({ success: false, message: 'Báº¡n chá»‰ cÃ³ thá»ƒ xÃ³a cáº¥u hÃ¬nh cá»§a trung tÃ¢m mÃ¬nh' });
     }
 
     const { error } = await supabase
@@ -995,10 +995,114 @@ app.delete('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 
 
     if (error) throw error;
 
-    console.log(`⚙️ Setting "${key}" reset to global by ${req.user.email}`);
-    res.json({ success: true, message: 'Đã reset về cấu hình mặc định' });
+    console.log(`âš™ï¸ Setting "${key}" reset to global by ${req.user.email}`);
+    res.json({ success: true, message: 'ÄÃ£ reset vá» cáº¥u hÃ¬nh máº·c Ä‘á»‹nh' });
   } catch (error) {
     console.error('Error deleting setting:', error);
+    next(error);
+  }
+});
+
+/**
+ * Test SMTP email connection
+ * POST /api/admin/settings/email/test
+ */
+app.post('/api/admin/settings/email/test', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
+  try {
+    const { smtpConfig, testEmail } = req.body;
+
+    if (!smtpConfig?.smtpHost || !smtpConfig?.smtpPort || !testEmail) {
+      return res.status(400).json({
+        success: false,
+        error: 'Vui lÃ²ng Ä‘iá»n Ä‘áº§y Ä‘á»§ thÃ´ng tin SMTP vÃ  email thá»­ nghiá»‡m'
+      });
+    }
+
+    // TODO: Implement actual SMTP test with nodemailer when ready
+    console.log(`ðŸ“§ SMTP test requested by ${req.user.email} to ${testEmail}`);
+    res.json({
+      success: true,
+      message: 'Cáº¥u hÃ¬nh SMTP há»£p lá»‡. Káº¿t ná»‘i thá»­ nghiá»‡m sáº½ Ä‘Æ°á»£c há»— trá»£ trong phiÃªn báº£n tiáº¿p theo.'
+    });
+  } catch (error) {
+    console.error('Error testing email:', error);
+    next(error);
+  }
+});
+
+/**
+ * Get current user's notification preferences
+ * GET /api/user/notification-preferences
+ */
+app.get('/api/user/notification-preferences', requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { centerId } = req.query;
+    const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
+
+    let query = supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', `notification_prefs_${userId}`);
+
+    if (effectiveCenterId) {
+      query = query.eq('center_id', effectiveCenterId);
+    } else {
+      query = query.is('center_id', null);
+    }
+
+    const { data, error } = await query.maybeSingle();
+
+    if (error) throw error;
+
+    const defaults = {
+      emailNewEnrollment: true,
+      emailPaymentReceived: true,
+      emailPaymentReminder: true,
+      emailClassReminder: true,
+      emailLeaveRequest: true,
+      emailSystemUpdates: false,
+      appNewEnrollment: true,
+      appPaymentReceived: true,
+      appAttendanceMarked: true,
+      appGradeUpdated: true,
+      emailDigestFrequency: 'instant'
+    };
+
+    res.json({ success: true, data: data?.value || defaults });
+  } catch (error) {
+    console.error('Error fetching notification preferences:', error);
+    next(error);
+  }
+});
+
+/**
+ * Update current user's notification preferences
+ * PUT /api/user/notification-preferences
+ */
+app.put('/api/user/notification-preferences', requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { value, centerId } = req.body;
+    const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
+
+    const { data, error } = await supabase
+      .from('system_settings')
+      .upsert({
+        center_id: effectiveCenterId || null,
+        key: `notification_prefs_${userId}`,
+        value: value,
+        updated_by: userId
+      }, { onConflict: 'center_id,key' })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log(`ðŸ”” Notification prefs updated for ${req.user.email}`);
+    res.json({ success: true, data: data.value });
+  } catch (error) {
+    console.error('Error updating notification preferences:', error);
     next(error);
   }
 });
@@ -1006,7 +1110,7 @@ app.delete('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 
 // ============ USER PROFILE APIs ============
 
 /**
- * Lấy profile của user hiện tại
+ * Láº¥y profile cá»§a user hiá»‡n táº¡i
  * GET /api/users/me/profile
  */
 app.get('/api/users/me/profile', requireAuth, async (req, res, next) => {
@@ -1038,7 +1142,7 @@ app.get('/api/users/me/profile', requireAuth, async (req, res, next) => {
 });
 
 /**
- * Cập nhật profile của user hiện tại
+ * Cáº­p nháº­t profile cá»§a user hiá»‡n táº¡i
  * PUT /api/users/me/profile
  */
 app.put('/api/users/me/profile', requireAuth, async (req, res, next) => {
@@ -1051,7 +1155,7 @@ app.put('/api/users/me/profile', requireAuth, async (req, res, next) => {
     if (avatar_url !== undefined) updateData.avatar_url = avatar_url;
 
     if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({ success: false, message: 'Không có dữ liệu để cập nhật' });
+      return res.status(400).json({ success: false, message: 'KhÃ´ng cÃ³ dá»¯ liá»‡u Ä‘á»ƒ cáº­p nháº­t' });
     }
 
     const { data, error } = await supabase
@@ -1071,8 +1175,8 @@ app.put('/api/users/me/profile', requireAuth, async (req, res, next) => {
 
     if (error) throw error;
 
-    console.log(`👤 Profile updated for ${req.user.email}`);
-    res.json({ success: true, message: 'Cập nhật thành công', data });
+    console.log(`ðŸ‘¤ Profile updated for ${req.user.email}`);
+    res.json({ success: true, message: 'Cáº­p nháº­t thÃ nh cÃ´ng', data });
   } catch (error) {
     console.error('Error updating profile:', error);
     next(error);
@@ -1080,7 +1184,7 @@ app.put('/api/users/me/profile', requireAuth, async (req, res, next) => {
 });
 
 /**
- * Đổi mật khẩu
+ * Äá»•i máº­t kháº©u
  * PUT /api/users/me/password
  */
 app.put('/api/users/me/password', requireAuth, async (req, res, next) => {
@@ -1088,28 +1192,28 @@ app.put('/api/users/me/password', requireAuth, async (req, res, next) => {
     const { currentPassword, newPassword } = req.body;
 
     if (!newPassword || newPassword.length < 6) {
-      return res.status(400).json({ success: false, message: 'Mật khẩu mới phải có ít nhất 6 ký tự' });
+      return res.status(400).json({ success: false, message: 'Máº­t kháº©u má»›i pháº£i cÃ³ Ã­t nháº¥t 6 kÃ½ tá»±' });
     }
 
-    // Verify current password bằng cách thử đăng nhập
+    // Verify current password báº±ng cÃ¡ch thá»­ Ä‘Äƒng nháº­p
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: req.user.email,
       password: currentPassword
     });
 
     if (signInError) {
-      return res.status(400).json({ success: false, message: 'Mật khẩu hiện tại không đúng' });
+      return res.status(400).json({ success: false, message: 'Máº­t kháº©u hiá»‡n táº¡i khÃ´ng Ä‘Ãºng' });
     }
 
-    // Đổi mật khẩu
+    // Äá»•i máº­t kháº©u
     const { error } = await supabase.auth.admin.updateUserById(req.user.id, {
       password: newPassword
     });
 
     if (error) throw error;
 
-    console.log(`🔐 Password changed for ${req.user.email}`);
-    res.json({ success: true, message: 'Đổi mật khẩu thành công' });
+    console.log(`ðŸ” Password changed for ${req.user.email}`);
+    res.json({ success: true, message: 'Äá»•i máº­t kháº©u thÃ nh cÃ´ng' });
   } catch (error) {
     console.error('Error changing password:', error);
     next(error);
@@ -1125,10 +1229,10 @@ app.post('/api/users/me/avatar', requireAuth, async (req, res, next) => {
     const { avatar_base64 } = req.body;
 
     if (!avatar_base64) {
-      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp ảnh' });
+      return res.status(400).json({ success: false, message: 'Vui lÃ²ng cung cáº¥p áº£nh' });
     }
 
-    // Decode base64 và upload lên Supabase Storage
+    // Decode base64 vÃ  upload lÃªn Supabase Storage
     const base64Data = avatar_base64.replace(/^data:image\/\w+;base64,/, '');
     const buffer = Buffer.from(base64Data, 'base64');
 
@@ -1143,7 +1247,7 @@ app.post('/api/users/me/avatar', requireAuth, async (req, res, next) => {
 
     if (uploadError) {
       console.error('Upload error:', uploadError);
-      // Nếu bucket chưa tồn tại, lưu base64 trực tiếp vào DB
+      // Náº¿u bucket chÆ°a tá»“n táº¡i, lÆ°u base64 trá»±c tiáº¿p vÃ o DB
       const { data, error } = await supabase
         .from('users')
         .update({ avatar_url: avatar_base64 })
@@ -1155,12 +1259,12 @@ app.post('/api/users/me/avatar', requireAuth, async (req, res, next) => {
       return res.json({ success: true, data: { avatar_url: data.avatar_url } });
     }
 
-    // Lấy public URL
+    // Láº¥y public URL
     const { data: { publicUrl } } = supabase.storage
       .from('avatars')
       .getPublicUrl(fileName);
 
-    // Cập nhật avatar_url trong users
+    // Cáº­p nháº­t avatar_url trong users
     const { error: updateError } = await supabase
       .from('users')
       .update({ avatar_url: publicUrl })
@@ -1168,7 +1272,7 @@ app.post('/api/users/me/avatar', requireAuth, async (req, res, next) => {
 
     if (updateError) throw updateError;
 
-    console.log(`📷 Avatar uploaded for ${req.user.email}`);
+    console.log(`ðŸ“· Avatar uploaded for ${req.user.email}`);
     res.json({ success: true, data: { avatar_url: publicUrl } });
   } catch (error) {
     console.error('Error uploading avatar:', error);
@@ -1176,9 +1280,9 @@ app.post('/api/users/me/avatar', requireAuth, async (req, res, next) => {
   }
 });
 
-// ============ ADMIN APIs (Chỉ Admin mới được dùng) ============
+// ============ ADMIN APIs (Chá»‰ Admin má»›i Ä‘Æ°á»£c dÃ¹ng) ============
 
-// Lấy danh sách nhân sự (Teacher, Manager)
+// Láº¥y danh sÃ¡ch nhÃ¢n sá»± (Teacher, Manager)
 app.get('/api/admin/staff', requireAuth, async (req, res, next) => {
   try {
     const { role, centerId, search, limit = 50, page = 1 } = req.query;
@@ -1211,9 +1315,9 @@ app.get('/api/admin/staff', requireAuth, async (req, res, next) => {
 
     let query;
 
-    // Filter theo role nếu có
+    // Filter theo role náº¿u cÃ³
     if (role) {
-      // Lấy role_id từ code
+      // Láº¥y role_id tá»« code
       const { data: roleData } = await supabase
         .from('roles')
         .select('id')
@@ -1230,7 +1334,7 @@ app.get('/api/admin/staff', requireAuth, async (req, res, next) => {
         return res.json({ success: true, data: [], pagination: { total: 0, page: pageNum, limit: limitNum } });
       }
     } else {
-      // Lấy tất cả staff (không phải STUDENT và không phải SUPER_ADMIN vì SA không xuất hiện trong list nhân viên)
+      // Láº¥y táº¥t cáº£ staff (khÃ´ng pháº£i STUDENT vÃ  khÃ´ng pháº£i SUPER_ADMIN vÃ¬ SA khÃ´ng xuáº¥t hiá»‡n trong list nhÃ¢n viÃªn)
       const { data: excludeRoles } = await supabase
         .from('roles')
         .select('id')
@@ -1285,12 +1389,12 @@ app.get('/api/admin/staff', requireAuth, async (req, res, next) => {
 
 // ============ STAFF DETAIL APIs ============
 
-// Lấy chi tiết nhân viên (kèm thống kê lớp dạy, giờ dạy)
+// Láº¥y chi tiáº¿t nhÃ¢n viÃªn (kÃ¨m thá»‘ng kÃª lá»›p dáº¡y, giá» dáº¡y)
 app.get('/api/admin/staff/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // Lấy thông tin user
+    // Láº¥y thÃ´ng tin user
     const { data: user, error: userError } = await supabase
       .from('users')
       .select(`
@@ -1313,29 +1417,29 @@ app.get('/api/admin/staff/:id', requireAuth, async (req, res, next) => {
     if (userError || !user) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy nhân viên'
+        message: 'KhÃ´ng tÃ¬m tháº¥y nhÃ¢n viÃªn'
       });
     }
 
-    // Kiểm tra có phải staff không (TEACHER hoặc CENTER_MANAGER)
+    // Kiá»ƒm tra cÃ³ pháº£i staff khÃ´ng (TEACHER hoáº·c CENTER_MANAGER)
     if (!['TEACHER', 'CENTER_MANAGER', 'SUPER_ADMIN'].includes(user.roles?.code)) {
       return res.status(400).json({
         success: false,
-        message: 'User này không phải nhân viên'
+        message: 'User nÃ y khÃ´ng pháº£i nhÃ¢n viÃªn'
       });
     }
 
-    // Lấy thống kê lớp đang dạy (nếu là TEACHER)
+    // Láº¥y thá»‘ng kÃª lá»›p Ä‘ang dáº¡y (náº¿u lÃ  TEACHER)
     let teachingStats = null;
     if (user.roles?.code === 'TEACHER') {
-      // Đếm lớp đang dạy
+      // Äáº¿m lá»›p Ä‘ang dáº¡y
       const { count: activeClasses } = await supabase
         .from('classes')
         .select('*', { count: 'exact', head: true })
         .eq('teacher_id', id)
         .in('status', ['upcoming', 'ongoing']);
 
-      // Đếm tổng số buổi đã dạy trong tháng này
+      // Äáº¿m tá»•ng sá»‘ buá»•i Ä‘Ã£ dáº¡y trong thÃ¡ng nÃ y
       const now = new Date();
       const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
       const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
@@ -1351,7 +1455,7 @@ app.get('/api/admin/staff/:id', requireAuth, async (req, res, next) => {
       const totalHoursThisMonth = (sessionsThisMonth || []).reduce((sum, s) => sum + (s.duration_hours || 0), 0);
       const totalEarningsThisMonth = (sessionsThisMonth || []).reduce((sum, s) => sum + ((s.duration_hours || 0) * (s.teacher_rate || 0)), 0);
 
-      // Tổng số buổi đã dạy (all time)
+      // Tá»•ng sá»‘ buá»•i Ä‘Ã£ dáº¡y (all time)
       const { count: totalSessions } = await supabase
         .from('sessions')
         .select('*', { count: 'exact', head: true })
@@ -1380,23 +1484,23 @@ app.get('/api/admin/staff/:id', requireAuth, async (req, res, next) => {
   }
 });
 
-// Cập nhật thông tin nhân viên
+// Cáº­p nháº­t thÃ´ng tin nhÃ¢n viÃªn
 app.put('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { full_name, phone, status, hourly_rate, center_id, role_code } = req.body;
 
-    console.log(`✏️ Admin ${req.user.email} đang cập nhật nhân viên: ${id}`);
+    console.log(`âœï¸ Admin ${req.user.email} Ä‘ang cáº­p nháº­t nhÃ¢n viÃªn: ${id}`);
 
     // Validate
     if (!full_name) {
       return res.status(400).json({
         success: false,
-        message: 'Họ tên là bắt buộc'
+        message: 'Há» tÃªn lÃ  báº¯t buá»™c'
       });
     }
 
-    // Kiểm tra user tồn tại và là staff
+    // Kiá»ƒm tra user tá»“n táº¡i vÃ  lÃ  staff
     const { data: existingUser, error: checkError } = await supabase
       .from('users')
       .select('id, roles(code)')
@@ -1406,18 +1510,18 @@ app.put('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
     if (checkError || !existingUser) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy nhân viên'
+        message: 'KhÃ´ng tÃ¬m tháº¥y nhÃ¢n viÃªn'
       });
     }
 
     if (!['TEACHER', 'CENTER_MANAGER'].includes(existingUser.roles?.code)) {
       return res.status(400).json({
         success: false,
-        message: 'User này không phải nhân viên, không thể sửa từ đây'
+        message: 'User nÃ y khÃ´ng pháº£i nhÃ¢n viÃªn, khÃ´ng thá»ƒ sá»­a tá»« Ä‘Ã¢y'
       });
     }
 
-    // Lấy default hourly_rate từ settings nếu không truyền vào
+    // Láº¥y default hourly_rate tá»« settings náº¿u khÃ´ng truyá»n vÃ o
     let effectiveHourlyRate = hourly_rate;
     if (effectiveHourlyRate === undefined || effectiveHourlyRate === null) {
       const { data: payrollSetting } = await supabase
@@ -1438,17 +1542,17 @@ app.put('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
       updated_at: new Date().toISOString()
     };
 
-    // Nếu có center_id thì update
+    // Náº¿u cÃ³ center_id thÃ¬ update
     if (center_id !== undefined) {
       updateData.center_id = center_id || null;
     }
 
-    // Nếu đổi role
+    // Náº¿u Ä‘á»•i role
     if (role_code && role_code !== existingUser.roles?.code) {
       if (!['TEACHER', 'CENTER_MANAGER'].includes(role_code)) {
         return res.status(400).json({
           success: false,
-          message: 'Role không hợp lệ cho nhân viên'
+          message: 'Role khÃ´ng há»£p lá»‡ cho nhÃ¢n viÃªn'
         });
       }
 
@@ -1479,7 +1583,7 @@ app.put('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
 
     res.json({
       success: true,
-      message: 'Cập nhật nhân viên thành công',
+      message: 'Cáº­p nháº­t nhÃ¢n viÃªn thÃ nh cÃ´ng',
       data
     });
   } catch (error) {
@@ -1488,15 +1592,15 @@ app.put('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
   }
 });
 
-// Xóa/Vô hiệu hóa nhân viên (soft delete - chuyển status thành inactive)
+// XÃ³a/VÃ´ hiá»‡u hÃ³a nhÃ¢n viÃªn (soft delete - chuyá»ƒn status thÃ nh inactive)
 app.delete('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { permanent } = req.query; // ?permanent=true để xóa vĩnh viễn
+    const { permanent } = req.query; // ?permanent=true Ä‘á»ƒ xÃ³a vÄ©nh viá»…n
 
-    console.log(`🗑️ Admin ${req.user.email} đang xóa nhân viên: ${id}`);
+    console.log(`ðŸ—‘ï¸ Admin ${req.user.email} Ä‘ang xÃ³a nhÃ¢n viÃªn: ${id}`);
 
-    // Kiểm tra user tồn tại
+    // Kiá»ƒm tra user tá»“n táº¡i
     const { data: existingUser, error: checkError } = await supabase
       .from('users')
       .select('id, email, full_name, roles(code)')
@@ -1506,18 +1610,18 @@ app.delete('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
     if (checkError || !existingUser) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy nhân viên'
+        message: 'KhÃ´ng tÃ¬m tháº¥y nhÃ¢n viÃªn'
       });
     }
 
     if (!['TEACHER', 'CENTER_MANAGER'].includes(existingUser.roles?.code)) {
       return res.status(400).json({
         success: false,
-        message: 'User này không phải nhân viên'
+        message: 'User nÃ y khÃ´ng pháº£i nhÃ¢n viÃªn'
       });
     }
 
-    // Kiểm tra xem có đang dạy lớp nào không
+    // Kiá»ƒm tra xem cÃ³ Ä‘ang dáº¡y lá»›p nÃ o khÃ´ng
     const { count: activeClasses } = await supabase
       .from('classes')
       .select('*', { count: 'exact', head: true })
@@ -1527,18 +1631,18 @@ app.delete('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
     if (activeClasses && activeClasses > 0) {
       return res.status(400).json({
         success: false,
-        message: `Không thể xóa vì nhân viên đang phụ trách ${activeClasses} lớp học. Vui lòng chuyển lớp cho người khác trước.`
+        message: `KhÃ´ng thá»ƒ xÃ³a vÃ¬ nhÃ¢n viÃªn Ä‘ang phá»¥ trÃ¡ch ${activeClasses} lá»›p há»c. Vui lÃ²ng chuyá»ƒn lá»›p cho ngÆ°á»i khÃ¡c trÆ°á»›c.`
       });
     }
 
     if (permanent === 'true') {
-      // Xóa vĩnh viễn - cần xóa cả trong Supabase Auth
-      // Lưu ý: Điều này sẽ cascade delete các record liên quan
+      // XÃ³a vÄ©nh viá»…n - cáº§n xÃ³a cáº£ trong Supabase Auth
+      // LÆ°u Ã½: Äiá»u nÃ y sáº½ cascade delete cÃ¡c record liÃªn quan
       const { error: deleteError } = await supabase.auth.admin.deleteUser(id);
 
       if (deleteError) {
         console.error('Error deleting from auth:', deleteError);
-        // Vẫn thử xóa từ public.users
+        // Váº«n thá»­ xÃ³a tá»« public.users
       }
 
       const { error } = await supabase
@@ -1550,10 +1654,10 @@ app.delete('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
 
       res.json({
         success: true,
-        message: `Đã xóa vĩnh viễn nhân viên "${existingUser.full_name}"`
+        message: `ÄÃ£ xÃ³a vÄ©nh viá»…n nhÃ¢n viÃªn "${existingUser.full_name}"`
       });
     } else {
-      // Soft delete - chỉ đổi status
+      // Soft delete - chá»‰ Ä‘á»•i status
       const { data, error } = await supabase
         .from('users')
         .update({
@@ -1568,7 +1672,7 @@ app.delete('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
 
       res.json({
         success: true,
-        message: `Đã vô hiệu hóa nhân viên "${existingUser.full_name}"`,
+        message: `ÄÃ£ vÃ´ hiá»‡u hÃ³a nhÃ¢n viÃªn "${existingUser.full_name}"`,
         data
       });
     }
@@ -1578,7 +1682,7 @@ app.delete('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
   }
 });
 
-// Khôi phục nhân viên đã vô hiệu hóa
+// KhÃ´i phá»¥c nhÃ¢n viÃªn Ä‘Ã£ vÃ´ hiá»‡u hÃ³a
 app.patch('/api/admin/staff/:id/restore', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -1597,7 +1701,7 @@ app.patch('/api/admin/staff/:id/restore', requireAuth, requireRole(['SUPER_ADMIN
 
     res.json({
       success: true,
-      message: `Đã khôi phục nhân viên "${data.full_name}"`,
+      message: `ÄÃ£ khÃ´i phá»¥c nhÃ¢n viÃªn "${data.full_name}"`,
       data
     });
   } catch (error) {
@@ -1607,19 +1711,19 @@ app.patch('/api/admin/staff/:id/restore', requireAuth, requireRole(['SUPER_ADMIN
 });
 
 // ============================================================
-// CENTERS MANAGEMENT APIs - Quản lý Trung tâm
+// CENTERS MANAGEMENT APIs - Quáº£n lÃ½ Trung tÃ¢m
 // ============================================================
 
 /**
- * GET /api/admin/centers - Lấy danh sách trung tâm (với thống kê)
+ * GET /api/admin/centers - Láº¥y danh sÃ¡ch trung tÃ¢m (vá»›i thá»‘ng kÃª)
  */
 app.get('/api/admin/centers', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { status, search, withStats } = req.query;
 
-    console.log(`🏢 Admin ${req.user.email} xem danh sách trung tâm`);
+    console.log(`ðŸ¢ Admin ${req.user.email} xem danh sÃ¡ch trung tÃ¢m`);
 
-    // CENTER_MANAGER chỉ thấy trung tâm của mình
+    // CENTER_MANAGER chá»‰ tháº¥y trung tÃ¢m cá»§a mÃ¬nh
     const userRole = req.user.roleCode;
     const userCenterId = req.user.center_id;
     let query = supabase
@@ -1641,7 +1745,7 @@ app.get('/api/admin/centers', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_M
       `)
       .order('name');
 
-    // Scope theo role: CENTER_MANAGER chỉ thấy center của mình
+    // Scope theo role: CENTER_MANAGER chá»‰ tháº¥y center cá»§a mÃ¬nh
     if (userRole !== 'SUPER_ADMIN' && userCenterId) {
       query = query.eq('id', userCenterId);
     }
@@ -1659,38 +1763,38 @@ app.get('/api/admin/centers', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_M
     const { data: centers, error } = await query;
     if (error) throw error;
 
-    // Nếu yêu cầu thống kê
+    // Náº¿u yÃªu cáº§u thá»‘ng kÃª
     if (withStats === 'true') {
       const centersWithStats = await Promise.all(
         (centers || []).map(async (center) => {
-          // Đếm số phòng
+          // Äáº¿m sá»‘ phÃ²ng
           const { count: roomCount } = await supabase
             .from('rooms')
             .select('*', { count: 'exact', head: true })
             .eq('center_id', center.id);
 
-          // Đếm số lớp đang hoạt động
+          // Äáº¿m sá»‘ lá»›p Ä‘ang hoáº¡t Ä‘á»™ng
           const { count: classCount } = await supabase
             .from('classes')
             .select('*', { count: 'exact', head: true })
             .eq('center_id', center.id)
             .in('status', ['upcoming', 'ongoing']);
 
-          // Đếm số nhân viên
+          // Äáº¿m sá»‘ nhÃ¢n viÃªn
           const { count: staffCount } = await supabase
             .from('users')
             .select('*', { count: 'exact', head: true })
             .eq('center_id', center.id)
             .eq('status', 'active');
 
-          // Đếm số học viên đang học
+          // Äáº¿m sá»‘ há»c viÃªn Ä‘ang há»c
           const { count: studentCount } = await supabase
             .from('enrollments')
             .select('id, classes!inner(center_id)', { count: 'exact', head: true })
             .eq('classes.center_id', center.id)
             .eq('status', 'active');
 
-          // Lấy thông tin manager nếu có
+          // Láº¥y thÃ´ng tin manager náº¿u cÃ³
           let manager = null;
           if (center.manager_id) {
             const { data: managerData } = await supabase
@@ -1727,25 +1831,25 @@ app.get('/api/admin/centers', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_M
 });
 
 /**
- * GET /api/admin/centers/:id - Chi tiết trung tâm
+ * GET /api/admin/centers/:id - Chi tiáº¿t trung tÃ¢m
  */
 app.get('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    console.log(`🏢 Admin ${req.user.email} xem chi tiết center: ${id}`);
+    console.log(`ðŸ¢ Admin ${req.user.email} xem chi tiáº¿t center: ${id}`);
 
-    // CENTER_MANAGER chỉ được xem center của mình
+    // CENTER_MANAGER chá»‰ Ä‘Æ°á»£c xem center cá»§a mÃ¬nh
     const userRole = req.user.roleCode;
     const userCenterId = req.user.center_id;
     if (userRole !== 'SUPER_ADMIN' && userCenterId && id !== userCenterId) {
       return res.status(403).json({
         success: false,
-        message: 'Bạn không có quyền xem trung tâm này'
+        message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem trung tÃ¢m nÃ y'
       });
     }
 
-    // Lấy thông tin center
+    // Láº¥y thÃ´ng tin center
     const { data: center, error } = await supabase
       .from('centers')
       .select('*')
@@ -1755,11 +1859,11 @@ app.get('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
     if (error || !center) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy trung tâm'
+        message: 'KhÃ´ng tÃ¬m tháº¥y trung tÃ¢m'
       });
     }
 
-    // Lấy manager info
+    // Láº¥y manager info
     let manager = null;
     if (center.manager_id) {
       const { data: managerData } = await supabase
@@ -1770,12 +1874,12 @@ app.get('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
       manager = managerData;
     }
 
-    // Thống kê chi tiết
+    // Thá»‘ng kÃª chi tiáº¿t
     const [roomsRes, classesRes, staffRes, studentsRes] = await Promise.all([
       supabase.from('rooms').select('*', { count: 'exact', head: true }).eq('center_id', id),
       supabase.from('classes').select('*', { count: 'exact', head: true }).eq('center_id', id),
       supabase.from('users').select('*', { count: 'exact', head: true }).eq('center_id', id).eq('status', 'active'),
-      // Đếm học viên đang học tại center (qua enrollments)
+      // Äáº¿m há»c viÃªn Ä‘ang há»c táº¡i center (qua enrollments)
       supabase
         .from('enrollments')
         .select('student_id, classes!inner(center_id)', { count: 'exact', head: true })
@@ -1807,25 +1911,25 @@ app.get('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
 });
 
 /**
- * GET /api/admin/centers/:id/stats - Thống kê chi tiết trung tâm
+ * GET /api/admin/centers/:id/stats - Thá»‘ng kÃª chi tiáº¿t trung tÃ¢m
  */
 app.get('/api/admin/centers/:id/stats', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    console.log(`📊 Admin ${req.user.email} xem thống kê center: ${id}`);
+    console.log(`ðŸ“Š Admin ${req.user.email} xem thá»‘ng kÃª center: ${id}`);
 
-    // CENTER_MANAGER chỉ được xem stats center của mình
+    // CENTER_MANAGER chá»‰ Ä‘Æ°á»£c xem stats center cá»§a mÃ¬nh
     const userRole = req.user.roleCode;
     const userCenterId = req.user.center_id;
     if (userRole !== 'SUPER_ADMIN' && userCenterId && id !== userCenterId) {
       return res.status(403).json({
         success: false,
-        message: 'Bạn không có quyền xem thống kê trung tâm này'
+        message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem thá»‘ng kÃª trung tÃ¢m nÃ y'
       });
     }
 
-    // Kiểm tra center tồn tại
+    // Kiá»ƒm tra center tá»“n táº¡i
     const { data: center, error: centerError } = await supabase
       .from('centers')
       .select('id, name, code')
@@ -1835,7 +1939,7 @@ app.get('/api/admin/centers/:id/stats', requireAuth, requireRole(['SUPER_ADMIN',
     if (centerError || !center) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy trung tâm'
+        message: 'KhÃ´ng tÃ¬m tháº¥y trung tÃ¢m'
       });
     }
 
@@ -1847,26 +1951,26 @@ app.get('/api/admin/centers/:id/stats', requireAuth, requireRole(['SUPER_ADMIN',
       revenueRes,
       sessionsRes
     ] = await Promise.all([
-      // 1. Thống kê phòng học
+      // 1. Thá»‘ng kÃª phÃ²ng há»c
       supabase
         .from('rooms')
         .select('status, room_type')
         .eq('center_id', id),
 
-      // 2. Thống kê lớp học theo status
+      // 2. Thá»‘ng kÃª lá»›p há»c theo status
       supabase
         .from('classes')
         .select('status')
         .eq('center_id', id),
 
-      // 3. Nhân sự theo role
+      // 3. NhÃ¢n sá»± theo role
       supabase
         .from('users')
         .select('roles(code)')
         .eq('center_id', id)
         .eq('status', 'active'),
 
-      // 4. Doanh thu tháng này
+      // 4. Doanh thu thÃ¡ng nÃ y
       supabase
         .from('invoices')
         .select('paid_amount, classes!inner(center_id)')
@@ -1874,7 +1978,7 @@ app.get('/api/admin/centers/:id/stats', requireAuth, requireRole(['SUPER_ADMIN',
         .eq('status', 'paid')
         .gte('paid_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
 
-      // 5. Sessions tháng này
+      // 5. Sessions thÃ¡ng nÃ y
       supabase
         .from('sessions')
         .select('status, classes!inner(center_id)')
@@ -1945,23 +2049,23 @@ app.get('/api/admin/centers/:id/stats', requireAuth, requireRole(['SUPER_ADMIN',
 });
 
 /**
- * POST /api/admin/centers - Tạo trung tâm mới (SUPER_ADMIN only)
+ * POST /api/admin/centers - Táº¡o trung tÃ¢m má»›i (SUPER_ADMIN only)
  */
 app.post('/api/admin/centers', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
   try {
     const { code, name, address, hotline, email, logo_url, description, working_hours, manager_id } = req.body;
 
-    console.log(`🏢 SUPER_ADMIN ${req.user.email} tạo trung tâm mới: ${name}`);
+    console.log(`ðŸ¢ SUPER_ADMIN ${req.user.email} táº¡o trung tÃ¢m má»›i: ${name}`);
 
     // Validate required fields
     if (!name) {
       return res.status(400).json({
         success: false,
-        message: 'Tên trung tâm là bắt buộc'
+        message: 'TÃªn trung tÃ¢m lÃ  báº¯t buá»™c'
       });
     }
 
-    // Auto-generate code nếu không có
+    // Auto-generate code náº¿u khÃ´ng cÃ³
     let centerCode = code;
     if (!centerCode) {
       const { count } = await supabase
@@ -1980,7 +2084,7 @@ app.post('/api/admin/centers', requireAuth, requireRole(['SUPER_ADMIN']), async 
     if (existingCode) {
       return res.status(400).json({
         success: false,
-        message: 'Mã trung tâm đã tồn tại'
+        message: 'MÃ£ trung tÃ¢m Ä‘Ã£ tá»“n táº¡i'
       });
     }
 
@@ -2004,7 +2108,7 @@ app.post('/api/admin/centers', requireAuth, requireRole(['SUPER_ADMIN']), async 
 
     if (error) throw error;
 
-    // Nếu có manager_id, cập nhật center_id cho manager
+    // Náº¿u cÃ³ manager_id, cáº­p nháº­t center_id cho manager
     if (manager_id) {
       await supabase
         .from('users')
@@ -2016,7 +2120,7 @@ app.post('/api/admin/centers', requireAuth, requireRole(['SUPER_ADMIN']), async 
 
     res.status(201).json({
       success: true,
-      message: 'Tạo trung tâm thành công',
+      message: 'Táº¡o trung tÃ¢m thÃ nh cÃ´ng',
       data
     });
   } catch (error) {
@@ -2026,14 +2130,14 @@ app.post('/api/admin/centers', requireAuth, requireRole(['SUPER_ADMIN']), async 
 });
 
 /**
- * PUT /api/admin/centers/:id - Cập nhật trung tâm (SUPER_ADMIN only)
+ * PUT /api/admin/centers/:id - Cáº­p nháº­t trung tÃ¢m (SUPER_ADMIN only)
  */
 app.put('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const updates = req.body;
 
-    console.log(`✏️ SUPER_ADMIN ${req.user.email} cập nhật center: ${id}`);
+    console.log(`âœï¸ SUPER_ADMIN ${req.user.email} cáº­p nháº­t center: ${id}`);
 
     // Validate
     const { data: existing, error: checkError } = await supabase
@@ -2045,11 +2149,11 @@ app.put('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), asy
     if (checkError || !existing) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy trung tâm'
+        message: 'KhÃ´ng tÃ¬m tháº¥y trung tÃ¢m'
       });
     }
 
-    // Kiểm tra code uniqueness nếu thay đổi
+    // Kiá»ƒm tra code uniqueness náº¿u thay Ä‘á»•i
     if (updates.code && updates.code !== existing.code) {
       const { data: existingCode } = await supabase
         .from('centers')
@@ -2061,12 +2165,12 @@ app.put('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), asy
       if (existingCode) {
         return res.status(400).json({
           success: false,
-          message: 'Mã trung tâm đã tồn tại'
+          message: 'MÃ£ trung tÃ¢m Ä‘Ã£ tá»“n táº¡i'
         });
       }
     }
 
-    // Remove fields không được update
+    // Remove fields khÃ´ng Ä‘Æ°á»£c update
     delete updates.id;
     delete updates.created_at;
 
@@ -2080,7 +2184,7 @@ app.put('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), asy
 
     if (error) throw error;
 
-    // Nếu thay đổi manager
+    // Náº¿u thay Ä‘á»•i manager
     if (updates.manager_id !== undefined && updates.manager_id !== existing.manager_id) {
       // Remove center_id from old manager
       if (existing.manager_id) {
@@ -2102,7 +2206,7 @@ app.put('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), asy
 
     res.json({
       success: true,
-      message: 'Cập nhật trung tâm thành công',
+      message: 'Cáº­p nháº­t trung tÃ¢m thÃ nh cÃ´ng',
       data
     });
   } catch (error) {
@@ -2112,14 +2216,14 @@ app.put('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), asy
 });
 
 /**
- * DELETE /api/admin/centers/:id - Vô hiệu hóa trung tâm (SUPER_ADMIN only)
+ * DELETE /api/admin/centers/:id - VÃ´ hiá»‡u hÃ³a trung tÃ¢m (SUPER_ADMIN only)
  */
 app.delete('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { permanent } = req.query;
 
-    console.log(`🗑️ SUPER_ADMIN ${req.user.email} xóa center: ${id}`);
+    console.log(`ðŸ—‘ï¸ SUPER_ADMIN ${req.user.email} xÃ³a center: ${id}`);
 
     // Check existence
     const { data: existing, error: checkError } = await supabase
@@ -2131,11 +2235,11 @@ app.delete('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), 
     if (checkError || !existing) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy trung tâm'
+        message: 'KhÃ´ng tÃ¬m tháº¥y trung tÃ¢m'
       });
     }
 
-    // Kiểm tra còn lớp đang hoạt động không
+    // Kiá»ƒm tra cÃ²n lá»›p Ä‘ang hoáº¡t Ä‘á»™ng khÃ´ng
     const { count: activeClasses } = await supabase
       .from('classes')
       .select('*', { count: 'exact', head: true })
@@ -2145,13 +2249,13 @@ app.delete('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), 
     if (activeClasses > 0) {
       return res.status(400).json({
         success: false,
-        message: `Không thể xóa. Trung tâm còn ${activeClasses} lớp đang hoạt động.`
+        message: `KhÃ´ng thá»ƒ xÃ³a. Trung tÃ¢m cÃ²n ${activeClasses} lá»›p Ä‘ang hoáº¡t Ä‘á»™ng.`
       });
     }
 
-    // Soft delete (default) hoặc hard delete
+    // Soft delete (default) hoáº·c hard delete
     if (permanent === 'true') {
-      // Hard delete - chỉ khi không còn data liên quan
+      // Hard delete - chá»‰ khi khÃ´ng cÃ²n data liÃªn quan
       const { count: roomCount } = await supabase
         .from('rooms')
         .select('*', { count: 'exact', head: true })
@@ -2160,7 +2264,7 @@ app.delete('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), 
       if (roomCount > 0) {
         return res.status(400).json({
           success: false,
-          message: `Không thể xóa vĩnh viễn. Trung tâm còn ${roomCount} phòng học.`
+          message: `KhÃ´ng thá»ƒ xÃ³a vÄ©nh viá»…n. Trung tÃ¢m cÃ²n ${roomCount} phÃ²ng há»c.`
         });
       }
 
@@ -2175,11 +2279,11 @@ app.delete('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), 
 
       return res.json({
         success: true,
-        message: `Đã xóa vĩnh viễn trung tâm "${existing.name}"`
+        message: `ÄÃ£ xÃ³a vÄ©nh viá»…n trung tÃ¢m "${existing.name}"`
       });
     }
 
-    // Soft delete - chuyển status thành inactive
+    // Soft delete - chuyá»ƒn status thÃ nh inactive
     const { data, error } = await supabase
       .from('centers')
       .update({ status: 'inactive' })
@@ -2193,7 +2297,7 @@ app.delete('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), 
 
     res.json({
       success: true,
-      message: `Đã vô hiệu hóa trung tâm "${existing.name}"`,
+      message: `ÄÃ£ vÃ´ hiá»‡u hÃ³a trung tÃ¢m "${existing.name}"`,
       data
     });
   } catch (error) {
@@ -2203,13 +2307,13 @@ app.delete('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), 
 });
 
 /**
- * PATCH /api/admin/centers/:id/restore - Khôi phục trung tâm
+ * PATCH /api/admin/centers/:id/restore - KhÃ´i phá»¥c trung tÃ¢m
  */
 app.patch('/api/admin/centers/:id/restore', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    console.log(`♻️ SUPER_ADMIN ${req.user.email} khôi phục center: ${id}`);
+    console.log(`â™»ï¸ SUPER_ADMIN ${req.user.email} khÃ´i phá»¥c center: ${id}`);
 
     const { data, error } = await supabase
       .from('centers')
@@ -2224,7 +2328,7 @@ app.patch('/api/admin/centers/:id/restore', requireAuth, requireRole(['SUPER_ADM
 
     res.json({
       success: true,
-      message: `Đã khôi phục trung tâm "${data.name}"`,
+      message: `ÄÃ£ khÃ´i phá»¥c trung tÃ¢m "${data.name}"`,
       data
     });
   } catch (error) {
@@ -2234,14 +2338,14 @@ app.patch('/api/admin/centers/:id/restore', requireAuth, requireRole(['SUPER_ADM
 });
 
 /**
- * PATCH /api/admin/centers/:id/manager - Gán/đổi quản lý trung tâm
+ * PATCH /api/admin/centers/:id/manager - GÃ¡n/Ä‘á»•i quáº£n lÃ½ trung tÃ¢m
  */
 app.patch('/api/admin/centers/:id/manager', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { manager_id } = req.body;
 
-    console.log(`👔 SUPER_ADMIN ${req.user.email} gán manager cho center: ${id}`);
+    console.log(`ðŸ‘” SUPER_ADMIN ${req.user.email} gÃ¡n manager cho center: ${id}`);
 
     // Validate manager
     if (manager_id) {
@@ -2254,19 +2358,19 @@ app.patch('/api/admin/centers/:id/manager', requireAuth, requireRole(['SUPER_ADM
       if (managerError || !manager) {
         return res.status(400).json({
           success: false,
-          message: 'Không tìm thấy người dùng'
+          message: 'KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i dÃ¹ng'
         });
       }
 
       if (manager.roles?.code !== 'CENTER_MANAGER') {
         return res.status(400).json({
           success: false,
-          message: 'Người được chọn phải có vai trò Quản lý (CENTER_MANAGER)'
+          message: 'NgÆ°á»i Ä‘Æ°á»£c chá»n pháº£i cÃ³ vai trÃ² Quáº£n lÃ½ (CENTER_MANAGER)'
         });
       }
     }
 
-    // Lấy old manager để remove
+    // Láº¥y old manager Ä‘á»ƒ remove
     const { data: center } = await supabase
       .from('centers')
       .select('manager_id')
@@ -2295,7 +2399,7 @@ app.patch('/api/admin/centers/:id/manager', requireAuth, requireRole(['SUPER_ADM
 
     res.json({
       success: true,
-      message: manager_id ? 'Đã gán quản lý cho trung tâm' : 'Đã xóa quản lý trung tâm',
+      message: manager_id ? 'ÄÃ£ gÃ¡n quáº£n lÃ½ cho trung tÃ¢m' : 'ÄÃ£ xÃ³a quáº£n lÃ½ trung tÃ¢m',
       data
     });
   } catch (error) {
@@ -2308,30 +2412,30 @@ app.patch('/api/admin/centers/:id/manager', requireAuth, requireRole(['SUPER_ADM
 // END CENTERS MANAGEMENT APIs
 // ============================================================
 
-// Tạo tài khoản nhân viên mới (Admin only)
+// Táº¡o tÃ i khoáº£n nhÃ¢n viÃªn má»›i (Admin only)
 app.post('/api/admin/users', requireAuth, async (req, res, next) => {
   try {
     const { email, full_name, phone, role_code, hourly_rate, center_id } = req.body;
 
-    console.log(`👤 Admin ${req.user.email} đang tạo user: ${email} với role ${role_code}`);
+    console.log(`ðŸ‘¤ Admin ${req.user.email} Ä‘ang táº¡o user: ${email} vá»›i role ${role_code}`);
 
     // Validate input
     if (!email || !full_name || !role_code) {
       return res.status(400).json({
         success: false,
-        message: 'Email, họ tên và vai trò là bắt buộc'
+        message: 'Email, há» tÃªn vÃ  vai trÃ² lÃ  báº¯t buá»™c'
       });
     }
 
-    // Chỉ cho phép tạo TEACHER hoặc CENTER_MANAGER
+    // Chá»‰ cho phÃ©p táº¡o TEACHER hoáº·c CENTER_MANAGER
     if (!['TEACHER', 'CENTER_MANAGER'].includes(role_code)) {
       return res.status(400).json({
         success: false,
-        message: 'Vai trò không hợp lệ. Chỉ được tạo Teacher hoặc Manager.'
+        message: 'Vai trÃ² khÃ´ng há»£p lá»‡. Chá»‰ Ä‘Æ°á»£c táº¡o Teacher hoáº·c Manager.'
       });
     }
 
-    // Lấy cấu hình từ system_settings
+    // Láº¥y cáº¥u hÃ¬nh tá»« system_settings
     const { data: payrollSetting } = await supabase
       .from('system_settings')
       .select('value')
@@ -2343,9 +2447,9 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
     const defaultHourlyRate = payrollConfig.defaultHourlyRate || 150000;
     const defaultPassword = payrollConfig.defaultPassword || 'SkillMaster@123';
 
-    console.log(`💰 Using default hourly rate: ${defaultHourlyRate}, password: ${defaultPassword}`);
+    console.log(`ðŸ’° Using default hourly rate: ${defaultHourlyRate}, password: ${defaultPassword}`);
 
-    // Lấy role_id từ code
+    // Láº¥y role_id tá»« code
     const { data: roleData, error: roleError } = await supabase
       .from('roles')
       .select('id')
@@ -2355,14 +2459,14 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
     if (roleError || !roleData) {
       return res.status(400).json({
         success: false,
-        message: 'Không tìm thấy vai trò trong hệ thống'
+        message: 'KhÃ´ng tÃ¬m tháº¥y vai trÃ² trong há»‡ thá»‘ng'
       });
     }
 
-    // Xác định center_id trước để truyền vào metadata
+    // XÃ¡c Ä‘á»‹nh center_id trÆ°á»›c Ä‘á»ƒ truyá»n vÃ o metadata
     const effectiveCenterId = center_id || req.user.centerId || null;
 
-    // Tạo user trong Supabase Auth với password từ settings
+    // Táº¡o user trong Supabase Auth vá»›i password tá»« settings
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password: defaultPassword,
@@ -2370,15 +2474,15 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
       user_metadata: {
         full_name,
         phone,
-        role_code,  // ✅ Truyền role để trigger tạo profile đúng
-        center_id: effectiveCenterId,  // ✅ Truyền center
+        role_code,  // âœ… Truyá»n role Ä‘á»ƒ trigger táº¡o profile Ä‘Ãºng
+        center_id: effectiveCenterId,  // âœ… Truyá»n center
         hourly_rate: hourly_rate || defaultHourlyRate
       }
     });
 
     if (authError) {
       console.error('Auth error:', authError);
-      // Nếu user đã tồn tại trong auth, vẫn thử tạo trong public.users
+      // Náº¿u user Ä‘Ã£ tá»“n táº¡i trong auth, váº«n thá»­ táº¡o trong public.users
       if (!authError.message.includes('already been registered')) {
         return res.status(400).json({
           success: false,
@@ -2387,11 +2491,11 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
       }
     }
 
-    // Insert vào public.users với role được chỉ định
+    // Insert vÃ o public.users vá»›i role Ä‘Æ°á»£c chá»‰ Ä‘á»‹nh
     const userId = authData?.user?.id;
 
     if (userId) {
-      // Kiểm tra xem trigger đã tạo profile chưa
+      // Kiá»ƒm tra xem trigger Ä‘Ã£ táº¡o profile chÆ°a
       const { data: existingProfile } = await supabase
         .from('users')
         .select('id, role_id')
@@ -2399,10 +2503,10 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
         .single();
 
       if (existingProfile) {
-        // Profile đã được trigger tạo, chỉ cần update nếu cần
-        console.log(`✅ Profile đã được trigger tạo với role_id: ${existingProfile.role_id}`);
+        // Profile Ä‘Ã£ Ä‘Æ°á»£c trigger táº¡o, chá»‰ cáº§n update náº¿u cáº§n
+        console.log(`âœ… Profile Ä‘Ã£ Ä‘Æ°á»£c trigger táº¡o vá»›i role_id: ${existingProfile.role_id}`);
 
-        // Nếu role không đúng (trigger tạo sai), update lại
+        // Náº¿u role khÃ´ng Ä‘Ãºng (trigger táº¡o sai), update láº¡i
         if (existingProfile.role_id !== roleData.id) {
           const { error: updateError } = await supabase
             .from('users')
@@ -2415,8 +2519,8 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
           if (updateError) console.error('Update role error:', updateError);
         }
       } else {
-        // Trigger không chạy, tạo profile thủ công
-        console.log(`⚠️ Trigger không tạo profile, tạo thủ công...`);
+        // Trigger khÃ´ng cháº¡y, táº¡o profile thá»§ cÃ´ng
+        console.log(`âš ï¸ Trigger khÃ´ng táº¡o profile, táº¡o thá»§ cÃ´ng...`);
         const { error: insertError } = await supabase
           .from('users')
           .insert({
@@ -2440,7 +2544,7 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: `Tạo tài khoản thành công. Password mặc định: ${defaultPassword}`,
+      message: `Táº¡o tÃ i khoáº£n thÃ nh cÃ´ng. Password máº·c Ä‘á»‹nh: ${defaultPassword}`,
       data: {
         id: userId,
         email,
@@ -2457,13 +2561,13 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
   }
 });
 
-// Lấy danh sách roles (để hiển thị trong dropdown)
+// Láº¥y danh sÃ¡ch roles (Ä‘á»ƒ hiá»ƒn thá»‹ trong dropdown)
 app.get('/api/roles', async (_req, res, next) => {
   try {
     const { data, error } = await supabase
       .from('roles')
       .select('id, code, name, description')
-      .in('code', ['TEACHER', 'CENTER_MANAGER']) // Chỉ lấy role staff
+      .in('code', ['TEACHER', 'CENTER_MANAGER']) // Chá»‰ láº¥y role staff
       .order('name');
 
     if (error) throw error;
@@ -2515,7 +2619,7 @@ app.get('/api/students/search', requireAuth, async (req, res, next) => {
   }
 });
 
-// Lấy danh sách học viên (STUDENT)
+// Láº¥y danh sÃ¡ch há»c viÃªn (STUDENT)
 app.get('/api/admin/students', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const {
@@ -2539,7 +2643,7 @@ app.get('/api/admin/students', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
       return res.status(403).json({ success: false, message: permError });
     }
 
-    // Lấy role_id của STUDENT
+    // Láº¥y role_id cá»§a STUDENT
     const { data: studentRole } = await supabase
       .from('roles')
       .select('id')
@@ -2636,14 +2740,14 @@ app.get('/api/admin/students', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
       .order('created_at', { ascending: false })
       .range(offset, offset + limitNum - 1);
 
-    // Filter theo status nếu có
+    // Filter theo status náº¿u cÃ³
     if (status) {
       query = query.eq('status', status);
     }
 
     // ====== CENTER FILTER ======
-    // CENTER_MANAGER: chỉ hiển thị học viên thuộc center của mình
-    // SUPER_ADMIN: nếu có centerId trong query thì filter, không thì hiển thị tất cả
+    // CENTER_MANAGER: chá»‰ hiá»ƒn thá»‹ há»c viÃªn thuá»™c center cá»§a mÃ¬nh
+    // SUPER_ADMIN: náº¿u cÃ³ centerId trong query thÃ¬ filter, khÃ´ng thÃ¬ hiá»ƒn thá»‹ táº¥t cáº£
     if (effectiveCenterId) {
       query = query.eq('center_id', effectiveCenterId);
     }
@@ -2686,11 +2790,11 @@ app.patch('/api/admin/students/bulk/status', requireAuth, requireRole(['SUPER_AD
     const { studentIds = [], status } = req.body;
 
     if (!Array.isArray(studentIds) || studentIds.length === 0) {
-      return res.status(400).json({ success: false, message: 'Vui lòng chọn ít nhất một học viên' });
+      return res.status(400).json({ success: false, message: 'Vui lÃ²ng chá»n Ã­t nháº¥t má»™t há»c viÃªn' });
     }
 
     if (!['active', 'inactive'].includes(status)) {
-      return res.status(400).json({ success: false, message: 'Trạng thái không hợp lệ' });
+      return res.status(400).json({ success: false, message: 'Tráº¡ng thÃ¡i khÃ´ng há»£p lá»‡' });
     }
 
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, null);
@@ -2712,7 +2816,7 @@ app.patch('/api/admin/students/bulk/status', requireAuth, requireRole(['SUPER_AD
 
     const validStudents = (students || []).filter((student) => student.roles?.code === 'STUDENT');
     if (validStudents.length === 0) {
-      return res.status(400).json({ success: false, message: 'Không có học viên hợp lệ để cập nhật' });
+      return res.status(400).json({ success: false, message: 'KhÃ´ng cÃ³ há»c viÃªn há»£p lá»‡ Ä‘á»ƒ cáº­p nháº­t' });
     }
 
     if (status === 'inactive') {
@@ -2729,7 +2833,7 @@ app.patch('/api/admin/students/bulk/status', requireAuth, requireRole(['SUPER_AD
       if (allowedStudents.length === 0) {
         return res.status(400).json({
           success: false,
-          message: 'Không thể vô hiệu hóa các học viên đang học lớp active',
+          message: 'KhÃ´ng thá»ƒ vÃ´ hiá»‡u hÃ³a cÃ¡c há»c viÃªn Ä‘ang há»c lá»›p active',
           blockedStudentIds: [...blockedStudentIds],
         });
       }
@@ -2743,7 +2847,7 @@ app.patch('/api/admin/students/bulk/status', requireAuth, requireRole(['SUPER_AD
 
       return res.json({
         success: true,
-        message: `Đã vô hiệu hóa ${updatedStudents?.length || 0} học viên`,
+        message: `ÄÃ£ vÃ´ hiá»‡u hÃ³a ${updatedStudents?.length || 0} há»c viÃªn`,
         data: updatedStudents || [],
         blockedStudentIds: [...blockedStudentIds],
       });
@@ -2758,7 +2862,7 @@ app.patch('/api/admin/students/bulk/status', requireAuth, requireRole(['SUPER_AD
 
     res.json({
       success: true,
-      message: `Đã khôi phục ${updatedStudents?.length || 0} học viên`,
+      message: `ÄÃ£ khÃ´i phá»¥c ${updatedStudents?.length || 0} há»c viÃªn`,
       data: updatedStudents || [],
     });
   } catch (error) {
@@ -2772,7 +2876,7 @@ app.post('/api/admin/students/bulk-delete-check', requireAuth, requireRole(['SUP
     const { studentIds = [] } = req.body;
 
     if (!Array.isArray(studentIds) || studentIds.length === 0) {
-      return res.status(400).json({ success: false, message: 'Vui lòng chọn ít nhất một học viên' });
+      return res.status(400).json({ success: false, message: 'Vui lÃ²ng chá»n Ã­t nháº¥t má»™t há»c viÃªn' });
     }
 
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, null);
@@ -2812,9 +2916,9 @@ app.post('/api/admin/students/bulk-delete-check', requireAuth, requireRole(['SUP
       blockedReasonsByStudentId.set(studentId, reasons);
     };
 
-    (enrollmentsRes.data || []).forEach((row) => addReason(row.student_id, `Đã có ghi danh/lớp (${row.status})`));
-    (invoicesRes.data || []).forEach((row) => addReason(row.student_id, `Đã có hóa đơn (${row.status})`));
-    (certificatesRes.data || []).forEach((row) => addReason(row.student_id, `Đã có chứng chỉ (${row.status})`));
+    (enrollmentsRes.data || []).forEach((row) => addReason(row.student_id, `ÄÃ£ cÃ³ ghi danh/lá»›p (${row.status})`));
+    (invoicesRes.data || []).forEach((row) => addReason(row.student_id, `ÄÃ£ cÃ³ hÃ³a Ä‘Æ¡n (${row.status})`));
+    (certificatesRes.data || []).forEach((row) => addReason(row.student_id, `ÄÃ£ cÃ³ chá»©ng chá»‰ (${row.status})`));
 
     const blocked = validStudents.filter((student) => blockedReasonsByStudentId.has(student.id)).map((student) => ({
       id: student.id,
@@ -2836,7 +2940,7 @@ app.delete('/api/admin/students/bulk', requireAuth, requireRole(['SUPER_ADMIN', 
     const { studentIds = [] } = req.body;
 
     if (!Array.isArray(studentIds) || studentIds.length === 0) {
-      return res.status(400).json({ success: false, message: 'Vui lòng chọn ít nhất một học viên' });
+      return res.status(400).json({ success: false, message: 'Vui lÃ²ng chá»n Ã­t nháº¥t má»™t há»c viÃªn' });
     }
 
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, null);
@@ -2879,7 +2983,7 @@ app.delete('/api/admin/students/bulk', requireAuth, requireRole(['SUPER_ADMIN', 
     if (deletableIds.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Không có học viên nào đủ điều kiện xóa hàng loạt',
+        message: 'KhÃ´ng cÃ³ há»c viÃªn nÃ o Ä‘á»§ Ä‘iá»u kiá»‡n xÃ³a hÃ ng loáº¡t',
         blockedStudentIds: [...blockedIds],
       });
     }
@@ -2893,7 +2997,7 @@ app.delete('/api/admin/students/bulk', requireAuth, requireRole(['SUPER_ADMIN', 
 
     res.json({
       success: true,
-      message: `Đã vô hiệu hóa ${updatedStudents?.length || 0} học viên đủ điều kiện`,
+      message: `ÄÃ£ vÃ´ hiá»‡u hÃ³a ${updatedStudents?.length || 0} há»c viÃªn Ä‘á»§ Ä‘iá»u kiá»‡n`,
       data: updatedStudents || [],
       blockedStudentIds: [...blockedIds],
     });
@@ -2903,7 +3007,7 @@ app.delete('/api/admin/students/bulk', requireAuth, requireRole(['SUPER_ADMIN', 
   }
 });
 
-// Import học viên từ Excel/CSV
+// Import há»c viÃªn tá»« Excel/CSV
 app.post('/api/students/import', requireAuth, async (req, res, next) => {
   try {
     const { students } = req.body;
@@ -2911,7 +3015,7 @@ app.post('/api/students/import', requireAuth, async (req, res, next) => {
     if (!Array.isArray(students) || students.length === 0) {
       return res.status(400).json({
         success: 0,
-        errors: [{ row: 0, message: 'Không có dữ liệu học viên để import' }]
+        errors: [{ row: 0, message: 'KhÃ´ng cÃ³ dá»¯ liá»‡u há»c viÃªn Ä‘á»ƒ import' }]
       });
     }
 
@@ -2919,7 +3023,7 @@ app.post('/api/students/import', requireAuth, async (req, res, next) => {
     if (!centerId) {
       return res.status(403).json({
         success: 0,
-        errors: [{ row: 0, message: 'Tài khoản chưa được gán trung tâm' }]
+        errors: [{ row: 0, message: 'TÃ i khoáº£n chÆ°a Ä‘Æ°á»£c gÃ¡n trung tÃ¢m' }]
       });
     }
 
@@ -2939,12 +3043,12 @@ app.post('/api/students/import', requireAuth, async (req, res, next) => {
       const notes = student?.notes ? String(student.notes).trim() : null;
 
       if (!fullName) {
-        errors.push({ row, message: 'Họ tên là bắt buộc' });
+        errors.push({ row, message: 'Há» tÃªn lÃ  báº¯t buá»™c' });
         return;
       }
 
       if (email && !emailRegex.test(email)) {
-        errors.push({ row, message: 'Email không hợp lệ' });
+        errors.push({ row, message: 'Email khÃ´ng há»£p lá»‡' });
         return;
       }
 
@@ -2952,7 +3056,7 @@ app.post('/api/students/import', requireAuth, async (req, res, next) => {
         if (!emailRows.has(email)) {
           emailRows.set(email, row);
         } else {
-          errors.push({ row, message: `Email trùng trong file với dòng ${emailRows.get(email)}` });
+          errors.push({ row, message: `Email trÃ¹ng trong file vá»›i dÃ²ng ${emailRows.get(email)}` });
           return;
         }
       }
@@ -2998,7 +3102,7 @@ app.post('/api/students/import', requireAuth, async (req, res, next) => {
         validStudents.forEach((student, index) => {
           if (student.email && existingEmailSet.has(student.email.toLowerCase())) {
             const row = Number(students[index]?._row) || index + 1;
-            errors.push({ row, message: `Email đã tồn tại trong trung tâm: ${student.email}` });
+            errors.push({ row, message: `Email Ä‘Ã£ tá»“n táº¡i trong trung tÃ¢m: ${student.email}` });
           }
         });
       }
@@ -3027,12 +3131,12 @@ app.post('/api/students/import', requireAuth, async (req, res, next) => {
 
 // ============ STUDENT DETAIL APIs ============
 
-// Lấy chi tiết học viên (kèm enrollments, invoices, attendance)
+// Láº¥y chi tiáº¿t há»c viÃªn (kÃ¨m enrollments, invoices, attendance)
 app.get('/api/admin/students/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // Lấy thông tin user
+    // Láº¥y thÃ´ng tin user
     const { data: user, error: userError } = await supabase
       .from('users')
       .select(`
@@ -3057,19 +3161,19 @@ app.get('/api/admin/students/:id', requireAuth, async (req, res, next) => {
     if (userError || !user) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy học viên'
+        message: 'KhÃ´ng tÃ¬m tháº¥y há»c viÃªn'
       });
     }
 
-    // Kiểm tra có phải STUDENT không
+    // Kiá»ƒm tra cÃ³ pháº£i STUDENT khÃ´ng
     if (user.roles?.code !== 'STUDENT') {
       return res.status(400).json({
         success: false,
-        message: 'User này không phải học viên'
+        message: 'User nÃ y khÃ´ng pháº£i há»c viÃªn'
       });
     }
 
-    // Lấy danh sách lớp đang học (enrollments)
+    // Láº¥y danh sÃ¡ch lá»›p Ä‘ang há»c (enrollments)
     const { data: enrollments } = await supabase
       .from('enrollments')
       .select(`
@@ -3092,7 +3196,7 @@ app.get('/api/admin/students/:id', requireAuth, async (req, res, next) => {
       .eq('student_id', id)
       .order('enrolled_at', { ascending: false });
 
-    // Lấy danh sách hóa đơn
+    // Láº¥y danh sÃ¡ch hÃ³a Ä‘Æ¡n
     const { data: invoices } = await supabase
       .from('invoices')
       .select(`
@@ -3108,7 +3212,7 @@ app.get('/api/admin/students/:id', requireAuth, async (req, res, next) => {
       .order('created_at', { ascending: false })
       .limit(10);
 
-    // Lấy danh sách chứng chỉ (bao gồm certificate_types)
+    // Láº¥y danh sÃ¡ch chá»©ng chá»‰ (bao gá»“m certificate_types)
     const { data: certificates } = await supabase
       .from('certificates')
       .select(`
@@ -3138,7 +3242,7 @@ app.get('/api/admin/students/:id', requireAuth, async (req, res, next) => {
       .eq('student_id', id)
       .order('issued_at', { ascending: false });
 
-    // Tính thống kê
+    // TÃ­nh thá»‘ng kÃª
     const activeEnrollments = (enrollments || []).filter(e => e.status === 'active');
     const completedEnrollments = (enrollments || []).filter(e => e.status === 'completed');
 
@@ -3147,7 +3251,7 @@ app.get('/api/admin/students/:id', requireAuth, async (req, res, next) => {
       .filter(inv => inv.status !== 'paid' && inv.status !== 'cancelled')
       .reduce((sum, inv) => sum + ((inv.final_amount || 0) - (inv.paid_amount || 0)), 0);
 
-    // Lấy thống kê điểm danh (30 ngày gần nhất)
+    // Láº¥y thá»‘ng kÃª Ä‘iá»ƒm danh (30 ngÃ y gáº§n nháº¥t)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -3188,7 +3292,7 @@ app.get('/api/admin/students/:id', requireAuth, async (req, res, next) => {
   }
 });
 
-// Cập nhật thông tin học viên
+// Cáº­p nháº­t thÃ´ng tin há»c viÃªn
 app.put('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -3203,17 +3307,17 @@ app.put('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
       date_of_birth
     } = req.body;
 
-    console.log(`✏️ Admin ${req.user.email} đang cập nhật học viên: ${id}`);
+    console.log(`âœï¸ Admin ${req.user.email} Ä‘ang cáº­p nháº­t há»c viÃªn: ${id}`);
 
     // Validate
     if (!full_name) {
       return res.status(400).json({
         success: false,
-        message: 'Họ tên là bắt buộc'
+        message: 'Há» tÃªn lÃ  báº¯t buá»™c'
       });
     }
 
-    // Kiểm tra user tồn tại và là student
+    // Kiá»ƒm tra user tá»“n táº¡i vÃ  lÃ  student
     const { data: existingUser, error: checkError } = await supabase
       .from('users')
       .select('id, roles(code)')
@@ -3223,14 +3327,14 @@ app.put('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
     if (checkError || !existingUser) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy học viên'
+        message: 'KhÃ´ng tÃ¬m tháº¥y há»c viÃªn'
       });
     }
 
     if (existingUser.roles?.code !== 'STUDENT') {
       return res.status(400).json({
         success: false,
-        message: 'User này không phải học viên'
+        message: 'User nÃ y khÃ´ng pháº£i há»c viÃªn'
       });
     }
 
@@ -3260,7 +3364,7 @@ app.put('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
 
     res.json({
       success: true,
-      message: 'Cập nhật học viên thành công',
+      message: 'Cáº­p nháº­t há»c viÃªn thÃ nh cÃ´ng',
       data
     });
   } catch (error) {
@@ -3269,14 +3373,14 @@ app.put('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
   }
 });
 
-// Vô hiệu hóa học viên
+// VÃ´ hiá»‡u hÃ³a há»c viÃªn
 app.delete('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    console.log(`🗑️ Admin ${req.user.email} đang vô hiệu hóa học viên: ${id}`);
+    console.log(`ðŸ—‘ï¸ Admin ${req.user.email} Ä‘ang vÃ´ hiá»‡u hÃ³a há»c viÃªn: ${id}`);
 
-    // Kiểm tra user tồn tại
+    // Kiá»ƒm tra user tá»“n táº¡i
     const { data: existingUser, error: checkError } = await supabase
       .from('users')
       .select('id, full_name, roles(code)')
@@ -3286,18 +3390,18 @@ app.delete('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', '
     if (checkError || !existingUser) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy học viên'
+        message: 'KhÃ´ng tÃ¬m tháº¥y há»c viÃªn'
       });
     }
 
     if (existingUser.roles?.code !== 'STUDENT') {
       return res.status(400).json({
         success: false,
-        message: 'User này không phải học viên'
+        message: 'User nÃ y khÃ´ng pháº£i há»c viÃªn'
       });
     }
 
-    // Kiểm tra còn enrollment active không
+    // Kiá»ƒm tra cÃ²n enrollment active khÃ´ng
     const { count: activeEnrollments } = await supabase
       .from('enrollments')
       .select('*', { count: 'exact', head: true })
@@ -3307,7 +3411,7 @@ app.delete('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', '
     if (activeEnrollments && activeEnrollments > 0) {
       return res.status(400).json({
         success: false,
-        message: `Không thể vô hiệu hóa vì học viên đang học ${activeEnrollments} lớp. Vui lòng rút khỏi lớp trước.`
+        message: `KhÃ´ng thá»ƒ vÃ´ hiá»‡u hÃ³a vÃ¬ há»c viÃªn Ä‘ang há»c ${activeEnrollments} lá»›p. Vui lÃ²ng rÃºt khá»i lá»›p trÆ°á»›c.`
       });
     }
 
@@ -3326,7 +3430,7 @@ app.delete('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', '
 
     res.json({
       success: true,
-      message: `Đã vô hiệu hóa học viên "${existingUser.full_name}"`,
+      message: `ÄÃ£ vÃ´ hiá»‡u hÃ³a há»c viÃªn "${existingUser.full_name}"`,
       data
     });
   } catch (error) {
@@ -3335,7 +3439,7 @@ app.delete('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', '
   }
 });
 
-// Khôi phục học viên
+// KhÃ´i phá»¥c há»c viÃªn
 app.patch('/api/admin/students/:id/restore', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -3354,7 +3458,7 @@ app.patch('/api/admin/students/:id/restore', requireAuth, requireRole(['SUPER_AD
 
     res.json({
       success: true,
-      message: `Đã khôi phục học viên "${data.full_name}"`,
+      message: `ÄÃ£ khÃ´i phá»¥c há»c viÃªn "${data.full_name}"`,
       data
     });
   } catch (error) {
@@ -3363,23 +3467,23 @@ app.patch('/api/admin/students/:id/restore', requireAuth, requireRole(['SUPER_AD
   }
 });
 
-// Cập nhật role của user (Admin nâng cấp Student -> Teacher/Manager)
+// Cáº­p nháº­t role cá»§a user (Admin nÃ¢ng cáº¥p Student -> Teacher/Manager)
 app.patch('/api/admin/users/:id/role', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
     const { role_code } = req.body;
 
-    console.log(`🔄 Admin ${req.user.email} đang đổi role của user ${id} thành ${role_code}`);
+    console.log(`ðŸ”„ Admin ${req.user.email} Ä‘ang Ä‘á»•i role cá»§a user ${id} thÃ nh ${role_code}`);
 
     // Validate role_code
     if (!['STUDENT', 'TEACHER', 'CENTER_MANAGER'].includes(role_code)) {
       return res.status(400).json({
         success: false,
-        message: 'Role không hợp lệ'
+        message: 'Role khÃ´ng há»£p lá»‡'
       });
     }
 
-    // Lấy role_id từ code
+    // Láº¥y role_id tá»« code
     const { data: roleData, error: roleError } = await supabase
       .from('roles')
       .select('id')
@@ -3389,7 +3493,7 @@ app.patch('/api/admin/users/:id/role', requireAuth, async (req, res, next) => {
     if (roleError || !roleData) {
       return res.status(400).json({
         success: false,
-        message: 'Không tìm thấy role'
+        message: 'KhÃ´ng tÃ¬m tháº¥y role'
       });
     }
 
@@ -3412,7 +3516,7 @@ app.patch('/api/admin/users/:id/role', requireAuth, async (req, res, next) => {
 
     res.json({
       success: true,
-      message: `Đã chuyển thành ${role_code}`,
+      message: `ÄÃ£ chuyá»ƒn thÃ nh ${role_code}`,
       data
     });
   } catch (error) {
@@ -3423,7 +3527,7 @@ app.patch('/api/admin/users/:id/role', requireAuth, async (req, res, next) => {
 
 // ============ CLASS MANAGEMENT APIs ============
 
-// Lấy danh sách giáo viên (để chọn trong dropdown)
+// Láº¥y danh sÃ¡ch giÃ¡o viÃªn (Ä‘á»ƒ chá»n trong dropdown)
 app.get('/api/teachers', requireAuth, async (req, res, next) => {
   try {
     const { data: teacherRole } = await supabase
@@ -3446,7 +3550,7 @@ app.get('/api/teachers', requireAuth, async (req, res, next) => {
   }
 });
 
-// Lấy danh sách trung tâm
+// Láº¥y danh sÃ¡ch trung tÃ¢m
 app.get('/api/centers', async (_req, res, next) => {
   try {
     const { data, error } = await supabase
@@ -3461,10 +3565,10 @@ app.get('/api/centers', async (_req, res, next) => {
   }
 });
 
-// Lấy danh sách lớp học (với thông tin liên quan)
+// Láº¥y danh sÃ¡ch lá»›p há»c (vá»›i thÃ´ng tin liÃªn quan)
 // Supports advanced filters: status, course_id, teacher_id, centerId, date_start, date_end
 app.get('/api/classes', requireAuth, async (req, res, next) => {
-  console.time('⏱️ /api/classes');
+  console.time('â±ï¸ /api/classes');
   try {
     const { status, course_id, teacher_id, centerId, date_start, date_end, minimal, limit, offset, smart_filter, search } = req.query;
 
@@ -3828,11 +3932,11 @@ app.get('/api/classes', requireAuth, async (req, res, next) => {
     console.error('Error fetching classes:', error);
     next(error);
   } finally {
-    console.timeEnd('⏱️ /api/classes');
+    console.timeEnd('â±ï¸ /api/classes');
   }
 });
 
-// Lấy chi tiết 1 lớp học
+// Láº¥y chi tiáº¿t 1 lá»›p há»c
 app.get('/api/classes/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -3872,7 +3976,7 @@ app.get('/api/classes/:id', requireAuth, async (req, res, next) => {
 });
 
 // ========================================
-// 🔥 API KIỂM TRA XUNG ĐỘT LỊCH HỌC (Real-time check từ Frontend)
+// ðŸ”¥ API KIá»‚M TRA XUNG Äá»˜T Lá»ŠCH Há»ŒC (Real-time check tá»« Frontend)
 // ========================================
 app.post('/api/classes/check-conflict', requireAuth, async (req, res, next) => {
   try {
@@ -3900,10 +4004,10 @@ app.post('/api/classes/check-conflict', requireAuth, async (req, res, next) => {
       schedule
     }, exclude_class_id);
 
-    // Format messages cho từng conflict
+    // Format messages cho tá»«ng conflict
     const conflictsWithMessages = (conflictCheck.conflicts || []).map(c => ({
       ...c,
-      message: `${c.conflict_type.includes('room') ? `Phòng ${c.room_name || 'đã chọn'}` : `GV ${c.teacher_name || 'đã chọn'}`} trùng lịch với lớp "${c.class_name}" vào ${c.conflict_day} (${c.conflict_time?.existing})`
+      message: `${c.conflict_type.includes('room') ? `PhÃ²ng ${c.room_name || 'Ä‘Ã£ chá»n'}` : `GV ${c.teacher_name || 'Ä‘Ã£ chá»n'}`} trÃ¹ng lá»‹ch vá»›i lá»›p "${c.class_name}" vÃ o ${c.conflict_day} (${c.conflict_time?.existing})`
     }));
 
     res.json({
@@ -3919,23 +4023,23 @@ app.post('/api/classes/check-conflict', requireAuth, async (req, res, next) => {
   }
 });
 
-// Tạo lớp học mới
+// Táº¡o lá»›p há»c má»›i
 app.post('/api/admin/classes', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     let { code, name, course_id, teacher_id, center_id, room_id, start_date, end_date, schedule, room, max_students, status } = req.body;
 
-    console.log(`📚 Admin ${req.user.email} tạo lớp: ${name}`);
+    console.log(`ðŸ“š Admin ${req.user.email} táº¡o lá»›p: ${name}`);
 
-    // Validate required fields (code sẽ tự tạo nếu không có)
+    // Validate required fields (code sáº½ tá»± táº¡o náº¿u khÃ´ng cÃ³)
     if (!name || !course_id || !center_id) {
       return res.status(400).json({
         success: false,
-        message: 'Tên lớp, khóa học và trung tâm là bắt buộc'
+        message: 'TÃªn lá»›p, khÃ³a há»c vÃ  trung tÃ¢m lÃ  báº¯t buá»™c'
       });
     }
 
     // ========================================
-    // 🔥 KIỂM TRA XUNG ĐỘT LỊCH HỌC
+    // ðŸ”¥ KIá»‚M TRA XUNG Äá»˜T Lá»ŠCH Há»ŒC
     // ========================================
     if ((room_id || teacher_id) && start_date && end_date && schedule && schedule.length > 0) {
       const conflictCheck = await checkScheduleConflict(supabase, {
@@ -3947,22 +4051,22 @@ app.post('/api/admin/classes', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
       });
 
       if (conflictCheck.hasConflict) {
-        console.log(`⚠️ Phát hiện xung đột lịch:`, conflictCheck.conflicts);
+        console.log(`âš ï¸ PhÃ¡t hiá»‡n xung Ä‘á»™t lá»‹ch:`, conflictCheck.conflicts);
         return res.status(409).json({
           success: false,
-          message: conflictCheck.summary || 'Phát hiện xung đột lịch học',
+          message: conflictCheck.summary || 'PhÃ¡t hiá»‡n xung Ä‘á»™t lá»‹ch há»c',
           conflicts: conflictCheck.conflicts
         });
       }
     }
 
-    // Tự động tạo mã lớp nếu không truyền
+    // Tá»± Ä‘á»™ng táº¡o mÃ£ lá»›p náº¿u khÃ´ng truyá»n
     if (!code) {
       const randomNum = Math.floor(100000 + Math.random() * 900000);
       code = `CLS-${randomNum}`;
     }
 
-    // Kiểm tra mã lớp đã tồn tại chưa
+    // Kiá»ƒm tra mÃ£ lá»›p Ä‘Ã£ tá»“n táº¡i chÆ°a
     const { data: existing } = await supabase
       .from('classes')
       .select('id')
@@ -3972,7 +4076,7 @@ app.post('/api/admin/classes', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
     if (existing) {
       return res.status(400).json({
         success: false,
-        message: 'Mã lớp đã tồn tại, vui lòng thử lại'
+        message: 'MÃ£ lá»›p Ä‘Ã£ tá»“n táº¡i, vui lÃ²ng thá»­ láº¡i'
       });
     }
 
@@ -4003,7 +4107,7 @@ app.post('/api/admin/classes', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
 
     if (error) throw error;
 
-    // 🔥 Tự động sinh sessions cho lớp mới
+    // ðŸ”¥ Tá»± Ä‘á»™ng sinh sessions cho lá»›p má»›i
     let sessionResult = null;
     if (data && start_date && end_date && schedule && schedule.length > 0) {
       sessionResult = await generateClassSessions(supabase, {
@@ -4013,7 +4117,7 @@ app.post('/api/admin/classes', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
         schedule,
         teacher_id: teacher_id || null
       });
-      console.log(`📅 Sessions generated: ${sessionResult.count} buổi`);
+      console.log(`ðŸ“… Sessions generated: ${sessionResult.count} buá»•i`);
     }
 
     AuditLogService.log({
@@ -4027,7 +4131,7 @@ app.post('/api/admin/classes', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
 
     res.status(201).json({
       success: true,
-      message: 'Tạo lớp học thành công',
+      message: 'Táº¡o lá»›p há»c thÃ nh cÃ´ng',
       data,
       sessions: sessionResult ? {
         count: sessionResult.count,
@@ -4040,20 +4144,20 @@ app.post('/api/admin/classes', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
   }
 });
 
-// Cập nhật lớp học
+// Cáº­p nháº­t lá»›p há»c
 app.put('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const updates = req.body;
     const { regenerate_sessions } = req.query; // ?regenerate_sessions=true
 
-    console.log(`✏️ Admin ${req.user.email} cập nhật lớp: ${id}`);
+    console.log(`âœï¸ Admin ${req.user.email} cáº­p nháº­t lá»›p: ${id}`);
 
     delete updates.id;
     delete updates.created_at;
 
     // ========================================
-    // 🔥 KIỂM TRA XUNG ĐỘT LỊCH HỌC KHI UPDATE
+    // ðŸ”¥ KIá»‚M TRA XUNG Äá»˜T Lá»ŠCH Há»ŒC KHI UPDATE
     // ========================================
     const { room_id, teacher_id, start_date, end_date, schedule } = updates;
 
@@ -4064,13 +4168,13 @@ app.put('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
         start_date,
         end_date,
         schedule
-      }, id); // Loại trừ chính lớp đang update
+      }, id); // Loáº¡i trá»« chÃ­nh lá»›p Ä‘ang update
 
       if (conflictCheck.hasConflict) {
-        console.log(`⚠️ Phát hiện xung đột lịch khi update:`, conflictCheck.conflicts);
+        console.log(`âš ï¸ PhÃ¡t hiá»‡n xung Ä‘á»™t lá»‹ch khi update:`, conflictCheck.conflicts);
         return res.status(409).json({
           success: false,
-          message: conflictCheck.summary || 'Phát hiện xung đột lịch học',
+          message: conflictCheck.summary || 'PhÃ¡t hiá»‡n xung Ä‘á»™t lá»‹ch há»c',
           conflicts: conflictCheck.conflicts
         });
       }
@@ -4090,10 +4194,10 @@ app.put('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
 
     if (error) throw error;
 
-    // 🔥 Regenerate sessions nếu được yêu cầu và có đủ thông tin
+    // ðŸ”¥ Regenerate sessions náº¿u Ä‘Æ°á»£c yÃªu cáº§u vÃ  cÃ³ Ä‘á»§ thÃ´ng tin
     let sessionsUpdated = 0;
     if (regenerate_sessions === 'true' && data.start_date && data.end_date && data.schedule) {
-      // Dùng generateClassSessions với option deleteExisting = true
+      // DÃ¹ng generateClassSessions vá»›i option deleteExisting = true
       const sessionResult = await generateClassSessions(supabase, {
         id: id,
         start_date: data.start_date,
@@ -4103,7 +4207,7 @@ app.put('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
       }, { deleteExisting: true, skipLocked: true });
 
       sessionsUpdated = sessionResult.count;
-      console.log(`📅 Sessions regenerated: ${sessionsUpdated} buổi`);
+      console.log(`ðŸ“… Sessions regenerated: ${sessionsUpdated} buá»•i`);
     }
 
     AuditLogService.log({
@@ -4117,7 +4221,7 @@ app.put('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
 
     res.json({
       success: true,
-      message: 'Cập nhật lớp học thành công',
+      message: 'Cáº­p nháº­t lá»›p há»c thÃ nh cÃ´ng',
       data,
       sessionsUpdated
     });
@@ -4127,14 +4231,14 @@ app.put('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
   }
 });
 
-// Xóa lớp học
+// XÃ³a lá»›p há»c
 app.delete('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    console.log(`🗑️ Admin ${req.user.email} xóa lớp: ${id}`);
+    console.log(`ðŸ—‘ï¸ Admin ${req.user.email} xÃ³a lá»›p: ${id}`);
 
-    // Kiểm tra số học viên đã ghi danh (chỉ đếm active enrollments)
+    // Kiá»ƒm tra sá»‘ há»c viÃªn Ä‘Ã£ ghi danh (chá»‰ Ä‘áº¿m active enrollments)
     const { count, error: countError } = await supabase
       .from('enrollments')
       .select('*', { count: 'exact', head: true })
@@ -4148,11 +4252,11 @@ app.delete('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'C
     if (count && count > 0) {
       return res.status(400).json({
         success: false,
-        message: `Không thể xóa lớp học vì có ${count} học viên đang ghi danh. Vui lòng hủy ghi danh tất cả học viên trước.`
+        message: `KhÃ´ng thá»ƒ xÃ³a lá»›p há»c vÃ¬ cÃ³ ${count} há»c viÃªn Ä‘ang ghi danh. Vui lÃ²ng há»§y ghi danh táº¥t cáº£ há»c viÃªn trÆ°á»›c.`
       });
     }
 
-    // Hủy các hóa đơn chưa thanh toán của lớp này (vì không còn học viên)
+    // Há»§y cÃ¡c hÃ³a Ä‘Æ¡n chÆ°a thanh toÃ¡n cá»§a lá»›p nÃ y (vÃ¬ khÃ´ng cÃ²n há»c viÃªn)
     const { error: cancelInvoicesError } = await supabase
       .from('invoices')
       .update({ status: 'cancelled', class_id: null })
@@ -4163,7 +4267,7 @@ app.delete('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'C
       console.error('Error cancelling unpaid invoices:', cancelInvoicesError);
     }
 
-    // Hủy liên kết các hóa đơn đã thanh toán (giữ lại lịch sử)
+    // Há»§y liÃªn káº¿t cÃ¡c hÃ³a Ä‘Æ¡n Ä‘Ã£ thanh toÃ¡n (giá»¯ láº¡i lá»‹ch sá»­)
     const { error: unlinkInvoicesError } = await supabase
       .from('invoices')
       .update({ class_id: null })
@@ -4173,7 +4277,7 @@ app.delete('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'C
       console.error('Error unlinking invoices:', unlinkInvoicesError);
     }
 
-    // Xóa các sessions liên quan trước
+    // XÃ³a cÃ¡c sessions liÃªn quan trÆ°á»›c
     const { error: sessionsError } = await supabase
       .from('sessions')
       .delete()
@@ -4183,13 +4287,13 @@ app.delete('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'C
       console.error('Error deleting sessions:', sessionsError);
     }
 
-    // Lấy danh sách TẤT CẢ enrollment IDs của lớp này (vì không còn active)
+    // Láº¥y danh sÃ¡ch Táº¤T Cáº¢ enrollment IDs cá»§a lá»›p nÃ y (vÃ¬ khÃ´ng cÃ²n active)
     const { data: enrollments } = await supabase
       .from('enrollments')
       .select('id')
       .eq('class_id', id);
 
-    // Xóa attendance records liên quan đến các enrollments
+    // XÃ³a attendance records liÃªn quan Ä‘áº¿n cÃ¡c enrollments
     if (enrollments && enrollments.length > 0) {
       const ids = enrollments.map(e => e.id);
       const { error: attendanceError } = await supabase
@@ -4201,7 +4305,7 @@ app.delete('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'C
         console.error('Error deleting attendance:', attendanceError);
       }
 
-      // Xóa grades nếu có
+      // XÃ³a grades náº¿u cÃ³
       const { error: gradesError } = await supabase
         .from('grades')
         .delete()
@@ -4212,7 +4316,7 @@ app.delete('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'C
       }
     }
 
-    // Xóa TẤT CẢ enrollments của lớp (vì đã kiểm tra không còn active)
+    // XÃ³a Táº¤T Cáº¢ enrollments cá»§a lá»›p (vÃ¬ Ä‘Ã£ kiá»ƒm tra khÃ´ng cÃ²n active)
     const { error: enrollmentsError } = await supabase
       .from('enrollments')
       .delete()
@@ -4222,7 +4326,7 @@ app.delete('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'C
       console.error('Error deleting inactive enrollments:', enrollmentsError);
     }
 
-    // Xóa lớp học
+    // XÃ³a lá»›p há»c
     const { error } = await supabase.from('classes').delete().eq('id', id);
     if (error) throw error;
 
@@ -4234,7 +4338,7 @@ app.delete('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'C
       recordId: req.params.id
     });
 
-    res.json({ success: true, message: 'Xóa lớp học thành công' });
+    res.json({ success: true, message: 'XÃ³a lá»›p há»c thÃ nh cÃ´ng' });
   } catch (error) {
     console.error('Error deleting class:', error);
     next(error);
@@ -4244,10 +4348,10 @@ app.delete('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'C
 // ============ SESSION MANAGEMENT APIs ============
 
 // ========================================
-// 🔥 GLOBAL SESSIONS - Tổng quan lịch dạy toàn trung tâm
+// ðŸ”¥ GLOBAL SESSIONS - Tá»•ng quan lá»‹ch dáº¡y toÃ n trung tÃ¢m
 // ========================================
 app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
-  console.time('⏱️ /api/admin/sessions');
+  console.time('â±ï¸ /api/admin/sessions');
   try {
     const {
       startDate,      // YYYY-MM-DD
@@ -4264,36 +4368,36 @@ app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
     const pageOffset = Number(offset) || 0;
 
     // ====== PERMISSION CHECK ======
-    // SUPER_ADMIN: xem tất cả centers
-    // CENTER_MANAGER: chỉ xem center của mình
+    // SUPER_ADMIN: xem táº¥t cáº£ centers
+    // CENTER_MANAGER: chá»‰ xem center cá»§a mÃ¬nh
     const userRole = req.user.roleCode;
     const userCenterId = req.user.centerId;
 
-    let effectiveCenterId = centerId; // centerId từ query param
+    let effectiveCenterId = centerId; // centerId tá»« query param
 
     if (userRole !== 'SUPER_ADMIN') {
-      // Không phải SUPER_ADMIN => bắt buộc dùng center của user
+      // KhÃ´ng pháº£i SUPER_ADMIN => báº¯t buá»™c dÃ¹ng center cá»§a user
       if (!userCenterId) {
         return res.status(403).json({
           success: false,
-          message: 'Bạn chưa được gán vào trung tâm nào. Vui lòng liên hệ admin.'
+          message: 'Báº¡n chÆ°a Ä‘Æ°á»£c gÃ¡n vÃ o trung tÃ¢m nÃ o. Vui lÃ²ng liÃªn há»‡ admin.'
         });
       }
 
-      // Nếu client request centerId khác với center của user => reject
+      // Náº¿u client request centerId khÃ¡c vá»›i center cá»§a user => reject
       if (centerId && centerId !== userCenterId) {
-        console.warn(`⚠️ User ${req.user.email} (${userRole}) tried to access center ${centerId} but belongs to ${userCenterId}`);
+        console.warn(`âš ï¸ User ${req.user.email} (${userRole}) tried to access center ${centerId} but belongs to ${userCenterId}`);
         return res.status(403).json({
           success: false,
-          message: 'Bạn không có quyền xem dữ liệu của trung tâm khác.'
+          message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem dá»¯ liá»‡u cá»§a trung tÃ¢m khÃ¡c.'
         });
       }
 
-      // Force sử dụng center của user
+      // Force sá»­ dá»¥ng center cá»§a user
       effectiveCenterId = userCenterId;
     }
 
-    console.log(`📅 Admin ${req.user.email} (${userRole}) xem lịch dạy: ${startDate} - ${endDate} | Center: ${effectiveCenterId || 'ALL'}`);
+    console.log(`ðŸ“… Admin ${req.user.email} (${userRole}) xem lá»‹ch dáº¡y: ${startDate} - ${endDate} | Center: ${effectiveCenterId || 'ALL'}`);
 
     let query = supabase
       .from('sessions')
@@ -4325,11 +4429,11 @@ app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
       .order('session_date', { ascending: true })
       .order('start_time', { ascending: true });
 
-    // Filter theo date range (BẮT BUỘC để tránh load quá nhiều)
+    // Filter theo date range (Báº®T BUá»˜C Ä‘á»ƒ trÃ¡nh load quÃ¡ nhiá»u)
     if (startDate) {
       query = query.gte('session_date', startDate);
     } else {
-      // Default: từ đầu tháng hiện tại
+      // Default: tá»« Ä‘áº§u thÃ¡ng hiá»‡n táº¡i
       const today = new Date();
       const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
       query = query.gte('session_date', firstDay.toISOString().split('T')[0]);
@@ -4338,7 +4442,7 @@ app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
     if (endDate) {
       query = query.lte('session_date', endDate);
     } else {
-      // Default: đến cuối tháng hiện tại
+      // Default: Ä‘áº¿n cuá»‘i thÃ¡ng hiá»‡n táº¡i
       const today = new Date();
       const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
       query = query.lte('session_date', lastDay.toISOString().split('T')[0]);
@@ -4353,7 +4457,7 @@ app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
       }
     }
 
-    // Filter theo giáo viên
+    // Filter theo giÃ¡o viÃªn
     if (teacherId) {
       query = query.eq('teacher_id', teacherId);
     }
@@ -4364,10 +4468,10 @@ app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
     const { data, error, count } = await query;
     if (error) throw error;
 
-    // Post-filter theo center và room (vì nested filter không được support trực tiếp)
+    // Post-filter theo center vÃ  room (vÃ¬ nested filter khÃ´ng Ä‘Æ°á»£c support trá»±c tiáº¿p)
     let filteredData = data || [];
 
-    // Dùng effectiveCenterId (đã được permission check ở trên)
+    // DÃ¹ng effectiveCenterId (Ä‘Ã£ Ä‘Æ°á»£c permission check á»Ÿ trÃªn)
     if (effectiveCenterId) {
       filteredData = filteredData.filter(s => s.classes?.center_id === effectiveCenterId);
     }
@@ -4376,13 +4480,13 @@ app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
       filteredData = filteredData.filter(s => s.classes?.room_id === roomId);
     }
 
-    // Thống kê nhanh
+    // Thá»‘ng kÃª nhanh
     const stats = {
       total: filteredData.length,
       scheduled: filteredData.filter(s => s.status === 'scheduled').length,
       completed: filteredData.filter(s => s.status === 'completed').length,
       cancelled: filteredData.filter(s => s.status === 'cancelled').length,
-      // Buổi học đã quá giờ mà chưa điểm danh
+      // Buá»•i há»c Ä‘Ã£ quÃ¡ giá» mÃ  chÆ°a Ä‘iá»ƒm danh
       overdue: filteredData.filter(s => {
         if (s.status !== 'scheduled') return false;
         const sessionDateTime = new Date(`${s.session_date}T${s.end_time}`);
@@ -4400,11 +4504,11 @@ app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
     console.error('Error fetching global sessions:', error);
     next(error);
   } finally {
-    console.timeEnd('⏱️ /api/admin/sessions');
+    console.timeEnd('â±ï¸ /api/admin/sessions');
   }
 });
 
-// Lấy danh sách sessions của một lớp
+// Láº¥y danh sÃ¡ch sessions cá»§a má»™t lá»›p
 app.get('/api/admin/classes/:classId/sessions', requireAuth, async (req, res, next) => {
   try {
     const { classId } = req.params;
@@ -4422,7 +4526,7 @@ app.get('/api/admin/classes/:classId/sessions', requireAuth, async (req, res, ne
 
     if (status) query = query.eq('status', status);
 
-    // Filter theo tháng/năm (cho payroll)
+    // Filter theo thÃ¡ng/nÄƒm (cho payroll)
     if (month && year) {
       const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
       const endDate = `${year}-${String(month).padStart(2, '0')}-31`;
@@ -4438,7 +4542,7 @@ app.get('/api/admin/classes/:classId/sessions', requireAuth, async (req, res, ne
   }
 });
 
-// Lấy danh sách documents của một lớp
+// Láº¥y danh sÃ¡ch documents cá»§a má»™t lá»›p
 app.get('/api/admin/classes/:classId/documents', requireAuth, async (req, res, next) => {
   try {
     const { classId } = req.params;
@@ -4484,25 +4588,25 @@ app.get('/api/admin/classes/:classId/documents', requireAuth, async (req, res, n
   }
 });
 
-// Regenerate sessions cho một lớp
+// Regenerate sessions cho má»™t lá»›p
 app.post('/api/admin/classes/:classId/regenerate-sessions', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { classId } = req.params;
 
-    console.log(`🔄 Admin ${req.user.email} regenerate sessions cho lớp: ${classId}`);
+    console.log(`ðŸ”„ Admin ${req.user.email} regenerate sessions cho lá»›p: ${classId}`);
 
     const result = await regenerateClassSessions(supabase, classId);
 
     if (!result.success) {
       return res.status(400).json({
         success: false,
-        message: result.error || 'Không thể tạo sessions'
+        message: result.error || 'KhÃ´ng thá»ƒ táº¡o sessions'
       });
     }
 
     res.json({
       success: true,
-      message: `Đã tạo ${result.count} buổi học`,
+      message: `ÄÃ£ táº¡o ${result.count} buá»•i há»c`,
       count: result.count,
       summary: result.summary
     });
@@ -4512,21 +4616,21 @@ app.post('/api/admin/classes/:classId/regenerate-sessions', requireAuth, require
 });
 
 // ========================================
-// 🔥 PREVIEW SESSIONS - Check conflicts before creating
+// ðŸ”¥ PREVIEW SESSIONS - Check conflicts before creating
 // ========================================
 app.post('/api/classes/:classId/sessions/preview', requireAuth, async (req, res, next) => {
   try {
     const { classId } = req.params;
     const { schedule, start_date, end_date, skip_holidays = true, exclude_dates = [] } = req.body;
 
-    console.log(`👀 Preview sessions cho lớp: ${classId}`);
+    console.log(`ðŸ‘€ Preview sessions cho lá»›p: ${classId}`);
 
     // Validate input
     if (!schedule || !Array.isArray(schedule) || schedule.length === 0) {
-      return res.status(400).json({ success: false, message: 'Vui lòng chọn lịch học' });
+      return res.status(400).json({ success: false, message: 'Vui lÃ²ng chá»n lá»‹ch há»c' });
     }
     if (!start_date || !end_date) {
-      return res.status(400).json({ success: false, message: 'Vui lòng chọn ngày bắt đầu và kết thúc' });
+      return res.status(400).json({ success: false, message: 'Vui lÃ²ng chá»n ngÃ y báº¯t Ä‘áº§u vÃ  káº¿t thÃºc' });
     }
 
     // Get class info
@@ -4537,7 +4641,7 @@ app.post('/api/classes/:classId/sessions/preview', requireAuth, async (req, res,
       .single();
 
     if (classError || !classData) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c' });
     }
 
     // Vietnamese holidays
@@ -4684,7 +4788,7 @@ app.post('/api/classes/:classId/sessions/preview', requireAuth, async (req, res,
 });
 
 // ========================================
-// 🔥 BULK CREATE SESSIONS FROM SCHEDULE PATTERN
+// ðŸ”¥ BULK CREATE SESSIONS FROM SCHEDULE PATTERN
 // Creates multiple sessions based on recurring pattern
 // ========================================
 app.post('/api/classes/:classId/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
@@ -4692,14 +4796,14 @@ app.post('/api/classes/:classId/sessions/bulk', requireAuth, requireRole(['SUPER
     const { classId } = req.params;
     const { schedule, start_date, end_date, skip_holidays = true, exclude_dates = [], replace_existing = false } = req.body;
 
-    console.log(`🔥 Admin ${req.user.email} bulk create sessions cho lớp: ${classId}`);
+    console.log(`ðŸ”¥ Admin ${req.user.email} bulk create sessions cho lá»›p: ${classId}`);
 
     // Validate input
     if (!schedule || !Array.isArray(schedule) || schedule.length === 0) {
-      return res.status(400).json({ success: false, message: 'Vui lòng chọn lịch học' });
+      return res.status(400).json({ success: false, message: 'Vui lÃ²ng chá»n lá»‹ch há»c' });
     }
     if (!start_date || !end_date) {
-      return res.status(400).json({ success: false, message: 'Vui lòng chọn ngày bắt đầu và kết thúc' });
+      return res.status(400).json({ success: false, message: 'Vui lÃ²ng chá»n ngÃ y báº¯t Ä‘áº§u vÃ  káº¿t thÃºc' });
     }
 
     // Get class info
@@ -4710,7 +4814,7 @@ app.post('/api/classes/:classId/sessions/bulk', requireAuth, requireRole(['SUPER
       .single();
 
     if (classError || !classData) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c' });
     }
 
     // Vietnamese holidays
@@ -4790,7 +4894,7 @@ app.post('/api/classes/:classId/sessions/bulk', requireAuth, requireRole(['SUPER
     if (sessions.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Không có buổi học mới để tạo. Các ngày đã chọn có thể đã có buổi học hoặc trùng ngày lễ.'
+        message: 'KhÃ´ng cÃ³ buá»•i há»c má»›i Ä‘á»ƒ táº¡o. CÃ¡c ngÃ y Ä‘Ã£ chá»n cÃ³ thá»ƒ Ä‘Ã£ cÃ³ buá»•i há»c hoáº·c trÃ¹ng ngÃ y lá»….'
       });
     }
 
@@ -4798,7 +4902,7 @@ app.post('/api/classes/:classId/sessions/bulk', requireAuth, requireRole(['SUPER
     if (sessions.length > 100) {
       return res.status(400).json({
         success: false,
-        message: 'Tối đa 100 buổi học mỗi lần tạo. Vui lòng rút ngắn khoảng thời gian.'
+        message: 'Tá»‘i Ä‘a 100 buá»•i há»c má»—i láº§n táº¡o. Vui lÃ²ng rÃºt ngáº¯n khoáº£ng thá»i gian.'
       });
     }
 
@@ -4814,18 +4918,18 @@ app.post('/api/classes/:classId/sessions/bulk', requireAuth, requireRole(['SUPER
         console.error('Error inserting batch:', insertError);
         return res.status(500).json({
           success: false,
-          message: `Lỗi khi tạo buổi học: ${insertError.message}`,
+          message: `Lá»—i khi táº¡o buá»•i há»c: ${insertError.message}`,
           insertedCount
         });
       }
       insertedCount += batch.length;
     }
 
-    console.log(`✅ Đã tạo ${insertedCount} buổi học cho lớp ${classId}`);
+    console.log(`âœ… ÄÃ£ táº¡o ${insertedCount} buá»•i há»c cho lá»›p ${classId}`);
 
     res.json({
       success: true,
-      message: `Đã tạo ${insertedCount} buổi học thành công`,
+      message: `ÄÃ£ táº¡o ${insertedCount} buá»•i há»c thÃ nh cÃ´ng`,
       data: {
         count: insertedCount,
         startSessionNumber
@@ -4838,7 +4942,7 @@ app.post('/api/classes/:classId/sessions/bulk', requireAuth, requireRole(['SUPER
 });
 
 // ========================================
-// 🔥 OLD BULK CREATE (keep for backward compatibility)
+// ðŸ”¥ OLD BULK CREATE (keep for backward compatibility)
 // Creates multiple sessions based on preview array
 // ========================================
 app.post('/api/admin/classes/:classId/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
@@ -4846,13 +4950,13 @@ app.post('/api/admin/classes/:classId/sessions/bulk', requireAuth, requireRole([
     const { classId } = req.params;
     const { pattern, sessions: previewSessions, preview = false } = req.body;
 
-    console.log(`🔄 Admin ${req.user.email} bulk create sessions cho lớp: ${classId}`);
+    console.log(`ðŸ”„ Admin ${req.user.email} bulk create sessions cho lá»›p: ${classId}`);
 
     // Validate input
     if (!previewSessions || !Array.isArray(previewSessions) || previewSessions.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Danh sách buổi học không hợp lệ'
+        message: 'Danh sÃ¡ch buá»•i há»c khÃ´ng há»£p lá»‡'
       });
     }
 
@@ -4860,7 +4964,7 @@ app.post('/api/admin/classes/:classId/sessions/bulk', requireAuth, requireRole([
     if (previewSessions.length > 100) {
       return res.status(400).json({
         success: false,
-        message: 'Tối đa 100 buổi học mỗi lần tạo'
+        message: 'Tá»‘i Ä‘a 100 buá»•i há»c má»—i láº§n táº¡o'
       });
     }
 
@@ -4874,7 +4978,7 @@ app.post('/api/admin/classes/:classId/sessions/bulk', requireAuth, requireRole([
     if (classError || !classData) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy lớp học'
+        message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c'
       });
     }
 
@@ -4907,7 +5011,7 @@ app.post('/api/admin/classes/:classId/sessions/bulk', requireAuth, requireRole([
         preview: true,
         sessions: sessionsToInsert,
         count: sessionsToInsert.length,
-        message: `Sẽ tạo ${sessionsToInsert.length} buổi học từ buổi #${startSessionNumber}`
+        message: `Sáº½ táº¡o ${sessionsToInsert.length} buá»•i há»c tá»« buá»•i #${startSessionNumber}`
       });
     }
 
@@ -4922,7 +5026,7 @@ app.post('/api/admin/classes/:classId/sessions/bulk', requireAuth, requireRole([
     if (conflictingSessions && conflictingSessions.length > 0) {
       return res.status(400).json({
         success: false,
-        message: `Có ${conflictingSessions.length} ngày đã có buổi học. Vui lòng kiểm tra lại.`,
+        message: `CÃ³ ${conflictingSessions.length} ngÃ y Ä‘Ã£ cÃ³ buá»•i há»c. Vui lÃ²ng kiá»ƒm tra láº¡i.`,
         conflicts: conflictingSessions
       });
     }
@@ -4941,18 +5045,18 @@ app.post('/api/admin/classes/:classId/sessions/bulk', requireAuth, requireRole([
         console.error('Error inserting batch:', insertError);
         return res.status(500).json({
           success: false,
-          message: `Lỗi khi tạo buổi học: ${insertError.message}`,
+          message: `Lá»—i khi táº¡o buá»•i há»c: ${insertError.message}`,
           insertedCount
         });
       }
       insertedCount += batch.length;
     }
 
-    console.log(`✅ Đã tạo ${insertedCount} buổi học cho lớp ${classId}`);
+    console.log(`âœ… ÄÃ£ táº¡o ${insertedCount} buá»•i há»c cho lá»›p ${classId}`);
 
     res.json({
       success: true,
-      message: `Đã tạo ${insertedCount} buổi học thành công`,
+      message: `ÄÃ£ táº¡o ${insertedCount} buá»•i há»c thÃ nh cÃ´ng`,
       count: insertedCount,
       startSessionNumber
     });
@@ -4963,7 +5067,7 @@ app.post('/api/admin/classes/:classId/sessions/bulk', requireAuth, requireRole([
 });
 
 // ========================================
-// Import nhiều lớp học từ file
+// Import nhiá»u lá»›p há»c tá»« file
 // ========================================
 app.post('/api/admin/classes/import', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -4972,11 +5076,11 @@ app.post('/api/admin/classes/import', requireAuth, requireRole(['SUPER_ADMIN', '
     if (!classesData || !Array.isArray(classesData) || classesData.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Dữ liệu import không hợp lệ'
+        message: 'Dá»¯ liá»‡u import khÃ´ng há»£p lá»‡'
       });
     }
 
-    console.log(`📥 Admin ${req.user.email} import ${classesData.length} lớp học`);
+    console.log(`ðŸ“¥ Admin ${req.user.email} import ${classesData.length} lá»›p há»c`);
 
     // Fetch lookup data
     const [coursesRes, teachersRes, centersRes, roomsRes] = await Promise.all([
@@ -5015,7 +5119,7 @@ app.post('/api/admin/classes/import', requireAuth, requireRole(['SUPER_ADMIN', '
           results.failed++;
           results.errors.push({
             row: rowNum,
-            error: `Không tìm thấy khóa học với mã: ${row.course_code}`
+            error: `KhÃ´ng tÃ¬m tháº¥y khÃ³a há»c vá»›i mÃ£: ${row.course_code}`
           });
           continue;
         }
@@ -5028,7 +5132,7 @@ app.post('/api/admin/classes/import', requireAuth, requireRole(['SUPER_ADMIN', '
             results.failed++;
             results.errors.push({
               row: rowNum,
-              error: `Không tìm thấy giáo viên với email: ${row.teacher_email}`
+              error: `KhÃ´ng tÃ¬m tháº¥y giÃ¡o viÃªn vá»›i email: ${row.teacher_email}`
             });
             continue;
           }
@@ -5042,7 +5146,7 @@ app.post('/api/admin/classes/import', requireAuth, requireRole(['SUPER_ADMIN', '
             results.failed++;
             results.errors.push({
               row: rowNum,
-              error: `Không tìm thấy trung tâm với mã: ${row.center_code}`
+              error: `KhÃ´ng tÃ¬m tháº¥y trung tÃ¢m vá»›i mÃ£: ${row.center_code}`
             });
             continue;
           }
@@ -5077,7 +5181,7 @@ app.post('/api/admin/classes/import', requireAuth, requireRole(['SUPER_ADMIN', '
           results.failed++;
           results.errors.push({
             row: rowNum,
-            error: `Mã lớp ${code} đã tồn tại`
+            error: `MÃ£ lá»›p ${code} Ä‘Ã£ tá»“n táº¡i`
           });
           continue;
         }
@@ -5111,7 +5215,7 @@ app.post('/api/admin/classes/import', requireAuth, requireRole(['SUPER_ADMIN', '
           results.failed++;
           results.errors.push({
             row: rowNum,
-            error: `Lỗi tạo lớp: ${insertError.message}`
+            error: `Lá»—i táº¡o lá»›p: ${insertError.message}`
           });
           continue;
         }
@@ -5132,7 +5236,7 @@ app.post('/api/admin/classes/import', requireAuth, requireRole(['SUPER_ADMIN', '
       }
     }
 
-    console.log(`✅ Import kết quả: ${results.success} thành công, ${results.failed} thất bại`);
+    console.log(`âœ… Import káº¿t quáº£: ${results.success} thÃ nh cÃ´ng, ${results.failed} tháº¥t báº¡i`);
 
     res.json({
       success: true,
@@ -5145,13 +5249,13 @@ app.post('/api/admin/classes/import', requireAuth, requireRole(['SUPER_ADMIN', '
   }
 });
 
-// Cập nhật một session (đổi GV, đổi status, etc.)
+// Cáº­p nháº­t má»™t session (Ä‘á»•i GV, Ä‘á»•i status, etc.)
 app.put('/api/admin/sessions/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
     const updates = req.body;
 
-    // Kiểm tra session có bị lock không
+    // Kiá»ƒm tra session cÃ³ bá»‹ lock khÃ´ng
     const { data: session, error: sessionError } = await supabase
       .from('sessions')
       .select('is_locked, class_id')
@@ -5160,29 +5264,29 @@ app.put('/api/admin/sessions/:id', requireAuth, async (req, res, next) => {
 
     if (sessionError) throw sessionError;
     if (!session) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy buổi học' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y buá»•i há»c' });
     }
 
     if (session?.is_locked) {
       return res.status(400).json({
         success: false,
-        message: 'Buổi học đã được khóa sổ, không thể sửa'
+        message: 'Buá»•i há»c Ä‘Ã£ Ä‘Æ°á»£c khÃ³a sá»•, khÃ´ng thá»ƒ sá»­a'
       });
     }
 
-    // Không cho sửa các trường quan trọng
+    // KhÃ´ng cho sá»­a cÃ¡c trÆ°á»ng quan trá»ng
     delete updates.is_locked;
     delete updates.payroll_id;
     delete updates.class_id;
 
-    // Xử lý đặc biệt cho room_id - kiểm tra xem cột có tồn tại không
+    // Xá»­ lÃ½ Ä‘áº·c biá»‡t cho room_id - kiá»ƒm tra xem cá»™t cÃ³ tá»“n táº¡i khÃ´ng
     const roomIdUpdate = updates.room_id;
-    delete updates.room_id; // Xóa khỏi updates chung để xử lý riêng
+    delete updates.room_id; // XÃ³a khá»i updates chung Ä‘á»ƒ xá»­ lÃ½ riÃªng
 
-    // Update các trường thông thường
+    // Update cÃ¡c trÆ°á»ng thÃ´ng thÆ°á»ng
     const safeUpdates = { ...updates, updated_at: new Date().toISOString() };
 
-    // Chỉ thêm room_id nếu có yêu cầu đổi phòng
+    // Chá»‰ thÃªm room_id náº¿u cÃ³ yÃªu cáº§u Ä‘á»•i phÃ²ng
     if (roomIdUpdate !== undefined) {
       safeUpdates.room_id = roomIdUpdate;
     }
@@ -5195,11 +5299,11 @@ app.put('/api/admin/sessions/:id', requireAuth, async (req, res, next) => {
       .single();
 
     if (error) {
-      // Nếu lỗi là do cột room_id không tồn tại
+      // Náº¿u lá»—i lÃ  do cá»™t room_id khÃ´ng tá»“n táº¡i
       if (error.code === 'PGRST204' && error.message?.includes('room_id')) {
         return res.status(400).json({
           success: false,
-          message: 'Chức năng đổi phòng từng buổi chưa được kích hoạt. Vui lòng chạy migration 13_add_room_to_sessions.sql'
+          message: 'Chá»©c nÄƒng Ä‘á»•i phÃ²ng tá»«ng buá»•i chÆ°a Ä‘Æ°á»£c kÃ­ch hoáº¡t. Vui lÃ²ng cháº¡y migration 13_add_room_to_sessions.sql'
         });
       }
       throw error;
@@ -5213,7 +5317,7 @@ app.put('/api/admin/sessions/:id', requireAuth, async (req, res, next) => {
 });
 
 // ========================================
-// Bulk update nhiều sessions cùng lúc
+// Bulk update nhiá»u sessions cÃ¹ng lÃºc
 // ========================================
 app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -5222,18 +5326,18 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     if (!sessionIds || !Array.isArray(sessionIds) || sessionIds.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Danh sách buổi học không hợp lệ'
+        message: 'Danh sÃ¡ch buá»•i há»c khÃ´ng há»£p lá»‡'
       });
     }
 
     if (!updates || Object.keys(updates).length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Không có thay đổi nào được gửi'
+        message: 'KhÃ´ng cÃ³ thay Ä‘á»•i nÃ o Ä‘Æ°á»£c gá»­i'
       });
     }
 
-    console.log(`📝 Admin ${req.user.email} bulk update ${sessionIds.length} sessions:`, updates);
+    console.log(`ðŸ“ Admin ${req.user.email} bulk update ${sessionIds.length} sessions:`, updates);
 
     // Check for locked sessions
     const { data: sessions, error: fetchError } = await supabase
@@ -5247,7 +5351,7 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     if (lockedSessions.length > 0) {
       return res.status(400).json({
         success: false,
-        message: `${lockedSessions.length} buổi học đã bị khóa sổ, không thể sửa`
+        message: `${lockedSessions.length} buá»•i há»c Ä‘Ã£ bá»‹ khÃ³a sá»•, khÃ´ng thá»ƒ sá»­a`
       });
     }
 
@@ -5269,11 +5373,11 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
 
     if (updateError) throw updateError;
 
-    console.log(`✅ Đã cập nhật ${data?.length || 0} buổi học`);
+    console.log(`âœ… ÄÃ£ cáº­p nháº­t ${data?.length || 0} buá»•i há»c`);
 
     res.json({
       success: true,
-      message: `Đã cập nhật ${data?.length || 0} buổi học`,
+      message: `ÄÃ£ cáº­p nháº­t ${data?.length || 0} buá»•i há»c`,
       updated: data?.length || 0,
       data
     });
@@ -5284,12 +5388,12 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
   }
 });
 
-// Lấy danh sách GV rảnh vào một khung giờ cụ thể
+// Láº¥y danh sÃ¡ch GV ráº£nh vÃ o má»™t khung giá» cá»¥ thá»ƒ
 app.get('/api/admin/sessions/:sessionId/available-teachers', requireAuth, async (req, res, next) => {
   try {
     const { sessionId } = req.params;
 
-    // Lấy thông tin session hiện tại
+    // Láº¥y thÃ´ng tin session hiá»‡n táº¡i
     const { data: session, error: sessionError } = await supabase
       .from('sessions')
       .select('session_date, start_time, end_time, teacher_id, classes(center_id)')
@@ -5297,9 +5401,9 @@ app.get('/api/admin/sessions/:sessionId/available-teachers', requireAuth, async 
       .single();
 
     if (sessionError) throw sessionError;
-    if (!session) return res.status(404).json({ success: false, message: 'Không tìm thấy buổi học' });
+    if (!session) return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y buá»•i há»c' });
 
-    // Lấy tất cả giáo viên
+    // Láº¥y táº¥t cáº£ giÃ¡o viÃªn
     const { data: teachers, error: teachersError } = await supabase
       .from('users')
       .select('id, full_name, email, avatar_url')
@@ -5307,7 +5411,7 @@ app.get('/api/admin/sessions/:sessionId/available-teachers', requireAuth, async 
 
     if (teachersError) throw teachersError;
 
-    // Lấy các sessions trùng giờ
+    // Láº¥y cÃ¡c sessions trÃ¹ng giá»
     const { data: busySessions } = await supabase
       .from('sessions')
       .select('teacher_id')
@@ -5318,7 +5422,7 @@ app.get('/api/admin/sessions/:sessionId/available-teachers', requireAuth, async 
 
     const busyTeacherIds = new Set((busySessions || []).map(s => s.teacher_id).filter(Boolean));
 
-    // Đánh dấu GV nào đang bận
+    // ÄÃ¡nh dáº¥u GV nÃ o Ä‘ang báº­n
     const result = (teachers || []).map(t => ({
       ...t,
       isBusy: busyTeacherIds.has(t.id),
@@ -5340,12 +5444,12 @@ app.get('/api/admin/sessions/:sessionId/available-teachers', requireAuth, async 
   }
 });
 
-// Lấy danh sách phòng trống vào một khung giờ cụ thể
+// Láº¥y danh sÃ¡ch phÃ²ng trá»‘ng vÃ o má»™t khung giá» cá»¥ thá»ƒ
 app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, async (req, res, next) => {
   try {
     const { sessionId } = req.params;
 
-    // Lấy thông tin session hiện tại (session không có room_id, lấy từ class)
+    // Láº¥y thÃ´ng tin session hiá»‡n táº¡i (session khÃ´ng cÃ³ room_id, láº¥y tá»« class)
     const { data: session, error: sessionError } = await supabase
       .from('sessions')
       .select('id, session_date, start_time, end_time, class_id, classes(id, center_id, room_id, rooms(id, name))')
@@ -5356,9 +5460,9 @@ app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, async (re
       console.error('Session error:', sessionError);
       throw sessionError;
     }
-    if (!session) return res.status(404).json({ success: false, message: 'Không tìm thấy buổi học' });
+    if (!session) return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y buá»•i há»c' });
 
-    // Lấy tất cả phòng học (cùng center nếu cần)
+    // Láº¥y táº¥t cáº£ phÃ²ng há»c (cÃ¹ng center náº¿u cáº§n)
     let roomQuery = supabase.from('rooms').select('id, name, code, capacity, center_id, centers(name)');
     if (session.classes?.center_id) {
       roomQuery = roomQuery.eq('center_id', session.classes.center_id);
@@ -5370,7 +5474,7 @@ app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, async (re
       throw roomsError;
     }
 
-    // Lấy các sessions trùng giờ trong cùng ngày
+    // Láº¥y cÃ¡c sessions trÃ¹ng giá» trong cÃ¹ng ngÃ y
     const { data: busySessions, error: busyError } = await supabase
       .from('sessions')
       .select('id, class_id')
@@ -5382,7 +5486,7 @@ app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, async (re
       console.error('Busy sessions error:', busyError);
     }
 
-    // Lấy room của các class có session trùng ngày
+    // Láº¥y room cá»§a cÃ¡c class cÃ³ session trÃ¹ng ngÃ y
     const busyRoomIds = new Set();
     if (busySessions && busySessions.length > 0) {
       const classIds = [...new Set(busySessions.map(s => s.class_id).filter(Boolean))];
@@ -5400,7 +5504,7 @@ app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, async (re
 
     const currentRoomId = session.classes?.room_id;
 
-    // Đánh dấu phòng nào đang bận
+    // ÄÃ¡nh dáº¥u phÃ²ng nÃ o Ä‘ang báº­n
     const result = (rooms || []).map(r => ({
       ...r,
       isBusy: busyRoomIds.has(r.id) && r.id !== currentRoomId,
@@ -5425,7 +5529,7 @@ app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, async (re
 
 // ============ ATTENDANCE MANAGEMENT APIs ============
 
-// Lấy danh sách điểm danh của một session
+// Láº¥y danh sÃ¡ch Ä‘iá»ƒm danh cá»§a má»™t session
 app.get('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, res, next) => {
   try {
     const { sessionId } = req.params;
@@ -5446,7 +5550,7 @@ app.get('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, re
   }
 });
 
-// Điểm danh hàng loạt (Batch attendance)
+// Äiá»ƒm danh hÃ ng loáº¡t (Batch attendance)
 app.post('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, res, next) => {
   try {
     const { sessionId } = req.params;
@@ -5455,13 +5559,13 @@ app.post('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, r
     if (!attendances || !Array.isArray(attendances)) {
       return res.status(400).json({
         success: false,
-        message: 'Cần truyền mảng attendances'
+        message: 'Cáº§n truyá»n máº£ng attendances'
       });
     }
 
-    console.log(`📋 Admin ${req.user.email} điểm danh ${attendances.length} học viên`);
+    console.log(`ðŸ“‹ Admin ${req.user.email} Ä‘iá»ƒm danh ${attendances.length} há»c viÃªn`);
 
-    // Kiểm tra session có tồn tại không
+    // Kiá»ƒm tra session cÃ³ tá»“n táº¡i khÃ´ng
     const { data: session } = await supabase
       .from('sessions')
       .select('id, is_locked')
@@ -5471,18 +5575,18 @@ app.post('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, r
     if (!session) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy buổi học'
+        message: 'KhÃ´ng tÃ¬m tháº¥y buá»•i há»c'
       });
     }
 
     if (session.is_locked) {
       return res.status(400).json({
         success: false,
-        message: 'Buổi học đã khóa sổ, không thể điểm danh'
+        message: 'Buá»•i há»c Ä‘Ã£ khÃ³a sá»•, khÃ´ng thá»ƒ Ä‘iá»ƒm danh'
       });
     }
 
-    // Upsert từng attendance
+    // Upsert tá»«ng attendance
     const results = [];
     const errors = [];
 
@@ -5492,7 +5596,7 @@ app.post('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, r
       if (att.status && !validStatuses.includes(att.status)) {
         errors.push({
           student_id: att.student_id,
-          error: `Trạng thái không hợp lệ: ${att.status}. Chỉ chấp nhận: ${validStatuses.join(', ')}`
+          error: `Tráº¡ng thÃ¡i khÃ´ng há»£p lá»‡: ${att.status}. Chá»‰ cháº¥p nháº­n: ${validStatuses.join(', ')}`
         });
         continue;
       }
@@ -5522,7 +5626,7 @@ app.post('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, r
       }
     }
 
-    // Cập nhật status của session thành completed nếu đã điểm danh
+    // Cáº­p nháº­t status cá»§a session thÃ nh completed náº¿u Ä‘Ã£ Ä‘iá»ƒm danh
     await supabase
       .from('sessions')
       .update({ status: 'completed', updated_at: new Date().toISOString() })
@@ -5530,7 +5634,7 @@ app.post('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, r
 
     res.json({
       success: true,
-      message: `Đã lưu điểm danh cho ${results.length} học viên`,
+      message: `ÄÃ£ lÆ°u Ä‘iá»ƒm danh cho ${results.length} há»c viÃªn`,
       data: results,
       errors: errors.length > 0 ? errors : undefined
     });
@@ -5542,7 +5646,7 @@ app.post('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, r
 /**
  * POST /api/admin/attendance/override
  * Admin override attendance (bypasses 24h window, requires reason)
- * 🔒 SUPER_ADMIN, CENTER_MANAGER only
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER only
  *
  * Body: {
  *   sessionId: UUID,
@@ -5559,10 +5663,10 @@ app.post('/api/admin/attendance/override', requireAuth, requireRole(['SUPER_ADMI
 
     // Validate override_reason
     if (!override_reason || typeof override_reason !== 'string' || override_reason.trim().length < 10) {
-      console.log(`⚠️ Admin ${req.user.email} override bị từ chối: lý do không hợp lệ`);
+      console.log(`âš ï¸ Admin ${req.user.email} override bá»‹ tá»« chá»‘i: lÃ½ do khÃ´ng há»£p lá»‡`);
       return res.status(400).json({
         success: false,
-        message: 'Lý do override phải có ít nhất 10 ký tự'
+        message: 'LÃ½ do override pháº£i cÃ³ Ã­t nháº¥t 10 kÃ½ tá»±'
       });
     }
 
@@ -5570,7 +5674,7 @@ app.post('/api/admin/attendance/override', requireAuth, requireRole(['SUPER_ADMI
     if (!sessionId) {
       return res.status(400).json({
         success: false,
-        message: 'Thiếu sessionId'
+        message: 'Thiáº¿u sessionId'
       });
     }
 
@@ -5578,7 +5682,7 @@ app.post('/api/admin/attendance/override', requireAuth, requireRole(['SUPER_ADMI
     if (!attendances || !Array.isArray(attendances) || attendances.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Cần truyền mảng attendances'
+        message: 'Cáº§n truyá»n máº£ng attendances'
       });
     }
 
@@ -5599,10 +5703,10 @@ app.post('/api/admin/attendance/override', requireAuth, requireRole(['SUPER_ADMI
       .single();
 
     if (sessionError || !session) {
-      console.log(`⚠️ Admin ${req.user.email} override session không tồn tại: ${sessionId}`);
+      console.log(`âš ï¸ Admin ${req.user.email} override session khÃ´ng tá»“n táº¡i: ${sessionId}`);
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy buổi học'
+        message: 'KhÃ´ng tÃ¬m tháº¥y buá»•i há»c'
       });
     }
 
@@ -5610,15 +5714,15 @@ app.post('/api/admin/attendance/override', requireAuth, requireRole(['SUPER_ADMI
     if (userRole === 'CENTER_MANAGER') {
       const classCenterId = session.classes?.center_id;
       if (classCenterId !== userCenterId) {
-        console.log(`⛔ CENTER_MANAGER ${req.user.email} bị chặn override session ${sessionId} - không thuộc center của họ`);
+        console.log(`â›” CENTER_MANAGER ${req.user.email} bá»‹ cháº·n override session ${sessionId} - khÃ´ng thuá»™c center cá»§a há»`);
         return res.status(403).json({
           success: false,
-          message: 'Bạn chỉ có thể override điểm danh cho các lớp thuộc trung tâm của mình'
+          message: 'Báº¡n chá»‰ cÃ³ thá»ƒ override Ä‘iá»ƒm danh cho cÃ¡c lá»›p thuá»™c trung tÃ¢m cá»§a mÃ¬nh'
         });
       }
     }
 
-    console.log(`🔐 Admin ${req.user.email} (${userRole}) override điểm danh session ${sessionId} - Lý do: ${override_reason.substring(0, 50)}...`);
+    console.log(`ðŸ” Admin ${req.user.email} (${userRole}) override Ä‘iá»ƒm danh session ${sessionId} - LÃ½ do: ${override_reason.substring(0, 50)}...`);
 
     // Process attendance overrides (bypass is_locked and 24h window)
     const results = [];
@@ -5631,7 +5735,7 @@ app.post('/api/admin/attendance/override', requireAuth, requireRole(['SUPER_ADMI
       if (att.status && !validStatuses.includes(att.status)) {
         errors.push({
           student_id: att.student_id,
-          error: `Trạng thái không hợp lệ: ${att.status}. Chỉ chấp nhận: ${validStatuses.join(', ')}`
+          error: `Tráº¡ng thÃ¡i khÃ´ng há»£p lá»‡: ${att.status}. Chá»‰ cháº¥p nháº­n: ${validStatuses.join(', ')}`
         });
         continue;
       }
@@ -5656,7 +5760,7 @@ app.post('/api/admin/attendance/override', requireAuth, requireRole(['SUPER_ADMI
         .single();
 
       if (error) {
-        console.log(`⚠️ Lỗi override attendance cho student ${att.student_id}: ${error.message}`);
+        console.log(`âš ï¸ Lá»—i override attendance cho student ${att.student_id}: ${error.message}`);
         errors.push({
           student_id: att.student_id,
           error: error.message
@@ -5680,16 +5784,16 @@ app.post('/api/admin/attendance/override', requireAuth, requireRole(['SUPER_ADMI
       }
     }
 
-    console.log(`📝 Override hoàn tất: ${results.length} thành công, ${errors.length} lỗi`);
+    console.log(`ðŸ“ Override hoÃ n táº¥t: ${results.length} thÃ nh cÃ´ng, ${errors.length} lá»—i`);
 
     res.json({
       success: true,
-      message: `Đã override điểm danh cho ${results.length} học viên`,
+      message: `ÄÃ£ override Ä‘iá»ƒm danh cho ${results.length} há»c viÃªn`,
       data: results,
       errors: errors.length > 0 ? errors : undefined
     });
   } catch (error) {
-    console.error('❌ Error in attendance override:', error);
+    console.error('âŒ Error in attendance override:', error);
     next(error);
   }
 });
@@ -5697,7 +5801,7 @@ app.post('/api/admin/attendance/override', requireAuth, requireRole(['SUPER_ADMI
 /**
  * GET /api/admin/attendance/audit/:sessionId
  * Get audit history for a session's attendance
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/attendance/audit/:sessionId', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -5721,7 +5825,7 @@ app.get('/api/admin/attendance/audit/:sessionId', requireAuth, requireRole(['SUP
     if (sessionError || !session) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy buổi học'
+        message: 'KhÃ´ng tÃ¬m tháº¥y buá»•i há»c'
       });
     }
 
@@ -5729,15 +5833,15 @@ app.get('/api/admin/attendance/audit/:sessionId', requireAuth, requireRole(['SUP
     if (userRole === 'CENTER_MANAGER') {
       const classCenterId = session.classes?.center_id;
       if (classCenterId !== userCenterId) {
-        console.log(`⛔ CENTER_MANAGER ${req.user.email} bị chặn xem audit session ${sessionId} - không thuộc center của họ`);
+        console.log(`â›” CENTER_MANAGER ${req.user.email} bá»‹ cháº·n xem audit session ${sessionId} - khÃ´ng thuá»™c center cá»§a há»`);
         return res.status(403).json({
           success: false,
-          message: 'Bạn chỉ có thể xem audit cho các lớp thuộc trung tâm của mình'
+          message: 'Báº¡n chá»‰ cÃ³ thá»ƒ xem audit cho cÃ¡c lá»›p thuá»™c trung tÃ¢m cá»§a mÃ¬nh'
         });
       }
     }
 
-    console.log(`🔐 Admin ${req.user.email} xem audit điểm danh session ${sessionId}`);
+    console.log(`ðŸ” Admin ${req.user.email} xem audit Ä‘iá»ƒm danh session ${sessionId}`);
 
     // Get audit history for this session
     const { data: auditLogs, error: auditError } = await supabase
@@ -5770,17 +5874,17 @@ app.get('/api/admin/attendance/audit/:sessionId', requireAuth, requireRole(['SUP
       .order('changed_at', { ascending: false });
 
     if (auditError) {
-      console.error('❌ Error fetching attendance audit:', auditError);
+      console.error('âŒ Error fetching attendance audit:', auditError);
       throw auditError;
     }
 
     res.json({
       success: true,
       data: auditLogs || [],
-      message: `Tìm thấy ${auditLogs?.length || 0} bản ghi audit`
+      message: `TÃ¬m tháº¥y ${auditLogs?.length || 0} báº£n ghi audit`
     });
   } catch (error) {
-    console.error('❌ Error in attendance audit:', error);
+    console.error('âŒ Error in attendance audit:', error);
     next(error);
   }
 });
@@ -5788,7 +5892,7 @@ app.get('/api/admin/attendance/audit/:sessionId', requireAuth, requireRole(['SUP
 /**
  * GET /api/admin/sessions/:sessionId/available-teachers
  * Get available teachers for a session (exclude conflicts)
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/sessions/:sessionId/available-teachers', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -5813,7 +5917,7 @@ app.get('/api/admin/sessions/:sessionId/available-teachers', requireAuth, requir
     if (sessionError || !session) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy buổi học'
+        message: 'KhÃ´ng tÃ¬m tháº¥y buá»•i há»c'
       });
     }
 
@@ -5821,7 +5925,7 @@ app.get('/api/admin/sessions/:sessionId/available-teachers', requireAuth, requir
     if (!sessionCenterId) {
       return res.status(400).json({
         success: false,
-        message: 'Buổi học chưa được gán trung tâm'
+        message: 'Buá»•i há»c chÆ°a Ä‘Æ°á»£c gÃ¡n trung tÃ¢m'
       });
     }
 
@@ -5892,7 +5996,7 @@ app.get('/api/admin/sessions/:sessionId/available-teachers', requireAuth, requir
       data: availableTeachers
     });
   } catch (error) {
-    console.error('❌ Error in available teachers:', error);
+    console.error('âŒ Error in available teachers:', error);
     next(error);
   }
 });
@@ -5900,7 +6004,7 @@ app.get('/api/admin/sessions/:sessionId/available-teachers', requireAuth, requir
 /**
  * GET /api/admin/sessions/:sessionId/available-rooms
  * Get available rooms for a session (exclude conflicts)
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -5925,7 +6029,7 @@ app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, requireRo
     if (sessionError || !session) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy buổi học'
+        message: 'KhÃ´ng tÃ¬m tháº¥y buá»•i há»c'
       });
     }
 
@@ -5933,7 +6037,7 @@ app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, requireRo
     if (!sessionCenterId) {
       return res.status(400).json({
         success: false,
-        message: 'Buổi học chưa được gán trung tâm'
+        message: 'Buá»•i há»c chÆ°a Ä‘Æ°á»£c gÃ¡n trung tÃ¢m'
       });
     }
 
@@ -6004,7 +6108,7 @@ app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, requireRo
       data: availableRooms
     });
   } catch (error) {
-    console.error('❌ Error in available rooms:', error);
+    console.error('âŒ Error in available rooms:', error);
     next(error);
   }
 });
@@ -6012,7 +6116,7 @@ app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, requireRo
 /**
  * GET /api/admin/classes/:classId/students
  * Get students in a class (active + pending enrollments)
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/classes/:classId/students', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -6030,17 +6134,17 @@ app.get('/api/admin/classes/:classId/students', requireAuth, requireRole(['SUPER
     if (classError || !classData) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy lớp học'
+        message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c'
       });
     }
 
     // 2) CENTER_MANAGER can only access their center
     if (userRole === 'CENTER_MANAGER') {
       if (classData.center_id !== userCenterId) {
-        console.log(`⛔ CENTER_MANAGER ${req.user.email} bị chặn xem danh sách học viên lớp ${classId} - không thuộc center của họ`);
+        console.log(`â›” CENTER_MANAGER ${req.user.email} bá»‹ cháº·n xem danh sÃ¡ch há»c viÃªn lá»›p ${classId} - khÃ´ng thuá»™c center cá»§a há»`);
         return res.status(403).json({
           success: false,
-          message: 'Bạn chỉ có thể xem các lớp thuộc trung tâm của mình'
+          message: 'Báº¡n chá»‰ cÃ³ thá»ƒ xem cÃ¡c lá»›p thuá»™c trung tÃ¢m cá»§a mÃ¬nh'
         });
       }
     }
@@ -6092,7 +6196,7 @@ app.get('/api/admin/classes/:classId/students', requireAuth, requireRole(['SUPER
       data: result
     });
   } catch (error) {
-    console.error('❌ Error in class students:', error);
+    console.error('âŒ Error in class students:', error);
     next(error);
   }
 });
@@ -6102,13 +6206,13 @@ app.get('/api/admin/classes/:classId/students', requireAuth, requireRole(['SUPER
 /**
  * POST /api/admin/sessions/auto-complete
  * Manually trigger session auto-complete
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/sessions/auto-complete', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { dryRun = false, sessionIds = null } = req.body;
     
-    console.log(`🔄 Admin ${req.user.email} triggered session auto-complete (dryRun: ${dryRun})`);
+    console.log(`ðŸ”„ Admin ${req.user.email} triggered session auto-complete (dryRun: ${dryRun})`);
     
     // Import the function
     const { autoCompleteSessionsManual } = await import('./jobs/sessionAutoComplete.job.js');
@@ -6120,7 +6224,7 @@ app.post('/api/admin/sessions/auto-complete', requireAuth, requireRole(['SUPER_A
       ...result
     });
   } catch (error) {
-    console.error('❌ Error in session auto-complete:', error);
+    console.error('âŒ Error in session auto-complete:', error);
     next(error);
   }
 });
@@ -6128,7 +6232,7 @@ app.post('/api/admin/sessions/auto-complete', requireAuth, requireRole(['SUPER_A
 /**
  * PUT /api/admin/sessions/bulk
  * Bulk update sessions (complete or cancel multiple)
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -6138,18 +6242,18 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     if (!sessionIds || !Array.isArray(sessionIds) || sessionIds.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Cần cung cấp danh sách buổi học (sessionIds)'
+        message: 'Cáº§n cung cáº¥p danh sÃ¡ch buá»•i há»c (sessionIds)'
       });
     }
     
     if (!['complete', 'cancel'].includes(action)) {
       return res.status(400).json({
         success: false,
-        message: 'Action phải là "complete" hoặc "cancel"'
+        message: 'Action pháº£i lÃ  "complete" hoáº·c "cancel"'
       });
     }
     
-    console.log(`📦 Admin ${req.user.email} bulk ${action} ${sessionIds.length} sessions`);
+    console.log(`ðŸ“¦ Admin ${req.user.email} bulk ${action} ${sessionIds.length} sessions`);
     
     // 1) Check all sessions exist and are not locked
     const { data: sessions, error: fetchError } = await supabase
@@ -6171,7 +6275,7 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     if (!sessions || sessions.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy buổi học nào'
+        message: 'KhÃ´ng tÃ¬m tháº¥y buá»•i há»c nÃ o'
       });
     }
     
@@ -6184,7 +6288,7 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       if (userRole !== 'SUPER_ADMIN' && sessionCenterId !== userCenterId) {
         return res.status(403).json({
           success: false,
-          message: `Bạn không có quyền thao tác buổi học thuộc trung tâm khác`
+          message: `Báº¡n khÃ´ng cÃ³ quyá»n thao tÃ¡c buá»•i há»c thuá»™c trung tÃ¢m khÃ¡c`
         });
       }
     }
@@ -6196,7 +6300,7 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     if (editableSessions.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Tất cả buổi học đã bị khóa, không thể thay đổi',
+        message: 'Táº¥t cáº£ buá»•i há»c Ä‘Ã£ bá»‹ khÃ³a, khÃ´ng thá»ƒ thay Ä‘á»•i',
         lockedCount: lockedSessions.length
       });
     }
@@ -6217,7 +6321,7 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     if (toUpdate.length === 0) {
       return res.status(400).json({
         success: false,
-        message: `Không có buổi học nào có thể ${action === 'complete' ? 'hoàn thành' : 'hủy'}`,
+        message: `KhÃ´ng cÃ³ buá»•i há»c nÃ o cÃ³ thá»ƒ ${action === 'complete' ? 'hoÃ n thÃ nh' : 'há»§y'}`,
         lockedCount: lockedSessions.length,
         skippedByStatus: skippedByStatus.length
       });
@@ -6237,7 +6341,7 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     
     if (updateError) throw updateError;
     
-    console.log(`✅ Bulk ${action}: ${idsToUpdate.length} sessions updated`);
+    console.log(`âœ… Bulk ${action}: ${idsToUpdate.length} sessions updated`);
     
     res.json({
       success: true,
@@ -6245,17 +6349,17 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       lockedCount: lockedSessions.length,
       skippedByStatus: skippedByStatus.length,
       updatedIds: idsToUpdate,
-      message: `Đã ${action === 'complete' ? 'hoàn thành' : 'hủy'} ${idsToUpdate.length} buổi học`
+      message: `ÄÃ£ ${action === 'complete' ? 'hoÃ n thÃ nh' : 'há»§y'} ${idsToUpdate.length} buá»•i há»c`
     });
   } catch (error) {
-    console.error('❌ Error in bulk session update:', error);
+    console.error('âŒ Error in bulk session update:', error);
     next(error);
   }
 });
 
 // ============ ROOM MANAGEMENT APIs ============
 
-// Lấy danh sách phòng học
+// Láº¥y danh sÃ¡ch phÃ²ng há»c
 app.get('/api/rooms', requireAuth, async (req, res, next) => {
   try {
     const { center_id, status } = req.query;
@@ -6292,7 +6396,7 @@ app.get('/api/rooms', requireAuth, async (req, res, next) => {
   }
 });
 
-// Lấy chi tiết phòng học
+// Láº¥y chi tiáº¿t phÃ²ng há»c
 app.get('/api/rooms/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -6313,29 +6417,29 @@ app.get('/api/rooms/:id', async (req, res, next) => {
   }
 });
 
-// Tạo phòng học mới
+// Táº¡o phÃ²ng há»c má»›i
 app.post('/api/admin/rooms', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { name, code, capacity, room_type, equipment, center_id, notes } = req.body;
 
-    console.log(`🏠 Admin ${req.user.email} tạo phòng mới:`, { name, code, center_id, room_type, capacity });
+    console.log(`ðŸ  Admin ${req.user.email} táº¡o phÃ²ng má»›i:`, { name, code, center_id, room_type, capacity });
 
     // Validation
     if (!name || !name.trim()) {
       return res.status(400).json({
         success: false,
-        message: 'Tên phòng là bắt buộc'
+        message: 'TÃªn phÃ²ng lÃ  báº¯t buá»™c'
       });
     }
 
     if (!center_id) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng chọn trung tâm'
+        message: 'Vui lÃ²ng chá»n trung tÃ¢m'
       });
     }
 
-    // Auto generate code nếu không có
+    // Auto generate code náº¿u khÃ´ng cÃ³
     let roomCode = code;
     if (!roomCode) {
       const randomNum = Math.floor(100 + Math.random() * 900);
@@ -6358,39 +6462,39 @@ app.post('/api/admin/rooms', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MA
       .single();
 
     if (error) {
-      console.error('❌ Supabase error creating room:', error);
+      console.error('âŒ Supabase error creating room:', error);
 
       // Handle specific errors
       if (error.code === '23505') { // Unique violation
         return res.status(400).json({
           success: false,
-          message: 'Mã phòng đã tồn tại, vui lòng chọn mã khác'
+          message: 'MÃ£ phÃ²ng Ä‘Ã£ tá»“n táº¡i, vui lÃ²ng chá»n mÃ£ khÃ¡c'
         });
       }
       if (error.code === '23503') { // Foreign key violation
         return res.status(400).json({
           success: false,
-          message: 'Trung tâm không hợp lệ'
+          message: 'Trung tÃ¢m khÃ´ng há»£p lá»‡'
         });
       }
 
       throw error;
     }
 
-    console.log('✅ Tạo phòng thành công:', data.name);
+    console.log('âœ… Táº¡o phÃ²ng thÃ nh cÃ´ng:', data.name);
 
     res.status(201).json({
       success: true,
-      message: 'Tạo phòng học thành công',
+      message: 'Táº¡o phÃ²ng há»c thÃ nh cÃ´ng',
       data
     });
   } catch (error) {
-    console.error('💥 Error creating room:', error);
+    console.error('ðŸ’¥ Error creating room:', error);
     next(error);
   }
 });
 
-// Import phòng học từ Excel/CSV
+// Import phÃ²ng há»c tá»« Excel/CSV
 app.post('/api/admin/rooms/import', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { rooms } = req.body;
@@ -6398,18 +6502,18 @@ app.post('/api/admin/rooms/import', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     if (!rooms || !Array.isArray(rooms) || rooms.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Không có dữ liệu phòng để import'
+        message: 'KhÃ´ng cÃ³ dá»¯ liá»‡u phÃ²ng Ä‘á»ƒ import'
       });
     }
 
-    console.log(`📥 Admin ${req.user.email} import ${rooms.length} phòng`);
+    console.log(`ðŸ“¥ Admin ${req.user.email} import ${rooms.length} phÃ²ng`);
 
     // Validate all rooms have required fields
     const invalidRooms = rooms.filter(r => !r.name || !r.code || !r.center_id);
     if (invalidRooms.length > 0) {
       return res.status(400).json({
         success: false,
-        message: `${invalidRooms.length} phòng thiếu thông tin bắt buộc (tên, mã, trung tâm)`
+        message: `${invalidRooms.length} phÃ²ng thiáº¿u thÃ´ng tin báº¯t buá»™c (tÃªn, mÃ£, trung tÃ¢m)`
       });
     }
 
@@ -6429,7 +6533,7 @@ app.post('/api/admin/rooms/import', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     if (newRooms.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Tất cả mã phòng đã tồn tại trong hệ thống',
+        message: 'Táº¥t cáº£ mÃ£ phÃ²ng Ä‘Ã£ tá»“n táº¡i trong há»‡ thá»‘ng',
         skipped: skippedCount
       });
     }
@@ -6459,35 +6563,35 @@ app.post('/api/admin/rooms/import', requireAuth, requireRole(['SUPER_ADMIN', 'CE
         .select();
 
       if (error) {
-        console.error(`❌ Batch ${i / batchSize + 1} error:`, error);
-        results.errors.push(`Lỗi batch ${i / batchSize + 1}: ${error.message}`);
+        console.error(`âŒ Batch ${i / batchSize + 1} error:`, error);
+        results.errors.push(`Lá»—i batch ${i / batchSize + 1}: ${error.message}`);
       } else {
         results.created += data.length;
       }
     }
 
-    console.log(`✅ Import hoàn thành: ${results.created} tạo mới, ${skippedCount} bỏ qua`);
+    console.log(`âœ… Import hoÃ n thÃ nh: ${results.created} táº¡o má»›i, ${skippedCount} bá» qua`);
 
     res.json({
       success: true,
-      message: `Đã import ${results.created} phòng thành công`,
+      message: `ÄÃ£ import ${results.created} phÃ²ng thÃ nh cÃ´ng`,
       created: results.created,
       skipped: skippedCount,
       errors: results.errors
     });
   } catch (error) {
-    console.error('💥 Error importing rooms:', error);
+    console.error('ðŸ’¥ Error importing rooms:', error);
     next(error);
   }
 });
 
-// Cập nhật phòng học
+// Cáº­p nháº­t phÃ²ng há»c
 app.put('/api/admin/rooms/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const updates = req.body;
 
-    console.log(`✏️ Admin ${req.user.email} cập nhật phòng: ${id}`);
+    console.log(`âœï¸ Admin ${req.user.email} cáº­p nháº­t phÃ²ng: ${id}`);
 
     delete updates.id;
     delete updates.created_at;
@@ -6500,21 +6604,21 @@ app.put('/api/admin/rooms/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
       .single();
 
     if (error) throw error;
-    res.json({ success: true, message: 'Cập nhật phòng học thành công', data });
+    res.json({ success: true, message: 'Cáº­p nháº­t phÃ²ng há»c thÃ nh cÃ´ng', data });
   } catch (error) {
     console.error('Error updating room:', error);
     next(error);
   }
 });
 
-// Xóa phòng học
+// XÃ³a phÃ²ng há»c
 app.delete('/api/admin/rooms/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    console.log(`🗑️ Admin ${req.user.email} xóa phòng: ${id}`);
+    console.log(`ðŸ—‘ï¸ Admin ${req.user.email} xÃ³a phÃ²ng: ${id}`);
 
-    // Kiểm tra phòng có đang được sử dụng không
+    // Kiá»ƒm tra phÃ²ng cÃ³ Ä‘ang Ä‘Æ°á»£c sá»­ dá»¥ng khÃ´ng
     const { count } = await supabase
       .from('classes')
       .select('*', { count: 'exact', head: true })
@@ -6524,14 +6628,14 @@ app.delete('/api/admin/rooms/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
     if (count > 0) {
       return res.status(400).json({
         success: false,
-        message: `Không thể xóa phòng đang được sử dụng bởi ${count} lớp học`
+        message: `KhÃ´ng thá»ƒ xÃ³a phÃ²ng Ä‘ang Ä‘Æ°á»£c sá»­ dá»¥ng bá»Ÿi ${count} lá»›p há»c`
       });
     }
 
     const { error } = await supabase.from('rooms').delete().eq('id', id);
     if (error) throw error;
 
-    res.json({ success: true, message: 'Xóa phòng học thành công' });
+    res.json({ success: true, message: 'XÃ³a phÃ²ng há»c thÃ nh cÃ´ng' });
   } catch (error) {
     console.error('Error deleting room:', error);
     next(error);
@@ -6540,24 +6644,24 @@ app.delete('/api/admin/rooms/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
 
 // ============ SCHEDULE CONFLICT CHECK API ============
 
-// Helper: Kiểm tra 2 khoảng thời gian có giao nhau không
+// Helper: Kiá»ƒm tra 2 khoáº£ng thá»i gian cÃ³ giao nhau khÃ´ng
 function isTimeOverlap(start1, end1, start2, end2) {
-  // Chuyển string "HH:MM" thành số phút từ 00:00
+  // Chuyá»ƒn string "HH:MM" thÃ nh sá»‘ phÃºt tá»« 00:00
   const toMinutes = (time) => {
     const [h, m] = time.split(':').map(Number);
     return h * 60 + m;
   };
   const s1 = toMinutes(start1), e1 = toMinutes(end1);
   const s2 = toMinutes(start2), e2 = toMinutes(end2);
-  return s1 < e2 && s2 < e1; // Công thức giao nhau kinh điển
+  return s1 < e2 && s2 < e1; // CÃ´ng thá»©c giao nhau kinh Ä‘iá»ƒn
 }
 
-// Helper: Kiểm tra 2 khoảng ngày có giao nhau không
+// Helper: Kiá»ƒm tra 2 khoáº£ng ngÃ y cÃ³ giao nhau khÃ´ng
 function isDateRangeOverlap(start1, end1, start2, end2) {
   return start1 <= end2 && start2 <= end1;
 }
 
-// Helper: Parse schedule an toàn (có thể là null, string, hoặc array)
+// Helper: Parse schedule an toÃ n (cÃ³ thá»ƒ lÃ  null, string, hoáº·c array)
 function parseScheduleSafe(schedule) {
   if (!schedule) return [];
   if (Array.isArray(schedule)) return schedule;
@@ -6572,19 +6676,19 @@ function parseScheduleSafe(schedule) {
   return [];
 }
 
-// API kiểm tra xung đột lịch
+// API kiá»ƒm tra xung Ä‘á»™t lá»‹ch
 app.post('/api/classes/check-conflict', requireAuth, async (req, res, next) => {
   try {
     const { teacher_id, room_id, start_date, end_date, schedule, exclude_class_id } = req.body;
 
-    // schedule là mảng: [{ day: 2, start: "18:00", end: "20:00" }, ...]
+    // schedule lÃ  máº£ng: [{ day: 2, start: "18:00", end: "20:00" }, ...]
     if (!schedule || !Array.isArray(schedule) || schedule.length === 0) {
-      return res.json({ conflict: false, message: 'Không có lịch để kiểm tra' });
+      return res.json({ conflict: false, message: 'KhÃ´ng cÃ³ lá»‹ch Ä‘á»ƒ kiá»ƒm tra' });
     }
 
     const conflicts = [];
 
-    // 1. Kiểm tra xung đột GIÁO VIÊN
+    // 1. Kiá»ƒm tra xung Ä‘á»™t GIÃO VIÃŠN
     if (teacher_id) {
       let teacherQuery = supabase
         .from('classes')
@@ -6600,7 +6704,7 @@ app.post('/api/classes/check-conflict', requireAuth, async (req, res, next) => {
 
       for (const newSession of schedule) {
         for (const oldClass of (teacherClasses || [])) {
-          // Kiểm tra ngày tháng có giao nhau không
+          // Kiá»ƒm tra ngÃ y thÃ¡ng cÃ³ giao nhau khÃ´ng
           if (!isDateRangeOverlap(start_date, end_date, oldClass.start_date, oldClass.end_date)) {
             continue;
           }
@@ -6612,17 +6716,17 @@ app.post('/api/classes/check-conflict', requireAuth, async (req, res, next) => {
           );
 
           if (clash) {
-            const dayNames = ['', '', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
+            const dayNames = ['', '', 'Thá»© 2', 'Thá»© 3', 'Thá»© 4', 'Thá»© 5', 'Thá»© 6', 'Thá»© 7', 'Chá»§ nháº­t'];
             conflicts.push({
               type: 'teacher',
-              message: `Giáo viên bận dạy lớp "${oldClass.name}" vào ${dayNames[newSession.day]} (${clash.start}-${clash.end})`
+              message: `GiÃ¡o viÃªn báº­n dáº¡y lá»›p "${oldClass.name}" vÃ o ${dayNames[newSession.day]} (${clash.start}-${clash.end})`
             });
           }
         }
       }
     }
 
-    // 2. Kiểm tra xung đột PHÒNG HỌC
+    // 2. Kiá»ƒm tra xung Ä‘á»™t PHÃ’NG Há»ŒC
     if (room_id) {
       let roomQuery = supabase
         .from('classes')
@@ -6649,10 +6753,10 @@ app.post('/api/classes/check-conflict', requireAuth, async (req, res, next) => {
           );
 
           if (clash) {
-            const dayNames = ['', '', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
+            const dayNames = ['', '', 'Thá»© 2', 'Thá»© 3', 'Thá»© 4', 'Thá»© 5', 'Thá»© 6', 'Thá»© 7', 'Chá»§ nháº­t'];
             conflicts.push({
               type: 'room',
-              message: `Phòng đã được lớp "${oldClass.name}" sử dụng vào ${dayNames[newSession.day]} (${clash.start}-${clash.end})`
+              message: `PhÃ²ng Ä‘Ã£ Ä‘Æ°á»£c lá»›p "${oldClass.name}" sá»­ dá»¥ng vÃ o ${dayNames[newSession.day]} (${clash.start}-${clash.end})`
             });
           }
         }
@@ -6663,8 +6767,8 @@ app.post('/api/classes/check-conflict', requireAuth, async (req, res, next) => {
       conflict: conflicts.length > 0,
       conflicts,
       message: conflicts.length > 0
-        ? `Phát hiện ${conflicts.length} xung đột lịch`
-        : 'Lịch hợp lệ, không có xung đột'
+        ? `PhÃ¡t hiá»‡n ${conflicts.length} xung Ä‘á»™t lá»‹ch`
+        : 'Lá»‹ch há»£p lá»‡, khÃ´ng cÃ³ xung Ä‘á»™t'
     });
   } catch (error) {
     console.error('Error checking conflict:', error);
@@ -6672,7 +6776,7 @@ app.post('/api/classes/check-conflict', requireAuth, async (req, res, next) => {
   }
 });
 
-// API lấy lịch bận của giáo viên (cho calendar preview)
+// API láº¥y lá»‹ch báº­n cá»§a giÃ¡o viÃªn (cho calendar preview)
 app.get('/api/teachers/:id/schedule', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -6697,7 +6801,7 @@ app.get('/api/teachers/:id/schedule', requireAuth, async (req, res, next) => {
   }
 });
 
-// API lấy lịch bận của phòng học (cho calendar preview)
+// API láº¥y lá»‹ch báº­n cá»§a phÃ²ng há»c (cho calendar preview)
 app.get('/api/rooms/:id/schedule', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -6723,10 +6827,10 @@ app.get('/api/rooms/:id/schedule', requireAuth, async (req, res, next) => {
 });
 
 // ============================================================
-// CLASS DETAIL APIs - Quản lý chi tiết lớp học
+// CLASS DETAIL APIs - Quáº£n lÃ½ chi tiáº¿t lá»›p há»c
 // ============================================================
 
-// API: Lấy thông tin chi tiết 1 lớp học
+// API: Láº¥y thÃ´ng tin chi tiáº¿t 1 lá»›p há»c
 app.get('/api/classes/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -6745,12 +6849,12 @@ app.get('/api/classes/:id', requireAuth, async (req, res, next) => {
 
     if (error) {
       if (error.code === 'PGRST116') {
-        return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+        return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c' });
       }
       throw error;
     }
 
-    // Đếm số học viên hiện tại
+    // Äáº¿m sá»‘ há»c viÃªn hiá»‡n táº¡i
     const { count: studentCount } = await supabase
       .from('enrollments')
       .select('*', { count: 'exact', head: true })
@@ -6770,7 +6874,7 @@ app.get('/api/classes/:id', requireAuth, async (req, res, next) => {
   }
 });
 
-// API: Lấy danh sách học viên trong lớp
+// API: Láº¥y danh sÃ¡ch há»c viÃªn trong lá»›p
 app.get('/api/classes/:id/students', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -6786,7 +6890,7 @@ app.get('/api/classes/:id/students', requireAuth, async (req, res, next) => {
     const from = (pageNum - 1) * limitNum;
     const to = from + limitNum - 1;
 
-    // 1. Query cơ bản với count để phân trang
+    // 1. Query cÆ¡ báº£n vá»›i count Ä‘á»ƒ phÃ¢n trang
     let query = supabase
       .from('enrollments')
       .select(`
@@ -6809,13 +6913,13 @@ app.get('/api/classes/:id/students', requireAuth, async (req, res, next) => {
       .eq('class_id', id)
       .eq('status', 'active');
 
-    // 2. Thực hiện query để lấy data
+    // 2. Thá»±c hiá»‡n query Ä‘á»ƒ láº¥y data
     const { data: allData, error: countError, count: totalCount } = await query
       .order('enrolled_at', { ascending: false });
 
     if (countError) throw countError;
 
-    // 3. Transform và filter
+    // 3. Transform vÃ  filter
     let students = (allData || []).map(enrollment => {
       const tuition = enrollment.tuition_fee || 0;
       const discount = enrollment.discount_amount || 0;
@@ -6823,7 +6927,7 @@ app.get('/api/classes/:id/students', requireAuth, async (req, res, next) => {
       const amountDue = tuition - discount;
       const remaining = amountDue - paid;
 
-      // Tính payment status
+      // TÃ­nh payment status
       let paymentStatusCalc = 'unpaid';
       if (remaining <= 0 && amountDue > 0) paymentStatusCalc = 'paid';
       else if (paid > 0) paymentStatusCalc = 'partial';
@@ -6836,13 +6940,13 @@ app.get('/api/classes/:id/students', requireAuth, async (req, res, next) => {
         discount_amount: discount,
         paid_amount: paid,
         notes: enrollment.notes,
-        // Thông tin học viên
+        // ThÃ´ng tin há»c viÃªn
         student_id: enrollment.users?.id,
         full_name: enrollment.users?.full_name,
         email: enrollment.users?.email,
         phone: enrollment.users?.phone,
         avatar_url: enrollment.users?.avatar_url,
-        // Tính toán
+        // TÃ­nh toÃ¡n
         amount_due: amountDue,
         remaining: remaining,
         payment_status: paymentStatusCalc
@@ -6856,7 +6960,7 @@ app.get('/api/classes/:id/students', requireAuth, async (req, res, next) => {
       students = students.filter(s => s.payment_status !== 'paid');
     }
 
-    // 5. Filter theo search (tìm theo tên, email, phone)
+    // 5. Filter theo search (tÃ¬m theo tÃªn, email, phone)
     if (search && search.trim()) {
       const searchLower = search.toLowerCase().trim();
       students = students.filter(s =>
@@ -6866,11 +6970,11 @@ app.get('/api/classes/:id/students', requireAuth, async (req, res, next) => {
       );
     }
 
-    // 6. Tính pagination sau khi filter
+    // 6. TÃ­nh pagination sau khi filter
     const filteredTotal = students.length;
     const totalPages = Math.ceil(filteredTotal / limitNum);
 
-    // 7. Slice để lấy đúng trang
+    // 7. Slice Ä‘á»ƒ láº¥y Ä‘Ãºng trang
     const paginatedStudents = students.slice(from, from + limitNum);
 
     res.json({
@@ -6897,12 +7001,12 @@ app.get('/api/classes/:id/students', requireAuth, async (req, res, next) => {
   }
 });
 
-// API: Tìm kiếm học viên để thêm vào lớp (chỉ lấy users có role STUDENT)
+// API: TÃ¬m kiáº¿m há»c viÃªn Ä‘á»ƒ thÃªm vÃ o lá»›p (chá»‰ láº¥y users cÃ³ role STUDENT)
 app.get('/api/students/search', requireAuth, async (req, res, next) => {
   try {
     const { q, exclude_class_id } = req.query;
 
-    // Lấy role_id của STUDENT
+    // Láº¥y role_id cá»§a STUDENT
     const { data: studentRole } = await supabase
       .from('roles')
       .select('id')
@@ -6910,7 +7014,7 @@ app.get('/api/students/search', requireAuth, async (req, res, next) => {
       .single();
 
     if (!studentRole) {
-      return res.status(500).json({ success: false, message: 'Không tìm thấy role STUDENT' });
+      return res.status(500).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y role STUDENT' });
     }
 
     // Base query
@@ -6925,22 +7029,22 @@ app.get('/api/students/search', requireAuth, async (req, res, next) => {
       if (q.trim().length < 2) {
         return res.status(400).json({
           success: false,
-          message: 'Từ khóa tìm kiếm phải có ít nhất 2 ký tự'
+          message: 'Tá»« khÃ³a tÃ¬m kiáº¿m pháº£i cÃ³ Ã­t nháº¥t 2 kÃ½ tá»±'
         });
       }
 
-      // Có từ khóa -> Tìm kiếm theo tên/email/phone
+      // CÃ³ tá»« khÃ³a -> TÃ¬m kiáº¿m theo tÃªn/email/phone
       query = query.or(`full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`);
       query = query.limit(20);
     } else {
-      // Không có từ khóa -> Trả về học viên mới đăng ký gần đây nhất
+      // KhÃ´ng cÃ³ tá»« khÃ³a -> Tráº£ vá» há»c viÃªn má»›i Ä‘Äƒng kÃ½ gáº§n Ä‘Ã¢y nháº¥t
       query = query.order('created_at', { ascending: false }).limit(10);
     }
 
     const { data: students, error } = await query;
     if (error) throw error;
 
-    // Nếu có exclude_class_id, loại bỏ những học viên đã có enrollment trong lớp đó (bất kỳ status)
+    // Náº¿u cÃ³ exclude_class_id, loáº¡i bá» nhá»¯ng há»c viÃªn Ä‘Ã£ cÃ³ enrollment trong lá»›p Ä‘Ã³ (báº¥t ká»³ status)
     if (exclude_class_id && students?.length > 0) {
       const { data: enrolled } = await supabase
         .from('enrollments')
@@ -6953,7 +7057,7 @@ app.get('/api/students/search', requireAuth, async (req, res, next) => {
       return res.json({
         success: true,
         data: filtered,
-        type: q ? 'search' : 'recent' // Cho FE biết đây là kết quả tìm kiếm hay gợi ý
+        type: q ? 'search' : 'recent' // Cho FE biáº¿t Ä‘Ã¢y lÃ  káº¿t quáº£ tÃ¬m kiáº¿m hay gá»£i Ã½
       });
     }
 
@@ -6968,7 +7072,7 @@ app.get('/api/students/search', requireAuth, async (req, res, next) => {
   }
 });
 
-// API: Thêm học viên vào lớp (Ghi danh / Enroll)
+// API: ThÃªm há»c viÃªn vÃ o lá»›p (Ghi danh / Enroll)
 app.post('/api/classes/:id/enroll', requireAuth, async (req, res, next) => {
   try {
     const { id: class_id } = req.params;
@@ -6976,29 +7080,29 @@ app.post('/api/classes/:id/enroll', requireAuth, async (req, res, next) => {
 
     // Validation
     if (!student_id) {
-      return res.status(400).json({ success: false, message: 'Thiếu student_id' });
+      return res.status(400).json({ success: false, message: 'Thiáº¿u student_id' });
     }
 
     if (!class_id) {
-      return res.status(400).json({ success: false, message: 'Thiếu class_id' });
+      return res.status(400).json({ success: false, message: 'Thiáº¿u class_id' });
     }
 
     // Validate tuition_fee if provided
     if (tuition_fee !== undefined && (tuition_fee < 0 || isNaN(tuition_fee))) {
-      return res.status(400).json({ success: false, message: 'Học phí không hợp lệ' });
+      return res.status(400).json({ success: false, message: 'Há»c phÃ­ khÃ´ng há»£p lá»‡' });
     }
 
     // Validate discount_amount if provided
     if (discount_amount !== undefined && (discount_amount < 0 || isNaN(discount_amount))) {
-      return res.status(400).json({ success: false, message: 'Số tiền giảm giá không hợp lệ' });
+      return res.status(400).json({ success: false, message: 'Sá»‘ tiá»n giáº£m giÃ¡ khÃ´ng há»£p lá»‡' });
     }
 
     // Validate paid_amount if provided
     if (paid_amount !== undefined && (paid_amount < 0 || isNaN(paid_amount))) {
-      return res.status(400).json({ success: false, message: 'Số tiền đã đóng không hợp lệ' });
+      return res.status(400).json({ success: false, message: 'Sá»‘ tiá»n Ä‘Ã£ Ä‘Ã³ng khÃ´ng há»£p lá»‡' });
     }
 
-    // 🔥 Use unified enrollment service
+    // ðŸ”¥ Use unified enrollment service
     const result = await createEnrollmentWithDraftInvoice(supabase, {
       student_id,
       class_id,
@@ -7016,7 +7120,7 @@ app.post('/api/classes/:id/enroll', requireAuth, async (req, res, next) => {
       });
     }
 
-    console.log(`✅ ${result.message || 'Ghi danh thành công'} - Invoice: ${result.invoice?.invoice_number} (draft)`);
+    console.log(`âœ… ${result.message || 'Ghi danh thÃ nh cÃ´ng'} - Invoice: ${result.invoice?.invoice_number} (draft)`);
     AuditLogService.log({
       ...getAuditContext(req),
       centerId: getEffectiveCenterId(req),
@@ -7031,7 +7135,7 @@ app.post('/api/classes/:id/enroll', requireAuth, async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: result.message || 'Ghi danh thành công',
+      message: result.message || 'Ghi danh thÃ nh cÃ´ng',
       data: result.enrollment,
       invoice: result.invoice
     });
@@ -7042,8 +7146,8 @@ app.post('/api/classes/:id/enroll', requireAuth, async (req, res, next) => {
         userId: result?.enrollment?.student_id || student_id,
         centerId: result?.enrollment?.center_id,
         type: 'enrollment',
-        title: 'Đăng ký lớp học thành công',
-        message: 'Bạn đã được đăng ký vào lớp học mới',
+        title: 'ÄÄƒng kÃ½ lá»›p há»c thÃ nh cÃ´ng',
+        message: 'Báº¡n Ä‘Ã£ Ä‘Æ°á»£c Ä‘Äƒng kÃ½ vÃ o lá»›p há»c má»›i',
         referenceId: result?.enrollment?.id,
         referenceType: 'enrollment'
       }).catch(err => console.warn('Notification error:', err.message));
@@ -7052,18 +7156,18 @@ app.post('/api/classes/:id/enroll', requireAuth, async (req, res, next) => {
     console.error('Error enrolling student:', error);
     res.status(500).json({
       success: false,
-      message: 'Có lỗi xảy ra khi ghi danh học viên'
+      message: 'CÃ³ lá»—i xáº£y ra khi ghi danh há»c viÃªn'
     });
   }
 });
 
-// API: Xóa học viên khỏi lớp (hoặc đổi trạng thái thành dropped)
+// API: XÃ³a há»c viÃªn khá»i lá»›p (hoáº·c Ä‘á»•i tráº¡ng thÃ¡i thÃ nh dropped)
 app.delete('/api/classes/:classId/students/:studentId', requireAuth, async (req, res, next) => {
   try {
     const { classId, studentId } = req.params;
-    const { permanent } = req.query; // ?permanent=true để xóa hẳn
+    const { permanent } = req.query; // ?permanent=true Ä‘á»ƒ xÃ³a háº³n
 
-    // Lấy enrollment_id trước
+    // Láº¥y enrollment_id trÆ°á»›c
     const { data: enrollment } = await supabase
       .from('enrollments')
       .select('id')
@@ -7072,19 +7176,19 @@ app.delete('/api/classes/:classId/students/:studentId', requireAuth, async (req,
       .single();
 
     if (enrollment) {
-      // Xóa attendance records của enrollment này
+      // XÃ³a attendance records cá»§a enrollment nÃ y
       await supabase
         .from('attendance')
         .delete()
         .eq('enrollment_id', enrollment.id);
 
-      // Xóa grades của enrollment này
+      // XÃ³a grades cá»§a enrollment nÃ y
       await supabase
         .from('grades')
         .delete()
         .eq('enrollment_id', enrollment.id);
 
-      // Lấy danh sách invoice_ids để xóa payments trước
+      // Láº¥y danh sÃ¡ch invoice_ids Ä‘á»ƒ xÃ³a payments trÆ°á»›c
       const { data: invoices } = await supabase
         .from('invoices')
         .select('id')
@@ -7094,13 +7198,13 @@ app.delete('/api/classes/:classId/students/:studentId', requireAuth, async (req,
       if (invoices && invoices.length > 0) {
         const invoiceIds = invoices.map(inv => inv.id);
 
-        // Xóa payments liên quan
+        // XÃ³a payments liÃªn quan
         await supabase
           .from('payments')
           .delete()
           .in('invoice_id', invoiceIds);
 
-        // Xóa hẳn tất cả hóa đơn của học viên này trong lớp
+        // XÃ³a háº³n táº¥t cáº£ hÃ³a Ä‘Æ¡n cá»§a há»c viÃªn nÃ y trong lá»›p
         await supabase
           .from('invoices')
           .delete()
@@ -7110,7 +7214,7 @@ app.delete('/api/classes/:classId/students/:studentId', requireAuth, async (req,
     }
 
     if (permanent === 'true') {
-      // Xóa hẳn enrollment
+      // XÃ³a háº³n enrollment
       const { error } = await supabase
         .from('enrollments')
         .delete()
@@ -7131,10 +7235,10 @@ app.delete('/api/classes/:classId/students/:studentId', requireAuth, async (req,
         }
       });
 
-      return res.json({ success: true, message: 'Đã xóa học viên khỏi lớp' });
+      return res.json({ success: true, message: 'ÄÃ£ xÃ³a há»c viÃªn khá»i lá»›p' });
     }
 
-    // Soft delete - đổi status thành dropped
+    // Soft delete - Ä‘á»•i status thÃ nh dropped
     const { data: currentEnrollment, error: checkError } = await supabase
       .from('enrollments')
       .select('id, status')
@@ -7145,7 +7249,7 @@ app.delete('/api/classes/:classId/students/:studentId', requireAuth, async (req,
     if (checkError || !currentEnrollment) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy thông tin ghi danh'
+        message: 'KhÃ´ng tÃ¬m tháº¥y thÃ´ng tin ghi danh'
       });
     }
 
@@ -7153,7 +7257,7 @@ app.delete('/api/classes/:classId/students/:studentId', requireAuth, async (req,
     if (currentEnrollment.status === 'dropped') {
       return res.status(400).json({
         success: false,
-        message: 'Học viên đã được cho nghỉ học trước đó'
+        message: 'Há»c viÃªn Ä‘Ã£ Ä‘Æ°á»£c cho nghá»‰ há»c trÆ°á»›c Ä‘Ã³'
       });
     }
 
@@ -7179,7 +7283,7 @@ app.delete('/api/classes/:classId/students/:studentId', requireAuth, async (req,
       }
     });
 
-    res.json({ success: true, message: 'Học viên đã rời lớp', data });
+    res.json({ success: true, message: 'Há»c viÃªn Ä‘Ã£ rá»i lá»›p', data });
 
     // Auto-promote waitlisted enrollment request (FIFO)
     try {
@@ -7202,8 +7306,8 @@ app.delete('/api/classes/:classId/students/:studentId', requireAuth, async (req,
           userId: waitlisted.student_id,
           centerId: req.user.center_id || req.user.centerId,
           type: 'enrollment_waitlist_promoted',
-          title: 'Có slot trống cho lớp bạn chờ',
-          message: 'Đã có slot trống. Yêu cầu đăng ký của bạn đang chờ phê duyệt.',
+          title: 'CÃ³ slot trá»‘ng cho lá»›p báº¡n chá»',
+          message: 'ÄÃ£ cÃ³ slot trá»‘ng. YÃªu cáº§u Ä‘Äƒng kÃ½ cá»§a báº¡n Ä‘ang chá» phÃª duyá»‡t.',
           referenceId: waitlisted.id,
           referenceType: 'enrollment_request'
         }).catch(err => console.warn('Waitlist promotion notification failed:', err));
@@ -7217,7 +7321,7 @@ app.delete('/api/classes/:classId/students/:studentId', requireAuth, async (req,
   }
 });
 
-// API: Cập nhật thông tin ghi danh (học phí, giảm giá, đã đóng)
+// API: Cáº­p nháº­t thÃ´ng tin ghi danh (há»c phÃ­, giáº£m giÃ¡, Ä‘Ã£ Ä‘Ã³ng)
 app.patch('/api/enrollments/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -7248,15 +7352,15 @@ app.patch('/api/enrollments/:id', requireAuth, async (req, res, next) => {
       newValues: req.body
     });
 
-    res.json({ success: true, message: 'Cập nhật thành công', data });
+    res.json({ success: true, message: 'Cáº­p nháº­t thÃ nh cÃ´ng', data });
 
     // Notification: Enrollment status updated
     try {
       const nextStatus = data?.status || status;
       let statusTitle = '';
-      if (nextStatus === 'approved') statusTitle = 'Đăng ký đã được duyệt';
-      if (nextStatus === 'rejected') statusTitle = 'Đăng ký bị từ chối';
-      if (nextStatus === 'completed') statusTitle = 'Hoàn thành khóa học';
+      if (nextStatus === 'approved') statusTitle = 'ÄÄƒng kÃ½ Ä‘Ã£ Ä‘Æ°á»£c duyá»‡t';
+      if (nextStatus === 'rejected') statusTitle = 'ÄÄƒng kÃ½ bá»‹ tá»« chá»‘i';
+      if (nextStatus === 'completed') statusTitle = 'HoÃ n thÃ nh khÃ³a há»c';
 
       if (statusTitle) {
         createNotification(supabase, {
@@ -7264,7 +7368,7 @@ app.patch('/api/enrollments/:id', requireAuth, async (req, res, next) => {
           centerId: data?.center_id,
           type: 'enrollment',
           title: statusTitle,
-          message: `Trạng thái ghi danh của bạn đã được cập nhật: ${nextStatus}`,
+          message: `Tráº¡ng thÃ¡i ghi danh cá»§a báº¡n Ä‘Ã£ Ä‘Æ°á»£c cáº­p nháº­t: ${nextStatus}`,
           referenceId: data?.id,
           referenceType: 'enrollment'
         }).catch(err => console.warn('Notification error:', err.message));
@@ -7282,10 +7386,10 @@ app.patch('/api/enrollments/:id', requireAuth, async (req, res, next) => {
             classId: data.class_id,
             centerId: data.center_id
           });
-          console.log(`🏆 Certificate eligibility check triggered for enrollment ${data.id}`);
+          console.log(`ðŸ† Certificate eligibility check triggered for enrollment ${data.id}`);
         }
       } catch (certErr) {
-        console.warn('⚠️ Failed to trigger certificate eligibility check:', certErr.message);
+        console.warn('âš ï¸ Failed to trigger certificate eligibility check:', certErr.message);
         // Don't fail the enrollment update if cert check trigger fails
       }
     }
@@ -7312,8 +7416,8 @@ app.patch('/api/enrollments/:id', requireAuth, async (req, res, next) => {
             userId: waitlisted.student_id,
             centerId: req.user.center_id || req.user.centerId,
             type: 'enrollment_waitlist_promoted',
-            title: 'Có slot trống cho lớp bạn chờ',
-            message: 'Đã có slot trống. Yêu cầu đăng ký của bạn đang chờ phê duyệt.',
+            title: 'CÃ³ slot trá»‘ng cho lá»›p báº¡n chá»',
+            message: 'ÄÃ£ cÃ³ slot trá»‘ng. YÃªu cáº§u Ä‘Äƒng kÃ½ cá»§a báº¡n Ä‘ang chá» phÃª duyá»‡t.',
             referenceId: waitlisted.id,
             referenceType: 'enrollment_request'
           }).catch(err => console.warn('Waitlist promotion notification failed:', err));
@@ -7333,15 +7437,15 @@ app.patch('/api/enrollments/:id', requireAuth, async (req, res, next) => {
 // ========================================
 
 /**
- * GET /api/classes/:id/performance - Lấy performance data cho tất cả học viên trong lớp
- * Bao gồm: attendance rate, average grade, rank, trend, alerts
+ * GET /api/classes/:id/performance - Láº¥y performance data cho táº¥t cáº£ há»c viÃªn trong lá»›p
+ * Bao gá»“m: attendance rate, average grade, rank, trend, alerts
  */
 app.get('/api/classes/:id/performance', requireAuth, async (req, res, next) => {
   try {
     const { id: classId } = req.params;
-    console.log(`📊 Fetching performance data for class ${classId}`);
+    console.log(`ðŸ“Š Fetching performance data for class ${classId}`);
 
-    // 1. Lấy thông tin lớp và course
+    // 1. Láº¥y thÃ´ng tin lá»›p vÃ  course
     const { data: classData, error: classError } = await supabase
       .from('classes')
       .select(`
@@ -7352,10 +7456,10 @@ app.get('/api/classes/:id/performance', requireAuth, async (req, res, next) => {
       .single();
 
     if (classError || !classData) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c' });
     }
 
-    // 2. Lấy tất cả enrollments trong lớp
+    // 2. Láº¥y táº¥t cáº£ enrollments trong lá»›p
     const { data: enrollments, error: enrollmentsError } = await supabase
       .from('enrollments')
       .select(`
@@ -7386,13 +7490,13 @@ app.get('/api/classes/:id/performance', requireAuth, async (req, res, next) => {
     const enrollmentIds = enrollments.map(e => e.id);
     const studentIds = enrollments.map(e => e.student_id);
 
-    // 3. Lấy attendance data
+    // 3. Láº¥y attendance data
     const { data: attendance } = await supabase
       .from('attendance')
       .select('enrollment_id, status, session_date')
       .in('enrollment_id', enrollmentIds);
 
-    // 4. Lấy sessions để tính tổng số buổi
+    // 4. Láº¥y sessions Ä‘á»ƒ tÃ­nh tá»•ng sá»‘ buá»•i
     const { data: sessions } = await supabase
       .from('sessions')
       .select('id, session_date, status')
@@ -7401,7 +7505,7 @@ app.get('/api/classes/:id/performance', requireAuth, async (req, res, next) => {
 
     const totalSessions = sessions?.length || 0;
 
-    // 5. Lấy grades data
+    // 5. Láº¥y grades data
     const { data: grades } = await supabase
       .from('grades')
       .select(`
@@ -7411,14 +7515,14 @@ app.get('/api/classes/:id/performance', requireAuth, async (req, res, next) => {
       `)
       .in('enrollment_id', enrollmentIds);
 
-    // 6. Lấy grade structures của course
+    // 6. Láº¥y grade structures cá»§a course
     const { data: gradeStructures } = await supabase
       .from('grade_structures')
       .select('id, name, weight, max_score, order_index')
       .eq('course_id', classData.courses?.id)
       .order('order_index');
 
-    // 7. Build performance data cho từng học viên
+    // 7. Build performance data cho tá»«ng há»c viÃªn
     const performanceData = enrollments.map(enrollment => {
       const student = enrollment.users;
       const enrollmentId = enrollment.id;
@@ -7564,7 +7668,7 @@ app.get('/api/classes/:id/performance', requireAuth, async (req, res, next) => {
       ? Math.round(studentsWithGrades.reduce((sum, s) => sum + s.averageGrade, 0) / studentsWithGrades.length * 10) / 10
       : 0;
 
-    console.log(`✅ Performance data: ${total} students, avg attendance: ${avgAttendance}%, avg grade: ${avgGrade}`);
+    console.log(`âœ… Performance data: ${total} students, avg attendance: ${avgAttendance}%, avg grade: ${avgGrade}`);
 
     res.json({
       success: true,
@@ -7585,19 +7689,19 @@ app.get('/api/classes/:id/performance', requireAuth, async (req, res, next) => {
 });
 
 // ============================================================
-// PAYMENT APIs - Thu học phí
+// PAYMENT APIs - Thu há»c phÃ­
 // ============================================================
 
-// API: Tạo thanh toán mới (Thu tiền học viên)
+// API: Táº¡o thanh toÃ¡n má»›i (Thu tiá»n há»c viÃªn)
 app.post('/api/payments', requireAuth, async (req, res, next) => {
   try {
     const { enrollment_id, student_id, class_id, amount, payment_method, notes } = req.body;
 
     if (!enrollment_id || !amount) {
-      return res.status(400).json({ success: false, message: 'Thiếu thông tin enrollment_id hoặc amount' });
+      return res.status(400).json({ success: false, message: 'Thiáº¿u thÃ´ng tin enrollment_id hoáº·c amount' });
     }
 
-    // 1. Lấy thông tin enrollment hiện tại
+    // 1. Láº¥y thÃ´ng tin enrollment hiá»‡n táº¡i
     const { data: enrollment, error: enrollmentError } = await supabase
       .from('enrollments')
       .select('id, student_id, center_id, tuition_fee, discount_amount, paid_amount')
@@ -7605,22 +7709,22 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
       .single();
 
     if (enrollmentError || !enrollment) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy enrollment' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y enrollment' });
     }
 
     const currentPaid = enrollment.paid_amount || 0;
     const amountDue = (enrollment.tuition_fee || 0) - (enrollment.discount_amount || 0);
     const remaining = amountDue - currentPaid;
 
-    // Kiểm tra số tiền thanh toán có vượt quá số nợ không
+    // Kiá»ƒm tra sá»‘ tiá»n thanh toÃ¡n cÃ³ vÆ°á»£t quÃ¡ sá»‘ ná»£ khÃ´ng
     if (amount > remaining) {
       return res.status(400).json({
         success: false,
-        message: `Số tiền thanh toán (${amount.toLocaleString()}đ) vượt quá số nợ (${remaining.toLocaleString()}đ)`
+        message: `Sá»‘ tiá»n thanh toÃ¡n (${amount.toLocaleString()}Ä‘) vÆ°á»£t quÃ¡ sá»‘ ná»£ (${remaining.toLocaleString()}Ä‘)`
       });
     }
 
-    // 2. Tìm hoặc tạo invoice cho enrollment này
+    // 2. TÃ¬m hoáº·c táº¡o invoice cho enrollment nÃ y
     let { data: invoice } = await supabase
       .from('invoices')
       .select('id, invoice_code')
@@ -7630,7 +7734,7 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
       .limit(1)
       .single();
 
-    // Nếu chưa có invoice unpaid, tìm invoice partial
+    // Náº¿u chÆ°a cÃ³ invoice unpaid, tÃ¬m invoice partial
     if (!invoice) {
       const { data: partialInvoice } = await supabase
         .from('invoices')
@@ -7643,7 +7747,7 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
       invoice = partialInvoice;
     }
 
-    // Nếu vẫn không có invoice nào, tạo mới
+    // Náº¿u váº«n khÃ´ng cÃ³ invoice nÃ o, táº¡o má»›i
     if (!invoice) {
       const { data: classInfo } = await supabase
         .from('classes')
@@ -7662,7 +7766,7 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
           final_amount: amountDue,
           paid_amount: currentPaid,
           status: currentPaid > 0 ? 'partial' : 'unpaid',
-          description: `Học phí lớp ${classInfo?.name || 'N/A'}`,
+          description: `Há»c phÃ­ lá»›p ${classInfo?.name || 'N/A'}`,
           due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           created_by: req.user?.id
         }])
@@ -7670,13 +7774,13 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
         .single();
 
       if (invoiceError) {
-        console.warn('⚠️ Không thể tạo invoice:', invoiceError.message);
+        console.warn('âš ï¸ KhÃ´ng thá»ƒ táº¡o invoice:', invoiceError.message);
       } else {
         invoice = newInvoice;
       }
     }
 
-    // 3. Tạo payment record (nếu có bảng payments)
+    // 3. Táº¡o payment record (náº¿u cÃ³ báº£ng payments)
     let paymentRecord = null;
     if (invoice) {
       const { data: payment, error: paymentError } = await supabase
@@ -7693,15 +7797,15 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
         .single();
 
       if (paymentError) {
-        console.warn('⚠️ Không thể tạo payment record:', paymentError.message);
-        // Không throw - vẫn tiếp tục cập nhật enrollment
+        console.warn('âš ï¸ KhÃ´ng thá»ƒ táº¡o payment record:', paymentError.message);
+        // KhÃ´ng throw - váº«n tiáº¿p tá»¥c cáº­p nháº­t enrollment
       } else {
         paymentRecord = payment;
-        console.log(`💰 Payment #${payment.id} created: ${amount.toLocaleString()}đ`);
+        console.log(`ðŸ’° Payment #${payment.id} created: ${amount.toLocaleString()}Ä‘`);
       }
     }
 
-    // 4. Cập nhật paid_amount trong enrollment
+    // 4. Cáº­p nháº­t paid_amount trong enrollment
     const newPaidAmount = currentPaid + amount;
     const { data: updatedEnrollment, error: updateError } = await supabase
       .from('enrollments')
@@ -7715,7 +7819,7 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
 
     if (updateError) throw updateError;
 
-    // 5. Cập nhật invoice status (trigger trong DB sẽ tự động làm, nhưng backup ở đây)
+    // 5. Cáº­p nháº­t invoice status (trigger trong DB sáº½ tá»± Ä‘á»™ng lÃ m, nhÆ°ng backup á»Ÿ Ä‘Ã¢y)
     if (invoice) {
       const newInvoicePaid = (invoice.paid_amount || 0) + amount;
       const invoiceFinal = invoice.final_amount || amountDue;
@@ -7734,11 +7838,11 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
         .eq('id', invoice.id);
     }
 
-    console.log(`✅ Payment processed: ${amount.toLocaleString()}đ for enrollment ${enrollment_id}`);
+    console.log(`âœ… Payment processed: ${amount.toLocaleString()}Ä‘ for enrollment ${enrollment_id}`);
 
     res.status(201).json({
       success: true,
-      message: `Đã thu ${amount.toLocaleString()}đ thành công`,
+      message: `ÄÃ£ thu ${amount.toLocaleString()}Ä‘ thÃ nh cÃ´ng`,
       data: {
         payment: paymentRecord,
         enrollment: updatedEnrollment,
@@ -7752,8 +7856,8 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
         userId: enrollment?.student_id || student_id,
         centerId: enrollment?.center_id || updatedEnrollment?.center_id,
         type: 'payment',
-        title: 'Thanh toán thành công',
-        message: `Bạn đã thanh toán thành công ${amount.toLocaleString()}đ`,
+        title: 'Thanh toÃ¡n thÃ nh cÃ´ng',
+        message: `Báº¡n Ä‘Ã£ thanh toÃ¡n thÃ nh cÃ´ng ${amount.toLocaleString()}Ä‘`,
         referenceId: paymentRecord?.id || enrollment_id,
         referenceType: 'payment'
       }).catch(err => console.warn('Notification error:', err.message));
@@ -7765,12 +7869,12 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
   }
 });
 
-// API: Lấy lịch sử thanh toán của một enrollment
+// API: Láº¥y lá»‹ch sá»­ thanh toÃ¡n cá»§a má»™t enrollment
 app.get('/api/enrollments/:id/payments', requireAuth, async (req, res, next) => {
   try {
     const { id: enrollment_id } = req.params;
 
-    // Lấy invoice(s) của enrollment
+    // Láº¥y invoice(s) cá»§a enrollment
     const { data: invoices, error: invoiceError } = await supabase
       .from('invoices')
       .select('id')
@@ -7782,7 +7886,7 @@ app.get('/api/enrollments/:id/payments', requireAuth, async (req, res, next) => 
       return res.json({ success: true, data: [] });
     }
 
-    // Lấy payments của các invoices
+    // Láº¥y payments cá»§a cÃ¡c invoices
     const invoiceIds = invoices.map(inv => inv.id);
     const { data: payments, error: paymentsError } = await supabase
       .from('payments')
@@ -7812,10 +7916,10 @@ app.get('/api/enrollments/:id/payments', requireAuth, async (req, res, next) => 
 // ============================================================
 
 // ============================================================
-// ATTENDANCE APIs - Module Điểm danh
+// ATTENDANCE APIs - Module Äiá»ƒm danh
 // ============================================================
 
-// Utility: Parse schedule từ nhiều format khác nhau
+// Utility: Parse schedule tá»« nhiá»u format khÃ¡c nhau
 function parseScheduleData(schedule) {
   if (!schedule) return { days: [], startTime: '18:00', endTime: '20:00' };
 
@@ -7824,8 +7928,8 @@ function parseScheduleData(schedule) {
     try {
       const parsed = JSON.parse(schedule);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        // day: 2=T2, 3=T3, ..., 7=T7, 8=CN (theo format của frontend)
-        // Cần convert sang dayOfWeek: 0=CN, 1=T2, 2=T3, ...
+        // day: 2=T2, 3=T3, ..., 7=T7, 8=CN (theo format cá»§a frontend)
+        // Cáº§n convert sang dayOfWeek: 0=CN, 1=T2, 2=T3, ...
         const dayMapping = { 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 0 };
         const days = parsed.map(s => dayMapping[s.day]).filter(d => d !== undefined);
         return {
@@ -7860,7 +7964,7 @@ function parseScheduleData(schedule) {
   return { days: [], startTime: '18:00', endTime: '20:00' };
 }
 
-// Utility: Sinh danh sách các buổi học từ lịch lớp
+// Utility: Sinh danh sÃ¡ch cÃ¡c buá»•i há»c tá»« lá»‹ch lá»›p
 function generateSessions(startDate, endDate, schedule) {
   const sessions = [];
   if (!startDate || !endDate || !schedule) return sessions;
@@ -7875,13 +7979,13 @@ function generateSessions(startDate, endDate, schedule) {
   const end = new Date(endYear, endMonth - 1, endDay);
   let sessionNumber = 1;
 
-  // Danh sách ngày nghỉ lễ Việt Nam 2025-2026
+  // Danh sÃ¡ch ngÃ y nghá»‰ lá»… Viá»‡t Nam 2025-2026
   const holidays = [
-    '2025-01-01', // Tết Dương lịch
-    '2025-01-28', '2025-01-29', '2025-01-30', '2025-01-31', '2025-02-01', '2025-02-02', '2025-02-03', // Tết Nguyên đán
-    '2025-04-30', // Giải phóng miền Nam
-    '2025-05-01', // Quốc tế Lao động
-    '2025-09-02', // Quốc khánh
+    '2025-01-01', // Táº¿t DÆ°Æ¡ng lá»‹ch
+    '2025-01-28', '2025-01-29', '2025-01-30', '2025-01-31', '2025-02-01', '2025-02-02', '2025-02-03', // Táº¿t NguyÃªn Ä‘Ã¡n
+    '2025-04-30', // Giáº£i phÃ³ng miá»n Nam
+    '2025-05-01', // Quá»‘c táº¿ Lao Ä‘á»™ng
+    '2025-09-02', // Quá»‘c khÃ¡nh
   ];
 
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
@@ -7917,18 +8021,18 @@ function generateSessions(startDate, endDate, schedule) {
   return sessions;
 }
 
-// Utility: Tên thứ tiếng Việt
+// Utility: TÃªn thá»© tiáº¿ng Viá»‡t
 function getDayName(dayOfWeek) {
-  const days = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+  const days = ['Chá»§ nháº­t', 'Thá»© 2', 'Thá»© 3', 'Thá»© 4', 'Thá»© 5', 'Thá»© 6', 'Thá»© 7'];
   return days[dayOfWeek];
 }
 
-// API: Lấy danh sách buổi học của một lớp
+// API: Láº¥y danh sÃ¡ch buá»•i há»c cá»§a má»™t lá»›p
 app.get('/api/classes/:id/sessions', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // Lấy thông tin lớp học
+    // Láº¥y thÃ´ng tin lá»›p há»c
     const { data: classData, error: classError } = await supabase
       .from('classes')
       .select(`
@@ -7941,17 +8045,17 @@ app.get('/api/classes/:id/sessions', requireAuth, async (req, res, next) => {
 
     if (classError) throw classError;
     if (!classData) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c' });
     }
 
-    // Sinh danh sách buổi học
+    // Sinh danh sÃ¡ch buá»•i há»c
     const sessions = generateSessions(
       classData.start_date,
       classData.end_date,
       classData.schedule
     );
 
-    // Lấy thông tin điểm danh đã có
+    // Láº¥y thÃ´ng tin Ä‘iá»ƒm danh Ä‘Ã£ cÃ³
     const { data: attendanceData, error: attendanceError } = await supabase
       .from('attendance')
       .select(`
@@ -7961,7 +8065,7 @@ app.get('/api/classes/:id/sessions', requireAuth, async (req, res, next) => {
       `)
       .eq('enrollment_id', supabase.rpc('get_enrollment_ids_by_class', { class_id: id }));
 
-    // Đếm số học viên đã điểm danh cho mỗi buổi
+    // Äáº¿m sá»‘ há»c viÃªn Ä‘Ã£ Ä‘iá»ƒm danh cho má»—i buá»•i
     const sessionDates = sessions.map(s => s.date);
 
     const { data: attendanceSummary, error: summaryError } = await supabase
@@ -7974,7 +8078,7 @@ app.get('/api/classes/:id/sessions', requireAuth, async (req, res, next) => {
       .eq('enrollments.class_id', id)
       .in('session_date', sessionDates);
 
-    // Tính tổng số học viên trong lớp
+    // TÃ­nh tá»•ng sá»‘ há»c viÃªn trong lá»›p
     const { count: totalStudents } = await supabase
       .from('enrollments')
       .select('id', { count: 'exact' })
@@ -8027,17 +8131,17 @@ app.get('/api/classes/:id/sessions', requireAuth, async (req, res, next) => {
   }
 });
 
-// API: Lấy bảng điểm danh của một buổi học cụ thể
+// API: Láº¥y báº£ng Ä‘iá»ƒm danh cá»§a má»™t buá»•i há»c cá»¥ thá»ƒ
 app.get('/api/classes/:id/attendance', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
     const { date } = req.query;
 
     if (!date) {
-      return res.status(400).json({ success: false, message: 'Thiếu tham số date' });
+      return res.status(400).json({ success: false, message: 'Thiáº¿u tham sá»‘ date' });
     }
 
-    // Lấy danh sách học viên trong lớp
+    // Láº¥y danh sÃ¡ch há»c viÃªn trong lá»›p
     const { data: enrollments, error: enrollError } = await supabase
       .from('enrollments')
       .select(`
@@ -8053,7 +8157,7 @@ app.get('/api/classes/:id/attendance', requireAuth, async (req, res, next) => {
 
     if (enrollError) throw enrollError;
 
-    // Lấy điểm danh đã có cho ngày này
+    // Láº¥y Ä‘iá»ƒm danh Ä‘Ã£ cÃ³ cho ngÃ y nÃ y
     const enrollmentIds = enrollments.map(e => e.id);
     const { data: attendanceRecords, error: attError } = await supabase
       .from('attendance')
@@ -8098,7 +8202,7 @@ app.get('/api/classes/:id/attendance', requireAuth, async (req, res, next) => {
   }
 });
 
-// API: Lưu/Cập nhật điểm danh hàng loạt
+// API: LÆ°u/Cáº­p nháº­t Ä‘iá»ƒm danh hÃ ng loáº¡t
 app.post('/api/attendance/mark', requireAuth, async (req, res, next) => {
   try {
     const { class_id, date, attendances, session_id } = req.body;
@@ -8107,11 +8211,11 @@ app.post('/api/attendance/mark', requireAuth, async (req, res, next) => {
     if (!class_id || !date || !attendances || !Array.isArray(attendances)) {
       return res.status(400).json({
         success: false,
-        message: 'Thiếu thông tin: class_id, date, attendances'
+        message: 'Thiáº¿u thÃ´ng tin: class_id, date, attendances'
       });
     }
 
-    console.log(`📝 Điểm danh lớp ${class_id} ngày ${date} bởi user ${req.user.email}`);
+    console.log(`ðŸ“ Äiá»ƒm danh lá»›p ${class_id} ngÃ y ${date} bá»Ÿi user ${req.user.email}`);
 
     // Validate class exists
     const { data: classData, error: classError } = await supabase
@@ -8121,10 +8225,10 @@ app.post('/api/attendance/mark', requireAuth, async (req, res, next) => {
       .single();
 
     if (classError || !classData) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c' });
     }
 
-    // Tính session_number
+    // TÃ­nh session_number
     const { data: sessionData } = await supabase
       .from('classes')
       .select('start_date, end_date, schedule')
@@ -8160,7 +8264,7 @@ app.post('/api/attendance/mark', requireAuth, async (req, res, next) => {
 
     if (upsertError) throw upsertError;
 
-    // 🔥 Cập nhật session status thành 'completed' nếu có session_id
+    // ðŸ”¥ Cáº­p nháº­t session status thÃ nh 'completed' náº¿u cÃ³ session_id
     if (session_id) {
       const { error: sessionUpdateError } = await supabase
         .from('sessions')
@@ -8173,10 +8277,10 @@ app.post('/api/attendance/mark', requireAuth, async (req, res, next) => {
       if (sessionUpdateError) {
         console.warn('Warning updating session status:', sessionUpdateError);
       } else {
-        console.log(`✅ Session ${session_id} marked as completed`);
+        console.log(`âœ… Session ${session_id} marked as completed`);
       }
     } else {
-      // Fallback: tìm session theo class_id và date
+      // Fallback: tÃ¬m session theo class_id vÃ  date
       const { error: sessionUpdateError } = await supabase
         .from('sessions')
         .update({
@@ -8187,11 +8291,11 @@ app.post('/api/attendance/mark', requireAuth, async (req, res, next) => {
         .eq('session_date', date);
 
       if (!sessionUpdateError) {
-        console.log(`✅ Session for class ${class_id} on ${date} marked as completed`);
+        console.log(`âœ… Session for class ${class_id} on ${date} marked as completed`);
       }
     }
 
-    // Tính summary
+    // TÃ­nh summary
     const summary = {
       present: attendances.filter(a => a.status === 'present').length,
       absent: attendances.filter(a => a.status === 'absent').length,
@@ -8199,7 +8303,7 @@ app.post('/api/attendance/mark', requireAuth, async (req, res, next) => {
       total: attendances.length
     };
 
-    console.log(`✅ Điểm danh thành công: ${summary.present} có mặt, ${summary.absent} vắng, ${summary.late} trễ`);
+    console.log(`âœ… Äiá»ƒm danh thÃ nh cÃ´ng: ${summary.present} cÃ³ máº·t, ${summary.absent} váº¯ng, ${summary.late} trá»…`);
 
     AuditLogService.log({
       ...getAuditContext(req),
@@ -8212,7 +8316,7 @@ app.post('/api/attendance/mark', requireAuth, async (req, res, next) => {
 
     res.json({
       success: true,
-      message: `Đã lưu điểm danh ${summary.total} học viên`,
+      message: `ÄÃ£ lÆ°u Ä‘iá»ƒm danh ${summary.total} há»c viÃªn`,
       data: {
         date,
         session_number: sessionNumber,
@@ -8235,14 +8339,14 @@ app.post('/api/attendance/mark', requireAuth, async (req, res, next) => {
 // GRADING SYSTEM APIs
 // ============================================================
 
-// GET /api/classes/:id/grades - Lấy bảng điểm tổng hợp cho cả lớp
+// GET /api/classes/:id/grades - Láº¥y báº£ng Ä‘iá»ƒm tá»•ng há»£p cho cáº£ lá»›p
 app.get('/api/classes/:id/grades', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    console.log(`📊 Lấy bảng điểm lớp ${id}`);
+    console.log(`ðŸ“Š Láº¥y báº£ng Ä‘iá»ƒm lá»›p ${id}`);
 
-    // 1. Lấy thông tin lớp và course_id
+    // 1. Láº¥y thÃ´ng tin lá»›p vÃ  course_id
     const { data: classData, error: classError } = await supabase
       .from('classes')
       .select('id, code, course_id, courses(id, title)')
@@ -8250,10 +8354,10 @@ app.get('/api/classes/:id/grades', requireAuth, async (req, res, next) => {
       .single();
 
     if (classError || !classData) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c' });
     }
 
-    // 2. Lấy cấu trúc điểm của khóa học (grade_structures)
+    // 2. Láº¥y cáº¥u trÃºc Ä‘iá»ƒm cá»§a khÃ³a há»c (grade_structures)
     const { data: gradeStructures, error: structureError } = await supabase
       .from('grade_structures')
       .select('*')
@@ -8262,7 +8366,7 @@ app.get('/api/classes/:id/grades', requireAuth, async (req, res, next) => {
 
     if (structureError) throw structureError;
 
-    // 3. Lấy danh sách học viên của lớp (enrollments)
+    // 3. Láº¥y danh sÃ¡ch há»c viÃªn cá»§a lá»›p (enrollments)
     const { data: enrollments, error: enrollmentError } = await supabase
       .from('enrollments')
       .select(`
@@ -8279,7 +8383,7 @@ app.get('/api/classes/:id/grades', requireAuth, async (req, res, next) => {
 
     if (enrollmentError) throw enrollmentError;
 
-    // 4. Lấy tất cả điểm đã nhập cho lớp này
+    // 4. Láº¥y táº¥t cáº£ Ä‘iá»ƒm Ä‘Ã£ nháº­p cho lá»›p nÃ y
     const enrollmentIds = enrollments.map(e => e.id);
 
     let grades = [];
@@ -8293,7 +8397,7 @@ app.get('/api/classes/:id/grades', requireAuth, async (req, res, next) => {
       grades = gradesData || [];
     }
 
-    // 5. Ghép data thành ma trận để Frontend dễ render
+    // 5. GhÃ©p data thÃ nh ma tráº­n Ä‘á»ƒ Frontend dá»… render
     const gradeMatrix = enrollments.map(enrollment => {
       const studentGrades = {};
       let totalWeightedScore = 0;
@@ -8309,7 +8413,7 @@ app.get('/api/classes/:id/grades', requireAuth, async (req, res, next) => {
           graded_at: grade?.graded_at || null
         };
 
-        // Tính điểm tổng kết có trọng số
+        // TÃ­nh Ä‘iá»ƒm tá»•ng káº¿t cÃ³ trá»ng sá»‘
         if (grade?.score !== null && grade?.score !== undefined) {
           totalWeightedScore += grade.score * structure.weight;
           totalWeight += structure.weight;
@@ -8324,7 +8428,7 @@ app.get('/api/classes/:id/grades', requireAuth, async (req, res, next) => {
         avatar_url: enrollment.users?.avatar_url || null,
         status: enrollment.status,
         grades: studentGrades,
-        // Điểm tổng kết (weighted average)
+        // Äiá»ƒm tá»•ng káº¿t (weighted average)
         weighted_average: totalWeight > 0
           ? Math.round((totalWeightedScore / totalWeight) * 100) / 100
           : null
@@ -8354,7 +8458,7 @@ app.get('/api/classes/:id/grades', requireAuth, async (req, res, next) => {
   }
 });
 
-// POST /api/grades/bulk-update - Lưu điểm hàng loạt
+// POST /api/grades/bulk-update - LÆ°u Ä‘iá»ƒm hÃ ng loáº¡t
 app.post('/api/grades/bulk-update', requireAuth, async (req, res, next) => {
   try {
     const { grades } = req.body;
@@ -8363,13 +8467,13 @@ app.post('/api/grades/bulk-update', requireAuth, async (req, res, next) => {
     if (!grades || !Array.isArray(grades) || grades.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Thiếu thông tin: grades array'
+        message: 'Thiáº¿u thÃ´ng tin: grades array'
       });
     }
 
-    console.log(`📝 Cập nhật ${grades.length} điểm bởi user ${req.user.email}`);
+    console.log(`ðŸ“ Cáº­p nháº­t ${grades.length} Ä‘iá»ƒm bá»Ÿi user ${req.user.email}`);
 
-    // Validate và chuẩn bị data
+    // Validate vÃ  chuáº©n bá»‹ data
     const upsertData = [];
     const errors = [];
 
@@ -8381,7 +8485,7 @@ app.post('/api/grades/bulk-update', requireAuth, async (req, res, next) => {
           errors.push({
             enrollment_id: g.enrollment_id,
             grade_structure_id: g.grade_structure_id,
-            error: `Điểm không hợp lệ: ${g.score}. Điểm phải từ 0-10`
+            error: `Äiá»ƒm khÃ´ng há»£p lá»‡: ${g.score}. Äiá»ƒm pháº£i tá»« 0-10`
           });
           continue;
         }
@@ -8400,12 +8504,12 @@ app.post('/api/grades/bulk-update', requireAuth, async (req, res, next) => {
     if (upsertData.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Không có điểm hợp lệ để lưu',
+        message: 'KhÃ´ng cÃ³ Ä‘iá»ƒm há»£p lá»‡ Ä‘á»ƒ lÆ°u',
         errors
       });
     }
 
-    // Upsert (có rồi thì update, chưa có thì insert)
+    // Upsert (cÃ³ rá»“i thÃ¬ update, chÆ°a cÃ³ thÃ¬ insert)
     const { data, error } = await supabase
       .from('grades')
       .upsert(upsertData, {
@@ -8416,7 +8520,7 @@ app.post('/api/grades/bulk-update', requireAuth, async (req, res, next) => {
 
     if (error) throw error;
 
-    console.log(`✅ Đã lưu ${data?.length || 0} điểm`);
+    console.log(`âœ… ÄÃ£ lÆ°u ${data?.length || 0} Ä‘iá»ƒm`);
 
     AuditLogService.log({
       ...getAuditContext(req),
@@ -8429,7 +8533,7 @@ app.post('/api/grades/bulk-update', requireAuth, async (req, res, next) => {
 
     res.json({
       success: true,
-      message: `Đã lưu ${data?.length || 0} điểm`,
+      message: `ÄÃ£ lÆ°u ${data?.length || 0} Ä‘iá»ƒm`,
       data,
       errors: errors.length > 0 ? errors : undefined
     });
@@ -8440,7 +8544,7 @@ app.post('/api/grades/bulk-update', requireAuth, async (req, res, next) => {
   }
 });
 
-// GET /api/courses/:id/grade-structures - Lấy cấu trúc điểm của khóa học
+// GET /api/courses/:id/grade-structures - Láº¥y cáº¥u trÃºc Ä‘iá»ƒm cá»§a khÃ³a há»c
 app.get('/api/courses/:id/grade-structures', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -8460,7 +8564,7 @@ app.get('/api/courses/:id/grade-structures', requireAuth, async (req, res, next)
   }
 });
 
-// POST /api/courses/:id/grade-structures - Tạo/Cập nhật cấu trúc điểm cho khóa học
+// POST /api/courses/:id/grade-structures - Táº¡o/Cáº­p nháº­t cáº¥u trÃºc Ä‘iá»ƒm cho khÃ³a há»c
 app.post('/api/courses/:id/grade-structures', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -8469,25 +8573,25 @@ app.post('/api/courses/:id/grade-structures', requireAuth, async (req, res, next
     if (!structures || !Array.isArray(structures)) {
       return res.status(400).json({
         success: false,
-        message: 'Thiếu thông tin: structures array'
+        message: 'Thiáº¿u thÃ´ng tin: structures array'
       });
     }
 
-    console.log(`📊 Cập nhật cấu trúc điểm cho khóa ${id}`);
+    console.log(`ðŸ“Š Cáº­p nháº­t cáº¥u trÃºc Ä‘iá»ƒm cho khÃ³a ${id}`);
 
-    // Validate tổng weight = 1 (100%)
+    // Validate tá»•ng weight = 1 (100%)
     const totalWeight = structures.reduce((sum, s) => sum + (parseFloat(s.weight) || 0), 0);
     if (Math.abs(totalWeight - 1) > 0.01) {
       return res.status(400).json({
         success: false,
-        message: `Tổng trọng số phải = 100% (hiện tại: ${Math.round(totalWeight * 100)}%)`
+        message: `Tá»•ng trá»ng sá»‘ pháº£i = 100% (hiá»‡n táº¡i: ${Math.round(totalWeight * 100)}%)`
       });
     }
 
-    // Xóa cấu trúc cũ
+    // XÃ³a cáº¥u trÃºc cÅ©
     await supabase.from('grade_structures').delete().eq('course_id', id);
 
-    // Insert cấu trúc mới
+    // Insert cáº¥u trÃºc má»›i
     const insertData = structures.map((s, index) => ({
       course_id: id,
       name: s.name,
@@ -8506,7 +8610,7 @@ app.post('/api/courses/:id/grade-structures', requireAuth, async (req, res, next
 
     res.json({
       success: true,
-      message: `Đã lưu ${data.length} cột điểm`,
+      message: `ÄÃ£ lÆ°u ${data.length} cá»™t Ä‘iá»ƒm`,
       data
     });
 
@@ -8524,13 +8628,13 @@ app.post('/api/courses/:id/grade-structures', requireAuth, async (req, res, next
 // DASHBOARD APIs - Command Center
 // ============================================================
 
-// GET /api/dashboard/stats - Lấy thống kê tổng quan
+// GET /api/dashboard/stats - Láº¥y thá»‘ng kÃª tá»•ng quan
 app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
   try {
     const { centerId, startDate, endDate } = req.query;
     const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
 
-    console.log(`📊 Dashboard stats requested by ${req.user.email} | Center: ${effectiveCenterId || 'ALL'}`);
+    console.log(`ðŸ“Š Dashboard stats requested by ${req.user.email} | Center: ${effectiveCenterId || 'ALL'}`);
 
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
@@ -8565,8 +8669,8 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
       prevEnd = new Date(currentYear, currentMonth - 1, 0).toISOString().split('T')[0];
     }
 
-    // 1. Tổng doanh thu = Tổng paid_amount từ enrollments (thực thu)
-    // Cách 1: Từ bảng payments (nếu có)
+    // 1. Tá»•ng doanh thu = Tá»•ng paid_amount tá»« enrollments (thá»±c thu)
+    // CÃ¡ch 1: Tá»« báº£ng payments (náº¿u cÃ³)
     let paymentsThisMonthQuery = supabase
       .from('payments')
       .select('amount, class:classes!inner(center_id)')
@@ -8582,7 +8686,7 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
 
     const revenueFromPayments = paymentsThisMonth?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
 
-    // Cách 2: Từ bảng enrollments (paid_amount) - TỔNG DOANH THU THỰC TẾ
+    // CÃ¡ch 2: Tá»« báº£ng enrollments (paid_amount) - Tá»”NG DOANH THU THá»°C Táº¾
     let enrollmentsDataQuery = supabase
       .from('enrollments')
       .select('paid_amount, classes!inner(center_id)');
@@ -8595,10 +8699,10 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
 
     const revenueFromEnrollments = enrollmentsData?.reduce((sum, e) => sum + (e.paid_amount || 0), 0) || 0;
 
-    // Lấy số lớn hơn (hoặc cộng cả 2 nếu payments là chi tiết từng lần đóng)
+    // Láº¥y sá»‘ lá»›n hÆ¡n (hoáº·c cá»™ng cáº£ 2 náº¿u payments lÃ  chi tiáº¿t tá»«ng láº§n Ä‘Ã³ng)
     const totalRevenueThisMonth = Math.max(revenueFromPayments, revenueFromEnrollments);
 
-    // 2. Doanh thu kỳ trước (để tính trend) - dùng payments nếu có
+    // 2. Doanh thu ká»³ trÆ°á»›c (Ä‘á»ƒ tÃ­nh trend) - dÃ¹ng payments náº¿u cÃ³
     let paymentsLastMonthQuery = supabase
       .from('payments')
       .select('amount, class:classes!inner(center_id)')
@@ -8614,12 +8718,12 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
 
     const totalRevenueLastMonth = paymentsLastMonth?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
 
-    // Tính % thay đổi doanh thu
+    // TÃ­nh % thay Ä‘á»•i doanh thu
     const revenueTrend = totalRevenueLastMonth > 0
       ? Math.round(((totalRevenueThisMonth - totalRevenueLastMonth) / totalRevenueLastMonth) * 100)
       : (totalRevenueThisMonth > 0 ? 100 : 0);
 
-    // 3. Số học viên mới trong kỳ (enrollments mới)
+    // 3. Sá»‘ há»c viÃªn má»›i trong ká»³ (enrollments má»›i)
     let newStudentsThisMonthQuery = supabase
       .from('enrollments')
       .select('*, classes!inner(center_id)', { count: 'exact', head: true })
@@ -8648,7 +8752,7 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
       ? Math.round(((newStudentsThisMonth - newStudentsLastMonth) / newStudentsLastMonth) * 100)
       : (newStudentsThisMonth > 0 ? 100 : 0);
 
-    // 4. Số lớp đang hoạt động (ongoing HOẶC upcoming)
+    // 4. Sá»‘ lá»›p Ä‘ang hoáº¡t Ä‘á»™ng (ongoing HOáº¶C upcoming)
     let ongoingClassesQuery = supabase
       .from('classes')
       .select('*', { count: 'exact', head: true })
@@ -8673,7 +8777,7 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
 
     const activeClasses = (ongoingClasses || 0) + (upcomingClasses || 0);
 
-    // 5. Công nợ (Tổng tiền còn nợ từ enrollments)
+    // 5. CÃ´ng ná»£ (Tá»•ng tiá»n cÃ²n ná»£ tá»« enrollments)
     let debtDataQuery = supabase
       .from('enrollments')
       .select('tuition_fee, paid_amount, classes!inner(center_id)')
@@ -8690,12 +8794,12 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
       return sum + (remaining > 0 ? remaining : 0);
     }, 0) || 0;
 
-    // 6. Tổng số khóa học active
+    // 6. Tá»•ng sá»‘ khÃ³a há»c active
     const { count: totalCourses } = await supabase
       .from('courses')
       .select('*', { count: 'exact', head: true });
 
-    // 7. Tổng số học viên (unique students có enrollment)
+    // 7. Tá»•ng sá»‘ há»c viÃªn (unique students cÃ³ enrollment)
     let uniqueStudentsQuery = supabase
       .from('enrollments')
       .select('student_id, classes!inner(center_id)')
@@ -8723,16 +8827,16 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
           value: newStudentsThisMonth || 0,
           trend: studentsTrend,
           trendUp: studentsTrend >= 0,
-          description: 'Ghi danh trong kỳ'
+          description: 'Ghi danh trong ká»³'
         },
         activeClasses: {
           value: activeClasses || 0,
-          description: 'Lớp đang diễn ra'
+          description: 'Lá»›p Ä‘ang diá»…n ra'
         },
         debt: {
           value: totalDebt,
           formatted: formatCurrency(totalDebt),
-          description: 'Cần thu hồi'
+          description: 'Cáº§n thu há»“i'
         },
         summary: {
           totalCourses: totalCourses || 0,
@@ -8757,18 +8861,18 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
 // Helper: Format currency
 function formatCurrency(amount) {
   if (amount >= 1000000000) {
-    return `${(amount / 1000000000).toFixed(1)}B đ`;
+    return `${(amount / 1000000000).toFixed(1)}B Ä‘`;
   }
   if (amount >= 1000000) {
-    return `${(amount / 1000000).toFixed(1)}M đ`;
+    return `${(amount / 1000000).toFixed(1)}M Ä‘`;
   }
   if (amount >= 1000) {
-    return `${(amount / 1000).toFixed(0)}K đ`;
+    return `${(amount / 1000).toFixed(0)}K Ä‘`;
   }
-  return `${amount.toLocaleString('vi-VN')} đ`;
+  return `${amount.toLocaleString('vi-VN')} Ä‘`;
 }
 
-// GET /api/dashboard/revenue-chart - Biểu đồ doanh thu theo tháng (OPTIMIZED - single query)
+// GET /api/dashboard/revenue-chart - Biá»ƒu Ä‘á»“ doanh thu theo thÃ¡ng (OPTIMIZED - single query)
 app.get('/api/dashboard/revenue-chart', requireAuth, async (req, res, next) => {
   try {
     const { centerId, startDate, endDate } = req.query;
@@ -8844,13 +8948,13 @@ app.get('/api/dashboard/revenue-chart', requireAuth, async (req, res, next) => {
         return a.monthNum - b.monthNum;
       })
       .map(m => ({
-        label: m.month,      // ✅ Add 'label' for chart compatibility
+        label: m.month,      // âœ… Add 'label' for chart compatibility
         month: m.month,      // Keep 'month' for backward compatibility
         revenue: m.revenue,
         formatted: formatCurrency(m.revenue)
       }));
 
-    console.log(`📊 Revenue chart: Found ${data?.length || 0} enrollments, Generated ${months.length} months of data`);
+    console.log(`ðŸ“Š Revenue chart: Found ${data?.length || 0} enrollments, Generated ${months.length} months of data`);
 
     res.json({
       success: true,
@@ -8863,7 +8967,7 @@ app.get('/api/dashboard/revenue-chart', requireAuth, async (req, res, next) => {
   }
 });
 
-// GET /api/dashboard/recent-students - Học viên ghi danh gần đây
+// GET /api/dashboard/recent-students - Há»c viÃªn ghi danh gáº§n Ä‘Ã¢y
 app.get('/api/dashboard/recent-students', requireAuth, async (req, res, next) => {
   try {
     const { limit = 5, centerId } = req.query;
@@ -8902,8 +9006,8 @@ app.get('/api/dashboard/recent-students', requireAuth, async (req, res, next) =>
       // Handle negative time diff (future dates or timezone issues)
       let timeAgo;
       if (timeDiff < 0) {
-        // Nếu thời gian âm (tương lai), hiển thị "Vừa xong"
-        timeAgo = 'Vừa xong';
+        // Náº¿u thá»i gian Ã¢m (tÆ°Æ¡ng lai), hiá»ƒn thá»‹ "Vá»«a xong"
+        timeAgo = 'Vá»«a xong';
       } else {
         const minutes = Math.floor(timeDiff / (1000 * 60));
         const hours = Math.floor(minutes / 60);
@@ -8911,15 +9015,15 @@ app.get('/api/dashboard/recent-students', requireAuth, async (req, res, next) =>
         const months = Math.floor(days / 30);
 
         if (months > 0) {
-          timeAgo = `${months} tháng trước`;
+          timeAgo = `${months} thÃ¡ng trÆ°á»›c`;
         } else if (days > 0) {
-          timeAgo = `${days} ngày trước`;
+          timeAgo = `${days} ngÃ y trÆ°á»›c`;
         } else if (hours > 0) {
-          timeAgo = `${hours} giờ trước`;
+          timeAgo = `${hours} giá» trÆ°á»›c`;
         } else if (minutes > 0) {
-          timeAgo = `${minutes} phút trước`;
+          timeAgo = `${minutes} phÃºt trÆ°á»›c`;
         } else {
-          timeAgo = 'Vừa xong';
+          timeAgo = 'Vá»«a xong';
         }
       }
 
@@ -8946,7 +9050,7 @@ app.get('/api/dashboard/recent-students', requireAuth, async (req, res, next) =>
   }
 });
 
-// GET /api/dashboard/course-distribution - Phân bố học viên theo khóa học
+// GET /api/dashboard/course-distribution - PhÃ¢n bá»‘ há»c viÃªn theo khÃ³a há»c
 app.get('/api/dashboard/course-distribution', requireAuth, async (req, res, next) => {
   try {
     const { centerId, startDate, endDate } = req.query;
@@ -8983,7 +9087,7 @@ app.get('/api/dashboard/course-distribution', requireAuth, async (req, res, next
     // Count by course
     const courseCount = {};
     data?.forEach(e => {
-      const courseTitle = e.classes?.courses?.title || 'Khác';
+      const courseTitle = e.classes?.courses?.title || 'KhÃ¡c';
       courseCount[courseTitle] = (courseCount[courseTitle] || 0) + 1;
     });
 
@@ -9004,7 +9108,7 @@ app.get('/api/dashboard/course-distribution', requireAuth, async (req, res, next
   }
 });
 
-// GET /api/dashboard/payment-overview - Tổng quan thanh toán & hóa đơn
+// GET /api/dashboard/payment-overview - Tá»•ng quan thanh toÃ¡n & hÃ³a Ä‘Æ¡n
 app.get('/api/dashboard/payment-overview', requireAuth, async (req, res, next) => {
   try {
     const { centerId } = req.query;
@@ -9082,7 +9186,7 @@ app.get('/api/dashboard/payment-overview', requireAuth, async (req, res, next) =
   }
 });
 
-// GET /api/dashboard/attendance-overview - Tổng quan điểm danh
+// GET /api/dashboard/attendance-overview - Tá»•ng quan Ä‘iá»ƒm danh
 app.get('/api/dashboard/attendance-overview', requireAuth, async (req, res, next) => {
   try {
     const { centerId, days = 7 } = req.query;
@@ -9174,7 +9278,7 @@ app.get('/api/dashboard/teacher-performance', requireAuth, async (req, res, next
     const { centerId, limit = 5 } = req.query;
     const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
 
-    console.log(`📊 Teacher performance requested | Center: ${effectiveCenterId || 'ALL'}`);
+    console.log(`ðŸ“Š Teacher performance requested | Center: ${effectiveCenterId || 'ALL'}`);
 
     // Get teacher role
     const { data: teacherRole } = await supabase
@@ -9279,7 +9383,7 @@ app.get('/api/dashboard/teacher-performance', requireAuth, async (req, res, next
         name: teacher.full_name,
         email: teacher.email,
         avatar_url: teacher.avatar_url,
-        subject: topCourse ? topCourse[0] : (teacher.centers?.name || 'Giáo viên'),
+        subject: topCourse ? topCourse[0] : (teacher.centers?.name || 'GiÃ¡o viÃªn'),
         student_count: stats.studentIds.size,
         class_count: stats.classCount,
         center_name: teacher.centers?.name
@@ -9302,7 +9406,7 @@ app.get('/api/dashboard/teacher-performance', requireAuth, async (req, res, next
   }
 });
 
-// GET /api/dashboard/today-schedule - Lịch dạy hôm nay
+// GET /api/dashboard/today-schedule - Lá»‹ch dáº¡y hÃ´m nay
 app.get('/api/dashboard/today-schedule', requireAuth, async (req, res, next) => {
   try {
     const { centerId } = req.query;
@@ -9371,13 +9475,13 @@ app.get('/api/dashboard/today-schedule', requireAuth, async (req, res, next) => 
   }
 });
 
-// GET /api/dashboard/all - Unified API cho tất cả dashboard data (reduce API calls)
+// GET /api/dashboard/all - Unified API cho táº¥t cáº£ dashboard data (reduce API calls)
 app.get('/api/dashboard/all', requireAuth, async (req, res, next) => {
   try {
     const { centerId, startDate, endDate } = req.query;
     const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
 
-    console.log(`📊 Dashboard ALL requested by ${req.user.email} | Center: ${effectiveCenterId || 'ALL'} | Period: ${startDate || 'default'} to ${endDate || 'default'}`);
+    console.log(`ðŸ“Š Dashboard ALL requested by ${req.user.email} | Center: ${effectiveCenterId || 'ALL'} | Period: ${startDate || 'default'} to ${endDate || 'default'}`);
 
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
@@ -9538,10 +9642,10 @@ app.get('/api/dashboard/all', requireAuth, async (req, res, next) => {
       const hours = Math.floor(minutes / 60);
       const days = Math.floor(hours / 24);
 
-      let timeAgo = 'Vừa xong';
-      if (days > 0) timeAgo = `${days} ngày trước`;
-      else if (hours > 0) timeAgo = `${hours} giờ trước`;
-      else if (minutes > 0) timeAgo = `${minutes} phút trước`;
+      let timeAgo = 'Vá»«a xong';
+      if (days > 0) timeAgo = `${days} ngÃ y trÆ°á»›c`;
+      else if (hours > 0) timeAgo = `${hours} giá» trÆ°á»›c`;
+      else if (minutes > 0) timeAgo = `${minutes} phÃºt trÆ°á»›c`;
 
       // Calculate payment status from enrollment data
       const tuitionFee = e.tuition_fee || 0;
@@ -9597,16 +9701,16 @@ app.get('/api/dashboard/all', requireAuth, async (req, res, next) => {
             value: enrollmentsThisMonth,
             trend: studentsTrend,
             trendUp: studentsTrend >= 0,
-            description: 'Ghi danh trong kỳ'
+            description: 'Ghi danh trong ká»³'
           },
           activeClasses: {
             value: activeClasses,
-            description: 'Lớp đang diễn ra'
+            description: 'Lá»›p Ä‘ang diá»…n ra'
           },
           debt: {
             value: totalDebt,
             formatted: formatCurrency(totalDebt),
-            description: 'Cần thu hồi'
+            description: 'Cáº§n thu há»“i'
           },
           summary: {
             totalCourses: coursesResult.count || 0,
@@ -9656,13 +9760,13 @@ app.get('/api/dashboard/all', requireAuth, async (req, res, next) => {
   }
 });
 
-// 🔥 NEW: Dashboard alerts endpoint
+// ðŸ”¥ NEW: Dashboard alerts endpoint
 app.get('/api/dashboard/alerts', requireAuth, async (req, res, next) => {
   try {
     const { centerId } = req.query;
     const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
 
-    console.log(`📊 Dashboard alerts requested by ${req.user.email} | Center: ${effectiveCenterId || 'ALL'}`);
+    console.log(`ðŸ“Š Dashboard alerts requested by ${req.user.email} | Center: ${effectiveCenterId || 'ALL'}`);
 
     const today = new Date().toISOString().split('T')[0];
     const alerts = {};
@@ -9806,7 +9910,7 @@ app.get('/api/dashboard/alerts', requireAuth, async (req, res, next) => {
       alerts.certificates_pending = {
         data: [],
         degraded: true,
-        warning: 'Không thể tải danh sách chứng chỉ chờ duyệt',
+        warning: 'KhÃ´ng thá»ƒ táº£i danh sÃ¡ch chá»©ng chá»‰ chá» duyá»‡t',
       };
     } else {
       alerts.certificates_pending = {
@@ -9818,7 +9922,7 @@ app.get('/api/dashboard/alerts', requireAuth, async (req, res, next) => {
           class_id: item.class?.id || null,
           class_name: item.class?.name || item.course?.title || 'N/A',
           course_name: item.course?.title || null,
-          certificate_type_name: item.certificate_type_ref?.name || item.certificate_type_ref?.code || 'Chứng chỉ',
+          certificate_type_name: item.certificate_type_ref?.name || item.certificate_type_ref?.code || 'Chá»©ng chá»‰',
           requested_at: item.created_at,
         })),
       };
@@ -9847,9 +9951,9 @@ app.get('/api/dashboard/alerts', requireAuth, async (req, res, next) => {
   }
 });
 
-// ────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // MANAGER DASHBOARD APIs
-// ────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // GET /api/dashboard/teacher-status-today
 app.get('/api/dashboard/teacher-status-today', requireAuth, async (req, res, next) => {
@@ -10101,10 +10205,10 @@ app.get('/api/dashboard/pending-actions', requireAuth, async (req, res, next) =>
     const { count: enrollCount } = await enrollQuery;
 
     const categories = [
-      { key: 'overdue_invoices', label: 'Hóa đơn quá hạn', count: overdueCount || 0, path: '/admin/invoices' },
-      { key: 'pending_enrollments', label: 'Ghi danh mới (7 ngày)', count: enrollCount || 0, path: '/admin/enrollments' },
-      { key: 'pending_leave_requests', label: 'Đơn xin nghỉ chờ duyệt', count: leaveCount || 0, path: '/admin/leave' },
-      { key: 'pending_disputes', label: 'Khiếu nại lương', count: disputeCount || 0, path: '/admin/payroll-disputes' },
+      { key: 'overdue_invoices', label: 'HÃ³a Ä‘Æ¡n quÃ¡ háº¡n', count: overdueCount || 0, path: '/admin/invoices' },
+      { key: 'pending_enrollments', label: 'Ghi danh má»›i (7 ngÃ y)', count: enrollCount || 0, path: '/admin/enrollments' },
+      { key: 'pending_leave_requests', label: 'ÄÆ¡n xin nghá»‰ chá» duyá»‡t', count: leaveCount || 0, path: '/admin/leave' },
+      { key: 'pending_disputes', label: 'Khiáº¿u náº¡i lÆ°Æ¡ng', count: disputeCount || 0, path: '/admin/payroll-disputes' },
     ];
 
     const total = categories.reduce((sum, c) => sum + c.count, 0);
@@ -10281,7 +10385,7 @@ app.get('/api/admin/system-dashboard', requireAuth, requireRole(['SUPER_ADMIN'])
 
     if (auditCoverageError) {
       warnings.push(
-        createDataWarning('AUDIT_COVERAGE_UNAVAILABLE', 'Không thể đọc dữ liệu bao phủ audit cho giai đoạn hiện tại', {
+        createDataWarning('AUDIT_COVERAGE_UNAVAILABLE', 'KhÃ´ng thá»ƒ Ä‘á»c dá»¯ liá»‡u bao phá»§ audit cho giai Ä‘oáº¡n hiá»‡n táº¡i', {
           source: 'audit_logs',
           error: auditCoverageError.message,
         })
@@ -10481,7 +10585,7 @@ app.get('/api/admin/center-health', requireAuth, requireRole(['SUPER_ADMIN']), a
       // Enrollment growth
       const enrollmentGrowth = (prevEnrollments || 0) > 0 ? (((curEnrollments || 0) - (prevEnrollments || 0)) / (prevEnrollments || 1)) * 100 : 0;
 
-      // Fill rate — bulk count all active enrollments for this center's classes (eliminates inner N+1 loop)
+      // Fill rate â€” bulk count all active enrollments for this center's classes (eliminates inner N+1 loop)
       const classIds = (classData || []).map(c => c.id);
       let totalFilled = 0;
       if (classIds.length > 0) {
@@ -10648,7 +10752,7 @@ app.get('/api/admin/anomalies', requireAuth, requireRole(['SUPER_ADMIN']), async
         anomalies.push(buildAnomaly({
           center,
           type: 'revenue_drop',
-          message: `Doanh thu giảm ${dropPct}% so với tháng trước`,
+          message: `Doanh thu giáº£m ${dropPct}% so vá»›i thÃ¡ng trÆ°á»›c`,
           severity: 'warning',
           sourceMetricId: STRATEGIC_METRIC_IDS.REVENUE_GROWTH_MOM,
           breachedValue: -dropPct,
@@ -10669,7 +10773,7 @@ app.get('/api/admin/anomalies', requireAuth, requireRole(['SUPER_ADMIN']), async
         anomalies.push(buildAnomaly({
           center,
           type: 'low_attendance',
-          message: `Tỷ lệ chuyên cần chỉ ${roundedRate}%`,
+          message: `Tá»· lá»‡ chuyÃªn cáº§n chá»‰ ${roundedRate}%`,
           severity: 'critical',
           sourceMetricId: STRATEGIC_METRIC_IDS.ATTENDANCE_RATE,
           breachedValue: roundedRate,
@@ -10690,7 +10794,7 @@ app.get('/api/admin/anomalies', requireAuth, requireRole(['SUPER_ADMIN']), async
         anomalies.push(buildAnomaly({
           center,
           type: 'low_collection',
-          message: `Tỷ lệ thu chỉ ${roundedRate}%`,
+          message: `Tá»· lá»‡ thu chá»‰ ${roundedRate}%`,
           severity: 'warning',
           sourceMetricId: STRATEGIC_METRIC_IDS.COLLECTION_RATE,
           breachedValue: roundedRate,
@@ -10712,7 +10816,7 @@ app.get('/api/admin/anomalies', requireAuth, requireRole(['SUPER_ADMIN']), async
         anomalies.push(buildAnomaly({
           center,
           type: 'enrollment_drop',
-          message: `Ghi danh giảm ${dropPct}% so với tháng trước`,
+          message: `Ghi danh giáº£m ${dropPct}% so vá»›i thÃ¡ng trÆ°á»›c`,
           severity: 'warning',
           sourceMetricId: STRATEGIC_METRIC_IDS.ENROLLMENT_GROWTH_MOM,
           breachedValue: -dropPct,
@@ -11112,7 +11216,7 @@ app.get('/api/admin/audit-logs', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
         auditPipelineHealthy = false;
         dataFreshness = 'degraded';
         warnings.push(
-          createDataWarning('AUDIT_USER_SEARCH_DEGRADED', 'Không thể mở rộng tìm kiếm audit theo người dùng', {
+          createDataWarning('AUDIT_USER_SEARCH_DEGRADED', 'KhÃ´ng thá»ƒ má»Ÿ rá»™ng tÃ¬m kiáº¿m audit theo ngÆ°á»i dÃ¹ng', {
             error: userSearchError.message,
           })
         );
@@ -11134,7 +11238,7 @@ app.get('/api/admin/audit-logs', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
       auditPipelineHealthy = false;
       dataFreshness = 'degraded';
       warnings.push(
-        createDataWarning('AUDIT_QUERY_FALLBACK', 'Nhật ký hệ thống đang dùng chế độ truy vấn fallback', {
+        createDataWarning('AUDIT_QUERY_FALLBACK', 'Nháº­t kÃ½ há»‡ thá»‘ng Ä‘ang dÃ¹ng cháº¿ Ä‘á»™ truy váº¥n fallback', {
           error: primaryQueryError.message,
         })
       );
@@ -11152,7 +11256,7 @@ app.get('/api/admin/audit-logs', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
 
       if (result.error && sanitizedSearch && matchingUserIds.length > 0) {
         warnings.push(
-          createDataWarning('AUDIT_SEARCH_DEGRADED', 'Tìm kiếm audit đang dùng chế độ rút gọn', {
+          createDataWarning('AUDIT_SEARCH_DEGRADED', 'TÃ¬m kiáº¿m audit Ä‘ang dÃ¹ng cháº¿ Ä‘á»™ rÃºt gá»n', {
             error: result.error.message,
           })
         );
@@ -11194,7 +11298,7 @@ app.get('/api/admin/audit-logs', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
       auditPipelineHealthy = false;
       dataFreshness = 'degraded';
       warnings.push(
-        createDataWarning('AUDIT_ENRICHMENT_DEGRADED', 'Nhật ký hệ thống đang dùng dữ liệu rút gọn', {
+        createDataWarning('AUDIT_ENRICHMENT_DEGRADED', 'Nháº­t kÃ½ há»‡ thá»‘ng Ä‘ang dÃ¹ng dá»¯ liá»‡u rÃºt gá»n', {
           error: enrichmentError.message,
         })
       );
@@ -11327,7 +11431,7 @@ app.patch('/api/admin/users/:id/lock', requireAuth, requireRole(['SUPER_ADMIN'])
 
     AuditLogService.log({ ...getAuditContext(req), action: 'LOCK_USER', tableName: 'users', recordId: id, newValues: { status: 'suspended' } });
 
-    res.json({ success: true, message: 'Tài khoản đã bị khóa' });
+    res.json({ success: true, message: 'TÃ i khoáº£n Ä‘Ã£ bá»‹ khÃ³a' });
   } catch (error) {
     console.error('Error locking user:', error);
     next(error);
@@ -11350,7 +11454,7 @@ app.patch('/api/admin/users/:id/unlock', requireAuth, requireRole(['SUPER_ADMIN'
 
     AuditLogService.log({ ...getAuditContext(req), action: 'UNLOCK_USER', tableName: 'users', recordId: id, newValues: { status: 'active' } });
 
-    res.json({ success: true, message: 'Tài khoản đã được mở khóa' });
+    res.json({ success: true, message: 'TÃ i khoáº£n Ä‘Ã£ Ä‘Æ°á»£c má»Ÿ khÃ³a' });
   } catch (error) {
     console.error('Error unlocking user:', error);
     next(error);
@@ -11363,7 +11467,7 @@ app.post('/api/admin/users/:id/reset-password', requireAuth, requireRole(['SUPER
     const { id } = req.params;
     const { data: user } = await supabase.from('users').select('email').eq('id', id).single();
     if (!user?.email) {
-      return res.status(404).json({ success: false, error: 'Không tìm thấy người dùng' });
+      return res.status(404).json({ success: false, error: 'KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i dÃ¹ng' });
     }
 
     const { error } = await supabase.auth.admin.generateLink({ type: 'recovery', email: user.email });
@@ -11371,7 +11475,7 @@ app.post('/api/admin/users/:id/reset-password', requireAuth, requireRole(['SUPER
 
     AuditLogService.log({ ...getAuditContext(req), action: 'RESET_PASSWORD', tableName: 'users', recordId: id });
 
-    res.json({ success: true, message: 'Email đặt lại mật khẩu đã được gửi' });
+    res.json({ success: true, message: 'Email Ä‘áº·t láº¡i máº­t kháº©u Ä‘Ã£ Ä‘Æ°á»£c gá»­i' });
   } catch (error) {
     console.error('Error resetting password:', error);
     next(error);
@@ -11419,17 +11523,17 @@ app.post('/api/admin/users/create', requireAuth, requireRole(['SUPER_ADMIN']), a
   try {
     const { email, fullName, role, centerId } = req.body;
     if (!email || !fullName || !role || !centerId) {
-      return res.status(400).json({ success: false, error: 'Thiếu thông tin bắt buộc' });
+      return res.status(400).json({ success: false, error: 'Thiáº¿u thÃ´ng tin báº¯t buá»™c' });
     }
     const validRoles = ['CENTER_MANAGER', 'TEACHER', 'STUDENT'];
     if (!validRoles.includes(role)) {
-      return res.status(400).json({ success: false, error: 'Vai trò không hợp lệ' });
+      return res.status(400).json({ success: false, error: 'Vai trÃ² khÃ´ng há»£p lá»‡' });
     }
 
     // Check duplicate email
     const { data: existCheck } = await supabase.from('users').select('id').eq('email', email).maybeSingle();
     if (existCheck) {
-      return res.status(409).json({ success: false, error: 'Email đã tồn tại trong hệ thống' });
+      return res.status(409).json({ success: false, error: 'Email Ä‘Ã£ tá»“n táº¡i trong há»‡ thá»‘ng' });
     }
 
     // Create auth user
@@ -11458,7 +11562,7 @@ app.post('/api/admin/users/create', requireAuth, requireRole(['SUPER_ADMIN']), a
     });
     if (profileError) throw profileError;
 
-    // No separate students table needed — students are users with STUDENT role
+    // No separate students table needed â€” students are users with STUDENT role
 
     // Send password reset so user can set own password
     await supabase.auth.admin.generateLink({ type: 'recovery', email });
@@ -11615,7 +11719,7 @@ app.get('/api/admin/reports/staff', requireAuth, requireRole(['SUPER_ADMIN']), a
         .lte('created_at', monthEnd);
       const payrollCost = (payrollData || []).reduce((s, p) => s + (p.net_salary || 0), 0);
 
-      // class_sessions table does not exist — use v_teacher_performance view or skip
+      // class_sessions table does not exist â€” use v_teacher_performance view or skip
       const { data: perfData } = await supabase.from('v_teacher_performance').select('total_hours_taught').eq('center_name', center.name);
       const totalHours = Math.round((perfData || []).reduce((s, t) => s + (t.total_hours_taught || 0), 0));
 
@@ -11636,10 +11740,10 @@ app.get('/api/admin/reports/staff', requireAuth, requireRole(['SUPER_ADMIN']), a
   }
 });
 // ============================================================
-// INVOICES APIs - Quản lý hóa đơn
+// INVOICES APIs - Quáº£n lÃ½ hÃ³a Ä‘Æ¡n
 // ============================================================
 
-// GET /api/invoices - Danh sách hóa đơn (với filters, pagination)
+// GET /api/invoices - Danh sÃ¡ch hÃ³a Ä‘Æ¡n (vá»›i filters, pagination)
 app.get('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const {
@@ -11651,7 +11755,7 @@ app.get('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGE
       endDate,
       centerId,
       invoiceType,  // tuition | book | uniform | exam | other
-      overdue,  // 'true' để lọc HD quá hạn
+      overdue,  // 'true' Ä‘á»ƒ lá»c HD quÃ¡ háº¡n
       sortBy = 'created_at',
       sortOrder = 'desc'
     } = req.query;
@@ -11666,13 +11770,13 @@ app.get('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGE
       if (!userCenterId) {
         return res.status(403).json({
           success: false,
-          message: 'Bạn chưa được gán vào trung tâm nào.'
+          message: 'Báº¡n chÆ°a Ä‘Æ°á»£c gÃ¡n vÃ o trung tÃ¢m nÃ o.'
         });
       }
       if (centerId && centerId !== userCenterId) {
         return res.status(403).json({
           success: false,
-          message: 'Bạn không có quyền xem hóa đơn của trung tâm khác.'
+          message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem hÃ³a Ä‘Æ¡n cá»§a trung tÃ¢m khÃ¡c.'
         });
       }
       effectiveCenterId = userCenterId;
@@ -11682,7 +11786,7 @@ app.get('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGE
     const limitNum = parseInt(limit);
     const offset = (pageNum - 1) * limitNum;
 
-    // Build query - thêm center_id từ class
+    // Build query - thÃªm center_id tá»« class
     let query = supabase
       .from('invoices')
       .select(`
@@ -11738,7 +11842,7 @@ app.get('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGE
       query = query.lte('created_at', `${endDate}T23:59:59`);
     }
 
-    // Search by invoice_code hoặc student name
+    // Search by invoice_code hoáº·c student name
     if (search && search.trim()) {
       const searchTerm = `%${search.trim()}%`;
       query = query.or(`invoice_code.ilike.${searchTerm}`);
@@ -11750,32 +11854,32 @@ app.get('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGE
     const ascending = sortOrder === 'asc';
     query = query.order(sortField, { ascending });
 
-    // ⚠️ IMPORTANT: Khi cần filter theo center_id (nested field),
-    // phải load ALL rồi filter/paginate trên JS
-    // vì Supabase không support filter trên nested relation
+    // âš ï¸ IMPORTANT: Khi cáº§n filter theo center_id (nested field),
+    // pháº£i load ALL rá»“i filter/paginate trÃªn JS
+    // vÃ¬ Supabase khÃ´ng support filter trÃªn nested relation
     const needsJSFilter = effectiveCenterId || overdue === 'true' || (search && search.trim());
 
     if (!needsJSFilter) {
-      // Case 1: Không cần JS filter → paginate trên DB (hiệu năng tốt)
+      // Case 1: KhÃ´ng cáº§n JS filter â†’ paginate trÃªn DB (hiá»‡u nÄƒng tá»‘t)
       query = query.range(offset, offset + limitNum - 1);
     }
-    // Case 2: Cần JS filter → load ALL, paginate sau
+    // Case 2: Cáº§n JS filter â†’ load ALL, paginate sau
 
     const { data, error, count } = await query;
 
     if (error) throw error;
 
-    // Post-filter theo center (vì nested filter không support)
+    // Post-filter theo center (vÃ¬ nested filter khÃ´ng support)
     let filteredData = data || [];
 
     if (effectiveCenterId) {
       filteredData = filteredData.filter(inv =>
         inv.class?.center_id === effectiveCenterId ||
-        !inv.class_id // Hóa đơn không gắn class (phí khác) vẫn hiển thị
+        !inv.class_id // HÃ³a Ä‘Æ¡n khÃ´ng gáº¯n class (phÃ­ khÃ¡c) váº«n hiá»ƒn thá»‹
       );
     }
 
-    // Filter overdue (quá hạn)
+    // Filter overdue (quÃ¡ háº¡n)
     if (overdue === 'true') {
       const today = new Date().toISOString().split('T')[0];
       filteredData = filteredData.filter(inv =>
@@ -11797,7 +11901,7 @@ app.get('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGE
       );
     }
 
-    // JS Pagination (khi đã filter trên JS)
+    // JS Pagination (khi Ä‘Ã£ filter trÃªn JS)
     const totalFiltered = filteredData.length;
     if (needsJSFilter) {
       filteredData = filteredData.slice(offset, offset + limitNum);
@@ -11820,7 +11924,7 @@ app.get('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGE
   }
 });
 
-// GET /api/invoices/statistics - Thống kê hóa đơn
+// GET /api/invoices/statistics - Thá»‘ng kÃª hÃ³a Ä‘Æ¡n
 app.get('/api/invoices/statistics', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { centerId } = req.query;
@@ -11835,13 +11939,13 @@ app.get('/api/invoices/statistics', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       if (!userCenterId) {
         return res.status(403).json({
           success: false,
-          message: 'Bạn chưa được gán vào trung tâm nào.'
+          message: 'Báº¡n chÆ°a Ä‘Æ°á»£c gÃ¡n vÃ o trung tÃ¢m nÃ o.'
         });
       }
       effectiveCenterId = userCenterId;
     }
 
-    // Lấy invoices với class info để filter theo center
+    // Láº¥y invoices vá»›i class info Ä‘á»ƒ filter theo center
     const { data: rawInvoices, error } = await supabase
       .from('invoices')
       .select(`
@@ -11865,20 +11969,20 @@ app.get('/api/invoices/statistics', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       );
     }
 
-    // Lấy ngày đầu tháng và cuối tháng hiện tại
+    // Láº¥y ngÃ y Ä‘áº§u thÃ¡ng vÃ  cuá»‘i thÃ¡ng hiá»‡n táº¡i
     const now = new Date();
     const today = now.toISOString().split('T')[0];
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-    // Tính toán thống kê
+    // TÃ­nh toÃ¡n thá»‘ng kÃª
     let totalRevenue = 0;
     let monthlyRevenue = 0;
     let totalDebt = 0;
     let countUnpaid = 0;
     let countPartial = 0;
     let countPaid = 0;
-    let countOverdue = 0;  // Thêm đếm HD quá hạn
+    let countOverdue = 0;  // ThÃªm Ä‘áº¿m HD quÃ¡ háº¡n
 
     invoices.forEach(inv => {
       const paidAmount = parseFloat(inv.paid_amount) || 0;
@@ -11895,12 +11999,12 @@ app.get('/api/invoices/statistics', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       else if (inv.status === 'partial') countPartial++;
       else if (inv.status === 'paid') countPaid++;
 
-      // Đếm quá hạn
+      // Äáº¿m quÃ¡ háº¡n
       if (inv.due_date && inv.due_date < today && inv.status !== 'paid') {
         countOverdue++;
       }
 
-      // Monthly revenue: CHỈ tính invoices có paid_at trong tháng hiện tại
+      // Monthly revenue: CHá»ˆ tÃ­nh invoices cÃ³ paid_at trong thÃ¡ng hiá»‡n táº¡i
       if (inv.paid_at) {
         const paidDate = new Date(inv.paid_at);
         if (paidDate >= firstDayOfMonth && paidDate <= lastDayOfMonth) {
@@ -11931,7 +12035,7 @@ app.get('/api/invoices/statistics', requireAuth, requireRole(['SUPER_ADMIN', 'CE
   }
 });
 
-// GET /api/finance/summary - Tổng quan tài chính
+// GET /api/finance/summary - Tá»•ng quan tÃ i chÃ­nh
 app.get('/api/finance/summary', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const {
@@ -12072,7 +12176,7 @@ app.get('/api/finance/summary', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
 
     const topCourseMap = {};
     periodInvoices.forEach((invoice) => {
-      const courseName = invoice.class?.course?.title || 'Khóa học khác';
+      const courseName = invoice.class?.course?.title || 'KhÃ³a há»c khÃ¡c';
       const revenue = parseFloat(invoice.final_amount) || 0;
 
       if (!topCourseMap[courseName]) {
@@ -12163,12 +12267,12 @@ app.get('/api/finance/summary', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
   }
 });
 
-// GET /api/invoices/:id - Chi tiết hóa đơn
+// GET /api/invoices/:id - Chi tiáº¿t hÃ³a Ä‘Æ¡n
 app.get('/api/invoices/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // Lấy invoice với thông tin liên quan
+    // Láº¥y invoice vá»›i thÃ´ng tin liÃªn quan
     const { data: invoice, error: invoiceError } = await supabase
       .from('invoices')
       .select(`
@@ -12199,7 +12303,7 @@ app.get('/api/invoices/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MA
       return res.status(404).json({ success: false, message: 'Invoice not found' });
     }
 
-    // Lấy lịch sử thanh toán
+    // Láº¥y lá»‹ch sá»­ thanh toÃ¡n
     const { data: payments, error: paymentsError } = await supabase
       .from('payments')
       .select(`
@@ -12235,12 +12339,12 @@ app.get('/api/invoices/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MA
   }
 });
 
-// POST /api/invoices - Tạo hóa đơn thủ công (phí ngoài học phí)
+// POST /api/invoices - Táº¡o hÃ³a Ä‘Æ¡n thá»§ cÃ´ng (phÃ­ ngoÃ i há»c phÃ­)
 app.post('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const {
       student_id,
-      class_id,         // Optional - nếu liên quan đến lớp
+      class_id,         // Optional - náº¿u liÃªn quan Ä‘áº¿n lá»›p
       invoice_type,     // tuition | book | uniform | exam | other
       amount,
       discount_amount = 0,
@@ -12251,16 +12355,16 @@ app.post('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAG
 
     // Validation
     if (!student_id) {
-      return res.status(400).json({ success: false, message: 'Vui lòng chọn học viên' });
+      return res.status(400).json({ success: false, message: 'Vui lÃ²ng chá»n há»c viÃªn' });
     }
     if (!amount || amount <= 0) {
-      return res.status(400).json({ success: false, message: 'Số tiền phải lớn hơn 0' });
+      return res.status(400).json({ success: false, message: 'Sá»‘ tiá»n pháº£i lá»›n hÆ¡n 0' });
     }
     if (!invoice_type) {
-      return res.status(400).json({ success: false, message: 'Vui lòng chọn loại hóa đơn' });
+      return res.status(400).json({ success: false, message: 'Vui lÃ²ng chá»n loáº¡i hÃ³a Ä‘Æ¡n' });
     }
 
-    // Kiểm tra học viên tồn tại
+    // Kiá»ƒm tra há»c viÃªn tá»“n táº¡i
     const { data: student, error: studentError } = await supabase
       .from('users')
       .select('id, full_name')
@@ -12268,25 +12372,25 @@ app.post('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAG
       .single();
 
     if (studentError || !student) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy học viên' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y há»c viÃªn' });
     }
 
     const finalAmount = parseFloat(amount) - parseFloat(discount_amount || 0);
 
-    // Tạo description mặc định nếu không có
+    // Táº¡o description máº·c Ä‘á»‹nh náº¿u khÃ´ng cÃ³
     const typeLabels = {
-      tuition: 'Học phí',
-      book: 'Giáo trình/Sách',
-      uniform: 'Đồng phục',
-      exam: 'Phí thi',
-      other: 'Phí khác'
+      tuition: 'Há»c phÃ­',
+      book: 'GiÃ¡o trÃ¬nh/SÃ¡ch',
+      uniform: 'Äá»“ng phá»¥c',
+      exam: 'PhÃ­ thi',
+      other: 'PhÃ­ khÃ¡c'
     };
-    const defaultDesc = description || `${typeLabels[invoice_type] || 'Phí khác'} - ${student.full_name}`;
+    const defaultDesc = description || `${typeLabels[invoice_type] || 'PhÃ­ khÃ¡c'} - ${student.full_name}`;
 
-    // Insert invoice - thử với invoice_type trước, nếu lỗi thì bỏ qua
+    // Insert invoice - thá»­ vá»›i invoice_type trÆ°á»›c, náº¿u lá»—i thÃ¬ bá» qua
     let invoice, error;
 
-    // Thử insert với invoice_type
+    // Thá»­ insert vá»›i invoice_type
     const insertData = {
       student_id,
       class_id: class_id || null,
@@ -12300,7 +12404,7 @@ app.post('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAG
       created_by: req.user?.id
     };
 
-    // Thử insert với invoice_type (nếu column tồn tại)
+    // Thá»­ insert vá»›i invoice_type (náº¿u column tá»“n táº¡i)
     const result1 = await supabase
       .from('invoices')
       .insert({ ...insertData, invoice_type: invoice_type || 'other' })
@@ -12311,8 +12415,8 @@ app.post('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAG
       .single();
 
     if (result1.error && result1.error.message?.includes('invoice_type')) {
-      // Column không tồn tại, thử insert không có invoice_type
-      console.warn('⚠️ invoice_type column not found, inserting without it');
+      // Column khÃ´ng tá»“n táº¡i, thá»­ insert khÃ´ng cÃ³ invoice_type
+      console.warn('âš ï¸ invoice_type column not found, inserting without it');
       const result2 = await supabase
         .from('invoices')
         .insert(insertData)
@@ -12331,11 +12435,11 @@ app.post('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAG
 
     if (error) throw error;
 
-    console.log(`📄 Tạo hóa đơn ${invoice.invoice_code} - ${invoice_type || 'other'} cho ${student.full_name}`);
+    console.log(`ðŸ“„ Táº¡o hÃ³a Ä‘Æ¡n ${invoice.invoice_code} - ${invoice_type || 'other'} cho ${student.full_name}`);
 
     res.status(201).json({
       success: true,
-      message: `Đã tạo hóa đơn ${invoice.invoice_code}`,
+      message: `ÄÃ£ táº¡o hÃ³a Ä‘Æ¡n ${invoice.invoice_code}`,
       data: invoice
     });
 
@@ -12345,7 +12449,7 @@ app.post('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAG
   }
 });
 
-// POST /api/invoices/:id/payments - Thêm thanh toán cho hóa đơn
+// POST /api/invoices/:id/payments - ThÃªm thanh toÃ¡n cho hÃ³a Ä‘Æ¡n
 app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'STUDENT']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -12357,11 +12461,11 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
     if (!amount || amount <= 0) {
       return res.status(400).json({
         success: false,
-        message: 'Số tiền thanh toán phải lớn hơn 0'
+        message: 'Sá»‘ tiá»n thanh toÃ¡n pháº£i lá»›n hÆ¡n 0'
       });
     }
 
-    // Kiểm tra invoice tồn tại - bao gồm invoice_code để auto-verify
+    // Kiá»ƒm tra invoice tá»“n táº¡i - bao gá»“m invoice_code Ä‘á»ƒ auto-verify
     const { data: invoice, error: invoiceError } = await supabase
       .from('invoices')
       .select(`
@@ -12380,21 +12484,21 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
     if (invoiceError || !invoice) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy hóa đơn'
+        message: 'KhÃ´ng tÃ¬m tháº¥y hÃ³a Ä‘Æ¡n'
       });
     }
 
     if (invoice.status === 'paid') {
       return res.status(400).json({
         success: false,
-        message: 'Hóa đơn đã thanh toán đủ'
+        message: 'HÃ³a Ä‘Æ¡n Ä‘Ã£ thanh toÃ¡n Ä‘á»§'
       });
     }
 
     if (invoice.status === 'cancelled') {
       return res.status(400).json({
         success: false,
-        message: 'Hóa đơn đã bị hủy'
+        message: 'HÃ³a Ä‘Æ¡n Ä‘Ã£ bá»‹ há»§y'
       });
     }
 
@@ -12403,7 +12507,7 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
     if (remaining <= 0) {
       return res.status(400).json({
         success: false,
-        message: 'Hóa đơn đã thanh toán đủ, không thể thêm thanh toán'
+        message: 'HÃ³a Ä‘Æ¡n Ä‘Ã£ thanh toÃ¡n Ä‘á»§, khÃ´ng thá»ƒ thÃªm thanh toÃ¡n'
       });
     }
 
@@ -12411,7 +12515,7 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
     if (paymentAmount > remaining) {
       return res.status(400).json({
         success: false,
-        message: `Số tiền thanh toán (${paymentAmount.toLocaleString('vi-VN')}đ) vượt quá số còn nợ (${remaining.toLocaleString('vi-VN')}đ)`
+        message: `Sá»‘ tiá»n thanh toÃ¡n (${paymentAmount.toLocaleString('vi-VN')}Ä‘) vÆ°á»£t quÃ¡ sá»‘ cÃ²n ná»£ (${remaining.toLocaleString('vi-VN')}Ä‘)`
       });
     }
 
@@ -12422,21 +12526,21 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
       if (invoice.student_id !== userId) {
         return res.status(403).json({
           success: false,
-          message: 'Bạn không có quyền thanh toán hóa đơn này'
+          message: 'Báº¡n khÃ´ng cÃ³ quyá»n thanh toÃ¡n hÃ³a Ä‘Æ¡n nÃ y'
         });
       }
 
       if (payment_method !== 'bank_transfer') {
         return res.status(400).json({
           success: false,
-          message: 'Học viên chỉ có thể thanh toán bằng chuyển khoản'
+          message: 'Há»c viÃªn chá»‰ cÃ³ thá»ƒ thanh toÃ¡n báº±ng chuyá»ƒn khoáº£n'
         });
       }
 
       if (!req.body.bank_proof_url) {
         return res.status(400).json({
           success: false,
-          message: 'Vui lòng tải lên ảnh minh chứng chuyển khoản'
+          message: 'Vui lÃ²ng táº£i lÃªn áº£nh minh chá»©ng chuyá»ƒn khoáº£n'
         });
       }
     } else {
@@ -12444,7 +12548,7 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
         if (!userCenterId) {
           return res.status(403).json({
             success: false,
-            message: 'Bạn chưa được gán vào trung tâm nào.'
+            message: 'Báº¡n chÆ°a Ä‘Æ°á»£c gÃ¡n vÃ o trung tÃ¢m nÃ o.'
           });
         }
 
@@ -12452,7 +12556,7 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
         if (invoiceCenterId && invoiceCenterId !== userCenterId) {
           return res.status(403).json({
             success: false,
-            message: 'Bạn không có quyền thao tác hóa đơn của trung tâm khác.'
+            message: 'Báº¡n khÃ´ng cÃ³ quyá»n thao tÃ¡c hÃ³a Ä‘Æ¡n cá»§a trung tÃ¢m khÃ¡c.'
           });
         }
       }
@@ -12460,7 +12564,7 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
       if (payment_method !== 'cash' && !reference_code && !req.body.bank_proof_url) {
         return res.status(400).json({
           success: false,
-          message: 'Thanh toán không dùng tiền mặt cần mã tham chiếu hoặc minh chứng giao dịch'
+          message: 'Thanh toÃ¡n khÃ´ng dÃ¹ng tiá»n máº·t cáº§n mÃ£ tham chiáº¿u hoáº·c minh chá»©ng giao dá»‹ch'
         });
       }
     }
@@ -12503,13 +12607,13 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
         // AUTO-VERIFY: Content matches invoice code + amount is correct
         verificationStatus = 'verified';
         autoVerified = true;
-        verificationNote = `Tự động xác nhận: Mã ${invoiceCode} khớp, số tiền đúng`;
+        verificationNote = `Tá»± Ä‘á»™ng xÃ¡c nháº­n: MÃ£ ${invoiceCode} khá»›p, sá»‘ tiá»n Ä‘Ãºng`;
         console.log(`[AUTO-VERIFY] Invoice ${invoiceCode} - Amount matched`);
       } else if (hasInvoiceCode) {
         // Has invoice code but amount mismatch - still auto-verify but note it
         verificationStatus = 'verified';
         autoVerified = true;
-        verificationNote = `Tự động xác nhận: Mã ${invoiceCode} khớp, thanh toán 1 phần`;
+        verificationNote = `Tá»± Ä‘á»™ng xÃ¡c nháº­n: MÃ£ ${invoiceCode} khá»›p, thanh toÃ¡n 1 pháº§n`;
         console.log(`[AUTO-VERIFY] Invoice ${invoiceCode} - Partial payment`);
       } else {
         // No match - pending manual review
@@ -12538,7 +12642,7 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
       paymentData.payment_date = new Date(transfer_date).toISOString();
     }
 
-    console.log('📝 Payment data to insert:', JSON.stringify(paymentData, null, 2));
+    console.log('ðŸ“ Payment data to insert:', JSON.stringify(paymentData, null, 2));
 
     const { data: payment, error: paymentError } = await supabase
       .from('payments')
@@ -12547,7 +12651,7 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
       .single();
 
     if (paymentError) {
-      console.error('❌ Payment insert error:', paymentError);
+      console.error('âŒ Payment insert error:', paymentError);
       throw paymentError;
     }
 
@@ -12560,7 +12664,7 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
         const adminSupabase = supabaseAdmin;
 
         const centerId = invoice.class?.center_id || invoice.student?.center_id;
-        console.log(`🔔 Creating payment notification, centerId: ${centerId}, userId: ${userId}`);
+        console.log(`ðŸ”” Creating payment notification, centerId: ${centerId}, userId: ${userId}`);
 
         // Get student name
         const { data: studentProfile } = await adminSupabase
@@ -12568,8 +12672,8 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
           .select('full_name')
           .eq('id', userId)
           .single();
-        const studentName = studentProfile?.full_name || 'Học viên';
-        const amountText = parseFloat(amount).toLocaleString('vi-VN') + ' đ';
+        const studentName = studentProfile?.full_name || 'Há»c viÃªn';
+        const amountText = parseFloat(amount).toLocaleString('vi-VN') + ' Ä‘';
 
         if (centerId) {
           // Get role IDs for admin roles
@@ -12579,7 +12683,7 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
             .in('code', ['SUPER_ADMIN', 'CENTER_MANAGER']);
 
           const adminRoleIds = (adminRoles || []).map(r => r.id);
-          console.log(`🔔 Found ${adminRoleIds.length} admin role(s)`);
+          console.log(`ðŸ”” Found ${adminRoleIds.length} admin role(s)`);
 
           if (adminRoleIds.length > 0) {
             // Find all users with admin roles (center-scoped + super admins)
@@ -12594,15 +12698,15 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
               u.center_id === centerId || u.role_id === superAdminRoleId
             );
 
-            console.log(`🔔 Found ${relevantAdmins.length} admin(s) to notify`);
+            console.log(`ðŸ”” Found ${relevantAdmins.length} admin(s) to notify`);
 
             if (relevantAdmins.length > 0) {
               const notifRecords = relevantAdmins.map(admin => ({
                 user_id: admin.id,
                 center_id: centerId,
                 type: 'payment_submitted',
-                title: `Học viên gửi minh chứng thanh toán`,
-                message: `${studentName} đã gửi minh chứng chuyển khoản ${amountText} cho hóa đơn ${invoice.invoice_code || id.slice(0, 8)}. Vui lòng xác nhận.`,
+                title: `Há»c viÃªn gá»­i minh chá»©ng thanh toÃ¡n`,
+                message: `${studentName} Ä‘Ã£ gá»­i minh chá»©ng chuyá»ƒn khoáº£n ${amountText} cho hÃ³a Ä‘Æ¡n ${invoice.invoice_code || id.slice(0, 8)}. Vui lÃ²ng xÃ¡c nháº­n.`,
                 reference_id: payment.id,
                 reference_type: 'payment'
               }));
@@ -12612,22 +12716,22 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
                 .insert(notifRecords);
 
               if (notifError) {
-                console.error('❌ Failed to create payment notification:', notifError);
+                console.error('âŒ Failed to create payment notification:', notifError);
               } else {
-                console.log(`✅ Sent payment notification to ${relevantAdmins.length} admin(s)`);
+                console.log(`âœ… Sent payment notification to ${relevantAdmins.length} admin(s)`);
               }
             }
           }
         } else {
-          console.warn('⚠️ No centerId found for notification');
+          console.warn('âš ï¸ No centerId found for notification');
         }
       } catch (notifErr) {
         // Don't fail the payment if notification fails
-        console.error('⚠️ Notification error (non-fatal):', notifErr);
+        console.error('âš ï¸ Notification error (non-fatal):', notifErr);
       }
     }
 
-    // Lấy lại invoice đã cập nhật
+    // Láº¥y láº¡i invoice Ä‘Ã£ cáº­p nháº­t
     const { data: updatedInvoice } = await supabase
       .from('invoices')
       .select('*')
@@ -12637,11 +12741,11 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
     // Response message based on verification status
     let responseMessage;
     if (payment_method === 'cash') {
-      responseMessage = 'Thanh toán tiền mặt thành công';
+      responseMessage = 'Thanh toÃ¡n tiá»n máº·t thÃ nh cÃ´ng';
     } else if (autoVerified) {
-      responseMessage = 'Chuyển khoản đã được tự động xác nhận';
+      responseMessage = 'Chuyá»ƒn khoáº£n Ä‘Ã£ Ä‘Æ°á»£c tá»± Ä‘á»™ng xÃ¡c nháº­n';
     } else {
-      responseMessage = 'Đã ghi nhận chuyển khoản. Chờ xác nhận thủ công.';
+      responseMessage = 'ÄÃ£ ghi nháº­n chuyá»ƒn khoáº£n. Chá» xÃ¡c nháº­n thá»§ cÃ´ng.';
     }
 
     res.json({
@@ -12661,7 +12765,7 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
   }
 });
 
-// GET /api/invoices/:id/payments - Lấy danh sách thanh toán của hóa đơn
+// GET /api/invoices/:id/payments - Láº¥y danh sÃ¡ch thanh toÃ¡n cá»§a hÃ³a Ä‘Æ¡n
 app.get('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -12688,7 +12792,7 @@ app.get('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', '
   }
 });
 
-// PATCH /api/payments/:id/verify - Admin xác nhận chuyển khoản
+// PATCH /api/payments/:id/verify - Admin xÃ¡c nháº­n chuyá»ƒn khoáº£n
 app.patch('/api/payments/:id/verify', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -12713,13 +12817,13 @@ app.patch('/api/payments/:id/verify', requireAuth, requireRole(['SUPER_ADMIN', '
       .single();
 
     if (fetchError || !payment) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy thanh toán' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y thanh toÃ¡n' });
     }
 
     if (payment.verification_status !== 'pending') {
       return res.status(400).json({
         success: false,
-        message: `Thanh toán này đã ${payment.verification_status === 'verified' ? 'được xác nhận' : 'bị từ chối'}`
+        message: `Thanh toÃ¡n nÃ y Ä‘Ã£ ${payment.verification_status === 'verified' ? 'Ä‘Æ°á»£c xÃ¡c nháº­n' : 'bá»‹ tá»« chá»‘i'}`
       });
     }
 
@@ -12728,7 +12832,7 @@ app.patch('/api/payments/:id/verify', requireAuth, requireRole(['SUPER_ADMIN', '
     if (verifyPermError || (req.user.roleCode === 'CENTER_MANAGER' && !paymentCenterId)) {
       return res.status(403).json({
         success: false,
-        message: 'Bạn không có quyền xác minh giao dịch này'
+        message: 'Báº¡n khÃ´ng cÃ³ quyá»n xÃ¡c minh giao dá»‹ch nÃ y'
       });
     }
 
@@ -12746,14 +12850,14 @@ app.patch('/api/payments/:id/verify', requireAuth, requireRole(['SUPER_ADMIN', '
       // Auto-reject this duplicate payment
       await supabaseAdmin.from('payments').update({
         verification_status: 'rejected',
-        rejection_reason: 'Hóa đơn đã được thanh toán đầy đủ. Giao dịch trùng lặp.',
+        rejection_reason: 'HÃ³a Ä‘Æ¡n Ä‘Ã£ Ä‘Æ°á»£c thanh toÃ¡n Ä‘áº§y Ä‘á»§. Giao dá»‹ch trÃ¹ng láº·p.',
         verified_by: userId,
         verified_at: new Date().toISOString()
       }).eq('id', id);
 
       return res.status(400).json({
         success: false,
-        message: 'Hóa đơn đã được thanh toán đầy đủ. Giao dịch này là trùng lặp và đã bị từ chối tự động.'
+        message: 'HÃ³a Ä‘Æ¡n Ä‘Ã£ Ä‘Æ°á»£c thanh toÃ¡n Ä‘áº§y Ä‘á»§. Giao dá»‹ch nÃ y lÃ  trÃ¹ng láº·p vÃ  Ä‘Ã£ bá»‹ tá»« chá»‘i tá»± Ä‘á»™ng.'
       });
     }
 
@@ -12783,26 +12887,26 @@ app.patch('/api/payments/:id/verify', requireAuth, requireRole(['SUPER_ADMIN', '
       const adminSupabase = supabaseAdmin;
       const studentId = payment.invoice?.student_id;
       const centerId = payment.invoice?.class?.center_id || payment.invoice?.student?.center_id;
-      const amountText = parseFloat(payment.amount).toLocaleString('vi-VN') + ' đ';
+      const amountText = parseFloat(payment.amount).toLocaleString('vi-VN') + ' Ä‘';
       if (studentId && centerId) {
         await adminSupabase.from('notifications').insert({
           user_id: studentId,
           center_id: centerId,
           type: 'payment_verified',
-          title: 'Thanh toán đã được xác nhận',
-          message: `Thanh toán ${amountText} cho hóa đơn ${payment.invoice?.invoice_code || ''} đã được xác nhận.`,
+          title: 'Thanh toÃ¡n Ä‘Ã£ Ä‘Æ°á»£c xÃ¡c nháº­n',
+          message: `Thanh toÃ¡n ${amountText} cho hÃ³a Ä‘Æ¡n ${payment.invoice?.invoice_code || ''} Ä‘Ã£ Ä‘Æ°á»£c xÃ¡c nháº­n.`,
           reference_id: payment.id,
           reference_type: 'payment'
         });
-        console.log(`✅ Notified student ${studentId} of payment verification`);
+        console.log(`âœ… Notified student ${studentId} of payment verification`);
       }
     } catch (notifErr) {
-      console.warn('⚠️ Verify notification error (non-fatal):', notifErr.message);
+      console.warn('âš ï¸ Verify notification error (non-fatal):', notifErr.message);
     }
 
     res.json({
       success: true,
-      message: 'Đã xác nhận thanh toán chuyển khoản',
+      message: 'ÄÃ£ xÃ¡c nháº­n thanh toÃ¡n chuyá»ƒn khoáº£n',
       data: { payment: updated, invoice }
     });
   } catch (error) {
@@ -12811,7 +12915,7 @@ app.patch('/api/payments/:id/verify', requireAuth, requireRole(['SUPER_ADMIN', '
   }
 });
 
-// PATCH /api/payments/:id/reject - Admin từ chối chuyển khoản
+// PATCH /api/payments/:id/reject - Admin tá»« chá»‘i chuyá»ƒn khoáº£n
 app.patch('/api/payments/:id/reject', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -12819,7 +12923,7 @@ app.patch('/api/payments/:id/reject', requireAuth, requireRole(['SUPER_ADMIN', '
     const userId = req.user?.id;
 
     if (!reason || !String(reason).trim()) {
-      return res.status(400).json({ success: false, message: 'Vui lòng nhập lý do từ chối' });
+      return res.status(400).json({ success: false, message: 'Vui lÃ²ng nháº­p lÃ½ do tá»« chá»‘i' });
     }
 
     // Get payment with student info for notification
@@ -12839,13 +12943,13 @@ app.patch('/api/payments/:id/reject', requireAuth, requireRole(['SUPER_ADMIN', '
       .single();
 
     if (fetchError || !payment) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy thanh toán' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y thanh toÃ¡n' });
     }
 
     if (payment.verification_status !== 'pending') {
       return res.status(400).json({
         success: false,
-        message: `Thanh toán này đã ${payment.verification_status === 'verified' ? 'được xác nhận' : 'bị từ chối'}`
+        message: `Thanh toÃ¡n nÃ y Ä‘Ã£ ${payment.verification_status === 'verified' ? 'Ä‘Æ°á»£c xÃ¡c nháº­n' : 'bá»‹ tá»« chá»‘i'}`
       });
     }
 
@@ -12854,7 +12958,7 @@ app.patch('/api/payments/:id/reject', requireAuth, requireRole(['SUPER_ADMIN', '
     if (rejectPermError || (req.user.roleCode === 'CENTER_MANAGER' && !paymentCenterId)) {
       return res.status(403).json({
         success: false,
-        message: 'Bạn không có quyền từ chối giao dịch này'
+        message: 'Báº¡n khÃ´ng cÃ³ quyá»n tá»« chá»‘i giao dá»‹ch nÃ y'
       });
     }
 
@@ -12878,26 +12982,26 @@ app.patch('/api/payments/:id/reject', requireAuth, requireRole(['SUPER_ADMIN', '
       const adminSupabase = supabaseAdmin;
       const studentId = payment.invoice?.student_id;
       const centerId = payment.invoice?.class?.center_id || payment.invoice?.student?.center_id;
-      const amountText = parseFloat(payment.amount).toLocaleString('vi-VN') + ' đ';
+      const amountText = parseFloat(payment.amount).toLocaleString('vi-VN') + ' Ä‘';
       if (studentId && centerId) {
         await adminSupabase.from('notifications').insert({
           user_id: studentId,
           center_id: centerId,
           type: 'payment_rejected',
-          title: 'Thanh toán bị từ chối',
-          message: `Thanh toán ${amountText} cho hóa đơn ${payment.invoice?.invoice_code || ''} bị từ chối. Lý do: ${String(reason).trim()}`,
+          title: 'Thanh toÃ¡n bá»‹ tá»« chá»‘i',
+          message: `Thanh toÃ¡n ${amountText} cho hÃ³a Ä‘Æ¡n ${payment.invoice?.invoice_code || ''} bá»‹ tá»« chá»‘i. LÃ½ do: ${String(reason).trim()}`,
           reference_id: payment.id,
           reference_type: 'payment'
         });
-        console.log(`✅ Notified student ${studentId} of payment rejection`);
+        console.log(`âœ… Notified student ${studentId} of payment rejection`);
       }
     } catch (notifErr) {
-      console.warn('⚠️ Reject notification error (non-fatal):', notifErr.message);
+      console.warn('âš ï¸ Reject notification error (non-fatal):', notifErr.message);
     }
 
     res.json({
       success: true,
-      message: 'Đã từ chối thanh toán',
+      message: 'ÄÃ£ tá»« chá»‘i thanh toÃ¡n',
       data: updated
     });
   } catch (error) {
@@ -12906,7 +13010,7 @@ app.patch('/api/payments/:id/reject', requireAuth, requireRole(['SUPER_ADMIN', '
   }
 });
 
-// GET /api/payments/pending - Lấy danh sách chuyển khoản chờ xác nhận
+// GET /api/payments/pending - Láº¥y danh sÃ¡ch chuyá»ƒn khoáº£n chá» xÃ¡c nháº­n
 app.get('/api/payments/pending', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { center_id } = req.query;
@@ -12949,7 +13053,7 @@ app.get('/api/payments/pending', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
 });
 
 // ============================================
-// GET /api/transactions - Full transactions list (Tab Giao dịch)
+// GET /api/transactions - Full transactions list (Tab Giao dá»‹ch)
 // ============================================
 app.get('/api/transactions', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -13076,7 +13180,7 @@ app.patch('/api/transactions/bulk-verify', requireAuth, requireRole(['SUPER_ADMI
     if (!paymentIds || !Array.isArray(paymentIds) || paymentIds.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng chọn ít nhất một giao dịch'
+        message: 'Vui lÃ²ng chá»n Ã­t nháº¥t má»™t giao dá»‹ch'
       });
     }
 
@@ -13100,7 +13204,7 @@ app.patch('/api/transactions/bulk-verify', requireAuth, requireRole(['SUPER_ADMI
     if (missingIds.length > 0) {
       return res.status(404).json({
         success: false,
-        message: 'Một số giao dịch không tồn tại',
+        message: 'Má»™t sá»‘ giao dá»‹ch khÃ´ng tá»“n táº¡i',
         data: { missingIds }
       });
     }
@@ -13124,7 +13228,7 @@ app.patch('/api/transactions/bulk-verify', requireAuth, requireRole(['SUPER_ADMI
     if (unauthorizedIds.length > 0) {
       return res.status(403).json({
         success: false,
-        message: 'Có giao dịch thuộc trung tâm khác, thao tác bị từ chối',
+        message: 'CÃ³ giao dá»‹ch thuá»™c trung tÃ¢m khÃ¡c, thao tÃ¡c bá»‹ tá»« chá»‘i',
         data: { unauthorizedIds }
       });
     }
@@ -13132,7 +13236,7 @@ app.patch('/api/transactions/bulk-verify', requireAuth, requireRole(['SUPER_ADMI
     if (invalidStatusIds.length > 0) {
       return res.status(400).json({
         success: false,
-        message: 'Chỉ có thể xác nhận các giao dịch ở trạng thái chờ xác minh',
+        message: 'Chá»‰ cÃ³ thá»ƒ xÃ¡c nháº­n cÃ¡c giao dá»‹ch á»Ÿ tráº¡ng thÃ¡i chá» xÃ¡c minh',
         data: { invalidStatusIds }
       });
     }
@@ -13169,7 +13273,7 @@ app.patch('/api/transactions/bulk-verify', requireAuth, requireRole(['SUPER_ADMI
     if (duplicatePaymentIds.length > 0) {
       await supabaseAdmin.from('payments').update({
         verification_status: 'rejected',
-        rejection_reason: 'Hóa đơn đã được thanh toán đầy đủ. Giao dịch trùng lặp.',
+        rejection_reason: 'HÃ³a Ä‘Æ¡n Ä‘Ã£ Ä‘Æ°á»£c thanh toÃ¡n Ä‘áº§y Ä‘á»§. Giao dá»‹ch trÃ¹ng láº·p.',
         verified_by: userId,
         verified_at: new Date().toISOString()
       }).in('id', duplicatePaymentIds);
@@ -13194,9 +13298,9 @@ app.patch('/api/transactions/bulk-verify', requireAuth, requireRole(['SUPER_ADMI
 
     const rejectedCount = duplicatePaymentIds.length;
     const verifiedCount = updated?.length || 0;
-    let message = `Đã xác nhận ${verifiedCount} giao dịch`;
+    let message = `ÄÃ£ xÃ¡c nháº­n ${verifiedCount} giao dá»‹ch`;
     if (rejectedCount > 0) {
-      message += `. ${rejectedCount} giao dịch trùng lặp đã bị từ chối tự động.`;
+      message += `. ${rejectedCount} giao dá»‹ch trÃ¹ng láº·p Ä‘Ã£ bá»‹ tá»« chá»‘i tá»± Ä‘á»™ng.`;
     }
     
     res.json({
@@ -13212,13 +13316,13 @@ app.patch('/api/transactions/bulk-verify', requireAuth, requireRole(['SUPER_ADMI
   }
 });
 
-// PUT /api/invoices/:id - Cập nhật hóa đơn
+// PUT /api/invoices/:id - Cáº­p nháº­t hÃ³a Ä‘Æ¡n
 app.put('/api/invoices/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { amount, discount_amount, due_date, description, invoice_type } = req.body;
 
-    // Lấy invoice hiện tại
+    // Láº¥y invoice hiá»‡n táº¡i
     const { data: currentInvoice, error: fetchError } = await supabase
       .from('invoices')
       .select('*')
@@ -13226,20 +13330,20 @@ app.put('/api/invoices/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MA
       .single();
 
     if (fetchError || !currentInvoice) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy hóa đơn' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y hÃ³a Ä‘Æ¡n' });
     }
 
-    // Không cho sửa nếu đã paid hoặc cancelled
+    // KhÃ´ng cho sá»­a náº¿u Ä‘Ã£ paid hoáº·c cancelled
     if (currentInvoice.status === 'paid') {
-      return res.status(400).json({ success: false, message: 'Không thể sửa hóa đơn đã thanh toán đủ' });
+      return res.status(400).json({ success: false, message: 'KhÃ´ng thá»ƒ sá»­a hÃ³a Ä‘Æ¡n Ä‘Ã£ thanh toÃ¡n Ä‘á»§' });
     }
     if (currentInvoice.status === 'cancelled') {
-      return res.status(400).json({ success: false, message: 'Không thể sửa hóa đơn đã hủy' });
+      return res.status(400).json({ success: false, message: 'KhÃ´ng thá»ƒ sá»­a hÃ³a Ä‘Æ¡n Ä‘Ã£ há»§y' });
     }
 
     const updateData = { updated_at: new Date().toISOString() };
 
-    // Cập nhật số tiền
+    // Cáº­p nháº­t sá»‘ tiá»n
     let newAmount = currentInvoice.amount;
     let newDiscount = currentInvoice.discount_amount;
 
@@ -13252,12 +13356,12 @@ app.put('/api/invoices/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MA
       updateData.discount_amount = newDiscount;
     }
 
-    // Tính lại final_amount
+    // TÃ­nh láº¡i final_amount
     if (amount !== undefined || discount_amount !== undefined) {
       const newFinal = newAmount - newDiscount;
       updateData.final_amount = newFinal;
 
-      // Cập nhật status nếu cần
+      // Cáº­p nháº­t status náº¿u cáº§n
       const paidAmount = currentInvoice.paid_amount || 0;
       if (paidAmount >= newFinal) {
         updateData.status = 'paid';
@@ -13284,7 +13388,7 @@ app.put('/api/invoices/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MA
 
     res.json({
       success: true,
-      message: 'Cập nhật hóa đơn thành công',
+      message: 'Cáº­p nháº­t hÃ³a Ä‘Æ¡n thÃ nh cÃ´ng',
       data
     });
 
@@ -13294,13 +13398,13 @@ app.put('/api/invoices/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MA
   }
 });
 
-// PUT /api/invoices/:id/cancel - Hủy hóa đơn
+// PUT /api/invoices/:id/cancel - Há»§y hÃ³a Ä‘Æ¡n
 app.put('/api/invoices/:id/cancel', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;
 
-    // Lấy invoice hiện tại
+    // Láº¥y invoice hiá»‡n táº¡i
     const { data: invoice, error: fetchError } = await supabase
       .from('invoices')
       .select('*')
@@ -13308,23 +13412,23 @@ app.put('/api/invoices/:id/cancel', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       .single();
 
     if (fetchError || !invoice) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy hóa đơn' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y hÃ³a Ä‘Æ¡n' });
     }
 
     if (invoice.status === 'cancelled') {
-      return res.status(400).json({ success: false, message: 'Hóa đơn đã được hủy trước đó' });
+      return res.status(400).json({ success: false, message: 'HÃ³a Ä‘Æ¡n Ä‘Ã£ Ä‘Æ°á»£c há»§y trÆ°á»›c Ä‘Ã³' });
     }
 
     if (invoice.status === 'paid') {
       return res.status(400).json({
         success: false,
-        message: 'Không thể hủy hóa đơn đã thanh toán đủ. Hãy sử dụng chức năng hoàn tiền.'
+        message: 'KhÃ´ng thá»ƒ há»§y hÃ³a Ä‘Æ¡n Ä‘Ã£ thanh toÃ¡n Ä‘á»§. HÃ£y sá»­ dá»¥ng chá»©c nÄƒng hoÃ n tiá»n.'
       });
     }
 
-    // Nếu đã có thanh toán một phần, cảnh báo
+    // Náº¿u Ä‘Ã£ cÃ³ thanh toÃ¡n má»™t pháº§n, cáº£nh bÃ¡o
     if (invoice.paid_amount > 0) {
-      console.warn(`⚠️ Hủy hóa đơn ${invoice.invoice_code} có ${invoice.paid_amount.toLocaleString()}đ đã thanh toán`);
+      console.warn(`âš ï¸ Há»§y hÃ³a Ä‘Æ¡n ${invoice.invoice_code} cÃ³ ${invoice.paid_amount.toLocaleString()}Ä‘ Ä‘Ã£ thanh toÃ¡n`);
     }
 
     const { data, error } = await supabase
@@ -13332,7 +13436,7 @@ app.put('/api/invoices/:id/cancel', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       .update({
         status: 'cancelled',
         description: reason
-          ? `${invoice.description || ''} [HỦY: ${reason}]`
+          ? `${invoice.description || ''} [Há»¦Y: ${reason}]`
           : invoice.description,
         updated_at: new Date().toISOString()
       })
@@ -13342,11 +13446,11 @@ app.put('/api/invoices/:id/cancel', requireAuth, requireRole(['SUPER_ADMIN', 'CE
 
     if (error) throw error;
 
-    console.log(`🚫 Hủy hóa đơn ${invoice.invoice_code} bởi ${req.user.email}`);
+    console.log(`ðŸš« Há»§y hÃ³a Ä‘Æ¡n ${invoice.invoice_code} bá»Ÿi ${req.user.email}`);
 
     res.json({
       success: true,
-      message: `Đã hủy hóa đơn ${invoice.invoice_code}`,
+      message: `ÄÃ£ há»§y hÃ³a Ä‘Æ¡n ${invoice.invoice_code}`,
       data
     });
 
@@ -13356,13 +13460,13 @@ app.put('/api/invoices/:id/cancel', requireAuth, requireRole(['SUPER_ADMIN', 'CE
   }
 });
 
-// POST /api/invoices/:id/refund - Hoàn tiền
+// POST /api/invoices/:id/refund - HoÃ n tiá»n
 app.post('/api/invoices/:id/refund', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { refund_amount, reason, refund_method = 'cash' } = req.body;
 
-    // Lấy invoice hiện tại
+    // Láº¥y invoice hiá»‡n táº¡i
     const { data: invoice, error: fetchError } = await supabase
       .from('invoices')
       .select('*')
@@ -13370,38 +13474,38 @@ app.post('/api/invoices/:id/refund', requireAuth, requireRole(['SUPER_ADMIN', 'C
       .single();
 
     if (fetchError || !invoice) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy hóa đơn' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y hÃ³a Ä‘Æ¡n' });
     }
 
     if (invoice.status === 'cancelled') {
-      return res.status(400).json({ success: false, message: 'Không thể hoàn tiền hóa đơn đã hủy' });
+      return res.status(400).json({ success: false, message: 'KhÃ´ng thá»ƒ hoÃ n tiá»n hÃ³a Ä‘Æ¡n Ä‘Ã£ há»§y' });
     }
 
     if (invoice.status === 'refunded') {
-      return res.status(400).json({ success: false, message: 'Hóa đơn đã được hoàn tiền trước đó' });
+      return res.status(400).json({ success: false, message: 'HÃ³a Ä‘Æ¡n Ä‘Ã£ Ä‘Æ°á»£c hoÃ n tiá»n trÆ°á»›c Ä‘Ã³' });
     }
 
     const paidAmount = invoice.paid_amount || 0;
     if (paidAmount <= 0) {
-      return res.status(400).json({ success: false, message: 'Hóa đơn chưa có thanh toán để hoàn tiền' });
+      return res.status(400).json({ success: false, message: 'HÃ³a Ä‘Æ¡n chÆ°a cÃ³ thanh toÃ¡n Ä‘á»ƒ hoÃ n tiá»n' });
     }
 
     const refundValue = refund_amount ? parseFloat(refund_amount) : paidAmount;
     if (refundValue > paidAmount) {
       return res.status(400).json({
         success: false,
-        message: `Số tiền hoàn không thể lớn hơn đã thanh toán (${paidAmount.toLocaleString()}đ)`
+        message: `Sá»‘ tiá»n hoÃ n khÃ´ng thá»ƒ lá»›n hÆ¡n Ä‘Ã£ thanh toÃ¡n (${paidAmount.toLocaleString()}Ä‘)`
       });
     }
 
-    // Tạo payment record âm để ghi nhận hoàn tiền
+    // Táº¡o payment record Ã¢m Ä‘á»ƒ ghi nháº­n hoÃ n tiá»n
     const { error: paymentError } = await supabase
       .from('payments')
       .insert({
         invoice_id: id,
-        amount: -refundValue,  // Số âm = hoàn tiền
+        amount: -refundValue,  // Sá»‘ Ã¢m = hoÃ n tiá»n
         payment_method: refund_method,
-        notes: `HOÀN TIỀN: ${reason || 'Theo yêu cầu'}`,
+        notes: `HOÃ€N TIá»€N: ${reason || 'Theo yÃªu cáº§u'}`,
         received_by: req.user?.id
       });
 
@@ -13409,7 +13513,7 @@ app.post('/api/invoices/:id/refund', requireAuth, requireRole(['SUPER_ADMIN', 'C
       console.warn('Error creating refund payment record:', paymentError.message);
     }
 
-    // Cập nhật invoice
+    // Cáº­p nháº­t invoice
     const newPaidAmount = paidAmount - refundValue;
     let newStatus = 'refunded';
     if (newPaidAmount > 0 && newPaidAmount < invoice.final_amount) {
@@ -13423,7 +13527,7 @@ app.post('/api/invoices/:id/refund', requireAuth, requireRole(['SUPER_ADMIN', 'C
       .update({
         paid_amount: newPaidAmount,
         status: newStatus,
-        description: `${invoice.description || ''} [HOÀN TIỀN: ${refundValue.toLocaleString()}đ - ${reason || ''}]`,
+        description: `${invoice.description || ''} [HOÃ€N TIá»€N: ${refundValue.toLocaleString()}Ä‘ - ${reason || ''}]`,
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
@@ -13432,11 +13536,11 @@ app.post('/api/invoices/:id/refund', requireAuth, requireRole(['SUPER_ADMIN', 'C
 
     if (error) throw error;
 
-    console.log(`💸 Hoàn tiền ${refundValue.toLocaleString()}đ cho ${invoice.invoice_code} bởi ${req.user.email}`);
+    console.log(`ðŸ’¸ HoÃ n tiá»n ${refundValue.toLocaleString()}Ä‘ cho ${invoice.invoice_code} bá»Ÿi ${req.user.email}`);
 
     res.json({
       success: true,
-      message: `Đã hoàn ${refundValue.toLocaleString()}đ cho hóa đơn ${invoice.invoice_code}`,
+      message: `ÄÃ£ hoÃ n ${refundValue.toLocaleString()}Ä‘ cho hÃ³a Ä‘Æ¡n ${invoice.invoice_code}`,
       data,
       refund: {
         amount: refundValue,
@@ -13452,7 +13556,7 @@ app.post('/api/invoices/:id/refund', requireAuth, requireRole(['SUPER_ADMIN', 'C
 });
 
 // ============================================================
-// 🔥 NEW INVOICE WORKFLOW APIs - Draft Invoice Confirmation
+// ðŸ”¥ NEW INVOICE WORKFLOW APIs - Draft Invoice Confirmation
 // ============================================================
 
 // POST /api/invoices/:id/confirm - Confirm draft invoice
@@ -13471,7 +13575,7 @@ app.post('/api/invoices/:id/confirm', requireAuth, requireRole(['SUPER_ADMIN', '
 
     res.json({
       success: true,
-      message: 'Đã xác nhận hóa đơn thành công',
+      message: 'ÄÃ£ xÃ¡c nháº­n hÃ³a Ä‘Æ¡n thÃ nh cÃ´ng',
       data: result.data
     });
   } catch (error) {
@@ -13496,7 +13600,7 @@ app.post('/api/invoices/:id/void', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
 
     res.json({
       success: true,
-      message: 'Đã hủy hóa đơn draft',
+      message: 'ÄÃ£ há»§y hÃ³a Ä‘Æ¡n draft',
       data: result.data
     });
   } catch (error) {
@@ -13514,20 +13618,20 @@ app.post('/api/invoices/:id/void', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
  *   reference_code: string (optional, for bank transfers),
  *   notes: string (optional)
  * }
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/invoices/bulk-payment', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { invoice_ids, payment_method, reference_code, notes } = req.body;
     const userId = req.user?.id;
 
-    console.log('💳 Bulk payment request:', { invoice_ids, payment_method, userId });
+    console.log('ðŸ’³ Bulk payment request:', { invoice_ids, payment_method, userId });
 
     // Validate invoice_ids
     if (!invoice_ids || !Array.isArray(invoice_ids) || invoice_ids.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng chọn ít nhất một hóa đơn để thanh toán'
+        message: 'Vui lÃ²ng chá»n Ã­t nháº¥t má»™t hÃ³a Ä‘Æ¡n Ä‘á»ƒ thanh toÃ¡n'
       });
     }
 
@@ -13536,14 +13640,14 @@ app.post('/api/admin/invoices/bulk-payment', requireAuth, requireRole(['SUPER_AD
     if (!payment_method || !validMethods.includes(payment_method)) {
       return res.status(400).json({
         success: false,
-        message: 'Phương thức thanh toán không hợp lệ'
+        message: 'PhÆ°Æ¡ng thá»©c thanh toÃ¡n khÃ´ng há»£p lá»‡'
       });
     }
 
     if (payment_method !== 'cash' && !reference_code) {
       return res.status(400).json({
         success: false,
-        message: 'Thanh toán không dùng tiền mặt cần mã tham chiếu giao dịch'
+        message: 'Thanh toÃ¡n khÃ´ng dÃ¹ng tiá»n máº·t cáº§n mÃ£ tham chiáº¿u giao dá»‹ch'
       });
     }
 
@@ -13569,9 +13673,9 @@ app.post('/api/admin/invoices/bulk-payment', requireAuth, requireRole(['SUPER_AD
           results.details.push({
             invoice_id: invoiceId,
             status: 'failed',
-            reason: 'Không tìm thấy hóa đơn'
+            reason: 'KhÃ´ng tÃ¬m tháº¥y hÃ³a Ä‘Æ¡n'
           });
-          console.log(`❌ Invoice ${invoiceId}: Not found`);
+          console.log(`âŒ Invoice ${invoiceId}: Not found`);
           continue;
         }
 
@@ -13582,9 +13686,9 @@ app.post('/api/admin/invoices/bulk-payment', requireAuth, requireRole(['SUPER_AD
             invoice_id: invoiceId,
             invoice_code: invoice.invoice_code,
             status: 'skipped',
-            reason: 'Hóa đơn đã thanh toán đủ'
+            reason: 'HÃ³a Ä‘Æ¡n Ä‘Ã£ thanh toÃ¡n Ä‘á»§'
           });
-          console.log(`⏭️ Invoice ${invoice.invoice_code}: Already paid, skipping`);
+          console.log(`â­ï¸ Invoice ${invoice.invoice_code}: Already paid, skipping`);
           continue;
         }
 
@@ -13595,9 +13699,9 @@ app.post('/api/admin/invoices/bulk-payment', requireAuth, requireRole(['SUPER_AD
             invoice_id: invoiceId,
             invoice_code: invoice.invoice_code,
             status: 'skipped',
-            reason: `Hóa đơn đã ${invoice.status === 'cancelled' ? 'hủy' : 'hoàn tiền'}`
+            reason: `HÃ³a Ä‘Æ¡n Ä‘Ã£ ${invoice.status === 'cancelled' ? 'há»§y' : 'hoÃ n tiá»n'}`
           });
-          console.log(`⏭️ Invoice ${invoice.invoice_code}: ${invoice.status}, skipping`);
+          console.log(`â­ï¸ Invoice ${invoice.invoice_code}: ${invoice.status}, skipping`);
           continue;
         }
 
@@ -13610,7 +13714,7 @@ app.post('/api/admin/invoices/bulk-payment', requireAuth, requireRole(['SUPER_AD
             invoice_id: invoiceId,
             invoice_code: invoice.invoice_code,
             status: 'skipped',
-            reason: 'Không còn số tiền cần thanh toán'
+            reason: 'KhÃ´ng cÃ²n sá»‘ tiá»n cáº§n thanh toÃ¡n'
           });
           continue;
         }
@@ -13644,7 +13748,7 @@ app.post('/api/admin/invoices/bulk-payment', requireAuth, requireRole(['SUPER_AD
             status: 'failed',
             reason: paymentError.message
           });
-          console.log(`❌ Invoice ${invoice.invoice_code}: Payment error - ${paymentError.message}`);
+          console.log(`âŒ Invoice ${invoice.invoice_code}: Payment error - ${paymentError.message}`);
           continue;
         }
 
@@ -13665,7 +13769,7 @@ app.post('/api/admin/invoices/bulk-payment', requireAuth, requireRole(['SUPER_AD
           new_status: updatedInvoice?.status || 'paid',
           requires_verification: !autoVerified
         });
-        console.log(`✅ Invoice ${invoice.invoice_code}: Paid ${remainingAmount.toLocaleString()}đ`);
+        console.log(`âœ… Invoice ${invoice.invoice_code}: Paid ${remainingAmount.toLocaleString()}Ä‘`);
 
       } catch (err) {
         results.failed++;
@@ -13674,20 +13778,20 @@ app.post('/api/admin/invoices/bulk-payment', requireAuth, requireRole(['SUPER_AD
           status: 'failed',
           reason: err.message
         });
-        console.error(`❌ Invoice ${invoiceId}: Error - ${err.message}`);
+        console.error(`âŒ Invoice ${invoiceId}: Error - ${err.message}`);
       }
     }
 
-    console.log(`💳 Bulk payment complete: ${results.processed} processed, ${results.skipped} skipped, ${results.failed} failed`);
+    console.log(`ðŸ’³ Bulk payment complete: ${results.processed} processed, ${results.skipped} skipped, ${results.failed} failed`);
 
     res.json({
       success: true,
-      message: `Đã xử lý ${results.processed} hóa đơn${results.skipped > 0 ? `, bỏ qua ${results.skipped}` : ''}${results.failed > 0 ? `, lỗi ${results.failed}` : ''}`,
+      message: `ÄÃ£ xá»­ lÃ½ ${results.processed} hÃ³a Ä‘Æ¡n${results.skipped > 0 ? `, bá» qua ${results.skipped}` : ''}${results.failed > 0 ? `, lá»—i ${results.failed}` : ''}`,
       data: results
     });
 
   } catch (error) {
-    console.error('❌ Error processing bulk payment:', error);
+    console.error('âŒ Error processing bulk payment:', error);
     next(error);
   }
 });
@@ -13696,7 +13800,7 @@ app.post('/api/admin/invoices/bulk-payment', requireAuth, requireRole(['SUPER_AD
  * GET /api/admin/invoices/overdue
  * Get list of overdue invoices with student contact info
  * Query: ?center_id=xxx&daysOverdueMin=1&daysOverdueMax=7&page=1&limit=20&sortBy=days_overdue&sortOrder=desc
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/invoices/overdue', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -13725,7 +13829,7 @@ app.get('/api/admin/invoices/overdue', requireAuth, requireRole(['SUPER_ADMIN', 
     today.setHours(0, 0, 0, 0);
     const todayStr = today.toISOString().split('T')[0];
 
-    // daysOverdueMin=8 → invoice must be at least 8 days overdue → due_date <= today - 8
+    // daysOverdueMin=8 â†’ invoice must be at least 8 days overdue â†’ due_date <= today - 8
     let maxDueDate = todayStr; // Default: all overdue (due_date < today)
     if (daysOverdueMin && parseInt(daysOverdueMin) > 0) {
       const d = new Date(today);
@@ -13733,7 +13837,7 @@ app.get('/api/admin/invoices/overdue', requireAuth, requireRole(['SUPER_ADMIN', 
       maxDueDate = d.toISOString().split('T')[0];
     }
 
-    // daysOverdueMax=14 → invoice is at most 14 days overdue → due_date >= today - 14
+    // daysOverdueMax=14 â†’ invoice is at most 14 days overdue â†’ due_date >= today - 14
     let minDueDate = null;
     if (daysOverdueMax && parseInt(daysOverdueMax) > 0) {
       const d = new Date(today);
@@ -13741,7 +13845,7 @@ app.get('/api/admin/invoices/overdue', requireAuth, requireRole(['SUPER_ADMIN', 
       minDueDate = d.toISOString().split('T')[0];
     }
 
-    console.log('📋 Fetching overdue invoices:', { effectiveCenterId, daysOverdueMin, daysOverdueMax, maxDueDate, minDueDate, pageNum, limitNum });
+    console.log('ðŸ“‹ Fetching overdue invoices:', { effectiveCenterId, daysOverdueMin, daysOverdueMax, maxDueDate, minDueDate, pageNum, limitNum });
 
     // ---------- STATS QUERY (all overdue, no pagination, no day filter) ----------
     const statsSelect = effectiveCenterId
@@ -13809,7 +13913,7 @@ app.get('/api/admin/invoices/overdue', requireAuth, requireRole(['SUPER_ADMIN', 
     if (sortBy === 'amount') {
       query = query.order('final_amount', { ascending: sortOrder === 'asc' });
     } else {
-      // days_overdue → sort by due_date (ascending = most overdue first when sortOrder=desc)
+      // days_overdue â†’ sort by due_date (ascending = most overdue first when sortOrder=desc)
       query = query.order('due_date', { ascending: sortOrder !== 'desc' });
     }
 
@@ -13855,7 +13959,7 @@ app.get('/api/admin/invoices/overdue', requireAuth, requireRole(['SUPER_ADMIN', 
     }));
 
     const total = count || 0;
-    console.log(`📋 Found ${total} overdue invoices (page ${pageNum})`);
+    console.log(`ðŸ“‹ Found ${total} overdue invoices (page ${pageNum})`);
 
     // Response format matches frontend expectations
     res.json({
@@ -13876,7 +13980,7 @@ app.get('/api/admin/invoices/overdue', requireAuth, requireRole(['SUPER_ADMIN', 
     });
 
   } catch (error) {
-    console.error('❌ Error fetching overdue invoices:', error);
+    console.error('âŒ Error fetching overdue invoices:', error);
     next(error);
   }
 });
@@ -13889,7 +13993,7 @@ app.get('/api/admin/invoices/overdue', requireAuth, requireRole(['SUPER_ADMIN', 
  * GET /api/admin/payroll
  * Get list of payrolls with optional filters
  * Query: ?month=2&year=2026&status=draft&teacher_id=uuid
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/payroll',
   requireAuth,
@@ -13904,7 +14008,7 @@ app.get('/api/admin/payroll',
         return res.status(403).json({ success: false, message: permError });
       }
 
-      console.log(`💰 Admin ${req.user.email} fetching payrolls - month: ${month}, year: ${year}`);
+      console.log(`ðŸ’° Admin ${req.user.email} fetching payrolls - month: ${month}, year: ${year}`);
 
       let query = supabase
         .from('payroll')
@@ -13938,7 +14042,7 @@ app.get('/api/admin/payroll',
         data: data || []
       });
     } catch (error) {
-      console.error('❌ Error fetching payrolls:', error);
+      console.error('âŒ Error fetching payrolls:', error);
       next(error);
     }
   }
@@ -13948,7 +14052,7 @@ app.get('/api/admin/payroll',
  * GET /api/admin/payroll/stats
  * Get payroll statistics for a period
  * Query: ?month=2&year=2026
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/payroll/stats',
   requireAuth,
@@ -13965,7 +14069,7 @@ app.get('/api/admin/payroll/stats',
         return res.status(403).json({ success: false, message: permError });
       }
 
-      console.log(`💰 Admin ${req.user.email} fetching payroll stats - ${month}/${year}`);
+      console.log(`ðŸ’° Admin ${req.user.email} fetching payroll stats - ${month}/${year}`);
 
       const { data: payrolls, error } = await supabase
         .from('payroll')
@@ -14007,7 +14111,7 @@ app.get('/api/admin/payroll/stats',
         data: stats
       });
     } catch (error) {
-      console.error('❌ Error fetching payroll stats:', error);
+      console.error('âŒ Error fetching payroll stats:', error);
       next(error);
     }
   }
@@ -14017,7 +14121,7 @@ app.get('/api/admin/payroll/stats',
  * GET /api/admin/payroll/teachers
  * Get teachers with monthly stats (sessions, hours, base salary)
  * Query: ?month=2&year=2026
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/payroll/teachers',
   requireAuth,
@@ -14034,7 +14138,7 @@ app.get('/api/admin/payroll/teachers',
         return res.status(403).json({ success: false, message: permError });
       }
 
-      console.log(`💰 Admin ${req.user.email} fetching teachers for payroll - ${month}/${year}`);
+      console.log(`ðŸ’° Admin ${req.user.email} fetching teachers for payroll - ${month}/${year}`);
 
       // Get all teachers
       let teachersQuery = supabase
@@ -14123,7 +14227,7 @@ app.get('/api/admin/payroll/teachers',
         data: result
       });
     } catch (error) {
-      console.error('❌ Error fetching teachers for payroll:', error);
+      console.error('âŒ Error fetching teachers for payroll:', error);
       next(error);
     }
   }
@@ -14133,7 +14237,7 @@ app.get('/api/admin/payroll/teachers',
  * POST /api/admin/payroll/generate
  * Generate payroll for a single teacher
  * Body: { teacher_id, month, year, bonus, deduction, notes }
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/payroll/generate',
   requireAuth,
@@ -14145,11 +14249,11 @@ app.post('/api/admin/payroll/generate',
       if (!teacher_id || !month || !year) {
         return res.status(400).json({
           success: false,
-          message: 'teacher_id, month và year là bắt buộc'
+          message: 'teacher_id, month vÃ  year lÃ  báº¯t buá»™c'
         });
       }
 
-      console.log(`💰 Admin ${req.user.email} generating payroll for teacher ${teacher_id} - ${month}/${year}`);
+      console.log(`ðŸ’° Admin ${req.user.email} generating payroll for teacher ${teacher_id} - ${month}/${year}`);
 
       // Check if payroll already exists
       const { data: existing } = await supabase
@@ -14163,7 +14267,7 @@ app.post('/api/admin/payroll/generate',
       if (existing) {
         return res.status(400).json({
           success: false,
-          message: 'Bảng lương cho giáo viên này trong kỳ này đã tồn tại'
+          message: 'Báº£ng lÆ°Æ¡ng cho giÃ¡o viÃªn nÃ y trong ká»³ nÃ y Ä‘Ã£ tá»“n táº¡i'
         });
       }
 
@@ -14177,7 +14281,7 @@ app.post('/api/admin/payroll/generate',
       if (teacherError || !teacher) {
         return res.status(404).json({
           success: false,
-          message: 'Không tìm thấy giáo viên'
+          message: 'KhÃ´ng tÃ¬m tháº¥y giÃ¡o viÃªn'
         });
       }
 
@@ -14186,7 +14290,7 @@ app.post('/api/admin/payroll/generate',
       if (effectiveCenterId && teacher.center_id !== effectiveCenterId) {
         return res.status(403).json({
           success: false,
-          message: 'Bạn không có quyền tạo bảng lương cho giáo viên này'
+          message: 'Báº¡n khÃ´ng cÃ³ quyá»n táº¡o báº£ng lÆ°Æ¡ng cho giÃ¡o viÃªn nÃ y'
         });
       }
 
@@ -14247,15 +14351,15 @@ app.post('/api/admin/payroll/generate',
 
       if (createError) throw createError;
 
-      console.log(`💰 Created payroll ${payroll.id} for ${teacher.full_name}`);
+      console.log(`ðŸ’° Created payroll ${payroll.id} for ${teacher.full_name}`);
 
       res.json({
         success: true,
         data: payroll,
-        message: 'Tạo bảng lương thành công'
+        message: 'Táº¡o báº£ng lÆ°Æ¡ng thÃ nh cÃ´ng'
       });
     } catch (error) {
-      console.error('❌ Error generating payroll:', error);
+      console.error('âŒ Error generating payroll:', error);
       next(error);
     }
   }
@@ -14265,7 +14369,7 @@ app.post('/api/admin/payroll/generate',
  * POST /api/admin/payroll/bulk-generate
  * Generate payrolls for multiple teachers
  * Body: { teacher_ids: [], month, year, bonus, deduction, notes }
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/payroll/bulk-generate',
   requireAuth,
@@ -14277,18 +14381,18 @@ app.post('/api/admin/payroll/bulk-generate',
       if (!teacher_ids || !Array.isArray(teacher_ids) || teacher_ids.length === 0) {
         return res.status(400).json({
           success: false,
-          message: 'teacher_ids array là bắt buộc'
+          message: 'teacher_ids array lÃ  báº¯t buá»™c'
         });
       }
 
       if (!month || !year) {
         return res.status(400).json({
           success: false,
-          message: 'month và year là bắt buộc'
+          message: 'month vÃ  year lÃ  báº¯t buá»™c'
         });
       }
 
-      console.log(`💰 Admin ${req.user.email} bulk generating ${teacher_ids.length} payrolls - ${month}/${year}`);
+      console.log(`ðŸ’° Admin ${req.user.email} bulk generating ${teacher_ids.length} payrolls - ${month}/${year}`);
 
       const success = [];
       const failed = [];
@@ -14305,7 +14409,7 @@ app.post('/api/admin/payroll/bulk-generate',
             .single();
 
           if (existing) {
-            failed.push({ teacher_id, reason: 'Đã tồn tại bảng lương' });
+            failed.push({ teacher_id, reason: 'ÄÃ£ tá»“n táº¡i báº£ng lÆ°Æ¡ng' });
             continue;
           }
 
@@ -14317,7 +14421,7 @@ app.post('/api/admin/payroll/bulk-generate',
             .single();
 
           if (!teacher) {
-            failed.push({ teacher_id, reason: 'Không tìm thấy giáo viên' });
+            failed.push({ teacher_id, reason: 'KhÃ´ng tÃ¬m tháº¥y giÃ¡o viÃªn' });
             continue;
           }
 
@@ -14386,15 +14490,15 @@ app.post('/api/admin/payroll/bulk-generate',
         }
       }
 
-      console.log(`💰 Bulk generate complete: ${success.length} success, ${failed.length} failed`);
+      console.log(`ðŸ’° Bulk generate complete: ${success.length} success, ${failed.length} failed`);
 
       res.json({
         success: true,
         data: { success, failed },
-        message: `Đã tạo ${success.length} bảng lương thành công`
+        message: `ÄÃ£ táº¡o ${success.length} báº£ng lÆ°Æ¡ng thÃ nh cÃ´ng`
       });
     } catch (error) {
-      console.error('❌ Error bulk generating payrolls:', error);
+      console.error('âŒ Error bulk generating payrolls:', error);
       next(error);
     }
   }
@@ -14404,7 +14508,7 @@ app.post('/api/admin/payroll/bulk-generate',
  * GET /api/admin/payroll/export
  * Export payrolls to professional Excel (.xlsx)
  * Query: ?month=2&year=2026
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/payroll/export',
   requireAuth,
@@ -14416,7 +14520,7 @@ app.get('/api/admin/payroll/export',
       if (!month || !year) {
         return res.status(400).json({
           success: false,
-          message: 'month và year là bắt buộc'
+          message: 'month vÃ  year lÃ  báº¯t buá»™c'
         });
       }
 
@@ -14425,7 +14529,7 @@ app.get('/api/admin/payroll/export',
         return res.status(403).json({ success: false, message: permError });
       }
 
-      console.log(`💰 Admin ${req.user.email} exporting payrolls (Excel) - ${month}/${year}`);
+      console.log(`ðŸ’° Admin ${req.user.email} exporting payrolls (Excel) - ${month}/${year}`);
 
       const { data: payrolls, error } = await supabase
         .from('payroll')
@@ -14447,14 +14551,14 @@ app.get('/api/admin/payroll/export',
         filtered = filtered.filter(p => p.teacher?.center_id === effectiveCenterId);
       }
 
-      // ═══════════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       // BUILD PROFESSIONAL EXCEL WITH ExcelJS
-      // ═══════════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       const workbook = new ExcelJS.Workbook();
       workbook.creator = 'Skill Master';
       workbook.created = new Date();
 
-      const ws = workbook.addWorksheet(`Bảng lương T${month}-${year}`, {
+      const ws = workbook.addWorksheet(`Báº£ng lÆ°Æ¡ng T${month}-${year}`, {
         properties: { defaultRowHeight: 22 },
         pageSetup: {
           paperSize: 9, // A4
@@ -14466,7 +14570,7 @@ app.get('/api/admin/payroll/export',
         }
       });
 
-      // ── Color palette ──
+      // â”€â”€ Color palette â”€â”€
       const COLORS = {
         primaryDark: '1B5E20',    // Dark green
         primary: '2E7D32',        // Green
@@ -14489,73 +14593,73 @@ app.get('/api/admin/payroll/export',
       const thinBorder = { style: 'thin', color: { argb: COLORS.borderColor } };
       const allBorders = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
 
-      // ── Column widths ──
+      // â”€â”€ Column widths â”€â”€
       ws.columns = [
         { width: 6 },   // A: STT
-        { width: 24 },  // B: Họ tên
+        { width: 24 },  // B: Há» tÃªn
         { width: 28 },  // C: Email
-        { width: 16 },  // D: SĐT
-        { width: 10 },  // E: Số buổi
-        { width: 10 },  // F: Số giờ
-        { width: 18 },  // G: Lương cơ bản
-        { width: 18 },  // H: Lương cố định
-        { width: 15 },  // I: Thưởng
-        { width: 15 },  // J: Khấu trừ
-        { width: 20 },  // K: Thực nhận
-        { width: 16 },  // L: Trạng thái
+        { width: 16 },  // D: SÄT
+        { width: 10 },  // E: Sá»‘ buá»•i
+        { width: 10 },  // F: Sá»‘ giá»
+        { width: 18 },  // G: LÆ°Æ¡ng cÆ¡ báº£n
+        { width: 18 },  // H: LÆ°Æ¡ng cá»‘ Ä‘á»‹nh
+        { width: 15 },  // I: ThÆ°á»Ÿng
+        { width: 15 },  // J: Kháº¥u trá»«
+        { width: 20 },  // K: Thá»±c nháº­n
+        { width: 16 },  // L: Tráº¡ng thÃ¡i
       ];
 
-      // ═══════════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       // ROW 1: Company Header
-      // ═══════════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       ws.mergeCells('A1:L1');
       const titleCell = ws.getCell('A1');
-      titleCell.value = 'SKILL MASTER - TRUNG TÂM ĐÀO TẠO';
+      titleCell.value = 'SKILL MASTER - TRUNG TÃ‚M ÄÃ€O Táº O';
       titleCell.font = { name: 'Arial', size: 14, bold: true, color: { argb: COLORS.primaryDark } };
       titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
       titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.primaryLight } };
       ws.getRow(1).height = 32;
 
-      // ═══════════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       // ROW 2: Report Title
-      // ═══════════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       ws.mergeCells('A2:L2');
       const subTitleCell = ws.getCell('A2');
-      subTitleCell.value = `BẢNG LƯƠNG GIÁO VIÊN — THÁNG ${month}/${year}`;
+      subTitleCell.value = `Báº¢NG LÆ¯Æ NG GIÃO VIÃŠN â€” THÃNG ${month}/${year}`;
       subTitleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: COLORS.white } };
       subTitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
       subTitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.primary } };
       ws.getRow(2).height = 38;
 
-      // ═══════════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       // ROW 3: Meta info
-      // ═══════════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       ws.mergeCells('A3:F3');
       const metaLeft = ws.getCell('A3');
-      metaLeft.value = `Kỳ lương: Tháng ${month}/${year}  •  Tổng số: ${filtered.length} bảng lương`;
+      metaLeft.value = `Ká»³ lÆ°Æ¡ng: ThÃ¡ng ${month}/${year}  â€¢  Tá»•ng sá»‘: ${filtered.length} báº£ng lÆ°Æ¡ng`;
       metaLeft.font = { name: 'Arial', size: 10, italic: true, color: { argb: COLORS.grayText } };
       metaLeft.alignment = { horizontal: 'left', vertical: 'middle' };
 
       ws.mergeCells('G3:L3');
       const metaRight = ws.getCell('G3');
       const exportDate = new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-      metaRight.value = `Ngày xuất: ${exportDate}  •  Người xuất: ${req.user.full_name || req.user.email}`;
+      metaRight.value = `NgÃ y xuáº¥t: ${exportDate}  â€¢  NgÆ°á»i xuáº¥t: ${req.user.full_name || req.user.email}`;
       metaRight.font = { name: 'Arial', size: 10, italic: true, color: { argb: COLORS.grayText } };
       metaRight.alignment = { horizontal: 'right', vertical: 'middle' };
       ws.getRow(3).height = 22;
 
-      // ═══════════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       // ROW 4: Spacer
-      // ═══════════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       ws.getRow(4).height = 8;
 
-      // ═══════════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       // ROW 5: Column Headers
-      // ═══════════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       const headerLabels = [
-        'STT', 'Họ tên giáo viên', 'Email', 'Số điện thoại',
-        'Số buổi', 'Số giờ', 'Lương giảng dạy',
-        'Lương cố định', 'Thưởng', 'Khấu trừ', 'THỰC NHẬN', 'Trạng thái'
+        'STT', 'Há» tÃªn giÃ¡o viÃªn', 'Email', 'Sá»‘ Ä‘iá»‡n thoáº¡i',
+        'Sá»‘ buá»•i', 'Sá»‘ giá»', 'LÆ°Æ¡ng giáº£ng dáº¡y',
+        'LÆ°Æ¡ng cá»‘ Ä‘á»‹nh', 'ThÆ°á»Ÿng', 'Kháº¥u trá»«', 'THá»°C NHáº¬N', 'Tráº¡ng thÃ¡i'
       ];
 
       const headerRow = ws.getRow(5);
@@ -14574,14 +14678,14 @@ app.get('/api/admin/payroll/export',
         };
       });
 
-      // ═══════════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       // DATA ROWS
-      // ═══════════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       const statusLabels = {
-        draft: 'Nháp',
-        pending: 'Chờ duyệt',
-        approved: 'Đã duyệt',
-        paid: 'Đã thanh toán'
+        draft: 'NhÃ¡p',
+        pending: 'Chá» duyá»‡t',
+        approved: 'ÄÃ£ duyá»‡t',
+        paid: 'ÄÃ£ thanh toÃ¡n'
       };
       const statusColors = {
         draft: COLORS.statusDraft,
@@ -14590,7 +14694,7 @@ app.get('/api/admin/payroll/export',
         paid: COLORS.statusPaid,
       };
 
-      const VND_FORMAT = '#,##0 "đ"';
+      const VND_FORMAT = '#,##0 "Ä‘"';
       let totalSessions = 0, totalHours = 0, totalBase = 0, totalFixed = 0, totalBonus = 0, totalDeduction = 0, totalNet = 0;
 
       filtered.forEach((p, idx) => {
@@ -14667,18 +14771,18 @@ app.get('/api/admin/payroll/export',
         });
       });
 
-      // ═══════════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       // SUMMARY ROW
-      // ═══════════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       if (filtered.length > 0) {
         const summaryRowNum = 6 + filtered.length;
         const summaryRow = ws.getRow(summaryRowNum);
         summaryRow.height = 30;
 
-        // Merge A-D for "TỔNG CỘNG"
+        // Merge A-D for "Tá»”NG Cá»˜NG"
         ws.mergeCells(`A${summaryRowNum}:D${summaryRowNum}`);
         const totalLabelCell = summaryRow.getCell(1);
-        totalLabelCell.value = 'TỔNG CỘNG';
+        totalLabelCell.value = 'Tá»”NG Cá»˜NG';
         totalLabelCell.font = { name: 'Arial', size: 11, bold: true, color: { argb: COLORS.darkText } };
         totalLabelCell.alignment = { horizontal: 'center', vertical: 'middle' };
         totalLabelCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.accentLight } };
@@ -14693,7 +14797,7 @@ app.get('/api/admin/payroll/export',
           totalBonus,       // I
           totalDeduction,   // J
           totalNet,         // K
-          `${filtered.length} bảng lương` // L
+          `${filtered.length} báº£ng lÆ°Æ¡ng` // L
         ];
 
         summaryValues.forEach((val, colIdx) => {
@@ -14718,27 +14822,27 @@ app.get('/api/admin/payroll/export',
           }
         });
 
-        // ── Footer note ──
+        // â”€â”€ Footer note â”€â”€
         const footerRowNum = summaryRowNum + 2;
         ws.mergeCells(`A${footerRowNum}:L${footerRowNum}`);
         const footerCell = ws.getCell(`A${footerRowNum}`);
-        footerCell.value = '※ Báo cáo được tạo tự động bởi hệ thống Skill Master. Mọi thắc mắc xin liên hệ bộ phận quản lý.';
+        footerCell.value = 'â€» BÃ¡o cÃ¡o Ä‘Æ°á»£c táº¡o tá»± Ä‘á»™ng bá»Ÿi há»‡ thá»‘ng Skill Master. Má»i tháº¯c máº¯c xin liÃªn há»‡ bá»™ pháº­n quáº£n lÃ½.';
         footerCell.font = { name: 'Arial', size: 9, italic: true, color: { argb: COLORS.grayText } };
         footerCell.alignment = { horizontal: 'center', vertical: 'middle' };
       }
 
-      // ── Freeze header ──
+      // â”€â”€ Freeze header â”€â”€
       ws.views = [{ state: 'frozen', ySplit: 5, activeCell: 'A6' }];
 
-      // ── Auto-filter ──
+      // â”€â”€ Auto-filter â”€â”€
       ws.autoFilter = { from: 'A5', to: `L${5 + filtered.length}` };
 
-      // ── Print area ──
+      // â”€â”€ Print area â”€â”€
       ws.pageSetup.printArea = `A1:L${6 + filtered.length + 2}`;
 
-      // ═══════════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       // SEND RESPONSE
-      // ═══════════════════════════════════════════════
+      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
       const buffer = await workbook.xlsx.writeBuffer();
 
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -14747,7 +14851,7 @@ app.get('/api/admin/payroll/export',
       res.send(Buffer.from(buffer));
 
     } catch (error) {
-      console.error('❌ Error exporting payrolls:', error);
+      console.error('âŒ Error exporting payrolls:', error);
       next(error);
     }
   }
@@ -14756,7 +14860,7 @@ app.get('/api/admin/payroll/export',
 /**
  * GET /api/admin/payroll/:id
  * Get payroll detail with sessions
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/payroll/:id',
   requireAuth,
@@ -14765,7 +14869,7 @@ app.get('/api/admin/payroll/:id',
     try {
       const { id } = req.params;
 
-      console.log(`💰 Admin ${req.user.email} fetching payroll detail: ${id}`);
+      console.log(`ðŸ’° Admin ${req.user.email} fetching payroll detail: ${id}`);
 
       const { data: payroll, error } = await supabase
         .from('payroll')
@@ -14784,7 +14888,7 @@ app.get('/api/admin/payroll/:id',
       if (error || !payroll) {
         return res.status(404).json({
           success: false,
-          message: 'Không tìm thấy bảng lương'
+          message: 'KhÃ´ng tÃ¬m tháº¥y báº£ng lÆ°Æ¡ng'
         });
       }
 
@@ -14793,7 +14897,7 @@ app.get('/api/admin/payroll/:id',
       if (effectiveCenterId && payroll.teacher?.center_id !== effectiveCenterId) {
         return res.status(403).json({
           success: false,
-          message: 'Bạn không có quyền xem bảng lương này'
+          message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem báº£ng lÆ°Æ¡ng nÃ y'
         });
       }
 
@@ -14823,7 +14927,7 @@ app.get('/api/admin/payroll/:id',
         }
       });
     } catch (error) {
-      console.error('❌ Error fetching payroll detail:', error);
+      console.error('âŒ Error fetching payroll detail:', error);
       next(error);
     }
   }
@@ -14833,7 +14937,7 @@ app.get('/api/admin/payroll/:id',
  * PUT /api/admin/payroll/:id
  * Update payroll (bonus, deduction, notes)
  * Body: { bonus, deduction, notes }
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.put('/api/admin/payroll/:id',
   requireAuth,
@@ -14843,7 +14947,7 @@ app.put('/api/admin/payroll/:id',
       const { id } = req.params;
       const { bonus, deduction, notes } = req.body;
 
-      console.log(`💰 Admin ${req.user.email} updating payroll: ${id}`);
+      console.log(`ðŸ’° Admin ${req.user.email} updating payroll: ${id}`);
 
       // Get existing payroll
       const { data: existing, error: fetchError } = await supabase
@@ -14855,7 +14959,7 @@ app.put('/api/admin/payroll/:id',
       if (fetchError || !existing) {
         return res.status(404).json({
           success: false,
-          message: 'Không tìm thấy bảng lương'
+          message: 'KhÃ´ng tÃ¬m tháº¥y báº£ng lÆ°Æ¡ng'
         });
       }
 
@@ -14863,7 +14967,7 @@ app.put('/api/admin/payroll/:id',
       if (!['draft', 'pending'].includes(existing.status)) {
         return res.status(400).json({
           success: false,
-          message: 'Chỉ có thể sửa bảng lương ở trạng thái Nháp hoặc Chờ duyệt'
+          message: 'Chá»‰ cÃ³ thá»ƒ sá»­a báº£ng lÆ°Æ¡ng á»Ÿ tráº¡ng thÃ¡i NhÃ¡p hoáº·c Chá» duyá»‡t'
         });
       }
 
@@ -14872,7 +14976,7 @@ app.put('/api/admin/payroll/:id',
       if (effectiveCenterId && existing.teacher?.center_id !== effectiveCenterId) {
         return res.status(403).json({
           success: false,
-          message: 'Bạn không có quyền sửa bảng lương này'
+          message: 'Báº¡n khÃ´ng cÃ³ quyá»n sá»­a báº£ng lÆ°Æ¡ng nÃ y'
         });
       }
 
@@ -14903,10 +15007,10 @@ app.put('/api/admin/payroll/:id',
       res.json({
         success: true,
         data: updated,
-        message: 'Cập nhật bảng lương thành công'
+        message: 'Cáº­p nháº­t báº£ng lÆ°Æ¡ng thÃ nh cÃ´ng'
       });
     } catch (error) {
-      console.error('❌ Error updating payroll:', error);
+      console.error('âŒ Error updating payroll:', error);
       next(error);
     }
   }
@@ -14916,7 +15020,7 @@ app.put('/api/admin/payroll/:id',
  * PATCH /api/admin/payroll/:id/status
  * Update payroll status
  * Body: { status: 'pending'|'approved'|'paid'|'draft' }
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.patch('/api/admin/payroll/:id/status',
   requireAuth,
@@ -14930,11 +15034,11 @@ app.patch('/api/admin/payroll/:id/status',
       if (!status || !validStatuses.includes(status)) {
         return res.status(400).json({
           success: false,
-          message: `Status phải là một trong: ${validStatuses.join(', ')}`
+          message: `Status pháº£i lÃ  má»™t trong: ${validStatuses.join(', ')}`
         });
       }
 
-      console.log(`💰 Admin ${req.user.email} updating payroll ${id} status to: ${status}`);
+      console.log(`ðŸ’° Admin ${req.user.email} updating payroll ${id} status to: ${status}`);
 
       // Get existing payroll
       const { data: existing, error: fetchError } = await supabase
@@ -14946,7 +15050,7 @@ app.patch('/api/admin/payroll/:id/status',
       if (fetchError || !existing) {
         return res.status(404).json({
           success: false,
-          message: 'Không tìm thấy bảng lương'
+          message: 'KhÃ´ng tÃ¬m tháº¥y báº£ng lÆ°Æ¡ng'
         });
       }
 
@@ -14961,7 +15065,7 @@ app.patch('/api/admin/payroll/:id/status',
       if (!allowedNext.includes(status)) {
         return res.status(400).json({
           success: false,
-          message: `Không thể chuyển từ "${existing.status}" sang "${status}". Trạng thái tiếp theo hợp lệ: ${allowedNext.join(', ') || 'không có (trạng thái cuối)'}`
+          message: `KhÃ´ng thá»ƒ chuyá»ƒn tá»« "${existing.status}" sang "${status}". Tráº¡ng thÃ¡i tiáº¿p theo há»£p lá»‡: ${allowedNext.join(', ') || 'khÃ´ng cÃ³ (tráº¡ng thÃ¡i cuá»‘i)'}`
         });
       }
 
@@ -14970,7 +15074,7 @@ app.patch('/api/admin/payroll/:id/status',
       if (effectiveCenterId && existing.teacher?.center_id !== effectiveCenterId) {
         return res.status(403).json({
           success: false,
-          message: 'Bạn không có quyền thay đổi trạng thái bảng lương này'
+          message: 'Báº¡n khÃ´ng cÃ³ quyá»n thay Ä‘á»•i tráº¡ng thÃ¡i báº£ng lÆ°Æ¡ng nÃ y'
         });
       }
 
@@ -14998,9 +15102,9 @@ app.patch('/api/admin/payroll/:id/status',
           .lte('session_date', endDate);
 
         if (lockError) {
-          console.error('⚠️ Error locking sessions:', lockError);
+          console.error('âš ï¸ Error locking sessions:', lockError);
         } else {
-          console.log(`🔒 Locked sessions for payroll ${id}`);
+          console.log(`ðŸ”’ Locked sessions for payroll ${id}`);
         }
       }
 
@@ -15018,9 +15122,9 @@ app.patch('/api/admin/payroll/:id/status',
           .lte('session_date', endDate);
 
         if (unlockError) {
-          console.error('⚠️ Error unlocking sessions:', unlockError);
+          console.error('âš ï¸ Error unlocking sessions:', unlockError);
         } else {
-          console.log(`🔓 Unlocked sessions for payroll ${id}`);
+          console.log(`ðŸ”“ Unlocked sessions for payroll ${id}`);
         }
       }
 
@@ -15038,10 +15142,10 @@ app.patch('/api/admin/payroll/:id/status',
       if (updateError) throw updateError;
 
       const statusLabels = {
-        draft: 'Nháp',
-        pending: 'Chờ duyệt',
-        approved: 'Đã duyệt',
-        paid: 'Đã thanh toán'
+        draft: 'NhÃ¡p',
+        pending: 'Chá» duyá»‡t',
+        approved: 'ÄÃ£ duyá»‡t',
+        paid: 'ÄÃ£ thanh toÃ¡n'
       };
 
       // Send email notification to teacher based on new status
@@ -15063,7 +15167,7 @@ app.patch('/api/admin/payroll/:id/status',
               // Payroll submitted/created - notify teacher
               await queueEmail(
                 updated.teacher.email,
-                `[Skill Master] Bảng lương tháng ${updated.period_month}/${updated.period_year} đã được tạo`,
+                `[Skill Master] Báº£ng lÆ°Æ¡ng thÃ¡ng ${updated.period_month}/${updated.period_year} Ä‘Ã£ Ä‘Æ°á»£c táº¡o`,
                 'payroll_created',
                 {
                   teacherName: updated.teacher.full_name,
@@ -15076,12 +15180,12 @@ app.patch('/api/admin/payroll/:id/status',
                   portalUrl
                 }
               );
-              console.log(`📧 Payroll created email queued for ${updated.teacher.email}`);
+              console.log(`ðŸ“§ Payroll created email queued for ${updated.teacher.email}`);
             } else if (status === 'approved') {
               // Payroll approved - notify teacher
               await queueEmail(
                 updated.teacher.email,
-                `[Skill Master] Bảng lương tháng ${updated.period_month}/${updated.period_year} đã được duyệt`,
+                `[Skill Master] Báº£ng lÆ°Æ¡ng thÃ¡ng ${updated.period_month}/${updated.period_year} Ä‘Ã£ Ä‘Æ°á»£c duyá»‡t`,
                 'payroll_approved',
                 {
                   teacherName: updated.teacher.full_name,
@@ -15094,12 +15198,12 @@ app.patch('/api/admin/payroll/:id/status',
                   portalUrl
                 }
               );
-              console.log(`📧 Payroll approved email queued for ${updated.teacher.email}`);
+              console.log(`ðŸ“§ Payroll approved email queued for ${updated.teacher.email}`);
             } else if (status === 'paid') {
               // Payroll paid - notify teacher
               await queueEmail(
                 updated.teacher.email,
-                `[Skill Master] Bảng lương tháng ${updated.period_month}/${updated.period_year} đã được thanh toán`,
+                `[Skill Master] Báº£ng lÆ°Æ¡ng thÃ¡ng ${updated.period_month}/${updated.period_year} Ä‘Ã£ Ä‘Æ°á»£c thanh toÃ¡n`,
                 'payroll_paid',
                 {
                   teacherName: updated.teacher.full_name,
@@ -15109,16 +15213,16 @@ app.patch('/api/admin/payroll/:id/status',
                   totalHours: updated.total_hours,
                   netSalary: formatCurrency(updated.net_salary),
                   paymentDate: new Date().toLocaleDateString('vi-VN'),
-                  paymentMethod: updated.payment_method || 'Chuyển khoản ngân hàng',
+                  paymentMethod: updated.payment_method || 'Chuyá»ƒn khoáº£n ngÃ¢n hÃ ng',
                   centerName,
                   portalUrl
                 }
               );
-              console.log(`📧 Payroll paid email queued for ${updated.teacher.email}`);
+              console.log(`ðŸ“§ Payroll paid email queued for ${updated.teacher.email}`);
             }
           } catch (emailError) {
             // Don't fail the request if email fails
-            console.error('⚠️ Failed to queue payroll email:', emailError.message);
+            console.error('âš ï¸ Failed to queue payroll email:', emailError.message);
           }
         }
       }
@@ -15126,10 +15230,10 @@ app.patch('/api/admin/payroll/:id/status',
       res.json({
         success: true,
         data: updated,
-        message: `Đã cập nhật trạng thái thành "${statusLabels[status]}"`
+        message: `ÄÃ£ cáº­p nháº­t tráº¡ng thÃ¡i thÃ nh "${statusLabels[status]}"`
       });
     } catch (error) {
-      console.error('❌ Error updating payroll status:', error);
+      console.error('âŒ Error updating payroll status:', error);
       next(error);
     }
   }
@@ -15138,7 +15242,7 @@ app.patch('/api/admin/payroll/:id/status',
 /**
  * DELETE /api/admin/payroll/:id
  * Delete draft payroll
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.delete('/api/admin/payroll/:id',
   requireAuth,
@@ -15147,7 +15251,7 @@ app.delete('/api/admin/payroll/:id',
     try {
       const { id } = req.params;
 
-      console.log(`💰 Admin ${req.user.email} deleting payroll: ${id}`);
+      console.log(`ðŸ’° Admin ${req.user.email} deleting payroll: ${id}`);
 
       // Get existing payroll
       const { data: existing, error: fetchError } = await supabase
@@ -15159,7 +15263,7 @@ app.delete('/api/admin/payroll/:id',
       if (fetchError || !existing) {
         return res.status(404).json({
           success: false,
-          message: 'Không tìm thấy bảng lương'
+          message: 'KhÃ´ng tÃ¬m tháº¥y báº£ng lÆ°Æ¡ng'
         });
       }
 
@@ -15167,7 +15271,7 @@ app.delete('/api/admin/payroll/:id',
       if (existing.status !== 'draft') {
         return res.status(400).json({
           success: false,
-          message: 'Chỉ có thể xóa bảng lương ở trạng thái Nháp'
+          message: 'Chá»‰ cÃ³ thá»ƒ xÃ³a báº£ng lÆ°Æ¡ng á»Ÿ tráº¡ng thÃ¡i NhÃ¡p'
         });
       }
 
@@ -15176,7 +15280,7 @@ app.delete('/api/admin/payroll/:id',
       if (effectiveCenterId && existing.teacher?.center_id !== effectiveCenterId) {
         return res.status(403).json({
           success: false,
-          message: 'Bạn không có quyền xóa bảng lương này'
+          message: 'Báº¡n khÃ´ng cÃ³ quyá»n xÃ³a báº£ng lÆ°Æ¡ng nÃ y'
         });
       }
 
@@ -15188,14 +15292,14 @@ app.delete('/api/admin/payroll/:id',
 
       if (deleteError) throw deleteError;
 
-      console.log(`💰 Deleted payroll ${id} for ${existing.teacher?.full_name}`);
+      console.log(`ðŸ’° Deleted payroll ${id} for ${existing.teacher?.full_name}`);
 
       res.json({
         success: true,
-        message: 'Đã xóa bảng lương'
+        message: 'ÄÃ£ xÃ³a báº£ng lÆ°Æ¡ng'
       });
     } catch (error) {
-      console.error('❌ Error deleting payroll:', error);
+      console.error('âŒ Error deleting payroll:', error);
       next(error);
     }
   }
@@ -15205,7 +15309,7 @@ app.delete('/api/admin/payroll/:id',
 /**
  * GET /api/admin/payroll/:id/audit
  * Get audit trail for a payroll
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/payroll/:id/audit',
   requireAuth,
@@ -15214,7 +15318,7 @@ app.get('/api/admin/payroll/:id/audit',
     try {
       const { id } = req.params;
 
-      console.log(`💰 Admin ${req.user.email} fetching audit trail for payroll: ${id}`);
+      console.log(`ðŸ’° Admin ${req.user.email} fetching audit trail for payroll: ${id}`);
 
       // Verify payroll exists and check permission
       const { data: payroll, error: payrollError } = await supabase
@@ -15226,7 +15330,7 @@ app.get('/api/admin/payroll/:id/audit',
       if (payrollError || !payroll) {
         return res.status(404).json({
           success: false,
-          message: 'Không tìm thấy bảng lương'
+          message: 'KhÃ´ng tÃ¬m tháº¥y báº£ng lÆ°Æ¡ng'
         });
       }
 
@@ -15234,7 +15338,7 @@ app.get('/api/admin/payroll/:id/audit',
       if (effectiveCenterId && payroll.teacher?.center_id !== effectiveCenterId) {
         return res.status(403).json({
           success: false,
-          message: 'Bạn không có quyền xem lịch sử bảng lương này'
+          message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem lá»‹ch sá»­ báº£ng lÆ°Æ¡ng nÃ y'
         });
       }
 
@@ -15252,11 +15356,11 @@ app.get('/api/admin/payroll/:id/audit',
 
       if (auditError) {
         // Table might not exist yet
-        console.warn('⚠️ Audit log table not available:', auditError.message);
+        console.warn('âš ï¸ Audit log table not available:', auditError.message);
         return res.json({
           success: true,
           data: [],
-          message: 'Chưa có lịch sử thay đổi'
+          message: 'ChÆ°a cÃ³ lá»‹ch sá»­ thay Ä‘á»•i'
         });
       }
 
@@ -15265,545 +15369,13 @@ app.get('/api/admin/payroll/:id/audit',
         data: auditLogs || []
       });
     } catch (error) {
-      console.error('❌ Error fetching payroll audit:', error);
+      console.error('âŒ Error fetching payroll audit:', error);
       next(error);
     }
   }
 );
 
-// ============================================================
-// TEACHER AVAILABILITY & DASHBOARD APIs
-// ============================================================
 
-/**
- * GET /api/teacher/availability
- * Get current teacher's availability slots
- * 🔒 Authenticated teachers only
- */
-app.get('/api/teacher/availability',
-  requireAuth,
-  async (req, res, next) => {
-    try {
-      const teacherId = req.user.id;
-      console.log(`📅 Teacher ${req.user.email} fetching availability`);
-
-      const { data: slots, error } = await supabase
-        .from('teacher_availability')
-        .select('id, day_of_week, start_time, end_time, is_available')
-        .eq('teacher_id', teacherId)
-        .order('day_of_week', { ascending: true })
-        .order('start_time', { ascending: true });
-
-      if (error) throw error;
-
-      // Map is_available to type for frontend compatibility
-      const availability = (slots || []).map(slot => ({
-        ...slot,
-        type: slot.is_available ? 'available' : 'unavailable'
-      }));
-
-      res.json({
-        success: true,
-        availability
-      });
-    } catch (error) {
-      console.error('❌ Error fetching teacher availability:', error);
-      next(error);
-    }
-  }
-);
-
-/**
- * PUT /api/teacher/availability
- * Update teacher's availability slots (replace all)
- * Body: { slots: [{ day_of_week, start_time, end_time, type }] }
- * 🔒 Authenticated teachers only
- */
-app.put('/api/teacher/availability',
-  requireAuth,
-  async (req, res, next) => {
-    try {
-      const teacherId = req.user.id;
-      const { slots } = req.body;
-
-      console.log(`📅 Teacher ${req.user.email} updating availability - ${slots?.length || 0} slots`);
-
-      if (!Array.isArray(slots)) {
-        return res.status(400).json({
-          success: false,
-          message: 'slots phải là một mảng'
-        });
-      }
-
-      // Delete all existing slots
-      const { error: deleteError } = await supabase
-        .from('teacher_availability')
-        .delete()
-        .eq('teacher_id', teacherId);
-
-      if (deleteError) throw deleteError;
-
-      // Insert new slots if any
-      if (slots.length > 0) {
-        const slotsToInsert = slots.map(slot => ({
-          teacher_id: teacherId,
-          day_of_week: slot.day_of_week,
-          start_time: slot.start_time,
-          end_time: slot.end_time,
-          is_available: true // Always available when teacher sets it
-        }));
-
-        const { error: insertError } = await supabase
-          .from('teacher_availability')
-          .insert(slotsToInsert);
-
-        if (insertError) throw insertError;
-      }
-
-      // Fetch updated slots
-      const { data: updatedSlots, error: fetchError } = await supabase
-        .from('teacher_availability')
-        .select('id, day_of_week, start_time, end_time, is_available')
-        .eq('teacher_id', teacherId)
-        .order('day_of_week', { ascending: true })
-        .order('start_time', { ascending: true });
-
-      if (fetchError) throw fetchError;
-
-      const availability = (updatedSlots || []).map(slot => ({
-        ...slot,
-        type: slot.is_available ? 'available' : 'unavailable'
-      }));
-
-      res.json({
-        success: true,
-        availability,
-        message: 'Đã cập nhật lịch trống thành công'
-      });
-    } catch (error) {
-      console.error('❌ Error updating teacher availability:', error);
-      next(error);
-    }
-  }
-);
-
-/**
- * GET /api/admin/teacher-availability/:teacherId
- * Admin xem lịch rảnh/bận của giáo viên cụ thể
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
- */
-app.get('/api/admin/teacher-availability/:teacherId',
-  requireAuth,
-  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
-  async (req, res, next) => {
-    try {
-      const { teacherId } = req.params;
-      console.log(`📅 Admin ${req.user.email} viewing availability for teacher ${teacherId}`);
-
-      const { data: slots, error } = await supabase
-        .from('teacher_availability')
-        .select('id, day_of_week, start_time, end_time, is_available, created_at')
-        .eq('teacher_id', teacherId)
-        .order('day_of_week', { ascending: true })
-        .order('start_time', { ascending: true });
-
-      if (error) throw error;
-
-      // Map to frontend expected format
-      const data = (slots || []).map(slot => ({
-        id: slot.id,
-        type: slot.is_available ? 'preferred' : 'unavailable',
-        days: [slot.day_of_week],
-        start_time: slot.start_time,
-        end_time: slot.end_time,
-        created_at: slot.created_at
-      }));
-
-      res.json({
-        success: true,
-        data
-      });
-    } catch (error) {
-      console.error('❌ Error fetching teacher availability:', error);
-      next(error);
-    }
-  }
-);
-
-/**
- * PUT /api/admin/teacher-availability/:teacherId
- * Admin cập nhật lịch rảnh/bận cho giáo viên
- * Body: { type, days[], start_time, end_time, start_date?, end_date?, reason? }
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
- */
-app.put('/api/admin/teacher-availability/:teacherId',
-  requireAuth,
-  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
-  async (req, res, next) => {
-    try {
-      const { teacherId } = req.params;
-      const { type, days, start_time, end_time, start_date, end_date, reason } = req.body;
-
-      console.log(`📅 Admin ${req.user.email} updating availability for teacher ${teacherId}`);
-
-      // Validate
-      if (!type) {
-        return res.status(400).json({
-          success: false,
-          message: 'Loại lịch là bắt buộc'
-        });
-      }
-
-      // For temporary type (specific date range - not stored in teacher_availability)
-      if (type === 'temporary') {
-        // This would typically be stored in a different table (leave_requests or similar)
-        // For now, return success - this needs a separate implementation
-        return res.json({
-          success: true,
-          data: [{
-            id: 'temp-' + Date.now(),
-            type: 'temporary',
-            start_date,
-            end_date,
-            reason
-          }],
-          message: 'Đã lưu lịch nghỉ tạm thời'
-        });
-      }
-
-      // For recurring types (weekly schedule)
-      if (!days || days.length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'Vui lòng chọn ít nhất một ngày'
-        });
-      }
-
-      // Insert new slots for each selected day
-      const slotsToInsert = days.map(day => ({
-        teacher_id: teacherId,
-        day_of_week: day,
-        start_time: start_time || '08:00',
-        end_time: end_time || '17:00',
-        is_available: type === 'preferred' // preferred = available, unavailable = not available
-      }));
-
-      const { data: insertedSlots, error: insertError } = await supabase
-        .from('teacher_availability')
-        .insert(slotsToInsert)
-        .select();
-
-      if (insertError) throw insertError;
-
-      // Map to frontend format
-      const data = (insertedSlots || []).map(slot => ({
-        id: slot.id,
-        type: slot.is_available ? 'preferred' : 'unavailable',
-        days: [slot.day_of_week],
-        start_time: slot.start_time,
-        end_time: slot.end_time,
-        reason
-      }));
-
-      res.json({
-        success: true,
-        data,
-        message: 'Đã thêm lịch rảnh/bận thành công'
-      });
-    } catch (error) {
-      console.error('❌ Error updating teacher availability:', error);
-      next(error);
-    }
-  }
-);
-
-/**
- * DELETE /api/admin/teacher-availability/:slotId
- * Admin xóa một khung giờ cụ thể
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
- */
-app.delete('/api/admin/teacher-availability/:slotId',
-  requireAuth,
-  requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']),
-  async (req, res, next) => {
-    try {
-      const { slotId } = req.params;
-      console.log(`📅 Admin ${req.user.email} deleting availability slot ${slotId}`);
-
-      const { error } = await supabase
-        .from('teacher_availability')
-        .delete()
-        .eq('id', slotId);
-
-      if (error) throw error;
-
-      res.json({
-        success: true,
-        message: 'Đã xóa khung giờ thành công'
-      });
-    } catch (error) {
-      console.error('❌ Error deleting teacher availability:', error);
-      next(error);
-    }
-  }
-);
-
-/**
- * GET /api/teacher/dashboard/overview
- * Get teacher dashboard overview stats
- * 🔒 Authenticated teachers only
- */
-app.get('/api/teacher/dashboard/overview',
-  requireAuth,
-  async (req, res, next) => {
-    try {
-      const teacherId = req.user.id;
-      console.log(`📊 Teacher ${req.user.email} fetching dashboard overview`);
-
-      const now = new Date();
-      const today = now.toISOString().split('T')[0];
-      const firstDayOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-      const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
-
-      // Get total classes
-      const { count: totalClasses, error: classesError } = await supabase
-        .from('classes')
-        .select('id', { count: 'exact', head: true })
-        .eq('teacher_id', teacherId);
-
-      if (classesError) throw classesError;
-
-      // Get teacher's class IDs for student count
-      const { data: teacherClasses, error: classIdsError } = await supabase
-        .from('classes')
-        .select('id')
-        .eq('teacher_id', teacherId);
-
-      if (classIdsError) throw classIdsError;
-
-      const classIds = (teacherClasses || []).map(c => c.id);
-
-      // Get total unique students
-      let totalStudents = 0;
-      if (classIds.length > 0) {
-        const { data: enrollments, error: enrollError } = await supabase
-          .from('enrollments')
-          .select('student_id')
-          .in('class_id', classIds)
-          .neq('status', 'cancelled');
-
-        if (enrollError) throw enrollError;
-
-        const uniqueStudents = new Set((enrollments || []).map(e => e.student_id));
-        totalStudents = uniqueStudents.size;
-      }
-
-      // Get completed sessions this month
-      const { count: completedSessions, error: completedError } = await supabase
-        .from('sessions')
-        .select('id', { count: 'exact', head: true })
-        .eq('teacher_id', teacherId)
-        .eq('status', 'completed')
-        .gte('session_date', firstDayOfMonth)
-        .lte('session_date', lastDayOfMonth);
-
-      if (completedError) throw completedError;
-
-      // Get upcoming sessions
-      const { count: upcomingSessions, error: upcomingError } = await supabase
-        .from('sessions')
-        .select('id', { count: 'exact', head: true })
-        .eq('teacher_id', teacherId)
-        .eq('status', 'scheduled')
-        .gte('session_date', today);
-
-      if (upcomingError) throw upcomingError;
-
-      // Get total hours this month
-      const { data: monthSessions, error: hoursError } = await supabase
-        .from('sessions')
-        .select('duration_hours')
-        .eq('teacher_id', teacherId)
-        .eq('status', 'completed')
-        .gte('session_date', firstDayOfMonth)
-        .lte('session_date', lastDayOfMonth);
-
-      if (hoursError) throw hoursError;
-
-      const totalHoursThisMonth = (monthSessions || [])
-        .reduce((sum, s) => sum + (parseFloat(s.duration_hours) || 0), 0);
-
-      res.json({
-        success: true,
-        totalClasses: totalClasses || 0,
-        totalStudents,
-        completedSessions: completedSessions || 0,
-        upcomingSessions: upcomingSessions || 0,
-        totalHoursThisMonth: Math.round(totalHoursThisMonth * 10) / 10
-      });
-    } catch (error) {
-      console.error('❌ Error fetching teacher dashboard overview:', error);
-      next(error);
-    }
-  }
-);
-
-/**
- * GET /api/teacher/dashboard/today-sessions
- * Get teacher's sessions for today
- * 🔒 Authenticated teachers only
- */
-app.get('/api/teacher/dashboard/today-sessions',
-  requireAuth,
-  async (req, res, next) => {
-    try {
-      const teacherId = req.user.id;
-      const today = new Date().toISOString().split('T')[0];
-
-      console.log(`📅 Teacher ${req.user.email} fetching today's sessions (${today})`);
-
-      const { data: sessions, error } = await supabase
-        .from('sessions')
-        .select(`
-          id, session_date, start_time, end_time, status, duration_hours, notes,
-          class:classes (id, name, code)
-        `)
-        .eq('teacher_id', teacherId)
-        .eq('session_date', today)
-        .order('start_time', { ascending: true });
-
-      if (error) throw error;
-
-      res.json({
-        success: true,
-        sessions: sessions || []
-      });
-    } catch (error) {
-      console.error('❌ Error fetching today sessions:', error);
-      next(error);
-    }
-  }
-);
-
-/**
- * GET /api/teacher/dashboard/attendance-stats
- * Get attendance statistics for teacher's sessions
- * 🔒 Authenticated teachers only
- */
-app.get('/api/teacher/dashboard/attendance-stats',
-  requireAuth,
-  async (req, res, next) => {
-    try {
-      const teacherId = req.user.id;
-      console.log(`📊 Teacher ${req.user.email} fetching attendance stats`);
-
-      // Get all session IDs for this teacher
-      const { data: teacherSessions, error: sessionsError } = await supabase
-        .from('sessions')
-        .select('id')
-        .eq('teacher_id', teacherId);
-
-      if (sessionsError) throw sessionsError;
-
-      const sessionIds = (teacherSessions || []).map(s => s.id);
-
-      if (sessionIds.length === 0) {
-        return res.json({
-          success: true,
-          present: 0,
-          absent: 0,
-          late: 0,
-          totalRecords: 0
-        });
-      }
-
-      // Get attendance records for these sessions
-      const { data: attendance, error: attendanceError } = await supabase
-        .from('attendance')
-        .select('status')
-        .in('session_id', sessionIds);
-
-      if (attendanceError) throw attendanceError;
-
-      const records = attendance || [];
-      const stats = {
-        present: records.filter(a => a.status === 'present').length,
-        absent: records.filter(a => a.status === 'absent').length,
-        late: records.filter(a => a.status === 'late').length,
-        totalRecords: records.length
-      };
-
-      res.json({
-        success: true,
-        ...stats
-      });
-    } catch (error) {
-      console.error('❌ Error fetching attendance stats:', error);
-      next(error);
-    }
-  }
-);
-
-/**
- * GET /api/teacher/dashboard/classes-summary
- * Get summary of teacher's classes with student count
- * 🔒 Authenticated teachers only
- */
-app.get('/api/teacher/dashboard/classes-summary',
-  requireAuth,
-  async (req, res, next) => {
-    try {
-      const teacherId = req.user.id;
-      console.log(`📚 Teacher ${req.user.email} fetching classes summary`);
-
-      // Get classes for this teacher
-      const { data: classes, error: classesError } = await supabase
-        .from('classes')
-        .select('id, name, code, status')
-        .eq('teacher_id', teacherId)
-        .order('created_at', { ascending: false });
-
-      if (classesError) throw classesError;
-
-      if (!classes || classes.length === 0) {
-        return res.json({
-          success: true,
-          classes: []
-        });
-      }
-
-      // Get student counts for each class
-      const classIds = classes.map(c => c.id);
-      const { data: enrollments, error: enrollError } = await supabase
-        .from('enrollments')
-        .select('class_id')
-        .in('class_id', classIds)
-        .neq('status', 'cancelled');
-
-      if (enrollError) throw enrollError;
-
-      // Count students per class
-      const studentCounts = {};
-      (enrollments || []).forEach(e => {
-        studentCounts[e.class_id] = (studentCounts[e.class_id] || 0) + 1;
-      });
-
-      // Combine data
-      const classesWithCounts = classes.map(c => ({
-        ...c,
-        student_count: studentCounts[c.id] || 0
-      }));
-
-      res.json({
-        success: true,
-        classes: classesWithCounts
-      });
-    } catch (error) {
-      console.error('❌ Error fetching classes summary:', error);
-      next(error);
-    }
-  }
-);
 
 // ============================================================
 // TEACHER PAYROLL APIs (Teacher views own payroll)
@@ -15813,7 +15385,7 @@ app.get('/api/teacher/dashboard/classes-summary',
  * GET /api/teacher/payroll
  * Get list of payrolls for the logged-in teacher
  * Query: ?year=2026
- * 🔒 TEACHER only
+ * ðŸ”’ TEACHER only
  */
 app.get('/api/teacher/payroll',
   requireAuth,
@@ -15823,16 +15395,17 @@ app.get('/api/teacher/payroll',
       const teacherId = req.user.id;
       const { year } = req.query;
 
-      console.log(`💰 Teacher ${req.user.email} fetching own payrolls - year: ${year || 'all'}`);
+      console.log(`ðŸ’° Teacher ${req.user.email} fetching own payrolls - year: ${year || 'all'}`);
 
       let query = supabase
         .from('payroll')
         .select(`
           id, period_month, period_year, status,
-          base_salary, bonus, deduction, net_salary,
+          base_salary, fixed_salary, bonus, deduction, net_salary,
           total_sessions, total_hours,
           approved_at, notes, created_at,
-          payment_proof_url, paid_at, payment_method, payment_reference
+          payment_proof_url, paid_at, payment_method, payment_reference,
+          teacher_id
         `)
         .eq('teacher_id', teacherId)
         .order('period_year', { ascending: false })
@@ -15847,12 +15420,21 @@ app.get('/api/teacher/payroll',
 
       if (error) throw error;
 
+      // Fetch teacher compensation info for display
+      const { data: compensation } = await supabase
+        .from('teacher_compensation')
+        .select('pay_scheme, hourly_rate, fixed_monthly_salary')
+        .eq('teacher_id', teacherId)
+        .eq('is_active', true)
+        .single();
+
       res.json({
         success: true,
-        data: data || []
+        data: data || [],
+        compensation: compensation || null
       });
     } catch (error) {
-      console.error('❌ Error fetching teacher payrolls:', error);
+      console.error('âŒ Error fetching teacher payrolls:', error);
       next(error);
     }
   }
@@ -15861,7 +15443,7 @@ app.get('/api/teacher/payroll',
 /**
  * GET /api/teacher/payroll/:id
  * Get payroll detail with sessions for the logged-in teacher
- * 🔒 TEACHER only (can only view own payroll)
+ * ðŸ”’ TEACHER only (can only view own payroll)
  */
 app.get('/api/teacher/payroll/:id',
   requireAuth,
@@ -15871,7 +15453,7 @@ app.get('/api/teacher/payroll/:id',
       const { id } = req.params;
       const teacherId = req.user.id;
 
-      console.log(`💰 Teacher ${req.user.email} fetching payroll detail: ${id}`);
+      console.log(`ðŸ’° Teacher ${req.user.email} fetching payroll detail: ${id}`);
 
       // Fetch payroll and verify ownership
       const { data: payroll, error } = await supabase
@@ -15893,7 +15475,7 @@ app.get('/api/teacher/payroll/:id',
       if (error || !payroll) {
         return res.status(404).json({
           success: false,
-          message: 'Không tìm thấy bảng lương hoặc bạn không có quyền xem'
+          message: 'KhÃ´ng tÃ¬m tháº¥y báº£ng lÆ°Æ¡ng hoáº·c báº¡n khÃ´ng cÃ³ quyá»n xem'
         });
       }
 
@@ -15923,7 +15505,7 @@ app.get('/api/teacher/payroll/:id',
         }
       });
     } catch (error) {
-      console.error('❌ Error fetching teacher payroll detail:', error);
+      console.error('âŒ Error fetching teacher payroll detail:', error);
       next(error);
     }
   }
@@ -15936,7 +15518,7 @@ app.get('/api/teacher/payroll/:id',
 /**
  * GET /api/teacher/bank-info
  * Get current teacher's bank information
- * 🔒 TEACHER only
+ * ðŸ”’ TEACHER only
  */
 app.get('/api/teacher/bank-info',
   requireAuth,
@@ -15944,7 +15526,7 @@ app.get('/api/teacher/bank-info',
   async (req, res, next) => {
     try {
       const teacherId = req.user.id;
-      console.log(`🏦 Teacher ${req.user.email} fetching bank info`);
+      console.log(`ðŸ¦ Teacher ${req.user.email} fetching bank info`);
 
       const { data, error } = await supabase
         .from('users')
@@ -15959,7 +15541,7 @@ app.get('/api/teacher/bank-info',
         data: data || { bank_name: null, bank_account_number: null, bank_account_holder: null }
       });
     } catch (error) {
-      console.error('❌ Error fetching teacher bank info:', error);
+      console.error('âŒ Error fetching teacher bank info:', error);
       next(error);
     }
   }
@@ -15969,7 +15551,7 @@ app.get('/api/teacher/bank-info',
  * PUT /api/teacher/bank-info
  * Update current teacher's bank information
  * Body: { bank_name, bank_account_number, bank_account_holder }
- * 🔒 TEACHER only
+ * ðŸ”’ TEACHER only
  */
 app.put('/api/teacher/bank-info',
   requireAuth,
@@ -15979,13 +15561,13 @@ app.put('/api/teacher/bank-info',
       const teacherId = req.user.id;
       const { bank_name, bank_account_number, bank_account_holder } = req.body;
 
-      console.log(`🏦 Teacher ${req.user.email} updating bank info`);
+      console.log(`ðŸ¦ Teacher ${req.user.email} updating bank info`);
 
       // Validate required fields
       if (!bank_name || !bank_account_number || !bank_account_holder) {
         return res.status(400).json({
           success: false,
-          message: 'Vui lòng điền đầy đủ thông tin ngân hàng'
+          message: 'Vui lÃ²ng Ä‘iá»n Ä‘áº§y Ä‘á»§ thÃ´ng tin ngÃ¢n hÃ ng'
         });
       }
 
@@ -16003,15 +15585,15 @@ app.put('/api/teacher/bank-info',
 
       if (error) throw error;
 
-      console.log(`🏦 Teacher ${req.user.email} bank info updated successfully`);
+      console.log(`ðŸ¦ Teacher ${req.user.email} bank info updated successfully`);
 
       res.json({
         success: true,
         data,
-        message: 'Cập nhật thông tin ngân hàng thành công'
+        message: 'Cáº­p nháº­t thÃ´ng tin ngÃ¢n hÃ ng thÃ nh cÃ´ng'
       });
     } catch (error) {
-      console.error('❌ Error updating teacher bank info:', error);
+      console.error('âŒ Error updating teacher bank info:', error);
       next(error);
     }
   }
@@ -16024,7 +15606,7 @@ app.put('/api/teacher/bank-info',
 /**
  * GET /api/teacher/payroll/:id/disputes
  * Get disputes for a specific payroll
- * 🔒 TEACHER only (own payroll)
+ * ðŸ”’ TEACHER only (own payroll)
  */
 app.get('/api/teacher/payroll/:id/disputes',
   requireAuth,
@@ -16034,7 +15616,7 @@ app.get('/api/teacher/payroll/:id/disputes',
       const { id } = req.params;
       const teacherId = req.user.id;
 
-      console.log(`📝 Teacher ${req.user.email} fetching disputes for payroll ${id}`);
+      console.log(`ðŸ“ Teacher ${req.user.email} fetching disputes for payroll ${id}`);
 
       // Verify payroll ownership
       const { data: payroll, error: payrollError } = await supabase
@@ -16047,7 +15629,7 @@ app.get('/api/teacher/payroll/:id/disputes',
       if (payrollError || !payroll) {
         return res.status(404).json({
           success: false,
-          message: 'Không tìm thấy bảng lương'
+          message: 'KhÃ´ng tÃ¬m tháº¥y báº£ng lÆ°Æ¡ng'
         });
       }
 
@@ -16068,7 +15650,7 @@ app.get('/api/teacher/payroll/:id/disputes',
         data: disputes || []
       });
     } catch (error) {
-      console.error('❌ Error fetching payroll disputes:', error);
+      console.error('âŒ Error fetching payroll disputes:', error);
       next(error);
     }
   }
@@ -16078,7 +15660,7 @@ app.get('/api/teacher/payroll/:id/disputes',
  * POST /api/teacher/payroll/:id/dispute
  * Submit a dispute for a payroll
  * Body: { reason, dispute_type }
- * 🔒 TEACHER only (own payroll)
+ * ðŸ”’ TEACHER only (own payroll)
  */
 app.post('/api/teacher/payroll/:id/dispute',
   requireAuth,
@@ -16089,15 +15671,15 @@ app.post('/api/teacher/payroll/:id/dispute',
       const teacherId = req.user.id;
       const { reason, dispute_type = 'other' } = req.body;
 
-      console.log(`📝 Teacher ${req.user.email} submitting dispute for payroll ${id}`);
-      console.log(`📝 Request body:`, req.body);
+      console.log(`ðŸ“ Teacher ${req.user.email} submitting dispute for payroll ${id}`);
+      console.log(`ðŸ“ Request body:`, req.body);
 
       // Validate
       if (!reason || reason.trim().length < 10) {
-        console.log(`❌ Validation failed: reason length = ${reason?.length || 0}`);
+        console.log(`âŒ Validation failed: reason length = ${reason?.length || 0}`);
         return res.status(400).json({
           success: false,
-          message: `Vui lòng mô tả chi tiết lý do khiếu nại (ít nhất 10 ký tự). Hiện tại: ${reason?.trim()?.length || 0} ký tự`
+          message: `Vui lÃ²ng mÃ´ táº£ chi tiáº¿t lÃ½ do khiáº¿u náº¡i (Ã­t nháº¥t 10 kÃ½ tá»±). Hiá»‡n táº¡i: ${reason?.trim()?.length || 0} kÃ½ tá»±`
         });
       }
 
@@ -16112,7 +15694,7 @@ app.post('/api/teacher/payroll/:id/dispute',
       if (payrollError || !payroll) {
         return res.status(404).json({
           success: false,
-          message: 'Không tìm thấy bảng lương'
+          message: 'KhÃ´ng tÃ¬m tháº¥y báº£ng lÆ°Æ¡ng'
         });
       }
 
@@ -16127,7 +15709,7 @@ app.post('/api/teacher/payroll/:id/dispute',
       if (existingDispute) {
         return res.status(400).json({
           success: false,
-          message: 'Đã có khiếu nại đang chờ xử lý cho bảng lương này'
+          message: 'ÄÃ£ cÃ³ khiáº¿u náº¡i Ä‘ang chá» xá»­ lÃ½ cho báº£ng lÆ°Æ¡ng nÃ y'
         });
       }
 
@@ -16146,15 +15728,15 @@ app.post('/api/teacher/payroll/:id/dispute',
 
       if (error) throw error;
 
-      console.log(`📝 Dispute ${dispute.id} created for payroll ${id}`);
+      console.log(`ðŸ“ Dispute ${dispute.id} created for payroll ${id}`);
 
       res.status(201).json({
         success: true,
         data: dispute,
-        message: 'Gửi khiếu nại thành công. Chúng tôi sẽ xem xét trong thời gian sớm nhất.'
+        message: 'Gá»­i khiáº¿u náº¡i thÃ nh cÃ´ng. ChÃºng tÃ´i sáº½ xem xÃ©t trong thá»i gian sá»›m nháº¥t.'
       });
     } catch (error) {
-      console.error('❌ Error creating payroll dispute:', error);
+      console.error('âŒ Error creating payroll dispute:', error);
       next(error);
     }
   }
@@ -16168,7 +15750,7 @@ app.post('/api/teacher/payroll/:id/dispute',
  * GET /api/admin/payroll-disputes
  * Get all disputes with optional filters
  * Query: ?status=pending&teacher_id=xxx
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/payroll-disputes',
   requireAuth,
@@ -16177,7 +15759,7 @@ app.get('/api/admin/payroll-disputes',
     try {
       const { status, teacher_id } = req.query;
 
-      console.log(`📝 Admin ${req.user.email} fetching payroll disputes`);
+      console.log(`ðŸ“ Admin ${req.user.email} fetching payroll disputes`);
 
       let query = supabase
         .from('payroll_disputes')
@@ -16214,7 +15796,7 @@ app.get('/api/admin/payroll-disputes',
         data: filteredData
       });
     } catch (error) {
-      console.error('❌ Error fetching payroll disputes:', error);
+      console.error('âŒ Error fetching payroll disputes:', error);
       next(error);
     }
   }
@@ -16224,7 +15806,7 @@ app.get('/api/admin/payroll-disputes',
  * PATCH /api/admin/payroll-disputes/:id
  * Update dispute status and response
  * Body: { status, admin_response }
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.patch('/api/admin/payroll-disputes/:id',
   requireAuth,
@@ -16234,14 +15816,14 @@ app.patch('/api/admin/payroll-disputes/:id',
       const { id } = req.params;
       const { status, admin_response } = req.body;
 
-      console.log(`📝 Admin ${req.user.email} updating dispute ${id}`);
+      console.log(`ðŸ“ Admin ${req.user.email} updating dispute ${id}`);
 
       // Validate status
       const validStatuses = ['pending', 'reviewing', 'resolved', 'rejected'];
       if (status && !validStatuses.includes(status)) {
         return res.status(400).json({
           success: false,
-          message: 'Trạng thái không hợp lệ'
+          message: 'Tráº¡ng thÃ¡i khÃ´ng há»£p lá»‡'
         });
       }
 
@@ -16255,7 +15837,7 @@ app.patch('/api/admin/payroll-disputes/:id',
       if (fetchError || !existing) {
         return res.status(404).json({
           success: false,
-          message: 'Không tìm thấy khiếu nại'
+          message: 'KhÃ´ng tÃ¬m tháº¥y khiáº¿u náº¡i'
         });
       }
 
@@ -16264,7 +15846,7 @@ app.patch('/api/admin/payroll-disputes/:id',
       if (effectiveCenterId && existing.teacher?.center_id !== effectiveCenterId) {
         return res.status(403).json({
           success: false,
-          message: 'Không có quyền xử lý khiếu nại này'
+          message: 'KhÃ´ng cÃ³ quyá»n xá»­ lÃ½ khiáº¿u náº¡i nÃ y'
         });
       }
 
@@ -16287,15 +15869,15 @@ app.patch('/api/admin/payroll-disputes/:id',
 
       if (error) throw error;
 
-      console.log(`📝 Dispute ${id} updated to status: ${status}`);
+      console.log(`ðŸ“ Dispute ${id} updated to status: ${status}`);
 
       res.json({
         success: true,
         data: updated,
-        message: 'Cập nhật khiếu nại thành công'
+        message: 'Cáº­p nháº­t khiáº¿u náº¡i thÃ nh cÃ´ng'
       });
     } catch (error) {
-      console.error('❌ Error updating payroll dispute:', error);
+      console.error('âŒ Error updating payroll dispute:', error);
       next(error);
     }
   }
@@ -16309,7 +15891,7 @@ app.patch('/api/admin/payroll-disputes/:id',
  * POST /api/admin/payroll/:id/payment-proof
  * Upload payment proof and mark as paid
  * Body: { payment_proof_url, payment_method, payment_reference }
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/payroll/:id/payment-proof',
   requireAuth,
@@ -16319,7 +15901,7 @@ app.post('/api/admin/payroll/:id/payment-proof',
       const { id } = req.params;
       const { payment_proof_url, payment_method = 'bank_transfer', payment_reference } = req.body;
 
-      console.log(`💳 Admin ${req.user.email} uploading payment proof for payroll ${id}`);
+      console.log(`ðŸ’³ Admin ${req.user.email} uploading payment proof for payroll ${id}`);
 
       // Get payroll
       const { data: payroll, error: fetchError } = await supabase
@@ -16331,7 +15913,7 @@ app.post('/api/admin/payroll/:id/payment-proof',
       if (fetchError || !payroll) {
         return res.status(404).json({
           success: false,
-          message: 'Không tìm thấy bảng lương'
+          message: 'KhÃ´ng tÃ¬m tháº¥y báº£ng lÆ°Æ¡ng'
         });
       }
 
@@ -16340,7 +15922,7 @@ app.post('/api/admin/payroll/:id/payment-proof',
       if (effectiveCenterId && payroll.teacher?.center_id !== effectiveCenterId) {
         return res.status(403).json({
           success: false,
-          message: 'Không có quyền cập nhật bảng lương này'
+          message: 'KhÃ´ng cÃ³ quyá»n cáº­p nháº­t báº£ng lÆ°Æ¡ng nÃ y'
         });
       }
 
@@ -16348,7 +15930,7 @@ app.post('/api/admin/payroll/:id/payment-proof',
       if (payroll.status !== 'approved') {
         return res.status(400).json({
           success: false,
-          message: 'Chỉ có thể thanh toán bảng lương đã được duyệt'
+          message: 'Chá»‰ cÃ³ thá»ƒ thanh toÃ¡n báº£ng lÆ°Æ¡ng Ä‘Ã£ Ä‘Æ°á»£c duyá»‡t'
         });
       }
 
@@ -16374,15 +15956,15 @@ app.post('/api/admin/payroll/:id/payment-proof',
 
       if (error) throw error;
 
-      console.log(`💳 Payroll ${id} marked as paid with proof`);
+      console.log(`ðŸ’³ Payroll ${id} marked as paid with proof`);
 
       res.json({
         success: true,
         data: updated,
-        message: 'Thanh toán thành công'
+        message: 'Thanh toÃ¡n thÃ nh cÃ´ng'
       });
     } catch (error) {
-      console.error('❌ Error uploading payment proof:', error);
+      console.error('âŒ Error uploading payment proof:', error);
       next(error);
     }
   }
@@ -16396,7 +15978,7 @@ app.post('/api/admin/payroll/:id/payment-proof',
  * GET /api/admin/holidays
  * Get list of holidays with optional date range filter
  * Query: ?year=2026&month=2&from=2026-01-01&to=2026-12-31
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/holidays',
   requireAuth,
@@ -16404,7 +15986,7 @@ app.get('/api/admin/holidays',
   async (req, res, next) => {
     try {
       const { year, month, from, to } = req.query;
-      console.log(`🎄 Admin ${req.user.email} fetching holidays`);
+      console.log(`ðŸŽ„ Admin ${req.user.email} fetching holidays`);
 
       let query = supabase
         .from('holidays')
@@ -16434,7 +16016,7 @@ app.get('/api/admin/holidays',
         data: data || []
       });
     } catch (error) {
-      console.error('❌ Error fetching holidays:', error);
+      console.error('âŒ Error fetching holidays:', error);
       next(error);
     }
   }
@@ -16443,7 +16025,7 @@ app.get('/api/admin/holidays',
 /**
  * GET /api/admin/holidays/:id
  * Get single holiday by ID
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/holidays/:id',
   requireAuth,
@@ -16451,7 +16033,7 @@ app.get('/api/admin/holidays/:id',
   async (req, res, next) => {
     try {
       const { id } = req.params;
-      console.log(`🎄 Admin ${req.user.email} fetching holiday ${id}`);
+      console.log(`ðŸŽ„ Admin ${req.user.email} fetching holiday ${id}`);
 
       const { data, error } = await supabase
         .from('holidays')
@@ -16466,7 +16048,7 @@ app.get('/api/admin/holidays/:id',
         if (error.code === 'PGRST116') {
           return res.status(404).json({
             success: false,
-            message: 'Không tìm thấy ngày lễ'
+            message: 'KhÃ´ng tÃ¬m tháº¥y ngÃ y lá»…'
           });
         }
         throw error;
@@ -16477,7 +16059,7 @@ app.get('/api/admin/holidays/:id',
         data
       });
     } catch (error) {
-      console.error('❌ Error fetching holiday:', error);
+      console.error('âŒ Error fetching holiday:', error);
       next(error);
     }
   }
@@ -16487,7 +16069,7 @@ app.get('/api/admin/holidays/:id',
  * POST /api/admin/holidays
  * Create a new holiday
  * Body: { name, date, description?, is_recurring? }
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/holidays',
   requireAuth,
@@ -16495,13 +16077,13 @@ app.post('/api/admin/holidays',
   async (req, res, next) => {
     try {
       const { name, date, description, is_recurring } = req.body;
-      console.log(`🎄 Admin ${req.user.email} creating holiday: ${name} (${date})`);
+      console.log(`ðŸŽ„ Admin ${req.user.email} creating holiday: ${name} (${date})`);
 
       // Validation
       if (!name || !date) {
         return res.status(400).json({
           success: false,
-          message: 'Tên và ngày là bắt buộc'
+          message: 'TÃªn vÃ  ngÃ y lÃ  báº¯t buá»™c'
         });
       }
 
@@ -16517,7 +16099,7 @@ app.post('/api/admin/holidays',
       if (existing) {
         return res.status(409).json({
           success: false,
-          message: `Đã có ngày lễ vào ngày ${date}`
+          message: `ÄÃ£ cÃ³ ngÃ y lá»… vÃ o ngÃ y ${date}`
         });
       }
 
@@ -16539,10 +16121,10 @@ app.post('/api/admin/holidays',
       res.status(201).json({
         success: true,
         data,
-        message: 'Đã tạo ngày lễ thành công'
+        message: 'ÄÃ£ táº¡o ngÃ y lá»… thÃ nh cÃ´ng'
       });
     } catch (error) {
-      console.error('❌ Error creating holiday:', error);
+      console.error('âŒ Error creating holiday:', error);
       next(error);
     }
   }
@@ -16552,7 +16134,7 @@ app.post('/api/admin/holidays',
  * PUT /api/admin/holidays/:id
  * Update an existing holiday
  * Body: { name?, date?, description?, is_recurring? }
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.put('/api/admin/holidays/:id',
   requireAuth,
@@ -16561,7 +16143,7 @@ app.put('/api/admin/holidays/:id',
     try {
       const { id } = req.params;
       const { name, date, description, is_recurring } = req.body;
-      console.log(`🎄 Admin ${req.user.email} updating holiday ${id}`);
+      console.log(`ðŸŽ„ Admin ${req.user.email} updating holiday ${id}`);
 
       // Check if holiday exists
       const { data: existing, error: checkError } = await supabase
@@ -16575,7 +16157,7 @@ app.put('/api/admin/holidays/:id',
       if (!existing) {
         return res.status(404).json({
           success: false,
-          message: 'Không tìm thấy ngày lễ'
+          message: 'KhÃ´ng tÃ¬m tháº¥y ngÃ y lá»…'
         });
       }
 
@@ -16593,7 +16175,7 @@ app.put('/api/admin/holidays/:id',
         if (conflict) {
           return res.status(409).json({
             success: false,
-            message: `Đã có ngày lễ khác vào ngày ${date}`
+            message: `ÄÃ£ cÃ³ ngÃ y lá»… khÃ¡c vÃ o ngÃ y ${date}`
           });
         }
       }
@@ -16620,10 +16202,10 @@ app.put('/api/admin/holidays/:id',
       res.json({
         success: true,
         data,
-        message: 'Đã cập nhật ngày lễ thành công'
+        message: 'ÄÃ£ cáº­p nháº­t ngÃ y lá»… thÃ nh cÃ´ng'
       });
     } catch (error) {
-      console.error('❌ Error updating holiday:', error);
+      console.error('âŒ Error updating holiday:', error);
       next(error);
     }
   }
@@ -16632,7 +16214,7 @@ app.put('/api/admin/holidays/:id',
 /**
  * DELETE /api/admin/holidays/:id
  * Delete a holiday
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.delete('/api/admin/holidays/:id',
   requireAuth,
@@ -16640,7 +16222,7 @@ app.delete('/api/admin/holidays/:id',
   async (req, res, next) => {
     try {
       const { id } = req.params;
-      console.log(`🎄 Admin ${req.user.email} deleting holiday ${id}`);
+      console.log(`ðŸŽ„ Admin ${req.user.email} deleting holiday ${id}`);
 
       // Check if holiday exists
       const { data: existing, error: checkError } = await supabase
@@ -16654,7 +16236,7 @@ app.delete('/api/admin/holidays/:id',
       if (!existing) {
         return res.status(404).json({
           success: false,
-          message: 'Không tìm thấy ngày lễ'
+          message: 'KhÃ´ng tÃ¬m tháº¥y ngÃ y lá»…'
         });
       }
 
@@ -16668,10 +16250,10 @@ app.delete('/api/admin/holidays/:id',
 
       res.json({
         success: true,
-        message: `Đã xóa ngày lễ "${existing.name}" thành công`
+        message: `ÄÃ£ xÃ³a ngÃ y lá»… "${existing.name}" thÃ nh cÃ´ng`
       });
     } catch (error) {
-      console.error('❌ Error deleting holiday:', error);
+      console.error('âŒ Error deleting holiday:', error);
       next(error);
     }
   }
@@ -16681,7 +16263,7 @@ app.delete('/api/admin/holidays/:id',
  * GET /api/holidays
  * Public endpoint to check holidays (for scheduling)
  * Query: ?date=2026-02-01 or ?from=2026-02-01&to=2026-02-28
- * 🔓 Authenticated users
+ * ðŸ”“ Authenticated users
  */
 app.get('/api/holidays',
   requireAuth,
@@ -16708,7 +16290,7 @@ app.get('/api/holidays',
         data: data || []
       });
     } catch (error) {
-      console.error('❌ Error fetching holidays:', error);
+      console.error('âŒ Error fetching holidays:', error);
       next(error);
     }
   }
@@ -16718,7 +16300,7 @@ app.get('/api/holidays',
  * GET /api/holidays/check
  * Check if a specific date is a holiday
  * Query: ?date=2026-02-01
- * 🔓 Authenticated users
+ * ðŸ”“ Authenticated users
  */
 app.get('/api/holidays/check',
   requireAuth,
@@ -16729,7 +16311,7 @@ app.get('/api/holidays/check',
       if (!date) {
         return res.status(400).json({
           success: false,
-          message: 'Ngày là bắt buộc'
+          message: 'NgÃ y lÃ  báº¯t buá»™c'
         });
       }
 
@@ -16781,7 +16363,7 @@ app.get('/api/holidays/check',
         isHoliday: false
       });
     } catch (error) {
-      console.error('❌ Error checking holiday:', error);
+      console.error('âŒ Error checking holiday:', error);
       next(error);
     }
   }
@@ -16796,7 +16378,7 @@ app.get('/api/holidays/check',
  * Parse uploaded bank statement file
  * Body: { fileData: base64, fileType: 'csv'|'xlsx', bankFormat: 'vcb'|'tcb'|'bidv'|'generic' }
  * Response: { success, data: { transactions: Array, count: number, bankFormat: string } }
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/payments/import/parse',
   requireAuth,
@@ -16808,7 +16390,7 @@ app.post('/api/admin/payments/import/parse',
       if (!fileData || !fileType) {
         return res.status(400).json({
           success: false,
-          message: 'File data và file type là bắt buộc'
+          message: 'File data vÃ  file type lÃ  báº¯t buá»™c'
         });
       }
 
@@ -16824,13 +16406,13 @@ app.post('/api/admin/payments/import/parse',
       if (!parseResult.success) {
         return res.status(400).json({
           success: false,
-          message: parseResult.message || 'Không thể parse file sao kê'
+          message: parseResult.message || 'KhÃ´ng thá»ƒ parse file sao kÃª'
         });
       }
 
       const transactions = parseResult.data || [];
 
-      console.log(`📄 Parsed ${transactions.length} transactions from bank statement`);
+      console.log(`ðŸ“„ Parsed ${transactions.length} transactions from bank statement`);
 
       res.json({
         success: true,
@@ -16841,7 +16423,7 @@ app.post('/api/admin/payments/import/parse',
         }
       });
     } catch (error) {
-      console.error('❌ Error parsing bank statement:', error);
+      console.error('âŒ Error parsing bank statement:', error);
       next(error);
     }
   }
@@ -16852,7 +16434,7 @@ app.post('/api/admin/payments/import/parse',
  * Match parsed transactions with invoices
  * Body: { transactions: Array }
  * Response: { success, data: { matches: Array, summary: Object } }
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/payments/import/match',
   requireAuth,
@@ -16869,7 +16451,7 @@ app.post('/api/admin/payments/import/match',
       if (!transactions || !Array.isArray(transactions)) {
         return res.status(400).json({
           success: false,
-          message: 'Transactions array là bắt buộc'
+          message: 'Transactions array lÃ  báº¯t buá»™c'
         });
       }
 
@@ -16880,7 +16462,7 @@ app.post('/api/admin/payments/import/match',
       if (!result.success) {
         return res.status(400).json({
           success: false,
-          message: result.message || 'Không thể khớp giao dịch với hóa đơn'
+          message: result.message || 'KhÃ´ng thá»ƒ khá»›p giao dá»‹ch vá»›i hÃ³a Ä‘Æ¡n'
         });
       }
 
@@ -16890,7 +16472,7 @@ app.post('/api/admin/payments/import/match',
         matched: matches.filter((item) => item.matchedInvoice && ['high', 'medium', 'manual'].includes(item.confidence)).length
       };
 
-      console.log(`🔍 Matched ${summary.matched} of ${summary.total || matches.length} transactions`);
+      console.log(`ðŸ” Matched ${summary.matched} of ${summary.total || matches.length} transactions`);
 
       res.json({
         success: true,
@@ -16900,7 +16482,7 @@ app.post('/api/admin/payments/import/match',
         }
       });
     } catch (error) {
-      console.error('❌ Error matching transactions:', error);
+      console.error('âŒ Error matching transactions:', error);
       next(error);
     }
   }
@@ -16911,7 +16493,7 @@ app.post('/api/admin/payments/import/match',
  * Apply matched payments to invoices
  * Body: { matches: Array }
  * Response: { success, data: { applied, failed, skipped, skippedLowConfidence, total, details, errors } }
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/payments/import/apply',
   requireAuth,
@@ -16928,7 +16510,7 @@ app.post('/api/admin/payments/import/apply',
       if (!matches || !Array.isArray(matches)) {
         return res.status(400).json({
           success: false,
-          message: 'Matches array là bắt buộc'
+          message: 'Matches array lÃ  báº¯t buá»™c'
         });
       }
 
@@ -16940,7 +16522,7 @@ app.post('/api/admin/payments/import/apply',
         .filter((item) => !item.success)
         .map((item) => item.error);
 
-      console.log(`💳 Applied ${result.applied} payments, ${result.failed} failed, ${result.skipped} skipped`);
+      console.log(`ðŸ’³ Applied ${result.applied} payments, ${result.failed} failed, ${result.skipped} skipped`);
 
       res.json({
         success: true,
@@ -16953,10 +16535,10 @@ app.post('/api/admin/payments/import/apply',
           details: result.details,
           errors
         },
-        message: `Đã áp dụng ${result.applied} thanh toán thành công`
+        message: `ÄÃ£ Ã¡p dá»¥ng ${result.applied} thanh toÃ¡n thÃ nh cÃ´ng`
       });
     } catch (error) {
-      console.error('❌ Error applying payments:', error);
+      console.error('âŒ Error applying payments:', error);
       next(error);
     }
   }
@@ -16970,7 +16552,7 @@ app.post('/api/admin/payments/import/apply',
  * GET /api/admin/call-list
  * Get payment call list
  * Query: ?status=pending&priority=high&page=1&limit=20
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/call-list',
   requireAuth,
@@ -17014,7 +16596,7 @@ app.get('/api/admin/call-list',
         }
       });
     } catch (error) {
-      console.error('❌ Error fetching call list:', error);
+      console.error('âŒ Error fetching call list:', error);
       next(error);
     }
   }
@@ -17024,7 +16606,7 @@ app.get('/api/admin/call-list',
  * POST /api/admin/call-list
  * Add invoice to call list
  * Body: { invoiceId, priority, notes }
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/call-list',
   requireAuth,
@@ -17036,7 +16618,7 @@ app.post('/api/admin/call-list',
       if (!invoiceId) {
         return res.status(400).json({
           success: false,
-          message: 'Invoice ID là bắt buộc'
+          message: 'Invoice ID lÃ  báº¯t buá»™c'
         });
       }
 
@@ -17050,7 +16632,7 @@ app.post('/api/admin/call-list',
       if (invoiceError || !invoice) {
         return res.status(404).json({
           success: false,
-          message: 'Không tìm thấy hóa đơn'
+          message: 'KhÃ´ng tÃ¬m tháº¥y hÃ³a Ä‘Æ¡n'
         });
       }
 
@@ -17073,15 +16655,15 @@ app.post('/api/admin/call-list',
 
       if (error) throw error;
 
-      console.log(`📞 Added invoice ${invoiceId} to call list`);
+      console.log(`ðŸ“ž Added invoice ${invoiceId} to call list`);
 
       res.json({
         success: true,
         data,
-        message: 'Đã thêm vào danh sách gọi điện'
+        message: 'ÄÃ£ thÃªm vÃ o danh sÃ¡ch gá»i Ä‘iá»‡n'
       });
     } catch (error) {
-      console.error('❌ Error adding to call list:', error);
+      console.error('âŒ Error adding to call list:', error);
       next(error);
     }
   }
@@ -17091,7 +16673,7 @@ app.post('/api/admin/call-list',
  * PATCH /api/admin/call-list/:id
  * Update call list item
  * Body: { status, priority, callNotes, nextCallDate, assignedTo }
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.patch('/api/admin/call-list/:id',
   requireAuth,
@@ -17111,7 +16693,7 @@ app.patch('/api/admin/call-list/:id',
       if (fetchError || !existing) {
         return res.status(404).json({
           success: false,
-          message: 'Không tìm thấy mục trong danh sách gọi'
+          message: 'KhÃ´ng tÃ¬m tháº¥y má»¥c trong danh sÃ¡ch gá»i'
         });
       }
 
@@ -17120,7 +16702,7 @@ app.patch('/api/admin/call-list/:id',
       if (status) {
         updates.status = status;
 
-        // Handle call_count increment — single atomic operation, no double-increment
+        // Handle call_count increment â€” single atomic operation, no double-increment
         if (status === 'called') {
           updates.call_count = (existing.call_count || 0) + 1;
           updates.last_call_at = new Date().toISOString();
@@ -17145,15 +16727,15 @@ app.patch('/api/admin/call-list/:id',
 
       if (error) throw error;
 
-      console.log(`📞 Updated call list item ${id}: status=${status}`);
+      console.log(`ðŸ“ž Updated call list item ${id}: status=${status}`);
 
       res.json({
         success: true,
         data,
-        message: 'Đã cập nhật'
+        message: 'ÄÃ£ cáº­p nháº­t'
       });
     } catch (error) {
-      console.error('❌ Error updating call list:', error);
+      console.error('âŒ Error updating call list:', error);
       next(error);
     }
   }
@@ -17162,7 +16744,7 @@ app.patch('/api/admin/call-list/:id',
 /**
  * DELETE /api/admin/call-list/:id
  * Remove from call list
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.delete('/api/admin/call-list/:id',
   requireAuth,
@@ -17178,14 +16760,14 @@ app.delete('/api/admin/call-list/:id',
 
       if (error) throw error;
 
-      console.log(`🗑️ Removed call list item ${id}`);
+      console.log(`ðŸ—‘ï¸ Removed call list item ${id}`);
 
       res.json({
         success: true,
-        message: 'Đã xóa khỏi danh sách'
+        message: 'ÄÃ£ xÃ³a khá»i danh sÃ¡ch'
       });
     } catch (error) {
-      console.error('❌ Error removing from call list:', error);
+      console.error('âŒ Error removing from call list:', error);
       next(error);
     }
   }
@@ -17196,11 +16778,11 @@ app.delete('/api/admin/call-list/:id',
 // ============================================================
 
 // ============================================================
-// HOLIDAYS APIs - Quản lý ngày lễ/nghỉ
+// HOLIDAYS APIs - Quáº£n lÃ½ ngÃ y lá»…/nghá»‰
 // ============================================================
 
 /**
- * GET /api/admin/holidays - Lấy danh sách ngày lễ
+ * GET /api/admin/holidays - Láº¥y danh sÃ¡ch ngÃ y lá»…
  */
 app.get('/api/admin/holidays', requireAuth, async (req, res, next) => {
   try {
@@ -17232,7 +16814,7 @@ app.get('/api/admin/holidays', requireAuth, async (req, res, next) => {
 });
 
 /**
- * POST /api/admin/holidays - Thêm ngày lễ mới
+ * POST /api/admin/holidays - ThÃªm ngÃ y lá»… má»›i
  */
 app.post('/api/admin/holidays', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -17241,7 +16823,7 @@ app.post('/api/admin/holidays', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
     if (!name || !date) {
       return res.status(400).json({
         success: false,
-        message: 'Tên và ngày là bắt buộc'
+        message: 'TÃªn vÃ  ngÃ y lÃ  báº¯t buá»™c'
       });
     }
 
@@ -17261,7 +16843,7 @@ app.post('/api/admin/holidays', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
 
     res.status(201).json({
       success: true,
-      message: 'Thêm ngày lễ thành công',
+      message: 'ThÃªm ngÃ y lá»… thÃ nh cÃ´ng',
       data
     });
   } catch (error) {
@@ -17271,7 +16853,7 @@ app.post('/api/admin/holidays', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
 });
 
 /**
- * PUT /api/admin/holidays/:id - Cập nhật ngày lễ
+ * PUT /api/admin/holidays/:id - Cáº­p nháº­t ngÃ y lá»…
  */
 app.put('/api/admin/holidays/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -17295,7 +16877,7 @@ app.put('/api/admin/holidays/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
 
     res.json({
       success: true,
-      message: 'Cập nhật ngày lễ thành công',
+      message: 'Cáº­p nháº­t ngÃ y lá»… thÃ nh cÃ´ng',
       data
     });
   } catch (error) {
@@ -17305,7 +16887,7 @@ app.put('/api/admin/holidays/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
 });
 
 /**
- * DELETE /api/admin/holidays/:id - Xóa ngày lễ
+ * DELETE /api/admin/holidays/:id - XÃ³a ngÃ y lá»…
  */
 app.delete('/api/admin/holidays/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -17320,7 +16902,7 @@ app.delete('/api/admin/holidays/:id', requireAuth, requireRole(['SUPER_ADMIN', '
 
     res.json({
       success: true,
-      message: 'Xóa ngày lễ thành công'
+      message: 'XÃ³a ngÃ y lá»… thÃ nh cÃ´ng'
     });
   } catch (error) {
     console.error('Error deleting holiday:', error);
@@ -17329,11 +16911,11 @@ app.delete('/api/admin/holidays/:id', requireAuth, requireRole(['SUPER_ADMIN', '
 });
 
 // ============================================================
-// TEACHER AVAILABILITY APIs - Quản lý lịch trống của GV
+// TEACHER AVAILABILITY APIs - Quáº£n lÃ½ lá»‹ch trá»‘ng cá»§a GV
 // ============================================================
 
 /**
- * GET /api/admin/teacher-availability/:teacherId - Lấy lịch trống của GV
+ * GET /api/admin/teacher-availability/:teacherId - Láº¥y lá»‹ch trá»‘ng cá»§a GV
  */
 app.get('/api/admin/teacher-availability/:teacherId', requireAuth, async (req, res, next) => {
   try {
@@ -17358,20 +16940,20 @@ app.get('/api/admin/teacher-availability/:teacherId', requireAuth, async (req, r
 });
 
 /**
- * PUT /api/admin/teacher-availability/:teacherId - Cập nhật lịch trống của GV
+ * PUT /api/admin/teacher-availability/:teacherId - Cáº­p nháº­t lá»‹ch trá»‘ng cá»§a GV
  */
 app.put('/api/admin/teacher-availability/:teacherId', requireAuth, async (req, res, next) => {
   try {
     const { teacherId } = req.params;
     const { slots } = req.body; // Array of { day_of_week, start_time, end_time }
 
-    // Xóa slots cũ
+    // XÃ³a slots cÅ©
     await supabase
       .from('teacher_availability')
       .delete()
       .eq('teacher_id', teacherId);
 
-    // Thêm slots mới
+    // ThÃªm slots má»›i
     if (slots && slots.length > 0) {
       const slotsWithTeacher = slots.map(slot => ({
         ...slot,
@@ -17387,7 +16969,7 @@ app.put('/api/admin/teacher-availability/:teacherId', requireAuth, async (req, r
 
     res.json({
       success: true,
-      message: 'Cập nhật lịch trống thành công'
+      message: 'Cáº­p nháº­t lá»‹ch trá»‘ng thÃ nh cÃ´ng'
     });
   } catch (error) {
     console.error('Error updating teacher availability:', error);
@@ -17396,11 +16978,11 @@ app.put('/api/admin/teacher-availability/:teacherId', requireAuth, async (req, r
 });
 
 // ============================================================
-// MAKEUP SESSIONS APIs - Tạo buổi học bù
+// MAKEUP SESSIONS APIs - Táº¡o buá»•i há»c bÃ¹
 // ============================================================
 
 /**
- * POST /api/admin/sessions/makeup - Tạo buổi học bù
+ * POST /api/admin/sessions/makeup - Táº¡o buá»•i há»c bÃ¹
  */
 app.post('/api/admin/sessions/makeup', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
@@ -17419,16 +17001,16 @@ app.post('/api/admin/sessions/makeup', requireAuth, requireRole(['SUPER_ADMIN', 
     if (!class_id || !date || !start_time || !end_time) {
       return res.status(400).json({
         success: false,
-        message: 'Thiếu thông tin bắt buộc'
+        message: 'Thiáº¿u thÃ´ng tin báº¯t buá»™c'
       });
     }
 
-    // Tạo session bù
+    // Táº¡o session bÃ¹
     const { data: sessionData, error: sessionError } = await supabase
       .from('sessions')
       .insert({
         class_id,
-        session_number: 0, // Buổi bù đánh số 0
+        session_number: 0, // Buá»•i bÃ¹ Ä‘Ã¡nh sá»‘ 0
         session_date: date,
         start_time,
         end_time,
@@ -17444,7 +17026,7 @@ app.post('/api/admin/sessions/makeup', requireAuth, requireRole(['SUPER_ADMIN', 
 
     if (sessionError) throw sessionError;
 
-    // Nếu có danh sách học viên cần học bù, lưu vào bảng makeup_students
+    // Náº¿u cÃ³ danh sÃ¡ch há»c viÃªn cáº§n há»c bÃ¹, lÆ°u vÃ o báº£ng makeup_students
     if (student_ids && student_ids.length > 0) {
       const makeupRecords = student_ids.map(userId => ({
         session_id: sessionData.id,
@@ -17463,7 +17045,7 @@ app.post('/api/admin/sessions/makeup', requireAuth, requireRole(['SUPER_ADMIN', 
 
     res.status(201).json({
       success: true,
-      message: 'Tạo buổi học bù thành công',
+      message: 'Táº¡o buá»•i há»c bÃ¹ thÃ nh cÃ´ng',
       data: sessionData
     });
   } catch (error) {
@@ -17473,11 +17055,11 @@ app.post('/api/admin/sessions/makeup', requireAuth, requireRole(['SUPER_ADMIN', 
 });
 
 // ============================================================
-// SCHEDULE EXCEPTIONS APIs - Quản lý ngoại lệ lịch học
+// SCHEDULE EXCEPTIONS APIs - Quáº£n lÃ½ ngoáº¡i lá»‡ lá»‹ch há»c
 // ============================================================
 
 /**
- * POST /api/admin/sessions/:id/exception - Tạo ngoại lệ cho buổi học
+ * POST /api/admin/sessions/:id/exception - Táº¡o ngoáº¡i lá»‡ cho buá»•i há»c
  */
 app.post('/api/admin/sessions/:id/exception', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -17486,26 +17068,26 @@ app.post('/api/admin/sessions/:id/exception', requireAuth, requireRole(['SUPER_A
 
     // type: 'skip' | 'reschedule'
     if (type === 'skip') {
-      // Hủy buổi học
+      // Há»§y buá»•i há»c
       const { error } = await supabase
         .from('sessions')
         .update({
           status: 'cancelled',
-          notes: `Bỏ qua: ${reason}`,
+          notes: `Bá» qua: ${reason}`,
           updated_at: new Date().toISOString()
         })
         .eq('id', id);
 
       if (error) throw error;
     } else if (type === 'reschedule') {
-      // Dời lịch học
+      // Dá»i lá»‹ch há»c
       const { error } = await supabase
         .from('sessions')
         .update({
           session_date: new_date,
           start_time: new_start_time,
           end_time: new_end_time,
-          notes: `Dời lịch: ${reason}`,
+          notes: `Dá»i lá»‹ch: ${reason}`,
           updated_at: new Date().toISOString()
         })
         .eq('id', id);
@@ -17515,7 +17097,7 @@ app.post('/api/admin/sessions/:id/exception', requireAuth, requireRole(['SUPER_A
 
     res.json({
       success: true,
-      message: type === 'skip' ? 'Đã bỏ qua buổi học' : 'Đã dời lịch thành công'
+      message: type === 'skip' ? 'ÄÃ£ bá» qua buá»•i há»c' : 'ÄÃ£ dá»i lá»‹ch thÃ nh cÃ´ng'
     });
   } catch (error) {
     console.error('Error creating schedule exception:', error);
@@ -17530,11 +17112,11 @@ app.post('/api/admin/sessions/:id/exception', requireAuth, requireRole(['SUPER_A
 // NOTE: Duplicate payroll routes removed (were shadowed by earlier definitions at L13813-16000)
 
 // ============================================================
-// TEACHER DASHBOARD APIs - Dashboard cho giáo viên
+// TEACHER DASHBOARD APIs - Dashboard cho giÃ¡o viÃªn
 // ============================================================
 
 /**
- * GET /api/teacher/dashboard/overview - Tổng quan dashboard giáo viên
+ * GET /api/teacher/dashboard/overview - Tá»•ng quan dashboard giÃ¡o viÃªn
  * Returns: stats (today sessions, monthly hours, income, pending attendance)
  */
 app.get('/api/teacher/dashboard/overview', requireAuth, async (req, res, next) => {
@@ -17640,7 +17222,7 @@ app.get('/api/teacher/dashboard/overview', requireAuth, async (req, res, next) =
 });
 
 /**
- * GET /api/teacher/dashboard/today-sessions - Lịch dạy hôm nay của giáo viên
+ * GET /api/teacher/dashboard/today-sessions - Lá»‹ch dáº¡y hÃ´m nay cá»§a giÃ¡o viÃªn
  */
 app.get('/api/teacher/dashboard/today-sessions', requireAuth, async (req, res, next) => {
   try {
@@ -17702,7 +17284,7 @@ app.get('/api/teacher/dashboard/today-sessions', requireAuth, async (req, res, n
         ...session,
         studentCount: studentCounts[session.classes?.id] || 0,
         attendanceMarked: (attendanceCount || 0) > 0,
-        roomName: session.classes?.rooms?.name || 'Chưa xếp phòng'
+        roomName: session.classes?.rooms?.name || 'ChÆ°a xáº¿p phÃ²ng'
       };
     }));
 
@@ -17718,7 +17300,7 @@ app.get('/api/teacher/dashboard/today-sessions', requireAuth, async (req, res, n
 });
 
 /**
- * GET /api/teacher/dashboard/upcoming-sessions - Buổi học sắp tới (7 ngày)
+ * GET /api/teacher/dashboard/upcoming-sessions - Buá»•i há»c sáº¯p tá»›i (7 ngÃ y)
  */
 app.get('/api/teacher/dashboard/upcoming-sessions', requireAuth, async (req, res, next) => {
   try {
@@ -17768,7 +17350,7 @@ app.get('/api/teacher/dashboard/upcoming-sessions', requireAuth, async (req, res
 });
 
 /**
- * GET /api/teacher/dashboard/classes-summary - Tổng quan các lớp đang dạy
+ * GET /api/teacher/dashboard/classes-summary - Tá»•ng quan cÃ¡c lá»›p Ä‘ang dáº¡y
  */
 app.get('/api/teacher/dashboard/classes-summary', requireAuth, async (req, res, next) => {
   try {
@@ -17834,7 +17416,7 @@ app.get('/api/teacher/dashboard/classes-summary', requireAuth, async (req, res, 
 });
 
 /**
- * GET /api/teacher/dashboard/attendance-stats - Thống kê điểm danh của GV
+ * GET /api/teacher/dashboard/attendance-stats - Thá»‘ng kÃª Ä‘iá»ƒm danh cá»§a GV
  */
 app.get('/api/teacher/dashboard/attendance-stats', requireAuth, async (req, res, next) => {
   try {
@@ -17960,7 +17542,7 @@ app.get('/api/teacher/dashboard/attendance-stats', requireAuth, async (req, res,
 });
 
 /**
- * GET /api/teacher/availability - Giáo viên xem lịch rảnh/bận của mình
+ * GET /api/teacher/availability - GiÃ¡o viÃªn xem lá»‹ch ráº£nh/báº­n cá»§a mÃ¬nh
  */
 app.get('/api/teacher/availability', requireAuth, async (req, res, next) => {
   try {
@@ -17985,20 +17567,20 @@ app.get('/api/teacher/availability', requireAuth, async (req, res, next) => {
 });
 
 /**
- * PUT /api/teacher/availability - Giáo viên cập nhật lịch rảnh/bận của mình
+ * PUT /api/teacher/availability - GiÃ¡o viÃªn cáº­p nháº­t lá»‹ch ráº£nh/báº­n cá»§a mÃ¬nh
  */
 app.put('/api/teacher/availability', requireAuth, async (req, res, next) => {
   try {
     const teacherId = req.user.id;
     const { slots } = req.body; // Array of { day_of_week, start_time, end_time, type, reason }
 
-    // Xóa slots cũ
+    // XÃ³a slots cÅ©
     await supabase
       .from('teacher_availability')
       .delete()
       .eq('teacher_id', teacherId);
 
-    // Thêm slots mới
+    // ThÃªm slots má»›i
     if (slots && slots.length > 0) {
       const slotsWithTeacher = slots.map(slot => ({
         ...slot,
@@ -18012,7 +17594,7 @@ app.put('/api/teacher/availability', requireAuth, async (req, res, next) => {
       if (insertError) throw insertError;
     }
 
-    // Fetch và return updated data
+    // Fetch vÃ  return updated data
     const { data: updatedSlots } = await supabase
       .from('teacher_availability')
       .select('*')
@@ -18021,7 +17603,7 @@ app.put('/api/teacher/availability', requireAuth, async (req, res, next) => {
 
     res.json({
       success: true,
-      message: 'Cập nhật lịch rảnh/bận thành công',
+      message: 'Cáº­p nháº­t lá»‹ch ráº£nh/báº­n thÃ nh cÃ´ng',
       data: updatedSlots || []
     });
   } catch (error) {
@@ -18031,7 +17613,7 @@ app.put('/api/teacher/availability', requireAuth, async (req, res, next) => {
 });
 
 /**
- * GET /api/teacher/classes - Danh sách lớp của giáo viên
+ * GET /api/teacher/classes - Danh sÃ¡ch lá»›p cá»§a giÃ¡o viÃªn
  */
 app.get('/api/teacher/classes', requireAuth, async (req, res, next) => {
   try {
@@ -18089,7 +17671,7 @@ app.get('/api/teacher/classes', requireAuth, async (req, res, next) => {
 });
 
 /**
- * GET /api/teacher/classes/:id - Chi tiết một lớp (với students, sessions)
+ * GET /api/teacher/classes/:id - Chi tiáº¿t má»™t lá»›p (vá»›i students, sessions)
  */
 app.get('/api/teacher/classes/:id', requireAuth, async (req, res, next) => {
   try {
@@ -18110,7 +17692,7 @@ app.get('/api/teacher/classes/:id', requireAuth, async (req, res, next) => {
       .single();
 
     if (classError || !classData) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học hoặc bạn không có quyền' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c hoáº·c báº¡n khÃ´ng cÃ³ quyá»n' });
     }
 
     // Get enrolled students
@@ -18150,7 +17732,7 @@ app.get('/api/teacher/classes/:id', requireAuth, async (req, res, next) => {
 });
 
 /**
- * GET /api/teacher/classes/:id/students - Danh sách học viên trong lớp
+ * GET /api/teacher/classes/:id/students - Danh sÃ¡ch há»c viÃªn trong lá»›p
  */
 app.get('/api/teacher/classes/:id/students', requireAuth, async (req, res, next) => {
   try {
@@ -18165,7 +17747,7 @@ app.get('/api/teacher/classes/:id/students', requireAuth, async (req, res, next)
       .single();
 
     if (classError || !classData || classData.teacher_id !== teacherId) {
-      return res.status(403).json({ success: false, message: 'Không có quyền truy cập lớp này' });
+      return res.status(403).json({ success: false, message: 'KhÃ´ng cÃ³ quyá»n truy cáº­p lá»›p nÃ y' });
     }
 
     const { data: enrollments, error } = await supabase
@@ -18203,7 +17785,7 @@ app.get('/api/teacher/classes/:id/students', requireAuth, async (req, res, next)
 });
 
 /**
- * GET /api/teacher/sessions/:id/attendance - Lấy điểm danh của một session
+ * GET /api/teacher/sessions/:id/attendance - Láº¥y Ä‘iá»ƒm danh cá»§a má»™t session
  */
 app.get('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, next) => {
   try {
@@ -18218,7 +17800,7 @@ app.get('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, ne
       .single();
 
     if (sessionError || !session || session.teacher_id !== teacherId) {
-      return res.status(403).json({ success: false, message: 'Không có quyền truy cập buổi học này' });
+      return res.status(403).json({ success: false, message: 'KhÃ´ng cÃ³ quyá»n truy cáº­p buá»•i há»c nÃ y' });
     }
 
     // Get attendance records
@@ -18247,7 +17829,7 @@ app.get('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, ne
 });
 
 /**
- * POST /api/teacher/sessions/:id/attendance - Giáo viên điểm danh
+ * POST /api/teacher/sessions/:id/attendance - GiÃ¡o viÃªn Ä‘iá»ƒm danh
  */
 app.post('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, next) => {
   try {
@@ -18263,17 +17845,17 @@ app.post('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, n
       .single();
 
     if (sessionError || !session) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy buổi học' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y buá»•i há»c' });
     }
 
     if (session.teacher_id !== teacherId) {
-      return res.status(403).json({ success: false, message: 'Bạn không có quyền điểm danh buổi học này' });
+      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n Ä‘iá»ƒm danh buá»•i há»c nÃ y' });
     }
 
-    // 🕐 Check 24-hour edit window
+    // ðŸ• Check 24-hour edit window
     const editWindow = isWithinEditWindow(session.session_date, session.end_time);
     if (!editWindow.canEdit) {
-      console.log(`⏰ Teacher ${req.user.email} bị chặn điểm danh session ${sessionId}: ${editWindow.message}`);
+      console.log(`â° Teacher ${req.user.email} bá»‹ cháº·n Ä‘iá»ƒm danh session ${sessionId}: ${editWindow.message}`);
       return res.status(403).json({
         success: false,
         message: editWindow.message,
@@ -18285,10 +17867,10 @@ app.post('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, n
     }
 
     if (session.is_locked) {
-      return res.status(400).json({ success: false, message: 'Buổi học đã khóa sổ, không thể điểm danh' });
+      return res.status(400).json({ success: false, message: 'Buá»•i há»c Ä‘Ã£ khÃ³a sá»•, khÃ´ng thá»ƒ Ä‘iá»ƒm danh' });
     }
 
-    console.log(`📋 Teacher ${req.user.email} điểm danh ${attendances.length} học viên cho session ${sessionId} (còn ${editWindow.hoursRemaining}h để chỉnh sửa)`);
+    console.log(`ðŸ“‹ Teacher ${req.user.email} Ä‘iá»ƒm danh ${attendances.length} há»c viÃªn cho session ${sessionId} (cÃ²n ${editWindow.hoursRemaining}h Ä‘á»ƒ chá»‰nh sá»­a)`);
 
     // Upsert attendance records
     const results = [];
@@ -18321,7 +17903,7 @@ app.post('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, n
 
     res.json({
       success: true,
-      message: `Đã điểm danh ${results.length} học viên`,
+      message: `ÄÃ£ Ä‘iá»ƒm danh ${results.length} há»c viÃªn`,
       data: results
     });
 
@@ -18329,7 +17911,7 @@ app.post('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, n
     try {
       (async () => {
         const absentStudentIds = (attendances || [])
-          .filter(att => ['absent', 'vắng'].includes((att?.status || '').toLowerCase()))
+          .filter(att => ['absent', 'váº¯ng'].includes((att?.status || '').toLowerCase()))
           .map(att => att.student_id)
           .filter(Boolean);
 
@@ -18352,8 +17934,8 @@ app.post('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, n
             userId: link.parent_id,
             centerId: classInfo?.center_id,
             type: 'attendance',
-            title: 'Thông báo điểm danh',
-            message: 'Học viên của bạn vắng mặt trong buổi học gần nhất',
+            title: 'ThÃ´ng bÃ¡o Ä‘iá»ƒm danh',
+            message: 'Há»c viÃªn cá»§a báº¡n váº¯ng máº·t trong buá»•i há»c gáº§n nháº¥t',
             referenceId: sessionId,
             referenceType: 'attendance'
           }).catch(err => console.warn('Notification error:', err.message));
@@ -18383,13 +17965,13 @@ app.get('/api/teacher/sessions/:id/edit-status', requireAuth, async (req, res, n
       .single();
 
     if (sessionError || !session) {
-      console.log(`❌ Session ${sessionId} không tồn tại`);
-      return res.status(404).json({ success: false, message: 'Không tìm thấy buổi học' });
+      console.log(`âŒ Session ${sessionId} khÃ´ng tá»“n táº¡i`);
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y buá»•i há»c' });
     }
 
     if (session.teacher_id !== teacherId) {
-      console.log(`⛔ Teacher ${req.user.email} không có quyền xem edit-status của session ${sessionId}`);
-      return res.status(403).json({ success: false, message: 'Bạn không có quyền xem thông tin buổi học này' });
+      console.log(`â›” Teacher ${req.user.email} khÃ´ng cÃ³ quyá»n xem edit-status cá»§a session ${sessionId}`);
+      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem thÃ´ng tin buá»•i há»c nÃ y' });
     }
 
     // Check edit window
@@ -18400,10 +17982,10 @@ app.get('/api/teacher/sessions/:id/edit-status', requireAuth, async (req, res, n
 
     let finalMessage = editWindow.message;
     if (session.is_locked) {
-      finalMessage = 'Buổi học đã khóa sổ, không thể chỉnh sửa';
+      finalMessage = 'Buá»•i há»c Ä‘Ã£ khÃ³a sá»•, khÃ´ng thá»ƒ chá»‰nh sá»­a';
     }
 
-    console.log(`🔍 Edit status check: session ${sessionId} - canEdit: ${canEdit}, isLocked: ${session.is_locked}, editWindow: ${editWindow.canEdit}`);
+    console.log(`ðŸ” Edit status check: session ${sessionId} - canEdit: ${canEdit}, isLocked: ${session.is_locked}, editWindow: ${editWindow.canEdit}`);
 
     res.json({
       success: true,
@@ -18418,7 +18000,7 @@ app.get('/api/teacher/sessions/:id/edit-status', requireAuth, async (req, res, n
       }
     });
   } catch (error) {
-    console.error('❌ Error checking edit status:', error);
+    console.error('âŒ Error checking edit status:', error);
     next(error);
   }
 });
@@ -18431,7 +18013,7 @@ app.get('/api/teacher/sessions/:id/edit-status', requireAuth, async (req, res, n
  * GET /api/teacher/classes/:id/grades
  * Get all grades for a class (teacher's class only)
  * Query params: ?gradeStructureId=xxx&studentId=xxx
- * 🔒 TEACHER (own class), SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ TEACHER (own class), SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) => {
   try {
@@ -18440,7 +18022,7 @@ app.get('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) =
     const { id: classId } = req.params;
     const { gradeStructureId, studentId } = req.query;
 
-    console.log(`📝 GET grades for class ${classId} by ${req.user.email}`);
+    console.log(`ðŸ“ GET grades for class ${classId} by ${req.user.email}`);
 
     // Get class info with course
     const { data: classData, error: classError } = await supabase
@@ -18450,13 +18032,13 @@ app.get('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) =
       .single();
 
     if (classError || !classData) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c' });
     }
 
     // Check permission: teacher owns class OR admin
     const isAdmin = ['SUPER_ADMIN', 'CENTER_MANAGER'].includes(userRole);
     if (!isAdmin && classData.teacher_id !== userId) {
-      return res.status(403).json({ success: false, message: 'Không có quyền truy cập lớp này' });
+      return res.status(403).json({ success: false, message: 'KhÃ´ng cÃ³ quyá»n truy cáº­p lá»›p nÃ y' });
     }
 
     // Get grade structures for this course
@@ -18566,7 +18148,7 @@ app.get('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) =
       }
     });
   } catch (error) {
-    console.error('❌ Error fetching grades:', error);
+    console.error('âŒ Error fetching grades:', error);
     next(error);
   }
 });
@@ -18575,7 +18157,7 @@ app.get('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) =
  * POST /api/teacher/classes/:id/grades
  * Save/update grades for students (teacher's class only)
  * Body: { gradeStructureId, grades: [{ enrollment_id, score, notes }] }
- * 🔒 TEACHER (own class only)
+ * ðŸ”’ TEACHER (own class only)
  */
 app.post('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) => {
   try {
@@ -18583,14 +18165,14 @@ app.post('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) 
     const { id: classId } = req.params;
     const { gradeStructureId, grades } = req.body;
 
-    console.log(`📝 POST grades for class ${classId} by ${req.user.email}`);
+    console.log(`ðŸ“ POST grades for class ${classId} by ${req.user.email}`);
 
     // Validate input
     if (!gradeStructureId) {
-      return res.status(400).json({ success: false, message: 'Thiếu gradeStructureId' });
+      return res.status(400).json({ success: false, message: 'Thiáº¿u gradeStructureId' });
     }
     if (!grades || !Array.isArray(grades) || grades.length === 0) {
-      return res.status(400).json({ success: false, message: 'Thiếu danh sách điểm' });
+      return res.status(400).json({ success: false, message: 'Thiáº¿u danh sÃ¡ch Ä‘iá»ƒm' });
     }
 
     // Verify teacher owns this class
@@ -18601,12 +18183,12 @@ app.post('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) 
       .single();
 
     if (classError || !classData) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c' });
     }
 
     if (classData.teacher_id !== teacherId) {
-      console.log(`⛔ Teacher ${req.user.email} không có quyền chấm điểm lớp ${classId}`);
-      return res.status(403).json({ success: false, message: 'Bạn không có quyền chấm điểm lớp này' });
+      console.log(`â›” Teacher ${req.user.email} khÃ´ng cÃ³ quyá»n cháº¥m Ä‘iá»ƒm lá»›p ${classId}`);
+      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n cháº¥m Ä‘iá»ƒm lá»›p nÃ y' });
     }
 
     // Verify grade structure belongs to this course
@@ -18617,7 +18199,7 @@ app.post('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) 
       .single();
 
     if (structError || !gradeStructure || gradeStructure.course_id !== classData.course_id) {
-      return res.status(400).json({ success: false, message: 'Cấu trúc điểm không hợp lệ cho khóa học này' });
+      return res.status(400).json({ success: false, message: 'Cáº¥u trÃºc Ä‘iá»ƒm khÃ´ng há»£p lá»‡ cho khÃ³a há»c nÃ y' });
     }
 
     // Check if grades are locked for this structure
@@ -18629,10 +18211,10 @@ app.post('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) 
 
     const lockedGrade = existingGrades?.find(g => g.is_locked);
     if (lockedGrade) {
-      console.log(`🔒 Grades locked for structure ${gradeStructureId}`);
+      console.log(`ðŸ”’ Grades locked for structure ${gradeStructureId}`);
       return res.status(403).json({
         success: false,
-        message: 'Điểm đã bị khóa, không thể chỉnh sửa. Liên hệ Admin để mở khóa.'
+        message: 'Äiá»ƒm Ä‘Ã£ bá»‹ khÃ³a, khÃ´ng thá»ƒ chá»‰nh sá»­a. LiÃªn há»‡ Admin Ä‘á»ƒ má»Ÿ khÃ³a.'
       });
     }
 
@@ -18656,7 +18238,7 @@ app.post('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) 
 
     if (saveError) throw saveError;
 
-    console.log(`✅ Saved ${savedGrades?.length || 0} grades for class ${classId}, structure ${gradeStructure.name}`);
+    console.log(`âœ… Saved ${savedGrades?.length || 0} grades for class ${classId}, structure ${gradeStructure.name}`);
 
     AuditLogService.log({
       ...getAuditContext(req),
@@ -18669,7 +18251,7 @@ app.post('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) 
 
     res.json({
       success: true,
-      message: `Đã lưu ${savedGrades?.length || 0} điểm thành công`,
+      message: `ÄÃ£ lÆ°u ${savedGrades?.length || 0} Ä‘iá»ƒm thÃ nh cÃ´ng`,
       data: savedGrades
     });
 
@@ -18689,8 +18271,8 @@ app.post('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) 
             userId: row.student_id,
             centerId: classData?.center_id,
             type: 'grade',
-            title: 'Điểm số đã được cập nhật',
-            message: 'Giáo viên đã cập nhật điểm số của bạn',
+            title: 'Äiá»ƒm sá»‘ Ä‘Ã£ Ä‘Æ°á»£c cáº­p nháº­t',
+            message: 'GiÃ¡o viÃªn Ä‘Ã£ cáº­p nháº­t Ä‘iá»ƒm sá»‘ cá»§a báº¡n',
             referenceId: classId,
             referenceType: 'grade_published'
           }).catch(err => console.warn('Notification error:', err.message));
@@ -18707,8 +18289,8 @@ app.post('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) 
               userId: link.parent_id,
               centerId: classData?.center_id,
               type: 'grade',
-              title: 'Điểm số con em đã được cập nhật',
-              message: 'Giáo viên đã cập nhật điểm số của con em bạn',
+              title: 'Äiá»ƒm sá»‘ con em Ä‘Ã£ Ä‘Æ°á»£c cáº­p nháº­t',
+              message: 'GiÃ¡o viÃªn Ä‘Ã£ cáº­p nháº­t Ä‘iá»ƒm sá»‘ cá»§a con em báº¡n',
               referenceId: classId,
               referenceType: 'grade_published'
             }).catch(err => console.warn('Notification error:', err.message));
@@ -18717,7 +18299,7 @@ app.post('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) 
       })().catch(err => console.warn('Notification task error:', err.message));
     } catch (e) { }
   } catch (error) {
-    console.error('❌ Error saving grades:', error);
+    console.error('âŒ Error saving grades:', error);
     next(error);
   }
 });
@@ -18725,7 +18307,7 @@ app.post('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) 
 /**
  * GET /api/teacher/classes/:id/grades/summary
  * Get grade summary for a class
- * 🔒 TEACHER (own class), SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ TEACHER (own class), SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/teacher/classes/:id/grades/summary', requireAuth, async (req, res, next) => {
   try {
@@ -18741,13 +18323,13 @@ app.get('/api/teacher/classes/:id/grades/summary', requireAuth, async (req, res,
       .single();
 
     if (classError || !classData) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c' });
     }
 
     // Check permission
     const isAdmin = ['SUPER_ADMIN', 'CENTER_MANAGER'].includes(userRole);
     if (!isAdmin && classData.teacher_id !== userId) {
-      return res.status(403).json({ success: false, message: 'Không có quyền truy cập lớp này' });
+      return res.status(403).json({ success: false, message: 'KhÃ´ng cÃ³ quyá»n truy cáº­p lá»›p nÃ y' });
     }
 
     // Get grade structures
@@ -18831,7 +18413,7 @@ app.get('/api/teacher/classes/:id/grades/summary', requireAuth, async (req, res,
       }
     });
   } catch (error) {
-    console.error('❌ Error fetching grade summary:', error);
+    console.error('âŒ Error fetching grade summary:', error);
     next(error);
   }
 });
@@ -18840,7 +18422,7 @@ app.get('/api/teacher/classes/:id/grades/summary', requireAuth, async (req, res,
  * POST /api/teacher/classes/:id/grades/lock
  * Lock grades for a class (prevents further editing)
  * Body: { gradeStructureId, reason }
- * 🔒 TEACHER (own class), SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ TEACHER (own class), SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/teacher/classes/:id/grades/lock', requireAuth, async (req, res, next) => {
   try {
@@ -18849,10 +18431,10 @@ app.post('/api/teacher/classes/:id/grades/lock', requireAuth, async (req, res, n
     const { id: classId } = req.params;
     const { gradeStructureId, reason } = req.body;
 
-    console.log(`🔒 Lock grades request for class ${classId}, structure ${gradeStructureId}`);
+    console.log(`ðŸ”’ Lock grades request for class ${classId}, structure ${gradeStructureId}`);
 
     if (!gradeStructureId) {
-      return res.status(400).json({ success: false, message: 'Thiếu gradeStructureId' });
+      return res.status(400).json({ success: false, message: 'Thiáº¿u gradeStructureId' });
     }
 
     // Get class info
@@ -18863,13 +18445,13 @@ app.post('/api/teacher/classes/:id/grades/lock', requireAuth, async (req, res, n
       .single();
 
     if (classError || !classData) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c' });
     }
 
     // Check permission
     const isAdmin = ['SUPER_ADMIN', 'CENTER_MANAGER'].includes(userRole);
     if (!isAdmin && classData.teacher_id !== userId) {
-      return res.status(403).json({ success: false, message: 'Không có quyền khóa điểm lớp này' });
+      return res.status(403).json({ success: false, message: 'KhÃ´ng cÃ³ quyá»n khÃ³a Ä‘iá»ƒm lá»›p nÃ y' });
     }
 
     // Get enrollments for this class
@@ -18886,7 +18468,7 @@ app.post('/api/teacher/classes/:id/grades/lock', requireAuth, async (req, res, n
         is_locked: true,
         locked_at: new Date().toISOString(),
         locked_by: userId,
-        lock_reason: reason || 'Khóa điểm bởi giáo viên'
+        lock_reason: reason || 'KhÃ³a Ä‘iá»ƒm bá»Ÿi giÃ¡o viÃªn'
       })
       .eq('grade_structure_id', gradeStructureId)
       .in('enrollment_id', enrollments?.map(e => e.id) || [])
@@ -18894,7 +18476,7 @@ app.post('/api/teacher/classes/:id/grades/lock', requireAuth, async (req, res, n
 
     if (lockError) throw lockError;
 
-    console.log(`✅ Locked ${lockedGrades?.length || 0} grades for class ${classId}`);
+    console.log(`âœ… Locked ${lockedGrades?.length || 0} grades for class ${classId}`);
 
     AuditLogService.log({
       ...getAuditContext(req),
@@ -18907,11 +18489,11 @@ app.post('/api/teacher/classes/:id/grades/lock', requireAuth, async (req, res, n
 
     res.json({
       success: true,
-      message: `Đã khóa ${lockedGrades?.length || 0} điểm thành công`,
+      message: `ÄÃ£ khÃ³a ${lockedGrades?.length || 0} Ä‘iá»ƒm thÃ nh cÃ´ng`,
       data: { lockedCount: lockedGrades?.length || 0 }
     });
   } catch (error) {
-    console.error('❌ Error locking grades:', error);
+    console.error('âŒ Error locking grades:', error);
     next(error);
   }
 });
@@ -18920,20 +18502,20 @@ app.post('/api/teacher/classes/:id/grades/lock', requireAuth, async (req, res, n
  * POST /api/admin/grades/unlock
  * Admin unlock grades (requires reason)
  * Body: { classId, gradeStructureId, reason }
- * 🔒 SUPER_ADMIN, CENTER_MANAGER only
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER only
  */
 app.post('/api/admin/grades/unlock', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { classId, gradeStructureId, reason } = req.body;
 
-    console.log(`🔓 Admin unlock grades: class ${classId}, structure ${gradeStructureId}`);
+    console.log(`ðŸ”“ Admin unlock grades: class ${classId}, structure ${gradeStructureId}`);
 
     if (!classId || !gradeStructureId) {
-      return res.status(400).json({ success: false, message: 'Thiếu classId hoặc gradeStructureId' });
+      return res.status(400).json({ success: false, message: 'Thiáº¿u classId hoáº·c gradeStructureId' });
     }
     if (!reason || reason.length < 10) {
-      return res.status(400).json({ success: false, message: 'Lý do mở khóa phải có ít nhất 10 ký tự' });
+      return res.status(400).json({ success: false, message: 'LÃ½ do má»Ÿ khÃ³a pháº£i cÃ³ Ã­t nháº¥t 10 kÃ½ tá»±' });
     }
 
     // Get enrollments for this class
@@ -18968,15 +18550,15 @@ app.post('/api/admin/grades/unlock', requireAuth, requireRole(['SUPER_ADMIN', 'C
       new_values: { is_locked: false, unlocked_count: unlockedGrades?.length || 0 }
     });
 
-    console.log(`✅ Admin unlocked ${unlockedGrades?.length || 0} grades`);
+    console.log(`âœ… Admin unlocked ${unlockedGrades?.length || 0} grades`);
 
     res.json({
       success: true,
-      message: `Đã mở khóa ${unlockedGrades?.length || 0} điểm thành công`,
+      message: `ÄÃ£ má»Ÿ khÃ³a ${unlockedGrades?.length || 0} Ä‘iá»ƒm thÃ nh cÃ´ng`,
       data: { unlockedCount: unlockedGrades?.length || 0 }
     });
   } catch (error) {
-    console.error('❌ Error unlocking grades:', error);
+    console.error('âŒ Error unlocking grades:', error);
     next(error);
   }
 });
@@ -18985,24 +18567,24 @@ app.post('/api/admin/grades/unlock', requireAuth, requireRole(['SUPER_ADMIN', 'C
  * POST /api/admin/grades/override
  * Admin override grades (bypasses lock)
  * Body: { classId, gradeStructureId, grades: [...], override_reason }
- * 🔒 SUPER_ADMIN, CENTER_MANAGER only
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER only
  */
 app.post('/api/admin/grades/override', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { classId, gradeStructureId, grades, override_reason } = req.body;
 
-    console.log(`⚠️ Admin override grades: class ${classId}, structure ${gradeStructureId}`);
+    console.log(`âš ï¸ Admin override grades: class ${classId}, structure ${gradeStructureId}`);
 
     // Validate
     if (!classId || !gradeStructureId) {
-      return res.status(400).json({ success: false, message: 'Thiếu classId hoặc gradeStructureId' });
+      return res.status(400).json({ success: false, message: 'Thiáº¿u classId hoáº·c gradeStructureId' });
     }
     if (!override_reason || override_reason.length < 10) {
-      return res.status(400).json({ success: false, message: 'Lý do override phải có ít nhất 10 ký tự' });
+      return res.status(400).json({ success: false, message: 'LÃ½ do override pháº£i cÃ³ Ã­t nháº¥t 10 kÃ½ tá»±' });
     }
     if (!grades || !Array.isArray(grades) || grades.length === 0) {
-      return res.status(400).json({ success: false, message: 'Thiếu danh sách điểm' });
+      return res.status(400).json({ success: false, message: 'Thiáº¿u danh sÃ¡ch Ä‘iá»ƒm' });
     }
 
     // Get old values for audit
@@ -19046,21 +18628,21 @@ app.post('/api/admin/grades/override', requireAuth, requireRole(['SUPER_ADMIN', 
       new_values: { grades: savedGrades }
     });
 
-    console.log(`✅ Admin overrode ${savedGrades?.length || 0} grades`);
+    console.log(`âœ… Admin overrode ${savedGrades?.length || 0} grades`);
 
     res.json({
       success: true,
-      message: `Đã override ${savedGrades?.length || 0} điểm thành công`,
+      message: `ÄÃ£ override ${savedGrades?.length || 0} Ä‘iá»ƒm thÃ nh cÃ´ng`,
       data: savedGrades
     });
   } catch (error) {
-    console.error('❌ Error overriding grades:', error);
+    console.error('âŒ Error overriding grades:', error);
     next(error);
   }
 });
 
 /**
- * GET /api/teacher/profile - Thông tin profile của giáo viên
+ * GET /api/teacher/profile - ThÃ´ng tin profile cá»§a giÃ¡o viÃªn
  */
 app.get('/api/teacher/profile', requireAuth, async (req, res, next) => {
   try {
@@ -19131,7 +18713,63 @@ app.get('/api/teacher/profile', requireAuth, async (req, res, next) => {
 });
 
 /**
- * GET /api/teacher/schedule - Lấy lịch dạy của giáo viên theo khoảng thời gian
+ * PUT /api/teacher/profile - Cập nhật thông tin cá nhân (phone, avatar_url)
+ * 🔒 Authenticated teacher only — whitelist fields
+ */
+app.put('/api/teacher/profile', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+    const { phone, avatar_url } = req.body;
+
+    console.log(`✏️ Teacher ${req.user.email} updating profile`);
+
+    // Whitelist: only allow these fields
+    const updates = {};
+    if (phone !== undefined) {
+      const phoneClean = phone ? phone.replace(/\s/g, '') : '';
+      if (phoneClean && !/^0\d{9}$/.test(phoneClean)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Số điện thoại không hợp lệ (10 số, bắt đầu bằng 0)'
+        });
+      }
+      updates.phone = phoneClean || null;
+    }
+    if (avatar_url !== undefined) {
+      updates.avatar_url = avatar_url || null;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không có thông tin nào để cập nhật'
+      });
+    }
+
+    updates.updated_at = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', teacherId)
+      .select('id, email, full_name, phone, avatar_url, hourly_rate, status, created_at')
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data,
+      message: 'Cập nhật hồ sơ thành công'
+    });
+  } catch (error) {
+    console.error('Error updating teacher profile:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/teacher/schedule - Láº¥y lá»‹ch dáº¡y cá»§a giÃ¡o viÃªn theo khoáº£ng thá»i gian
  * Query params: start_date, end_date (default: this week)
  */
 app.get('/api/teacher/schedule', requireAuth, async (req, res, next) => {
@@ -19236,7 +18874,7 @@ app.get('/api/teacher/schedule', requireAuth, async (req, res, next) => {
 });
 
 /**
- * GET /api/teacher/schedule/month - Lấy lịch dạy theo tháng (cho calendar view)
+ * GET /api/teacher/schedule/month - Láº¥y lá»‹ch dáº¡y theo thÃ¡ng (cho calendar view)
  * Query params: month, year
  */
 app.get('/api/teacher/schedule/month', requireAuth, async (req, res, next) => {
@@ -19312,19 +18950,19 @@ app.get('/api/teacher/schedule/month', requireAuth, async (req, res, next) => {
 // ============================================================
 
 // ============================================================
-// STUDENT TRANSCRIPT API - Bảng điểm tổng hợp của học viên
+// STUDENT TRANSCRIPT API - Báº£ng Ä‘iá»ƒm tá»•ng há»£p cá»§a há»c viÃªn
 // ============================================================
 
 /**
- * GET /api/students/:id/transcript - Lấy bảng điểm tất cả các lớp của học viên
+ * GET /api/students/:id/transcript - Láº¥y báº£ng Ä‘iá»ƒm táº¥t cáº£ cÃ¡c lá»›p cá»§a há»c viÃªn
  */
 app.get('/api/students/:id/transcript', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    console.log(`📜 Lấy transcript cho học viên: ${id}`);
+    console.log(`ðŸ“œ Láº¥y transcript cho há»c viÃªn: ${id}`);
 
-    // 1. Lấy thông tin học viên
+    // 1. Láº¥y thÃ´ng tin há»c viÃªn
     const { data: student, error: studentError } = await supabase
       .from('users')
       .select('id, full_name, email, phone, avatar_url, created_at, roles(code)')
@@ -19332,10 +18970,10 @@ app.get('/api/students/:id/transcript', requireAuth, async (req, res, next) => {
       .single();
 
     if (studentError || !student) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy học viên' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y há»c viÃªn' });
     }
 
-    // 2. Lấy tất cả enrollments của học viên
+    // 2. Láº¥y táº¥t cáº£ enrollments cá»§a há»c viÃªn
     const { data: enrollments, error: enrollmentError } = await supabase
       .from('enrollments')
       .select(`
@@ -19365,7 +19003,7 @@ app.get('/api/students/:id/transcript', requireAuth, async (req, res, next) => {
 
     if (enrollmentError) throw enrollmentError;
 
-    // 3. Lấy điểm cho từng enrollment
+    // 3. Láº¥y Ä‘iá»ƒm cho tá»«ng enrollment
     const enrollmentIds = (enrollments || []).map(e => e.id);
 
     const { data: grades, error: gradesError } = await supabase
@@ -19389,7 +19027,7 @@ app.get('/api/students/:id/transcript', requireAuth, async (req, res, next) => {
 
     if (gradesError) throw gradesError;
 
-    // 4. Lấy cấu trúc điểm của các khóa học
+    // 4. Láº¥y cáº¥u trÃºc Ä‘iá»ƒm cá»§a cÃ¡c khÃ³a há»c
     const courseIds = [...new Set((enrollments || []).map(e => e.classes?.courses?.id).filter(Boolean))];
 
     const { data: gradeStructures } = await supabase
@@ -19403,10 +19041,10 @@ app.get('/api/students/:id/transcript', requireAuth, async (req, res, next) => {
       const cls = enrollment.classes;
       const course = cls?.courses;
 
-      // Lấy điểm của enrollment này
+      // Láº¥y Ä‘iá»ƒm cá»§a enrollment nÃ y
       const enrollmentGrades = (grades || []).filter(g => g.enrollment_id === enrollment.id);
 
-      // Lấy cấu trúc điểm của khóa học này
+      // Láº¥y cáº¥u trÃºc Ä‘iá»ƒm cá»§a khÃ³a há»c nÃ y
       const courseStructures = (gradeStructures || []).filter(s => s.course_id === course?.id);
 
       // Build grade map
@@ -19511,10 +19149,10 @@ app.get('/api/students/:id/transcript', requireAuth, async (req, res, next) => {
 // ============================================================
 
 // ============================================================
-// REPORTS APIs - Báo cáo & Thống kê chi tiết
+// REPORTS APIs - BÃ¡o cÃ¡o & Thá»‘ng kÃª chi tiáº¿t
 // ============================================================
 
-// GET /api/reports/revenue - Báo cáo doanh thu chi tiết
+// GET /api/reports/revenue - BÃ¡o cÃ¡o doanh thu chi tiáº¿t
 app.get('/api/reports/revenue', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const {
@@ -19526,20 +19164,20 @@ app.get('/api/reports/revenue', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
       system_wide
     } = req.query;
 
-    console.log(`📊 Revenue report requested by ${req.user.email}, system_wide=${system_wide}`);
+    console.log(`ðŸ“Š Revenue report requested by ${req.user.email}, system_wide=${system_wide}`);
 
-    // system_wide=true => SUPER_ADMIN xem toàn hệ thống (không filter center)
+    // system_wide=true => SUPER_ADMIN xem toÃ n há»‡ thá»‘ng (khÃ´ng filter center)
     const skipCenterFilter = system_wide === 'true' && req.user.roleCode === 'SUPER_ADMIN';
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, skipCenterFilter ? null : centerId);
     if (permError) {
       return res.status(403).json({ success: false, message: permError });
     }
 
-    // Default: 30 ngày gần nhất, end-of-day để bao gồm cả ngày cuối
+    // Default: 30 ngÃ y gáº§n nháº¥t, end-of-day Ä‘á»ƒ bao gá»“m cáº£ ngÃ y cuá»‘i
     const end = endDate ? new Date(endDate + 'T23:59:59.999Z') : new Date();
     const start = startDate ? new Date(startDate + 'T00:00:00.000Z') : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    // Query payments trong khoảng thời gian
+    // Query payments trong khoáº£ng thá»i gian
     let paymentsQuery = supabase
       .from('payments')
       .select(`
@@ -19563,7 +19201,7 @@ app.get('/api/reports/revenue', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
       .lte('payment_date', end.toISOString())
       .order('payment_date', { ascending: false });
 
-    // 🔥 FIX: Query-level center filter (không post-filter)
+    // ðŸ”¥ FIX: Query-level center filter (khÃ´ng post-filter)
     if (effectiveCenterId) {
       paymentsQuery = paymentsQuery.eq('invoices.classes.center_id', effectiveCenterId);
     }
@@ -19574,7 +19212,7 @@ app.get('/api/reports/revenue', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
     const { data: payments, error } = await paymentsQuery;
     if (error) throw error;
 
-    // 🔥 REMOVED: Post-filter logic (không cần nữa vì đã filter ở query)
+    // ðŸ”¥ REMOVED: Post-filter logic (khÃ´ng cáº§n ná»¯a vÃ¬ Ä‘Ã£ filter á»Ÿ query)
     const filteredPayments = payments || [];
 
     // Calculate totals
@@ -19619,7 +19257,7 @@ app.get('/api/reports/revenue', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
     // Revenue by course
     const byCourse = {};
     filteredPayments.forEach(p => {
-      const courseName = p.invoices?.classes?.courses?.title || 'Khác';
+      const courseName = p.invoices?.classes?.courses?.title || 'KhÃ¡c';
       if (!byCourse[courseName]) byCourse[courseName] = 0;
       byCourse[courseName] += parseFloat(p.amount) || 0;
     });
@@ -19687,12 +19325,12 @@ app.get('/api/reports/revenue', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
   }
 });
 
-// GET /api/reports/enrollment - Báo cáo tuyển sinh
+// GET /api/reports/enrollment - BÃ¡o cÃ¡o tuyá»ƒn sinh
 app.get('/api/reports/enrollment', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { startDate, endDate, centerId, courseId, system_wide } = req.query;
 
-    console.log(`📊 Enrollment report requested by ${req.user.email}, system_wide=${system_wide}`);
+    console.log(`ðŸ“Š Enrollment report requested by ${req.user.email}, system_wide=${system_wide}`);
 
     const skipCenterFilter = system_wide === 'true' && req.user.roleCode === 'SUPER_ADMIN';
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, skipCenterFilter ? null : centerId);
@@ -19722,7 +19360,7 @@ app.get('/api/reports/enrollment', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
       .lte('created_at', end.toISOString())
       .order('created_at', { ascending: false });
 
-    // 🔥 FIX: Query-level filters (không post-filter)
+    // ðŸ”¥ FIX: Query-level filters (khÃ´ng post-filter)
     if (effectiveCenterId) {
       query = query.eq('classes.center_id', effectiveCenterId);
     }
@@ -19733,7 +19371,7 @@ app.get('/api/reports/enrollment', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
     const { data: enrollments, error } = await query;
     if (error) throw error;
 
-    // 🔥 REMOVED: Post-filter logic
+    // ðŸ”¥ REMOVED: Post-filter logic
     const filtered = enrollments || [];
 
     // Stats
@@ -19752,7 +19390,7 @@ app.get('/api/reports/enrollment', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
     // By course
     const byCourse = {};
     filtered.forEach(e => {
-      const course = e.classes?.courses?.title || 'Khác';
+      const course = e.classes?.courses?.title || 'KhÃ¡c';
       if (!byCourse[course]) byCourse[course] = 0;
       byCourse[course]++;
     });
@@ -19827,12 +19465,12 @@ app.get('/api/reports/enrollment', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
   }
 });
 
-// GET /api/reports/attendance - Báo cáo chuyên cần
+// GET /api/reports/attendance - BÃ¡o cÃ¡o chuyÃªn cáº§n
 app.get('/api/reports/attendance', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
     const { startDate, endDate, classId, courseId, centerId, system_wide } = req.query;
 
-    console.log(`📊 Attendance report requested by ${req.user.email}, system_wide=${system_wide}`);
+    console.log(`ðŸ“Š Attendance report requested by ${req.user.email}, system_wide=${system_wide}`);
 
     const skipCenterFilter = system_wide === 'true' && req.user.roleCode === 'SUPER_ADMIN';
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, skipCenterFilter ? null : centerId);
@@ -19863,7 +19501,7 @@ app.get('/api/reports/attendance', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
       .gte('session_date', start.toISOString().split('T')[0])
       .lte('session_date', end.toISOString().split('T')[0]);
 
-    // 🔥 FIX: Query-level center filter
+    // ðŸ”¥ FIX: Query-level center filter
     if (effectiveCenterId) {
       query = query.eq('enrollments.classes.center_id', effectiveCenterId);
     }
@@ -19893,10 +19531,10 @@ app.get('/api/reports/attendance', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
 
     // By status
     const byStatus = [
-      { name: 'Có mặt', value: presentCount, color: '#22c55e' },
-      { name: 'Vắng', value: absentCount, color: '#ef4444' },
-      { name: 'Trễ', value: lateCount, color: '#f59e0b' },
-      { name: 'Có phép', value: excusedCount, color: '#3b82f6' }
+      { name: 'CÃ³ máº·t', value: presentCount, color: '#22c55e' },
+      { name: 'Váº¯ng', value: absentCount, color: '#ef4444' },
+      { name: 'Trá»…', value: lateCount, color: '#f59e0b' },
+      { name: 'CÃ³ phÃ©p', value: excusedCount, color: '#3b82f6' }
     ];
 
     // By date
@@ -19968,12 +19606,12 @@ app.get('/api/reports/attendance', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
   }
 });
 
-// GET /api/reports/grades - Báo cáo điểm số
+// GET /api/reports/grades - BÃ¡o cÃ¡o Ä‘iá»ƒm sá»‘
 app.get('/api/reports/grades', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
     const { classId, courseId, centerId, system_wide } = req.query;
 
-    console.log(`📊 Grades report requested by ${req.user.email}, system_wide=${system_wide}`);
+    console.log(`ðŸ“Š Grades report requested by ${req.user.email}, system_wide=${system_wide}`);
 
     const skipCenterFilter = system_wide === 'true' && req.user.roleCode === 'SUPER_ADMIN';
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, skipCenterFilter ? null : centerId);
@@ -19981,7 +19619,7 @@ app.get('/api/reports/grades', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
       return res.status(403).json({ success: false, message: permError });
     }
 
-    // Query grades (đúng table name)
+    // Query grades (Ä‘Ãºng table name)
     let query = supabase
       .from('grades')
       .select(`
@@ -19999,7 +19637,7 @@ app.get('/api/reports/grades', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
         grade_structures (id, name, weight, max_score)
       `);
 
-    // 🔥 FIX: Query-level center filter
+    // ðŸ”¥ FIX: Query-level center filter
     if (effectiveCenterId) {
       query = query.eq('enrollments.classes.center_id', effectiveCenterId);
     }
@@ -20133,8 +19771,8 @@ app.get('/api/reports/grades', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
         topStudents,
         lowScoreStudents,
         passRateChart: [
-          { name: 'Đạt', value: passedStudents, color: '#22c55e' },
-          { name: 'Không đạt', value: failedStudents, color: '#ef4444' }
+          { name: 'Äáº¡t', value: passedStudents, color: '#22c55e' },
+          { name: 'KhÃ´ng Ä‘áº¡t', value: failedStudents, color: '#ef4444' }
         ]
       }
     });
@@ -20145,12 +19783,12 @@ app.get('/api/reports/grades', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
   }
 });
 
-// GET /api/reports/staff - Báo cáo nhân sự
+// GET /api/reports/staff - BÃ¡o cÃ¡o nhÃ¢n sá»±
 app.get('/api/reports/staff', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { startDate, endDate, centerId, system_wide } = req.query;
 
-    console.log(`📊 Staff report requested by ${req.user.email}, system_wide=${system_wide}`);
+    console.log(`ðŸ“Š Staff report requested by ${req.user.email}, system_wide=${system_wide}`);
 
     const skipCenterFilter = system_wide === 'true' && req.user.roleCode === 'SUPER_ADMIN';
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, skipCenterFilter ? null : centerId);
@@ -20175,7 +19813,7 @@ app.get('/api/reports/staff', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_M
       `)
       .in('roles.code', ['TEACHER', 'CENTER_MANAGER']);
 
-    // 🔥 FIX: Query-level center filter
+    // ðŸ”¥ FIX: Query-level center filter
     if (effectiveCenterId) {
       staffQuery = staffQuery.eq('center_id', effectiveCenterId);
     }
@@ -20281,12 +19919,12 @@ app.get('/api/reports/staff', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_M
   }
 });
 
-// GET /api/reports/courses - Báo cáo hiệu suất khóa học
+// GET /api/reports/courses - BÃ¡o cÃ¡o hiá»‡u suáº¥t khÃ³a há»c
 app.get('/api/reports/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { centerId, system_wide } = req.query;
 
-    console.log(`📊 Courses report requested by ${req.user.email}, system_wide=${system_wide}`);
+    console.log(`ðŸ“Š Courses report requested by ${req.user.email}, system_wide=${system_wide}`);
 
     const skipCenterFilter = system_wide === 'true' && req.user.roleCode === 'SUPER_ADMIN';
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, skipCenterFilter ? null : centerId);
@@ -20320,7 +19958,7 @@ app.get('/api/reports/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
     const courseStats = courses?.map(course => {
       let classes = course.classes || [];
 
-      // 🔥 FIX: Filter by effectiveCenterId (validated)
+      // ðŸ”¥ FIX: Filter by effectiveCenterId (validated)
       if (effectiveCenterId) {
         classes = classes.filter(c => c.center_id === effectiveCenterId);
       }
@@ -20409,7 +20047,7 @@ app.get('/api/reports/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
   }
 });
 
-// POST /api/reports/saved - Lưu báo cáo
+// POST /api/reports/saved - LÆ°u bÃ¡o cÃ¡o
 app.post('/api/reports/saved', requireAuth, async (req, res, next) => {
   try {
     const { name, description, reportType, filters, schedule, emailRecipients, isPublic } = req.body;
@@ -20434,7 +20072,7 @@ app.post('/api/reports/saved', requireAuth, async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: 'Đã lưu báo cáo',
+      message: 'ÄÃ£ lÆ°u bÃ¡o cÃ¡o',
       data
     });
 
@@ -20444,10 +20082,10 @@ app.post('/api/reports/saved', requireAuth, async (req, res, next) => {
   }
 });
 
-// GET /api/reports/saved - Lấy danh sách báo cáo đã lưu
+// GET /api/reports/saved - Láº¥y danh sÃ¡ch bÃ¡o cÃ¡o Ä‘Ã£ lÆ°u
 app.get('/api/reports/saved', requireAuth, async (req, res, next) => {
   try {
-    // Build query với xử lý null centerId
+    // Build query vá»›i xá»­ lÃ½ null centerId
     let query = supabase
       .from('saved_reports')
       .select('*');
@@ -20456,7 +20094,7 @@ app.get('/api/reports/saved', requireAuth, async (req, res, next) => {
     if (req.user.centerId) {
       query = query.or(`created_by.eq.${req.user.id},and(is_public.eq.true,center_id.eq.${req.user.centerId})`);
     } else {
-      // Nếu không có center, chỉ lấy báo cáo của chính mình
+      // Náº¿u khÃ´ng cÃ³ center, chá»‰ láº¥y bÃ¡o cÃ¡o cá»§a chÃ­nh mÃ¬nh
       query = query.eq('created_by', req.user.id);
     }
 
@@ -20475,7 +20113,7 @@ app.get('/api/reports/saved', requireAuth, async (req, res, next) => {
   }
 });
 
-// DELETE /api/reports/saved/:id - Xóa báo cáo đã lưu
+// DELETE /api/reports/saved/:id - XÃ³a bÃ¡o cÃ¡o Ä‘Ã£ lÆ°u
 app.delete('/api/reports/saved/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -20490,7 +20128,7 @@ app.delete('/api/reports/saved/:id', requireAuth, async (req, res, next) => {
 
     res.json({
       success: true,
-      message: 'Đã xóa báo cáo'
+      message: 'ÄÃ£ xÃ³a bÃ¡o cÃ¡o'
     });
 
   } catch (error) {
@@ -20500,172 +20138,114 @@ app.delete('/api/reports/saved/:id', requireAuth, async (req, res, next) => {
 });
 
 // GET /api/admin/scheduled-reports - List scheduled report configs
-app.get('/api/admin/scheduled-reports', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+app.get('/api/admin/scheduled-reports', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res) => {
   try {
-    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-    const centerId = getEffectiveCenterId(req);
+    const { effectiveCenterId: centerId } = getEffectiveCenterId(req.user, req.query.centerId);
 
-    let query = supabase
-      .from('saved_reports')
+    let query = supabaseAdmin
+      .from('scheduled_reports')
       .select('*, centers(name)')
-      .not('schedule', 'is', null)
-      .order('updated_at', { ascending: false });
+      .order('created_at', { ascending: false });
 
     if (centerId) {
-      query = query.eq('center_id', centerId);
+      query = query.or(`center_id.eq.${centerId},center_id.is.null`);
     }
 
     const { data, error } = await query;
     if (error) throw error;
 
-    // Format data to include center_name
     const formattedData = (data || []).map(row => ({
       ...row,
-      center_name: row.centers ? row.centers.name : null
+      center_name: row.centers?.name || null,
+      centers: undefined
     }));
 
     res.json({ success: true, data: formattedData });
   } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    console.error('Error fetching scheduled reports:', error);
+    res.status(500).json({ success: false, message: error.message || 'Lá»—i khi táº£i danh sÃ¡ch bÃ¡o cÃ¡o' });
   }
 });
 
-// POST /api/admin/scheduled-reports - Create/update schedule for saved report
-app.post('/api/admin/scheduled-reports', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+// POST /api/admin/scheduled-reports - Create scheduled report config
+app.post('/api/admin/scheduled-reports', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res) => {
   try {
-    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-    const centerId = getEffectiveCenterId(req);
-    const { 
-      report_id, name, description, report_type, filters, 
-      schedule, email_recipients, next_run_at, center_id: reqCenterId, is_active 
-    } = req.body;
+    const { name, description, report_type, schedule, center_id, email_recipients, filters, is_active } = req.body;
 
-    const reportCenterId = centerId || (reqCenterId || null);
-    
-    // If is_active is explicitly false, we'll store schedule as null 
-    // to match current execution logic where null schedule means inactive
-    const effectiveSchedule = is_active === false ? null : schedule;
-
-    let resultData;
-    
-    if (report_id) {
-      // Update existing
-      let query = supabase
-        .from('saved_reports')
-        .update({
-          // Allow updating name/description if provided
-          ...(name && { name }),
-          ...(description !== undefined && { description }),
-          ...(report_type && { report_type }),
-          schedule: effectiveSchedule,
-          email_recipients: email_recipients || [],
-          next_run_at: next_run_at || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', report_id)
-        .select('*')
-        .single();
-
-      if (centerId) {
-        query = query.eq('center_id', centerId);
-      }
-      
-      const { data, error } = await query;
-      if (error) throw error;
-      resultData = data;
-    } else {
-      // Create new
-      if (!name || !report_type || !schedule) {
-        return res.status(400).json({ success: false, error: 'name, report_type, and schedule are required to create a new report' });
-      }
-      
-      const { data, error } = await supabase
-        .from('saved_reports')
-        .insert([{
-          name,
-          description: description || '',
-          report_type,
-          filters: filters || {},
-          schedule: effectiveSchedule,
-          email_recipients: email_recipients || [],
-          center_id: reportCenterId,
-          created_by: req.user.id,
-          is_public: false,
-          next_run_at: next_run_at || null
-        }])
-        .select('*')
-        .single();
-        
-      if (error) throw error;
-      resultData = data;
+    if (!name || !report_type || !schedule || !email_recipients?.length) {
+      return res.status(400).json({ success: false, message: 'Vui lÃ²ng Ä‘iá»n Ä‘áº§y Ä‘á»§ thÃ´ng tin báº¯t buá»™c' });
     }
 
-    res.json({ success: true, data: resultData });
-  } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
+    // Calculate next_run_at
+    const now = new Date();
+    let nextRun = new Date(now);
+    if (schedule === 'daily') { nextRun.setDate(nextRun.getDate() + 1); nextRun.setHours(7, 0, 0, 0); }
+    else if (schedule === 'weekly') { nextRun.setDate(nextRun.getDate() + (7 - nextRun.getDay() + 1) % 7 || 7); nextRun.setHours(7, 0, 0, 0); }
+    else if (schedule === 'monthly') { nextRun.setMonth(nextRun.getMonth() + 1, 1); nextRun.setHours(7, 0, 0, 0); }
 
-// DELETE /api/admin/scheduled-reports/:id - Remove report schedule
-app.delete('/api/admin/scheduled-reports/:id', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
-  try {
-    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-    const centerId = getEffectiveCenterId(req);
-    const { id } = req.params;
+    const { effectiveCenterId } = getEffectiveCenterId(req.user, center_id);
 
-    // Delete the entire record, not just nullify the schedule
-    // Since this is a "scheduled reports" endpoint creating auto reports,
-    // users expect deleting it to remove the entire config.
-    let query = supabase
-      .from('saved_reports')
-      .delete()
-      .eq('id', id);
-
-    if (centerId) {
-      query = query.eq('center_id', centerId);
-    }
-
-    const { error } = await query;
-    if (error) throw error;
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// POST /api/admin/scheduled-reports/:id/run-now - Trigger immediate report generation
-app.post('/api/admin/scheduled-reports/:id/run-now', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
-  try {
-    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-    const centerId = getEffectiveCenterId(req);
-    const { id } = req.params;
-    const nowIso = new Date().toISOString();
-
-    let query = supabase
-      .from('saved_reports')
-      .update({
-        next_run_at: nowIso,
-        updated_at: nowIso,
+    const { data, error } = await supabaseAdmin
+      .from('scheduled_reports')
+      .insert({
+        name,
+        description: description || null,
+        report_type,
+        schedule,
+        center_id: effectiveCenterId || null,
+        email_recipients,
+        filters: filters || {},
+        is_active: is_active !== false,
+        created_by: req.user.id,
+        next_run_at: nextRun.toISOString()
       })
-      .eq('id', id)
-      .select('*')
+      .select()
       .single();
 
-    if (centerId) {
-      query = query.eq('center_id', centerId);
-    }
-
-    const { data, error } = await query;
     if (error) throw error;
 
     res.json({ success: true, data });
   } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    console.error('Error creating scheduled report:', error);
+    res.status(500).json({ success: false, message: error.message || 'Lá»—i khi táº¡o bÃ¡o cÃ¡o' });
+  }
+});
+
+// DELETE /api/admin/scheduled-reports/:id - Remove report schedule
+app.delete('/api/admin/scheduled-reports/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res) => {
+  try {
+    const { error } = await supabaseAdmin
+      .from('scheduled_reports')
+      .delete()
+      .eq('id', req.params.id);
+
+    if (error) throw error;
+    res.json({ success: true, message: 'ÄÃ£ xÃ³a cáº¥u hÃ¬nh bÃ¡o cÃ¡o' });
+  } catch (error) {
+    console.error('Error deleting scheduled report:', error);
+    res.status(500).json({ success: false, message: error.message || 'Lá»—i khi xÃ³a bÃ¡o cÃ¡o' });
+  }
+});
+
+// POST /api/admin/scheduled-reports/:id/run-now - Trigger immediate report run
+app.post('/api/admin/scheduled-reports/:id/run-now', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('scheduled_reports')
+      .update({
+        last_run_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    if (!data) return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y cáº¥u hÃ¬nh bÃ¡o cÃ¡o' });
+    res.json({ success: true, data, message: 'ÄÃ£ xáº¿p hÃ ng Ä‘á»£i gá»­i bÃ¡o cÃ¡o' });
+  } catch (error) {
+    console.error('Error running scheduled report:', error);
+    res.status(500).json({ success: false, message: error.message || 'Lá»—i khi cháº¡y bÃ¡o cÃ¡o' });
   }
 });
 
@@ -20674,10 +20254,10 @@ app.post('/api/admin/scheduled-reports/:id/run-now', requireAuth, requireRole(['
 // ============================================================
 
 // ============================================================
-// DOCUMENTS APIs - Quản lý tài liệu
+// DOCUMENTS APIs - Quáº£n lÃ½ tÃ i liá»‡u
 // ============================================================
 
-// Lấy danh sách tài liệu
+// Láº¥y danh sÃ¡ch tÃ i liá»‡u
 app.get('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
     const { centerId, courseId, classId, type, search, page = 1, limit = 20 } = req.query;
@@ -20740,7 +20320,7 @@ app.get('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
   }
 });
 
-// Tạo tài liệu mới
+// Táº¡o tÃ i liá»‡u má»›i
 app.post('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
     const { title, description, file_url, file_name, file_size, file_type, course_id, class_id, type, is_public } = req.body;
@@ -20748,7 +20328,7 @@ app.post('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
     if (!title || !file_url || !file_name) {
       return res.status(400).json({
         success: false,
-        message: 'Tiêu đề, URL file và tên file là bắt buộc'
+        message: 'TiÃªu Ä‘á», URL file vÃ  tÃªn file lÃ  báº¯t buá»™c'
       });
     }
 
@@ -20777,7 +20357,7 @@ app.post('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
     if (!centerIdToUse) {
       return res.status(400).json({
         success: false,
-        message: 'Không xác định được trung tâm cho tài liệu này'
+        message: 'KhÃ´ng xÃ¡c Ä‘á»‹nh Ä‘Æ°á»£c trung tÃ¢m cho tÃ i liá»‡u nÃ y'
       });
     }
 
@@ -20805,7 +20385,7 @@ app.post('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
     res.status(201).json({
       success: true,
       data,
-      message: 'Đã tải lên tài liệu thành công'
+      message: 'ÄÃ£ táº£i lÃªn tÃ i liá»‡u thÃ nh cÃ´ng'
     });
   } catch (error) {
     console.error('Error creating document:', error);
@@ -20813,7 +20393,7 @@ app.post('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
   }
 });
 
-// Cập nhật tài liệu
+// Cáº­p nháº­t tÃ i liá»‡u
 app.put('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -20839,7 +20419,7 @@ app.put('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     res.json({
       success: true,
       data,
-      message: 'Đã cập nhật tài liệu'
+      message: 'ÄÃ£ cáº­p nháº­t tÃ i liá»‡u'
     });
   } catch (error) {
     console.error('Error updating document:', error);
@@ -20978,7 +20558,7 @@ app.get('/api/admin/documents/:id/analytics', requireAuth, requireRole(['SUPER_A
   }
 });
 
-// Xóa tài liệu
+// XÃ³a tÃ i liá»‡u
 app.delete('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -20992,7 +20572,7 @@ app.delete('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 
 
     res.json({
       success: true,
-      message: 'Đã xóa tài liệu'
+      message: 'ÄÃ£ xÃ³a tÃ i liá»‡u'
     });
   } catch (error) {
     console.error('Error deleting document:', error);
@@ -21001,10 +20581,10 @@ app.delete('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 
 });
 
 // ============================================================
-// CERTIFICATE TYPES APIs - Quản lý loại chứng chỉ
+// CERTIFICATE TYPES APIs - Quáº£n lÃ½ loáº¡i chá»©ng chá»‰
 // ============================================================
 
-// Lấy danh sách loại chứng chỉ với thống kê
+// Láº¥y danh sÃ¡ch loáº¡i chá»©ng chá»‰ vá»›i thá»‘ng kÃª
 app.get('/api/admin/certificate-types', requireAuth, async (req, res, next) => {
   try {
     const { category, is_external, is_internal, include_stats } = req.query;
@@ -21029,7 +20609,7 @@ app.get('/api/admin/certificate-types', requireAuth, async (req, res, next) => {
     const { data: types, error } = await query;
     if (error) throw error;
 
-    // Nếu cần thống kê, fetch thêm
+    // Náº¿u cáº§n thá»‘ng kÃª, fetch thÃªm
     let result = types;
     if (include_stats === 'true') {
       const typeIds = types.map(t => t.id);
@@ -21065,7 +20645,7 @@ app.get('/api/admin/certificate-types', requireAuth, async (req, res, next) => {
   }
 });
 
-// Lấy chi tiết loại chứng chỉ với danh sách học viên đạt
+// Láº¥y chi tiáº¿t loáº¡i chá»©ng chá»‰ vá»›i danh sÃ¡ch há»c viÃªn Ä‘áº¡t
 app.get('/api/admin/certificate-types/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -21082,7 +20662,7 @@ app.get('/api/admin/certificate-types/:id', requireAuth, async (req, res, next) 
     if (typeError || !certType) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy loại chứng chỉ'
+        message: 'KhÃ´ng tÃ¬m tháº¥y loáº¡i chá»©ng chá»‰'
       });
     }
 
@@ -21170,7 +20750,7 @@ app.get('/api/admin/certificate-types/:id', requireAuth, async (req, res, next) 
   }
 });
 
-// Tạo loại chứng chỉ mới
+// Táº¡o loáº¡i chá»©ng chá»‰ má»›i
 app.post('/api/admin/certificate-types', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const {
@@ -21191,7 +20771,7 @@ app.post('/api/admin/certificate-types', requireAuth, requireRole(['SUPER_ADMIN'
     if (!code || !name) {
       return res.status(400).json({
         success: false,
-        message: 'Mã và tên loại chứng chỉ là bắt buộc'
+        message: 'MÃ£ vÃ  tÃªn loáº¡i chá»©ng chá»‰ lÃ  báº¯t buá»™c'
       });
     }
 
@@ -21219,7 +20799,7 @@ app.post('/api/admin/certificate-types', requireAuth, requireRole(['SUPER_ADMIN'
       if (error.code === '23505') {
         return res.status(400).json({
           success: false,
-          message: 'Mã loại chứng chỉ đã tồn tại'
+          message: 'MÃ£ loáº¡i chá»©ng chá»‰ Ä‘Ã£ tá»“n táº¡i'
         });
       }
       throw error;
@@ -21228,7 +20808,7 @@ app.post('/api/admin/certificate-types', requireAuth, requireRole(['SUPER_ADMIN'
     res.status(201).json({
       success: true,
       data,
-      message: 'Đã tạo loại chứng chỉ mới'
+      message: 'ÄÃ£ táº¡o loáº¡i chá»©ng chá»‰ má»›i'
     });
   } catch (error) {
     console.error('Error creating certificate type:', error);
@@ -21236,7 +20816,7 @@ app.post('/api/admin/certificate-types', requireAuth, requireRole(['SUPER_ADMIN'
   }
 });
 
-// Cập nhật loại chứng chỉ
+// Cáº­p nháº­t loáº¡i chá»©ng chá»‰
 app.put('/api/admin/certificate-types/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -21257,7 +20837,7 @@ app.put('/api/admin/certificate-types/:id', requireAuth, requireRole(['SUPER_ADM
     res.json({
       success: true,
       data,
-      message: 'Đã cập nhật loại chứng chỉ'
+      message: 'ÄÃ£ cáº­p nháº­t loáº¡i chá»©ng chá»‰'
     });
   } catch (error) {
     console.error('Error updating certificate type:', error);
@@ -21265,7 +20845,7 @@ app.put('/api/admin/certificate-types/:id', requireAuth, requireRole(['SUPER_ADM
   }
 });
 
-// Xóa (soft delete) loại chứng chỉ
+// XÃ³a (soft delete) loáº¡i chá»©ng chá»‰
 app.delete('/api/admin/certificate-types/:id', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -21287,7 +20867,7 @@ app.delete('/api/admin/certificate-types/:id', requireAuth, requireRole(['SUPER_
 
       return res.json({
         success: true,
-        message: `Đã vô hiệu hóa loại chứng chỉ (có ${count} chứng chỉ đã cấp)`
+        message: `ÄÃ£ vÃ´ hiá»‡u hÃ³a loáº¡i chá»©ng chá»‰ (cÃ³ ${count} chá»©ng chá»‰ Ä‘Ã£ cáº¥p)`
       });
     }
 
@@ -21301,7 +20881,7 @@ app.delete('/api/admin/certificate-types/:id', requireAuth, requireRole(['SUPER_
 
     res.json({
       success: true,
-      message: 'Đã xóa loại chứng chỉ'
+      message: 'ÄÃ£ xÃ³a loáº¡i chá»©ng chá»‰'
     });
   } catch (error) {
     console.error('Error deleting certificate type:', error);
@@ -21310,10 +20890,10 @@ app.delete('/api/admin/certificate-types/:id', requireAuth, requireRole(['SUPER_
 });
 
 // ============================================================
-// CERTIFICATES APIs - Quản lý chứng chỉ
+// CERTIFICATES APIs - Quáº£n lÃ½ chá»©ng chá»‰
 // ============================================================
 
-// Lấy danh sách chứng chỉ
+// Láº¥y danh sÃ¡ch chá»©ng chá»‰
 app.get('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { centerId, studentId, courseId, status, search, certificate_type_id, page = 1, limit = 20 } = req.query;
@@ -21379,7 +20959,7 @@ app.get('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
   }
 });
 
-// Thống kê chứng chỉ
+// Thá»‘ng kÃª chá»©ng chá»‰
 app.get('/api/admin/certificates/stats', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
     const { centerId } = req.query;
@@ -21495,7 +21075,7 @@ app.get('/api/admin/certificates/stats', requireAuth, requireRole(['SUPER_ADMIN'
         const meta = typeMetaMap.get(typeId);
         return {
           id: typeId,
-          name: meta?.name || 'Không xác định',
+          name: meta?.name || 'KhÃ´ng xÃ¡c Ä‘á»‹nh',
           code: meta?.code || null,
           category: meta?.category || 'other',
           count,
@@ -21522,7 +21102,7 @@ app.get('/api/admin/certificates/stats', requireAuth, requireRole(['SUPER_ADMIN'
   }
 });
 
-// Lấy danh sách mẫu chứng chỉ
+// Láº¥y danh sÃ¡ch máº«u chá»©ng chá»‰
 app.get('/api/admin/certificate-templates', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { data, error } = await supabase
@@ -21543,7 +21123,7 @@ app.get('/api/admin/certificate-templates', requireAuth, requireRole(['SUPER_ADM
   }
 });
 
-// Tạo chứng chỉ mới (Issue certificate)
+// Táº¡o chá»©ng chá»‰ má»›i (Issue certificate)
 app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const {
@@ -21551,7 +21131,7 @@ app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       class_id,
       certificate_type_id,
       issue_date,
-      override_reason // 🔥 NEW: lý do override nếu không đủ điều kiện
+      override_reason // ðŸ”¥ NEW: lÃ½ do override náº¿u khÃ´ng Ä‘á»§ Ä‘iá»u kiá»‡n
     } = req.body;
 
     if (req.body.is_external) {
@@ -21560,7 +21140,7 @@ app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       if (!student_id || !certificate_type_id) {
         return res.status(400).json({
           success: false,
-          message: 'Học viên và loại chứng chỉ là bắt buộc'
+          message: 'Há»c viÃªn vÃ  loáº¡i chá»©ng chá»‰ lÃ  báº¯t buá»™c'
         });
       }
 
@@ -21581,7 +21161,7 @@ app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       if (studentError || !studentProfile?.full_name) {
         return res.status(400).json({
           success: false,
-          message: 'Không tìm thấy thông tin học viên'
+          message: 'KhÃ´ng tÃ¬m tháº¥y thÃ´ng tin há»c viÃªn'
         });
       }
 
@@ -21594,7 +21174,7 @@ app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       if (certTypeError || !certificateType?.name) {
         return res.status(400).json({
           success: false,
-          message: 'Không tìm thấy loại chứng chỉ'
+          message: 'KhÃ´ng tÃ¬m tháº¥y loáº¡i chá»©ng chá»‰'
         });
       }
 
@@ -21602,7 +21182,7 @@ app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CE
         .rpc('generate_certificate_number_v2', { p_center_id: centerId });
 
       if (certificateNumberError || !certificateNumber) {
-        throw certificateNumberError || new Error('Không thể tạo số chứng chỉ');
+        throw certificateNumberError || new Error('KhÃ´ng thá»ƒ táº¡o sá»‘ chá»©ng chá»‰');
       }
 
       const completionDate = exam_date || new Date().toISOString().slice(0, 10);
@@ -21634,7 +21214,7 @@ app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       res.status(201).json({
         success: true,
         data: certificate,
-        message: 'Đã ghi nhận chứng chỉ quốc tế thành công'
+        message: 'ÄÃ£ ghi nháº­n chá»©ng chá»‰ quá»‘c táº¿ thÃ nh cÃ´ng'
       });
 
       // Notification: Certificate issued (external)
@@ -21643,8 +21223,8 @@ app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CE
           userId: student_id,
           centerId: centerId,
           type: 'certificate',
-          title: 'Chứng chỉ đã được cấp',
-          message: 'Bạn đã được cấp chứng chỉ mới',
+          title: 'Chá»©ng chá»‰ Ä‘Ã£ Ä‘Æ°á»£c cáº¥p',
+          message: 'Báº¡n Ä‘Ã£ Ä‘Æ°á»£c cáº¥p chá»©ng chá»‰ má»›i',
           referenceId: certificate?.id,
           referenceType: 'certificate'
         }).catch(err => console.warn('Notification error:', err.message));
@@ -21656,11 +21236,11 @@ app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     if (!student_id || !class_id || !certificate_type_id) {
       return res.status(400).json({
         success: false,
-        message: 'Học viên, lớp học và loại chứng chỉ là bắt buộc'
+        message: 'Há»c viÃªn, lá»›p há»c vÃ  loáº¡i chá»©ng chá»‰ lÃ  báº¯t buá»™c'
       });
     }
 
-    // 🔥 Use certificate service with eligibility check
+    // ðŸ”¥ Use certificate service with eligibility check
     const result = await issueCertificate(supabase, {
       student_id,
       class_id,
@@ -21691,7 +21271,7 @@ app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       success: true,
       data: result.data,
       eligibility: result.eligibility,
-      message: 'Đã cấp chứng chỉ thành công'
+      message: 'ÄÃ£ cáº¥p chá»©ng chá»‰ thÃ nh cÃ´ng'
     });
 
     // Notification: Certificate issued
@@ -21700,8 +21280,8 @@ app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CE
         userId: student_id,
         centerId: result?.data?.center_id,
         type: 'certificate',
-        title: 'Chứng chỉ đã được cấp',
-        message: 'Bạn đã được cấp chứng chỉ mới',
+        title: 'Chá»©ng chá»‰ Ä‘Ã£ Ä‘Æ°á»£c cáº¥p',
+        message: 'Báº¡n Ä‘Ã£ Ä‘Æ°á»£c cáº¥p chá»©ng chá»‰ má»›i',
         referenceId: result?.data?.id,
         referenceType: 'certificate'
       }).catch(err => console.warn('Notification error:', err.message));
@@ -21712,7 +21292,7 @@ app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CE
   }
 });
 
-// 🔥 NEW: Kiểm tra điều kiện cấp chứng chỉ cho học viên
+// ðŸ”¥ NEW: Kiá»ƒm tra Ä‘iá»u kiá»‡n cáº¥p chá»©ng chá»‰ cho há»c viÃªn
 app.get('/api/students/:studentId/certificate-eligibility/:certificateTypeId', requireAuth, async (req, res, next) => {
   try {
     const { studentId, certificateTypeId } = req.params;
@@ -21721,7 +21301,7 @@ app.get('/api/students/:studentId/certificate-eligibility/:certificateTypeId', r
     if (!classId) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng cung cấp classId'
+        message: 'Vui lÃ²ng cung cáº¥p classId'
       });
     }
 
@@ -21737,7 +21317,7 @@ app.get('/api/students/:studentId/certificate-eligibility/:certificateTypeId', r
   }
 });
 
-// 🔥 NEW: Lấy danh sách học viên đủ điều kiện cấp chứng chỉ trong lớp
+// ðŸ”¥ NEW: Láº¥y danh sÃ¡ch há»c viÃªn Ä‘á»§ Ä‘iá»u kiá»‡n cáº¥p chá»©ng chá»‰ trong lá»›p
 app.get('/api/classes/:classId/eligible-students', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { classId } = req.params;
@@ -21755,7 +21335,7 @@ app.get('/api/classes/:classId/eligible-students', requireAuth, requireRole(['SU
     res.json({
       success: true,
       data: result.data,
-      message: `Tìm thấy ${result.data.length} học viên đủ điều kiện`
+      message: `TÃ¬m tháº¥y ${result.data.length} há»c viÃªn Ä‘á»§ Ä‘iá»u kiá»‡n`
     });
   } catch (error) {
     console.error('Error getting eligible students:', error);
@@ -21763,7 +21343,7 @@ app.get('/api/classes/:classId/eligible-students', requireAuth, requireRole(['SU
   }
 });
 
-// Lấy danh sách học viên đủ điều kiện cấp chứng chỉ
+// Láº¥y danh sÃ¡ch há»c viÃªn Ä‘á»§ Ä‘iá»u kiá»‡n cáº¥p chá»©ng chá»‰
 app.get('/api/admin/certificates/eligible-students', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { centerId, classId, certificateTypeId: certTypeIdParam, type_id } = req.query;
@@ -21773,7 +21353,7 @@ app.get('/api/admin/certificates/eligible-students', requireAuth, requireRole(['
       return res.status(403).json({ success: false, message: permError });
     }
 
-    // Lấy các enrollment đang học hoặc đã hoàn thành
+    // Láº¥y cÃ¡c enrollment Ä‘ang há»c hoáº·c Ä‘Ã£ hoÃ n thÃ nh
     let query = supabase
       .from('enrollments')
       .select(`
@@ -21818,7 +21398,7 @@ app.get('/api/admin/certificates/eligible-students', requireAuth, requireRole(['
       }
     }
 
-    // Lấy danh sách đã có chứng chỉ
+    // Láº¥y danh sÃ¡ch Ä‘Ã£ cÃ³ chá»©ng chá»‰
     const { data: existingCerts } = await supabase
       .from('certificates')
       .select('student_id, class_id, certificate_type_id')
@@ -21862,7 +21442,7 @@ app.get('/api/admin/certificates/eligible-students', requireAuth, requireRole(['
           reasons: eligibility.reasons || []
         });
       } else {
-        // No cert type specified — return all without eligibility details
+        // No cert type specified â€” return all without eligibility details
         const key = `${enrollment.student_id}_${enrollment.class?.id}`;
         const hasAnyCert = (existingCerts || []).some(c => 
           `${c.student_id}_${c.class_id}` === key
@@ -21888,7 +21468,7 @@ app.get('/api/admin/certificates/eligible-students', requireAuth, requireRole(['
         }
       }
     }
-    // Dedup by student_id — keep best enrollment per student (eligible first, then first found)
+    // Dedup by student_id â€” keep best enrollment per student (eligible first, then first found)
     const seenStudents = new Map();
     for (const student of eligibleStudents) {
       const existing = seenStudents.get(student.student_id);
@@ -21908,7 +21488,7 @@ app.get('/api/admin/certificates/eligible-students', requireAuth, requireRole(['
   }
 });
 
-// Cấp chứng chỉ nội bộ (issued ngay lập tức khi admin xác nhận qua wizard)
+// Cáº¥p chá»©ng chá»‰ ná»™i bá»™ (issued ngay láº­p tá»©c khi admin xÃ¡c nháº­n qua wizard)
 app.post('/api/admin/certificates/request-approval', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { certificate_type_id, students, options = {} } = req.body;
@@ -21922,10 +21502,10 @@ app.post('/api/admin/certificates/request-approval', requireAuth, requireRole(['
     }
 
     if (!certificate_type_id || !students || !Array.isArray(students) || students.length === 0) {
-      return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc' });
+      return res.status(400).json({ success: false, message: 'Thiáº¿u thÃ´ng tin báº¯t buá»™c' });
     }
 
-    // Lấy thông tin certificate type
+    // Láº¥y thÃ´ng tin certificate type
     const { data: certType, error: typeError } = await supabase
       .from('certificate_types')
       .select('*')
@@ -21933,7 +21513,7 @@ app.post('/api/admin/certificates/request-approval', requireAuth, requireRole(['
       .single();
 
     if (typeError || !certType) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy loại chứng chỉ' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y loáº¡i chá»©ng chá»‰' });
     }
 
     const results = { success: [], failed: [] };
@@ -21942,7 +21522,7 @@ app.post('/api/admin/certificates/request-approval', requireAuth, requireRole(['
       try {
         const { student_id, scores, override_reason, class_id, course_name } = student;
 
-        // Lấy thông tin học viên
+        // Láº¥y thÃ´ng tin há»c viÃªn
         const { data: profile } = await supabase
           .from('users')
           .select('full_name')
@@ -21951,13 +21531,13 @@ app.post('/api/admin/certificates/request-approval', requireAuth, requireRole(['
 
         const studentName = profile?.full_name || 'Unknown';
 
-        // Tạo certificate number
+        // Táº¡o certificate number
         const { data: certNumber } = await supabase.rpc('generate_certificate_number_v2', {
           p_type_code: certType.code || 'INT',
           p_center_code: 'SM'
         });
 
-        // Tính ngày hết hạn nếu có validity_months
+        // TÃ­nh ngÃ y háº¿t háº¡n náº¿u cÃ³ validity_months
         let expiresAt = null;
         if (certType.validity_months) {
           const expiry = new Date();
@@ -21965,7 +21545,7 @@ app.post('/api/admin/certificates/request-approval', requireAuth, requireRole(['
           expiresAt = expiry.toISOString().split('T')[0];
         }
 
-        // Xác định grade từ scores
+        // XÃ¡c Ä‘á»‹nh grade tá»« scores
         const grade = scores?.grade || scores?.overall || null;
 
         const insertData = {
@@ -22005,7 +21585,7 @@ app.post('/api/admin/certificates/request-approval', requireAuth, requireRole(['
 
     res.json({
       success: true,
-      message: `Đã cấp ${results.success.length} chứng chỉ thành công`,
+      message: `ÄÃ£ cáº¥p ${results.success.length} chá»©ng chá»‰ thÃ nh cÃ´ng`,
       data: results
     });
   } catch (error) {
@@ -22014,7 +21594,7 @@ app.post('/api/admin/certificates/request-approval', requireAuth, requireRole(['
   }
 });
 
-// Cấp chứng chỉ hàng loạt cho một lớp
+// Cáº¥p chá»©ng chá»‰ hÃ ng loáº¡t cho má»™t lá»›p
 app.post('/api/admin/certificates/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { certificates, class_id, student_ids, grade, completion_date } = req.body;
@@ -22027,13 +21607,13 @@ app.post('/api/admin/certificates/bulk', requireAuth, requireRole(['SUPER_ADMIN'
     if (!req.user?.centerId) {
       return res.status(400).json({
         success: false,
-        message: 'User không có center_id, không thể cấp chứng chỉ'
+        message: 'User khÃ´ng cÃ³ center_id, khÃ´ng thá»ƒ cáº¥p chá»©ng chá»‰'
       });
     }
 
-    // Hỗ trợ cả format mới (certificates array) và format cũ (class_id + student_ids)
+    // Há»— trá»£ cáº£ format má»›i (certificates array) vÃ  format cÅ© (class_id + student_ids)
     if (certificates && Array.isArray(certificates) && certificates.length > 0) {
-      // NEW FORMAT: Cấp nhiều chứng chỉ với thông tin chi tiết từng người
+      // NEW FORMAT: Cáº¥p nhiá»u chá»©ng chá»‰ vá»›i thÃ´ng tin chi tiáº¿t tá»«ng ngÆ°á»i
       const results = { success: [], failed: [] };
 
       for (const cert of certificates) {
@@ -22042,7 +21622,7 @@ app.post('/api/admin/certificates/bulk', requireAuth, requireRole(['SUPER_ADMIN'
           if (!cert.certificate_type_id || !cert.student_id) {
             results.failed.push({
               student_id: cert.student_id,
-              reason: 'Thiếu certificate_type_id hoặc student_id'
+              reason: 'Thiáº¿u certificate_type_id hoáº·c student_id'
             });
             continue;
           }
@@ -22122,20 +21702,20 @@ app.post('/api/admin/certificates/bulk', requireAuth, requireRole(['SUPER_ADMIN'
 
       return res.status(201).json({
         success: true,
-        message: `Đã cấp ${results.success.length}/${certificates.length} chứng chỉ`,
+        message: `ÄÃ£ cáº¥p ${results.success.length}/${certificates.length} chá»©ng chá»‰`,
         data: results
       });
     }
 
-    // OLD FORMAT: Cấp chứng chỉ từ class
+    // OLD FORMAT: Cáº¥p chá»©ng chá»‰ tá»« class
     if (!class_id || !student_ids || !student_ids.length) {
       return res.status(400).json({
         success: false,
-        message: 'Cần có certificates array hoặc class_id + student_ids'
+        message: 'Cáº§n cÃ³ certificates array hoáº·c class_id + student_ids'
       });
     }
 
-    // Lấy thông tin lớp và khóa học
+    // Láº¥y thÃ´ng tin lá»›p vÃ  khÃ³a há»c
     const { data: classData, error: classError } = await supabase
       .from('classes')
       .select('id, name, end_date, course:courses(id, title), center:centers(id)')
@@ -22145,11 +21725,11 @@ app.post('/api/admin/certificates/bulk', requireAuth, requireRole(['SUPER_ADMIN'
     if (classError || !classData) {
       return res.status(400).json({
         success: false,
-        message: 'Không tìm thấy lớp học'
+        message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c'
       });
     }
 
-    // Lấy thông tin học viên
+    // Láº¥y thÃ´ng tin há»c viÃªn
     const { data: students } = await supabase
       .from('users')
       .select('id, full_name')
@@ -22161,7 +21741,7 @@ app.post('/api/admin/certificates/bulk', requireAuth, requireRole(['SUPER_ADMIN'
       try {
         const student = students?.find(s => s.id === studentId);
         if (!student) {
-          results.failed.push({ student_id: studentId, reason: 'Không tìm thấy học viên' });
+          results.failed.push({ student_id: studentId, reason: 'KhÃ´ng tÃ¬m tháº¥y há»c viÃªn' });
           continue;
         }
 
@@ -22199,7 +21779,7 @@ app.post('/api/admin/certificates/bulk', requireAuth, requireRole(['SUPER_ADMIN'
 
     res.status(201).json({
       success: true,
-      message: `Đã cấp ${results.success.length}/${student_ids.length} chứng chỉ`,
+      message: `ÄÃ£ cáº¥p ${results.success.length}/${student_ids.length} chá»©ng chá»‰`,
       data: results
     });
   } catch (error) {
@@ -22208,7 +21788,7 @@ app.post('/api/admin/certificates/bulk', requireAuth, requireRole(['SUPER_ADMIN'
   }
 });
 
-// Thu hồi chứng chỉ
+// Thu há»“i chá»©ng chá»‰
 app.put('/api/admin/certificates/:id/revoke', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -22219,7 +21799,7 @@ app.put('/api/admin/certificates/:id/revoke', requireAuth, requireRole(['SUPER_A
       .update({
         status: 'revoked',
         revoked_at: new Date().toISOString(),
-        revoked_reason: reason || 'Không có lý do',
+        revoked_reason: reason || 'KhÃ´ng cÃ³ lÃ½ do',
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
@@ -22231,7 +21811,7 @@ app.put('/api/admin/certificates/:id/revoke', requireAuth, requireRole(['SUPER_A
     res.json({
       success: true,
       data,
-      message: 'Đã thu hồi chứng chỉ'
+      message: 'ÄÃ£ thu há»“i chá»©ng chá»‰'
     });
   } catch (error) {
     console.error('Error revoking certificate:', error);
@@ -22239,7 +21819,7 @@ app.put('/api/admin/certificates/:id/revoke', requireAuth, requireRole(['SUPER_A
   }
 });
 
-// Lấy chi tiết một chứng chỉ
+// Láº¥y chi tiáº¿t má»™t chá»©ng chá»‰
 app.get('/api/admin/certificates/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -22273,7 +21853,7 @@ app.get('/api/admin/certificates/:id', requireAuth, async (req, res, next) => {
     if (error || !data) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy chứng chỉ'
+        message: 'KhÃ´ng tÃ¬m tháº¥y chá»©ng chá»‰'
       });
     }
 
@@ -22287,7 +21867,7 @@ app.get('/api/admin/certificates/:id', requireAuth, async (req, res, next) => {
   }
 });
 
-// Cập nhật chứng chỉ
+// Cáº­p nháº­t chá»©ng chá»‰
 app.put('/api/admin/certificates/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -22331,7 +21911,7 @@ app.put('/api/admin/certificates/:id', requireAuth, requireRole(['SUPER_ADMIN', 
     res.json({
       success: true,
       data,
-      message: 'Đã cập nhật chứng chỉ'
+      message: 'ÄÃ£ cáº­p nháº­t chá»©ng chá»‰'
     });
   } catch (error) {
     console.error('Error updating certificate:', error);
@@ -22555,12 +22135,12 @@ app.get('/api/admin/pending-approvals', requireAuth, requireRole(['SUPER_ADMIN',
 });
 
 // ============================================================
-// PUBLIC CERTIFICATE VERIFICATION API - Xác thực chứng chỉ công khai
+// PUBLIC CERTIFICATE VERIFICATION API - XÃ¡c thá»±c chá»©ng chá»‰ cÃ´ng khai
 // ============================================================
 
 /**
  * @api {GET} /api/public/verify-certificate/:certificateNumber
- * @description Xác thực chứng chỉ theo mã số - KHÔNG CẦN ĐĂNG NHẬP
+ * @description XÃ¡c thá»±c chá»©ng chá»‰ theo mÃ£ sá»‘ - KHÃ”NG Cáº¦N ÄÄ‚NG NHáº¬P
  */
 app.get('/api/public/verify-certificate/:certificateNumber', async (req, res, next) => {
   try {
@@ -22573,12 +22153,12 @@ app.get('/api/public/verify-certificate/:certificateNumber', async (req, res, ne
     if (!certificateNumber || certificateNumber.length < 3) {
       return res.status(400).json({
         success: false,
-        message: 'Mã chứng chỉ không hợp lệ',
+        message: 'MÃ£ chá»©ng chá»‰ khÃ´ng há»£p lá»‡',
         code: 'INVALID_FORMAT'
       });
     }
 
-    // Tìm chứng chỉ với mã số (case-insensitive)
+    // TÃ¬m chá»©ng chá»‰ vá»›i mÃ£ sá»‘ (case-insensitive)
     const { data: certificate, error } = await supabase
       .from('certificates')
       .select(`
@@ -22613,13 +22193,13 @@ app.get('/api/public/verify-certificate/:certificateNumber', async (req, res, ne
       console.log('Certificate not found:', certificateNumber, error);
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy chứng chỉ với mã số này',
+        message: 'KhÃ´ng tÃ¬m tháº¥y chá»©ng chá»‰ vá»›i mÃ£ sá»‘ nÃ y',
         code: 'CERTIFICATE_NOT_FOUND',
         searched_code: certificateNumber
       });
     }
 
-    // Không trả về student_id hoặc thông tin nhạy cảm
+    // KhÃ´ng tráº£ vá» student_id hoáº·c thÃ´ng tin nháº¡y cáº£m
     const publicData = {
       certificate_number: certificate.certificate_number,
       student_name: certificate.student_name,
@@ -22637,7 +22217,7 @@ app.get('/api/public/verify-certificate/:certificateNumber', async (req, res, ne
       } : null
     };
 
-    // Kiểm tra trạng thái
+    // Kiá»ƒm tra tráº¡ng thÃ¡i
     let verificationStatus = 'valid';
     if (certificate.status === 'revoked') {
       verificationStatus = 'revoked';
@@ -22659,20 +22239,20 @@ app.get('/api/public/verify-certificate/:certificateNumber', async (req, res, ne
     console.error('Error verifying certificate:', error);
     res.status(500).json({
       success: false,
-      message: 'Lỗi hệ thống khi xác thực chứng chỉ. Vui lòng thử lại sau.',
+      message: 'Lá»—i há»‡ thá»‘ng khi xÃ¡c thá»±c chá»©ng chá»‰. Vui lÃ²ng thá»­ láº¡i sau.',
       code: 'SERVER_ERROR'
     });
   }
 });
 
 // ============================================================
-// SUPPORT TICKETS APIs - Hệ thống hỗ trợ (LEGACY)
+// SUPPORT TICKETS APIs - Há»‡ thá»‘ng há»— trá»£ (LEGACY)
 // Deprecated route group kept for backward compatibility only.
 // Authoritative support ticket APIs are defined later in
 // SUPPORT TICKETS MANAGEMENT APIs section.
 // ============================================================
 
-// Lấy danh sách tickets
+// Láº¥y danh sÃ¡ch tickets
 app.get('/api/legacy/admin/support-tickets', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
     const { centerId, status, priority, category, assignedTo, search, page = 1, limit = 20 } = req.query;
@@ -22736,7 +22316,7 @@ app.get('/api/legacy/admin/support-tickets', requireAuth, requireRole(['SUPER_AD
   }
 });
 
-// Lấy chi tiết ticket kèm messages
+// Láº¥y chi tiáº¿t ticket kÃ¨m messages
 app.get('/api/legacy/admin/support-tickets/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -22767,7 +22347,7 @@ app.get('/api/legacy/admin/support-tickets/:id', requireAuth, async (req, res, n
     if (ticketResult.error || !ticketResult.data) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy ticket'
+        message: 'KhÃ´ng tÃ¬m tháº¥y ticket'
       });
     }
 
@@ -22784,7 +22364,7 @@ app.get('/api/legacy/admin/support-tickets/:id', requireAuth, async (req, res, n
   }
 });
 
-// Tạo ticket mới (từ admin hoặc student)
+// Táº¡o ticket má»›i (tá»« admin hoáº·c student)
 app.post('/api/legacy/support-tickets', requireAuth, async (req, res, next) => {
   try {
     const { subject, message, category, priority, class_id } = req.body;
@@ -22792,7 +22372,7 @@ app.post('/api/legacy/support-tickets', requireAuth, async (req, res, next) => {
     if (!subject || !message) {
       return res.status(400).json({
         success: false,
-        message: 'Tiêu đề và nội dung là bắt buộc'
+        message: 'TiÃªu Ä‘á» vÃ  ná»™i dung lÃ  báº¯t buá»™c'
       });
     }
 
@@ -22816,7 +22396,7 @@ app.post('/api/legacy/support-tickets', requireAuth, async (req, res, next) => {
 
     if (ticketError) throw ticketError;
 
-    // Thêm message đầu tiên
+    // ThÃªm message Ä‘áº§u tiÃªn
     await supabase
       .from('ticket_messages')
       .insert({
@@ -22829,7 +22409,7 @@ app.post('/api/legacy/support-tickets', requireAuth, async (req, res, next) => {
     res.status(201).json({
       success: true,
       data: ticket,
-      message: 'Đã tạo yêu cầu hỗ trợ'
+      message: 'ÄÃ£ táº¡o yÃªu cáº§u há»— trá»£'
     });
   } catch (error) {
     console.error('Error creating support ticket:', error);
@@ -22837,7 +22417,7 @@ app.post('/api/legacy/support-tickets', requireAuth, async (req, res, next) => {
   }
 });
 
-// Cập nhật ticket (gán người xử lý, đổi trạng thái, priority)
+// Cáº­p nháº­t ticket (gÃ¡n ngÆ°á»i xá»­ lÃ½, Ä‘á»•i tráº¡ng thÃ¡i, priority)
 app.put('/api/legacy/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -22851,7 +22431,7 @@ app.put('/api/legacy/admin/support-tickets/:id', requireAuth, requireRole(['SUPE
     if (priority) updateData.priority = priority;
     if (assigned_to !== undefined) updateData.assigned_to = assigned_to || null;
 
-    // Nếu đánh dấu resolved
+    // Náº¿u Ä‘Ã¡nh dáº¥u resolved
     if (status === 'resolved' || status === 'closed') {
       updateData.resolved_at = new Date().toISOString();
       updateData.resolved_by = req.user.id;
@@ -22870,7 +22450,7 @@ app.put('/api/legacy/admin/support-tickets/:id', requireAuth, requireRole(['SUPE
     res.json({
       success: true,
       data,
-      message: 'Đã cập nhật ticket'
+      message: 'ÄÃ£ cáº­p nháº­t ticket'
     });
   } catch (error) {
     console.error('Error updating support ticket:', error);
@@ -22878,7 +22458,7 @@ app.put('/api/legacy/admin/support-tickets/:id', requireAuth, requireRole(['SUPE
   }
 });
 
-// Gửi reply vào ticket
+// Gá»­i reply vÃ o ticket
 app.post('/api/legacy/support-tickets/:id/messages', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -22887,11 +22467,11 @@ app.post('/api/legacy/support-tickets/:id/messages', requireAuth, async (req, re
     if (!message) {
       return res.status(400).json({
         success: false,
-        message: 'Nội dung tin nhắn là bắt buộc'
+        message: 'Ná»™i dung tin nháº¯n lÃ  báº¯t buá»™c'
       });
     }
 
-    // Kiểm tra ticket tồn tại
+    // Kiá»ƒm tra ticket tá»“n táº¡i
     const { data: ticket, error: ticketError } = await supabase
       .from('support_tickets')
       .select('id, status')
@@ -22901,7 +22481,7 @@ app.post('/api/legacy/support-tickets/:id/messages', requireAuth, async (req, re
     if (ticketError || !ticket) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy ticket'
+        message: 'KhÃ´ng tÃ¬m tháº¥y ticket'
       });
     }
 
@@ -22923,7 +22503,7 @@ app.post('/api/legacy/support-tickets/:id/messages', requireAuth, async (req, re
 
     if (error) throw error;
 
-    // Cập nhật status thành in_progress nếu đang open
+    // Cáº­p nháº­t status thÃ nh in_progress náº¿u Ä‘ang open
     if (ticket.status === 'open') {
       await supabase
         .from('support_tickets')
@@ -22934,7 +22514,7 @@ app.post('/api/legacy/support-tickets/:id/messages', requireAuth, async (req, re
     res.status(201).json({
       success: true,
       data,
-      message: 'Đã gửi tin nhắn'
+      message: 'ÄÃ£ gá»­i tin nháº¯n'
     });
   } catch (error) {
     console.error('Error sending ticket message:', error);
@@ -22943,10 +22523,10 @@ app.post('/api/legacy/support-tickets/:id/messages', requireAuth, async (req, re
 });
 
 // ============================================================
-// ENROLLMENTS APIs - Quản lý ghi danh
+// ENROLLMENTS APIs - Quáº£n lÃ½ ghi danh
 // ============================================================
 
-// Lấy danh sách ghi danh
+// Láº¥y danh sÃ¡ch ghi danh
 app.get('/api/admin/enrollments', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { centerId, classId, studentId, status, search, page = 1, limit = 20 } = req.query;
@@ -23036,7 +22616,7 @@ app.get('/api/admin/enrollments', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
   }
 });
 
-// Tạo enrollment mới (ghi danh học viên vào lớp)
+// Táº¡o enrollment má»›i (ghi danh há»c viÃªn vÃ o lá»›p)
 app.post('/api/admin/enrollments', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { student_id, class_id, tuition_fee, discount_amount, paid_amount, notes } = req.body;
@@ -23044,11 +22624,11 @@ app.post('/api/admin/enrollments', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
     if (!student_id || !class_id) {
       return res.status(400).json({
         success: false,
-        message: 'Học viên và lớp học là bắt buộc'
+        message: 'Há»c viÃªn vÃ  lá»›p há»c lÃ  báº¯t buá»™c'
       });
     }
 
-    // 🔥 Use unified enrollment service
+    // ðŸ”¥ Use unified enrollment service
     const result = await createEnrollmentWithDraftInvoice(supabase, {
       student_id,
       class_id,
@@ -23084,12 +22664,12 @@ app.post('/api/admin/enrollments', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
           const notifModule = await getEnrollmentNotifications();
           if (notifModule) {
             notifModule.sendEnrollmentWelcome(enrollmentData).catch(err => {
-              console.warn('⚠️ Failed to queue enrollment welcome notification:', err.message);
+              console.warn('âš ï¸ Failed to queue enrollment welcome notification:', err.message);
             });
           }
         }
       } catch (notifError) {
-        console.warn('⚠️ Error sending enrollment welcome notification:', notifError.message);
+        console.warn('âš ï¸ Error sending enrollment welcome notification:', notifError.message);
       }
     }
 
@@ -23097,7 +22677,7 @@ app.post('/api/admin/enrollments', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
       success: true,
       data: result.enrollment,
       invoice: result.invoice,
-      message: result.message || 'Đã ghi danh học viên thành công'
+      message: result.message || 'ÄÃ£ ghi danh há»c viÃªn thÃ nh cÃ´ng'
     });
   } catch (error) {
     console.error('Error creating enrollment:', error);
@@ -23106,7 +22686,7 @@ app.post('/api/admin/enrollments', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
 });
 
 // ========================================
-// 🔥 BATCH ENROLLMENT - Ghi danh nhiều học viên cùng lúc
+// ðŸ”¥ BATCH ENROLLMENT - Ghi danh nhiá»u há»c viÃªn cÃ¹ng lÃºc
 // ========================================
 app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -23116,7 +22696,7 @@ app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN'
     if (!class_id || !student_ids || !Array.isArray(student_ids) || student_ids.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Học viên và lớp học là bắt buộc'
+        message: 'Há»c viÃªn vÃ  lá»›p há»c lÃ  báº¯t buá»™c'
       });
     }
 
@@ -23124,7 +22704,7 @@ app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN'
     if (student_ids.length > 50) {
       return res.status(400).json({
         success: false,
-        message: 'Tối đa 50 học viên mỗi lần ghi danh'
+        message: 'Tá»‘i Ä‘a 50 há»c viÃªn má»—i láº§n ghi danh'
       });
     }
 
@@ -23138,7 +22718,7 @@ app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN'
     if (classError || !classData) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy lớp học'
+        message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c'
       });
     }
 
@@ -23152,7 +22732,7 @@ app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN'
     if (student_ids.length > availableSlots) {
       return res.status(400).json({
         success: false,
-        message: `Lớp học chỉ còn ${availableSlots} chỗ trống`
+        message: `Lá»›p há»c chá»‰ cÃ²n ${availableSlots} chá»— trá»‘ng`
       });
     }
 
@@ -23176,7 +22756,7 @@ app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN'
     if (newStudentIds.length === 0 && reactivateIds.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Tất cả học viên đã được ghi danh vào lớp này'
+        message: 'Táº¥t cáº£ há»c viÃªn Ä‘Ã£ Ä‘Æ°á»£c ghi danh vÃ o lá»›p nÃ y'
       });
     }
 
@@ -23234,7 +22814,7 @@ app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN'
           tuition_fee: enrollment.tuition_fee || classData.courses?.price || 0,
           discount_amount: 0,
           paid_amount: 0,
-          description: `Học phí lớp ${classData.name}`,
+          description: `Há»c phÃ­ lá»›p ${classData.name}`,
           created_by: req.user?.id
         });
 
@@ -23249,7 +22829,7 @@ app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN'
       }
     }
 
-    console.log(`✅ Batch enrollment: ${insertedData.length} new, ${reactivatedData.length} reactivated, ${invoiceResults.length} invoices`);
+    console.log(`âœ… Batch enrollment: ${insertedData.length} new, ${reactivatedData.length} reactivated, ${invoiceResults.length} invoices`);
 
     res.status(201).json({
       success: true,
@@ -23262,7 +22842,7 @@ app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN'
         invoices_created: invoiceResults.length,
         invoice_errors: invoiceErrors.length > 0 ? invoiceErrors : undefined
       },
-      message: `Đã ghi danh ${allEnrolled.length} học viên và tạo ${invoiceResults.length} hóa đơn draft`
+      message: `ÄÃ£ ghi danh ${allEnrolled.length} há»c viÃªn vÃ  táº¡o ${invoiceResults.length} hÃ³a Ä‘Æ¡n draft`
     });
   } catch (error) {
     console.error('Error batch enrollment:', error);
@@ -23270,7 +22850,7 @@ app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN'
   }
 });
 
-// Cập nhật enrollment
+// Cáº­p nháº­t enrollment
 app.put('/api/admin/enrollments/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -23295,7 +22875,7 @@ app.put('/api/admin/enrollments/:id', requireAuth, requireRole(['SUPER_ADMIN', '
     res.json({
       success: true,
       data,
-      message: 'Đã cập nhật ghi danh'
+      message: 'ÄÃ£ cáº­p nháº­t ghi danh'
     });
   } catch (error) {
     console.error('Error updating enrollment:', error);
@@ -23303,7 +22883,7 @@ app.put('/api/admin/enrollments/:id', requireAuth, requireRole(['SUPER_ADMIN', '
   }
 });
 
-// Hủy enrollment (soft delete - set status = dropped)
+// Há»§y enrollment (soft delete - set status = dropped)
 app.delete('/api/admin/enrollments/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -23323,7 +22903,7 @@ app.delete('/api/admin/enrollments/:id', requireAuth, requireRole(['SUPER_ADMIN'
     res.json({
       success: true,
       data,
-      message: 'Đã hủy ghi danh'
+      message: 'ÄÃ£ há»§y ghi danh'
     });
   } catch (error) {
     console.error('Error deleting enrollment:', error);
@@ -23342,7 +22922,7 @@ app.post('/api/admin/enrollments/bulk-delete', requireAuth, requireRole(['SUPER_
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Danh sách ghi danh không hợp lệ'
+        message: 'Danh sÃ¡ch ghi danh khÃ´ng há»£p lá»‡'
       });
     }
 
@@ -23360,7 +22940,7 @@ app.post('/api/admin/enrollments/bulk-delete', requireAuth, requireRole(['SUPER_
 
     res.json({
       success: true,
-      message: `Đã hủy ${data.length} ghi danh`,
+      message: `ÄÃ£ há»§y ${data.length} ghi danh`,
       data
     });
   } catch (error) {
@@ -23440,7 +23020,7 @@ app.post('/api/admin/enrollments/trial', requireAuth, requireRole(['SUPER_ADMIN'
     if (!student_id || !class_id) {
       return res.status(400).json({
         success: false,
-        message: 'Học viên và lớp học là bắt buộc'
+        message: 'Há»c viÃªn vÃ  lá»›p há»c lÃ  báº¯t buá»™c'
       });
     }
 
@@ -23454,7 +23034,7 @@ app.post('/api/admin/enrollments/trial', requireAuth, requireRole(['SUPER_ADMIN'
     if (studentError || !student) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy học viên'
+        message: 'KhÃ´ng tÃ¬m tháº¥y há»c viÃªn'
       });
     }
 
@@ -23468,7 +23048,7 @@ app.post('/api/admin/enrollments/trial', requireAuth, requireRole(['SUPER_ADMIN'
     if (classError || !classData) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy lớp học'
+        message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c'
       });
     }
 
@@ -23482,7 +23062,7 @@ app.post('/api/admin/enrollments/trial', requireAuth, requireRole(['SUPER_ADMIN'
     if (currentCount >= classData.max_students) {
       return res.status(400).json({
         success: false,
-        message: `Lớp ${classData.name} đã đầy (${currentCount}/${classData.max_students}). Vui lòng thêm vào danh sách chờ.`
+        message: `Lá»›p ${classData.name} Ä‘Ã£ Ä‘áº§y (${currentCount}/${classData.max_students}). Vui lÃ²ng thÃªm vÃ o danh sÃ¡ch chá».`
       });
     }
 
@@ -23496,10 +23076,10 @@ app.post('/api/admin/enrollments/trial', requireAuth, requireRole(['SUPER_ADMIN'
       .single();
 
     if (existingEnrollment) {
-      const typeText = existingEnrollment.enrollment_type === 'trial' ? 'học thử' : 'chính thức';
+      const typeText = existingEnrollment.enrollment_type === 'trial' ? 'há»c thá»­' : 'chÃ­nh thá»©c';
       return res.status(400).json({
         success: false,
-        message: `Học viên đã đăng ký ${typeText} lớp này rồi`
+        message: `Há»c viÃªn Ä‘Ã£ Ä‘Äƒng kÃ½ ${typeText} lá»›p nÃ y rá»“i`
       });
     }
 
@@ -23514,7 +23094,7 @@ app.post('/api/admin/enrollments/trial', requireAuth, requireRole(['SUPER_ADMIN'
         tuition_fee: 0,
         discount_amount: 0,
         paid_amount: 0,
-        notes: notes || 'Đăng ký học thử',
+        notes: notes || 'ÄÄƒng kÃ½ há»c thá»­',
         enrolled_at: new Date().toISOString()
       })
       .select(`
@@ -23531,11 +23111,11 @@ app.post('/api/admin/enrollments/trial', requireAuth, requireRole(['SUPER_ADMIN'
 
     if (insertError) throw insertError;
 
-    console.log(`✅ Trial enrollment created: ${student.full_name} -> ${classData.name}`);
+    console.log(`âœ… Trial enrollment created: ${student.full_name} -> ${classData.name}`);
 
     res.status(201).json({
       success: true,
-      message: `Đã đăng ký học thử cho ${student.full_name} vào lớp ${classData.name}`,
+      message: `ÄÃ£ Ä‘Äƒng kÃ½ há»c thá»­ cho ${student.full_name} vÃ o lá»›p ${classData.name}`,
       data: {
         ...enrollment,
         student_name: student.full_name,
@@ -23553,7 +23133,7 @@ app.post('/api/admin/enrollments/trial', requireAuth, requireRole(['SUPER_ADMIN'
 /**
  * PUT /api/admin/enrollments/:id/convert-trial
  * Convert trial enrollment to regular (paid) enrollment
- * ✅ Auto-creates Invoice after conversion
+ * âœ… Auto-creates Invoice after conversion
  */
 app.put('/api/admin/enrollments/:id/convert-trial', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -23564,7 +23144,7 @@ app.put('/api/admin/enrollments/:id/convert-trial', requireAuth, requireRole(['S
     if (!tuition_fee || tuition_fee <= 0) {
       return res.status(400).json({
         success: false,
-        message: 'Học phí là bắt buộc và phải > 0'
+        message: 'Há»c phÃ­ lÃ  báº¯t buá»™c vÃ  pháº£i > 0'
       });
     }
 
@@ -23582,21 +23162,21 @@ app.put('/api/admin/enrollments/:id/convert-trial', requireAuth, requireRole(['S
     if (checkError || !enrollment) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy đăng ký'
+        message: 'KhÃ´ng tÃ¬m tháº¥y Ä‘Äƒng kÃ½'
       });
     }
 
     if (enrollment.enrollment_type !== 'trial') {
       return res.status(400).json({
         success: false,
-        message: 'Đăng ký này không phải học thử'
+        message: 'ÄÄƒng kÃ½ nÃ y khÃ´ng pháº£i há»c thá»­'
       });
     }
 
     if (enrollment.is_trial_converted) {
       return res.status(400).json({
         success: false,
-        message: 'Đăng ký học thử này đã được chuyển đổi rồi'
+        message: 'ÄÄƒng kÃ½ há»c thá»­ nÃ y Ä‘Ã£ Ä‘Æ°á»£c chuyá»ƒn Ä‘á»•i rá»“i'
       });
     }
 
@@ -23612,11 +23192,11 @@ app.put('/api/admin/enrollments/:id/convert-trial', requireAuth, requireRole(['S
       console.error('RPC Error:', rpcError);
       return res.status(400).json({
         success: false,
-        message: rpcError.message || 'Lỗi khi chuyển đổi đăng ký'
+        message: rpcError.message || 'Lá»—i khi chuyá»ƒn Ä‘á»•i Ä‘Äƒng kÃ½'
       });
     }
 
-    console.log(`✅ Trial converted: ${enrollment.student?.full_name} -> ${enrollment.class?.name}`);
+    console.log(`âœ… Trial converted: ${enrollment.student?.full_name} -> ${enrollment.class?.name}`);
 
     // Auto-create Invoice if requested
     let invoice = null;
@@ -23638,7 +23218,7 @@ app.put('/api/admin/enrollments/:id/convert-trial', requireAuth, requireRole(['S
           final_amount: finalAmount,
           paid_amount: 0,
           status: 'unpaid',
-          description: `Học phí - ${enrollment.class?.name || 'N/A'} - Chuyển đổi từ học thử`,
+          description: `Há»c phÃ­ - ${enrollment.class?.name || 'N/A'} - Chuyá»ƒn Ä‘á»•i tá»« há»c thá»­`,
           due_date: defaultDueDate,
           created_by: userId
         })
@@ -23646,11 +23226,11 @@ app.put('/api/admin/enrollments/:id/convert-trial', requireAuth, requireRole(['S
         .single();
 
       if (invoiceError) {
-        console.error('❌ Error creating invoice after trial conversion:', invoiceError);
+        console.error('âŒ Error creating invoice after trial conversion:', invoiceError);
         // Don't fail the whole operation, just log the error
       } else {
         invoice = newInvoice;
-        console.log(`✅ Invoice created: ${invoiceCode} - ${finalAmount.toLocaleString('vi-VN')}đ`);
+        console.log(`âœ… Invoice created: ${invoiceCode} - ${finalAmount.toLocaleString('vi-VN')}Ä‘`);
       }
     }
 
@@ -23659,18 +23239,18 @@ app.put('/api/admin/enrollments/:id/convert-trial', requireAuth, requireRole(['S
       const notifModule = await getEnrollmentNotifications();
       if (notifModule) {
         notifModule.sendTrialConvertedNotification(enrollment, invoice).catch(err => {
-          console.warn('⚠️ Failed to queue trial converted notification:', err.message);
+          console.warn('âš ï¸ Failed to queue trial converted notification:', err.message);
         });
       }
     } catch (notifError) {
-      console.warn('⚠️ Error sending trial converted notification:', notifError.message);
+      console.warn('âš ï¸ Error sending trial converted notification:', notifError.message);
     }
 
     res.json({
       success: true,
       message: invoice
-        ? `Đã chuyển đổi học thử và tạo hóa đơn ${invoice.invoice_code}`
-        : `Đã chuyển đổi học thử thành đăng ký chính thức`,
+        ? `ÄÃ£ chuyá»ƒn Ä‘á»•i há»c thá»­ vÃ  táº¡o hÃ³a Ä‘Æ¡n ${invoice.invoice_code}`
+        : `ÄÃ£ chuyá»ƒn Ä‘á»•i há»c thá»­ thÃ nh Ä‘Äƒng kÃ½ chÃ­nh thá»©c`,
       data: {
         ...result,
         invoice: invoice
@@ -23815,7 +23395,7 @@ app.post('/api/admin/waiting-list', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     if (!student_id || !class_id) {
       return res.status(400).json({
         success: false,
-        message: 'Học viên và lớp học là bắt buộc'
+        message: 'Há»c viÃªn vÃ  lá»›p há»c lÃ  báº¯t buá»™c'
       });
     }
 
@@ -23830,24 +23410,24 @@ app.post('/api/admin/waiting-list', requireAuth, requireRole(['SUPER_ADMIN', 'CE
 
     if (rpcError) {
       // Parse error message for user-friendly display
-      const errorMsg = rpcError.message || 'Lỗi khi thêm vào danh sách chờ';
+      const errorMsg = rpcError.message || 'Lá»—i khi thÃªm vÃ o danh sÃ¡ch chá»';
 
       if (errorMsg.includes('not full')) {
         return res.status(400).json({
           success: false,
-          message: 'Lớp học chưa đầy. Học viên có thể đăng ký trực tiếp.'
+          message: 'Lá»›p há»c chÆ°a Ä‘áº§y. Há»c viÃªn cÃ³ thá»ƒ Ä‘Äƒng kÃ½ trá»±c tiáº¿p.'
         });
       }
       if (errorMsg.includes('already enrolled')) {
         return res.status(400).json({
           success: false,
-          message: 'Học viên đã đăng ký lớp này rồi'
+          message: 'Há»c viÃªn Ä‘Ã£ Ä‘Äƒng kÃ½ lá»›p nÃ y rá»“i'
         });
       }
       if (errorMsg.includes('already on the waiting list')) {
         return res.status(400).json({
           success: false,
-          message: 'Học viên đã có trong danh sách chờ'
+          message: 'Há»c viÃªn Ä‘Ã£ cÃ³ trong danh sÃ¡ch chá»'
         });
       }
 
@@ -23857,11 +23437,11 @@ app.post('/api/admin/waiting-list', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       });
     }
 
-    console.log(`✅ Added to waiting list: ${result.student_name} -> ${result.class_name}`);
+    console.log(`âœ… Added to waiting list: ${result.student_name} -> ${result.class_name}`);
 
     res.status(201).json({
       success: true,
-      message: result.message || 'Đã thêm vào danh sách chờ',
+      message: result.message || 'ÄÃ£ thÃªm vÃ o danh sÃ¡ch chá»',
       data: result
     });
   } catch (error) {
@@ -23889,15 +23469,15 @@ app.put('/api/admin/waiting-list/:classId/notify', requireAuth, requireRole(['SU
     if (rpcError) {
       return res.status(400).json({
         success: false,
-        message: rpcError.message || 'Lỗi khi thông báo'
+        message: rpcError.message || 'Lá»—i khi thÃ´ng bÃ¡o'
       });
     }
 
-    console.log(`✅ Notified ${result.notified_count} students for class ${classId}`);
+    console.log(`âœ… Notified ${result.notified_count} students for class ${classId}`);
 
     res.json({
       success: true,
-      message: result.message || `Đã thông báo ${result.notified_count} học viên`,
+      message: result.message || `ÄÃ£ thÃ´ng bÃ¡o ${result.notified_count} há»c viÃªn`,
       data: result
     });
   } catch (error) {
@@ -23918,7 +23498,7 @@ app.put('/api/admin/waiting-list/:id/complete', requireAuth, requireRole(['SUPER
     if (!status || !['enrolled', 'cancelled'].includes(status)) {
       return res.status(400).json({
         success: false,
-        message: 'Trạng thái phải là "enrolled" hoặc "cancelled"'
+        message: 'Tráº¡ng thÃ¡i pháº£i lÃ  "enrolled" hoáº·c "cancelled"'
       });
     }
 
@@ -23933,16 +23513,16 @@ app.put('/api/admin/waiting-list/:id/complete', requireAuth, requireRole(['SUPER
     if (rpcError) {
       return res.status(400).json({
         success: false,
-        message: rpcError.message || 'Lỗi khi cập nhật trạng thái'
+        message: rpcError.message || 'Lá»—i khi cáº­p nháº­t tráº¡ng thÃ¡i'
       });
     }
 
-    const statusText = status === 'enrolled' ? 'đã ghi danh' : 'đã hủy';
-    console.log(`✅ Waiting list entry ${id} marked as ${status}`);
+    const statusText = status === 'enrolled' ? 'Ä‘Ã£ ghi danh' : 'Ä‘Ã£ há»§y';
+    console.log(`âœ… Waiting list entry ${id} marked as ${status}`);
 
     res.json({
       success: true,
-      message: `Đã cập nhật trạng thái: ${statusText}`,
+      message: `ÄÃ£ cáº­p nháº­t tráº¡ng thÃ¡i: ${statusText}`,
       data: result
     });
   } catch (error) {
@@ -24114,17 +23694,17 @@ app.patch('/api/admin/enrollment-requests/:id/approve', requireAuth, requireRole
 
     if (requestError) {
       if (requestError.code === 'PGRST116') {
-        return res.status(404).json({ success: false, message: 'Không tìm thấy yêu cầu đăng ký' });
+        return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y yÃªu cáº§u Ä‘Äƒng kÃ½' });
       }
       throw requestError;
     }
 
     if (requestData.center_id !== effectiveCenterId) {
-      return res.status(403).json({ success: false, message: 'Không có quyền xử lý yêu cầu này' });
+      return res.status(403).json({ success: false, message: 'KhÃ´ng cÃ³ quyá»n xá»­ lÃ½ yÃªu cáº§u nÃ y' });
     }
 
     if (requestData.status !== 'pending') {
-      return res.status(400).json({ success: false, message: 'Chỉ có thể duyệt yêu cầu đang chờ xử lý' });
+      return res.status(400).json({ success: false, message: 'Chá»‰ cÃ³ thá»ƒ duyá»‡t yÃªu cáº§u Ä‘ang chá» xá»­ lÃ½' });
     }
 
     const maxStudents = requestData.class?.max_students || 20;
@@ -24137,7 +23717,7 @@ app.patch('/api/admin/enrollment-requests/:id/approve', requireAuth, requireRole
     if (enrolledCountError) throw enrolledCountError;
 
     if ((enrolledCount || 0) >= maxStudents) {
-      return res.status(409).json({ success: false, message: 'Lớp học đã đầy, không thể duyệt yêu cầu' });
+      return res.status(409).json({ success: false, message: 'Lá»›p há»c Ä‘Ã£ Ä‘áº§y, khÃ´ng thá»ƒ duyá»‡t yÃªu cáº§u' });
     }
 
     const result = await createEnrollmentWithDraftInvoice(supabaseClient, {
@@ -24146,7 +23726,7 @@ app.patch('/api/admin/enrollment-requests/:id/approve', requireAuth, requireRole
       tuition_fee: requestData.class?.default_tuition || 0,
       discount_amount: 0,
       paid_amount: 0,
-      notes: 'Đăng ký qua yêu cầu',
+      notes: 'ÄÄƒng kÃ½ qua yÃªu cáº§u',
       created_by: req.user.id
     });
 
@@ -24172,8 +23752,8 @@ app.patch('/api/admin/enrollment-requests/:id/approve', requireAuth, requireRole
       userId: requestData.student_id,
       centerId: effectiveCenterId,
       type: 'enrollment_approved',
-      title: 'Yêu cầu đăng ký được duyệt',
-      message: `Bạn đã được đăng ký vào lớp ${requestData.class?.name || ''}`,
+      title: 'YÃªu cáº§u Ä‘Äƒng kÃ½ Ä‘Æ°á»£c duyá»‡t',
+      message: `Báº¡n Ä‘Ã£ Ä‘Æ°á»£c Ä‘Äƒng kÃ½ vÃ o lá»›p ${requestData.class?.name || ''}`,
       referenceId: requestData.id,
       referenceType: 'enrollment_request'
     }).catch(err => console.warn('Approval notification failed:', err.message));
@@ -24203,7 +23783,7 @@ app.patch('/api/admin/enrollment-requests/:id/reject', requireAuth, requireRole(
     const { admin_note } = req.body;
 
     if (!admin_note || !String(admin_note).trim()) {
-      return res.status(400).json({ success: false, message: 'Vui lòng nhập lý do từ chối (admin_note)' });
+      return res.status(400).json({ success: false, message: 'Vui lÃ²ng nháº­p lÃ½ do tá»« chá»‘i (admin_note)' });
     }
 
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, req.query.center_id || req.body?.center_id);
@@ -24217,17 +23797,17 @@ app.patch('/api/admin/enrollment-requests/:id/reject', requireAuth, requireRole(
 
     if (requestError) {
       if (requestError.code === 'PGRST116') {
-        return res.status(404).json({ success: false, message: 'Không tìm thấy yêu cầu đăng ký' });
+        return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y yÃªu cáº§u Ä‘Äƒng kÃ½' });
       }
       throw requestError;
     }
 
     if (requestData.center_id !== effectiveCenterId) {
-      return res.status(403).json({ success: false, message: 'Không có quyền xử lý yêu cầu này' });
+      return res.status(403).json({ success: false, message: 'KhÃ´ng cÃ³ quyá»n xá»­ lÃ½ yÃªu cáº§u nÃ y' });
     }
 
     if (!['pending', 'waitlisted'].includes(requestData.status)) {
-      return res.status(400).json({ success: false, message: 'Chỉ có thể từ chối yêu cầu đang chờ hoặc trong danh sách chờ' });
+      return res.status(400).json({ success: false, message: 'Chá»‰ cÃ³ thá»ƒ tá»« chá»‘i yÃªu cáº§u Ä‘ang chá» hoáº·c trong danh sÃ¡ch chá»' });
     }
 
     const { data: updatedRequest, error: updateError } = await supabaseClient
@@ -24249,8 +23829,8 @@ app.patch('/api/admin/enrollment-requests/:id/reject', requireAuth, requireRole(
       userId: requestData.student_id,
       centerId: effectiveCenterId,
       type: 'enrollment_rejected',
-      title: 'Yêu cầu đăng ký bị từ chối',
-      message: `Yêu cầu đăng ký lớp ${requestData.class?.name || ''} đã bị từ chối. Lý do: ${String(admin_note).trim()}`,
+      title: 'YÃªu cáº§u Ä‘Äƒng kÃ½ bá»‹ tá»« chá»‘i',
+      message: `YÃªu cáº§u Ä‘Äƒng kÃ½ lá»›p ${requestData.class?.name || ''} Ä‘Ã£ bá»‹ tá»« chá»‘i. LÃ½ do: ${String(admin_note).trim()}`,
       referenceId: requestData.id,
       referenceType: 'enrollment_request'
     }).catch(err => console.warn('Rejection notification failed:', err.message));
@@ -24282,17 +23862,17 @@ app.patch('/api/admin/enrollment-requests/:id/waitlist', requireAuth, requireRol
 
     if (requestError) {
       if (requestError.code === 'PGRST116') {
-        return res.status(404).json({ success: false, message: 'Không tìm thấy yêu cầu đăng ký' });
+        return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y yÃªu cáº§u Ä‘Äƒng kÃ½' });
       }
       throw requestError;
     }
 
     if (requestData.center_id !== effectiveCenterId) {
-      return res.status(403).json({ success: false, message: 'Không có quyền xử lý yêu cầu này' });
+      return res.status(403).json({ success: false, message: 'KhÃ´ng cÃ³ quyá»n xá»­ lÃ½ yÃªu cáº§u nÃ y' });
     }
 
     if (requestData.status !== 'pending') {
-      return res.status(400).json({ success: false, message: 'Chỉ có thể chuyển yêu cầu đang chờ sang danh sách chờ' });
+      return res.status(400).json({ success: false, message: 'Chá»‰ cÃ³ thá»ƒ chuyá»ƒn yÃªu cáº§u Ä‘ang chá» sang danh sÃ¡ch chá»' });
     }
 
     const { data: updatedRequest, error: updateError } = await supabaseClient
@@ -24313,8 +23893,8 @@ app.patch('/api/admin/enrollment-requests/:id/waitlist', requireAuth, requireRol
       userId: requestData.student_id,
       centerId: effectiveCenterId,
       type: 'enrollment_waitlisted',
-      title: 'Yêu cầu chuyển sang danh sách chờ',
-      message: `Lớp ${requestData.class?.name || ''} hiện đã đầy. Yêu cầu của bạn đã được chuyển vào danh sách chờ.`,
+      title: 'YÃªu cáº§u chuyá»ƒn sang danh sÃ¡ch chá»',
+      message: `Lá»›p ${requestData.class?.name || ''} hiá»‡n Ä‘Ã£ Ä‘áº§y. YÃªu cáº§u cá»§a báº¡n Ä‘Ã£ Ä‘Æ°á»£c chuyá»ƒn vÃ o danh sÃ¡ch chá».`,
       referenceId: requestData.id,
       referenceType: 'enrollment_request'
     }).catch(err => console.warn('Waitlist notification failed:', err.message));
@@ -24494,7 +24074,7 @@ app.put('/api/notifications/preferences', requireAuth, async (req, res, next) =>
     if (!notification_type || typeof in_app_enabled !== 'boolean') {
       return res.status(400).json({
         success: false,
-        message: 'notification_type và in_app_enabled (boolean) là bắt buộc'
+        message: 'notification_type vÃ  in_app_enabled (boolean) lÃ  báº¯t buá»™c'
       });
     }
 
@@ -24502,7 +24082,7 @@ app.put('/api/notifications/preferences', requireAuth, async (req, res, next) =>
     if (!validTypes.includes(notification_type)) {
       return res.status(400).json({
         success: false,
-        message: `notification_type không hợp lệ. Các giá trị cho phép: ${validTypes.join(', ')}`
+        message: `notification_type khÃ´ng há»£p lá»‡. CÃ¡c giÃ¡ trá»‹ cho phÃ©p: ${validTypes.join(', ')}`
       });
     }
 
@@ -24545,18 +24125,18 @@ app.post('/api/admin/notifications/send', requireAuth, requireRole(['SUPER_ADMIN
     if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Danh sách người nhận không hợp lệ'
+        message: 'Danh sÃ¡ch ngÆ°á»i nháº­n khÃ´ng há»£p lá»‡'
       });
     }
 
     if (!content?.trim()) {
       return res.status(400).json({
         success: false,
-        message: 'Nội dung thông báo không được để trống'
+        message: 'Ná»™i dung thÃ´ng bÃ¡o khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng'
       });
     }
 
-    console.log(`📧 Admin ${req.user.email} gửi thông báo ${type} đến ${recipients.length} người`);
+    console.log(`ðŸ“§ Admin ${req.user.email} gá»­i thÃ´ng bÃ¡o ${type} Ä‘áº¿n ${recipients.length} ngÆ°á»i`);
 
     // Fetch recipient details
     const { data: recipientProfiles, error: recipientError } = await supabase
@@ -24588,11 +24168,11 @@ app.post('/api/admin/notifications/send', requireAuth, requireRole(['SUPER_ADMIN
     // For now, we'll just simulate success
     // In production, insert notification logs to a notifications table
 
-    console.log(`✅ Đã "gửi" ${notificationLogs.length} thông báo (giả lập)`);
+    console.log(`âœ… ÄÃ£ "gá»­i" ${notificationLogs.length} thÃ´ng bÃ¡o (giáº£ láº­p)`);
 
     res.json({
       success: true,
-      message: `Đã gửi thông báo đến ${recipientProfiles.length} người`,
+      message: `ÄÃ£ gá»­i thÃ´ng bÃ¡o Ä‘áº¿n ${recipientProfiles.length} ngÆ°á»i`,
       sent: recipientProfiles.length,
       failed: 0,
       recipients: recipientProfiles.map(p => ({
@@ -24618,7 +24198,7 @@ app.get('/api/admin/classes/:classId/report', requireAuth, requireRole(['SUPER_A
     const { classId } = req.params;
     const { reportType = 'summary', startDate, endDate } = req.query;
 
-    console.log(`📊 Generating ${reportType} report for class ${classId}`);
+    console.log(`ðŸ“Š Generating ${reportType} report for class ${classId}`);
 
     // Fetch class details
     const { data: classData, error: classError } = await supabase
@@ -24635,7 +24215,7 @@ app.get('/api/admin/classes/:classId/report', requireAuth, requireRole(['SUPER_A
     if (classError || !classData) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy lớp học'
+        message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c'
       });
     }
 
@@ -24885,7 +24465,7 @@ app.get('/api/admin/classes/:classId/report', requireAuth, requireRole(['SUPER_A
         break;
     }
 
-    console.log(`✅ Generated ${reportType} report for class ${classData.name}`);
+    console.log(`âœ… Generated ${reportType} report for class ${classData.name}`);
 
     res.json({
       success: true,
@@ -24904,7 +24484,7 @@ app.get('/api/admin/classes/:classId/report', requireAuth, requireRole(['SUPER_A
 
 /**
  * GET /api/notifications/students
- * Lấy danh sách học viên theo bộ lọc để gửi thông báo
+ * Láº¥y danh sÃ¡ch há»c viÃªn theo bá»™ lá»c Ä‘á»ƒ gá»­i thÃ´ng bÃ¡o
  * Query params:
  * - course_ids: comma-separated course IDs
  * - class_ids: comma-separated class IDs  
@@ -25100,7 +24680,7 @@ app.get('/api/notifications/students', requireAuth, requireRole(['SUPER_ADMIN', 
 
 /**
  * POST /api/notifications/send-bulk
- * Gửi thông báo hàng loạt đến danh sách học viên (theo enrollment_id)
+ * Gá»­i thÃ´ng bÃ¡o hÃ ng loáº¡t Ä‘áº¿n danh sÃ¡ch há»c viÃªn (theo enrollment_id)
  */
 app.post('/api/notifications/send-bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -25108,11 +24688,11 @@ app.post('/api/notifications/send-bulk', requireAuth, requireRole(['SUPER_ADMIN'
     const { student_ids: enrollment_ids, template_id, template_fields, notification_type } = req.body;
 
     if (!enrollment_ids || enrollment_ids.length === 0) {
-      return res.status(400).json({ success: false, message: 'Vui lòng chọn ít nhất một học viên' });
+      return res.status(400).json({ success: false, message: 'Vui lÃ²ng chá»n Ã­t nháº¥t má»™t há»c viÃªn' });
     }
 
     if (!template_id) {
-      return res.status(400).json({ success: false, message: 'Vui lòng chọn mẫu thông báo' });
+      return res.status(400).json({ success: false, message: 'Vui lÃ²ng chá»n máº«u thÃ´ng bÃ¡o' });
     }
 
     // Get enrollments by IDs
@@ -25131,7 +24711,7 @@ app.post('/api/notifications/send-bulk', requireAuth, requireRole(['SUPER_ADMIN'
     if (error) throw error;
 
     if (!enrollments || enrollments.length === 0) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy học viên' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y há»c viÃªn' });
     }
 
     // Get related data separately
@@ -25179,10 +24759,10 @@ app.post('/api/notifications/send-bulk', requireAuth, requireRole(['SUPER_ADMIN'
 
     // Template name map for readable titles
     const TEMPLATE_NAMES = {
-      payment_reminder: 'Nhắc nhở học phí',
-      class_reminder: 'Nhắc nhở buổi học',
-      general_announcement: 'Thông báo chung',
-      course_completion: 'Chúc mừng hoàn thành khóa học'
+      payment_reminder: 'Nháº¯c nhá»Ÿ há»c phÃ­',
+      class_reminder: 'Nháº¯c nhá»Ÿ buá»•i há»c',
+      general_announcement: 'ThÃ´ng bÃ¡o chung',
+      course_completion: 'ChÃºc má»«ng hoÃ n thÃ nh khÃ³a há»c'
     };
 
     // Process each enrollment
@@ -25202,17 +24782,17 @@ app.post('/api/notifications/send-bulk', requireAuth, requireRole(['SUPER_ADMIN'
         const fmtCurrency = (v) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v);
 
         // Build readable notification message
-        const templateTitle = TEMPLATE_NAMES[template_id] || 'Thông báo';
+        const templateTitle = TEMPLATE_NAMES[template_id] || 'ThÃ´ng bÃ¡o';
         const readableTitle = `${templateTitle} - ${courseInfo.title || classInfo.name || ''}`;
         const readableMessage = [
-          `Kính gửi ${studentInfo.full_name || 'Học viên'},`,
+          `KÃ­nh gá»­i ${studentInfo.full_name || 'Há»c viÃªn'},`,
           '',
-          courseInfo.title ? `Khóa học: ${courseInfo.title}` : null,
-          classInfo.name ? `Lớp: ${classInfo.name}` : null,
-          template_id === 'payment_reminder' ? `Học phí: ${fmtCurrency(totalFee)} | Đã thanh toán: ${fmtCurrency(paidAmount)} | Còn lại: ${fmtCurrency(remainingAmount)}` : null,
-          teacherInfo.full_name ? `Giáo viên: ${teacherInfo.full_name}` : null,
+          courseInfo.title ? `KhÃ³a há»c: ${courseInfo.title}` : null,
+          classInfo.name ? `Lá»›p: ${classInfo.name}` : null,
+          template_id === 'payment_reminder' ? `Há»c phÃ­: ${fmtCurrency(totalFee)} | ÄÃ£ thanh toÃ¡n: ${fmtCurrency(paidAmount)} | CÃ²n láº¡i: ${fmtCurrency(remainingAmount)}` : null,
+          teacherInfo.full_name ? `GiÃ¡o viÃªn: ${teacherInfo.full_name}` : null,
           '',
-          `Trân trọng, ${centerInfo.name || 'Trung tâm'}`
+          `TrÃ¢n trá»ng, ${centerInfo.name || 'Trung tÃ¢m'}`
         ].filter(Boolean).join('\n');
 
         // Save notification record
@@ -25230,7 +24810,7 @@ app.post('/api/notifications/send-bulk', requireAuth, requireRole(['SUPER_ADMIN'
           });
 
         if (insertErr) {
-          console.error(`❌ Notification insert failed for ${studentInfo.email}:`, insertErr.message);
+          console.error(`âŒ Notification insert failed for ${studentInfo.email}:`, insertErr.message);
           failed++;
         } else {
           sent++;
@@ -25243,7 +24823,7 @@ app.post('/api/notifications/send-bulk', requireAuth, requireRole(['SUPER_ADMIN'
 
     res.json({
       success: true,
-      message: `Đã gửi ${sent} thông báo thành công${failed > 0 ? `, ${failed} thất bại` : ''}`,
+      message: `ÄÃ£ gá»­i ${sent} thÃ´ng bÃ¡o thÃ nh cÃ´ng${failed > 0 ? `, ${failed} tháº¥t báº¡i` : ''}`,
       sent,
       failed
     });
@@ -25263,7 +24843,7 @@ app.post('/api/notifications/send-bulk', requireAuth, requireRole(['SUPER_ADMIN'
 
 /**
  * GET /api/admin/documents
- * Lấy danh sách tài liệu với filters
+ * Láº¥y danh sÃ¡ch tÃ i liá»‡u vá»›i filters
  * Query params: type, course_id, class_id, center_id, search
  */
 app.get('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
@@ -25329,7 +24909,7 @@ app.get('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
       uploaded_by: doc.uploaded_by_user || null
     }));
 
-    console.log(`📄 Documents fetched: ${transformedData.length} items by ${req.user.email}`);
+    console.log(`ðŸ“„ Documents fetched: ${transformedData.length} items by ${req.user.email}`);
 
     res.json({
       success: true,
@@ -25341,14 +24921,14 @@ app.get('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
       }
     });
   } catch (error) {
-    console.error('❌ Error fetching documents:', error);
+    console.error('âŒ Error fetching documents:', error);
     next(error);
   }
 });
 
 /**
  * GET /api/admin/documents/:id
- * Lấy chi tiết một tài liệu
+ * Láº¥y chi tiáº¿t má»™t tÃ i liá»‡u
  */
 app.get('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
@@ -25368,14 +24948,14 @@ app.get('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CE
 
     if (error) {
       if (error.code === 'PGRST116') {
-        return res.status(404).json({ success: false, message: 'Tài liệu không tồn tại' });
+        return res.status(404).json({ success: false, message: 'TÃ i liá»‡u khÃ´ng tá»“n táº¡i' });
       }
       throw error;
     }
 
     // Permission check: only allow access to documents in user's center (except SUPER_ADMIN)
     if (req.user.roleCode !== 'SUPER_ADMIN' && data.center_id && data.center_id !== req.user.centerId) {
-      return res.status(403).json({ success: false, message: 'Bạn không có quyền xem tài liệu này' });
+      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem tÃ i liá»‡u nÃ y' });
     }
 
     res.json({
@@ -25388,14 +24968,14 @@ app.get('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       }
     });
   } catch (error) {
-    console.error('❌ Error fetching document:', error);
+    console.error('âŒ Error fetching document:', error);
     next(error);
   }
 });
 
 /**
  * POST /api/admin/documents
- * Tạo tài liệu mới
+ * Táº¡o tÃ i liá»‡u má»›i
  * Body: title, file_url, file_name, description?, type?, course_id?, class_id?, file_size?, file_type?, is_public?
  */
 app.post('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
@@ -25418,7 +24998,7 @@ app.post('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
     if (!title || !file_url || !file_name) {
       return res.status(400).json({
         success: false,
-        message: 'Tiêu đề, URL file và tên file là bắt buộc'
+        message: 'TiÃªu Ä‘á», URL file vÃ  tÃªn file lÃ  báº¯t buá»™c'
       });
     }
 
@@ -25427,7 +25007,7 @@ app.post('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
     if (!validTypes.includes(type)) {
       return res.status(400).json({
         success: false,
-        message: `Loại tài liệu không hợp lệ. Cho phép: ${validTypes.join(', ')}`
+        message: `Loáº¡i tÃ i liá»‡u khÃ´ng há»£p lá»‡. Cho phÃ©p: ${validTypes.join(', ')}`
       });
     }
 
@@ -25446,7 +25026,7 @@ app.post('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
         .single();
 
       if (classError || !classData) {
-        return res.status(400).json({ success: false, message: 'Lớp học không tồn tại' });
+        return res.status(400).json({ success: false, message: 'Lá»›p há»c khÃ´ng tá»“n táº¡i' });
       }
 
       // Use class's center_id if not SUPER_ADMIN
@@ -25488,11 +25068,11 @@ app.post('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
 
     if (error) throw error;
 
-    console.log(`📄 Document created: "${title}" by ${req.user.email}`);
+    console.log(`ðŸ“„ Document created: "${title}" by ${req.user.email}`);
 
     res.status(201).json({
       success: true,
-      message: 'Tạo tài liệu thành công',
+      message: 'Táº¡o tÃ i liá»‡u thÃ nh cÃ´ng',
       data: {
         ...data,
         courses: data.courses || null,
@@ -25501,14 +25081,14 @@ app.post('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
       }
     });
   } catch (error) {
-    console.error('❌ Error creating document:', error);
+    console.error('âŒ Error creating document:', error);
     next(error);
   }
 });
 
 /**
  * PUT /api/admin/documents/:id
- * Cập nhật tài liệu
+ * Cáº­p nháº­t tÃ i liá»‡u
  */
 app.put('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
@@ -25536,7 +25116,7 @@ app.put('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       .single();
 
     if (fetchError || !existingDoc) {
-      return res.status(404).json({ success: false, message: 'Tài liệu không tồn tại' });
+      return res.status(404).json({ success: false, message: 'TÃ i liá»‡u khÃ´ng tá»“n táº¡i' });
     }
 
     // Permission check: only owner, center_manager of same center, or super_admin can update
@@ -25546,7 +25126,7 @@ app.put('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     const isCenterManager = req.user.roleCode === 'CENTER_MANAGER' && isSameCenter;
 
     if (!isOwner && !isSuperAdmin && !isCenterManager) {
-      return res.status(403).json({ success: false, message: 'Bạn không có quyền sửa tài liệu này' });
+      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n sá»­a tÃ i liá»‡u nÃ y' });
     }
 
     // Validate type if provided
@@ -25555,7 +25135,7 @@ app.put('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       if (!validTypes.includes(type)) {
         return res.status(400).json({
           success: false,
-          message: `Loại tài liệu không hợp lệ. Cho phép: ${validTypes.join(', ')}`
+          message: `Loáº¡i tÃ i liá»‡u khÃ´ng há»£p lá»‡. Cho phÃ©p: ${validTypes.join(', ')}`
         });
       }
     }
@@ -25594,11 +25174,11 @@ app.put('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CE
 
     if (error) throw error;
 
-    console.log(`✏️ Document updated: "${data.title}" by ${req.user.email}`);
+    console.log(`âœï¸ Document updated: "${data.title}" by ${req.user.email}`);
 
     res.json({
       success: true,
-      message: 'Cập nhật tài liệu thành công',
+      message: 'Cáº­p nháº­t tÃ i liá»‡u thÃ nh cÃ´ng',
       data: {
         ...data,
         courses: data.courses || null,
@@ -25607,14 +25187,14 @@ app.put('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       }
     });
   } catch (error) {
-    console.error('❌ Error updating document:', error);
+    console.error('âŒ Error updating document:', error);
     next(error);
   }
 });
 
 /**
  * DELETE /api/admin/documents/:id
- * Xóa tài liệu (soft delete)
+ * XÃ³a tÃ i liá»‡u (soft delete)
  */
 app.delete('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
@@ -25629,7 +25209,7 @@ app.delete('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 
       .single();
 
     if (fetchError || !existingDoc) {
-      return res.status(404).json({ success: false, message: 'Tài liệu không tồn tại' });
+      return res.status(404).json({ success: false, message: 'TÃ i liá»‡u khÃ´ng tá»“n táº¡i' });
     }
 
     // Permission check
@@ -25639,7 +25219,7 @@ app.delete('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 
     const isCenterManager = req.user.roleCode === 'CENTER_MANAGER' && isSameCenter;
 
     if (!isOwner && !isSuperAdmin && !isCenterManager) {
-      return res.status(403).json({ success: false, message: 'Bạn không có quyền xóa tài liệu này' });
+      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n xÃ³a tÃ i liá»‡u nÃ y' });
     }
 
     // Soft delete
@@ -25650,21 +25230,21 @@ app.delete('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 
 
     if (error) throw error;
 
-    console.log(`🗑️ Document deleted: "${existingDoc.title}" by ${req.user.email}`);
+    console.log(`ðŸ—‘ï¸ Document deleted: "${existingDoc.title}" by ${req.user.email}`);
 
     res.json({
       success: true,
-      message: 'Xóa tài liệu thành công'
+      message: 'XÃ³a tÃ i liá»‡u thÃ nh cÃ´ng'
     });
   } catch (error) {
-    console.error('❌ Error deleting document:', error);
+    console.error('âŒ Error deleting document:', error);
     next(error);
   }
 });
 
 /**
  * POST /api/admin/documents/:id/download
- * Ghi nhận download event
+ * Ghi nháº­n download event
  */
 app.post('/api/admin/documents/:id/download', requireAuth, async (req, res, next) => {
   try {
@@ -25679,7 +25259,7 @@ app.post('/api/admin/documents/:id/download', requireAuth, async (req, res, next
       .single();
 
     if (docError || !doc) {
-      return res.status(404).json({ success: false, message: 'Tài liệu không tồn tại' });
+      return res.status(404).json({ success: false, message: 'TÃ i liá»‡u khÃ´ng tá»“n táº¡i' });
     }
 
     // Record download (trigger will auto-increment download_count)
@@ -25698,21 +25278,21 @@ app.post('/api/admin/documents/:id/download', requireAuth, async (req, res, next
       // Don't fail the request, just log
     }
 
-    console.log(`📥 Document downloaded: "${doc.title}" by ${req.user.email}`);
+    console.log(`ðŸ“¥ Document downloaded: "${doc.title}" by ${req.user.email}`);
 
     res.json({
       success: true,
       message: 'Download tracked'
     });
   } catch (error) {
-    console.error('❌ Error tracking download:', error);
+    console.error('âŒ Error tracking download:', error);
     next(error);
   }
 });
 
 /**
  * GET /api/admin/documents/:id/stats
- * Lấy thống kê download của tài liệu
+ * Láº¥y thá»‘ng kÃª download cá»§a tÃ i liá»‡u
  */
 app.get('/api/admin/documents/:id/stats', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -25734,7 +25314,7 @@ app.get('/api/admin/documents/:id/stats', requireAuth, requireRole(['SUPER_ADMIN
       }
     });
   } catch (error) {
-    console.error('❌ Error fetching document stats:', error);
+    console.error('âŒ Error fetching document stats:', error);
     next(error);
   }
 });
@@ -25771,14 +25351,14 @@ app.get('/api/students/:studentId/documents', requireAuth, async (req, res, next
     if (studentError || !student) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy học viên'
+        message: 'KhÃ´ng tÃ¬m tháº¥y há»c viÃªn'
       });
     }
 
     if (!canAccessCenter(req.user, student.center_id)) {
       return res.status(403).json({
         success: false,
-        message: 'Bạn không có quyền xem tài liệu của học viên này'
+        message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem tÃ i liá»‡u cá»§a há»c viÃªn nÃ y'
       });
     }
 
@@ -25801,7 +25381,7 @@ app.get('/api/students/:studentId/documents', requireAuth, async (req, res, next
       data: data || []
     });
   } catch (error) {
-    console.error('❌ Error fetching student documents:', error);
+    console.error('âŒ Error fetching student documents:', error);
     next(error);
   }
 });
@@ -25814,14 +25394,14 @@ app.post('/api/students/:studentId/documents', requireAuth, async (req, res, nex
     if (!title || !file_url) {
       return res.status(400).json({
         success: false,
-        message: 'Tiêu đề và đường dẫn file là bắt buộc'
+        message: 'TiÃªu Ä‘á» vÃ  Ä‘Æ°á»ng dáº«n file lÃ  báº¯t buá»™c'
       });
     }
 
     if (!STUDENT_DOC_TYPES.includes(type)) {
       return res.status(400).json({
         success: false,
-        message: `Loại tài liệu không hợp lệ. Cho phép: ${STUDENT_DOC_TYPES.join(', ')}`
+        message: `Loáº¡i tÃ i liá»‡u khÃ´ng há»£p lá»‡. Cho phÃ©p: ${STUDENT_DOC_TYPES.join(', ')}`
       });
     }
 
@@ -25834,14 +25414,14 @@ app.post('/api/students/:studentId/documents', requireAuth, async (req, res, nex
     if (studentError || !student) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy học viên'
+        message: 'KhÃ´ng tÃ¬m tháº¥y há»c viÃªn'
       });
     }
 
     if (!canAccessCenter(req.user, student.center_id)) {
       return res.status(403).json({
         success: false,
-        message: 'Bạn không có quyền tải tài liệu cho học viên này'
+        message: 'Báº¡n khÃ´ng cÃ³ quyá»n táº£i tÃ i liá»‡u cho há»c viÃªn nÃ y'
       });
     }
 
@@ -25867,11 +25447,11 @@ app.post('/api/students/:studentId/documents', requireAuth, async (req, res, nex
 
     res.status(201).json({
       success: true,
-      message: 'Tải tài liệu học viên thành công',
+      message: 'Táº£i tÃ i liá»‡u há»c viÃªn thÃ nh cÃ´ng',
       data
     });
   } catch (error) {
-    console.error('❌ Error creating student document:', error);
+    console.error('âŒ Error creating student document:', error);
     next(error);
   }
 });
@@ -25889,14 +25469,14 @@ const deleteStudentDocumentHandler = async (req, res, next) => {
     if (fetchError || !existingDoc) {
       return res.status(404).json({
         success: false,
-        message: 'Tài liệu học viên không tồn tại'
+        message: 'TÃ i liá»‡u há»c viÃªn khÃ´ng tá»“n táº¡i'
       });
     }
 
     if (!canAccessCenter(req.user, existingDoc.center_id)) {
       return res.status(403).json({
         success: false,
-        message: 'Bạn không có quyền xóa tài liệu này'
+        message: 'Báº¡n khÃ´ng cÃ³ quyá»n xÃ³a tÃ i liá»‡u nÃ y'
       });
     }
 
@@ -25909,10 +25489,10 @@ const deleteStudentDocumentHandler = async (req, res, next) => {
 
     res.json({
       success: true,
-      message: 'Đã xóa tài liệu học viên'
+      message: 'ÄÃ£ xÃ³a tÃ i liá»‡u há»c viÃªn'
     });
   } catch (error) {
-    console.error('❌ Error deleting student document:', error);
+    console.error('âŒ Error deleting student document:', error);
     next(error);
   }
 };
@@ -25930,7 +25510,7 @@ app.delete('/api/documents/:id', requireAuth, deleteStudentDocumentHandler);
 
 /**
  * GET /api/admin/support-tickets
- * Lấy danh sách support tickets với filters
+ * Láº¥y danh sÃ¡ch support tickets vá»›i filters
  */
 app.get('/api/admin/support-tickets', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
@@ -26012,7 +25592,7 @@ app.get('/api/admin/support-tickets', requireAuth, requireRole(['SUPER_ADMIN', '
       message_count: messageCounts[ticket.id] || 0
     }));
 
-    console.log(`🎫 Support tickets fetched: ${transformedData.length} items by ${req.user.email}`);
+    console.log(`ðŸŽ« Support tickets fetched: ${transformedData.length} items by ${req.user.email}`);
 
     res.json({
       success: true,
@@ -26024,14 +25604,14 @@ app.get('/api/admin/support-tickets', requireAuth, requireRole(['SUPER_ADMIN', '
       }
     });
   } catch (error) {
-    console.error('❌ Error fetching support tickets:', error);
+    console.error('âŒ Error fetching support tickets:', error);
     next(error);
   }
 });
 
 /**
  * GET /api/admin/support-tickets/:id
- * Lấy chi tiết ticket kèm messages
+ * Láº¥y chi tiáº¿t ticket kÃ¨m messages
  */
 app.get('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
@@ -26052,14 +25632,14 @@ app.get('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN
 
     if (ticketError) {
       if (ticketError.code === 'PGRST116') {
-        return res.status(404).json({ success: false, message: 'Ticket không tồn tại' });
+        return res.status(404).json({ success: false, message: 'Ticket khÃ´ng tá»“n táº¡i' });
       }
       throw ticketError;
     }
 
     // Permission check
     if (req.user.roleCode !== 'SUPER_ADMIN' && ticket.center_id && ticket.center_id !== req.user.centerId) {
-      return res.status(403).json({ success: false, message: 'Bạn không có quyền xem ticket này' });
+      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem ticket nÃ y' });
     }
 
     // Get messages
@@ -26081,6 +25661,56 @@ app.get('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN
 
     if (msgError) throw msgError;
 
+    // Enrich with consultation context if this is a follow-up ticket
+    let consultation_context = null;
+    if (ticket.consultation_request_id) {
+      try {
+        const { data: cr } = await supabase
+          .from('consultation_requests')
+          .select('id, full_name, phone, email, preferred_time, notes, status, metadata, transcript_summary, source, session_id, created_at')
+          .eq('id', ticket.consultation_request_id)
+          .single();
+
+        if (cr) {
+          const meta = cr.metadata || {};
+          let chatExcerpt = [];
+
+          if (cr.session_id) {
+            const { data: chatMsgs } = await supabase
+              .from('chat_messages')
+              .select('id, role, content, created_at')
+              .eq('session_id', cr.session_id)
+              .neq('role', 'system')
+              .order('created_at', { ascending: false })
+              .limit(5);
+            chatExcerpt = (chatMsgs || []).reverse();
+          }
+
+          consultation_context = {
+            id: cr.id,
+            full_name: cr.full_name,
+            phone: cr.phone,
+            email: cr.email,
+            preferred_time: cr.preferred_time,
+            status: cr.status,
+            source: cr.source,
+            advisor_notes: cr.notes,
+            transcript_summary: cr.transcript_summary,
+            created_at: cr.created_at,
+            intake: {
+              goal: meta.goal || null,
+              level: meta.level || null,
+              course: meta.course || null,
+              message: meta.message || null,
+            },
+            chat_excerpt: chatExcerpt,
+          };
+        }
+      } catch (ctxErr) {
+        console.warn('âš ï¸ Could not load consultation context:', ctxErr.message);
+      }
+    }
+
     res.json({
       success: true,
       data: {
@@ -26088,11 +25718,12 @@ app.get('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN
         students: ticket.created_by_user || null,
         assigned_to: ticket.assigned_to_user || null,
         resolved_by: ticket.resolved_by_user || null,
-        messages: messages || []
+        messages: messages || [],
+        consultation_context
       }
     });
   } catch (error) {
-    console.error('❌ Error fetching support ticket:', error);
+    console.error('âŒ Error fetching support ticket:', error);
     next(error);
   }
 });
@@ -26114,7 +25745,7 @@ app.post('/api/support-tickets', requireAuth, async (req, res, next) => {
     } = req.body;
 
     if (!subject || !String(subject).trim()) {
-      return res.status(400).json({ success: false, message: 'Tiêu đề là bắt buộc' });
+      return res.status(400).json({ success: false, message: 'TiÃªu Ä‘á» lÃ  báº¯t buá»™c' });
     }
 
     const normalizedCategory = {
@@ -26137,12 +25768,12 @@ app.post('/api/support-tickets', requireAuth, async (req, res, next) => {
 
     const validCategories = ['general', 'technical', 'billing', 'course', 'other'];
     if (!validCategories.includes(normalizedCategory)) {
-      return res.status(400).json({ success: false, message: 'Danh mục không hợp lệ' });
+      return res.status(400).json({ success: false, message: 'Danh má»¥c khÃ´ng há»£p lá»‡' });
     }
 
     const validPriorities = ['low', 'normal', 'high', 'urgent'];
     if (!validPriorities.includes(normalizedPriority)) {
-      return res.status(400).json({ success: false, message: 'Độ ưu tiên không hợp lệ' });
+      return res.status(400).json({ success: false, message: 'Äá»™ Æ°u tiÃªn khÃ´ng há»£p lá»‡' });
     }
 
     const { effectiveCenterId } = getEffectiveCenterId(req.user, req.body.center_id);
@@ -26185,21 +25816,21 @@ app.post('/api/support-tickets', requireAuth, async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: 'Đã tạo yêu cầu hỗ trợ',
+      message: 'ÄÃ£ táº¡o yÃªu cáº§u há»— trá»£',
       data: {
         ...createdTicket,
         message_count: initialMessage ? 1 : 0
       }
     });
   } catch (error) {
-    console.error('❌ Error creating support ticket for self-service route:', error);
+    console.error('âŒ Error creating support ticket for self-service route:', error);
     next(error);
   }
 });
 
 /**
  * POST /api/admin/support-tickets
- * Tạo ticket mới (admin tạo thay cho student)
+ * Táº¡o ticket má»›i (admin táº¡o thay cho student)
  */
 app.post('/api/admin/support-tickets', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
@@ -26215,7 +25846,7 @@ app.post('/api/admin/support-tickets', requireAuth, requireRole(['SUPER_ADMIN', 
 
     // Validate required fields
     if (!subject) {
-      return res.status(400).json({ success: false, message: 'Tiêu đề là bắt buộc' });
+      return res.status(400).json({ success: false, message: 'TiÃªu Ä‘á» lÃ  báº¯t buá»™c' });
     }
 
     // Validate category
@@ -26223,7 +25854,7 @@ app.post('/api/admin/support-tickets', requireAuth, requireRole(['SUPER_ADMIN', 
     if (!validCategories.includes(category)) {
       return res.status(400).json({
         success: false,
-        message: `Danh mục không hợp lệ. Cho phép: ${validCategories.join(', ')}`
+        message: `Danh má»¥c khÃ´ng há»£p lá»‡. Cho phÃ©p: ${validCategories.join(', ')}`
       });
     }
 
@@ -26232,7 +25863,7 @@ app.post('/api/admin/support-tickets', requireAuth, requireRole(['SUPER_ADMIN', 
     if (!validPriorities.includes(priority)) {
       return res.status(400).json({
         success: false,
-        message: `Độ ưu tiên không hợp lệ. Cho phép: ${validPriorities.join(', ')}`
+        message: `Äá»™ Æ°u tiÃªn khÃ´ng há»£p lá»‡. Cho phÃ©p: ${validPriorities.join(', ')}`
       });
     }
 
@@ -26286,11 +25917,11 @@ app.post('/api/admin/support-tickets', requireAuth, requireRole(['SUPER_ADMIN', 
         });
     }
 
-    console.log(`🎫 Support ticket created: ${ticketNumber} by ${req.user.email}`);
+    console.log(`ðŸŽ« Support ticket created: ${ticketNumber} by ${req.user.email}`);
 
     res.status(201).json({
       success: true,
-      message: 'Tạo ticket thành công',
+      message: 'Táº¡o ticket thÃ nh cÃ´ng',
       data: {
         ...data,
         students: data.created_by_user || null,
@@ -26299,14 +25930,14 @@ app.post('/api/admin/support-tickets', requireAuth, requireRole(['SUPER_ADMIN', 
       }
     });
   } catch (error) {
-    console.error('❌ Error creating support ticket:', error);
+    console.error('âŒ Error creating support ticket:', error);
     next(error);
   }
 });
 
 /**
  * PUT /api/admin/support-tickets/:id
- * Cập nhật ticket (status, assignment, resolution)
+ * Cáº­p nháº­t ticket (status, assignment, resolution)
  */
 app.put('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
@@ -26327,7 +25958,7 @@ app.put('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN
       .single();
 
     if (fetchError || !existingTicket) {
-      return res.status(404).json({ success: false, message: 'Ticket không tồn tại' });
+      return res.status(404).json({ success: false, message: 'Ticket khÃ´ng tá»“n táº¡i' });
     }
 
     // Permission check
@@ -26336,7 +25967,7 @@ app.put('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN
     const isAssigned = existingTicket.assigned_to === req.user.id;
 
     if (!isSuperAdmin && !isSameCenter && !isAssigned) {
-      return res.status(403).json({ success: false, message: 'Bạn không có quyền sửa ticket này' });
+      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n sá»­a ticket nÃ y' });
     }
 
     // Build update object
@@ -26347,7 +25978,7 @@ app.put('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN
       if (!validStatuses.includes(status)) {
         return res.status(400).json({
           success: false,
-          message: `Trạng thái không hợp lệ. Cho phép: ${validStatuses.join(', ')}`
+          message: `Tráº¡ng thÃ¡i khÃ´ng há»£p lá»‡. Cho phÃ©p: ${validStatuses.join(', ')}`
         });
       }
       updateData.status = status;
@@ -26364,7 +25995,7 @@ app.put('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN
       if (!validPriorities.includes(priority)) {
         return res.status(400).json({
           success: false,
-          message: `Độ ưu tiên không hợp lệ. Cho phép: ${validPriorities.join(', ')}`
+          message: `Äá»™ Æ°u tiÃªn khÃ´ng há»£p lá»‡. Cho phÃ©p: ${validPriorities.join(', ')}`
         });
       }
       updateData.priority = priority;
@@ -26375,7 +26006,7 @@ app.put('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN
       if (!validCategories.includes(category)) {
         return res.status(400).json({
           success: false,
-          message: `Danh mục không hợp lệ. Cho phép: ${validCategories.join(', ')}`
+          message: `Danh má»¥c khÃ´ng há»£p lá»‡. Cho phÃ©p: ${validCategories.join(', ')}`
         });
       }
       updateData.category = category;
@@ -26406,11 +26037,11 @@ app.put('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN
 
     if (error) throw error;
 
-    console.log(`✏️ Support ticket updated: ${data.ticket_number} by ${req.user.email}`);
+    console.log(`âœï¸ Support ticket updated: ${data.ticket_number} by ${req.user.email}`);
 
     res.json({
       success: true,
-      message: 'Cập nhật ticket thành công',
+      message: 'Cáº­p nháº­t ticket thÃ nh cÃ´ng',
       data: {
         ...data,
         students: data.created_by_user || null,
@@ -26418,14 +26049,171 @@ app.put('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN
       }
     });
   } catch (error) {
-    console.error('❌ Error updating support ticket:', error);
+    console.error('âŒ Error updating support ticket:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/support-tickets/:id/smart-replies
+ * Keyword-based smart reply suggestions for admin
+ */
+app.get('/api/support-tickets/:id/smart-replies', requireAuth, async (req, res, next) => {
+  try {
+    const { id: ticketId } = req.params;
+    const { message } = req.query;
+
+    if (!message || message.trim().length < 2) {
+      return res.json({ success: true, data: { suggestions: [] } });
+    }
+
+    const { data: ticket } = await supabase
+      .from('support_tickets')
+      .select('id, center_id')
+      .eq('id', ticketId)
+      .single();
+
+    if (!ticket) {
+      return res.status(404).json({ success: false, error: 'Ticket khÃ´ng tá»“n táº¡i' });
+    }
+
+    const centerId = ticket.center_id || getEffectiveCenterId(req);
+    const msgLower = message.toLowerCase().normalize('NFC');
+
+    // Keyword detection
+    const PRICING_KW = ['giÃ¡', 'há»c phÃ­', 'chi phÃ­', 'bao nhiÃªu tiá»n', 'phÃ­', 'bao nhiÃªu', 'tiá»n'];
+    const SCHEDULE_KW = ['lá»‹ch', 'buá»•i', 'thá»i gian', 'máº¥y giá»', 'ngÃ y nÃ o', 'khi nÃ o', 'báº¯t Ä‘áº§u', 'khai giáº£ng'];
+    const CURRICULUM_KW = ['lá»™ trÃ¬nh', 'ná»™i dung', 'há»c gÃ¬', 'chÆ°Æ¡ng trÃ¬nh', 'giÃ¡o trÃ¬nh'];
+    const GENERAL_KW = ['khÃ³a há»c', 'khÃ³a', 'lá»›p', 'Ä‘Äƒng kÃ½', 'tham kháº£o', 'tÆ° váº¥n', 'thÃ´ng tin'];
+
+    const cats = new Set();
+    if (PRICING_KW.some(k => msgLower.includes(k))) cats.add('pricing');
+    if (SCHEDULE_KW.some(k => msgLower.includes(k))) cats.add('schedule');
+    if (CURRICULUM_KW.some(k => msgLower.includes(k))) cats.add('curriculum');
+    if (GENERAL_KW.some(k => msgLower.includes(k))) cats.add('general');
+
+    if (cats.size === 0) {
+      return res.json({ success: true, data: { suggestions: [] } });
+    }
+
+    // Extract course name hints
+    const STOP = new Set(['báº¡n','muá»‘n','mÃ¬nh','khÃ³a','há»c','Ä‘Æ°á»£c','khÃ´ng','cho','má»™t','cÃ¡c','cá»§a','nÃ y','nhá»¯ng','nhÆ°','tháº¿','nÃ o','bao','nhiÃªu','tÃ´i','anh','chá»‹','em','giÃ¡','lá»‹ch','phÃ­','tham','kháº£o','cáº§n','vá»','lá»™','trÃ¬nh','ná»™i','dung','thá»i','gian','buá»•i','Ä‘Äƒng','hiá»‡n','táº¡i','bÃªn','váº¥n','thÃ´ng','tin','há»i','xin','vá»›i','cÃ²n','láº¡i','thÃ¬','sao','cá»¥','thá»ƒ','luÃ´n','kÃ¨m','cho']);
+    const words = msgLower.split(/[\s,!?.]+/).filter(w => w.length >= 3 && !STOP.has(w));
+
+    // Query courses
+    let courseQuery = supabase
+      .from('courses')
+      .select('id, title, price, duration_weeks, total_sessions, level, category, description, syllabus, outcomes')
+      .eq('status', 'active');
+
+    if (words.length > 0) {
+      courseQuery = courseQuery.or(words.map(w => `title.ilike.%${w}%`).join(','));
+    }
+
+    let { data: courses } = await courseQuery.limit(5);
+
+    if (!courses?.length) {
+      const { data: fallback } = await supabase
+        .from('courses')
+        .select('id, title, price, duration_weeks, total_sessions, level, category')
+        .eq('status', 'active')
+        .limit(5);
+      courses = fallback || [];
+    }
+
+    if (!courses.length) {
+      return res.json({ success: true, data: { suggestions: [] } });
+    }
+
+    // Format helpers
+    const fmtPrice = (p) => {
+      if (!p) return 'LiÃªn há»‡';
+      const n = parseFloat(p);
+      return n >= 1000000 ? `${(n/1000000).toFixed(n%1000000===0?0:1)}tr` : n.toLocaleString('vi-VN') + 'Ä‘';
+    };
+    const levelLabel = { beginner:'CÆ¡ báº£n', intermediate:'Trung cáº¥p', advanced:'NÃ¢ng cao', Beginner:'CÆ¡ báº£n', Intermediate:'Trung cáº¥p', Advanced:'NÃ¢ng cao' };
+
+    const suggestions = [];
+
+    for (const c of courses) {
+      // Course info chip
+      const infoLines = [`ðŸ“š KhÃ³a ${c.title}`];
+      if (cats.has('pricing') || cats.has('general')) {
+        infoLines.push(`ðŸ’° Há»c phÃ­: ${parseFloat(c.price).toLocaleString('vi-VN')}Ä‘`);
+      }
+      infoLines.push(`â± Thá»i lÆ°á»£ng: ${c.duration_weeks} tuáº§n (${c.total_sessions} buá»•i)`);
+      if (c.level) infoLines.push(`ðŸ“Š TrÃ¬nh Ä‘á»™: ${levelLabel[c.level] || c.level}`);
+
+      suggestions.push({
+        type: 'course_info',
+        label: `ðŸ“š ${c.title} - ${fmtPrice(c.price)}/${c.duration_weeks} tuáº§n`,
+        pasteText: infoLines.join('\n'),
+        courseId: c.id
+      });
+
+      // Schedule chip
+      if (cats.has('schedule') || cats.has('general')) {
+        const { data: classes } = await supabase
+          .from('classes')
+          .select('id, name, schedule, start_date, max_students, teacher:users!classes_teacher_id_fkey(full_name)')
+          .eq('course_id', c.id)
+          .eq('status', 'active')
+          .limit(2);
+
+        for (const cls of (classes || [])) {
+          const { count: enrolled } = await supabase
+            .from('enrollments')
+            .select('id', { count: 'exact', head: true })
+            .eq('class_id', cls.id)
+            .in('status', ['active', 'enrolled']);
+
+          const spots = cls.max_students - (enrolled || 0);
+          const sLines = [`ðŸ“… Lá»›p ${cls.name || c.title}`];
+          if (cls.schedule) sLines.push(`ðŸ• Lá»‹ch: ${cls.schedule}`);
+          if (cls.start_date) sLines.push(`ðŸ—“ Khai giáº£ng: ${new Date(cls.start_date).toLocaleDateString('vi-VN')}`);
+          if (cls.teacher?.full_name) sLines.push(`ðŸ‘¨â€ðŸ« GV: ${cls.teacher.full_name}`);
+          if (cls.max_students) sLines.push(`ðŸ‘¥ CÃ²n ${Math.max(0,spots)}/${cls.max_students} chá»—`);
+
+          suggestions.push({
+            type: 'schedule_info',
+            label: `ðŸ“… ${cls.name || c.title} - ${cls.schedule || 'ChÆ°a xáº¿p'}`,
+            pasteText: sLines.join('\n'),
+            classId: cls.id
+          });
+        }
+      }
+
+      // Curriculum chip
+      if (cats.has('curriculum') && (c.syllabus || c.outcomes)) {
+        const cLines = [`ðŸ“‹ Lá»™ trÃ¬nh ${c.title}`];
+        if (Array.isArray(c.syllabus)) {
+          c.syllabus.slice(0,5).forEach((item,i) => {
+            const t = typeof item === 'string' ? item : (item.title || item.name || `Pháº§n ${i+1}`);
+            cLines.push(`${i+1}. ${t}`);
+          });
+          if (c.syllabus.length > 5) cLines.push(`... vÃ  ${c.syllabus.length-5} pháº§n ná»¯a`);
+        }
+        if (Array.isArray(c.outcomes)) {
+          cLines.push('', 'ðŸŽ¯ Sau khÃ³a há»c báº¡n sáº½:');
+          c.outcomes.slice(0,3).forEach(o => {
+            const t = typeof o === 'string' ? o : (o.text || o.title || '');
+            if (t) cLines.push(`âœ… ${t}`);
+          });
+        }
+        suggestions.push({ type: 'curriculum_info', label: `ðŸ“‹ Lá»™ trÃ¬nh ${c.title}`, pasteText: cLines.join('\n'), courseId: c.id });
+      }
+    }
+
+    res.json({ success: true, data: { suggestions: suggestions.slice(0, 6) } });
+  } catch (error) {
+    console.error('Error getting smart replies:', error);
     next(error);
   }
 });
 
 /**
  * POST /api/support-tickets/:id/messages
- * Gửi tin nhắn reply vào ticket
+ * Gá»­i tin nháº¯n reply vÃ o ticket
  */
 app.post('/api/support-tickets/:id/messages', requireAuth, async (req, res, next) => {
   try {
@@ -26434,7 +26222,7 @@ app.post('/api/support-tickets/:id/messages', requireAuth, async (req, res, next
 
     // Validate message
     if (!message || !message.trim()) {
-      return res.status(400).json({ success: false, message: 'Nội dung tin nhắn là bắt buộc' });
+      return res.status(400).json({ success: false, message: 'Ná»™i dung tin nháº¯n lÃ  báº¯t buá»™c' });
     }
 
     // Get ticket
@@ -26445,7 +26233,7 @@ app.post('/api/support-tickets/:id/messages', requireAuth, async (req, res, next
       .single();
 
     if (ticketError || !ticket) {
-      return res.status(404).json({ success: false, message: 'Ticket không tồn tại' });
+      return res.status(404).json({ success: false, message: 'Ticket khÃ´ng tá»“n táº¡i' });
     }
 
     // Permission check: Must be ticket creator, assignee, or admin
@@ -26454,7 +26242,7 @@ app.post('/api/support-tickets/:id/messages', requireAuth, async (req, res, next
     const isAdmin = ['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER'].includes(req.user.roleCode);
 
     if (!isCreator && !isAssignee && !isAdmin) {
-      return res.status(403).json({ success: false, message: 'Bạn không có quyền gửi tin nhắn trong ticket này' });
+      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n gá»­i tin nháº¯n trong ticket nÃ y' });
     }
 
     // Only staff can send internal notes
@@ -26508,22 +26296,22 @@ app.post('/api/support-tickets/:id/messages', requireAuth, async (req, res, next
       await createNotification(supabase, event);
     }
 
-    console.log(`💬 Message sent to ticket ${ticket.ticket_number} by ${req.user.email}${actualIsInternal ? ' (internal)' : ''}`);
+    console.log(`ðŸ’¬ Message sent to ticket ${ticket.ticket_number} by ${req.user.email}${actualIsInternal ? ' (internal)' : ''}`);
 
     res.status(201).json({
       success: true,
-      message: 'Gửi tin nhắn thành công',
+      message: 'Gá»­i tin nháº¯n thÃ nh cÃ´ng',
       data
     });
   } catch (error) {
-    console.error('❌ Error sending ticket message:', error);
+    console.error('âŒ Error sending ticket message:', error);
     next(error);
   }
 });
 
 /**
  * GET /api/admin/support-tickets/stats
- * Thống kê tickets (dashboard)
+ * Thá»‘ng kÃª tickets (dashboard)
  */
 app.get('/api/admin/support-tickets/stats', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -26556,7 +26344,7 @@ app.get('/api/admin/support-tickets/stats', requireAuth, requireRole(['SUPER_ADM
 
     res.json({ success: true, data: stats });
   } catch (error) {
-    console.error('❌ Error fetching ticket stats:', error);
+    console.error('âŒ Error fetching ticket stats:', error);
     next(error);
   }
 });
@@ -26586,7 +26374,7 @@ function withConsultationFollowUp(request) {
 
 /**
  * GET /api/admin/consultation-requests
- * Danh sách yêu cầu tư vấn cho advisor inbox
+ * Danh sÃ¡ch yÃªu cáº§u tÆ° váº¥n cho advisor inbox
  */
 app.get('/api/admin/consultation-requests', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
@@ -26649,14 +26437,14 @@ app.get('/api/admin/consultation-requests', requireAuth, requireRole(['SUPER_ADM
       }
     });
   } catch (error) {
-    console.error('❌ Error fetching consultation requests:', error);
+    console.error('âŒ Error fetching consultation requests:', error);
     next(error);
   }
 });
 
 /**
  * GET /api/admin/consultation-requests/:id
- * Chi tiết một yêu cầu tư vấn
+ * Chi tiáº¿t má»™t yÃªu cáº§u tÆ° váº¥n
  */
 app.get('/api/admin/consultation-requests/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
@@ -26675,13 +26463,13 @@ app.get('/api/admin/consultation-requests/:id', requireAuth, requireRole(['SUPER
 
     if (error) {
       if (error.code === 'PGRST116') {
-        return res.status(404).json({ success: false, message: 'Yêu cầu tư vấn không tồn tại' });
+        return res.status(404).json({ success: false, message: 'YÃªu cáº§u tÆ° váº¥n khÃ´ng tá»“n táº¡i' });
       }
       throw error;
     }
 
     if (req.user.roleCode !== 'SUPER_ADMIN' && request.center_id && request.center_id !== req.user.centerId) {
-      return res.status(403).json({ success: false, message: 'Bạn không có quyền xem yêu cầu tư vấn này' });
+      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem yÃªu cáº§u tÆ° váº¥n nÃ y' });
     }
 
     res.json({
@@ -26694,14 +26482,14 @@ app.get('/api/admin/consultation-requests/:id', requireAuth, requireRole(['SUPER
       })
     });
   } catch (error) {
-    console.error('❌ Error fetching consultation request:', error);
+    console.error('âŒ Error fetching consultation request:', error);
     next(error);
   }
 });
 
 /**
  * PUT /api/admin/consultation-requests/:id
- * Cập nhật advisor assignment, trạng thái, notes
+ * Cáº­p nháº­t advisor assignment, tráº¡ng thÃ¡i, notes
  */
 app.put('/api/admin/consultation-requests/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
@@ -26712,7 +26500,8 @@ app.put('/api/admin/consultation-requests/:id', requireAuth, requireRole(['SUPER
       notes,
       follow_up_date,
       handoff_reason,
-      transcript_summary
+      transcript_summary,
+      conversion_outcome
     } = req.body;
 
     const { data: existingRequest, error: fetchError } = await supabase
@@ -26722,7 +26511,7 @@ app.put('/api/admin/consultation-requests/:id', requireAuth, requireRole(['SUPER
       .single();
 
     if (fetchError || !existingRequest) {
-      return res.status(404).json({ success: false, message: 'Yêu cầu tư vấn không tồn tại' });
+      return res.status(404).json({ success: false, message: 'YÃªu cáº§u tÆ° váº¥n khÃ´ng tá»“n táº¡i' });
     }
 
     const isSuperAdmin = req.user.roleCode === 'SUPER_ADMIN';
@@ -26730,7 +26519,7 @@ app.put('/api/admin/consultation-requests/:id', requireAuth, requireRole(['SUPER
     const isAssigned = existingRequest.assigned_to === req.user.id;
 
     if (!isSuperAdmin && !isSameCenter && !isAssigned) {
-      return res.status(403).json({ success: false, message: 'Bạn không có quyền cập nhật yêu cầu tư vấn này' });
+      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n cáº­p nháº­t yÃªu cáº§u tÆ° váº¥n nÃ y' });
     }
 
     const validStatuses = ['new', 'assigned', 'contacted', 'scheduled', 'closed', 'lost'];
@@ -26741,7 +26530,7 @@ app.put('/api/admin/consultation-requests/:id', requireAuth, requireRole(['SUPER
       if (!validStatuses.includes(status)) {
         return res.status(400).json({
           success: false,
-          message: `Trạng thái không hợp lệ. Cho phép: ${validStatuses.join(', ')}`
+          message: `Tráº¡ng thÃ¡i khÃ´ng há»£p lá»‡. Cho phÃ©p: ${validStatuses.join(', ')}`
         });
       }
 
@@ -26782,6 +26571,13 @@ app.put('/api/admin/consultation-requests/:id', requireAuth, requireRole(['SUPER
     if (transcript_summary !== undefined) {
       updateData.transcript_summary = transcript_summary?.trim() || null;
     }
+    if (conversion_outcome !== undefined) {
+      const validOutcomes = ['enrolled', 'resolved', 'not_interested', 'unreachable', null];
+      if (!validOutcomes.includes(conversion_outcome)) {
+        return res.status(400).json({ success: false, message: 'Káº¿t quáº£ chuyá»ƒn Ä‘á»•i khÃ´ng há»£p lá»‡' });
+      }
+      updateData.conversion_outcome = conversion_outcome;
+    }
 
     const { data, error } = await supabase
       .from('consultation_requests')
@@ -26797,9 +26593,65 @@ app.put('/api/admin/consultation-requests/:id', requireAuth, requireRole(['SUPER
 
     if (error) throw error;
 
+    // Activity logging (non-blocking)
+    try {
+      const activities = [];
+
+      if (status !== undefined && status !== existingRequest.status) {
+        activities.push({
+          consultation_request_id: id,
+          actor_id: req.user.id,
+          action: 'status_change',
+          details: { old_status: existingRequest.status, new_status: status }
+        });
+      }
+
+      if (assigned_to !== undefined) {
+        if (assigned_to && assigned_to !== existingRequest.assigned_to) {
+          activities.push({
+            consultation_request_id: id,
+            actor_id: req.user.id,
+            action: 'claimed',
+            details: { assigned_to }
+          });
+        } else if (!assigned_to && existingRequest.assigned_to) {
+          activities.push({
+            consultation_request_id: id,
+            actor_id: req.user.id,
+            action: 'released',
+            details: { previous_assignee: existingRequest.assigned_to }
+          });
+        }
+      }
+
+      if (notes !== undefined && notes !== existingRequest.notes) {
+        activities.push({
+          consultation_request_id: id,
+          actor_id: req.user.id,
+          action: 'note_added',
+          details: { excerpt: (notes || '').slice(0, 200) }
+        });
+      }
+
+      if (follow_up_date !== undefined && follow_up_date !== existingRequest.follow_up_date) {
+        activities.push({
+          consultation_request_id: id,
+          actor_id: req.user.id,
+          action: 'follow_up_date_set',
+          details: { follow_up_date: follow_up_date || null }
+        });
+      }
+
+      if (activities.length > 0) {
+        await supabase.from('consultation_activities').insert(activities);
+      }
+    } catch (activityErr) {
+      console.warn('âš ï¸ Activity log insert failed:', activityErr.message);
+    }
+
     res.json({
       success: true,
-      message: 'Cập nhật yêu cầu tư vấn thành công',
+      message: 'Cáº­p nháº­t yÃªu cáº§u tÆ° váº¥n thÃ nh cÃ´ng',
       data: withConsultationFollowUp({
         ...data,
         assigned_to: data.assigned_to_user || null,
@@ -26808,14 +26660,92 @@ app.put('/api/admin/consultation-requests/:id', requireAuth, requireRole(['SUPER
       })
     });
   } catch (error) {
-    console.error('❌ Error updating consultation request:', error);
+    console.error('âŒ Error updating consultation request:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/consultation-requests/:id/activities
+ * Lá»‹ch sá»­ hoáº¡t Ä‘á»™ng (activity timeline) cho yÃªu cáº§u tÆ° váº¥n
+ */
+app.get('/api/admin/consultation-requests/:id/activities', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const { data, error } = await supabase
+      .from('consultation_activities')
+      .select(`
+        id, action, details, created_at,
+        actor:users!consultation_activities_actor_id_fkey (id, full_name, email)
+      `)
+      .eq('consultation_request_id', id)
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (error) throw error;
+
+    res.json({ success: true, data: data || [] });
+  } catch (error) {
+    console.error('âŒ Error fetching consultation activities:', error);
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/consultation-requests/:id/chat-history
+ * Lá»‹ch sá»­ chat Ä‘áº§y Ä‘á»§ cá»§a phiÃªn Molly liÃªn káº¿t vá»›i yÃªu cáº§u tÆ° váº¥n
+ */
+app.get('/api/admin/consultation-requests/:id/chat-history', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // First get the consultation request to find its session_id
+    const { data: request, error: reqError } = await supabase
+      .from('consultation_requests')
+      .select('session_id')
+      .eq('id', id)
+      .single();
+
+    if (reqError || !request) {
+      return res.status(404).json({ success: false, message: 'YÃªu cáº§u tÆ° váº¥n khÃ´ng tá»“n táº¡i' });
+    }
+
+    if (!request.session_id) {
+      return res.json({ success: true, data: [], message: 'YÃªu cáº§u nÃ y khÃ´ng cÃ³ phiÃªn chat Molly liÃªn káº¿t' });
+    }
+
+    // Load session info
+    const { data: session } = await supabase
+      .from('chat_sessions')
+      .select('id, started_at, last_message_at, message_count, metadata, title')
+      .eq('id', request.session_id)
+      .single();
+
+    // Load all messages from that session
+    const { data: messages, error: msgError } = await supabase
+      .from('chat_messages')
+      .select('id, role, content, created_at, tokens_used, model')
+      .eq('session_id', request.session_id)
+      .order('created_at', { ascending: true })
+      .limit(200);
+
+    if (msgError) throw msgError;
+
+    res.json({
+      success: true,
+      data: messages || [],
+      session: session || null
+    });
+  } catch (error) {
+    console.error('âŒ Error fetching chat history:', error);
     next(error);
   }
 });
 
 /**
  * POST /api/admin/consultation-requests/:id/follow-up-thread
- * Tạo hoặc gắn thread follow-up cho yêu cầu tư vấn (idempotent)
+ * Táº¡o hoáº·c gáº¯n thread follow-up cho yÃªu cáº§u tÆ° váº¥n (idempotent)
  */
 app.post('/api/admin/consultation-requests/:id/follow-up-thread', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
@@ -26829,7 +26759,7 @@ app.post('/api/admin/consultation-requests/:id/follow-up-thread', requireAuth, r
       .single();
 
     if (fetchError || !existingRequest) {
-      return res.status(404).json({ success: false, message: 'Yêu cầu tư vấn không tồn tại' });
+      return res.status(404).json({ success: false, message: 'YÃªu cáº§u tÆ° váº¥n khÃ´ng tá»“n táº¡i' });
     }
 
     const isSuperAdmin = req.user.roleCode === 'SUPER_ADMIN';
@@ -26837,7 +26767,7 @@ app.post('/api/admin/consultation-requests/:id/follow-up-thread', requireAuth, r
     const isAssigned = existingRequest.assigned_to === req.user.id;
 
     if (!isSuperAdmin && !isSameCenter && !isAssigned) {
-      return res.status(403).json({ success: false, message: 'Bạn không có quyền xử lý follow-up cho yêu cầu này' });
+      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n xá»­ lÃ½ follow-up cho yÃªu cáº§u nÃ y' });
     }
 
     const existingFollowUp = extractConsultationFollowUp(existingRequest.metadata);
@@ -26853,7 +26783,7 @@ app.post('/api/admin/consultation-requests/:id/follow-up-thread', requireAuth, r
       if (linkedTicket && (!existingRequest.center_id || linkedTicket.center_id === existingRequest.center_id)) {
         return res.json({
           success: true,
-          message: 'Yêu cầu tư vấn đã có thread follow-up',
+          message: 'YÃªu cáº§u tÆ° váº¥n Ä‘Ã£ cÃ³ thread follow-up',
           data: {
             request: withConsultationFollowUp(existingRequest),
             follow_up_ticket: {
@@ -26905,7 +26835,7 @@ app.post('/api/admin/consultation-requests/:id/follow-up-thread', requireAuth, r
 
       return res.json({
         success: true,
-        message: 'Yêu cầu tư vấn đã có thread follow-up',
+        message: 'YÃªu cáº§u tÆ° váº¥n Ä‘Ã£ cÃ³ thread follow-up',
         data: {
           request: withConsultationFollowUp({
             ...updatedRequest,
@@ -26924,9 +26854,9 @@ app.post('/api/admin/consultation-requests/:id/follow-up-thread', requireAuth, r
 
     const urgencyLevel = existingRequest.metadata?.urgency_level;
     const mappedPriority = normalizeFollowUpPriority(urgencyLevel);
-    const summaryLine = existingRequest.metadata?.summary_line || existingRequest.metadata?.primary_need || existingRequest.transcript_summary || existingRequest.notes || 'Theo dõi nhu cầu tư vấn';
+    const summaryLine = existingRequest.metadata?.summary_line || existingRequest.metadata?.primary_need || existingRequest.transcript_summary || existingRequest.notes || 'Theo dÃµi nhu cáº§u tÆ° váº¥n';
     const cleanSummary = String(summaryLine).replace(/\s+/g, ' ').trim();
-    const subject = `Follow-up tư vấn: ${cleanSummary}`.slice(0, 180);
+    const subject = `Follow-up tÆ° váº¥n: ${cleanSummary}`.slice(0, 180);
 
     const { data: ticketNumber, error: ticketNumberError } = await supabase.rpc('generate_ticket_number');
     if (ticketNumberError) throw ticketNumberError;
@@ -26973,10 +26903,10 @@ app.post('/api/admin/consultation-requests/:id/follow-up-thread', requireAuth, r
     if (createTicketError) throw createTicketError;
 
     const kickoffLines = [
-      'Khởi tạo follow-up từ yêu cầu tư vấn Molly.',
-      existingRequest.full_name ? `Học viên: ${existingRequest.full_name}` : null,
-      existingRequest.phone ? `Số điện thoại: ${existingRequest.phone}` : null,
-      cleanSummary ? `Nhu cầu chính: ${cleanSummary}` : null,
+      'Khá»Ÿi táº¡o follow-up tá»« yÃªu cáº§u tÆ° váº¥n Molly.',
+      existingRequest.full_name ? `Há»c viÃªn: ${existingRequest.full_name}` : null,
+      existingRequest.phone ? `Sá»‘ Ä‘iá»‡n thoáº¡i: ${existingRequest.phone}` : null,
+      cleanSummary ? `Nhu cáº§u chÃ­nh: ${cleanSummary}` : null,
       existingRequest.handoff_reason ? `Handoff reason: ${existingRequest.handoff_reason}` : null
     ].filter(Boolean);
 
@@ -27018,7 +26948,7 @@ app.post('/api/admin/consultation-requests/:id/follow-up-thread', requireAuth, r
 
     return res.status(201).json({
       success: true,
-      message: 'Đã tạo thread follow-up cho yêu cầu tư vấn',
+      message: 'ÄÃ£ táº¡o thread follow-up cho yÃªu cáº§u tÆ° váº¥n',
       data: {
         request: withConsultationFollowUp({
           ...updatedRequest,
@@ -27034,7 +26964,7 @@ app.post('/api/admin/consultation-requests/:id/follow-up-thread', requireAuth, r
       }
     });
   } catch (error) {
-    console.error('❌ Error creating follow-up thread for consultation request:', error);
+    console.error('âŒ Error creating follow-up thread for consultation request:', error);
     next(error);
   }
 });
@@ -27044,15 +26974,15 @@ app.post('/api/admin/consultation-requests/:id/follow-up-thread', requireAuth, r
 // ============================================================
 
 // ============================================================
-// STUDENT TRANSFER APIs - Chuyển học viên giữa chi nhánh
+// STUDENT TRANSFER APIs - Chuyá»ƒn há»c viÃªn giá»¯a chi nhÃ¡nh
 // ============================================================
 
 /**
  * PUT /api/admin/students/:id/transfer
- * Chuyển học viên sang chi nhánh khác
- * - Giữ nguyên lịch sử học tập (grades, attendance)
- * - Cập nhật center_id của student
- * - Tùy chọn: chuyển enrollments đang active hoặc close
+ * Chuyá»ƒn há»c viÃªn sang chi nhÃ¡nh khÃ¡c
+ * - Giá»¯ nguyÃªn lá»‹ch sá»­ há»c táº­p (grades, attendance)
+ * - Cáº­p nháº­t center_id cá»§a student
+ * - TÃ¹y chá»n: chuyá»ƒn enrollments Ä‘ang active hoáº·c close
  * - Ghi log audit trail
  */
 app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
@@ -27060,17 +26990,17 @@ app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADM
     const { id } = req.params;
     const {
       target_center_id,
-      transfer_enrollments = false, // true = chuyển cả enrollment, false = close enrollment cũ
+      transfer_enrollments = false, // true = chuyá»ƒn cáº£ enrollment, false = close enrollment cÅ©
       notes = ''
     } = req.body;
 
-    console.log(`🔄 Student transfer initiated by ${req.user.email}: ${id} -> ${target_center_id}`);
+    console.log(`ðŸ”„ Student transfer initiated by ${req.user.email}: ${id} -> ${target_center_id}`);
 
     // Validate required fields
     if (!target_center_id) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng chọn chi nhánh đích'
+        message: 'Vui lÃ²ng chá»n chi nhÃ¡nh Ä‘Ã­ch'
       });
     }
 
@@ -27087,7 +27017,7 @@ app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADM
     if (studentError || !student) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy học viên'
+        message: 'KhÃ´ng tÃ¬m tháº¥y há»c viÃªn'
       });
     }
 
@@ -27095,7 +27025,7 @@ app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADM
     if (student.roles?.code !== 'STUDENT') {
       return res.status(400).json({
         success: false,
-        message: 'Chỉ có thể chuyển học viên (STUDENT role)'
+        message: 'Chá»‰ cÃ³ thá»ƒ chuyá»ƒn há»c viÃªn (STUDENT role)'
       });
     }
 
@@ -27105,7 +27035,7 @@ app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADM
     if (sourceCenterId === target_center_id) {
       return res.status(400).json({
         success: false,
-        message: 'Học viên đã thuộc chi nhánh này'
+        message: 'Há»c viÃªn Ä‘Ã£ thuá»™c chi nhÃ¡nh nÃ y'
       });
     }
 
@@ -27119,12 +27049,12 @@ app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADM
     if (centerError || !targetCenter) {
       return res.status(400).json({
         success: false,
-        message: 'Chi nhánh đích không tồn tại'
+        message: 'Chi nhÃ¡nh Ä‘Ã­ch khÃ´ng tá»“n táº¡i'
       });
     }
 
     // Get source center name for logging
-    let sourceCenterName = 'Chưa có';
+    let sourceCenterName = 'ChÆ°a cÃ³';
     if (sourceCenterId) {
       const { data: sourceCenter } = await supabase
         .from('centers')
@@ -27177,7 +27107,7 @@ app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADM
             await supabase
               .from('enrollments')
               .update({
-                notes: `[TRANSFERRED] ${new Date().toISOString()} - Chuyển từ ${sourceCenterName} sang ${targetCenter.name}. ${notes}`,
+                notes: `[TRANSFERRED] ${new Date().toISOString()} - Chuyá»ƒn tá»« ${sourceCenterName} sang ${targetCenter.name}. ${notes}`,
                 updated_at: new Date().toISOString()
               })
               .eq('id', enrollment.id);
@@ -27188,7 +27118,7 @@ app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADM
               .from('enrollments')
               .update({
                 status: 'cancelled',
-                notes: `[TRANSFERRED OUT] ${new Date().toISOString()} - Học viên chuyển sang ${targetCenter.name}. ${notes}`,
+                notes: `[TRANSFERRED OUT] ${new Date().toISOString()} - Há»c viÃªn chuyá»ƒn sang ${targetCenter.name}. ${notes}`,
                 updated_at: new Date().toISOString()
               })
               .eq('id', enrollment.id);
@@ -27220,7 +27150,7 @@ app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADM
             center_id: target_center_id,
             center_name: targetCenter.name
           },
-          notes: notes || `Chuyển học viên ${student.full_name} từ ${sourceCenterName} sang ${targetCenter.name}`
+          notes: notes || `Chuyá»ƒn há»c viÃªn ${student.full_name} tá»« ${sourceCenterName} sang ${targetCenter.name}`
         });
     } catch (auditError) {
       console.log('Audit log skipped (table may not exist):', auditError.message);
@@ -27232,8 +27162,8 @@ app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADM
         .from('notifications')
         .insert({
           user_id: id,
-          title: 'Thông báo chuyển chi nhánh',
-          message: `Bạn đã được chuyển từ ${sourceCenterName} sang ${targetCenter.name}.`,
+          title: 'ThÃ´ng bÃ¡o chuyá»ƒn chi nhÃ¡nh',
+          message: `Báº¡n Ä‘Ã£ Ä‘Æ°á»£c chuyá»ƒn tá»« ${sourceCenterName} sang ${targetCenter.name}.`,
           type: 'system',
           is_read: false
         });
@@ -27241,11 +27171,11 @@ app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADM
       console.log('Notification skipped:', notifError.message);
     }
 
-    console.log(`✅ Student ${student.full_name} transferred from ${sourceCenterName} to ${targetCenter.name}`);
+    console.log(`âœ… Student ${student.full_name} transferred from ${sourceCenterName} to ${targetCenter.name}`);
 
     res.json({
       success: true,
-      message: `Đã chuyển học viên ${student.full_name} sang ${targetCenter.name}`,
+      message: `ÄÃ£ chuyá»ƒn há»c viÃªn ${student.full_name} sang ${targetCenter.name}`,
       data: {
         student_id: id,
         student_name: student.full_name,
@@ -27255,14 +27185,14 @@ app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADM
       }
     });
   } catch (error) {
-    console.error('❌ Error transferring student:', error);
+    console.error('âŒ Error transferring student:', error);
     next(error);
   }
 });
 
 /**
  * GET /api/admin/students/:id/transfer-history
- * Lấy lịch sử chuyển chi nhánh của học viên
+ * Láº¥y lá»‹ch sá»­ chuyá»ƒn chi nhÃ¡nh cá»§a há»c viÃªn
  */
 app.get('/api/admin/students/:id/transfer-history', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -27287,14 +27217,14 @@ app.get('/api/admin/students/:id/transfer-history', requireAuth, requireRole(['S
 
     res.json({ success: true, data: data || [] });
   } catch (error) {
-    console.error('❌ Error fetching transfer history:', error);
+    console.error('âŒ Error fetching transfer history:', error);
     next(error);
   }
 });
 
 /**
  * GET /api/admin/transfers/stats
- * Thống kê chuyển chi nhánh (dashboard)
+ * Thá»‘ng kÃª chuyá»ƒn chi nhÃ¡nh (dashboard)
  */
 app.get('/api/admin/transfers/stats', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
   try {
@@ -27349,7 +27279,7 @@ app.get('/api/admin/transfers/stats', requireAuth, requireRole(['SUPER_ADMIN']),
 
     res.json({ success: true, data: stats });
   } catch (error) {
-    console.error('❌ Error fetching transfer stats:', error);
+    console.error('âŒ Error fetching transfer stats:', error);
     next(error);
   }
 });
@@ -27370,7 +27300,7 @@ app.get('/api/admin/transfers/stats', requireAuth, requireRole(['SUPER_ADMIN']),
  * GET /api/student/dashboard
  * Get student dashboard overview
  * Returns: today's classes, recent grades, upcoming payments, notifications
- * 🔒 STUDENT only (uses req.user.id)
+ * ðŸ”’ STUDENT only (uses req.user.id)
  */
 app.get('/api/student/dashboard',
   requireAuth,
@@ -27591,7 +27521,7 @@ app.get('/api/student/dashboard',
         ? (allGrades.reduce((sum, g) => sum + (g.score || 0), 0) / allGrades.length).toFixed(1)
         : null;
 
-      console.log(`📊 Student dashboard loaded for ${studentId}`);
+      console.log(`ðŸ“Š Student dashboard loaded for ${studentId}`);
 
       res.json({
         success: true,
@@ -27610,7 +27540,7 @@ app.get('/api/student/dashboard',
         }
       });
     } catch (error) {
-      console.error('❌ Error fetching student dashboard:', error);
+      console.error('âŒ Error fetching student dashboard:', error);
       next(error);
     }
   }
@@ -27620,7 +27550,7 @@ app.get('/api/student/dashboard',
  * GET /api/student/schedule
  * Get student's class schedule
  * Query: ?view=week|month&date=2026-01-10&classId=xxx
- * 🔒 STUDENT only
+ * ðŸ”’ STUDENT only
  */
 app.get('/api/student/schedule',
   requireAuth,
@@ -27751,7 +27681,7 @@ app.get('/api/student/schedule',
         ).values()
       );
 
-      console.log(`📅 Fetched ${sessions.length} sessions for student ${studentId}`);
+      console.log(`ðŸ“… Fetched ${sessions.length} sessions for student ${studentId}`);
 
       res.json({
         success: true,
@@ -27762,7 +27692,7 @@ app.get('/api/student/schedule',
         }
       });
     } catch (error) {
-      console.error('❌ Error fetching student schedule:', error);
+      console.error('âŒ Error fetching student schedule:', error);
       next(error);
     }
   }
@@ -27772,7 +27702,7 @@ app.get('/api/student/schedule',
  * GET /api/student/grades
  * Get all student grades with statistics
  * Query: ?classId=xxx
- * 🔒 STUDENT only
+ * ðŸ”’ STUDENT only
  */
 app.get('/api/student/grades',
   requireAuth,
@@ -27850,7 +27780,7 @@ app.get('/api/student/grades',
         ? (allScores.reduce((a, b) => a + b, 0) / allScores.length).toFixed(2)
         : null;
 
-      console.log(`📝 Student grades loaded: ${grades.length} grades`);
+      console.log(`ðŸ“ Student grades loaded: ${grades.length} grades`);
 
       res.json({
         success: true,
@@ -27866,7 +27796,7 @@ app.get('/api/student/grades',
         }
       });
     } catch (error) {
-      console.error('❌ Error fetching student grades:', error);
+      console.error('âŒ Error fetching student grades:', error);
       next(error);
     }
   }
@@ -27876,7 +27806,7 @@ app.get('/api/student/grades',
  * GET /api/student/attendance
  * Get student attendance history
  * Query: ?classId=xxx&startDate=xxx&endDate=xxx
- * 🔒 STUDENT only
+ * ðŸ”’ STUDENT only
  */
 app.get('/api/student/attendance',
   requireAuth,
@@ -27979,7 +27909,7 @@ app.get('/api/student/attendance',
         session: r.session
       }));
 
-      console.log(`📋 Student attendance loaded: ${filtered.length} records`);
+      console.log(`ðŸ“‹ Student attendance loaded: ${filtered.length} records`);
 
       res.json({
         success: true,
@@ -27997,7 +27927,7 @@ app.get('/api/student/attendance',
         }
       });
     } catch (error) {
-      console.error('❌ Error fetching student attendance:', error);
+      console.error('âŒ Error fetching student attendance:', error);
       next(error);
     }
   }
@@ -28006,7 +27936,7 @@ app.get('/api/student/attendance',
 /**
  * GET /api/student/payment-config
  * Get bank config for student payments (VietQR)
- * 🔒 STUDENT only
+ * ðŸ”’ STUDENT only
  */
 app.get('/api/student/payment-config',
   requireAuth,
@@ -28042,7 +27972,7 @@ app.get('/api/student/payment-config',
       }
 
       // Debug log
-      console.log('📦 Payment config lookup:', {
+      console.log('ðŸ“¦ Payment config lookup:', {
         effectiveCenterId,
         centerSetting: centerSetting?.value ? 'found' : 'not found',
         globalSetting: globalSetting?.value ? 'found' : 'not found'
@@ -28053,7 +27983,7 @@ app.get('/api/student/payment-config',
       if (!config) {
         return res.status(404).json({
           success: false,
-          message: 'Chưa cấu hình thông tin ngân hàng thanh toán'
+          message: 'ChÆ°a cáº¥u hÃ¬nh thÃ´ng tin ngÃ¢n hÃ ng thanh toÃ¡n'
         });
       }
 
@@ -28075,7 +28005,7 @@ app.get('/api/student/payment-config',
  * GET /api/student/invoices
  * Get student invoices and payment history
  * Query: ?status=pending|paid|all
- * 🔒 STUDENT only
+ * ðŸ”’ STUDENT only
  */
 app.get('/api/student/invoices',
   requireAuth,
@@ -28128,7 +28058,7 @@ app.get('/api/student/invoices',
       ).length;
       const unpaidCount = (invoices || []).filter(i => ['unpaid', 'partial'].includes(i.status)).length;
 
-      console.log(`💰 Student invoices loaded: ${invoices?.length || 0} invoices`);
+      console.log(`ðŸ’° Student invoices loaded: ${invoices?.length || 0} invoices`);
 
       res.json({
         success: true,
@@ -28148,7 +28078,7 @@ app.get('/api/student/invoices',
         }
       });
     } catch (error) {
-      console.error('❌ Error fetching student invoices:', error);
+      console.error('âŒ Error fetching student invoices:', error);
       next(error);
     }
   }
@@ -28157,7 +28087,7 @@ app.get('/api/student/invoices',
 /**
  * GET /api/student/certificates
  * Get student's issued certificates
- * 🔒 STUDENT only
+ * ðŸ”’ STUDENT only
  */
 app.get('/api/student/certificates',
   requireAuth,
@@ -28179,11 +28109,11 @@ app.get('/api/student/certificates',
         .order('issued_at', { ascending: false });
 
       if (error) {
-        console.error('❌ Supabase certificates query error:', JSON.stringify(error));
+        console.error('âŒ Supabase certificates query error:', JSON.stringify(error));
         throw error;
       }
 
-      console.log(`🔍 Student ID: ${studentId}, Raw result count: ${certificates?.length || 0}`);
+      console.log(`ðŸ” Student ID: ${studentId}, Raw result count: ${certificates?.length || 0}`);
 
       // Transform to match frontend expectations
       const transformedCertificates = (certificates || []).map(cert => ({
@@ -28207,7 +28137,7 @@ app.get('/api/student/certificates',
         metadata: null
       }));
 
-      console.log(`🎓 Student certificates loaded: ${transformedCertificates.length} certificates`);
+      console.log(`ðŸŽ“ Student certificates loaded: ${transformedCertificates.length} certificates`);
 
       res.json({
         success: true,
@@ -28217,7 +28147,7 @@ app.get('/api/student/certificates',
         }
       });
     } catch (error) {
-      console.error('❌ Error fetching student certificates:', error);
+      console.error('âŒ Error fetching student certificates:', error);
       next(error);
     }
   }
@@ -28398,7 +28328,7 @@ app.get('/api/student/available-courses/:courseId',
 
       if (courseError) {
         if (courseError.code === 'PGRST116') {
-          return res.status(404).json({ success: false, message: 'Không tìm thấy khóa học' });
+          return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y khÃ³a há»c' });
         }
         throw courseError;
       }
@@ -28654,7 +28584,7 @@ app.post('/api/student/enrollment-requests',
       const { class_id, message } = req.body;
 
       if (!class_id) {
-        return res.status(400).json({ success: false, message: 'Thiếu class_id' });
+        return res.status(400).json({ success: false, message: 'Thiáº¿u class_id' });
       }
 
       const { data: classData, error: classError } = await supabaseClient
@@ -28666,13 +28596,13 @@ app.post('/api/student/enrollment-requests',
 
       if (classError) {
         if (classError.code === 'PGRST116') {
-          return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+          return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c' });
         }
         throw classError;
       }
 
       if (!['upcoming', 'ongoing'].includes(classData.status)) {
-        return res.status(400).json({ success: false, message: 'Chỉ có thể gửi yêu cầu cho lớp sắp khai giảng hoặc đang mở' });
+        return res.status(400).json({ success: false, message: 'Chá»‰ cÃ³ thá»ƒ gá»­i yÃªu cáº§u cho lá»›p sáº¯p khai giáº£ng hoáº·c Ä‘ang má»Ÿ' });
       }
 
       const { data: activeEnrollment, error: activeEnrollError } = await supabaseClient
@@ -28685,7 +28615,7 @@ app.post('/api/student/enrollment-requests',
       if (activeEnrollError) throw activeEnrollError;
 
       if (activeEnrollment) {
-        return res.status(400).json({ success: false, message: 'Bạn đã ghi danh vào lớp này' });
+        return res.status(400).json({ success: false, message: 'Báº¡n Ä‘Ã£ ghi danh vÃ o lá»›p nÃ y' });
       }
 
       const { data: existingRequest, error: existingRequestError } = await supabaseClient
@@ -28698,7 +28628,7 @@ app.post('/api/student/enrollment-requests',
       if (existingRequestError) throw existingRequestError;
 
       if (existingRequest) {
-        return res.status(400).json({ success: false, message: 'Bạn đã có yêu cầu chờ xử lý cho lớp này' });
+        return res.status(400).json({ success: false, message: 'Báº¡n Ä‘Ã£ cÃ³ yÃªu cáº§u chá» xá»­ lÃ½ cho lá»›p nÃ y' });
       }
 
       const { count: enrolledCount, error: enrolledCountError } = await supabaseClient
@@ -28736,15 +28666,15 @@ app.post('/api/student/enrollment-requests',
         .eq('center_id', centerId)
         .eq('roles.code', 'CENTER_MANAGER');
 
-      const studentName = studentData?.full_name || 'Học viên';
-      const className = classData?.name || 'lớp học';
+      const studentName = studentData?.full_name || 'Há»c viÃªn';
+      const className = classData?.name || 'lá»›p há»c';
       for (const mgr of (managers || [])) {
         createNotification(supabaseClient, {
           userId: mgr.id,
           centerId,
           type: 'enrollment_request',
-          title: 'Yêu cầu đăng ký mới',
-          message: `${studentName} yêu cầu đăng ký lớp ${className}`,
+          title: 'YÃªu cáº§u Ä‘Äƒng kÃ½ má»›i',
+          message: `${studentName} yÃªu cáº§u Ä‘Äƒng kÃ½ lá»›p ${className}`,
           referenceId: createdRequest.id,
           referenceType: 'enrollment_request'
         }).catch(err => console.warn('Manager notification failed:', err.message));
@@ -28830,17 +28760,17 @@ app.delete('/api/student/enrollment-requests/:id',
 
       if (requestError) {
         if (requestError.code === 'PGRST116') {
-          return res.status(404).json({ success: false, message: 'Không tìm thấy yêu cầu đăng ký' });
+          return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y yÃªu cáº§u Ä‘Äƒng kÃ½' });
         }
         throw requestError;
       }
 
       if (requestData.student_id !== studentId || requestData.center_id !== centerId) {
-        return res.status(403).json({ success: false, message: 'Không có quyền hủy yêu cầu này' });
+        return res.status(403).json({ success: false, message: 'KhÃ´ng cÃ³ quyá»n há»§y yÃªu cáº§u nÃ y' });
       }
 
       if (!['pending', 'waitlisted'].includes(requestData.status)) {
-        return res.status(400).json({ success: false, message: 'Chỉ có thể hủy yêu cầu đang chờ hoặc trong danh sách chờ' });
+        return res.status(400).json({ success: false, message: 'Chá»‰ cÃ³ thá»ƒ há»§y yÃªu cáº§u Ä‘ang chá» hoáº·c trong danh sÃ¡ch chá»' });
       }
 
       const { error: updateError } = await supabaseClient
@@ -28853,7 +28783,7 @@ app.delete('/api/student/enrollment-requests/:id',
 
       if (updateError) throw updateError;
 
-      res.json({ success: true, message: 'Đã hủy yêu cầu đăng ký' });
+      res.json({ success: true, message: 'ÄÃ£ há»§y yÃªu cáº§u Ä‘Äƒng kÃ½' });
     } catch (error) {
       console.error('Error cancelling student enrollment request:', error);
       next(error);
@@ -28866,13 +28796,13 @@ app.delete('/api/student/enrollment-requests/:id',
 // ============================================================
 
 app.use((err, _req, res, _next) => {
-  console.error('🔥 Lỗi hệ thống:', err); // Log ra terminal để em xem
+  console.error('ðŸ”¥ Lá»—i há»‡ thá»‘ng:', err); // Log ra terminal Ä‘á»ƒ em xem
 
-  // Trả về lỗi chi tiết cho Frontend thấy (chỉ nên làm vậy ở môi trường Dev)
+  // Tráº£ vá» lá»—i chi tiáº¿t cho Frontend tháº¥y (chá»‰ nÃªn lÃ m váº­y á»Ÿ mÃ´i trÆ°á»ng Dev)
   res.status(500).json({
     success: false,
     message: 'Internal server error',
-    error: err.message // Thêm dòng này để FE biết lỗi gì
+    error: err.message // ThÃªm dÃ²ng nÃ y Ä‘á»ƒ FE biáº¿t lá»—i gÃ¬
   });
 });
 
@@ -28884,7 +28814,7 @@ app.use((err, _req, res, _next) => {
  * GET /api/settings/bank-config
  * Get bank configuration for payment (Admin view)
  * Query: ?centerId=xxx (optional for SUPER_ADMIN)
- * 🔒 ADMIN/MANAGER only
+ * ðŸ”’ ADMIN/MANAGER only
  */
 app.get('/api/settings/bank-config',
   requireAuth,
@@ -28923,7 +28853,7 @@ app.get('/api/settings/bank-config',
         return res.json({
           success: true,
           data: null,
-          message: 'Chưa cấu hình ngân hàng thanh toán'
+          message: 'ChÆ°a cáº¥u hÃ¬nh ngÃ¢n hÃ ng thanh toÃ¡n'
         });
       }
 
@@ -28937,7 +28867,7 @@ app.get('/api/settings/bank-config',
         }
       });
     } catch (error) {
-      console.error('❌ Error fetching bank config:', error);
+      console.error('âŒ Error fetching bank config:', error);
       next(error);
     }
   }
@@ -28947,7 +28877,7 @@ app.get('/api/settings/bank-config',
  * PUT /api/settings/bank-config
  * Update bank configuration
  * Body: { bankId, accountNo, accountName, template?, centerId? }
- * 🔒 ADMIN/MANAGER only
+ * ðŸ”’ ADMIN/MANAGER only
  */
 app.put('/api/settings/bank-config',
   requireAuth,
@@ -28960,7 +28890,7 @@ app.put('/api/settings/bank-config',
       if (!bankId || !accountNo || !accountName) {
         return res.status(400).json({
           success: false,
-          message: 'Vui lòng điền đầy đủ thông tin ngân hàng (bankId, accountNo, accountName)'
+          message: 'Vui lÃ²ng Ä‘iá»n Ä‘áº§y Ä‘á»§ thÃ´ng tin ngÃ¢n hÃ ng (bankId, accountNo, accountName)'
         });
       }
 
@@ -28973,7 +28903,7 @@ app.put('/api/settings/bank-config',
         if (centerId && centerId !== userCenterId) {
           return res.status(403).json({
             success: false,
-            message: 'Bạn chỉ có thể cập nhật cấu hình của trung tâm mình'
+            message: 'Báº¡n chá»‰ cÃ³ thá»ƒ cáº­p nháº­t cáº¥u hÃ¬nh cá»§a trung tÃ¢m mÃ¬nh'
           });
         }
         // Force centerId to be the manager's center (no global update allowed)
@@ -29015,7 +28945,7 @@ app.put('/api/settings/bank-config',
             key: 'bank_config',
             center_id: targetCenterId,
             value: configValue,
-            description: 'Cấu hình ngân hàng nhận thanh toán VietQR',
+            description: 'Cáº¥u hÃ¬nh ngÃ¢n hÃ ng nháº­n thanh toÃ¡n VietQR',
             updated_by: req.user.id
           })
           .select()
@@ -29025,11 +28955,11 @@ app.put('/api/settings/bank-config',
         result = data;
       }
 
-      console.log(`✅ Bank config updated by ${req.user.email} - scope: ${targetCenterId ? 'center' : 'global'}`);
+      console.log(`âœ… Bank config updated by ${req.user.email} - scope: ${targetCenterId ? 'center' : 'global'}`);
 
       res.json({
         success: true,
-        message: 'Đã cập nhật cấu hình ngân hàng',
+        message: 'ÄÃ£ cáº­p nháº­t cáº¥u hÃ¬nh ngÃ¢n hÃ ng',
         data: {
           ...result.value,
           scope: targetCenterId ? 'center' : 'global',
@@ -29037,7 +28967,7 @@ app.put('/api/settings/bank-config',
         }
       });
     } catch (error) {
-      console.error('❌ Error updating bank config:', error);
+      console.error('âŒ Error updating bank config:', error);
       next(error);
     }
   }
@@ -29047,7 +28977,7 @@ app.put('/api/settings/bank-config',
  * GET /api/payment-config
  * Public endpoint to get bank config for any authenticated user
  * Used by BulkPaymentModal and other admin components
- * 🔒 Any authenticated user
+ * ðŸ”’ Any authenticated user
  */
 app.get('/api/payment-config',
   requireAuth,
@@ -29080,7 +29010,7 @@ app.get('/api/payment-config',
       if (!config) {
         return res.status(404).json({
           success: false,
-          message: 'Chưa cấu hình ngân hàng thanh toán'
+          message: 'ChÆ°a cáº¥u hÃ¬nh ngÃ¢n hÃ ng thanh toÃ¡n'
         });
       }
 
@@ -29089,7 +29019,7 @@ app.get('/api/payment-config',
         data: config
       });
     } catch (error) {
-      console.error('❌ Error fetching payment config:', error);
+      console.error('âŒ Error fetching payment config:', error);
       next(error);
     }
   }
@@ -29106,7 +29036,7 @@ app.get('/api/payment-config',
 /**
  * GET /api/parent/dashboard
  * Get parent dashboard with children overview
- * 🔒 PARENT only
+ * ðŸ”’ PARENT only
  */
 app.get('/api/parent/dashboard',
   requireAuth,
@@ -29184,7 +29114,7 @@ app.get('/api/parent/dashboard',
         };
       }));
 
-      console.log(`👨‍👩‍👧 Parent dashboard loaded: ${childrenSummary.length} children`);
+      console.log(`ðŸ‘¨â€ðŸ‘©â€ðŸ‘§ Parent dashboard loaded: ${childrenSummary.length} children`);
 
       res.json({
         success: true,
@@ -29194,7 +29124,7 @@ app.get('/api/parent/dashboard',
         }
       });
     } catch (error) {
-      console.error('❌ Error fetching parent dashboard:', error);
+      console.error('âŒ Error fetching parent dashboard:', error);
       next(error);
     }
   }
@@ -29203,7 +29133,7 @@ app.get('/api/parent/dashboard',
 /**
  * GET /api/parent/children
  * Get list of linked children
- * 🔒 PARENT only
+ * ðŸ”’ PARENT only
  */
 app.get('/api/parent/children',
   requireAuth,
@@ -29252,7 +29182,7 @@ app.get('/api/parent/children',
         data: { children }
       });
     } catch (error) {
-      console.error('❌ Error fetching parent children:', error);
+      console.error('âŒ Error fetching parent children:', error);
       next(error);
     }
   }
@@ -29261,7 +29191,7 @@ app.get('/api/parent/children',
 /**
  * GET /api/parent/child/:studentId/schedule
  * Get schedule for a linked child
- * 🔒 PARENT only (must have link to student)
+ * ðŸ”’ PARENT only (must have link to student)
  */
 app.get('/api/parent/child/:studentId/schedule',
   requireAuth,
@@ -29283,7 +29213,7 @@ app.get('/api/parent/child/:studentId/schedule',
       if (linkError || !link) {
         return res.status(403).json({
           success: false,
-          message: 'Bạn không có quyền xem thông tin học viên này'
+          message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem thÃ´ng tin há»c viÃªn nÃ y'
         });
       }
 
@@ -29334,7 +29264,7 @@ app.get('/api/parent/child/:studentId/schedule',
         return a.startTime.localeCompare(b.startTime);
       });
 
-      console.log(`📅 Parent viewing child schedule: ${events.length} events`);
+      console.log(`ðŸ“… Parent viewing child schedule: ${events.length} events`);
 
       res.json({
         success: true,
@@ -29349,7 +29279,7 @@ app.get('/api/parent/child/:studentId/schedule',
         }
       });
     } catch (error) {
-      console.error('❌ Error fetching child schedule:', error);
+      console.error('âŒ Error fetching child schedule:', error);
       next(error);
     }
   }
@@ -29358,7 +29288,7 @@ app.get('/api/parent/child/:studentId/schedule',
 /**
  * GET /api/parent/child/:studentId/grades
  * Get grades for a linked child
- * 🔒 PARENT only (must have link with can_view_academics=true)
+ * ðŸ”’ PARENT only (must have link with can_view_academics=true)
  */
 app.get('/api/parent/child/:studentId/grades',
   requireAuth,
@@ -29380,14 +29310,14 @@ app.get('/api/parent/child/:studentId/grades',
       if (linkError || !link) {
         return res.status(403).json({
           success: false,
-          message: 'Bạn không có quyền xem thông tin học viên này'
+          message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem thÃ´ng tin há»c viÃªn nÃ y'
         });
       }
 
       if (!link.can_view_academics) {
         return res.status(403).json({
           success: false,
-          message: 'Bạn không có quyền xem điểm của học viên này'
+          message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem Ä‘iá»ƒm cá»§a há»c viÃªn nÃ y'
         });
       }
 
@@ -29427,7 +29357,7 @@ app.get('/api/parent/child/:studentId/grades',
         });
       }
 
-      console.log(`📊 Parent viewing child grades: ${grades?.length || 0} grades`);
+      console.log(`ðŸ“Š Parent viewing child grades: ${grades?.length || 0} grades`);
 
       res.json({
         success: true,
@@ -29437,7 +29367,7 @@ app.get('/api/parent/child/:studentId/grades',
         }
       });
     } catch (error) {
-      console.error('❌ Error fetching child grades:', error);
+      console.error('âŒ Error fetching child grades:', error);
       next(error);
     }
   }
@@ -29446,7 +29376,7 @@ app.get('/api/parent/child/:studentId/grades',
 /**
  * GET /api/parent/child/:studentId/attendance
  * Get attendance for a linked child
- * 🔒 PARENT only (must have link with can_view_academics=true)
+ * ðŸ”’ PARENT only (must have link with can_view_academics=true)
  */
 app.get('/api/parent/child/:studentId/attendance',
   requireAuth,
@@ -29469,14 +29399,14 @@ app.get('/api/parent/child/:studentId/attendance',
       if (linkError || !link) {
         return res.status(403).json({
           success: false,
-          message: 'Bạn không có quyền xem thông tin học viên này'
+          message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem thÃ´ng tin há»c viÃªn nÃ y'
         });
       }
 
       if (!link.can_view_academics) {
         return res.status(403).json({
           success: false,
-          message: 'Bạn không có quyền xem điểm danh của học viên này'
+          message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem Ä‘iá»ƒm danh cá»§a há»c viÃªn nÃ y'
         });
       }
 
@@ -29519,7 +29449,7 @@ app.get('/api/parent/child/:studentId/attendance',
       const excused = (attendance || []).filter(a => a.status === 'excused').length;
       const attendanceRate = total > 0 ? Math.round((present + late) / total * 100) : 0;
 
-      console.log(`📋 Parent viewing child attendance: ${total} records`);
+      console.log(`ðŸ“‹ Parent viewing child attendance: ${total} records`);
 
       res.json({
         success: true,
@@ -29549,7 +29479,7 @@ app.get('/api/parent/child/:studentId/attendance',
         }
       });
     } catch (error) {
-      console.error('❌ Error fetching child attendance:', error);
+      console.error('âŒ Error fetching child attendance:', error);
       next(error);
     }
   }
@@ -29558,7 +29488,7 @@ app.get('/api/parent/child/:studentId/attendance',
 /**
  * GET /api/parent/child/:studentId/invoices
  * Get invoices for a linked child
- * 🔒 PARENT only (must have link with can_pay=true)
+ * ðŸ”’ PARENT only (must have link with can_pay=true)
  */
 app.get('/api/parent/child/:studentId/invoices',
   requireAuth,
@@ -29581,14 +29511,14 @@ app.get('/api/parent/child/:studentId/invoices',
       if (linkError || !link) {
         return res.status(403).json({
           success: false,
-          message: 'Bạn không có quyền xem thông tin học viên này'
+          message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem thÃ´ng tin há»c viÃªn nÃ y'
         });
       }
 
       if (!link.can_pay) {
         return res.status(403).json({
           success: false,
-          message: 'Bạn không có quyền xem hóa đơn của học viên này'
+          message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem hÃ³a Ä‘Æ¡n cá»§a há»c viÃªn nÃ y'
         });
       }
 
@@ -29616,7 +29546,7 @@ app.get('/api/parent/child/:studentId/invoices',
       const totalPaid = (invoices || []).reduce((sum, inv) => sum + (inv.paid_amount || 0), 0);
       const unpaidCount = (invoices || []).filter(i => ['unpaid', 'partial'].includes(i.status)).length;
 
-      console.log(`💰 Parent viewing child invoices: ${invoices?.length || 0} invoices`);
+      console.log(`ðŸ’° Parent viewing child invoices: ${invoices?.length || 0} invoices`);
 
       res.json({
         success: true,
@@ -29632,7 +29562,7 @@ app.get('/api/parent/child/:studentId/invoices',
         }
       });
     } catch (error) {
-      console.error('❌ Error fetching child invoices:', error);
+      console.error('âŒ Error fetching child invoices:', error);
       next(error);
     }
   }
@@ -29641,7 +29571,7 @@ app.get('/api/parent/child/:studentId/invoices',
 /**
  * GET /api/parent/payment-config
  * Get bank config for parent payment
- * 🔒 PARENT only
+ * ðŸ”’ PARENT only
  */
 app.get('/api/parent/payment-config',
   requireAuth,
@@ -29675,7 +29605,7 @@ app.get('/api/parent/payment-config',
       if (!config) {
         return res.status(404).json({
           success: false,
-          message: 'Chưa cấu hình ngân hàng thanh toán'
+          message: 'ChÆ°a cáº¥u hÃ¬nh ngÃ¢n hÃ ng thanh toÃ¡n'
         });
       }
 
@@ -29684,7 +29614,7 @@ app.get('/api/parent/payment-config',
         data: config
       });
     } catch (error) {
-      console.error('❌ Error fetching parent payment config:', error);
+      console.error('âŒ Error fetching parent payment config:', error);
       next(error);
     }
   }
@@ -29698,7 +29628,7 @@ app.get('/api/parent/payment-config',
  * POST /api/admin/parent-student-links
  * Create a parent-student link
  * Body: { parent_id, student_id, relationship, is_primary?, can_pay?, can_view_academics?, notes? }
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/parent-student-links',
   requireAuth,
@@ -29725,7 +29655,7 @@ app.post('/api/admin/parent-student-links',
         message: result.message,
       });
     } catch (error) {
-      console.error('❌ Error creating parent-student link:', error);
+      console.error('âŒ Error creating parent-student link:', error);
       next(error);
     }
   }
@@ -29735,7 +29665,7 @@ app.post('/api/admin/parent-student-links',
  * PATCH /api/admin/parent-student-links/:linkId
  * Update link permissions/metadata
  * Body: { can_pay?, can_view_academics?, is_primary?, relationship?, notes? }
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.patch('/api/admin/parent-student-links/:linkId',
   requireAuth,
@@ -29765,7 +29695,7 @@ app.patch('/api/admin/parent-student-links/:linkId',
         message: result.message,
       });
     } catch (error) {
-      console.error('❌ Error updating parent-student link:', error);
+      console.error('âŒ Error updating parent-student link:', error);
       next(error);
     }
   }
@@ -29774,7 +29704,7 @@ app.patch('/api/admin/parent-student-links/:linkId',
 /**
  * POST /api/admin/parent-student-links/:linkId/deactivate
  * Deactivate (soft disable) a link
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/parent-student-links/:linkId/deactivate',
   requireAuth,
@@ -29803,7 +29733,7 @@ app.post('/api/admin/parent-student-links/:linkId/deactivate',
         message: result.message,
       });
     } catch (error) {
-      console.error('❌ Error deactivating parent-student link:', error);
+      console.error('âŒ Error deactivating parent-student link:', error);
       next(error);
     }
   }
@@ -29837,7 +29767,7 @@ async function getActiveTeacherCompensation(teacherId, asOfDate = null) {
     .maybeSingle();
   
   if (error) {
-    console.error(`❌ Error fetching compensation for teacher ${teacherId}:`, error);
+    console.error(`âŒ Error fetching compensation for teacher ${teacherId}:`, error);
     return null;
   }
   
@@ -29911,7 +29841,7 @@ function calculatePayrollFromCompensation(compensation, sessions, defaultHourlyR
  * GET /api/admin/teacher-compensation
  * Get all teacher compensation configs with filters
  * Query: ?center_id=xxx&pay_scheme=HOURLY_ONLY&active_only=true
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/teacher-compensation',
   requireAuth,
@@ -29921,7 +29851,7 @@ app.get('/api/admin/teacher-compensation',
       const { center_id, pay_scheme, active_only = 'true', search } = req.query;
       const user = req.user;
 
-      console.log(`💰 ${user.email} fetching teacher compensations`);
+      console.log(`ðŸ’° ${user.email} fetching teacher compensations`);
 
       let query = supabase
         .from('teacher_compensation')
@@ -29971,7 +29901,7 @@ app.get('/api/admin/teacher-compensation',
         data: filteredData
       });
     } catch (error) {
-      console.error('❌ Error fetching teacher compensations:', error);
+      console.error('âŒ Error fetching teacher compensations:', error);
       next(error);
     }
   }
@@ -29980,7 +29910,7 @@ app.get('/api/admin/teacher-compensation',
 /**
  * GET /api/admin/teacher-compensation/:teacherId
  * Get compensation config for a specific teacher (current + history)
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/teacher-compensation/:teacherId',
   requireAuth,
@@ -30022,7 +29952,7 @@ app.get('/api/admin/teacher-compensation/:teacherId',
         }
       });
     } catch (error) {
-      console.error('❌ Error fetching teacher compensation:', error);
+      console.error('âŒ Error fetching teacher compensation:', error);
       next(error);
     }
   }
@@ -30032,7 +29962,7 @@ app.get('/api/admin/teacher-compensation/:teacherId',
  * POST /api/admin/teacher-compensation
  * Create new compensation config for a teacher
  * Body: { teacher_id, pay_scheme, hourly_rate, fixed_monthly_salary, extra_hourly_rate, effective_from, notes }
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/teacher-compensation',
   requireAuth,
@@ -30049,13 +29979,13 @@ app.post('/api/admin/teacher-compensation',
         notes
       } = req.body;
 
-      console.log(`💰 ${req.user.email} creating compensation for teacher ${teacher_id}`);
+      console.log(`ðŸ’° ${req.user.email} creating compensation for teacher ${teacher_id}`);
 
       // Validate
       if (!teacher_id) {
         return res.status(400).json({
           success: false,
-          message: 'teacher_id là bắt buộc'
+          message: 'teacher_id lÃ  báº¯t buá»™c'
         });
       }
 
@@ -30069,7 +29999,7 @@ app.post('/api/admin/teacher-compensation',
       if (teacherError || !teacher) {
         return res.status(404).json({
           success: false,
-          message: 'Không tìm thấy giáo viên'
+          message: 'KhÃ´ng tÃ¬m tháº¥y giÃ¡o viÃªn'
         });
       }
 
@@ -30116,15 +30046,15 @@ app.post('/api/admin/teacher-compensation',
         .update({ hourly_rate })
         .eq('id', teacher_id);
 
-      console.log(`💰 Created compensation ${newConfig.id} for ${teacher.full_name}`);
+      console.log(`ðŸ’° Created compensation ${newConfig.id} for ${teacher.full_name}`);
 
       res.status(201).json({
         success: true,
         data: newConfig,
-        message: 'Tạo cấu hình lương thành công'
+        message: 'Táº¡o cáº¥u hÃ¬nh lÆ°Æ¡ng thÃ nh cÃ´ng'
       });
     } catch (error) {
-      console.error('❌ Error creating teacher compensation:', error);
+      console.error('âŒ Error creating teacher compensation:', error);
       next(error);
     }
   }
@@ -30134,7 +30064,7 @@ app.post('/api/admin/teacher-compensation',
  * PUT /api/admin/teacher-compensation/:id
  * Update compensation config
  * Body: { pay_scheme, hourly_rate, fixed_monthly_salary, extra_hourly_rate, notes }
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.put('/api/admin/teacher-compensation/:id',
   requireAuth,
@@ -30150,7 +30080,7 @@ app.put('/api/admin/teacher-compensation/:id',
         notes
       } = req.body;
 
-      console.log(`💰 ${req.user.email} updating compensation ${id}`);
+      console.log(`ðŸ’° ${req.user.email} updating compensation ${id}`);
 
       // Get existing config
       const { data: existing, error: fetchError } = await supabase
@@ -30162,7 +30092,7 @@ app.put('/api/admin/teacher-compensation/:id',
       if (fetchError || !existing) {
         return res.status(404).json({
           success: false,
-          message: 'Không tìm thấy cấu hình lương'
+          message: 'KhÃ´ng tÃ¬m tháº¥y cáº¥u hÃ¬nh lÆ°Æ¡ng'
         });
       }
 
@@ -30199,10 +30129,10 @@ app.put('/api/admin/teacher-compensation/:id',
       res.json({
         success: true,
         data: updated,
-        message: 'Cập nhật cấu hình lương thành công'
+        message: 'Cáº­p nháº­t cáº¥u hÃ¬nh lÆ°Æ¡ng thÃ nh cÃ´ng'
       });
     } catch (error) {
-      console.error('❌ Error updating teacher compensation:', error);
+      console.error('âŒ Error updating teacher compensation:', error);
       next(error);
     }
   }
@@ -30211,7 +30141,7 @@ app.put('/api/admin/teacher-compensation/:id',
 /**
  * DELETE /api/admin/teacher-compensation/:id
  * Delete compensation config (only if not the only active one)
- * 🔒 SUPER_ADMIN only
+ * ðŸ”’ SUPER_ADMIN only
  */
 app.delete('/api/admin/teacher-compensation/:id',
   requireAuth,
@@ -30220,7 +30150,7 @@ app.delete('/api/admin/teacher-compensation/:id',
     try {
       const { id } = req.params;
 
-      console.log(`💰 ${req.user.email} deleting compensation ${id}`);
+      console.log(`ðŸ’° ${req.user.email} deleting compensation ${id}`);
 
       // Check if this is the only config for this teacher
       const { data: existing, error: fetchError } = await supabase
@@ -30232,7 +30162,7 @@ app.delete('/api/admin/teacher-compensation/:id',
       if (fetchError || !existing) {
         return res.status(404).json({
           success: false,
-          message: 'Không tìm thấy cấu hình lương'
+          message: 'KhÃ´ng tÃ¬m tháº¥y cáº¥u hÃ¬nh lÆ°Æ¡ng'
         });
       }
 
@@ -30245,7 +30175,7 @@ app.delete('/api/admin/teacher-compensation/:id',
       if (count <= 1) {
         return res.status(400).json({
           success: false,
-          message: 'Không thể xóa cấu hình lương duy nhất. Hãy tạo cấu hình mới trước.'
+          message: 'KhÃ´ng thá»ƒ xÃ³a cáº¥u hÃ¬nh lÆ°Æ¡ng duy nháº¥t. HÃ£y táº¡o cáº¥u hÃ¬nh má»›i trÆ°á»›c.'
         });
       }
 
@@ -30258,10 +30188,10 @@ app.delete('/api/admin/teacher-compensation/:id',
 
       res.json({
         success: true,
-        message: 'Xóa cấu hình lương thành công'
+        message: 'XÃ³a cáº¥u hÃ¬nh lÆ°Æ¡ng thÃ nh cÃ´ng'
       });
     } catch (error) {
-      console.error('❌ Error deleting teacher compensation:', error);
+      console.error('âŒ Error deleting teacher compensation:', error);
       next(error);
     }
   }
@@ -30270,7 +30200,7 @@ app.delete('/api/admin/teacher-compensation/:id',
 /**
  * GET /api/admin/teacher-compensation/stats
  * Get compensation statistics
- * 🔒 SUPER_ADMIN, CENTER_MANAGER
+ * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/teacher-compensation-stats',
   requireAuth,
@@ -30315,7 +30245,7 @@ app.get('/api/admin/teacher-compensation-stats',
         data: stats
       });
     } catch (error) {
-      console.error('❌ Error fetching compensation stats:', error);
+      console.error('âŒ Error fetching compensation stats:', error);
       next(error);
     }
   }
@@ -30324,7 +30254,7 @@ app.get('/api/admin/teacher-compensation-stats',
 /**
  * GET /api/teacher/my-compensation
  * Teacher view their own compensation config
- * 🔒 TEACHER
+ * ðŸ”’ TEACHER
  */
 app.get('/api/teacher/my-compensation',
   requireAuth,
@@ -30347,7 +30277,7 @@ app.get('/api/teacher/my-compensation',
         data: data || null
       });
     } catch (error) {
-      console.error('❌ Error fetching my compensation:', error);
+      console.error('âŒ Error fetching my compensation:', error);
       next(error);
     }
   }
@@ -30363,7 +30293,7 @@ app.get('/api/teacher/my-compensation',
 
 /**
  * GET /api/teacher/leave-requests
- * Lấy danh sách đơn xin nghỉ của giáo viên hiện tại
+ * Láº¥y danh sÃ¡ch Ä‘Æ¡n xin nghá»‰ cá»§a giÃ¡o viÃªn hiá»‡n táº¡i
  */
 app.get('/api/teacher/leave-requests', requireAuth, async (req, res, next) => {
   try {
@@ -30388,14 +30318,14 @@ app.get('/api/teacher/leave-requests', requireAuth, async (req, res, next) => {
       data: data || []
     });
   } catch (error) {
-    console.error('❌ Error fetching teacher leave requests:', error);
+    console.error('âŒ Error fetching teacher leave requests:', error);
     next(error);
   }
 });
 
 /**
  * POST /api/teacher/leave-requests
- * Tạo đơn xin nghỉ mới cho giáo viên
+ * Táº¡o Ä‘Æ¡n xin nghá»‰ má»›i cho giÃ¡o viÃªn
  */
 app.post('/api/teacher/leave-requests', requireAuth, async (req, res, next) => {
   try {
@@ -30410,7 +30340,7 @@ app.post('/api/teacher/leave-requests', requireAuth, async (req, res, next) => {
     if (!leave_type || !start_date || !end_date || !reason) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng nhập đầy đủ loại nghỉ, ngày bắt đầu, ngày kết thúc và lý do'
+        message: 'Vui lÃ²ng nháº­p Ä‘áº§y Ä‘á»§ loáº¡i nghá»‰, ngÃ y báº¯t Ä‘áº§u, ngÃ y káº¿t thÃºc vÃ  lÃ½ do'
       });
     }
 
@@ -30418,14 +30348,14 @@ app.post('/api/teacher/leave-requests', requireAuth, async (req, res, next) => {
     if (!validLeaveTypes.includes(leave_type)) {
       return res.status(400).json({
         success: false,
-        message: 'Loại nghỉ không hợp lệ'
+        message: 'Loáº¡i nghá»‰ khÃ´ng há»£p lá»‡'
       });
     }
 
     if (new Date(end_date) < new Date(start_date)) {
       return res.status(400).json({
         success: false,
-        message: 'Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu'
+        message: 'NgÃ y káº¿t thÃºc pháº£i lá»›n hÆ¡n hoáº·c báº±ng ngÃ y báº¯t Ä‘áº§u'
       });
     }
 
@@ -30464,8 +30394,8 @@ app.post('/api/teacher/leave-requests', requireAuth, async (req, res, next) => {
             userId: manager.user_id,
             centerId: effectiveCenterId,
             type: 'leave_request',
-            title: 'Yêu cầu nghỉ phép mới',
-            message: 'Có giáo viên vừa gửi yêu cầu nghỉ phép mới',
+            title: 'YÃªu cáº§u nghá»‰ phÃ©p má»›i',
+            message: 'CÃ³ giÃ¡o viÃªn vá»«a gá»­i yÃªu cáº§u nghá»‰ phÃ©p má»›i',
             referenceId: data?.id,
             referenceType: 'leave_request'
           }).catch(err => console.warn('Notification error:', err.message));
@@ -30473,14 +30403,14 @@ app.post('/api/teacher/leave-requests', requireAuth, async (req, res, next) => {
       })().catch(err => console.warn('Notification task error:', err.message));
     } catch (e) { }
   } catch (error) {
-    console.error('❌ Error creating teacher leave request:', error);
+    console.error('âŒ Error creating teacher leave request:', error);
     next(error);
   }
 });
 
 /**
  * DELETE /api/teacher/leave-requests/:id
- * Giáo viên chỉ được xoá đơn đang chờ duyệt của chính mình
+ * GiÃ¡o viÃªn chá»‰ Ä‘Æ°á»£c xoÃ¡ Ä‘Æ¡n Ä‘ang chá» duyá»‡t cá»§a chÃ­nh mÃ¬nh
  */
 app.delete('/api/teacher/leave-requests/:id', requireAuth, async (req, res, next) => {
   try {
@@ -30507,7 +30437,7 @@ app.delete('/api/teacher/leave-requests/:id', requireAuth, async (req, res, next
     if (!data) {
       return res.status(404).json({
         success: false,
-        message: 'Không tìm thấy đơn xin nghỉ hoặc đơn đã được xử lý'
+        message: 'KhÃ´ng tÃ¬m tháº¥y Ä‘Æ¡n xin nghá»‰ hoáº·c Ä‘Æ¡n Ä‘Ã£ Ä‘Æ°á»£c xá»­ lÃ½'
       });
     }
 
@@ -30516,7 +30446,7 @@ app.delete('/api/teacher/leave-requests/:id', requireAuth, async (req, res, next
       data
     });
   } catch (error) {
-    console.error('❌ Error deleting teacher leave request:', error);
+    console.error('âŒ Error deleting teacher leave request:', error);
     next(error);
   }
 });
@@ -30647,6 +30577,193 @@ app.patch('/api/admin/leave-requests/:id', requireAuth, requireRole(['SUPER_ADMI
 // ============================================================
 
 // ============================================================
+// CUSTOM ALERT RULES & HISTORY APIs
+// ============================================================
+
+// GET /api/admin/custom-alerts â€” list alert rules
+app.get('/api/admin/custom-alerts', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const supabaseClient = req.supabase || supabase;
+    const centerId = req.query.centerId || getEffectiveCenterId(req);
+
+    let query = supabaseClient
+      .from('custom_alert_rules')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (centerId) {
+      query = query.or(`center_id.eq.${centerId},center_id.is.null`);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json({ success: true, data: data || [] });
+  } catch (error) {
+    console.error('Error fetching custom alert rules:', error);
+    next(error);
+  }
+});
+
+// POST /api/admin/custom-alerts â€” create alert rule
+app.post('/api/admin/custom-alerts', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const supabaseClient = req.supabase || supabase;
+    const { name, metric_type, condition_operator, threshold_value, severity, notification_channels, is_active, cooldown_minutes, center_id } = req.body;
+
+    if (!name || !metric_type || !condition_operator || threshold_value === undefined) {
+      return res.status(400).json({ success: false, message: 'Vui lÃ²ng Ä‘iá»n Ä‘áº§y Ä‘á»§ thÃ´ng tin báº¯t buá»™c' });
+    }
+
+    const { data, error } = await supabaseClient
+      .from('custom_alert_rules')
+      .insert({
+        name,
+        metric_type,
+        condition_operator,
+        threshold_value,
+        severity: severity || 'warning',
+        notification_channels: notification_channels || ['in_app'],
+        is_active: is_active !== false,
+        cooldown_minutes: cooldown_minutes || 60,
+        center_id: center_id || getEffectiveCenterId(req) || null,
+        created_by: req.user.id
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error creating custom alert rule:', error);
+    next(error);
+  }
+});
+
+// PUT /api/admin/custom-alerts/:id â€” update alert rule
+app.put('/api/admin/custom-alerts/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const supabaseClient = req.supabase || supabase;
+    const { id } = req.params;
+    const { name, metric_type, condition_operator, threshold_value, severity, notification_channels, is_active, cooldown_minutes } = req.body;
+
+    const { data, error } = await supabaseClient
+      .from('custom_alert_rules')
+      .update({
+        name,
+        metric_type,
+        condition_operator,
+        threshold_value,
+        severity,
+        notification_channels,
+        is_active,
+        cooldown_minutes,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    if (!data) return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y quy táº¯c' });
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error updating custom alert rule:', error);
+    next(error);
+  }
+});
+
+// DELETE /api/admin/custom-alerts/:id â€” delete alert rule
+app.delete('/api/admin/custom-alerts/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const supabaseClient = req.supabase || supabase;
+    const { id } = req.params;
+
+    const { error } = await supabaseClient
+      .from('custom_alert_rules')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    res.json({ success: true, message: 'ÄÃ£ xÃ³a quy táº¯c cáº£nh bÃ¡o' });
+  } catch (error) {
+    console.error('Error deleting custom alert rule:', error);
+    next(error);
+  }
+});
+
+// GET /api/admin/alert-history â€” list alert history
+app.get('/api/admin/alert-history', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const supabaseClient = req.supabase || supabase;
+    const centerId = req.query.centerId || getEffectiveCenterId(req);
+
+    let query = supabaseClient
+      .from('alert_history')
+      .select(`
+        *,
+        custom_alert_rules!rule_id ( name )
+      `)
+      .order('triggered_at', { ascending: false })
+      .limit(100);
+
+    if (centerId) {
+      query = query.or(`center_id.eq.${centerId},center_id.is.null`);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    // Flatten rule_name for frontend
+    const formatted = (data || []).map(item => ({
+      ...item,
+      rule_name: item.custom_alert_rules?.name || 'Quy táº¯c khÃ´ng xÃ¡c Ä‘á»‹nh',
+      custom_alert_rules: undefined
+    }));
+
+    res.json({ success: true, data: formatted });
+  } catch (error) {
+    console.error('Error fetching alert history:', error);
+    next(error);
+  }
+});
+
+// PATCH /api/admin/alert-history/:id/acknowledge â€” acknowledge an alert
+app.patch('/api/admin/alert-history/:id/acknowledge', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const supabaseClient = req.supabase || supabase;
+    const { id } = req.params;
+
+    const { data, error } = await supabaseClient
+      .from('alert_history')
+      .update({
+        acknowledged: true,
+        acknowledged_by: req.user.id,
+        acknowledged_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    if (!data) return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y cáº£nh bÃ¡o' });
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error acknowledging alert:', error);
+    next(error);
+  }
+});
+
+// ============================================================
+// END CUSTOM ALERT RULES & HISTORY APIs
+// ============================================================
+
+
+// ============================================================
 // STUDENT SUPPORT TICKET APIs
 // ============================================================
 
@@ -30738,7 +30855,7 @@ app.get('/api/my-support-tickets/:id', requireAuth, requireRole(['STUDENT']), as
     const { data: ticket, error: ticketError } = await ticketQuery.single();
 
     if (ticketError || !ticket) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy yêu cầu hỗ trợ' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y yÃªu cáº§u há»— trá»£' });
     }
 
     const { data: messages, error: messageError } = await supabase
@@ -30771,35 +30888,35 @@ app.get('/api/my-support-tickets/:id', requireAuth, requireRole(['STUDENT']), as
 // ============================================================
 
 function buildCoursePrompt(title, category, level) {
-  return `Tạo nội dung chi tiết cho khóa học có tên: "${title}"
-${category ? `Danh mục: ${category}` : 'Hãy đề xuất danh mục phù hợp nhất'}
-${level ? `Trình độ: ${level}` : 'Hãy đề xuất trình độ phù hợp nhất'}
+  return `Táº¡o ná»™i dung chi tiáº¿t cho khÃ³a há»c cÃ³ tÃªn: "${title}"
+${category ? `Danh má»¥c: ${category}` : 'HÃ£y Ä‘á» xuáº¥t danh má»¥c phÃ¹ há»£p nháº¥t'}
+${level ? `TrÃ¬nh Ä‘á»™: ${level}` : 'HÃ£y Ä‘á» xuáº¥t trÃ¬nh Ä‘á»™ phÃ¹ há»£p nháº¥t'}
 
-Trả về JSON với cấu trúc:
+Tráº£ vá» JSON vá»›i cáº¥u trÃºc:
 {
-  "description": "Mô tả khóa học 2-3 câu bằng tiếng Việt, nêu mục tiêu và đối tượng phù hợp",
-  "total_sessions": <số buổi học hợp lý, từ 8-48>,
-  "duration_weeks": <thời lượng tuần hợp lý, từ 4-24>,
-  "category": "<một trong: ielts, toeic, english, communication, programming, it, office>",
-  "level": "<một trong: Beginner, Intermediate, Advanced>",
+  "description": "MÃ´ táº£ khÃ³a há»c 2-3 cÃ¢u báº±ng tiáº¿ng Viá»‡t, nÃªu má»¥c tiÃªu vÃ  Ä‘á»‘i tÆ°á»£ng phÃ¹ há»£p",
+  "total_sessions": <sá»‘ buá»•i há»c há»£p lÃ½, tá»« 8-48>,
+  "duration_weeks": <thá»i lÆ°á»£ng tuáº§n há»£p lÃ½, tá»« 4-24>,
+  "category": "<má»™t trong: ielts, toeic, english, communication, programming, it, office>",
+  "level": "<má»™t trong: Beginner, Intermediate, Advanced>",
   "syllabus": [
-    { "title": "Tên module", "topics": ["topic 1", "topic 2", "topic 3"] }
+    { "title": "TÃªn module", "topics": ["topic 1", "topic 2", "topic 3"] }
   ],
-  "outcomes": ["kết quả đạt được 1", "kết quả 2", ...],
-  "features": ["đặc điểm/tính năng khóa học 1", ...],
+  "outcomes": ["káº¿t quáº£ Ä‘áº¡t Ä‘Æ°á»£c 1", "káº¿t quáº£ 2", ...],
+  "features": ["Ä‘áº·c Ä‘iá»ƒm/tÃ­nh nÄƒng khÃ³a há»c 1", ...],
   "faq": [
-    { "question": "Câu hỏi thường gặp", "answer": "Trả lời chi tiết" }
+    { "question": "CÃ¢u há»i thÆ°á»ng gáº·p", "answer": "Tráº£ lá»i chi tiáº¿t" }
   ]
 }
 
-Yêu cầu:
-- Nội dung chuyên nghiệp, phù hợp trung tâm đào tạo tại Việt Nam
-- Syllabus: 4-8 modules, mỗi module 3-5 topics cụ thể
-- Outcomes: 5-7 mục rõ ràng, đo lường được
-- Features: 4-6 đặc điểm nổi bật của khóa học
-- FAQ: 4-5 câu hỏi phổ biến nhất
-- total_sessions và duration_weeks phải hợp lý với khối lượng nội dung
-- Tất cả nội dung bằng tiếng Việt`;
+YÃªu cáº§u:
+- Ná»™i dung chuyÃªn nghiá»‡p, phÃ¹ há»£p trung tÃ¢m Ä‘Ã o táº¡o táº¡i Viá»‡t Nam
+- Syllabus: 4-8 modules, má»—i module 3-5 topics cá»¥ thá»ƒ
+- Outcomes: 5-7 má»¥c rÃµ rÃ ng, Ä‘o lÆ°á»ng Ä‘Æ°á»£c
+- Features: 4-6 Ä‘áº·c Ä‘iá»ƒm ná»•i báº­t cá»§a khÃ³a há»c
+- FAQ: 4-5 cÃ¢u há»i phá»• biáº¿n nháº¥t
+- total_sessions vÃ  duration_weeks pháº£i há»£p lÃ½ vá»›i khá»‘i lÆ°á»£ng ná»™i dung
+- Táº¥t cáº£ ná»™i dung báº±ng tiáº¿ng Viá»‡t`;
 }
 
 function validateCategory(aiCategory, userCategory) {
@@ -30820,16 +30937,16 @@ app.post('/api/courses/ai-generate', requireAuth, async (req, res) => {
   try {
     const { title, category, level } = req.body;
     if (!title || title.trim().length < 2) {
-      return res.status(400).json({ success: false, error: 'Tên khóa học là bắt buộc' });
+      return res.status(400).json({ success: false, error: 'TÃªn khÃ³a há»c lÃ  báº¯t buá»™c' });
     }
 
     if (!isGroqAvailable()) {
-      return res.status(503).json({ success: false, error: 'AI service không khả dụng' });
+      return res.status(503).json({ success: false, error: 'AI service khÃ´ng kháº£ dá»¥ng' });
     }
 
     const groq = getGroqClient();
     if (!groq) {
-      return res.status(503).json({ success: false, error: 'AI service không khả dụng' });
+      return res.status(503).json({ success: false, error: 'AI service khÃ´ng kháº£ dá»¥ng' });
     }
 
     const prompt = buildCoursePrompt(title.trim(), category, level);
@@ -30839,7 +30956,7 @@ app.post('/api/courses/ai-generate', requireAuth, async (req, res) => {
       messages: [
         {
           role: 'system',
-          content: 'Bạn là chuyên gia thiết kế khóa học tại trung tâm đào tạo Việt Nam. Luôn trả về JSON hợp lệ, KHÔNG markdown, KHÔNG giải thích thêm.'
+          content: 'Báº¡n lÃ  chuyÃªn gia thiáº¿t káº¿ khÃ³a há»c táº¡i trung tÃ¢m Ä‘Ã o táº¡o Viá»‡t Nam. LuÃ´n tráº£ vá» JSON há»£p lá»‡, KHÃ”NG markdown, KHÃ”NG giáº£i thÃ­ch thÃªm.'
         },
         { role: 'user', content: prompt }
       ],
@@ -30869,7 +30986,7 @@ app.post('/api/courses/ai-generate', requireAuth, async (req, res) => {
     res.json({ success: true, data: result });
   } catch (error) {
     console.error('AI generate error:', error);
-    res.status(500).json({ success: false, error: 'Không thể tạo nội dung AI' });
+    res.status(500).json({ success: false, error: 'KhÃ´ng thá»ƒ táº¡o ná»™i dung AI' });
   }
 });
 
@@ -30914,13 +31031,13 @@ app.post('/api/chatbot/message', async (req, res, next) => {
 
     // Input validation
     if (!message || typeof message !== 'string' || message.trim().length === 0) {
-      return res.status(400).json({ success: false, error: 'Tin nhắn không được để trống' });
+      return res.status(400).json({ success: false, error: 'Tin nháº¯n khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng' });
     }
     if (message.length > 500) {
-      return res.status(400).json({ success: false, error: 'Tin nhắn tối đa 500 ký tự' });
+      return res.status(400).json({ success: false, error: 'Tin nháº¯n tá»‘i Ä‘a 500 kÃ½ tá»±' });
     }
     if (!centerId) {
-      return res.status(400).json({ success: false, error: 'centerId là bắt buộc' });
+      return res.status(400).json({ success: false, error: 'centerId lÃ  báº¯t buá»™c' });
     }
 
     // Rate limiting
@@ -30929,7 +31046,7 @@ app.post('/api/chatbot/message', async (req, res, next) => {
     if (!rateCheck.allowed) {
       return res.status(429).json({
         success: false,
-        error: 'Bạn gửi tin nhắn quá nhanh. Thử lại sau vài giây nhé!',
+        error: 'Báº¡n gá»­i tin nháº¯n quÃ¡ nhanh. Thá»­ láº¡i sau vÃ i giÃ¢y nhÃ©!',
         retryAfter: rateCheck.retryAfter
       });
     }
@@ -30938,7 +31055,7 @@ app.post('/api/chatbot/message', async (req, res, next) => {
     if (!isGroqAvailable()) {
       return res.status(503).json({
         success: false,
-        error: 'Molly đang nghỉ ngơi. Vui lòng liên hệ tư vấn viên trực tiếp!',
+        error: 'Molly Ä‘ang nghá»‰ ngÆ¡i. Vui lÃ²ng liÃªn há»‡ tÆ° váº¥n viÃªn trá»±c tiáº¿p!',
         code: 'service_unavailable'
       });
     }
@@ -30963,7 +31080,7 @@ app.post('/api/chatbot/message', async (req, res, next) => {
     // Get or create session
     const session = await getOrCreateSession(sessionId, visitorId, userId, centerId);
 
-    // Visitor → Student claim: if user logged in but session has no user_id
+    // Visitor â†’ Student claim: if user logged in but session has no user_id
     if (userId && session.id) {
       const { data: sessionRow } = await supabase
         .from('chat_sessions')
@@ -30978,7 +31095,7 @@ app.post('/api/chatbot/message', async (req, res, next) => {
       }
     }
 
-    // Check session message cap — auto-create new session if capped
+    // Check session message cap â€” auto-create new session if capped
     let activeSession = session;
     if (session.messageCount >= MAX_SESSION_MESSAGES) {
       activeSession = await getOrCreateSession(null, visitorId, userId, centerId);
@@ -31048,11 +31165,11 @@ app.post('/api/chatbot/message', async (req, res, next) => {
 
     res.end();
   } catch (error) {
-    console.error('❌ Chatbot message error:', error);
+    console.error('âŒ Chatbot message error:', error);
     // If headers already sent (SSE started), send error event
     if (res.headersSent) {
       try {
-        res.write(`data: ${JSON.stringify({ type: 'error', error: 'Đã xảy ra lỗi. Vui lòng thử lại!' })}
+        res.write(`data: ${JSON.stringify({ type: 'error', error: 'ÄÃ£ xáº£y ra lá»—i. Vui lÃ²ng thá»­ láº¡i!' })}
 
 `);
         res.end();
@@ -31090,7 +31207,7 @@ app.get('/api/chatbot/messages/:sessionId', async (req, res, next) => {
       const { data: authData, error: authError } = await supabase.auth.getUser(token);
 
       if (authError) {
-        return res.status(401).json({ success: false, error: 'Phiên đăng nhập không hợp lệ' });
+        return res.status(401).json({ success: false, error: 'PhiÃªn Ä‘Äƒng nháº­p khÃ´ng há»£p lá»‡' });
       }
 
       userId = authData?.user?.id || null;
@@ -31103,24 +31220,24 @@ app.get('/api/chatbot/messages/:sessionId', async (req, res, next) => {
       .maybeSingle();
 
     if (sessionError) {
-      return res.status(500).json({ success: false, error: 'Không thể kiểm tra cuộc trò chuyện' });
+      return res.status(500).json({ success: false, error: 'KhÃ´ng thá»ƒ kiá»ƒm tra cuá»™c trÃ² chuyá»‡n' });
     }
 
     if (!session || session.deleted_at) {
-      return res.status(404).json({ success: false, error: 'Không tìm thấy cuộc trò chuyện' });
+      return res.status(404).json({ success: false, error: 'KhÃ´ng tÃ¬m tháº¥y cuá»™c trÃ² chuyá»‡n' });
     }
 
     if (userId) {
       if (session.user_id !== userId) {
-        return res.status(403).json({ success: false, error: 'Không có quyền xem lịch sử cuộc trò chuyện này' });
+        return res.status(403).json({ success: false, error: 'KhÃ´ng cÃ³ quyá»n xem lá»‹ch sá»­ cuá»™c trÃ² chuyá»‡n nÃ y' });
       }
     } else {
       if (!visitorId || typeof visitorId !== 'string') {
-        return res.status(401).json({ success: false, error: 'visitorId là bắt buộc cho khách vãng lai' });
+        return res.status(401).json({ success: false, error: 'visitorId lÃ  báº¯t buá»™c cho khÃ¡ch vÃ£ng lai' });
       }
 
       if (!session.visitor_id || session.visitor_id !== visitorId) {
-        return res.status(403).json({ success: false, error: 'Không có quyền xem lịch sử cuộc trò chuyện này' });
+        return res.status(403).json({ success: false, error: 'KhÃ´ng cÃ³ quyá»n xem lá»‹ch sá»­ cuá»™c trÃ² chuyá»‡n nÃ y' });
       }
     }
 
@@ -31138,7 +31255,7 @@ app.get('/api/chatbot/messages/:sessionId', async (req, res, next) => {
 
     res.json({ success: true, data: { messages: messages || [] } });
   } catch (error) {
-    console.error('❌ Chat history error:', error);
+    console.error('âŒ Chat history error:', error);
     next(error);
   }
 });
@@ -31160,7 +31277,7 @@ app.get('/api/chatbot/default-center', async (req, res, next) => {
 
     res.json({ success: true, data: { centerId: center.id } });
   } catch (error) {
-    console.error('❌ Default center error:', error);
+    console.error('âŒ Default center error:', error);
     next(error);
   }
 });
@@ -31179,19 +31296,19 @@ function compactLeadText(text, maxLength = 200) {
     return normalized;
   }
 
-  return `${normalized.slice(0, maxLength - 1).trim()}…`;
+  return `${normalized.slice(0, maxLength - 1).trim()}â€¦`;
 }
 
 function inferLeadUrgency(primaryNeed, userMessages = []) {
   const corpus = [primaryNeed, ...userMessages].filter(Boolean).join(' ').toLowerCase();
 
   const hotSignals = [
-    'đăng ký', 'liên hệ', 'gọi lại', 'gọi cho', 'ngay', 'hôm nay', 'sớm nhất',
-    'đặt lịch', 'cọc', 'chốt', 'học thử', 'khai giảng', 'đóng học phí'
+    'Ä‘Äƒng kÃ½', 'liÃªn há»‡', 'gá»i láº¡i', 'gá»i cho', 'ngay', 'hÃ´m nay', 'sá»›m nháº¥t',
+    'Ä‘áº·t lá»‹ch', 'cá»c', 'chá»‘t', 'há»c thá»­', 'khai giáº£ng', 'Ä‘Ã³ng há»c phÃ­'
   ];
   const warmSignals = [
-    'học phí', 'ưu đãi', 'lộ trình', 'khóa nào', 'thời khóa biểu', 'nên học',
-    'tư vấn', 'so sánh', 'đầu ra', 'trình độ'
+    'há»c phÃ­', 'Æ°u Ä‘Ã£i', 'lá»™ trÃ¬nh', 'khÃ³a nÃ o', 'thá»i khÃ³a biá»ƒu', 'nÃªn há»c',
+    'tÆ° váº¥n', 'so sÃ¡nh', 'Ä‘áº§u ra', 'trÃ¬nh Ä‘á»™'
   ];
 
   if (hotSignals.some(keyword => corpus.includes(keyword))) {
@@ -31205,8 +31322,8 @@ function inferLeadUrgency(primaryNeed, userMessages = []) {
 
 function urgencyLabel(urgencyLevel) {
   if (urgencyLevel === 'hot') return 'Cao';
-  if (urgencyLevel === 'warm') return 'Trung bình';
-  return 'Thấp';
+  if (urgencyLevel === 'warm') return 'Trung bÃ¬nh';
+  return 'Tháº¥p';
 }
 
 function buildChatbotHandoffContext(recentMessages, { preferredTimeLabel, pageContext }) {
@@ -31222,19 +31339,19 @@ function buildChatbotHandoffContext(recentMessages, { preferredTimeLabel, pageCo
     .map(message => compactLeadText(message.content, 180))
     .filter(Boolean);
 
-  const primaryNeed = userMessages.at(-1) || 'Khách cần tư vấn thêm về khóa học phù hợp';
+  const primaryNeed = userMessages.at(-1) || 'KhÃ¡ch cáº§n tÆ° váº¥n thÃªm vá» khÃ³a há»c phÃ¹ há»£p';
   const urgencyLevel = inferLeadUrgency(primaryNeed, userMessages);
   const summaryLine = compactLeadText(primaryNeed, 120);
   const advisorBriefLines = [
-    `Nhu cầu chính: ${primaryNeed}`,
-    `Mức độ ưu tiên: ${urgencyLabel(urgencyLevel)}`,
-    preferredTimeLabel ? `Khung giờ mong muốn: ${preferredTimeLabel}` : null,
-    pageContext ? `Nguồn vào: ${pageContext}` : null,
-    assistantMessages.at(-1) ? `Molly đã tư vấn: ${assistantMessages.at(-1)}` : null
+    `Nhu cáº§u chÃ­nh: ${primaryNeed}`,
+    `Má»©c Ä‘á»™ Æ°u tiÃªn: ${urgencyLabel(urgencyLevel)}`,
+    preferredTimeLabel ? `Khung giá» mong muá»‘n: ${preferredTimeLabel}` : null,
+    pageContext ? `Nguá»“n vÃ o: ${pageContext}` : null,
+    assistantMessages.at(-1) ? `Molly Ä‘Ã£ tÆ° váº¥n: ${assistantMessages.at(-1)}` : null
   ].filter(Boolean);
 
   const transcriptExcerpt = chronological
-    .map(message => `${message.role === 'assistant' ? 'Molly' : 'Khách'}: ${compactLeadText(message.content, 240) || ''}`)
+    .map(message => `${message.role === 'assistant' ? 'Molly' : 'KhÃ¡ch'}: ${compactLeadText(message.content, 240) || ''}`)
     .filter(Boolean)
     .join('\n')
     .slice(0, 1200);
@@ -31252,7 +31369,7 @@ function buildChatbotHandoffContext(recentMessages, { preferredTimeLabel, pageCo
 app.post('/api/chatbot/lead', async (req, res, next) => {
   try {
     const { name, phone, preferredTime, sessionId, centerId, pageContext } = req.body;
-    const timeSlotMap = { morning: 'Sáng', afternoon: 'Chiều', evening: 'Tối' };
+    const timeSlotMap = { morning: 'SÃ¡ng', afternoon: 'Chiá»u', evening: 'Tá»‘i' };
     let userId = null;
 
     const authHeader = req.headers.authorization;
@@ -31264,27 +31381,27 @@ app.post('/api/chatbot/lead', async (req, res, next) => {
 
     // Validate required fields
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      return res.status(400).json({ success: false, error: 'Vui lòng nhập họ tên' });
+      return res.status(400).json({ success: false, error: 'Vui lÃ²ng nháº­p há» tÃªn' });
     }
     if (!phone || typeof phone !== 'string') {
-      return res.status(400).json({ success: false, error: 'Vui lòng nhập số điện thoại' });
+      return res.status(400).json({ success: false, error: 'Vui lÃ²ng nháº­p sá»‘ Ä‘iá»‡n thoáº¡i' });
     }
 
     // Validate Vietnamese phone number (10 digits, starts with 0)
     const phoneClean = phone.replace(/[\s.-]/g, '');
     const phoneRegex = /^(0[3-9]\d{8}|\+84[3-9]\d{8})$/;
     if (!phoneRegex.test(phoneClean)) {
-      return res.status(400).json({ success: false, error: 'Số điện thoại không hợp lệ (10 số, bắt đầu bằng 0)' });
+      return res.status(400).json({ success: false, error: 'Sá»‘ Ä‘iá»‡n thoáº¡i khÃ´ng há»£p lá»‡ (10 sá»‘, báº¯t Ä‘áº§u báº±ng 0)' });
     }
 
     if (!centerId) {
-      return res.status(400).json({ success: false, error: 'centerId là bắt buộc' });
+      return res.status(400).json({ success: false, error: 'centerId lÃ  báº¯t buá»™c' });
     }
 
     // Validate preferredTime
     const validTimes = ['morning', 'afternoon', 'evening'];
     if (preferredTime && !validTimes.includes(preferredTime)) {
-      return res.status(400).json({ success: false, error: 'Thời gian liên hệ không hợp lệ' });
+      return res.status(400).json({ success: false, error: 'Thá»i gian liÃªn há»‡ khÃ´ng há»£p lá»‡' });
     }
 
     let transcriptSummary = null;
@@ -31324,47 +31441,54 @@ app.post('/api/chatbot/lead', async (req, res, next) => {
       raw_transcript_excerpt: transcriptExcerpt
     };
     const baseNotes = [
-      pageContext ? `Nguồn: ${pageContext}` : null,
+      pageContext ? `Nguá»“n: ${pageContext}` : null,
       sessionId ? `Chat session: ${sessionId}` : null,
-      transcriptSummary ? `Tóm tắt nhanh:\n${transcriptSummary}` : null
+      transcriptSummary ? `TÃ³m táº¯t nhanh:\n${transcriptSummary}` : null
     ].filter(Boolean).join('\n\n');
 
-    // Check for duplicate phone in same center
-    const { data: existing } = await supabase
-      .from('consultation_requests')
-      .select('id, notes, metadata')
-      .eq('phone', phoneClean)
-      .eq('center_id', centerId)
-      .in('status', ['new', 'contacted', 'scheduled'])
-      .limit(1)
-      .single();
-
-    if (existing) {
-      const updatedNotes = [
-        existing.notes || '',
-        `[Chatbot ${new Date().toLocaleDateString('vi-VN')}] Yêu cầu tư vấn lại. Tên: ${name.trim()}${preferredTime ? `, Thời gian: ${timeSlotMap[preferredTime]}` : ''}`,
-        baseNotes
-      ].filter(Boolean).join('\n\n').trim();
-
-      await supabase
+    // Always create a new consultation for chatbot leads
+    // Each chatbot session is a separate inquiry, even if same phone number
+    const shouldInsertNew = true;
+    if (false) {  // Duplicate check disabled for chatbot â€” kept for reference
+      const { data: existing } = await supabase
         .from('consultation_requests')
-        .update({
-          full_name: name.trim(),
-          email: req.body.email || null,
-          preferred_time: preferredTime ? timeSlotMap[preferredTime] : null,
-          notes: updatedNotes,
-          source: 'chatbot',
-          source_page: pageContext || null,
-          user_id: userId,
-          session_id: sessionId || null,
-          handoff_reason: handoffReason,
-          transcript_summary: transcriptSummary,
-          metadata: { ...(existing.metadata || {}), ...metadata },
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', existing.id);
-    } else {
-      const { error: insertError } = await supabase
+        .select('id, notes, metadata')
+        .eq('phone', phoneClean)
+        .eq('center_id', centerId)
+        .in('status', ['new', 'contacted', 'scheduled'])
+        .limit(1)
+        .single();
+
+      if (existing) {
+        shouldInsertNew = false;
+        const updatedNotes = [
+          existing.notes || '',
+          `[Chatbot ${new Date().toLocaleDateString('vi-VN')}] YÃªu cáº§u tÆ° váº¥n láº¡i. TÃªn: ${name.trim()}${preferredTime ? `, Thá»i gian: ${timeSlotMap[preferredTime]}` : ''}`,
+          baseNotes
+        ].filter(Boolean).join('\n\n').trim();
+
+        await supabase
+          .from('consultation_requests')
+          .update({
+            full_name: name.trim(),
+            email: req.body.email || null,
+            preferred_time: preferredTime ? timeSlotMap[preferredTime] : null,
+            notes: updatedNotes,
+            source: 'chatbot',
+            source_page: pageContext || null,
+            user_id: userId,
+            session_id: sessionId || null,
+            handoff_reason: handoffReason,
+            transcript_summary: transcriptSummary,
+            metadata: { ...(existing.metadata || {}), ...metadata },
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existing.id);
+      }
+    }
+
+    if (shouldInsertNew) {
+      const { data: newConsultation, error: insertError } = await supabase
         .from('consultation_requests')
         .insert({
           full_name: name.trim(),
@@ -31381,20 +31505,53 @@ app.post('/api/chatbot/lead', async (req, res, next) => {
           metadata,
           notes: baseNotes || null,
           status: 'new'
-        });
+        })
+        .select('id')
+        .single();
 
       if (insertError) {
         console.error('Error inserting chatbot lead:', insertError);
         throw insertError;
       }
+
+      // Auto-ticket creation is now handled by Postgres trigger
+      // `trg_consultation_to_ticket` (defined in 73_unified_inbox.sql)
+      // â€” fires on INSERT to consultation_requests and creates support_ticket automatically
+      console.log(`âœ… Consultation request ${newConsultation.id} created â€” trigger will auto-create support ticket`);
+    }
+
+    // Notify CENTER_MANAGERs about new consultation request
+    try {
+      const { data: managers } = await supabase
+        .from('users')
+        .select('id, roles!users_role_id_fkey (code)')
+        .eq('center_id', centerId)
+        .in('roles.code', ['CENTER_MANAGER']);
+
+      const activeManagers = (managers || []).filter(m => m.roles?.code === 'CENTER_MANAGER');
+      const urgencyLabel = metadata.urgency_level === 'hot' ? ' ðŸ”¥' : '';
+      const notifMessage = `${name.trim()} - ${phoneClean}${summaryLine ? ` | ${summaryLine}` : ''}`;
+
+      for (const manager of activeManagers) {
+        createNotification(supabase, {
+          userId: manager.id,
+          centerId,
+          type: 'consultation_request',
+          title: `YÃªu cáº§u tÆ° váº¥n má»›i tá»« Molly${urgencyLabel}`,
+          message: notifMessage.slice(0, 200),
+          referenceType: 'consultation_request'
+        }).catch(err => console.warn('Consultation notification error:', err.message));
+      }
+    } catch (notifErr) {
+      console.warn('âš ï¸ KhÃ´ng thá»ƒ gá»­i notification cho yÃªu cáº§u tÆ° váº¥n:', notifErr.message);
     }
 
     res.json({
       success: true,
-      message: 'Tư vấn viên sẽ liên hệ bạn sớm nhất!'
+      message: 'TÆ° váº¥n viÃªn sáº½ liÃªn há»‡ báº¡n sá»›m nháº¥t!'
     });
   } catch (error) {
-    console.error('❌ Chatbot lead error:', error);
+    console.error('âŒ Chatbot lead error:', error);
     next(error);
   }
 });
@@ -31433,7 +31590,7 @@ app.get('/api/chatbot/conversations', requireAuth, chatbotConversationRateLimit,
 
     if (sessionsError) {
       console.error('Error loading conversations:', sessionsError);
-      return res.status(500).json({ success: false, error: 'Không thể tải danh sách hội thoại' });
+      return res.status(500).json({ success: false, error: 'KhÃ´ng thá»ƒ táº£i danh sÃ¡ch há»™i thoáº¡i' });
     }
 
     // Get preview (last assistant message) for each session
@@ -31448,7 +31605,7 @@ app.get('/api/chatbot/conversations', requireAuth, chatbotConversationRateLimit,
 
       return {
         id: s.id,
-        title: s.title || 'Cuộc trò chuyện mới',
+        title: s.title || 'Cuá»™c trÃ² chuyá»‡n má»›i',
         lastMessageAt: s.last_message_at,
         messageCount: s.message_count,
         startedAt: s.started_at,
@@ -31467,7 +31624,7 @@ app.get('/api/chatbot/conversations', requireAuth, chatbotConversationRateLimit,
       }
     });
   } catch (error) {
-    console.error('❌ List conversations error:', error);
+    console.error('âŒ List conversations error:', error);
     next(error);
   }
 });
@@ -31484,7 +31641,7 @@ app.post('/api/chatbot/conversations', requireAuth, chatbotConversationRateLimit
     }
 
     if (!effectiveCenterId) {
-      return res.status(400).json({ success: false, error: 'centerId là bắt buộc' });
+      return res.status(400).json({ success: false, error: 'centerId lÃ  báº¯t buá»™c' });
     }
 
     const { data: newSession, error: insertError } = await supabase
@@ -31500,19 +31657,19 @@ app.post('/api/chatbot/conversations', requireAuth, chatbotConversationRateLimit
 
     if (insertError) {
       console.error('Error creating conversation:', insertError);
-      return res.status(500).json({ success: false, error: 'Không thể tạo cuộc trò chuyện' });
+      return res.status(500).json({ success: false, error: 'KhÃ´ng thá»ƒ táº¡o cuá»™c trÃ² chuyá»‡n' });
     }
 
     res.json({
       success: true,
       data: {
         id: newSession.id,
-        title: 'Cuộc trò chuyện mới',
+        title: 'Cuá»™c trÃ² chuyá»‡n má»›i',
         startedAt: newSession.started_at
       }
     });
   } catch (error) {
-    console.error('❌ Create conversation error:', error);
+    console.error('âŒ Create conversation error:', error);
     next(error);
   }
 });
@@ -31525,10 +31682,10 @@ app.patch('/api/chatbot/conversations/:id', requireAuth, chatbotConversationRate
     const { title } = req.body;
 
     if (!title || typeof title !== 'string' || title.trim().length === 0) {
-      return res.status(422).json({ success: false, error: 'Tiêu đề không được để trống' });
+      return res.status(422).json({ success: false, error: 'TiÃªu Ä‘á» khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng' });
     }
     if (title.trim().length > 100) {
-      return res.status(422).json({ success: false, error: 'Tiêu đề tối đa 100 ký tự' });
+      return res.status(422).json({ success: false, error: 'TiÃªu Ä‘á» tá»‘i Ä‘a 100 kÃ½ tá»±' });
     }
 
     const { data: session, error: findError } = await supabase
@@ -31539,13 +31696,13 @@ app.patch('/api/chatbot/conversations/:id', requireAuth, chatbotConversationRate
       .maybeSingle();
 
     if (findError) {
-      return res.status(500).json({ success: false, error: 'Không thể kiểm tra cuộc trò chuyện' });
+      return res.status(500).json({ success: false, error: 'KhÃ´ng thá»ƒ kiá»ƒm tra cuá»™c trÃ² chuyá»‡n' });
     }
     if (!session) {
-      return res.status(404).json({ success: false, error: 'Không tìm thấy cuộc trò chuyện' });
+      return res.status(404).json({ success: false, error: 'KhÃ´ng tÃ¬m tháº¥y cuá»™c trÃ² chuyá»‡n' });
     }
     if (session.user_id !== userId) {
-      return res.status(403).json({ success: false, error: 'Không có quyền chỉnh sửa cuộc trò chuyện này' });
+      return res.status(403).json({ success: false, error: 'KhÃ´ng cÃ³ quyá»n chá»‰nh sá»­a cuá»™c trÃ² chuyá»‡n nÃ y' });
     }
 
     const { error: updateError } = await supabase
@@ -31554,12 +31711,12 @@ app.patch('/api/chatbot/conversations/:id', requireAuth, chatbotConversationRate
       .eq('id', id);
 
     if (updateError) {
-      return res.status(500).json({ success: false, error: 'Không thể đổi tên' });
+      return res.status(500).json({ success: false, error: 'KhÃ´ng thá»ƒ Ä‘á»•i tÃªn' });
     }
 
     res.json({ success: true, data: { id, title: title.trim() } });
   } catch (error) {
-    console.error('❌ Rename conversation error:', error);
+    console.error('âŒ Rename conversation error:', error);
     next(error);
   }
 });
@@ -31578,13 +31735,13 @@ app.delete('/api/chatbot/conversations/:id', requireAuth, chatbotConversationRat
       .maybeSingle();
 
     if (findError) {
-      return res.status(500).json({ success: false, error: 'Không thể kiểm tra cuộc trò chuyện' });
+      return res.status(500).json({ success: false, error: 'KhÃ´ng thá»ƒ kiá»ƒm tra cuá»™c trÃ² chuyá»‡n' });
     }
     if (!session) {
-      return res.status(404).json({ success: false, error: 'Không tìm thấy cuộc trò chuyện' });
+      return res.status(404).json({ success: false, error: 'KhÃ´ng tÃ¬m tháº¥y cuá»™c trÃ² chuyá»‡n' });
     }
     if (session.user_id !== userId) {
-      return res.status(403).json({ success: false, error: 'Không có quyền xóa cuộc trò chuyện này' });
+      return res.status(403).json({ success: false, error: 'KhÃ´ng cÃ³ quyá»n xÃ³a cuá»™c trÃ² chuyá»‡n nÃ y' });
     }
 
     const { error: deleteError } = await supabase
@@ -31593,12 +31750,12 @@ app.delete('/api/chatbot/conversations/:id', requireAuth, chatbotConversationRat
       .eq('id', id);
 
     if (deleteError) {
-      return res.status(500).json({ success: false, error: 'Không thể xóa cuộc trò chuyện' });
+      return res.status(500).json({ success: false, error: 'KhÃ´ng thá»ƒ xÃ³a cuá»™c trÃ² chuyá»‡n' });
     }
 
-    res.json({ success: true, message: 'Đã xóa cuộc trò chuyện' });
+    res.json({ success: true, message: 'ÄÃ£ xÃ³a cuá»™c trÃ² chuyá»‡n' });
   } catch (error) {
-    console.error('❌ Delete conversation error:', error);
+    console.error('âŒ Delete conversation error:', error);
     next(error);
   }
 });
@@ -31617,7 +31774,7 @@ app.post('/api/chatbot/messages/:id/rate', requireAuth, chatbotConversationRateL
 
     // Validate rating
     if (normalizedRating !== null && normalizedRating !== 'up' && normalizedRating !== 'down') {
-      return res.status(400).json({ success: false, error: 'Rating phải là "like", "dislike", "up", "down" hoặc null' });
+      return res.status(400).json({ success: false, error: 'Rating pháº£i lÃ  "like", "dislike", "up", "down" hoáº·c null' });
     }
 
     // Verify message belongs to user's session
@@ -31628,11 +31785,11 @@ app.post('/api/chatbot/messages/:id/rate', requireAuth, chatbotConversationRateL
       .single();
 
     if (findError || !message) {
-      return res.status(404).json({ success: false, error: 'Không tìm thấy tin nhắn' });
+      return res.status(404).json({ success: false, error: 'KhÃ´ng tÃ¬m tháº¥y tin nháº¯n' });
     }
 
     if (message.role !== 'assistant') {
-      return res.status(400).json({ success: false, error: 'Chỉ có thể đánh giá tin nhắn của Molly' });
+      return res.status(400).json({ success: false, error: 'Chá»‰ cÃ³ thá»ƒ Ä‘Ã¡nh giÃ¡ tin nháº¯n cá»§a Molly' });
     }
 
     // Verify session ownership
@@ -31643,13 +31800,13 @@ app.post('/api/chatbot/messages/:id/rate', requireAuth, chatbotConversationRateL
       .maybeSingle();
 
     if (sessionError) {
-      return res.status(500).json({ success: false, error: 'Không thể kiểm tra quyền đánh giá' });
+      return res.status(500).json({ success: false, error: 'KhÃ´ng thá»ƒ kiá»ƒm tra quyá»n Ä‘Ã¡nh giÃ¡' });
     }
     if (!session) {
-      return res.status(404).json({ success: false, error: 'Không tìm thấy cuộc trò chuyện' });
+      return res.status(404).json({ success: false, error: 'KhÃ´ng tÃ¬m tháº¥y cuá»™c trÃ² chuyá»‡n' });
     }
     if (session.user_id !== userId) {
-      return res.status(403).json({ success: false, error: 'Không có quyền đánh giá tin nhắn này' });
+      return res.status(403).json({ success: false, error: 'KhÃ´ng cÃ³ quyá»n Ä‘Ã¡nh giÃ¡ tin nháº¯n nÃ y' });
     }
 
     // Update rating
@@ -31659,17 +31816,300 @@ app.post('/api/chatbot/messages/:id/rate', requireAuth, chatbotConversationRateL
       .eq('id', id);
 
     if (updateError) {
-      return res.status(500).json({ success: false, error: 'Không thể đánh giá' });
+      return res.status(500).json({ success: false, error: 'KhÃ´ng thá»ƒ Ä‘Ã¡nh giÃ¡' });
     }
 
     res.json({ success: true, data: { id, rating: normalizedRating || null } });
   } catch (error) {
-    console.error('❌ Rate message error:', error);
+    console.error('âŒ Rate message error:', error);
     next(error);
   }
 });
 
-// Test endpoint không cần auth
+// ============================================================
+// CHATBOT â†” SUPPORT TICKET BRIDGE (Real-time admin â†” student)
+// ============================================================
+
+// GET /api/chatbot/ticket-link/:sessionId - Find linked support ticket for a chat session
+app.get('/api/chatbot/ticket-link/:sessionId', requireAuth, async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const userId = req.user.id;
+
+    // 1. Verify session ownership
+    const { data: session, error: sessionError } = await supabaseAdmin
+      .from('chat_sessions')
+      .select('id, user_id')
+      .eq('id', sessionId)
+      .maybeSingle();
+
+    if (sessionError || !session) {
+      return res.json({ success: true, data: { linked: false } });
+    }
+    if (session.user_id !== userId) {
+      return res.status(403).json({ success: false, error: 'KhÃ´ng cÃ³ quyá»n' });
+    }
+
+    // 2. Find consultation_request linked to this session
+    const { data: consultation } = await supabaseAdmin
+      .from('consultation_requests')
+      .select('id')
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!consultation) {
+      return res.json({ success: true, data: { linked: false } });
+    }
+
+    // 3. Find support_ticket linked to this consultation
+    const { data: ticket } = await supabaseAdmin
+      .from('support_tickets')
+      .select('id, ticket_number, status, assigned_to')
+      .eq('consultation_request_id', consultation.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!ticket) {
+      return res.json({ success: true, data: { linked: false, consultationId: consultation.id } });
+    }
+
+    // 4. Load existing messages for this ticket (non-internal only)
+    const { data: messages } = await supabaseAdmin
+      .from('ticket_messages')
+      .select(`
+        id,
+        message,
+        sender_id,
+        created_at,
+        sender:users!ticket_messages_sender_id_fkey (id, full_name, roles!users_role_id_fkey (code))
+      `)
+      .eq('ticket_id', ticket.id)
+      .or('is_internal.eq.false,is_internal.is.null')
+      .order('created_at', { ascending: true });
+
+    res.json({
+      success: true,
+      data: {
+        linked: true,
+        ticketId: ticket.id,
+        ticketNumber: ticket.ticket_number,
+        ticketStatus: ticket.status,
+        messages: (messages || []).map(m => ({
+          id: m.id,
+          content: m.message,
+          senderId: m.sender_id,
+          senderName: m.sender?.full_name || 'Há»‡ thá»‘ng',
+          senderRole: m.sender?.roles?.code || 'UNKNOWN',
+          createdAt: m.created_at,
+          isAdvisor: m.sender_id !== userId
+        }))
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching ticket link:', error);
+    res.status(500).json({ success: false, error: 'Lá»—i há»‡ thá»‘ng' });
+  }
+});
+
+// POST /api/chatbot/ticket-reply - Student replies from within Molly chatbot
+app.post('/api/chatbot/ticket-reply', requireAuth, async (req, res) => {
+  try {
+    const { ticketId, message } = req.body;
+    const userId = req.user.id;
+
+    if (!ticketId || !message?.trim()) {
+      return res.status(400).json({ success: false, error: 'Thiáº¿u thÃ´ng tin (ticketId, message)' });
+    }
+
+    // Verify ticket exists and student has access
+    const { data: ticket, error: ticketError } = await supabaseAdmin
+      .from('support_tickets')
+      .select('id, created_by, status, consultation_request_id')
+      .eq('id', ticketId)
+      .maybeSingle();
+
+    if (ticketError || !ticket) {
+      return res.status(404).json({ success: false, error: 'KhÃ´ng tÃ¬m tháº¥y ticket' });
+    }
+
+    // Check access: direct creator OR via linked consultation_request (for trigger-created tickets)
+    let hasAccess = ticket.created_by === userId;
+    if (!hasAccess && ticket.consultation_request_id) {
+      const { data: consultation } = await supabaseAdmin
+        .from('consultation_requests')
+        .select('user_id')
+        .eq('id', ticket.consultation_request_id)
+        .maybeSingle();
+      hasAccess = consultation?.user_id === userId;
+    }
+    if (!hasAccess) {
+      return res.status(403).json({ success: false, error: 'KhÃ´ng cÃ³ quyá»n pháº£n há»“i ticket nÃ y' });
+    }
+
+    if (ticket.status === 'closed') {
+      return res.status(400).json({ success: false, error: 'Ticket Ä‘Ã£ Ä‘Ã³ng' });
+    }
+
+    // Insert reply as ticket_message
+    const { data: newMessage, error: insertError } = await supabaseAdmin
+      .from('ticket_messages')
+      .insert({
+        ticket_id: ticketId,
+        message: message.trim(),
+        sender_id: userId,
+        is_internal: false
+      })
+      .select(`
+        id,
+        message,
+        sender_id,
+        created_at
+      `)
+      .single();
+
+    if (insertError) throw insertError;
+
+    // Update ticket status to in_progress if it was waiting
+    if (ticket.status === 'open' || ticket.status === 'resolved') {
+      await supabaseAdmin
+        .from('support_tickets')
+        .update({ status: 'in_progress', updated_at: new Date().toISOString() })
+        .eq('id', ticketId);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        id: newMessage.id,
+        content: newMessage.message,
+        senderId: newMessage.sender_id,
+        createdAt: newMessage.created_at
+      }
+    });
+  } catch (error) {
+    console.error('Error sending ticket reply from chatbot:', error);
+    res.status(500).json({ success: false, error: 'Lá»—i há»‡ thá»‘ng' });
+  }
+});
+
+// ============================================================
+// CUSTOM ALERT RULES & HISTORY APIs
+// ============================================================
+
+// GET /api/admin/custom-alerts
+app.get('/api/admin/custom-alerts', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const supabaseClient = req.supabase || supabase;
+    const centerId = req.query.centerId || getEffectiveCenterId(req);
+    let query = supabaseClient.from('custom_alert_rules').select('*').order('created_at', { ascending: false });
+    if (centerId) query = query.or(`center_id.eq.${centerId},center_id.is.null`);
+    const { data, error } = await query;
+    if (error) throw error;
+    res.json({ success: true, data: data || [] });
+  } catch (error) {
+    console.error('Error fetching custom alert rules:', error);
+    next(error);
+  }
+});
+
+// POST /api/admin/custom-alerts
+app.post('/api/admin/custom-alerts', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const supabaseClient = req.supabase || supabase;
+    const { name, metric_type, condition_operator, threshold_value, severity, notification_channels, is_active, cooldown_minutes, center_id } = req.body;
+    if (!name || !metric_type || !condition_operator || threshold_value === undefined) {
+      return res.status(400).json({ success: false, message: 'Vui lÃ²ng Ä‘iá»n Ä‘áº§y Ä‘á»§ thÃ´ng tin báº¯t buá»™c' });
+    }
+    const { data, error } = await supabaseClient.from('custom_alert_rules').insert({
+      name, metric_type, condition_operator, threshold_value,
+      severity: severity || 'warning',
+      notification_channels: notification_channels || ['in_app'],
+      is_active: is_active !== false,
+      cooldown_minutes: cooldown_minutes || 60,
+      center_id: center_id || getEffectiveCenterId(req) || null,
+      created_by: req.user.id
+    }).select().single();
+    if (error) throw error;
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error creating custom alert rule:', error);
+    next(error);
+  }
+});
+
+// PUT /api/admin/custom-alerts/:id
+app.put('/api/admin/custom-alerts/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const supabaseClient = req.supabase || supabase;
+    const { id } = req.params;
+    const { name, metric_type, condition_operator, threshold_value, severity, notification_channels, is_active, cooldown_minutes } = req.body;
+    const { data, error } = await supabaseClient.from('custom_alert_rules').update({
+      name, metric_type, condition_operator, threshold_value, severity, notification_channels, is_active, cooldown_minutes,
+      updated_at: new Date().toISOString()
+    }).eq('id', id).select().single();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y quy táº¯c' });
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error updating custom alert rule:', error);
+    next(error);
+  }
+});
+
+// DELETE /api/admin/custom-alerts/:id
+app.delete('/api/admin/custom-alerts/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const supabaseClient = req.supabase || supabase;
+    const { error } = await supabaseClient.from('custom_alert_rules').delete().eq('id', req.params.id);
+    if (error) throw error;
+    res.json({ success: true, message: 'ÄÃ£ xÃ³a quy táº¯c cáº£nh bÃ¡o' });
+  } catch (error) {
+    console.error('Error deleting custom alert rule:', error);
+    next(error);
+  }
+});
+
+// GET /api/admin/alert-history
+app.get('/api/admin/alert-history', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const supabaseClient = req.supabase || supabase;
+    const centerId = req.query.centerId || getEffectiveCenterId(req);
+    let query = supabaseClient.from('alert_history').select('*, custom_alert_rules!rule_id ( name )').order('triggered_at', { ascending: false }).limit(100);
+    if (centerId) query = query.or(`center_id.eq.${centerId},center_id.is.null`);
+    const { data, error } = await query;
+    if (error) throw error;
+    const formatted = (data || []).map(item => ({
+      ...item,
+      rule_name: item.custom_alert_rules?.name || 'Quy táº¯c khÃ´ng xÃ¡c Ä‘á»‹nh',
+      custom_alert_rules: undefined
+    }));
+    res.json({ success: true, data: formatted });
+  } catch (error) {
+    console.error('Error fetching alert history:', error);
+    next(error);
+  }
+});
+
+// PATCH /api/admin/alert-history/:id/acknowledge
+app.patch('/api/admin/alert-history/:id/acknowledge', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const supabaseClient = req.supabase || supabase;
+    const { data, error } = await supabaseClient.from('alert_history').update({
+      acknowledged: true, acknowledged_by: req.user.id, acknowledged_at: new Date().toISOString()
+    }).eq('id', req.params.id).select().single();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y cáº£nh bÃ¡o' });
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error acknowledging alert:', error);
+    next(error);
+  }
+});
+
+// Test endpoint khÃ´ng cáº§n auth
 app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'Backend is running', time: new Date().toISOString() });
 });
@@ -31692,9 +32132,9 @@ const server = app.listen(PORT, async () => {
   try {
     const { startJobScheduler } = await import('./jobs/index.js');
     await startJobScheduler();
-    console.log('✅ Job scheduler started successfully');
+    console.log('âœ… Job scheduler started successfully');
   } catch (err) {
-    console.warn('⚠️ Job scheduler not started (Redis may not be running):', err.message);
+    console.warn('âš ï¸ Job scheduler not started (Redis may not be running):', err.message);
   }
 });
 
@@ -31718,7 +32158,7 @@ const gracefulShutdown = async (signal) => {
       const { stopJobScheduler } = await import('./jobs/index.js');
       await stopJobScheduler();
     } catch (err) {
-      console.warn('⚠️ Error stopping job scheduler:', err.message);
+      console.warn('âš ï¸ Error stopping job scheduler:', err.message);
     }
 
     if (shutdownTimeout) {

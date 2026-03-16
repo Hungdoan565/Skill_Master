@@ -8,4 +8,5 @@ export { SystemTab } from './SystemTab';
 export { SecurityTab } from './SecurityTab';
 export { GradesConfigTab } from './GradesConfigTab';
 export { BankInfoTab } from './BankInfoTab';
-
+export { EmailConfigTab } from './EmailConfigTab';
+export { NotificationPreferencesTab } from './NotificationPreferencesTab';

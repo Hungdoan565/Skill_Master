@@ -150,6 +150,17 @@ export function ProfileTab({ onMessage }) {
 
     return (
         <div className="space-y-6">
+            {/* Section Header */}
+            <div className="flex items-center gap-3 mb-2">
+                <div className="p-2.5 bg-indigo-50 rounded-xl">
+                    <User className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                    <h2 className="text-lg font-semibold text-gray-900">Hồ sơ cá nhân</h2>
+                    <p className="text-sm text-gray-500">Quản lý thông tin cá nhân, ảnh đại diện và mật khẩu đăng nhập</p>
+                </div>
+            </div>
+
             {/* Profile Header Card */}
             <Card className="p-6">
                 <div className="flex flex-col md:flex-row items-center gap-6">
@@ -259,6 +270,7 @@ export function ProfileTab({ onMessage }) {
                             onChange={(e) => handleChange('phone', e.target.value)}
                             placeholder="Nhập số điện thoại"
                         />
+                        <p className="text-xs text-gray-500">Ví dụ: 0912 345 678</p>
                     </div>
                 </div>
 

@@ -146,6 +146,17 @@ export function GradesConfigTab({ onMessage }) {
 
     return (
         <div className="space-y-6">
+            {/* Section Header */}
+            <div className="flex items-center gap-3 mb-2">
+                <div className="p-2.5 bg-indigo-50 rounded-xl">
+                    <GraduationCap className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                    <h2 className="text-lg font-semibold text-gray-900">Đánh giá</h2>
+                    <p className="text-sm text-gray-500">Cấu hình thang điểm, cách tính và các cột đánh giá</p>
+                </div>
+            </div>
+
             {/* Basic Config */}
             <Card className="p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">

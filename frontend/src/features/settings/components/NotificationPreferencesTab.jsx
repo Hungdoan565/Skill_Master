@@ -15,31 +15,9 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/auth-context';
-import { DEFAULT_NOTIFICATION_PREFERENCES, API_URL } from '../utils/constants';
-
-// Switch component inline
-const Switch = ({ checked, onChange, disabled }) => (
-    <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        disabled={disabled}
-        onClick={() => onChange(!checked)}
-        className={`
-            relative inline-flex h-6 w-11 items-center rounded-full transition-colors
-            ${checked ? 'bg-indigo-600' : 'bg-gray-200'}
-            ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-        `}
-    >
-        <span
-            className={`
-                inline-block h-4 w-4 transform rounded-full bg-white transition-transform
-                ${checked ? 'translate-x-6' : 'translate-x-1'}
-            `}
-        />
-    </button>
-);
+import { DEFAULT_NOTIFICATION_PREFS as DEFAULT_NOTIFICATION_PREFERENCES, API_URL } from '../utils/constants';
 
 // Notification item component
 const NotificationItem = ({ icon: Icon, title, description, checked, onChange, disabled }) => (
@@ -69,7 +47,7 @@ export function NotificationPreferencesTab({ onMessage }) {
 
         try {
             setLoading(true);
-            const response = await fetch(`${API_URL}/api/settings/notifications`, {
+            const response = await fetch(`${API_URL}/api/user/notification-preferences`, {
                 headers: {
                     'Authorization': `Bearer ${session.access_token}`
                 }
@@ -103,13 +81,13 @@ export function NotificationPreferencesTab({ onMessage }) {
 
         setSaving(true);
         try {
-            const response = await fetch(`${API_URL}/api/settings/notifications`, {
+            const response = await fetch(`${API_URL}/api/user/notification-preferences`, {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${session.access_token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(preferences)
+                body: JSON.stringify({ value: preferences })
             });
 
             if (response.ok) {
@@ -135,10 +113,15 @@ export function NotificationPreferencesTab({ onMessage }) {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
-            <div>
-                <h2 className="text-2xl font-bold text-gray-900">Cài đặt thông báo</h2>
-                <p className="text-gray-500 mt-1">Tùy chỉnh cách bạn nhận thông báo từ hệ thống</p>
+            {/* Section Header */}
+            <div className="flex items-center gap-3 mb-2">
+                <div className="p-2.5 bg-indigo-50 rounded-xl">
+                    <Bell className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                    <h2 className="text-lg font-semibold text-gray-900">Cài đặt thông báo</h2>
+                    <p className="text-sm text-gray-500">Tùy chỉnh cách bạn nhận thông báo từ hệ thống</p>
+                </div>
             </div>
 
             {/* Email Notifications */}

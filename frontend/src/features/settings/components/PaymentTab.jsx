@@ -94,6 +94,17 @@ export function PaymentTab({ onMessage }) {
 
     return (
         <div className="space-y-6">
+            {/* Section Header */}
+            <div className="flex items-center gap-3 mb-2">
+                <div className="p-2.5 bg-indigo-50 rounded-xl">
+                    <CreditCard className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                    <h2 className="text-lg font-semibold text-gray-900">Thanh toán</h2>
+                    <p className="text-sm text-gray-500">Cấu hình tài khoản ngân hàng và mã QR thu học phí</p>
+                </div>
+            </div>
+
             {/* Info Banner */}
             <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />

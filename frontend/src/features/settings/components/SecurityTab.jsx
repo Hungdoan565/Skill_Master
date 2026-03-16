@@ -1,61 +1,105 @@
 /**
  * SecurityTab Component - Tab quản lý bảo mật (Super Admin only)
+ * Honest Mode: Non-enforced settings marked as "Sắp ra mắt"
+ * Progressive disclosure: Advanced sections collapsible
  */
 
 import { useState, useEffect } from 'react';
 import {
     Shield,
-    Lock,
     Key,
-    Eye,
-    EyeOff,
     Loader2,
     Save,
     AlertTriangle,
-    UserX,
     Clock,
-    History,
     Smartphone,
-    Mail,
-    RotateCcw
+    CheckCircle2,
+    Timer,
+    Info
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { CollapsibleSection } from '@/components/ui/collapsible';
 import { useSettings } from '../hooks';
 import { SETTING_KEYS, DEFAULT_SECURITY_CONFIG } from '../utils/constants';
 
-export function SecurityTab({ onMessage }) {
+// Status badge component
+function StatusBadge({ enforced }) {
+    if (enforced) {
+        return (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">
+                <CheckCircle2 className="w-3 h-3" />
+                Đang áp dụng
+            </span>
+        );
+    }
+    return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium bg-amber-50 text-amber-700 rounded-full border border-amber-200">
+            <Timer className="w-3 h-3" />
+            Sắp ra mắt
+        </span>
+    );
+}
+
+// Toggle Option Component — uses shared Switch
+function ToggleOption({ label, checked, onChange, disabled = false, hint }) {
+    return (
+        <label className={`flex items-center gap-3 ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} group`}>
+            <Switch checked={checked} onChange={onChange} disabled={disabled} />
+            <div>
+                <span className={`text-sm ${disabled ? 'text-gray-400' : 'text-gray-700 group-hover:text-gray-900'}`}>
+                    {label}
+                </span>
+                {hint && <p className="text-xs text-gray-400 mt-0.5">{hint}</p>}
+            </div>
+        </label>
+    );
+}
+
+
+export function SecurityTab({ onMessage, onDirtyChange }) {
     const { fetchSettings, updateSetting, saving } = useSettings();
     const [loading, setLoading] = useState(true);
     const [securityConfig, setSecurityConfig] = useState(DEFAULT_SECURITY_CONFIG);
+    const [initialConfig, setInitialConfig] = useState(DEFAULT_SECURITY_CONFIG);
 
     // Load config on mount
     useEffect(() => {
         loadConfig();
     }, []);
 
+    // Track dirty state
+    useEffect(() => {
+        const isDirty = JSON.stringify(securityConfig) !== JSON.stringify(initialConfig);
+        onDirtyChange?.(isDirty);
+    }, [securityConfig, initialConfig]);
+
     const loadConfig = async () => {
         setLoading(true);
         const settings = await fetchSettings();
-        if (settings && settings[SETTING_KEYS.SECURITY_CONFIG]) {
-            setSecurityConfig({ ...DEFAULT_SECURITY_CONFIG, ...settings[SETTING_KEYS.SECURITY_CONFIG] });
+        if (settings?.[SETTING_KEYS.SECURITY_CONFIG]) {
+            const loaded = { ...DEFAULT_SECURITY_CONFIG, ...settings[SETTING_KEYS.SECURITY_CONFIG] };
+            setSecurityConfig(loaded);
+            setInitialConfig(loaded);
         }
         setLoading(false);
     };
 
-    // Handle save
     const handleSave = async () => {
         const result = await updateSetting(SETTING_KEYS.SECURITY_CONFIG, securityConfig);
+        if (result.success) {
+            setInitialConfig(securityConfig);
+            onDirtyChange?.(false);
+        }
         onMessage?.(
             result.success ? 'Đã cập nhật cấu hình bảo mật' : 'Không thể lưu cấu hình',
             result.success ? 'success' : 'error'
         );
     };
 
-    // Toggle boolean field
     const toggleField = (field) => {
         setSecurityConfig(prev => ({
             ...prev,
@@ -63,7 +107,6 @@ export function SecurityTab({ onMessage }) {
         }));
     };
 
-    // Update numeric field
     const updateNumericField = (field, value) => {
         setSecurityConfig(prev => ({
             ...prev,
@@ -81,29 +124,39 @@ export function SecurityTab({ onMessage }) {
 
     return (
         <div className="space-y-6">
-            {/* Warning Banner */}
-            <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-red-800">
-                    <p className="font-medium mb-1">Cảnh báo: Khu vực quản trị cấp cao</p>
-                    <p className="text-red-600">
-                        Các cấu hình bảo mật chỉ dành cho Super Admin. Thay đổi không đúng cách
-                        có thể ảnh hưởng đến tất cả người dùng trong hệ thống.
+            {/* Section Header */}
+            <div className="flex items-center gap-3 mb-2">
+                <div className="p-2.5 bg-indigo-50 rounded-xl">
+                    <Shield className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                    <h2 className="text-lg font-semibold text-gray-900">Bảo mật</h2>
+                    <p className="text-sm text-gray-500">Cấu hình chính sách bảo mật và kiểm soát truy cập</p>
+                </div>
+            </div>
+
+            {/* Honest Mode Banner */}
+            <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                <div>
+                    <p className="font-medium text-amber-800">Một số tính năng bảo mật đang được phát triển</p>
+                    <p className="text-sm text-amber-600 mt-1">
+                        Các cài đặt đánh dấu <StatusBadge enforced={false} /> sẽ được áp dụng trong phiên bản tiếp theo.
+                        Cấu hình sẽ được lưu và tự động kích hoạt khi tính năng sẵn sàng.
                     </p>
                 </div>
             </div>
 
-            {/* Session & Login Security */}
-            <Card className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-indigo-600" />
-                    Cấu hình phiên đăng nhập
-                </h3>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {/* Session Timeout */}
+            {/* Session & Login Security — ENFORCED (display only, Supabase manages actual session) */}
+            <CollapsibleSection
+                title="Phiên đăng nhập"
+                icon={Clock}
+                badge={<StatusBadge enforced={true} />}
+                defaultOpen={true}
+            >
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="space-y-2">
-                        <Label htmlFor="sessionTimeout">Thời gian hết hạn phiên (giờ)</Label>
+                        <Label htmlFor="sessionTimeout">Thời gian hết hạn (giờ)</Label>
                         <Input
                             id="sessionTimeout"
                             type="number"
@@ -117,50 +170,57 @@ export function SecurityTab({ onMessage }) {
                         </p>
                     </div>
 
-                    {/* Max Login Attempts */}
                     <div className="space-y-2">
-                        <Label htmlFor="maxAttempts">Số lần đăng nhập sai tối đa</Label>
+                        <Label htmlFor="maxAttempts">Đăng nhập sai tối đa</Label>
                         <Input
                             id="maxAttempts"
                             type="number"
                             min="3"
                             max="10"
                             value={securityConfig.maxLoginAttempts}
-                            onChange={(e) => updateNumericField('maxLoginAttempts', e.target.value)}
+                            disabled
+                            className="bg-gray-50"
                         />
-                        <p className="text-xs text-gray-500">
-                            Khóa tạm thời sau số lần này
+                        <p className="text-xs text-gray-400 flex items-center gap-1">
+                            <Timer className="w-3 h-3" /> Sẽ áp dụng khi có rate limiting
                         </p>
                     </div>
 
-                    {/* Lockout Duration */}
                     <div className="space-y-2">
-                        <Label htmlFor="lockoutDuration">Thời gian khóa tài khoản (phút)</Label>
+                        <Label htmlFor="lockoutDuration">Thời gian khóa (phút)</Label>
                         <Input
                             id="lockoutDuration"
                             type="number"
                             min="5"
                             max="1440"
                             value={securityConfig.lockoutDurationMinutes}
-                            onChange={(e) => updateNumericField('lockoutDurationMinutes', e.target.value)}
+                            disabled
+                            className="bg-gray-50"
                         />
-                        <p className="text-xs text-gray-500">
-                            Thời gian chờ sau khi vượt số lần thử
+                        <p className="text-xs text-gray-400 flex items-center gap-1">
+                            <Timer className="w-3 h-3" /> Sẽ áp dụng khi có rate limiting
                         </p>
                     </div>
                 </div>
-            </Card>
+            </CollapsibleSection>
 
-            {/* Password Policy */}
-            <Card className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <Key className="w-5 h-5 text-indigo-600" />
-                    Chính sách mật khẩu
-                </h3>
+            {/* Password Policy — COMING SOON */}
+            <CollapsibleSection
+                title="Chính sách mật khẩu"
+                icon={Key}
+                badge={<StatusBadge enforced={false} />}
+                defaultOpen={false}
+            >
+                <div className="opacity-60">
+                    <div className="flex items-start gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
+                        <Info className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                        <p className="text-xs text-gray-500">
+                            Chính sách mật khẩu hiện được lưu cấu hình nhưng chưa enforce ở backend.
+                            Khi tính năng sẵn sàng, các quy tắc dưới đây sẽ tự động được áp dụng.
+                        </p>
+                    </div>
 
-                <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {/* Min Length */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                         <div className="space-y-2">
                             <Label htmlFor="minLength">Độ dài tối thiểu</Label>
                             <Input
@@ -172,8 +232,6 @@ export function SecurityTab({ onMessage }) {
                                 onChange={(e) => updateNumericField('passwordMinLength', e.target.value)}
                             />
                         </div>
-
-                        {/* Password Expiry */}
                         <div className="space-y-2">
                             <Label htmlFor="passwordExpiry">Hết hạn sau (ngày)</Label>
                             <Input
@@ -186,10 +244,8 @@ export function SecurityTab({ onMessage }) {
                             />
                             <p className="text-xs text-gray-500">0 = không hết hạn</p>
                         </div>
-
-                        {/* Prevent Reuse */}
                         <div className="space-y-2">
-                            <Label htmlFor="passwordHistory">Số mật khẩu không được trùng</Label>
+                            <Label htmlFor="passwordHistory">Không trùng mật khẩu</Label>
                             <Input
                                 id="passwordHistory"
                                 type="number"
@@ -202,7 +258,6 @@ export function SecurityTab({ onMessage }) {
                         </div>
                     </div>
 
-                    {/* Password Requirements */}
                     <div className="flex flex-wrap gap-4 pt-4 border-t">
                         <ToggleOption
                             label="Yêu cầu chữ hoa"
@@ -226,102 +281,122 @@ export function SecurityTab({ onMessage }) {
                         />
                     </div>
                 </div>
-            </Card>
+            </CollapsibleSection>
 
-            {/* 2FA Settings */}
-            <Card className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <Smartphone className="w-5 h-5 text-indigo-600" />
-                    Xác thực hai yếu tố (2FA)
-                </h3>
-
-                <div className="space-y-4">
-                    <div className="flex flex-wrap gap-4">
-                        <ToggleOption
-                            label="Bật 2FA cho tất cả admin"
-                            checked={securityConfig.require2FAForAdmin}
-                            onChange={() => toggleField('require2FAForAdmin')}
-                        />
-                        <ToggleOption
-                            label="Cho phép nhân viên bật 2FA"
-                            checked={securityConfig.allow2FAForStaff}
-                            onChange={() => toggleField('allow2FAForStaff')}
-                        />
+            {/* 2FA — COMING SOON */}
+            <CollapsibleSection
+                title="Xác thực hai yếu tố (2FA)"
+                icon={Smartphone}
+                badge={<StatusBadge enforced={false} />}
+                defaultOpen={false}
+            >
+                <div className="opacity-60">
+                    <div className="flex items-start gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
+                        <Info className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                        <p className="text-xs text-gray-500">
+                            Tính năng 2FA đang được phát triển. Cấu hình sẽ được lưu và tự động áp dụng khi sẵn sàng.
+                        </p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
-                        <div className="space-y-2">
-                            <Label htmlFor="2faMethod">Phương thức 2FA mặc định</Label>
-                            <select
-                                id="2faMethod"
-                                value={securityConfig.default2FAMethod}
-                                onChange={(e) => setSecurityConfig(prev => ({
-                                    ...prev,
-                                    default2FAMethod: e.target.value
-                                }))}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm
-                                         focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            >
-                                <option value="email">Email OTP</option>
-                                <option value="totp">TOTP (Authenticator App)</option>
-                                <option value="sms">SMS OTP</option>
-                            </select>
+                    <div className="space-y-4">
+                        <div className="flex flex-wrap gap-4">
+                            <ToggleOption
+                                label="Bật 2FA cho tất cả admin"
+                                checked={securityConfig.require2FAForAdmin}
+                                onChange={() => toggleField('require2FAForAdmin')}
+                            />
+                            <ToggleOption
+                                label="Cho phép nhân viên bật 2FA"
+                                checked={securityConfig.allow2FAForStaff}
+                                onChange={() => toggleField('allow2FAForStaff')}
+                            />
                         </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="otpExpiry">OTP hết hạn sau (giây)</Label>
-                            <Input
-                                id="otpExpiry"
-                                type="number"
-                                min="60"
-                                max="600"
-                                value={securityConfig.otpExpirySeconds}
-                                onChange={(e) => updateNumericField('otpExpirySeconds', e.target.value)}
-                            />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                            <div className="space-y-2">
+                                <Label htmlFor="2faMethod">Phương thức 2FA mặc định</Label>
+                                <select
+                                    id="2faMethod"
+                                    value={securityConfig.default2FAMethod}
+                                    onChange={(e) => setSecurityConfig(prev => ({
+                                        ...prev,
+                                        default2FAMethod: e.target.value
+                                    }))}
+                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm
+                                             focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                >
+                                    <option value="email">Email OTP</option>
+                                    <option value="totp">TOTP (Authenticator App)</option>
+                                    <option value="sms">SMS OTP</option>
+                                </select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="otpExpiry">OTP hết hạn sau (giây)</Label>
+                                <Input
+                                    id="otpExpiry"
+                                    type="number"
+                                    min="60"
+                                    max="600"
+                                    value={securityConfig.otpExpirySeconds}
+                                    onChange={(e) => updateNumericField('otpExpirySeconds', e.target.value)}
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
-            </Card>
+            </CollapsibleSection>
 
-            {/* IP & Access Control */}
-            <Card className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <Shield className="w-5 h-5 text-indigo-600" />
-                    Kiểm soát truy cập
-                </h3>
+            {/* Access Control — COMING SOON */}
+            <CollapsibleSection
+                title="Kiểm soát truy cập"
+                icon={Shield}
+                badge={<StatusBadge enforced={false} />}
+                defaultOpen={false}
+            >
+                <div className="opacity-60">
+                    <div className="flex items-start gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
+                        <Info className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                        <p className="text-xs text-gray-500">
+                            Tính năng kiểm soát truy cập nâng cao đang được phát triển.
+                        </p>
+                    </div>
 
-                <div className="space-y-4">
                     <div className="flex flex-wrap gap-4">
                         <ToggleOption
                             label="Ghi log tất cả hoạt động"
                             checked={securityConfig.enableActivityLog}
                             onChange={() => toggleField('enableActivityLog')}
+                            hint="Audit log sẽ được bổ sung"
                         />
                         <ToggleOption
                             label="Gửi email khi đăng nhập từ thiết bị mới"
                             checked={securityConfig.notifyNewDevice}
                             onChange={() => toggleField('notifyNewDevice')}
+                            hint="Cần Email config hoạt động"
                         />
                         <ToggleOption
                             label="Cho phép nhiều phiên đồng thời"
                             checked={securityConfig.allowMultipleSessions}
                             onChange={() => toggleField('allowMultipleSessions')}
+                            hint="Quản lý bởi Supabase Auth"
                         />
                     </div>
                 </div>
-            </Card>
+            </CollapsibleSection>
 
-            {/* Recent Activity (Placeholder) */}
+            {/* Audit Log — Coming Soon Card */}
             <Card className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <History className="w-5 h-5 text-indigo-600" />
-                    Hoạt động gần đây
-                </h3>
-
-                <div className="text-center py-8 text-gray-500">
-                    <History className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                    <p>Tính năng audit log sẽ được bổ sung sau</p>
-                    <p className="text-sm">Theo dõi tất cả thay đổi cấu hình và đăng nhập bất thường</p>
+                <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center">
+                    <Clock className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                    <p className="font-medium text-gray-500">Nhật ký hoạt động</p>
+                    <p className="text-sm text-gray-400 mt-1">
+                        Theo dõi tất cả thay đổi cấu hình và đăng nhập bất thường
+                    </p>
+                    <span className="inline-flex items-center gap-1 mt-3 px-3 py-1 text-xs font-medium bg-amber-50 text-amber-600 rounded-full border border-amber-200">
+                        <Timer className="w-3 h-3" />
+                        Sẽ bổ sung trong phiên bản tiếp theo
+                    </span>
                 </div>
             </Card>
 
@@ -329,9 +404,9 @@ export function SecurityTab({ onMessage }) {
             <div className="flex justify-end">
                 <Button
                     onClick={handleSave}
-                    disabled={saving}
+                    disabled={saving || JSON.stringify(securityConfig) === JSON.stringify(initialConfig)}
                     size="lg"
-                    className="bg-indigo-600 hover:bg-indigo-700"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white"
                 >
                     {saving ? (
                         <Loader2 className="w-5 h-5 mr-2 animate-spin" />
@@ -342,32 +417,6 @@ export function SecurityTab({ onMessage }) {
                 </Button>
             </div>
         </div>
-    );
-}
-
-// Toggle Option Component
-function ToggleOption({ label, checked, onChange }) {
-    return (
-        <label className="flex items-center gap-3 cursor-pointer group">
-            <div
-                onClick={onChange}
-                className={`
-                    relative w-11 h-6 rounded-full transition-colors duration-200
-                    ${checked ? 'bg-indigo-600' : 'bg-gray-200'}
-                `}
-            >
-                <div
-                    className={`
-                        absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow
-                        transition-transform duration-200
-                        ${checked ? 'translate-x-5' : 'translate-x-0'}
-                    `}
-                />
-            </div>
-            <span className="text-sm text-gray-700 group-hover:text-gray-900">
-                {label}
-            </span>
-        </label>
     );
 }
 

@@ -20,31 +20,9 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/auth-context';
 import { DEFAULT_EMAIL_CONFIG, API_URL } from '../utils/constants';
-
-// Switch component inline
-const Switch = ({ checked, onChange, disabled }) => (
-    <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        disabled={disabled}
-        onClick={() => onChange(!checked)}
-        className={`
-            relative inline-flex h-6 w-11 items-center rounded-full transition-colors
-            ${checked ? 'bg-indigo-600' : 'bg-gray-200'}
-            ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-        `}
-    >
-        <span
-            className={`
-                inline-block h-4 w-4 transform rounded-full bg-white transition-transform
-                ${checked ? 'translate-x-6' : 'translate-x-1'}
-            `}
-        />
-    </button>
-);
 
 // Form field component
 const FormField = ({ label, required, children, hint }) => (
@@ -108,7 +86,7 @@ export function EmailConfigTab({ onMessage }) {
 
         try {
             setLoading(true);
-            const response = await fetch(`${API_URL}/api/settings/email`, {
+            const response = await fetch(`${API_URL}/api/admin/settings/email_config`, {
                 headers: {
                     'Authorization': `Bearer ${session.access_token}`
                 }
@@ -116,11 +94,11 @@ export function EmailConfigTab({ onMessage }) {
 
             if (response.ok) {
                 const data = await response.json();
-                if (data.success && data.data) {
-                    setConfig(prev => ({ ...prev, ...data.data }));
+                if (data.success && data.data?.value) {
+                    setConfig(prev => ({ ...prev, ...data.data.value }));
                     setTestStatus({
-                        status: data.data.lastTestResult || 'untested',
-                        lastTested: data.data.lastTestedAt
+                        status: data.data.value.lastTestResult || 'untested',
+                        lastTested: data.data.value.lastTestedAt
                     });
                 }
             }
@@ -163,14 +141,14 @@ export function EmailConfigTab({ onMessage }) {
 
         setTesting(true);
         try {
-            const response = await fetch(`${API_URL}/api/settings/email/test`, {
+            const response = await fetch(`${API_URL}/api/admin/settings/email/test`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${session.access_token}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    ...config,
+                    smtpConfig: config,
                     testEmail
                 })
             });
@@ -205,13 +183,13 @@ export function EmailConfigTab({ onMessage }) {
 
         setSaving(true);
         try {
-            const response = await fetch(`${API_URL}/api/settings/email`, {
+            const response = await fetch(`${API_URL}/api/admin/settings/email_config`, {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${session.access_token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(config)
+                body: JSON.stringify({ value: config, scope: 'global' })
             });
 
             if (response.ok) {
@@ -237,11 +215,16 @@ export function EmailConfigTab({ onMessage }) {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
+            {/* Section Header */}
             <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Cấu hình Email SMTP</h2>
-                    <p className="text-gray-500 mt-1">Thiết lập máy chủ email để gửi thông báo</p>
+                <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-indigo-50 rounded-xl">
+                        <Mail className="w-5 h-5 text-indigo-600" />
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-semibold text-gray-900">Cấu hình Email SMTP</h2>
+                        <p className="text-sm text-gray-500">Thiết lập máy chủ email để gửi thông báo</p>
+                    </div>
                 </div>
                 <StatusBadge status={testStatus.status} lastTested={testStatus.lastTested} />
             </div>
