@@ -62,13 +62,16 @@ export const Footer = () => {
                     {/* Brand Column */}
                     <div className="lg:col-span-4 space-y-6">
                         <Link to="/" className="inline-block group">
-                            <SmartImage
-                                src={logoImage}
-                                alt="Skill Master Logo"
-                                className="w-full h-full object-contain brightness-0 invert opacity-50 group-hover:opacity-100 transition-all duration-300"
-                                containerClassName="h-16 w-auto bg-transparent"
-                                aspectRatio="aspect-auto"
-                            />
+                            <div className="h-14 w-auto bg-white rounded-xl px-3 py-2 
+                                group-hover:shadow-lg group-hover:shadow-white/10 transition-all duration-300">
+                                <SmartImage
+                                    src={logoImage}
+                                    alt="Skill Master Logo"
+                                    className="w-full h-full object-contain"
+                                    containerClassName="h-full w-auto"
+                                    aspectRatio="aspect-auto"
+                                />
+                            </div>
                         </Link>
                         <p className="text-stone-400 leading-relaxed max-w-sm">
                             Hệ thống đào tạo Anh ngữ & Tin học chuẩn quốc tế.
