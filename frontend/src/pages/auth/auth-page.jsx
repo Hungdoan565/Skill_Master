@@ -22,6 +22,13 @@ import {
   Target
 } from 'lucide-react';
 
+// Campus images for left panel
+import centerClassroom from '@/assets/landing/center/modern-classroom.png';
+import centerReception from '@/assets/landing/center/reception.png';
+import centerStudyCorner from '@/assets/landing/center/study-corner.png';
+import centerClassInProgress from '@/assets/landing/center/class-in-progress.png';
+import logoImg from '@/assets/logo.png';
+
 // ============================================
 // AUTH PAGE - SWISS MINIMALISM DESIGN
 // ============================================
@@ -840,11 +847,11 @@ const RegisterForm = ({ onSwitchToLogin, isAnimating }) => {
   );
 };
 
-// ============ LEFT PANEL ============
+// ============ LEFT PANEL — CLEAN CAMPUS SPLIT ============
 const LeftPanel = ({ isLogin }) => {
   const [displayedContent, setDisplayedContent] = useState(isLogin);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  
+
   useEffect(() => {
     if (displayedContent !== isLogin) {
       setIsTransitioning(true);
@@ -856,54 +863,50 @@ const LeftPanel = ({ isLogin }) => {
     }
   }, [isLogin, displayedContent]);
 
-  const loginFeatures = [
-    { icon: BookOpen, text: 'Quản lý học viên & lớp học' },
-    { icon: Target, text: 'Theo dõi tiến độ học tập' },
-    { icon: Award, text: 'Chứng chỉ & thành tích' },
-    { icon: Users, text: 'Cộng đồng học viên' },
-  ];
-  
-  const registerFeatures = [
-    { icon: BookOpen, text: 'Truy cập 100+ khóa học' },
-    { icon: Target, text: 'Lộ trình cá nhân hóa' },
-    { icon: Award, text: 'Cam kết đầu ra' },
-    { icon: Users, text: 'Hỗ trợ 24/7' },
-  ];
-
-  const features = displayedContent ? loginFeatures : registerFeatures;
+  // Login = classroom (đã tham gia, quay lại học)
+  // Register = reception (mới đến, được chào đón)
+  const currentPhoto = displayedContent ? centerClassroom : centerReception;
+  const altText = displayedContent ? 'Phòng học hiện đại' : 'Lễ tân chào đón';
 
   return (
-    <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden"
-         style={{ background: 'linear-gradient(135deg, #0a0a0a 0%, #171717 50%, #0f0f0f 100%)' }}>
-      
-      {/* Ambient Glow - Creates depth */}
-      <div className="absolute top-1/3 -left-32 w-96 h-96 bg-[#FF4D00]/8 rounded-full blur-[120px]" />
-      <div className="absolute bottom-0 right-0 w-80 h-80 bg-[#FF4D00]/5 rounded-full blur-[100px]" />
-      
-      {/* Subtle noise texture */}
-      <div className="absolute inset-0 opacity-[0.015]" 
-           style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\'/%3E%3C/svg%3E")' }} />
+    <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
+      {/* Background photo — crossfade on mode switch */}
+      <img
+        key={displayedContent ? 'login' : 'register'}
+        src={currentPhoto}
+        alt={altText}
+        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700
+          ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}
+      />
 
-      {/* Content */}
-      <div className="relative z-10 flex flex-col w-full p-12 lg:p-16">
-        
-        {/* Logo - Top */}
-        <Link to="/" className="flex items-center gap-3 group">
-          <div className="relative">
-            <div className="w-11 h-11 bg-white flex items-center justify-center rounded-xl shadow-2xl shadow-white/10">
-              <span className="text-sm font-bold text-neutral-900 tracking-tight">SM</span>
-            </div>
-            <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-[#FF4D00] rounded-full shadow-lg shadow-[#FF4D00]/50" />
+      {/* Gradient overlay for text readability */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/15 z-10" />
+
+      {/* Content overlay */}
+      <div className="relative z-20 flex flex-col justify-between h-full p-12 lg:p-14">
+
+        {/* Top — Project Logo */}
+        <Link to="/" className="flex items-center gap-3 group w-fit">
+          <div className="bg-white/95 backdrop-blur-md px-3 py-2 rounded-2xl shadow-2xl shadow-black/30 ring-1 ring-white/20 transition-all duration-300 group-hover:scale-105 group-hover:shadow-black/40">
+            <img
+              src={logoImg}
+              alt="Skill Master"
+              className="h-9 w-auto object-contain"
+            />
           </div>
-          <span className="text-lg font-semibold text-white/90">Skill Master</span>
+          <span className="text-xl font-bold text-white tracking-tight drop-shadow-md">
+            Skill Master
+          </span>
         </Link>
 
-        {/* Main Content - Vertically centered with asymmetric spacing */}
-        <div className="flex-1 flex flex-col justify-center py-16">
-          
-          {/* Hero Title - LARGE, commanding presence */}
-          <div className={`transition-all duration-700 ease-out ${isTransitioning ? 'opacity-0 translate-y-8' : 'opacity-100 translate-y-0'}`}>
-            <h2 className="text-5xl lg:text-6xl font-bold text-white leading-[1.1] tracking-tight">
+        {/* Spacer */}
+        <div />
+
+        {/* Bottom — Hero copy + features */}
+        <div className="space-y-6 max-w-md">
+          {/* Heading */}
+          <div className={`transition-all duration-500 ease-out ${isTransitioning ? 'opacity-0 translate-y-6' : 'opacity-100 translate-y-0'}`}>
+            <h2 className="text-4xl lg:text-5xl font-bold text-white leading-[1.15] tracking-tight">
               {displayedContent ? (
                 <>Chào mừng<br /><span className="text-[#FF4D00]">trở lại</span></>
               ) : (
@@ -911,53 +914,36 @@ const LeftPanel = ({ isLogin }) => {
               )}
             </h2>
           </div>
-          
-          {/* Subtitle - More breathing room */}
-          <div className={`transition-all duration-700 ease-out delay-100 ${isTransitioning ? 'opacity-0 translate-y-8' : 'opacity-100 translate-y-0'}`}>
-            <p className="mt-6 text-white/40 text-base leading-relaxed max-w-sm">
-              {displayedContent 
-                ? 'Đăng nhập để tiếp tục hành trình học tập và phát triển kỹ năng.'
-                : 'Tham gia cùng 2,400+ học viên đang chinh phục mục tiêu.'
+
+          {/* Subtitle */}
+          <div className={`transition-all duration-500 ease-out delay-75 ${isTransitioning ? 'opacity-0 translate-y-6' : 'opacity-100 translate-y-0'}`}>
+            <p className="text-white/60 text-[15px] leading-relaxed">
+              {displayedContent
+                ? 'Đăng nhập để tiếp tục quản lý lớp học, theo dõi tiến độ và phát triển kỹ năng.'
+                : 'Tạo tài khoản miễn phí để truy cập hệ thống học tập và quản lý toàn diện.'
               }
             </p>
           </div>
 
-          {/* Features - No boxes, just icons and text with opacity hierarchy */}
-          <div className="mt-12 space-y-4">
-            {features.map((feature, index) => (
-              <div 
-                key={`${displayedContent}-${index}`}
-                className={`
-                  flex items-center gap-4
-                  transition-all duration-700 ease-out
-                  ${isTransitioning ? 'opacity-0 translate-x-6' : 'opacity-100 translate-x-0'}
-                `}
-                style={{ transitionDelay: `${150 + index * 75}ms` }}
-              >
-                <feature.icon className="w-5 h-5 text-[#FF4D00]/70" strokeWidth={1.5} />
-                <span className="text-[15px] text-white/60">{feature.text}</span>
+          {/* Feature list — context-appropriate */}
+          <div className={`space-y-3 transition-all duration-500 ease-out delay-150 ${isTransitioning ? 'opacity-0 translate-y-6' : 'opacity-100 translate-y-0'}`}>
+            {(displayedContent
+              ? [
+                  'Truy cập lớp học & lịch trình',
+                  'Xem kết quả & chứng chỉ',
+                  'Chat với giáo viên & AI',
+                ]
+              : [
+                  'Đăng ký nhanh trong 30 giây',
+                  'Làm bài kiểm tra đầu vào miễn phí',
+                  'Nhận lộ trình học cá nhân hóa',
+                ]
+            ).map((text, i) => (
+              <div key={`${displayedContent}-${i}`} className="flex items-center gap-3">
+                <div className="w-1.5 h-1.5 rounded-full bg-[#FF4D00] shrink-0" />
+                <span className="text-white/50 text-sm">{text}</span>
               </div>
             ))}
-          </div>
-        </div>
-
-        {/* Stats - No border, use spacing and opacity */}
-        <div className={`
-          grid grid-cols-3 gap-8 pt-8
-          transition-all duration-700 ease-out delay-500
-          ${isTransitioning ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}
-        `}>
-          <div>
-            <p className="text-3xl font-bold text-white tracking-tight">2,400+</p>
-            <p className="text-xs text-white/30 mt-1 uppercase tracking-wider">Học viên</p>
-          </div>
-          <div>
-            <p className="text-3xl font-bold text-white tracking-tight">98%</p>
-            <p className="text-xs text-white/30 mt-1 uppercase tracking-wider">Đạt mục tiêu</p>
-          </div>
-          <div>
-            <p className="text-3xl font-bold text-white tracking-tight">50+</p>
-            <p className="text-xs text-white/30 mt-1 uppercase tracking-wider">Giáo viên</p>
           </div>
         </div>
       </div>

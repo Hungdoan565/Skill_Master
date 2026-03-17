@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/auth-context';
 import logoImage from '@/assets/logo.png';
-import { SearchOverlay } from '@/pages/public/blog/components/SearchOverlay';
+import { UniversalSearchOverlay } from '@/components/common/UniversalSearchOverlay';
 import { ConsultationModal, BookingModal, SmartImage } from '@/components/common';
 
 // ============================================
@@ -431,7 +431,7 @@ const PublicHeader = ({ transparent = false }) => {
           )}
 
           {/* Global Search Overlay */}
-          <SearchOverlay
+          <UniversalSearchOverlay
             isOpen={searchOpen}
             onClose={() => setSearchOpen(false)}
           />

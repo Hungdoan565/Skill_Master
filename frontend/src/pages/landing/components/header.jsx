@@ -3,11 +3,13 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
     Globe, Award, MessageCircle, Users, FileText, Layers, Target, BarChart3,
     GraduationCap, BookMarked, ArrowRight, ChevronDown, LayoutDashboard, User,
-    Settings, LogOut, Menu, X
+    Settings, LogOut, Menu, X, Heart, School, Star, Newspaper, Video,
+    HelpCircle, Phone, Mail, Calendar, MapPin, Search, Building2, BookOpen, Zap
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import logoImage from '@/assets/logo.png';
 import { ConsultationModal, BookingModal } from '@/components/common';
+import { UniversalSearchOverlay } from '@/components/common/UniversalSearchOverlay';
 
 // ============================================
 // DROPDOWN COMPONENTS
@@ -43,6 +45,16 @@ const DropdownItem = ({ icon: Icon, title, description, href = '#', onClick }) =
 
     if (onClick) {
         return <button onClick={onClick} className="w-full text-left" role="menuitem">{content}</button>;
+    }
+
+    // External links (tel:, mailto:, https://) use native <a> tag
+    const isExternal = /^(https?:|mailto:|tel:)/.test(href);
+    if (isExternal) {
+        return (
+            <a href={href} className="block" role="menuitem" target="_blank" rel="noopener noreferrer">
+                {content}
+            </a>
+        );
     }
 
     return (
@@ -239,6 +251,7 @@ export const Header = () => {
     const [scrolled, setScrolled] = useState(false);
     const [openDropdown, setOpenDropdown] = useState(null);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [searchOpen, setSearchOpen] = useState(false);
     const [showConsultationModal, setShowConsultationModal] = useState(false);
     const [showBookingModal, setShowBookingModal] = useState(false);
     const { isAuthenticated } = useAuth();
@@ -307,12 +320,64 @@ export const Header = () => {
                                 </div>
                             </NavDropdown>
 
-                            <Link to="/blog" className="text-sm font-medium text-zinc-500 hover:text-zinc-900 transition-colors">Tin tức</Link>
-                            <Link to="/about" className="text-sm font-medium text-zinc-500 hover:text-zinc-900 transition-colors">Về chúng tôi</Link>
+                            <NavDropdown label="Về chúng tôi" isOpen={openDropdown === 'about'} onToggle={() => handleDropdownToggle('about')} onClose={closeDropdown}>
+                                <div className="w-[280px] p-2">
+                                    <DropdownSection title="Giới thiệu">
+                                        <DropdownItem icon={Heart} title="Câu chuyện Skill Master" description="Sứ mệnh & giá trị cốt lõi" href="/about#story" />
+                                        <DropdownItem icon={GraduationCap} title="Đội ngũ giảng viên" description="100% có chứng chỉ quốc tế" href="/about#team" />
+                                        <DropdownItem icon={School} title="Cơ sở vật chất" description="Phòng học hiện đại, tiện nghi" href="/about#facilities" />
+                                    </DropdownSection>
+                                    <div className="border-t border-stone-100 my-1" />
+                                    <DropdownSection title="Thành tựu">
+                                        <DropdownItem icon={Star} title="Học viên tiêu biểu" description="Câu chuyện thành công" href="/about#success" />
+                                        <DropdownItem icon={Award} title="Chứng nhận & Giải thưởng" description="Đối tác Cambridge, ETS" href="/about#achievements" />
+                                    </DropdownSection>
+                                </div>
+                            </NavDropdown>
+
+                            <NavDropdown label="Tài nguyên" isOpen={openDropdown === 'resources'} onToggle={() => handleDropdownToggle('resources')} onClose={closeDropdown}>
+                                <div className="w-[280px] p-2">
+                                    <DropdownSection title="Học miễn phí">
+                                        <DropdownItem icon={Newspaper} title="Blog chia sẻ" description="Tips học hiệu quả mỗi ngày" href="/blog" />
+                                        <DropdownItem icon={Video} title="Video bài giảng" description="Kho video 500+ bài học" href="/resources#videos" />
+                                        <DropdownItem icon={BookMarked} title="Tài liệu miễn phí" description="Đề thi, flashcard, ebook" href="/resources#materials" />
+                                    </DropdownSection>
+                                    <div className="border-t border-stone-100 my-1" />
+                                    <DropdownSection title="Kiểm tra">
+                                        <DropdownItem icon={Target} title="Test trình độ" description="Đánh giá năng lực miễn phí" href="/assessment" />
+                                        <DropdownItem icon={HelpCircle} title="Tư vấn lộ trình" description="Chuyên gia tư vấn 1-1 miễn phí" onClick={() => { closeDropdown(); setShowConsultationModal(true); }} />
+                                    </DropdownSection>
+                                </div>
+                            </NavDropdown>
+
+                            <NavDropdown label="Liên hệ" isOpen={openDropdown === 'contact'} onToggle={() => handleDropdownToggle('contact')} onClose={closeDropdown}>
+                                <div className="w-[280px] p-2">
+                                    <DropdownSection>
+                                        <DropdownItem icon={MessageCircle} title="Chat tư vấn" description="Hỗ trợ 8:00 - 21:00 hàng ngày" href="https://zalo.me/skillmaster" />
+                                        <DropdownItem icon={Phone} title="Hotline: 1900 xxxx" description="Gọi ngay để được tư vấn" href="tel:1900xxxx" />
+                                        <DropdownItem icon={Mail} title="Email" description="info@skillmaster.edu.vn" href="mailto:info@skillmaster.edu.vn" />
+                                        <DropdownItem icon={Calendar} title="Đặt lịch học thử" description="Trải nghiệm miễn phí 1 buổi" onClick={() => { closeDropdown(); setShowBookingModal(true); }} />
+                                    </DropdownSection>
+                                    <div className="mx-2 mt-2 p-3 bg-stone-50 rounded-xl">
+                                        <div className="flex items-start gap-2">
+                                            <MapPin className="w-4 h-4 text-zinc-400 mt-0.5 flex-shrink-0" />
+                                            <p className="text-xs text-zinc-500">Tầng 5, Tòa nhà ABC, 123 Nguyễn Văn Linh, Quận 7, TP.HCM</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </NavDropdown>
                         </div>
 
-                        {/* Auth Buttons */}
+                        {/* Auth Buttons + Search */}
                         <div className="hidden lg:flex items-center gap-4">
+                            {/* Search Button */}
+                            <button
+                                className="p-2 rounded-full text-zinc-500 hover:text-zinc-900 hover:bg-stone-100 transition-all duration-200"
+                                aria-label="Tìm kiếm"
+                                onClick={() => setSearchOpen(true)}
+                            >
+                                <Search className="w-5 h-5" />
+                            </button>
                             {isAuthenticated ? (
                                 <UserDropdown />
                             ) : (
@@ -341,8 +406,9 @@ export const Header = () => {
                         <div className="flex flex-col gap-4">
                             <Link to="/courses" className="font-medium text-lg text-zinc-900">Khóa học</Link>
                             <Link to="/roadmap" className="font-medium text-lg text-zinc-900">Lộ trình</Link>
-                            <Link to="/blog" className="font-medium text-lg text-zinc-900">Tin tức</Link>
                             <Link to="/about" className="font-medium text-lg text-zinc-900">Về chúng tôi</Link>
+                            <Link to="/blog" className="font-medium text-lg text-zinc-900">Tài nguyên</Link>
+                            <Link to="/contact" className="font-medium text-lg text-zinc-900">Liên hệ</Link>
                             <hr className="border-stone-100" />
                             {isAuthenticated ? (
                                 <div className="flex flex-col gap-2">
@@ -372,6 +438,12 @@ export const Header = () => {
                 isOpen={showBookingModal}
                 onClose={() => setShowBookingModal(false)}
                 source="landing_header"
+            />
+
+            {/* Universal Search */}
+            <UniversalSearchOverlay
+                isOpen={searchOpen}
+                onClose={() => setSearchOpen(false)}
             />
         </>
     );

@@ -62,14 +62,12 @@ export const Footer = () => {
                     {/* Brand Column */}
                     <div className="lg:col-span-4 space-y-6">
                         <Link to="/" className="inline-block group">
-                            <div className="h-14 w-auto bg-white rounded-xl px-3 py-2 
+                            <div className="h-14 w-auto bg-white rounded-xl px-3 py-2 flex items-center justify-center
                                 group-hover:shadow-lg group-hover:shadow-white/10 transition-all duration-300">
-                                <SmartImage
+                                <img
                                     src={logoImage}
                                     alt="Skill Master Logo"
-                                    className="w-full h-full object-contain"
-                                    containerClassName="h-full w-auto"
-                                    aspectRatio="aspect-auto"
+                                    className="h-full w-auto object-contain"
                                 />
                             </div>
                         </Link>

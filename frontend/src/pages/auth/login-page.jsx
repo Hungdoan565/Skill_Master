@@ -15,9 +15,14 @@ import {
   ArrowLeft,
   Mail,
   Lock,
-  CheckCircle2,
   Github
 } from 'lucide-react';
+
+// Campus images for left panel
+import centerClassroom from '@/assets/landing/center/modern-classroom.png';
+import centerReception from '@/assets/landing/center/reception.png';
+import centerStudyCorner from '@/assets/landing/center/study-corner.png';
+import centerClassInProgress from '@/assets/landing/center/class-in-progress.png';
 
 // Schema validation với Zod
 const loginSchema = z.object({
@@ -94,56 +99,113 @@ export function LoginPage() {
 
   return (
     <div className="flex min-h-screen">
-      {/* Left Panel - Branding (Dark Theme - cân đối hơn) */}
-      <div className="hidden w-1/2 flex-col justify-center bg-slate-900 p-12 lg:flex">
-        {/* Logo - ở trên cùng absolute */}
-        <div className="absolute top-12 left-12">
-          <Link to="/" className="inline-flex items-center gap-3 transition-opacity duration-200 hover:opacity-80">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600">
+      {/* Left Panel — Immersive Campus Showcase */}
+      <div className="hidden w-1/2 lg:flex relative overflow-hidden">
+        {/* Rotating background photos — auto crossfade */}
+        {[
+          { src: centerClassroom, alt: 'Phòng học hiện đại' },
+          { src: centerReception, alt: 'Lễ tân tư vấn' },
+          { src: centerStudyCorner, alt: 'Góc tự học' },
+          { src: centerClassInProgress, alt: 'Lớp đang học' },
+        ].map((photo, i) => (
+          <img
+            key={i}
+            src={photo.src}
+            alt={photo.alt}
+            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-[1500ms]"
+            style={{
+              opacity: 'var(--photo-opacity)',
+              animationName: 'login-photo-cycle',
+              animationDuration: '20s',
+              animationTimingFunction: 'ease-in-out',
+              animationIterationCount: 'infinite',
+              animationDelay: `${i * 5}s`,
+            }}
+          />
+        ))}
+
+        {/* Dark gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20 z-10" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-transparent z-10" />
+
+        {/* Animated accent glow */}
+        <div className="absolute top-1/4 -left-20 w-80 h-80 rounded-full blur-[100px] bg-red-600/20 z-10
+          animate-pulse" />
+        <div className="absolute bottom-1/4 right-10 w-60 h-60 rounded-full blur-[80px] bg-indigo-600/15 z-10
+          animate-pulse [animation-delay:2s]" />
+
+        {/* Content overlay */}
+        <div className="relative z-20 flex flex-col justify-between h-full p-12">
+          
+          {/* Top — Logo */}
+          <Link to="/" className="inline-flex items-center gap-3 transition-opacity duration-200 hover:opacity-80 w-fit">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur-xl border border-white/20">
               <GraduationCap className="h-6 w-6 text-white" />
             </div>
             <span className="text-xl font-bold text-white">Skill Master</span>
           </Link>
-        </div>
 
-        {/* Main Content - căn giữa */}
-        <div className="space-y-8 max-w-lg">
-          <div>
-            <h1 className="text-4xl font-bold leading-tight text-white">
-              Quản lý đào tạo
+          {/* Center — Hero copy */}
+          <div className="space-y-6 max-w-md">
+            <h1 className="text-5xl font-bold leading-[1.1] text-white tracking-tight">
+              Chào mừng
+              <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-orange-300">
+                trở lại
+              </span>
             </h1>
-            <h2 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">
-              chuyên nghiệp
-            </h2>
+            <p className="text-white/60 text-base leading-relaxed">
+              Đăng nhập để tiếp tục hành trình học tập và phát triển kỹ năng.
+            </p>
           </div>
-          
-          <p className="text-base text-slate-400 leading-relaxed">
-            Nền tảng quản lý toàn diện được tin dùng bởi hơn 100 trung tâm đào tạo 
-            tại Việt Nam. Tăng năng suất, tối ưu quy trình làm việc.
-          </p>
 
-          {/* Feature Checklist */}
-          <div className="space-y-4 pt-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-500/20">
-                <CheckCircle2 className="h-4 w-4 text-indigo-400" />
+          {/* Bottom — Testimonial card + stats */}
+          <div className="space-y-6">
+            {/* Glassmorphism testimonial */}
+            <div className="p-5 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/15
+              max-w-md">
+              <p className="text-white/90 text-sm leading-relaxed italic">
+                "Sau 4 tháng học, mình đã đạt IELTS 7.5 từ mức 5.5. Phương pháp học rất hiệu quả 
+                và giáo viên rất tận tâm."
+              </p>
+              <div className="flex items-center gap-3 mt-4 pt-3 border-t border-white/10">
+                <div className="w-9 h-9 rounded-full bg-red-500 flex items-center justify-center shrink-0">
+                  <span className="text-white text-xs font-bold">MA</span>
+                </div>
+                <div>
+                  <p className="text-white text-sm font-semibold">Nguyễn M.A.</p>
+                  <p className="text-white/40 text-xs">Sinh viên ĐH Bách Khoa</p>
+                </div>
+                <span className="ml-auto px-2.5 py-1 rounded-full bg-green-500/20 text-green-300 text-xs font-semibold">
+                  IELTS 7.5
+                </span>
               </div>
-              <span className="text-slate-300">Quản lý học viên & lớp học</span>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-500/20">
-                <CheckCircle2 className="h-4 w-4 text-indigo-400" />
-              </div>
-              <span className="text-slate-300">Theo dõi doanh thu & học phí</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-500/20">
-                <CheckCircle2 className="h-4 w-4 text-indigo-400" />
-              </div>
-              <span className="text-slate-300">Báo cáo & phân tích chi tiết</span>
+
+            {/* Stats row */}
+            <div className="flex items-center gap-8">
+              {[
+                { value: '2,400+', label: 'Học viên' },
+                { value: '98%', label: 'Đạt mục tiêu' },
+                { value: '50+', label: 'Khóa học' },
+              ].map((s) => (
+                <div key={s.label}>
+                  <p className="text-2xl font-bold text-white">{s.value}</p>
+                  <p className="text-xs text-white/40">{s.label}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
+
+        {/* Photo cycle animation */}
+        <style>{`
+          @keyframes login-photo-cycle {
+            0%, 20% { opacity: 1; }
+            25%, 95% { opacity: 0; }
+            100% { opacity: 1; }
+          }
+        `}</style>
       </div>
 
       {/* Right Panel - Login Form */}

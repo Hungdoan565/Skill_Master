@@ -146,25 +146,31 @@ export const HeroSection = () => {
                             </div>
                         </div>
 
-                        {/* Right Visual — Product Screenshot */}
-                        <div className={`lg:col-span-5 transform transition-all duration-1000 delay-300
+                        {/* Right Visual — Single Large Photo Container */}
+                        <div className={`lg:col-span-5 relative transform transition-all duration-1000 delay-300
                           ${isInView ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-12'}`}>
-                            <div className="relative">
-                                {/* Product Mockup Card */}
-                                <div className="relative bg-white rounded-3xl shadow-2xl shadow-zinc-900/10 
-                             border border-stone-100 overflow-hidden 
-                             hover:shadow-3xl hover:shadow-zinc-900/15 transition-shadow duration-500">
-                                    <SmartImage
-                                        src={landingImages.hero.productMockup}
-                                        alt="Skill Master dashboard - quản lý trung tâm đào tạo"
-                                        className="w-full h-full object-cover"
-                                        containerClassName="w-full aspect-[4/3]"
-                                    />
+                            
+                            {/* Ambient Background Glow */}
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[110%] h-[110%] bg-gradient-to-tr from-red-100/40 to-blue-50/40 rounded-full blur-[80px] -z-10" />
+
+                            {/* Full-bleed Photo Container */}
+                            <div className="relative w-full aspect-[4/3] sm:aspect-square lg:aspect-[4/3] xl:aspect-[16/11]">
+                                <div className="absolute inset-0 bg-white rounded-[2.5rem] shadow-2xl shadow-zinc-900/10 
+                                             border-4 border-white overflow-hidden group transition-transform duration-700 hover:-translate-y-1">
+                                    <div className="absolute inset-0 rounded-[calc(2.5rem-4px)] overflow-hidden">
+                                        <SmartImage
+                                            src={landingImages.center.classroom}
+                                            alt="Cơ sở vật chất hiện đại tại Skill Master"
+                                            className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                                            containerClassName="w-full h-full"
+                                        />
+                                        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
+                                    </div>
                                 </div>
 
                                 {/* Floating Card — Satisfaction */}
-                                <div className="absolute top-8 -right-6 p-4 bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl 
-                             border border-stone-100 animate-float z-20 hidden lg:block">
+                                <div className="absolute top-8 -right-6 p-4 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl 
+                                             border border-white/50 animate-float z-30 hidden lg:block">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
                                             <CheckCircle2 className="w-5 h-5 text-green-600" />
@@ -177,8 +183,8 @@ export const HeroSection = () => {
                                 </div>
 
                                 {/* Floating Card — Active Stats */}
-                                <div className="absolute bottom-16 -left-6 p-4 bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl 
-                             border border-stone-100 animate-float z-20 hidden lg:block"
+                                <div className="absolute bottom-10 -left-8 p-4 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl 
+                                             border border-white/50 animate-float z-30 hidden lg:block"
                                     style={{ animationDelay: '1s' }}>
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">

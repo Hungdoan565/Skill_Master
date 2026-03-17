@@ -2,13 +2,32 @@ import React, { useEffect, useRef, useState } from 'react';
 import { SmartImage, SEOHead } from '@/components/common';
 import { Link } from 'react-router-dom';
 import {
-  ArrowRight, MapPin, Phone, Award, Navigation
+  ArrowRight, MapPin, Phone, Award, Navigation, X, Users, Clock, BookOpen
 } from 'lucide-react';
 import PublicHeader from '@/components/layout/public-header';
 import { Footer } from '@/pages/landing/components/footer';
 
 // Import logo
 import logoImage from '@/assets/logo.png';
+
+// Import local generated images for About page
+import centerClassroom from '@/assets/landing/center/modern-classroom.png';
+import centerReception from '@/assets/landing/center/reception.png';
+import centerStudyCorner from '@/assets/landing/center/study-corner.png';
+import centerClassInProgress from '@/assets/landing/center/class-in-progress.png';
+import illustrationGrowth from '@/assets/landing/illustrations/growth.png';
+import trustGraduation from '@/assets/landing/trust/graduation.png';
+
+// Import teacher portraits
+import teacherFemaleIelts from '@/assets/landing/teachers/teacher-female-ielts.png';
+import teacherMaleToeic from '@/assets/landing/teachers/teacher-male-toeic.png';
+import teacherFemaleIt from '@/assets/landing/teachers/teacher-female-it.png';
+import teacherMaleBusiness from '@/assets/landing/teachers/teacher-male-business.png';
+import teacherFemaleToefl from '@/assets/landing/teachers/teacher-female-toefl.png';
+import teacherMaleItLead from '@/assets/landing/teachers/teacher-male-it-lead.png';
+import teacherFemaleKids from '@/assets/landing/teachers/teacher-female-kids.png';
+import teacherMaleSpeaking from '@/assets/landing/teachers/teacher-male-speaking.png';
+import ceoAvatar from '@/assets/avt.jpg';
 
 // ============================================
 // ABOUT PAGE - SWISS MINIMALISM
@@ -191,35 +210,35 @@ const StorySection = () => {
       title: 'Khởi đầu',
       desc: '12 học viên đầu tiên tại cơ sở Quận 1',
       highlight: false,
-      image: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=600&h=400&fit=crop'
+      image: centerClassroom
     },
     {
       year: '2018',
       title: 'Mở rộng',
       desc: 'Khai trương cơ sở thứ 2 tại Quận 7',
       highlight: false,
-      image: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&h=400&fit=crop'
+      image: centerReception
     },
     {
       year: '2020',
       title: 'Chuyển đổi số',
       desc: 'Ra mắt platform học trực tuyến',
       highlight: false,
-      image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&h=400&fit=crop'
+      image: illustrationGrowth
     },
     {
       year: '2023',
       title: 'Đối tác Cambridge',
       desc: 'Trở thành trung tâm ủy quyền chính thức',
       highlight: true,
-      image: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=600&h=400&fit=crop'
+      image: trustGraduation
     },
     {
       year: '2025',
       title: 'Hiện tại',
       desc: '3 cơ sở, 50+ giảng viên, 10,000+ học viên',
       highlight: false,
-      image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=600&h=400&fit=crop'
+      image: centerClassInProgress
     },
   ];
 
@@ -256,7 +275,7 @@ const StorySection = () => {
                   className={`absolute inset-0 transition-all duration-700
                             ${hoveredYear === item.year ? 'opacity-10' : 'opacity-0'}`}
                   style={{
-                    backgroundImage: `url('${item.image}')`,
+                    backgroundImage: `url(${item.image})`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center'
                   }}
@@ -544,7 +563,7 @@ const SuccessSpotlightSection = () => {
     after: 'IELTS 7.5',
     duration: '6 tháng',
     quote: 'Sau 6 tháng học tại Skill Master, mình đã đạt IELTS 7.5 và nhận học bổng du học Úc. Các thầy cô rất tận tâm và phương pháp học rất hiệu quả.',
-    image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop&crop=face',
+    image: teacherFemaleIelts,
     achievement: 'Học bổng du học Úc 2024'
   };
 
@@ -635,6 +654,8 @@ const TeamSection = () => {
   const [ref, isInView] = useInView();
   const [activeStrip, setActiveStrip] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [selectedTeacher, setSelectedTeacher] = useState(null);
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
   // Full team data - Vietnamese + International
   const team = [
@@ -644,10 +665,15 @@ const TeamSection = () => {
       department: 'Leadership',
       nationality: 'VN',
       years: 12,
-      certifications: ['IELTS 8.5', 'Thạc sĩ TESOL', 'Cambridge CELTA', 'Senior Full-Stack Developer'],
+      certifications: [
+        { abbr: 'IELTS', score: '8.5/9.0', name: 'International English Language Testing System', issuer: 'British Council / IDP', year: '2019', color: '#CC0000', category: 'Language' },
+        { abbr: 'MA', score: 'Distinction', name: 'Thạc sĩ TESOL', issuer: 'Đại học Hà Nội', year: '2017', color: '#6B21A8', category: 'Degree' },
+        { abbr: 'CELTA', score: 'Grade A', name: 'Cambridge CELTA', issuer: 'Cambridge Assessment', year: '2018', color: '#0047AB', category: 'Teaching' },
+        { abbr: 'DEV', score: 'Senior', name: 'Senior Full-Stack Developer', issuer: 'Industry Certified', year: '2020', color: '#0F172A', category: 'IT' },
+      ],
       specialties: ['IELTS Writing', 'Academic English'],
       students: '3,000+',
-      image: '../src/assets/avt.jpg'
+      image: ceoAvatar
     },
     {
       name: 'Sarah Johnson',
@@ -655,10 +681,14 @@ const TeamSection = () => {
       department: 'English',
       nationality: 'US',
       years: 9,
-      certifications: ['CELTA', 'DELTA Module 1', 'MA TESOL'],
+      certifications: [
+        { abbr: 'CELTA', score: 'Pass A', name: 'Certificate in English Language Teaching', issuer: 'Cambridge Assessment', year: '2016', color: '#0047AB', category: 'Teaching' },
+        { abbr: 'DELTA', score: 'Module 1', name: 'Diploma in English Language Teaching', issuer: 'Cambridge Assessment', year: '2019', color: '#1E3A5F', category: 'Teaching' },
+        { abbr: 'MA', score: 'Merit', name: 'Master of Arts in TESOL', issuer: 'University of London', year: '2017', color: '#6B21A8', category: 'Degree' },
+      ],
       specialties: ['Speaking', 'Pronunciation'],
       students: '1,800+',
-      image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop&crop=face'
+      image: teacherFemaleToefl
     },
     {
       name: 'Trần Thị Hương',
@@ -666,10 +696,14 @@ const TeamSection = () => {
       department: 'English',
       nationality: 'VN',
       years: 10,
-      certifications: ['DELTA Cambridge', 'IELTS 8.0', 'MA Education'],
+      certifications: [
+        { abbr: 'DELTA', score: 'Full Diploma', name: 'Diploma in English Language Teaching', issuer: 'Cambridge Assessment', year: '2018', color: '#1E3A5F', category: 'Teaching' },
+        { abbr: 'IELTS', score: '8.0/9.0', name: 'International English Language Testing System', issuer: 'British Council', year: '2020', color: '#CC0000', category: 'Language' },
+        { abbr: 'MA', score: 'Distinction', name: 'Master of Education', issuer: 'Đại học Sư phạm TP.HCM', year: '2016', color: '#6B21A8', category: 'Degree' },
+      ],
       specialties: ['Curriculum Design', 'Teacher Training'],
       students: '2,500+',
-      image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop&crop=face'
+      image: teacherFemaleIelts
     },
     {
       name: 'Lê Hoàng Nam',
@@ -677,10 +711,14 @@ const TeamSection = () => {
       department: 'IT',
       nationality: 'VN',
       years: 8,
-      certifications: ['MOS Master', 'MCT', 'IC3 Certified'],
+      certifications: [
+        { abbr: 'MOS', score: 'Master Level', name: 'Microsoft Office Specialist Master', issuer: 'Microsoft', year: '2021', color: '#0078D4', category: 'IT' },
+        { abbr: 'MCT', score: 'Certified', name: 'Microsoft Certified Trainer', issuer: 'Microsoft', year: '2020', color: '#106EBE', category: 'Teaching' },
+        { abbr: 'IC3', score: 'Certified', name: 'IC3 Digital Literacy Certification', issuer: 'Certiport', year: '2019', color: '#166534', category: 'IT' },
+      ],
       specialties: ['Microsoft Office', 'Data Analysis'],
       students: '2,000+',
-      image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=face'
+      image: teacherMaleItLead
     },
     {
       name: 'David Lee',
@@ -688,10 +726,13 @@ const TeamSection = () => {
       department: 'English',
       nationality: 'SG',
       years: 7,
-      certifications: ['IELTS 8.5', 'CELTA'],
+      certifications: [
+        { abbr: 'IELTS', score: '8.5/9.0', name: 'International English Language Testing System', issuer: 'British Council', year: '2019', color: '#CC0000', category: 'Language' },
+        { abbr: 'CELTA', score: 'Pass B', name: 'Certificate in English Language Teaching', issuer: 'Cambridge Assessment', year: '2018', color: '#0047AB', category: 'Teaching' },
+      ],
       specialties: ['IELTS Speaking', 'IELTS Listening'],
       students: '1,500+',
-      image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop&crop=face'
+      image: teacherMaleSpeaking
     },
     {
       name: 'Phạm Thị Lan',
@@ -699,10 +740,14 @@ const TeamSection = () => {
       department: 'English',
       nationality: 'VN',
       years: 10,
-      certifications: ['CELTA', 'TKT 1-3', 'IELTS 7.5'],
+      certifications: [
+        { abbr: 'CELTA', score: 'Pass A', name: 'Certificate in English Language Teaching', issuer: 'Cambridge Assessment', year: '2017', color: '#0047AB', category: 'Teaching' },
+        { abbr: 'TKT', score: 'Band 4', name: 'Teaching Knowledge Test 1-3', issuer: 'Cambridge Assessment', year: '2018', color: '#059669', category: 'Teaching' },
+        { abbr: 'IELTS', score: '7.5/9.0', name: 'International English Language Testing System', issuer: 'British Council', year: '2019', color: '#CC0000', category: 'Language' },
+      ],
       specialties: ['TOEIC', 'Business English'],
       students: '2,800+',
-      image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=400&fit=crop&crop=face'
+      image: teacherMaleBusiness
     },
     {
       name: 'Emily Chen',
@@ -710,10 +755,13 @@ const TeamSection = () => {
       department: 'English',
       nationality: 'TW',
       years: 6,
-      certifications: ['CELTA YL', 'TKT YL'],
+      certifications: [
+        { abbr: 'CELTA', score: 'YL Extension', name: 'CELTA Young Learners Extension', issuer: 'Cambridge Assessment', year: '2020', color: '#0047AB', category: 'Teaching' },
+        { abbr: 'TKT', score: 'YL Module', name: 'Teaching Knowledge Test - Young Learners', issuer: 'Cambridge Assessment', year: '2019', color: '#059669', category: 'Teaching' },
+      ],
       specialties: ['Kids English', 'Phonics'],
       students: '1,200+',
-      image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop&crop=face'
+      image: teacherFemaleKids
     },
     {
       name: 'Võ Minh Tuấn',
@@ -721,10 +769,13 @@ const TeamSection = () => {
       department: 'IT',
       nationality: 'VN',
       years: 5,
-      certifications: ['MOS Expert', 'IC3'],
+      certifications: [
+        { abbr: 'MOS', score: 'Expert Level', name: 'Microsoft Office Specialist Expert', issuer: 'Microsoft', year: '2022', color: '#0078D4', category: 'IT' },
+        { abbr: 'IC3', score: 'Certified', name: 'IC3 Digital Literacy Certification', issuer: 'Certiport', year: '2021', color: '#166534', category: 'IT' },
+      ],
       specialties: ['Excel Advanced', 'PowerPoint'],
       students: '1,000+',
-      image: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400&h=400&fit=crop&crop=face'
+      image: teacherMaleToeic
     },
   ];
 
@@ -849,7 +900,7 @@ const TeamSection = () => {
                   <div className="flex flex-wrap gap-2">
                     {member.certifications.map((cert, j) => (
                       <span key={j} className="px-3 py-1.5 bg-neutral-100 text-xs font-medium text-neutral-700">
-                        {cert}
+                        {cert.abbr} · {cert.score}
                       </span>
                     ))}
                   </div>
@@ -900,7 +951,7 @@ const TeamSection = () => {
               className={`flex gap-4 px-6 marquee-track ${isPaused ? 'paused' : ''}`}
             >
               {marqueeMembers.map((member, i) => (
-                <MarqueeCard key={i} member={member} index={i} />
+                <MarqueeCard key={i} member={member} index={i} onClick={() => { setSelectedTeacher(member); setSelectedIndex(i % team.length); }} />
               ))}
             </div>
           </div>
@@ -959,14 +1010,31 @@ const TeamSection = () => {
           </div>
         </div>
       </div>
-    </section >
+
+      {/* Team Profile Modal */}
+      <TeamProfileModal
+        member={selectedTeacher}
+        isOpen={!!selectedTeacher}
+        onClose={() => setSelectedTeacher(null)}
+        onNext={() => {
+          const nextIdx = (selectedIndex + 1) % team.length;
+          setSelectedIndex(nextIdx);
+          setSelectedTeacher(team[nextIdx]);
+        }}
+        onPrev={() => {
+          const prevIdx = (selectedIndex - 1 + team.length) % team.length;
+          setSelectedIndex(prevIdx);
+          setSelectedTeacher(team[prevIdx]);
+        }}
+      />
+    </section>
   );
 };
 
 // ============================================
 // MARQUEE CARD COMPONENT - WITH SPOTLIGHT VARIATION
 // ============================================
-const MarqueeCard = ({ member, index }) => {
+const MarqueeCard = ({ member, index, onClick }) => {
   const [isHovered, setIsHovered] = useState(false);
   const isInternational = member.nationality !== 'VN';
 
@@ -974,6 +1042,7 @@ const MarqueeCard = ({ member, index }) => {
     <div
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onClick={onClick}
       className={`flex-shrink-0 border bg-white shadow-sm transition-all duration-300 cursor-pointer
                 ${isInternational
           ? 'w-[300px] lg:w-[360px] border-[#FF4D00]/30 hover:border-[#FF4D00]'
@@ -1033,7 +1102,7 @@ const MarqueeCard = ({ member, index }) => {
                                        ${isInternational
                     ? 'bg-[#FF4D00]/10 text-[#FF4D00]'
                     : 'bg-neutral-100 text-neutral-600'}`}>
-                  {cert}
+                  {cert.abbr}
                 </span>
               ))}
             </div>
@@ -1048,6 +1117,235 @@ const MarqueeCard = ({ member, index }) => {
           </div>
         </div>
       </div>
+    </div>
+  );
+};
+
+// ============================================
+// TEAM PROFILE MODAL — Cinematic Dark Backdrop
+// ============================================
+const TeamProfileModal = ({ member, isOpen, onClose, onNext, onPrev }) => {
+  useEffect(() => {
+    if (!isOpen) return;
+    document.body.style.overflow = 'hidden';
+    const handleKey = (e) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowRight') onNext();
+      if (e.key === 'ArrowLeft') onPrev();
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.body.style.overflow = 'unset';
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [isOpen, onClose, onNext, onPrev]);
+
+  if (!isOpen || !member) return null;
+
+  const isInternational = member.nationality !== 'VN';
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6"
+      role="dialog" aria-modal="true">
+      {/* Dark cinematic backdrop */}
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-md"
+        style={{ animation: 'fadeIn 0.3s ease-out' }}
+        onClick={onClose} />
+
+      {/* Ambient glow */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-[120px] opacity-20 bg-gradient-to-br from-[#FF4D00] to-orange-400" />
+      <div className="absolute bottom-1/4 right-1/3 w-64 h-64 rounded-full blur-[100px] opacity-15 bg-gradient-to-br from-[#FF4D00] to-red-500" />
+
+      {/* Modal Content */}
+      <div className="relative w-full max-w-5xl max-h-[92vh] z-10"
+        style={{ animation: 'slideUp 0.4s cubic-bezier(0.16,1,0.3,1)' }}>
+
+        {/* Close */}
+        <button onClick={onClose}
+          className="absolute -top-3 -right-3 z-30 w-10 h-10 bg-white/10 hover:bg-white/20
+            backdrop-blur-xl rounded-full flex items-center justify-center
+            text-white/80 hover:text-white transition-all border border-white/10
+            hover:scale-110"
+          aria-label="Đóng">
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* Nav arrows */}
+        <button onClick={(e) => { e.stopPropagation(); onPrev(); }}
+          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-14 z-30 hidden lg:flex
+            w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-xl rounded-full
+            items-center justify-center text-white/80 hover:text-white transition-all
+            border border-white/10 hover:scale-110"
+          aria-label="Giảng viên trước">
+          <ArrowRight className="w-5 h-5 rotate-180" />
+        </button>
+        <button onClick={(e) => { e.stopPropagation(); onNext(); }}
+          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-14 z-30 hidden lg:flex
+            w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-xl rounded-full
+            items-center justify-center text-white/80 hover:text-white transition-all
+            border border-white/10 hover:scale-110"
+          aria-label="Giảng viên sau">
+          <ArrowRight className="w-5 h-5" />
+        </button>
+
+        {/* Main Grid */}
+        <div className="grid md:grid-cols-5 gap-0 rounded-3xl overflow-hidden
+          border border-white/10 shadow-2xl shadow-black/50">
+
+          {/* Left: Portrait (2/5) */}
+          <div className="relative md:col-span-2 min-h-[300px] md:min-h-[550px] overflow-hidden bg-neutral-900">
+            <img src={member.image} alt={member.name}
+              className="absolute inset-0 w-full h-full object-cover object-top" />
+
+            {/* Gradient overlays */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/10" />
+            <div className="absolute inset-0 bg-gradient-to-br from-[#FF4D00] to-orange-500 opacity-15 mix-blend-overlay" />
+
+            {/* Bottom info on photo */}
+            <div className="absolute bottom-0 left-0 right-0 p-8">
+              {/* Nationality badge */}
+              <div className="mb-4">
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5
+                  bg-white/15 backdrop-blur-xl border border-white/20
+                  text-white text-xs font-bold rounded-full tracking-wider uppercase
+                  ${isInternational ? 'border-[#FF4D00]/50' : ''}`}>
+                  {isInternational ? '🌍 International' : '🇻🇳 Vietnam'}
+                </span>
+              </div>
+
+              <h3 className="text-3xl md:text-4xl font-bold text-white tracking-tight leading-tight">
+                {member.name}
+              </h3>
+              <p className="text-white/60 text-base mt-2 font-medium">
+                {member.role}
+              </p>
+
+              {/* Quick stats row */}
+              <div className="flex flex-wrap gap-2 mt-5">
+                <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl
+                  bg-white/10 backdrop-blur-xl border border-white/10">
+                  <Users className="w-4 h-4 text-blue-400" />
+                  <span className="text-white text-sm font-bold">{member.students}</span>
+                  <span className="text-white/50 text-xs">học viên</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl
+                  bg-white/10 backdrop-blur-xl border border-white/10">
+                  <Clock className="w-4 h-4 text-green-400" />
+                  <span className="text-white text-sm font-bold">{member.years} năm</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Profile Details (3/5) */}
+          <div className="md:col-span-3 bg-white p-8 md:p-10
+            overflow-y-auto max-h-[60vh] md:max-h-[92vh] space-y-8">
+
+            {/* Department */}
+            <div>
+              <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-[0.2em] mb-3
+                flex items-center gap-2">
+                <BookOpen className="w-4 h-4" />
+                Chuyên môn giảng dạy
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {member.specialties.map((s, i) => (
+                  <span key={i} className="px-4 py-2 rounded-xl text-sm font-medium
+                    bg-stone-50 border border-stone-200 text-zinc-700
+                    hover:bg-stone-100 transition-colors">
+                    {s}
+                  </span>
+                ))}
+                <span className="px-4 py-2 rounded-xl text-sm font-medium
+                  bg-[#FF4D00]/10 border border-[#FF4D00]/20 text-[#FF4D00]">
+                  {member.department}
+                </span>
+              </div>
+            </div>
+
+            {/* Certifications */}
+            <div>
+              <h4 className="text-xs font-bold text-neutral-400 uppercase tracking-[0.2em] mb-3
+                flex items-center gap-2">
+                <Award className="w-4 h-4" />
+                Chứng chỉ & Bằng cấp
+              </h4>
+              <div className="space-y-3">
+                {member.certifications.map((cert, i) => (
+                  <div key={i} className="flex gap-4 p-4 rounded-2xl
+                    bg-stone-50 border border-stone-100 hover:bg-stone-100
+                    transition-colors group">
+                    {/* Cert logo tile */}
+                    <div
+                      className="shrink-0 w-14 h-14 rounded-xl flex flex-col items-center
+                        justify-center shadow-sm gap-0.5"
+                      style={{ backgroundColor: cert.color }}>
+                      <span className="text-xs font-black tracking-tight leading-none text-white">
+                        {cert.abbr}
+                      </span>
+                      <span className="text-[9px] font-semibold leading-none opacity-80 text-white">
+                        {cert.year}
+                      </span>
+                    </div>
+
+                    {/* Cert info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-zinc-900 font-semibold text-sm leading-tight">
+                            {cert.name}
+                          </p>
+                          <p className="text-zinc-500 text-xs mt-0.5">{cert.issuer}</p>
+                        </div>
+                        <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold
+                          bg-zinc-100 text-zinc-600 whitespace-nowrap">
+                          {cert.category}
+                        </span>
+                      </div>
+                      {/* Score bar */}
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="h-1.5 flex-1 bg-stone-200 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-1000"
+                            style={{ backgroundColor: cert.color, width: '100%' }}
+                          />
+                        </div>
+                        <span className="text-xs font-bold text-zinc-700 whitespace-nowrap">
+                          {cert.score}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 gap-4 pt-6 border-t border-stone-200">
+              <div className="bg-stone-50 rounded-2xl p-5 text-center">
+                <p className="text-3xl font-bold text-neutral-900">{member.years}</p>
+                <p className="text-xs text-neutral-500 mt-1 uppercase tracking-wider">Năm kinh nghiệm</p>
+              </div>
+              <div className="bg-stone-50 rounded-2xl p-5 text-center">
+                <p className="text-3xl font-bold text-neutral-900">{member.students}</p>
+                <p className="text-xs text-neutral-500 mt-1 uppercase tracking-wider">Học viên</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Animations */}
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(24px) scale(0.96); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+      `}</style>
     </div>
   );
 };
