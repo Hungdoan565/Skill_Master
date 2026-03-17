@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { supabase } from '@/lib/supabaseClient';
+import { gooeyToast } from 'goey-toast';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -151,6 +152,10 @@ export function useNotifications() {
 
           if (!next.read_at) {
             setUnreadCount((prev) => prev + 1);
+
+            gooeyToast.info(next.title || 'Bạn có thông báo mới', {
+              description: next.message || 'Nhấn vào chuông thông báo để xem chi tiết.'
+            });
           }
         }
       )

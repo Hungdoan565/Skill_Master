@@ -31244,6 +31244,16 @@ function mapLeaveMutationError(error) {
   return { status: 500, message: 'Không thể xử lý đơn xin nghỉ. Vui lòng thử lại sau.' };
 }
 
+function isMissingRequiredTotalDaysError(error) {
+  const code = String(error?.code || '').toUpperCase();
+  const message = String(error?.message || '').toLowerCase();
+  const details = String(error?.details || '').toLowerCase();
+  const hint = String(error?.hint || '').toLowerCase();
+  const combined = `${message} ${details} ${hint}`;
+
+  return code === '23502' && combined.includes('total_days');
+}
+
 /**
  * GET /api/teacher/leave-requests
  * Láº¥y danh sÃ¡ch Ä‘Æ¡n xin nghá»‰ cá»§a giÃ¡o viÃªn hiá»‡n táº¡i
@@ -31332,22 +31342,41 @@ app.post('/api/teacher/leave-requests', requireAuth, async (req, res, next) => {
     const endMs = endDate.getTime();
     const totalDays = Math.max(1, Math.floor((endMs - startMs) / (1000 * 60 * 60 * 24)) + 1);
 
-    const { data, error } = await runLeaveQueryWithTeacherColumn((teacherColumn) => (
+    const buildLeaveInsertPayload = (teacherColumn, includeTotalDays = false) => {
+      const payload = {
+        [teacherColumn]: teacherId,
+        center_id: effectiveCenterId,
+        leave_type: leaveType,
+        start_date: startDateStr,
+        end_date: endDateStr,
+        reason: reasonText,
+        status: 'pending'
+      };
+
+      if (includeTotalDays) {
+        payload.total_days = totalDays;
+      }
+
+      return payload;
+    };
+
+    let { data, error } = await runLeaveQueryWithTeacherColumn((teacherColumn) => (
       supabase
         .from('leave_requests')
-        .insert({
-          [teacherColumn]: teacherId,
-          center_id: effectiveCenterId,
-          leave_type: leaveType,
-          start_date: startDateStr,
-          end_date: endDateStr,
-          total_days: totalDays,
-          reason: reasonText,
-          status: 'pending'
-        })
+        .insert(buildLeaveInsertPayload(teacherColumn, false))
         .select('*')
         .single()
     ));
+
+    if (error && isMissingRequiredTotalDaysError(error)) {
+      ({ data, error } = await runLeaveQueryWithTeacherColumn((teacherColumn) => (
+        supabase
+          .from('leave_requests')
+          .insert(buildLeaveInsertPayload(teacherColumn, true))
+          .select('*')
+          .single()
+      )));
+    }
 
     if (error) {
       const mapped = mapLeaveMutationError(error);
@@ -31549,6 +31578,24 @@ app.patch('/api/admin/leave-requests/:id', requireAuth, requireRole(['SUPER_ADMI
       entityId: id,
       status: 'SUCCESS'
     });
+
+    try {
+      createNotification(supabaseClient, {
+        userId: data?.staff_id || data?.teacher_id,
+        centerId: data?.center_id,
+        type: 'leave_request',
+        title: status === 'approved' ? 'Đơn nghỉ đã được duyệt' : 'Đơn nghỉ đã bị từ chối',
+        message: status === 'approved'
+          ? 'Đơn xin nghỉ của bạn đã được quản lý phê duyệt.'
+          : `Đơn xin nghỉ của bạn đã bị từ chối${admin_note ? `: ${admin_note}` : '.'}`,
+        referenceId: data?.id,
+        referenceType: 'leave_request'
+      }).catch((notifyError) => {
+        console.warn('Notification error (leave decision):', notifyError?.message || notifyError);
+      });
+    } catch (notificationError) {
+      console.warn('Notification enqueue error (leave decision):', notificationError?.message || notificationError);
+    }
 
     res.json({ success: true, data });
   } catch (error) {

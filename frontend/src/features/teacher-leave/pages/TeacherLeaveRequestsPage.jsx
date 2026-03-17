@@ -2,8 +2,10 @@ import { useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import {
     CalendarDays,
+    CalendarRange,
     ClipboardList,
     Clock3,
+    CheckCircle2,
     XCircle,
     AlertTriangle,
     Plus,
@@ -11,7 +13,9 @@ import {
     RefreshCw,
     Send,
     FileText,
-    Ban
+    Ban,
+    Sparkles,
+    ArrowRight
 } from 'lucide-react';
 import { useLeaveRequests } from '../hooks/useLeaveRequests';
 import { TeacherPageHeader } from '@/components/ui/teacher-page-header';
@@ -26,15 +30,18 @@ const LEAVE_TYPE_OPTIONS = [
 const STATUS_CONFIG = {
     pending: {
         label: 'Chờ duyệt',
-        className: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border border-yellow-500/20'
+        icon: Clock3,
+        className: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 shadow-sm shadow-amber-500/10'
     },
     approved: {
         label: 'Đã duyệt',
-        className: 'bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20'
+        icon: CheckCircle2,
+        className: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 shadow-sm shadow-emerald-500/10'
     },
     rejected: {
         label: 'Từ chối',
-        className: 'bg-red-500/10 text-red-700 dark:text-red-400 border border-red-500/20'
+        icon: XCircle,
+        className: 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30 shadow-sm shadow-rose-500/10'
     }
 };
 
@@ -48,6 +55,28 @@ const EMPTY_FORM = {
 const formatDate = (value) => {
     if (!value) return '--';
     return new Date(value).toLocaleDateString('vi-VN');
+};
+
+const formatDateTime = (value) => {
+    if (!value) return '--';
+    return new Date(value).toLocaleString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+    });
+};
+
+const getDurationInDays = (startDate, endDate) => {
+    if (!startDate || !endDate) return 0;
+
+    const start = new Date(`${startDate}T00:00:00`);
+    const end = new Date(`${endDate}T00:00:00`);
+    const diff = Math.floor((end - start) / (1000 * 60 * 60 * 24));
+
+    if (Number.isNaN(diff) || diff < 0) return 0;
+    return diff + 1;
 };
 
 const getLeaveTypeLabel = (type) => {
@@ -151,7 +180,7 @@ export function TeacherLeaveRequestsPage() {
 
     return (
         <div className="min-h-screen bg-transparent pb-12">
-            <TeacherPageHeader 
+            <TeacherPageHeader
                 title="Đơn xin nghỉ phép"
                 subtitle={`Quản lý và theo dõi các đơn xin nghỉ của bạn${profile?.full_name ? ` - ${profile.full_name}` : ''}`}
                 icon={ClipboardList}
@@ -225,70 +254,84 @@ export function TeacherLeaveRequestsPage() {
                         requests.map((request, index) => {
                             const status = STATUS_CONFIG[request.status] || STATUS_CONFIG.pending;
                             const canDelete = request.status === 'pending';
+                            const StatusIcon = status.icon || Clock3;
+                            const durationDays = getDurationInDays(request.start_date, request.end_date);
+                            const isSingleDay = durationDays <= 1;
                             const staggerClass = `stagger-${Math.min(index + 2, 5)}`;
 
                             return (
-                                <div key={request.id} className={`bg-white rounded-2xl border border-border p-5 shadow-sm hover-card-lift transition-all animate-fade-in-up ${staggerClass}`}>
-                                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                                        <div className="space-y-3">
-                                            <div className="flex items-center gap-3">
-                                                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${status.className}`}>
-                                                    {status.label}
-                                                </span>
-                                                <span className="text-sm text-slate-500 flex items-center gap-1.5">
-                                                    <Clock3 className="h-3.5 w-3.5" />
-                                                    Tạo lúc: {formatDate(request.created_at)}
-                                                </span>
-                                            </div>
+                                <div key={request.id} className={`bg-white rounded-2xl border border-border/80 p-5 sm:p-6 shadow-sm hover-card-lift transition-all animate-fade-in-up ${staggerClass}`}>
+                                    <div className="flex flex-col gap-5">
+                                        <div className="flex flex-wrap items-center justify-between gap-3">
+                                            <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold ${status.className}`}>
+                                                <StatusIcon className="h-3.5 w-3.5" />
+                                                {status.label}
+                                            </span>
 
-                                            <h3 className="text-lg font-bold text-slate-800">
-                                                {getLeaveTypeLabel(request.leave_type)}
-                                            </h3>
-                                            
-                                            <div className="flex items-center gap-4 text-sm font-medium text-slate-600 bg-slate-50 rounded-lg p-3 w-fit border border-slate-100">
-                                                <div className="flex items-center gap-2">
-                                                    <CalendarDays className="h-4 w-4 text-blue-500" />
-                                                    <span>{formatDate(request.start_date)} - {formatDate(request.end_date)}</span>
-                                                </div>
-                                                <div className="w-1 h-1 rounded-full bg-slate-300"></div>
-                                                <div className="flex items-center gap-2 text-indigo-600">
-                                                    <span>{request.start_date === request.end_date ? 'Nghỉ 1 ngày' : 'Nghỉ nhiều ngày'}</span>
-                                                </div>
-                                            </div>
-
-                                            <div className="text-slate-700 bg-white border border-slate-100 p-4 rounded-xl shadow-sm">
-                                                <p className="text-sm font-semibold text-slate-500 mb-1">Lý do nghỉ:</p>
-                                                <p className="leading-relaxed">{request.reason}</p>
-                                            </div>
-
-                                            {request.status === 'approved' && request.reviewer_notes && (
-                                                <div className="text-sm text-green-700 dark:text-green-400 bg-green-500/10 border border-green-500/20 rounded-xl p-4 mt-2">
-                                                    <p className="font-semibold mb-1 flex items-center gap-1.5"><ClipboardList className="w-4 h-4"/> Ghi chú duyệt:</p> 
-                                                    <p>{request.reviewer_notes}</p>
-                                                </div>
-                                            )}
-
-                                            {request.status === 'rejected' && request.reviewer_notes && (
-                                                <div className="text-sm text-red-700 dark:text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl p-4 mt-2">
-                                                    <p className="font-semibold mb-1 flex items-center gap-1.5"><Ban className="w-4 h-4"/> Lý do từ chối:</p> 
-                                                    <p>{request.reviewer_notes}</p>
-                                                </div>
-                                            )}
+                                            <span className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-slate-500 font-medium">
+                                                <Clock3 className="h-3.5 w-3.5" />
+                                                Tạo lúc: {formatDateTime(request.created_at)}
+                                            </span>
                                         </div>
 
-                                        <div className="pt-2 sm:pt-0">
+                                        <div className="space-y-1">
+                                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                                Yêu cầu nghỉ phép
+                                            </p>
+                                            <h3 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                                                <Sparkles className="h-4 w-4 text-indigo-500" />
+                                                {getLeaveTypeLabel(request.leave_type)}
+                                            </h3>
+                                        </div>
+
+                                        <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+                                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                                                <div className="flex items-center gap-2.5 text-sm font-semibold text-slate-700">
+                                                    <CalendarRange className="h-4 w-4 text-blue-600" />
+                                                    <span>{formatDate(request.start_date)}</span>
+                                                    <ArrowRight className="h-3.5 w-3.5 text-slate-400" />
+                                                    <span>{formatDate(request.end_date)}</span>
+                                                </div>
+
+                                                <span className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-500/10 text-indigo-700 border border-indigo-500/20 w-fit">
+                                                    <CalendarDays className="h-3.5 w-3.5" />
+                                                    {isSingleDay ? 'Nghỉ 1 ngày' : `Nghỉ ${durationDays} ngày`}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Lý do xin nghỉ</p>
+                                            <p className="leading-relaxed text-slate-700">{request.reason}</p>
+                                        </div>
+
+                                        {request.status === 'approved' && request.reviewer_notes && (
+                                            <div className="text-sm text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
+                                                <p className="font-semibold mb-1.5 flex items-center gap-1.5"><ClipboardList className="w-4 h-4" /> Ghi chú duyệt</p>
+                                                <p>{request.reviewer_notes}</p>
+                                            </div>
+                                        )}
+
+                                        {request.status === 'rejected' && request.reviewer_notes && (
+                                            <div className="text-sm text-rose-700 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-xl p-4">
+                                                <p className="font-semibold mb-1.5 flex items-center gap-1.5"><Ban className="w-4 h-4" /> Lý do từ chối</p>
+                                                <p>{request.reviewer_notes}</p>
+                                            </div>
+                                        )}
+
+                                        <div className="flex items-center justify-end pt-1 border-t border-slate-100">
                                             {canDelete ? (
                                                 <button
                                                     onClick={() => handleDeleteRequest(request.id)}
-                                                    className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-red-500/20 text-red-600 hover:bg-red-50 hover:border-red-500/30 transition-all font-medium btn-tactile"
+                                                    className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-rose-500/30 text-rose-700 hover:bg-rose-50 hover:border-rose-500/40 transition-all font-semibold btn-tactile shadow-sm"
                                                 >
                                                     <Trash2 className="h-4 w-4" />
-                                                    Thu hồi đơn
+                                                    Thu hồi đơn chờ duyệt
                                                 </button>
                                             ) : (
-                                                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-400 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+                                                <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
                                                     <Ban className="h-3.5 w-3.5" />
-                                                    Đã xử lý
+                                                    Đơn đã xử lý
                                                 </span>
                                             )}
                                         </div>
@@ -302,18 +345,20 @@ export function TeacherLeaveRequestsPage() {
 
             {isModalOpen && (
                 <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/45" onClick={closeModal}></div>
-                    <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-xl border border-border p-6">
-                        <h2 className="text-xl font-bold text-foreground mb-1">Tạo đơn xin nghỉ</h2>
-                        <p className="text-sm text-muted-foreground mb-5">Điền thông tin để gửi yêu cầu xin nghỉ đến quản lý.</p>
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px]" onClick={closeModal}></div>
+                    <div className="relative w-full max-w-xl bg-white rounded-2xl shadow-xl border border-border overflow-hidden">
+                        <div className="px-6 pt-6 pb-4 border-b border-slate-100 bg-slate-50/70">
+                            <h2 className="text-xl font-bold text-foreground mb-1 tracking-tight">Tạo đơn xin nghỉ</h2>
+                            <p className="text-sm text-muted-foreground">Điền đầy đủ thông tin để gửi yêu cầu xin nghỉ đến quản lý.</p>
+                        </div>
 
-                        <form onSubmit={handleCreateRequest} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-foreground mb-1">Loại nghỉ</label>
+                        <form onSubmit={handleCreateRequest} className="p-6 space-y-5">
+                            <div className="space-y-2">
+                                <label className="block text-sm font-semibold text-foreground">Loại nghỉ</label>
                                 <select
                                     value={formData.leave_type}
                                     onChange={(event) => setFormData((prev) => ({ ...prev, leave_type: event.target.value }))}
-                                    className="w-full rounded-lg border border-border bg-white text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    className="w-full rounded-xl border border-slate-200 bg-white text-foreground px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
                                 >
                                     {LEAVE_TYPE_OPTIONS.map((option) => (
                                         <option key={option.value} value={option.value}>{option.label}</option>
@@ -322,49 +367,49 @@ export function TeacherLeaveRequestsPage() {
                             </div>
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-foreground mb-1">Ngày bắt đầu</label>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-semibold text-foreground">Ngày bắt đầu</label>
                                     <input
                                         type="date"
                                         value={formData.start_date}
                                         onChange={(event) => setFormData((prev) => ({ ...prev, start_date: event.target.value }))}
-                                        className="w-full rounded-lg border border-border bg-white text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full rounded-xl border border-slate-200 bg-white text-foreground px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-foreground mb-1">Ngày kết thúc</label>
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-semibold text-foreground">Ngày kết thúc</label>
                                     <input
                                         type="date"
                                         value={formData.end_date}
                                         onChange={(event) => setFormData((prev) => ({ ...prev, end_date: event.target.value }))}
-                                        className="w-full rounded-lg border border-border bg-white text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full rounded-xl border border-slate-200 bg-white text-foreground px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
                                     />
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-foreground mb-1">Lý do xin nghỉ</label>
+                            <div className="space-y-2">
+                                <label className="block text-sm font-semibold text-foreground">Lý do xin nghỉ</label>
                                 <textarea
                                     rows={4}
                                     value={formData.reason}
                                     onChange={(event) => setFormData((prev) => ({ ...prev, reason: event.target.value }))}
                                     placeholder="Nhập lý do xin nghỉ..."
-                                    className="w-full rounded-lg border border-border bg-white text-foreground px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    className="w-full rounded-xl border border-slate-200 bg-white text-foreground px-3.5 py-2.5 leading-relaxed placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
                                 />
                             </div>
 
                             {formError && (
-                                <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2 text-sm text-red-700 dark:text-red-400 flex items-center gap-2">
+                                <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-3.5 py-2.5 text-sm text-red-700 dark:text-red-400 flex items-center gap-2 font-medium">
                                     <AlertTriangle className="h-4 w-4" />
                                     {formError}
                                 </div>
                             )}
 
-                            <div className="pt-2 flex items-center justify-end gap-2">
+                            <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-slate-100">
                                 <button
                                     type="button"
                                     onClick={closeModal}
-                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-foreground hover:bg-muted transition-colors"
+                                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border text-foreground hover:bg-muted transition-colors"
                                 >
                                     <XCircle className="h-4 w-4" />
                                     Đóng
@@ -372,7 +417,7 @@ export function TeacherLeaveRequestsPage() {
                                 <button
                                     type="submit"
                                     disabled={submitting}
-                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-60 transition-colors"
+                                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-60 transition-colors shadow-sm shadow-blue-600/20"
                                 >
                                     {submitting ? (
                                         <RefreshCw className="h-4 w-4 animate-spin" />

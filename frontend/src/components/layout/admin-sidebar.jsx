@@ -82,6 +82,7 @@ const superAdminMenuGroups = [
     title: 'NỘI BỘ',
     items: [
       { label: 'Nhân sự', icon: UserCog, path: '/admin/staff' },
+      { label: 'Đơn nghỉ phép', icon: Calendar, path: '/admin/leave-requests' },
       { label: 'Bảng lương', icon: Wallet, path: '/admin/payroll' },
       { label: 'Khiếu nại lương', icon: AlertTriangle, path: '/admin/payroll-disputes' },
     ],
@@ -135,6 +136,7 @@ const managerMenuGroups = [
     title: 'NỘI BỘ',
     items: [
       { label: 'Nhân sự', icon: UserCog, path: '/admin/staff' },
+      { label: 'Đơn nghỉ phép', icon: Calendar, path: '/admin/leave-requests' },
       { label: 'Bảng lương', icon: Wallet, path: '/admin/payroll' },
       { label: 'Khiếu nại lương', icon: AlertTriangle, path: '/admin/payroll-disputes' },
     ],

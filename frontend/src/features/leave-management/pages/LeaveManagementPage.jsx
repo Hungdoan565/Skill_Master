@@ -149,7 +149,7 @@ export function LeaveManagementPage() {
         method: 'PATCH',
         headers: getHeaders(),
         body: JSON.stringify({
-          action: dialogState.action,
+          status: dialogState.action === 'approve' ? 'approved' : 'rejected',
           admin_note: adminNote.trim() || '',
         }),
       });
@@ -303,7 +303,7 @@ export function LeaveManagementPage() {
             <Button variant="outline" onClick={closeDialog}>Huỷ</Button>
             <Button
               variant={dialogState.action === 'approve' ? 'default' : 'destructive'}
-              className={dialogState.action === 'approve' ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
+              className={dialogState.action === 'approve' ? 'bg-emerald-600 hover:bg-emerald-700 !text-white' : ''}
               onClick={submitAction}
               disabled={processingId === dialogState.request?.id}
             >

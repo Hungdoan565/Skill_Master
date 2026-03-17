@@ -90,6 +90,9 @@ export function NotificationBell({
     }
 
     if (refType === 'leave_request') {
+      if (roleCode === 'SUPER_ADMIN' || roleCode === 'CENTER_MANAGER') {
+        return '/admin/leave-requests';
+      }
       return '/teacher/leave-requests';
     }
 
@@ -132,55 +135,54 @@ export function NotificationBell({
 
   const dropdown = isOpen
     ? createPortal(
-        <div
-          ref={dropdownRef}
-          className="fixed w-[22rem] rounded-xl border border-border bg-white dark:bg-zinc-900 shadow-xl animate-in fade-in slide-in-from-top-1 duration-150"
-          style={{
-            top: dropdownPos.top,
-            right: dropdownPos.right,
-            zIndex: 9999,
-          }}
-        >
-          <div className="flex items-center justify-between border-b border-border px-3 py-2">
-            <p className="text-sm font-semibold text-foreground">Thông báo</p>
-            <button
-              onClick={() => markAllAsRead && markAllAsRead()}
-              disabled={unreadCount === 0}
-              className="text-xs font-medium text-blue-600 hover:text-blue-700 disabled:text-muted-foreground disabled:cursor-not-allowed"
-            >
-              Đánh dấu đã đọc
-            </button>
-          </div>
+      <div
+        ref={dropdownRef}
+        className="fixed w-[22rem] rounded-xl border border-border bg-white dark:bg-zinc-900 shadow-xl animate-in fade-in slide-in-from-top-1 duration-150"
+        style={{
+          top: dropdownPos.top,
+          right: dropdownPos.right,
+          zIndex: 9999,
+        }}
+      >
+        <div className="flex items-center justify-between border-b border-border px-3 py-2">
+          <p className="text-sm font-semibold text-foreground">Thông báo</p>
+          <button
+            onClick={() => markAllAsRead && markAllAsRead()}
+            disabled={unreadCount === 0}
+            className="text-xs font-medium text-blue-600 hover:text-blue-700 disabled:text-muted-foreground disabled:cursor-not-allowed"
+          >
+            Đánh dấu đã đọc
+          </button>
+        </div>
 
-          <div className="max-h-96 overflow-y-auto">
-            {loading ? (
-              <div className="px-4 py-8 text-center text-sm text-muted-foreground">Đang tải...</div>
-            ) : recentNotifications.length === 0 ? (
-              <div className="px-4 py-8 text-center text-sm text-muted-foreground">Không có thông báo</div>
-            ) : (
-              recentNotifications.map((item) => {
-                const isUnread = !item.read_at;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => handleNotificationClick(item)}
-                    className={`w-full border-b border-border/60 px-3 py-3 text-left transition-colors hover:bg-accent/50 ${
-                      isUnread ? 'bg-blue-50 dark:bg-blue-950/40 border-l-2 border-l-blue-500' : 'bg-white dark:bg-zinc-900'
+        <div className="max-h-96 overflow-y-auto">
+          {loading ? (
+            <div className="px-4 py-8 text-center text-sm text-muted-foreground">Đang tải...</div>
+          ) : recentNotifications.length === 0 ? (
+            <div className="px-4 py-8 text-center text-sm text-muted-foreground">Không có thông báo</div>
+          ) : (
+            recentNotifications.map((item) => {
+              const isUnread = !item.read_at;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleNotificationClick(item)}
+                  className={`w-full border-b border-border/60 px-3 py-3 text-left transition-colors hover:bg-accent/50 ${isUnread ? 'bg-blue-50 dark:bg-blue-950/40 border-l-2 border-l-blue-500' : 'bg-white dark:bg-zinc-900'
                     }`}
-                  >
-                    <p className="text-sm font-medium text-foreground">{item.title}</p>
-                    {item.message && (
-                      <p className="mt-1 text-xs text-muted-foreground">{truncateMessage(item.message)}</p>
-                    )}
-                    <p className="mt-1 text-[11px] text-muted-foreground">{formatRelativeTime(item.created_at)}</p>
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </div>,
-        document.body
-      )
+                >
+                  <p className="text-sm font-medium text-foreground">{item.title}</p>
+                  {item.message && (
+                    <p className="mt-1 text-xs text-muted-foreground">{truncateMessage(item.message)}</p>
+                  )}
+                  <p className="mt-1 text-[11px] text-muted-foreground">{formatRelativeTime(item.created_at)}</p>
+                </button>
+              );
+            })
+          )}
+        </div>
+      </div>,
+      document.body
+    )
     : null;
 
   return (

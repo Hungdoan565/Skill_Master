@@ -65,6 +65,7 @@ import { SupportPage } from '@/features/support';
 import { TeacherDashboardPage } from '@/features/teacher-dashboard';
 import AdminNotificationsPage from '@/features/notifications/AdminNotificationsPage';
 import AuditTrailPage from '@/features/audit-trail/pages/AuditTrailPage';
+import { LeaveManagementPage } from '@/features/leave-management';
 import { TeacherSchedulePage } from '@/features/teacher-schedule';
 import { TeacherClassesPage } from '@/features/teacher-classes';
 import { TeacherAvailabilityPage } from '@/features/teacher-availability';
@@ -424,8 +425,8 @@ function App() {
 
             {/* Public Certificate Verification - No login required */}
             <Route path="verify-certificate" element={<PublicCertificateVerification />} />
-              <Route path="certificates/:id/view" element={<CertificatesPage />} />
-              <Route path="certificates/:id/print" element={<CertificatesPage />} />
+            <Route path="certificates/:id/view" element={<CertificatesPage />} />
+            <Route path="certificates/:id/print" element={<CertificatesPage />} />
 
             {/* Auth Pages - Chỉ cho phép khi CHƯA đăng nhập */}
             <Route path="login" element={
@@ -459,6 +460,7 @@ function App() {
               <Route path="invoices/overdue" element={<OverdueDashboardPage />} />
               <Route path="grades" element={<GradesPage />} />
               <Route path="payroll" element={<PayrollPage />} />
+              <Route path="leave-requests" element={<Suspense fallback={<PageLoader />}><LeaveManagementPage /></Suspense>} />
               <Route path="payroll-disputes" element={<DisputeManagementPage />} />
               <Route path="staff" element={<StaffPage />} />
               <Route path="salary-config" element={<SalaryConfigPage />} />
