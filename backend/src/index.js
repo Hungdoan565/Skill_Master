@@ -171,6 +171,89 @@ function isWithinEditWindow(sessionDate, sessionEndTime) {
   };
 }
 
+function formatDateOnlyLocal(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function parseDateOnlyLocal(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') return null;
+  const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const parsed = new Date(year, month - 1, day);
+  if (
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month - 1 ||
+    parsed.getDate() !== day
+  ) {
+    return null;
+  }
+  parsed.setHours(0, 0, 0, 0);
+  return parsed;
+}
+
+function getMonthDayFromDateOnly(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return null;
+  return dateStr.slice(5);
+}
+
+function parseTimeToMinutes(timeStr) {
+  if (!timeStr || typeof timeStr !== 'string') return null;
+  const [hourRaw, minuteRaw] = timeStr.split(':');
+  const hour = Number(hourRaw);
+  const minute = Number(minuteRaw);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return null;
+  return hour * 60 + minute;
+}
+
+function isSessionTimeOverlap(startA, endA, startB, endB) {
+  const startAMinutes = parseTimeToMinutes(startA);
+  const endAMinutes = parseTimeToMinutes(endA);
+  const startBMinutes = parseTimeToMinutes(startB);
+  const endBMinutes = parseTimeToMinutes(endB);
+
+  if (
+    startAMinutes === null ||
+    endAMinutes === null ||
+    startBMinutes === null ||
+    endBMinutes === null
+  ) {
+    return false;
+  }
+
+  return startAMinutes < endBMinutes && startBMinutes < endAMinutes;
+}
+
+function inferScheduleExceptionType(session) {
+  if (session?.is_makeup) return 'makeup';
+  const notes = (session?.notes || '').toLowerCase();
+  if (notes.startsWith('bỏ qua:') || notes.startsWith('bo qua:')) return 'skip';
+  if (notes.startsWith('dời lịch:') || notes.startsWith('doi lich:')) return 'reschedule';
+  return null;
+}
+
+function normalizeClassStatus(status) {
+  const normalized = String(status || '').toLowerCase();
+  if (normalized === 'active') return 'ongoing';
+  if (['ongoing', 'upcoming', 'completed', 'cancelled', 'paused'].includes(normalized)) {
+    return normalized;
+  }
+  return 'upcoming';
+}
+
+function getClassOperationalRiskLevel(summary) {
+  if (!summary) return 'low';
+  if ((summary.conflictSessions || 0) > 0) return 'high';
+  if ((summary.substitutedSessions || 0) > 0 || (summary.holidaySessions || 0) > 0) return 'medium';
+  return 'low';
+}
+
 // ============ UTILITY FUNCTIONS ============
 
 /**
@@ -4403,6 +4486,7 @@ app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
       .from('sessions')
       .select(`
         id,
+        teacher_id,
         session_number,
         session_date,
         start_time,
@@ -6211,14 +6295,14 @@ app.get('/api/admin/classes/:classId/students', requireAuth, requireRole(['SUPER
 app.post('/api/admin/sessions/auto-complete', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { dryRun = false, sessionIds = null } = req.body;
-    
+
     console.log(`ðŸ”„ Admin ${req.user.email} triggered session auto-complete (dryRun: ${dryRun})`);
-    
+
     // Import the function
     const { autoCompleteSessionsManual } = await import('./jobs/sessionAutoComplete.job.js');
-    
+
     const result = await autoCompleteSessionsManual({ dryRun, sessionIds });
-    
+
     res.json({
       success: true,
       ...result
@@ -6237,7 +6321,7 @@ app.post('/api/admin/sessions/auto-complete', requireAuth, requireRole(['SUPER_A
 app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { sessionIds, action } = req.body;
-    
+
     // Validation
     if (!sessionIds || !Array.isArray(sessionIds) || sessionIds.length === 0) {
       return res.status(400).json({
@@ -6245,16 +6329,16 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
         message: 'Cáº§n cung cáº¥p danh sÃ¡ch buá»•i há»c (sessionIds)'
       });
     }
-    
+
     if (!['complete', 'cancel'].includes(action)) {
       return res.status(400).json({
         success: false,
         message: 'Action pháº£i lÃ  "complete" hoáº·c "cancel"'
       });
     }
-    
+
     console.log(`ðŸ“¦ Admin ${req.user.email} bulk ${action} ${sessionIds.length} sessions`);
-    
+
     // 1) Check all sessions exist and are not locked
     const { data: sessions, error: fetchError } = await supabase
       .from('sessions')
@@ -6269,20 +6353,20 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
         )
       `)
       .in('id', sessionIds);
-    
+
     if (fetchError) throw fetchError;
-    
+
     if (!sessions || sessions.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'KhÃ´ng tÃ¬m tháº¥y buá»•i há»c nÃ o'
       });
     }
-    
+
     // 2) Check permissions - all sessions must be in accessible centers
     const userRole = req.user.roleCode;
     const userCenterId = req.user.centerId;
-    
+
     for (const session of sessions) {
       const sessionCenterId = session.classes?.center_id;
       if (userRole !== 'SUPER_ADMIN' && sessionCenterId !== userCenterId) {
@@ -6292,11 +6376,11 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
         });
       }
     }
-    
+
     // 3) Filter out locked sessions
     const lockedSessions = sessions.filter(s => s.is_locked);
     const editableSessions = sessions.filter(s => !s.is_locked);
-    
+
     if (editableSessions.length === 0) {
       return res.status(400).json({
         success: false,
@@ -6304,11 +6388,11 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
         lockedCount: lockedSessions.length
       });
     }
-    
+
     // 4) For 'complete' action, also filter by status (only scheduled can be completed)
     let toUpdate = editableSessions;
     let skippedByStatus = [];
-    
+
     if (action === 'complete') {
       toUpdate = editableSessions.filter(s => s.status === 'scheduled');
       skippedByStatus = editableSessions.filter(s => s.status !== 'scheduled');
@@ -6317,7 +6401,7 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       toUpdate = editableSessions.filter(s => ['scheduled'].includes(s.status));
       skippedByStatus = editableSessions.filter(s => !['scheduled'].includes(s.status));
     }
-    
+
     if (toUpdate.length === 0) {
       return res.status(400).json({
         success: false,
@@ -6326,23 +6410,23 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
         skippedByStatus: skippedByStatus.length
       });
     }
-    
+
     // 5) Perform bulk update
     const newStatus = action === 'complete' ? 'completed' : 'cancelled';
     const idsToUpdate = toUpdate.map(s => s.id);
-    
+
     const { error: updateError } = await supabase
       .from('sessions')
-      .update({ 
+      .update({
         status: newStatus,
         updated_at: new Date().toISOString()
       })
       .in('id', idsToUpdate);
-    
+
     if (updateError) throw updateError;
-    
+
     console.log(`âœ… Bulk ${action}: ${idsToUpdate.length} sessions updated`);
-    
+
     res.json({
       success: true,
       updatedCount: idsToUpdate.length,
@@ -6525,7 +6609,7 @@ app.post('/api/admin/rooms/import', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       .in('code', codes);
 
     const existingCodes = new Set((existingRooms || []).map(r => r.code.toUpperCase()));
-    
+
     // Filter out rooms with existing codes
     const newRooms = rooms.filter(r => !existingCodes.has(r.code.toUpperCase()));
     const skippedCount = rooms.length - newRooms.length;
@@ -6556,7 +6640,7 @@ app.post('/api/admin/rooms/import', requireAuth, requireRole(['SUPER_ADMIN', 'CE
 
     for (let i = 0; i < roomsToInsert.length; i += batchSize) {
       const batch = roomsToInsert.slice(i, i + batchSize);
-      
+
       const { data, error } = await supabase
         .from('rooms')
         .insert(batch)
@@ -11078,7 +11162,7 @@ app.post('/api/audit-log', requireAuth, async (req, res, next) => {
     try {
       const { data: userData } = await supabase.from('users').select('center_id').eq('id', req.user.id).single();
       centerId = userData?.center_id || null;
-    } catch {}
+    } catch { }
 
     await AuditLogService.log({
       userId: req.user.id,
@@ -12590,37 +12674,37 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
         autoVerified = false;
       } else {
         // Bank transfer: check for reconciliation key match
-      const transferContent = `${notes || ''} ${reference_code || ''}`.toUpperCase();
-      const invoiceCode = (invoice.invoice_code || '').toUpperCase();
+        const transferContent = `${notes || ''} ${reference_code || ''}`.toUpperCase();
+        const invoiceCode = (invoice.invoice_code || '').toUpperCase();
 
-      // Check if transfer content contains invoice code
-      const hasInvoiceCode = invoiceCode && transferContent.includes(invoiceCode);
+        // Check if transfer content contains invoice code
+        const hasInvoiceCode = invoiceCode && transferContent.includes(invoiceCode);
 
-      // Calculate remaining amount
-      const remaining = (invoice.final_amount || 0) - (invoice.paid_amount || 0);
-      const paymentAmount = parseFloat(amount);
+        // Calculate remaining amount
+        const remaining = (invoice.final_amount || 0) - (invoice.paid_amount || 0);
+        const paymentAmount = parseFloat(amount);
 
-      // Check if amount is acceptable (>= 95% of remaining OR exact match)
-      const amountMatch = paymentAmount >= remaining * 0.95;
+        // Check if amount is acceptable (>= 95% of remaining OR exact match)
+        const amountMatch = paymentAmount >= remaining * 0.95;
 
-      if (hasInvoiceCode && amountMatch) {
-        // AUTO-VERIFY: Content matches invoice code + amount is correct
-        verificationStatus = 'verified';
-        autoVerified = true;
-        verificationNote = `Tá»± Ä‘á»™ng xÃ¡c nháº­n: MÃ£ ${invoiceCode} khá»›p, sá»‘ tiá»n Ä‘Ãºng`;
-        console.log(`[AUTO-VERIFY] Invoice ${invoiceCode} - Amount matched`);
-      } else if (hasInvoiceCode) {
-        // Has invoice code but amount mismatch - still auto-verify but note it
-        verificationStatus = 'verified';
-        autoVerified = true;
-        verificationNote = `Tá»± Ä‘á»™ng xÃ¡c nháº­n: MÃ£ ${invoiceCode} khá»›p, thanh toÃ¡n 1 pháº§n`;
-        console.log(`[AUTO-VERIFY] Invoice ${invoiceCode} - Partial payment`);
-      } else {
-        // No match - pending manual review
-        verificationStatus = 'pending';
-        console.log(`[PENDING] Invoice ${invoiceCode} - No match in: ${transferContent}`);
+        if (hasInvoiceCode && amountMatch) {
+          // AUTO-VERIFY: Content matches invoice code + amount is correct
+          verificationStatus = 'verified';
+          autoVerified = true;
+          verificationNote = `Tá»± Ä‘á»™ng xÃ¡c nháº­n: MÃ£ ${invoiceCode} khá»›p, sá»‘ tiá»n Ä‘Ãºng`;
+          console.log(`[AUTO-VERIFY] Invoice ${invoiceCode} - Amount matched`);
+        } else if (hasInvoiceCode) {
+          // Has invoice code but amount mismatch - still auto-verify but note it
+          verificationStatus = 'verified';
+          autoVerified = true;
+          verificationNote = `Tá»± Ä‘á»™ng xÃ¡c nháº­n: MÃ£ ${invoiceCode} khá»›p, thanh toÃ¡n 1 pháº§n`;
+          console.log(`[AUTO-VERIFY] Invoice ${invoiceCode} - Partial payment`);
+        } else {
+          // No match - pending manual review
+          verificationStatus = 'pending';
+          console.log(`[PENDING] Invoice ${invoiceCode} - No match in: ${transferContent}`);
+        }
       }
-    }
     }
 
     // Insert payment with audit trail fields
@@ -12845,7 +12929,7 @@ app.patch('/api/payments/:id/verify', requireAuth, requireRole(['SUPER_ADMIN', '
       .eq('invoice_id', payment.invoice_id)
       .eq('verification_status', 'verified');
     const totalVerified = (verifiedPayments || []).reduce((s, p) => s + parseFloat(p.amount || 0), 0);
-    
+
     if (totalVerified >= invoiceFinal) {
       // Auto-reject this duplicate payment
       await supabaseAdmin.from('payments').update({
@@ -13244,24 +13328,24 @@ app.patch('/api/transactions/bulk-verify', requireAuth, requireRole(['SUPER_ADMI
     // Filter out payments for invoices already fully paid (prevent constraint violation)
     const validPaymentIds = [];
     const duplicatePaymentIds = [];
-    
+
     for (const payment of candidatePayments || []) {
       const invoiceId = payment.invoice?.id;
       if (!invoiceId) { validPaymentIds.push(payment.id); continue; }
-      
+
       const { data: verifiedPayments } = await supabaseAdmin
         .from('payments')
         .select('amount')
         .eq('invoice_id', invoiceId)
         .eq('verification_status', 'verified');
       const totalVerified = (verifiedPayments || []).reduce((s, p) => s + parseFloat(p.amount || 0), 0);
-      
+
       const { data: inv } = await supabaseAdmin
         .from('invoices')
         .select('final_amount')
         .eq('id', invoiceId)
         .single();
-      
+
       if (inv && totalVerified >= parseFloat(inv.final_amount || 0)) {
         duplicatePaymentIds.push(payment.id);
       } else {
@@ -13284,10 +13368,10 @@ app.patch('/api/transactions/bulk-verify', requireAuth, requireRole(['SUPER_ADMI
       // Update valid payments
       const { data, error } = await supabaseAdmin
         .from('payments').update({
-        verification_status: 'verified',
-        verified_by: userId,
-        verified_at: new Date().toISOString()
-      })
+          verification_status: 'verified',
+          verified_by: userId,
+          verified_at: new Date().toISOString()
+        })
         .in('id', validPaymentIds)
         .eq('verification_status', 'pending')
         .select();
@@ -13302,7 +13386,7 @@ app.patch('/api/transactions/bulk-verify', requireAuth, requireRole(['SUPER_ADMI
     if (rejectedCount > 0) {
       message += `. ${rejectedCount} giao dá»‹ch trÃ¹ng láº·p Ä‘Ã£ bá»‹ tá»« chá»‘i tá»± Ä‘á»™ng.`;
     }
-    
+
     res.json({
       success: true,
       message,
@@ -14310,9 +14394,9 @@ app.post('/api/admin/payroll/generate',
 
       // Get active compensation config
       const compensation = await getActiveTeacherCompensation(teacher_id, startDate);
-      
+
       const total_sessions = sessions?.length || 0;
-      
+
       // Calculate using compensation config (or fallback to legacy hourly calculation)
       const { teaching_earnings, fixed_salary, total_hours } = calculatePayrollFromCompensation(
         compensation,
@@ -14446,7 +14530,7 @@ app.post('/api/admin/payroll/bulk-generate',
           const compensation = await getActiveTeacherCompensation(teacher_id, startDate);
 
           const total_sessions = sessions?.length || 0;
-          
+
           // Calculate using compensation config (or fallback to legacy hourly calculation)
           const { teaching_earnings, fixed_salary, total_hours } = calculatePayrollFromCompensation(
             compensation,
@@ -15154,9 +15238,9 @@ app.patch('/api/admin/payroll/:id/status',
         if (queueEmail) {
           try {
             const formatCurrency = (amount) => {
-              return new Intl.NumberFormat('vi-VN', { 
-                style: 'currency', 
-                currency: 'VND' 
+              return new Intl.NumberFormat('vi-VN', {
+                style: 'currency',
+                currency: 'VND'
               }).format(amount || 0);
             };
 
@@ -15497,11 +15581,31 @@ app.get('/api/teacher/payroll/:id',
 
       if (sessionsError) throw sessionsError;
 
+      // Fetch teacher info for payslip
+      const { data: teacherInfo } = await supabase
+        .from('users')
+        .select('full_name, email')
+        .eq('id', teacherId)
+        .single();
+
+      // Fetch compensation for hourly rate
+      const { data: compensation } = await supabase
+        .from('teacher_compensation')
+        .select('hourly_rate, pay_scheme, fixed_monthly_salary')
+        .eq('teacher_id', teacherId)
+        .eq('is_active', true)
+        .single();
+
       res.json({
         success: true,
         data: {
           ...payroll,
-          sessions: sessions || []
+          sessions: sessions || [],
+          teacher: {
+            full_name: teacherInfo?.full_name || '',
+            email: teacherInfo?.email || '',
+            hourly_rate: compensation?.hourly_rate || 0,
+          }
         }
       });
     } catch (error) {
@@ -15854,7 +15958,7 @@ app.patch('/api/admin/payroll-disputes/:id',
       const updateData = {};
       if (status) updateData.status = status;
       if (admin_response !== undefined) updateData.admin_response = admin_response;
-      
+
       if (status === 'resolved' || status === 'rejected') {
         updateData.resolved_by = req.user.id;
         updateData.resolved_at = new Date().toISOString();
@@ -16576,8 +16680,8 @@ app.get('/api/admin/call-list',
 
       const offset = (parseInt(page) - 1) * parseInt(limit);
       query = query.range(offset, offset + parseInt(limit) - 1)
-                   .order('priority', { ascending: false })
-                   .order('days_overdue', { ascending: false });
+        .order('priority', { ascending: false })
+        .order('days_overdue', { ascending: false });
 
       const { data, error, count } = await query;
 
@@ -17111,6 +17215,68 @@ app.post('/api/admin/sessions/:id/exception', requireAuth, requireRole(['SUPER_A
 
 // NOTE: Duplicate payroll routes removed (were shadowed by earlier definitions at L13813-16000)
 
+/**
+ * GET /api/teacher/sessions/:id/attendance - Láº¥y danh sÃ¡ch Ä‘iá»ƒm danh cho má»™t buá»•i há»c
+ */
+app.get('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+    const { id: sessionId } = req.params;
+
+    // Verify teacher owns this session
+    const { data: session, error: sessionError } = await supabase
+      .from('sessions')
+      .select('id, teacher_id, class_id, session_date')
+      .eq('id', sessionId)
+      .single();
+
+    if (sessionError || !session || session.teacher_id !== teacherId) {
+      return res.status(403).json({ success: false, message: 'Không có quyền truy cập buổi học này' });
+    }
+
+    // Get attendance records - join through enrollments to get student info
+    const { data: attendance, error } = await supabase
+      .from('attendance')
+      .select(`
+        id,
+        enrollment_id,
+        status,
+        check_in_time,
+        notes,
+        enrollment:enrollments!attendance_enrollment_id_fkey (
+          id,
+          student_id,
+          student:users!enrollments_student_id_fkey (id, full_name, email, avatar_url)
+        )
+      `)
+      .eq('session_id', sessionId);
+
+    if (error) throw error;
+
+    // Flatten the response for frontend compatibility
+    const flatAttendance = (attendance || []).map(a => ({
+      id: a.id,
+      enrollment_id: a.enrollment_id,
+      student_id: a.enrollment?.student_id || null,
+      status: a.status,
+      check_in_time: a.check_in_time,
+      notes: a.notes,
+      student_name: a.enrollment?.student?.full_name || 'Học viên',
+      student_email: a.enrollment?.student?.email || '',
+      student_avatar: a.enrollment?.student?.avatar_url || null,
+      student: a.enrollment?.student || null
+    }));
+
+    res.json({
+      success: true,
+      data: flatAttendance
+    });
+  } catch (error) {
+    console.error('Error fetching session attendance:', error);
+    next(error);
+  }
+});
+
 // ============================================================
 // TEACHER DASHBOARD APIs - Dashboard cho giÃ¡o viÃªn
 // ============================================================
@@ -17233,6 +17399,7 @@ app.get('/api/teacher/dashboard/today-sessions', requireAuth, async (req, res, n
       .from('sessions')
       .select(`
         id,
+        teacher_id,
         session_number,
         session_date,
         start_time,
@@ -17315,6 +17482,7 @@ app.get('/api/teacher/dashboard/upcoming-sessions', requireAuth, async (req, res
       .from('sessions')
       .select(`
         id,
+        teacher_id,
         session_number,
         session_date,
         start_time,
@@ -17619,6 +17787,7 @@ app.get('/api/teacher/classes', requireAuth, async (req, res, next) => {
   try {
     const teacherId = req.user.id;
     const { status } = req.query;
+    const normalizedStatusFilter = status ? normalizeClassStatus(status) : null;
 
     let query = supabase
       .from('classes')
@@ -17639,26 +17808,217 @@ app.get('/api/teacher/classes', requireAuth, async (req, res, next) => {
       .eq('teacher_id', teacherId)
       .order('start_date', { ascending: false });
 
-    if (status) {
-      query = query.eq('status', status);
+    if (normalizedStatusFilter) {
+      if (normalizedStatusFilter === 'ongoing') {
+        query = query.in('status', ['ongoing', 'active']);
+      } else {
+        query = query.eq('status', normalizedStatusFilter);
+      }
     }
 
     const { data: classes, error } = await query;
     if (error) throw error;
 
-    // Enrich with enrollment count
-    const enrichedClasses = await Promise.all((classes || []).map(async (cls) => {
-      const { count } = await supabase
+    const classRows = classes || [];
+    if (classRows.length === 0) {
+      return res.json({
+        success: true,
+        data: []
+      });
+    }
+
+    const classIds = classRows.map(cls => cls.id);
+
+    const [enrollmentsResult, classSessionsResult, holidaysResult] = await Promise.all([
+      supabase
         .from('enrollments')
-        .select('id', { count: 'exact', head: true })
-        .eq('class_id', cls.id)
-        .eq('status', 'active');
+        .select('class_id')
+        .in('class_id', classIds)
+        .eq('status', 'active'),
+      supabase
+        .from('sessions')
+        .select(`
+          id,
+          class_id,
+          session_date,
+          start_time,
+          end_time,
+          status,
+          teacher_id,
+          room_id,
+          is_makeup,
+          original_session_id,
+          payroll_id,
+          is_locked,
+          classes (
+            center_id,
+            teacher_id,
+            room_id
+          )
+        `)
+        .in('class_id', classIds),
+      supabase
+        .from('holidays')
+        .select('name, date, is_recurring')
+    ]);
+
+    if (enrollmentsResult.error) throw enrollmentsResult.error;
+    if (classSessionsResult.error) throw classSessionsResult.error;
+    if (holidaysResult.error) throw holidaysResult.error;
+
+    const enrollments = enrollmentsResult.data || [];
+    const classSessions = classSessionsResult.data || [];
+    const holidays = holidaysResult.data || [];
+
+    const studentCountByClass = enrollments.reduce((acc, row) => {
+      if (!row?.class_id) return acc;
+      acc[row.class_id] = (acc[row.class_id] || 0) + 1;
+      return acc;
+    }, {});
+
+    const holidayByDateMap = new Map();
+    const recurringHolidayMap = new Map();
+    holidays.forEach(holiday => {
+      if (!holiday?.date || !holiday?.name) return;
+      if (holiday.is_recurring) {
+        const monthDay = getMonthDayFromDateOnly(holiday.date);
+        if (monthDay && !recurringHolidayMap.has(monthDay)) {
+          recurringHolidayMap.set(monthDay, holiday.name);
+        }
+      } else if (!holidayByDateMap.has(holiday.date)) {
+        holidayByDateMap.set(holiday.date, holiday.name);
+      }
+    });
+
+    const sessionDates = [...new Set(classSessions.map(s => s.session_date).filter(Boolean))];
+    let peerSessions = [];
+
+    if (sessionDates.length > 0) {
+      const { data: peerData, error: peerError } = await supabase
+        .from('sessions')
+        .select(`
+          id,
+          class_id,
+          session_date,
+          start_time,
+          end_time,
+          status,
+          teacher_id,
+          room_id,
+          classes (
+            center_id,
+            teacher_id,
+            room_id
+          )
+        `)
+        .in('session_date', sessionDates)
+        .neq('status', 'cancelled');
+
+      if (peerError) throw peerError;
+
+      peerSessions = (peerData || []).map(peer => ({
+        ...peer,
+        effectiveTeacherId: peer.teacher_id || peer.classes?.teacher_id || null,
+        effectiveRoomId: peer.room_id || peer.classes?.room_id || null,
+        centerId: peer.classes?.center_id || null
+      }));
+    }
+
+    const peersByDate = peerSessions.reduce((acc, peer) => {
+      if (!peer?.session_date) return acc;
+      if (!acc[peer.session_date]) acc[peer.session_date] = [];
+      acc[peer.session_date].push(peer);
+      return acc;
+    }, {});
+
+    const statsByClass = classIds.reduce((acc, classId) => {
+      acc[classId] = {
+        totalSessions: 0,
+        completedSessions: 0,
+        conflictSessions: 0,
+        substitutedSessions: 0,
+        holidaySessions: 0,
+        payrollLockedSessions: 0
+      };
+      return acc;
+    }, {});
+
+    classSessions.forEach(session => {
+      const classId = session.class_id;
+      if (!classId || !statsByClass[classId]) return;
+
+      const classStats = statsByClass[classId];
+      classStats.totalSessions += 1;
+      if (session.status === 'completed') classStats.completedSessions += 1;
+
+      const isSubstituted = Boolean(
+        session.teacher_id &&
+        session.classes?.teacher_id &&
+        session.teacher_id !== session.classes.teacher_id
+      );
+      if (isSubstituted) classStats.substitutedSessions += 1;
+
+      if (session.is_locked || session.payroll_id) {
+        classStats.payrollLockedSessions += 1;
+      }
+
+      const monthDay = getMonthDayFromDateOnly(session.session_date);
+      const holidayName = holidayByDateMap.get(session.session_date) || (monthDay ? recurringHolidayMap.get(monthDay) : null);
+      if (holidayName) classStats.holidaySessions += 1;
+
+      const sessionCenterId = session.classes?.center_id || null;
+      const sessionTeacherId = session.teacher_id || session.classes?.teacher_id || null;
+      const sessionRoomId = session.room_id || session.classes?.room_id || null;
+
+      const peers = peersByDate[session.session_date] || [];
+      const hasConflict = peers.some(peer => (
+        peer.id !== session.id &&
+        peer.class_id !== classId &&
+        sessionCenterId &&
+        peer.centerId === sessionCenterId &&
+        isSessionTimeOverlap(session.start_time, session.end_time, peer.start_time, peer.end_time) &&
+        (
+          (sessionTeacherId && peer.effectiveTeacherId === sessionTeacherId) ||
+          (sessionRoomId && peer.effectiveRoomId === sessionRoomId)
+        )
+      ));
+
+      if (hasConflict) classStats.conflictSessions += 1;
+    });
+
+    const enrichedClasses = classRows.map(cls => {
+      const classStats = statsByClass[cls.id] || {
+        totalSessions: 0,
+        completedSessions: 0,
+        conflictSessions: 0,
+        substitutedSessions: 0,
+        holidaySessions: 0,
+        payrollLockedSessions: 0
+      };
+
+      const progress = classStats.totalSessions > 0
+        ? Math.round((classStats.completedSessions / classStats.totalSessions) * 100)
+        : 0;
+
+      const operationalSummary = {
+        ...classStats,
+        riskLevel: getClassOperationalRiskLevel(classStats),
+        scope: 'all_course'
+      };
 
       return {
         ...cls,
-        studentCount: count || 0
+        statusNormalized: normalizeClassStatus(cls.status),
+        studentCount: studentCountByClass[cls.id] || 0,
+        totalSessions: classStats.totalSessions,
+        completedSessions: classStats.completedSessions,
+        progress,
+        remainingSessions: Math.max(0, classStats.totalSessions - classStats.completedSessions),
+        operationalSummary,
+        course_name: cls.courses?.title || null,
+        room_name: cls.rooms?.name || null
       };
-    }));
+    });
 
     res.json({
       success: true,
@@ -17695,11 +18055,12 @@ app.get('/api/teacher/classes/:id', requireAuth, async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c hoáº·c báº¡n khÃ´ng cÃ³ quyá»n' });
     }
 
-    // Get enrolled students
+    // Get enrolled students (include enrollment_id for attendance lookup)
     const { data: enrollments } = await supabase
       .from('enrollments')
       .select(`
         id,
+        student_id,
         enrolled_at,
         status,
         student:users!enrollments_student_id_fkey (id, full_name, email, phone, avatar_url)
@@ -17714,15 +18075,54 @@ app.get('/api/teacher/classes/:id', requireAuth, async (req, res, next) => {
       .eq('class_id', id)
       .order('session_date', { ascending: true });
 
+    // Compute attendance stats
+    const completedSessionIds = (sessions || []).filter(s => s.status === 'completed').map(s => s.id);
+    const totalCompletedSessions = completedSessionIds.length;
+    let attendanceRate = 0;
+    const studentAttendanceMap = {};
+
+    if (totalCompletedSessions > 0 && enrollments?.length > 0) {
+      // Fetch all attendance records for completed sessions
+      const { data: attendanceRecords } = await supabase
+        .from('attendance')
+        .select('enrollment_id, status')
+        .in('session_id', completedSessionIds);
+
+      const records = attendanceRecords || [];
+
+      // Per-enrollment attendance rate
+      const enrollmentIds = enrollments.map(e => e.id);
+      enrollmentIds.forEach(eid => {
+        const myRecords = records.filter(a => a.enrollment_id === eid);
+        const presentCount = myRecords.filter(a => a.status === 'present' || a.status === 'late').length;
+        studentAttendanceMap[eid] = totalCompletedSessions > 0
+          ? Math.round((presentCount / totalCompletedSessions) * 100)
+          : 0;
+      });
+
+      // Overall attendance rate
+      const totalPresent = records.filter(a => a.status === 'present' || a.status === 'late').length;
+      const totalExpected = totalCompletedSessions * enrollments.length;
+      attendanceRate = totalExpected > 0 ? Math.round((totalPresent / totalExpected) * 100) : 0;
+    }
+
+    // Build student list with enrollment_id and attendance_rate
+    const studentsWithStats = (enrollments || []).map(e => ({
+      ...e.student,
+      enrollment_id: e.id,
+      attendance_rate: studentAttendanceMap[e.id] ?? null
+    }));
+
     res.json({
       success: true,
       data: {
         ...classData,
-        students: enrollments?.map(e => e.student) || [],
+        students: studentsWithStats,
         sessions: sessions || [],
         totalStudents: enrollments?.length || 0,
         totalSessions: sessions?.length || 0,
-        completedSessions: sessions?.filter(s => s.status === 'completed').length || 0
+        completedSessions: totalCompletedSessions,
+        attendanceRate
       }
     });
   } catch (error) {
@@ -18648,60 +19048,61 @@ app.get('/api/teacher/profile', requireAuth, async (req, res, next) => {
   try {
     const teacherId = req.user.id;
 
+    // Fetch user profile (no FK joins - avoid PostgREST embed errors)
     const { data: profile, error } = await supabase
       .from('users')
-      .select(`
-        id,
-        email,
-        full_name,
-        phone,
-        avatar_url,
-        hourly_rate,
-        status,
-        created_at,
-        center_id,
-        centers (id, name, address, hotline),
-        roles (id, code, name)
-      `)
+      .select('id, email, full_name, phone, avatar_url, hourly_rate, status, created_at, center_id, role_id')
       .eq('id', teacherId)
       .single();
 
     if (error) throw error;
+    if (!profile) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ' });
+    }
+
+    // Fetch center info separately
+    let centerInfo = null;
+    if (profile.center_id) {
+      const { data: center } = await supabase
+        .from('centers')
+        .select('id, name, address, hotline')
+        .eq('id', profile.center_id)
+        .single();
+      centerInfo = center;
+    }
+
+    // Fetch role info separately
+    let roleInfo = null;
+    if (profile.role_id) {
+      const { data: role } = await supabase
+        .from('roles')
+        .select('id, code, name')
+        .eq('id', profile.role_id)
+        .single();
+      roleInfo = role;
+    }
 
     // Get teaching stats
     const now = new Date();
     const currentYear = now.getFullYear();
 
-    // Total classes taught
-    const { count: totalClasses } = await supabase
-      .from('classes')
-      .select('id', { count: 'exact', head: true })
-      .eq('teacher_id', teacherId);
+    const [classesResult, sessionsResult, yearSessionsResult] = await Promise.all([
+      supabase.from('classes').select('id', { count: 'exact', head: true }).eq('teacher_id', teacherId),
+      supabase.from('sessions').select('id', { count: 'exact', head: true }).eq('teacher_id', teacherId).eq('status', 'completed'),
+      supabase.from('sessions').select('duration_hours').eq('teacher_id', teacherId).eq('status', 'completed').gte('session_date', `${currentYear}-01-01`),
+    ]);
 
-    // Total sessions completed
-    const { count: totalSessions } = await supabase
-      .from('sessions')
-      .select('id', { count: 'exact', head: true })
-      .eq('teacher_id', teacherId)
-      .eq('status', 'completed');
-
-    // Total hours this year
-    const { data: yearSessions } = await supabase
-      .from('sessions')
-      .select('duration_hours')
-      .eq('teacher_id', teacherId)
-      .eq('status', 'completed')
-      .gte('session_date', `${currentYear}-01-01`);
-
-    const totalHoursThisYear = yearSessions?.reduce((sum, s) => sum + (parseFloat(s.duration_hours) || 0), 0) || 0;
+    const totalHoursThisYear = yearSessionsResult.data?.reduce((sum, s) => sum + (parseFloat(s.duration_hours) || 0), 0) || 0;
 
     res.json({
       success: true,
       data: {
         ...profile,
+        centers: centerInfo ? [centerInfo] : [],
+        roles: roleInfo,
         stats: {
-          totalClasses: totalClasses || 0,
-          totalSessions: totalSessions || 0,
+          totalClasses: classesResult.count || 0,
+          totalSessions: sessionsResult.count || 0,
           totalHoursThisYear: Math.round(totalHoursThisYear * 10) / 10
         }
       }
@@ -18784,27 +19185,51 @@ app.get('/api/teacher/schedule', requireAuth, async (req, res, next) => {
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
 
-    const startDate = req.query.start_date || monday.toISOString().split('T')[0];
-    const endDate = req.query.end_date || sunday.toISOString().split('T')[0];
+    const startDate = req.query.start_date || formatDateOnlyLocal(monday);
+    const endDate = req.query.end_date || formatDateOnlyLocal(sunday);
+
+    const startDateObj = parseDateOnlyLocal(startDate);
+    const endDateObj = parseDateOnlyLocal(endDate);
+
+    if (!startDateObj || !endDateObj) {
+      return res.status(400).json({
+        success: false,
+        message: 'start_date hoặc end_date không đúng định dạng YYYY-MM-DD'
+      });
+    }
+
+    if (startDateObj > endDateObj) {
+      return res.status(400).json({
+        success: false,
+        message: 'start_date phải nhỏ hơn hoặc bằng end_date'
+      });
+    }
 
     const { data: sessions, error } = await supabase
       .from('sessions')
       .select(`
         id,
+        teacher_id,
         session_number,
         session_date,
         start_time,
         end_time,
         duration_hours,
+        teacher_rate,
         status,
         topic,
         notes,
         room_id,
         is_locked,
+        payroll_id,
+        is_makeup,
+        original_session_id,
         classes (
           id,
           code,
           name,
+          teacher_id,
+          room_id,
           rooms (id, name, capacity),
           courses (id, code, title),
           centers (id, name)
@@ -18818,29 +19243,138 @@ app.get('/api/teacher/schedule', requireAuth, async (req, res, next) => {
 
     if (error) throw error;
 
-    // Group by date for easier rendering
-    const groupedByDate = {};
-    sessions?.forEach(session => {
-      const date = session.session_date;
-      if (!groupedByDate[date]) {
-        groupedByDate[date] = [];
+    const holidayByDateMap = new Map();
+    const recurringHolidayMap = new Map();
+    const { data: holidaysData, error: holidaysError } = await supabase
+      .from('holidays')
+      .select('name, date, is_recurring');
+
+    if (holidaysError) {
+      console.warn('Teacher schedule: failed to load holidays metadata:', holidaysError.message);
+    } else {
+      (holidaysData || []).forEach(holiday => {
+        if (!holiday?.date || !holiday?.name) return;
+        if (holiday.is_recurring) {
+          const monthDay = getMonthDayFromDateOnly(holiday.date);
+          if (monthDay && !recurringHolidayMap.has(monthDay)) {
+            recurringHolidayMap.set(monthDay, holiday.name);
+          }
+          return;
+        }
+        if (!holidayByDateMap.has(holiday.date)) {
+          holidayByDateMap.set(holiday.date, holiday.name);
+        }
+      });
+    }
+
+    const sessionDates = [...new Set((sessions || []).map(s => s.session_date).filter(Boolean))];
+    let peerSessions = [];
+    if (sessionDates.length > 0) {
+      const { data: peerData, error: peerError } = await supabase
+        .from('sessions')
+        .select(`
+          id,
+          session_date,
+          start_time,
+          end_time,
+          status,
+          teacher_id,
+          room_id,
+          classes (
+            id,
+            center_id,
+            teacher_id,
+            room_id
+          )
+        `)
+        .in('session_date', sessionDates)
+        .neq('status', 'cancelled');
+
+      if (peerError) {
+        console.warn('Teacher schedule: failed to load peer sessions for conflict metadata:', peerError.message);
+      } else {
+        peerSessions = (peerData || []).map(peer => ({
+          ...peer,
+          effectiveTeacherId: peer.teacher_id || peer.classes?.teacher_id || null,
+          effectiveRoomId: peer.room_id || peer.classes?.room_id || null,
+          centerId: peer.classes?.center_id || null
+        }));
       }
-      groupedByDate[date].push({
+    }
+
+    const normalizedSessions = (sessions || []).map(session => {
+      const sessionDate = session.session_date;
+      const sessionCenterId = session.classes?.centers?.id || null;
+      const sessionTeacherId = session.teacher_id || session.classes?.teacher_id || null;
+      const sessionRoomId = session.room_id || session.classes?.room_id || null;
+
+      const overlappingPeers = peerSessions.filter(peer => (
+        peer.id !== session.id &&
+        peer.session_date === sessionDate &&
+        sessionCenterId &&
+        peer.centerId === sessionCenterId &&
+        isSessionTimeOverlap(session.start_time, session.end_time, peer.start_time, peer.end_time)
+      ));
+
+      const hasTeacherConflict = Boolean(
+        sessionTeacherId && overlappingPeers.some(peer => peer.effectiveTeacherId === sessionTeacherId)
+      );
+
+      const hasRoomConflict = Boolean(
+        sessionRoomId && overlappingPeers.some(peer => peer.effectiveRoomId === sessionRoomId)
+      );
+
+      const monthDay = getMonthDayFromDateOnly(sessionDate);
+      const holidayName = holidayByDateMap.get(sessionDate) || (monthDay ? recurringHolidayMap.get(monthDay) : null) || null;
+      const exceptionType = inferScheduleExceptionType(session);
+      const isSubstituted = Boolean(
+        session.teacher_id &&
+        session.classes?.teacher_id &&
+        session.teacher_id !== session.classes.teacher_id
+      );
+
+      return {
         ...session,
         class_name: session.classes?.name,
         class_code: session.classes?.code,
         course_name: session.classes?.courses?.title,
         room_name: session.classes?.rooms?.name,
-        center_name: session.classes?.centers?.name
-      });
+        center_name: session.classes?.centers?.name,
+        operationalMeta: {
+          isSubstituted,
+          substitutionSourceSessionId: session.original_session_id || null,
+          hasTeacherConflict,
+          hasRoomConflict,
+          hasAnyConflict: hasTeacherConflict || hasRoomConflict,
+          isHoliday: Boolean(holidayName),
+          holidayName,
+          exceptionType,
+          payroll: {
+            isLocked: Boolean(session.is_locked),
+            isLinkedToPayroll: Boolean(session.payroll_id),
+            isEligibleForPayroll: session.status === 'completed' && !session.is_locked,
+            hourlyRate: session.teacher_rate ? Number(session.teacher_rate) : null
+          }
+        }
+      };
+    });
+
+    // Group by date for easier rendering
+    const groupedByDate = {};
+    normalizedSessions.forEach(session => {
+      const date = session.session_date;
+      if (!groupedByDate[date]) {
+        groupedByDate[date] = [];
+      }
+      groupedByDate[date].push(session);
     });
 
     // Generate all dates in range
     const allDates = [];
-    const current = new Date(startDate);
-    const end = new Date(endDate);
+    const current = new Date(startDateObj);
+    const end = new Date(endDateObj);
     while (current <= end) {
-      const dateStr = current.toISOString().split('T')[0];
+      const dateStr = formatDateOnlyLocal(current);
       allDates.push({
         date: dateStr,
         dayOfWeek: current.getDay(),
@@ -18850,9 +19384,12 @@ app.get('/api/teacher/schedule', requireAuth, async (req, res, next) => {
     }
 
     // Stats
-    const totalSessions = sessions?.length || 0;
-    const completedSessions = sessions?.filter(s => s.status === 'completed').length || 0;
-    const totalHours = sessions?.reduce((sum, s) => sum + (parseFloat(s.duration_hours) || 0), 0) || 0;
+    const totalSessions = normalizedSessions.length;
+    const completedSessions = normalizedSessions.filter(s => s.status === 'completed').length;
+    const totalHours = normalizedSessions.reduce((sum, s) => sum + (parseFloat(s.duration_hours) || 0), 0);
+    const conflictSessions = normalizedSessions.filter(s => s.operationalMeta?.hasAnyConflict).length;
+    const substitutedSessions = normalizedSessions.filter(s => s.operationalMeta?.isSubstituted).length;
+    const holidaySessions = normalizedSessions.filter(s => s.operationalMeta?.isHoliday).length;
 
     res.json({
       success: true,
@@ -18861,9 +19398,17 @@ app.get('/api/teacher/schedule', requireAuth, async (req, res, next) => {
         endDate,
         schedule: allDates,
         stats: {
+          scope: 'selected_range',
+          range: {
+            startDate,
+            endDate
+          },
           totalSessions,
           completedSessions,
-          totalHours: Math.round(totalHours * 10) / 10
+          totalHours: Math.round(totalHours * 10) / 10,
+          conflictSessions,
+          substitutedSessions,
+          holidaySessions
         }
       }
     });
@@ -18885,7 +19430,7 @@ app.get('/api/teacher/schedule/month', requireAuth, async (req, res, next) => {
     const year = parseInt(req.query.year) || now.getFullYear();
 
     const firstDay = `${year}-${String(month).padStart(2, '0')}-01`;
-    const lastDay = new Date(year, month, 0).toISOString().split('T')[0];
+    const lastDay = formatDateOnlyLocal(new Date(year, month, 0));
 
     const { data: sessions, error } = await supabase
       .from('sessions')
@@ -21444,7 +21989,7 @@ app.get('/api/admin/certificates/eligible-students', requireAuth, requireRole(['
       } else {
         // No cert type specified â€” return all without eligibility details
         const key = `${enrollment.student_id}_${enrollment.class?.id}`;
-        const hasAnyCert = (existingCerts || []).some(c => 
+        const hasAnyCert = (existingCerts || []).some(c =>
           `${c.student_id}_${c.class_id}` === key
         );
         if (!hasAnyCert) {
@@ -23926,12 +24471,12 @@ app.get('/api/notifications', requireAuth, async (req, res, next) => {
       .from('notifications')
       .select('id, type, title, message, reference_id, reference_type, read_at, created_at', { count: 'exact' })
       .eq('user_id', userId);
-    
+
     // Only filter by center if effectiveCenterId is set (CENTER_MANAGER or SUPER_ADMIN with specific center)
     if (effectiveCenterId) {
       query = query.eq('center_id', effectiveCenterId);
     }
-    
+
     query = query
       .order('created_at', { ascending: false })
       .range(offsetNum, offsetNum + limitNum - 1);
@@ -23948,7 +24493,7 @@ app.get('/api/notifications', requireAuth, async (req, res, next) => {
       .from('notifications')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId);
-    
+
     if (effectiveCenterId) {
       unreadQuery = unreadQuery.eq('center_id', effectiveCenterId);
     }
@@ -23985,7 +24530,7 @@ app.patch('/api/notifications/read-all', requireAuth, async (req, res, next) => 
       .from('notifications')
       .update({ read_at: new Date().toISOString() })
       .eq('user_id', userId);
-    
+
     if (effectiveCenterId) {
       updateQuery = updateQuery.eq('center_id', effectiveCenterId);
     }
@@ -26097,7 +26642,7 @@ app.get('/api/support-tickets/:id/smart-replies', requireAuth, async (req, res, 
     }
 
     // Extract course name hints
-    const STOP = new Set(['báº¡n','muá»‘n','mÃ¬nh','khÃ³a','há»c','Ä‘Æ°á»£c','khÃ´ng','cho','má»™t','cÃ¡c','cá»§a','nÃ y','nhá»¯ng','nhÆ°','tháº¿','nÃ o','bao','nhiÃªu','tÃ´i','anh','chá»‹','em','giÃ¡','lá»‹ch','phÃ­','tham','kháº£o','cáº§n','vá»','lá»™','trÃ¬nh','ná»™i','dung','thá»i','gian','buá»•i','Ä‘Äƒng','hiá»‡n','táº¡i','bÃªn','váº¥n','thÃ´ng','tin','há»i','xin','vá»›i','cÃ²n','láº¡i','thÃ¬','sao','cá»¥','thá»ƒ','luÃ´n','kÃ¨m','cho']);
+    const STOP = new Set(['báº¡n', 'muá»‘n', 'mÃ¬nh', 'khÃ³a', 'há»c', 'Ä‘Æ°á»£c', 'khÃ´ng', 'cho', 'má»™t', 'cÃ¡c', 'cá»§a', 'nÃ y', 'nhá»¯ng', 'nhÆ°', 'tháº¿', 'nÃ o', 'bao', 'nhiÃªu', 'tÃ´i', 'anh', 'chá»‹', 'em', 'giÃ¡', 'lá»‹ch', 'phÃ­', 'tham', 'kháº£o', 'cáº§n', 'vá»', 'lá»™', 'trÃ¬nh', 'ná»™i', 'dung', 'thá»i', 'gian', 'buá»•i', 'Ä‘Äƒng', 'hiá»‡n', 'táº¡i', 'bÃªn', 'váº¥n', 'thÃ´ng', 'tin', 'há»i', 'xin', 'vá»›i', 'cÃ²n', 'láº¡i', 'thÃ¬', 'sao', 'cá»¥', 'thá»ƒ', 'luÃ´n', 'kÃ¨m', 'cho']);
     const words = msgLower.split(/[\s,!?.]+/).filter(w => w.length >= 3 && !STOP.has(w));
 
     // Query courses
@@ -26129,9 +26674,9 @@ app.get('/api/support-tickets/:id/smart-replies', requireAuth, async (req, res, 
     const fmtPrice = (p) => {
       if (!p) return 'LiÃªn há»‡';
       const n = parseFloat(p);
-      return n >= 1000000 ? `${(n/1000000).toFixed(n%1000000===0?0:1)}tr` : n.toLocaleString('vi-VN') + 'Ä‘';
+      return n >= 1000000 ? `${(n / 1000000).toFixed(n % 1000000 === 0 ? 0 : 1)}tr` : n.toLocaleString('vi-VN') + 'Ä‘';
     };
-    const levelLabel = { beginner:'CÆ¡ báº£n', intermediate:'Trung cáº¥p', advanced:'NÃ¢ng cao', Beginner:'CÆ¡ báº£n', Intermediate:'Trung cáº¥p', Advanced:'NÃ¢ng cao' };
+    const levelLabel = { beginner: 'CÆ¡ báº£n', intermediate: 'Trung cáº¥p', advanced: 'NÃ¢ng cao', Beginner: 'CÆ¡ báº£n', Intermediate: 'Trung cáº¥p', Advanced: 'NÃ¢ng cao' };
 
     const suggestions = [];
 
@@ -26172,7 +26717,7 @@ app.get('/api/support-tickets/:id/smart-replies', requireAuth, async (req, res, 
           if (cls.schedule) sLines.push(`ðŸ• Lá»‹ch: ${cls.schedule}`);
           if (cls.start_date) sLines.push(`ðŸ—“ Khai giáº£ng: ${new Date(cls.start_date).toLocaleDateString('vi-VN')}`);
           if (cls.teacher?.full_name) sLines.push(`ðŸ‘¨â€ðŸ« GV: ${cls.teacher.full_name}`);
-          if (cls.max_students) sLines.push(`ðŸ‘¥ CÃ²n ${Math.max(0,spots)}/${cls.max_students} chá»—`);
+          if (cls.max_students) sLines.push(`ðŸ‘¥ CÃ²n ${Math.max(0, spots)}/${cls.max_students} chá»—`);
 
           suggestions.push({
             type: 'schedule_info',
@@ -26187,15 +26732,15 @@ app.get('/api/support-tickets/:id/smart-replies', requireAuth, async (req, res, 
       if (cats.has('curriculum') && (c.syllabus || c.outcomes)) {
         const cLines = [`ðŸ“‹ Lá»™ trÃ¬nh ${c.title}`];
         if (Array.isArray(c.syllabus)) {
-          c.syllabus.slice(0,5).forEach((item,i) => {
-            const t = typeof item === 'string' ? item : (item.title || item.name || `Pháº§n ${i+1}`);
-            cLines.push(`${i+1}. ${t}`);
+          c.syllabus.slice(0, 5).forEach((item, i) => {
+            const t = typeof item === 'string' ? item : (item.title || item.name || `Pháº§n ${i + 1}`);
+            cLines.push(`${i + 1}. ${t}`);
           });
-          if (c.syllabus.length > 5) cLines.push(`... vÃ  ${c.syllabus.length-5} pháº§n ná»¯a`);
+          if (c.syllabus.length > 5) cLines.push(`... vÃ  ${c.syllabus.length - 5} pháº§n ná»¯a`);
         }
         if (Array.isArray(c.outcomes)) {
           cLines.push('', 'ðŸŽ¯ Sau khÃ³a há»c báº¡n sáº½:');
-          c.outcomes.slice(0,3).forEach(o => {
+          c.outcomes.slice(0, 3).forEach(o => {
             const t = typeof o === 'string' ? o : (o.text || o.title || '');
             if (t) cLines.push(`âœ… ${t}`);
           });
@@ -27430,7 +27975,7 @@ app.get('/api/student/dashboard',
         .eq('enrollment.student_id', studentId)
         .order('created_at', { ascending: false })
         .limit(5);
-      
+
       // Transform grades to expected format
       const formattedRecentGrades = (recentGrades || []).map(g => ({
         id: g.id,
@@ -27623,11 +28168,11 @@ app.get('/api/student/schedule',
       if (classId) {
         query = query.eq('class_id', classId);
       }
-      
+
       if (startDate) {
         query = query.gte('session_date', startDate);
       }
-      
+
       if (endDate) {
         query = query.lte('session_date', endDate);
       }
@@ -27840,7 +28385,7 @@ app.get('/api/student/attendance',
       // Filter by class if specified (use enrollment's class_id or session's class_id)
       let filtered = attendance || [];
       if (classId) {
-        filtered = filtered.filter(a => 
+        filtered = filtered.filter(a =>
           a.session?.class?.id === classId || a.enrollment?.class?.id === classId
         );
       }
@@ -28848,7 +29393,7 @@ app.get('/api/settings/bank-config',
         .single();
 
       const setting = centerSetting || globalSetting;
-      
+
       if (!setting) {
         return res.json({
           success: true,
@@ -28934,7 +29479,7 @@ app.put('/api/settings/bank-config',
           .eq('id', existing.id)
           .select()
           .single();
-        
+
         if (error) throw error;
         result = data;
       } else {
@@ -28950,7 +29495,7 @@ app.put('/api/settings/bank-config',
           })
           .select()
           .single();
-        
+
         if (error) throw error;
         result = data;
       }
@@ -29085,7 +29630,7 @@ app.get('/api/parent/dashboard',
           .eq('student_id', studentId)
           .in('status', ['unpaid', 'partial', 'overdue']);
 
-        const unpaidTotal = (unpaidInvoices || []).reduce((sum, inv) => 
+        const unpaidTotal = (unpaidInvoices || []).reduce((sum, inv) =>
           sum + (inv.final_amount - inv.paid_amount), 0);
 
         // Calculate age
@@ -29338,7 +29883,7 @@ app.get('/api/parent/child/:studentId/grades',
       for (const grade of grades || []) {
         const classId = grade.class?.id;
         if (!classId) continue;
-        
+
         if (!gradesByClass[classId]) {
           gradesByClass[classId] = {
             classId,
@@ -29755,7 +30300,7 @@ app.post('/api/admin/parent-student-links/:linkId/deactivate',
  */
 async function getActiveTeacherCompensation(teacherId, asOfDate = null) {
   const checkDate = asOfDate || new Date().toISOString().split('T')[0];
-  
+
   const { data, error } = await supabase
     .from('teacher_compensation')
     .select('*')
@@ -29765,12 +30310,12 @@ async function getActiveTeacherCompensation(teacherId, asOfDate = null) {
     .order('effective_from', { ascending: false })
     .limit(1)
     .maybeSingle();
-  
+
   if (error) {
     console.error(`âŒ Error fetching compensation for teacher ${teacherId}:`, error);
     return null;
   }
-  
+
   return data;
 }
 
@@ -29783,10 +30328,10 @@ async function getActiveTeacherCompensation(teacherId, asOfDate = null) {
  */
 function calculatePayrollFromCompensation(compensation, sessions, defaultHourlyRate = 150000) {
   const total_hours = sessions?.reduce((sum, s) => sum + (parseFloat(s.duration_hours) || 0), 0) || 0;
-  
+
   let teaching_earnings = 0;
   let fixed_salary = 0;
-  
+
   if (!compensation) {
     // No compensation config - use legacy calculation (hourly only)
     teaching_earnings = sessions?.reduce((sum, s) => {
@@ -29796,7 +30341,7 @@ function calculatePayrollFromCompensation(compensation, sessions, defaultHourlyR
     }, 0) || 0;
   } else {
     const { pay_scheme, hourly_rate, fixed_monthly_salary, extra_hourly_rate } = compensation;
-    
+
     switch (pay_scheme) {
       case 'HOURLY_ONLY':
         // All earnings from hourly work
@@ -29807,13 +30352,13 @@ function calculatePayrollFromCompensation(compensation, sessions, defaultHourlyR
         }, 0) || 0;
         fixed_salary = 0;
         break;
-        
+
       case 'FIXED_ONLY':
         // Fixed monthly salary, no hourly earnings
         teaching_earnings = 0;
         fixed_salary = parseFloat(fixed_monthly_salary) || 0;
         break;
-        
+
       case 'FIXED_PLUS_HOURLY':
         // Fixed base + extra hourly for additional work
         fixed_salary = parseFloat(fixed_monthly_salary) || 0;
@@ -29823,7 +30368,7 @@ function calculatePayrollFromCompensation(compensation, sessions, defaultHourlyR
           return sum + (hours * rate);
         }, 0) || 0;
         break;
-        
+
       default:
         // Unknown scheme - fall back to hourly
         teaching_earnings = sessions?.reduce((sum, s) => {
@@ -29833,7 +30378,7 @@ function calculatePayrollFromCompensation(compensation, sessions, defaultHourlyR
         }, 0) || 0;
     }
   }
-  
+
   return { teaching_earnings, fixed_salary, total_hours };
 }
 
@@ -30006,7 +30551,7 @@ app.post('/api/admin/teacher-compensation',
       // Close any existing active config
       const { error: closeError } = await supabase
         .from('teacher_compensation')
-        .update({ 
+        .update({
           effective_to: new Date(effective_from || new Date()).toISOString().split('T')[0]
         })
         .eq('teacher_id', teacher_id)
@@ -30232,7 +30777,7 @@ app.get('/api/admin/teacher-compensation-stats',
           FIXED_ONLY: data?.filter(c => c.pay_scheme === 'FIXED_ONLY').length || 0,
           FIXED_PLUS_HOURLY: data?.filter(c => c.pay_scheme === 'FIXED_PLUS_HOURLY').length || 0
         },
-        avg_hourly_rate: data?.length > 0 
+        avg_hourly_rate: data?.length > 0
           ? Math.round(data.reduce((sum, c) => sum + (parseFloat(c.hourly_rate) || 0), 0) / data.length)
           : 0,
         avg_fixed_salary: data?.filter(c => c.fixed_monthly_salary > 0).length > 0
@@ -30475,19 +31020,19 @@ app.get('/api/teacher/classes/:classId/students/:studentId/progress', requireAut
       // 1. Attendance via enrollment
       enrollment
         ? supabase
-            .from('attendance')
-            .select('status, session_date')
-            .eq('enrollment_id', enrollment.id)
-            .order('session_date', { ascending: false })
+          .from('attendance')
+          .select('status, session_date')
+          .eq('enrollment_id', enrollment.id)
+          .order('session_date', { ascending: false })
         : Promise.resolve({ data: [] }),
 
       // 2. Grades
       enrollment
         ? supabase
-            .from('grades')
-            .select('*, grade_structures(name, weight, max_score)')
-            .eq('enrollment_id', enrollment.id)
-            .order('created_at', { ascending: true })
+          .from('grades')
+          .select('*, grade_structures(name, weight, max_score)')
+          .eq('enrollment_id', enrollment.id)
+          .order('created_at', { ascending: true })
         : Promise.resolve({ data: [] }),
 
       // 3. Recent notes
@@ -30508,7 +31053,9 @@ app.get('/api/teacher/classes/:classId/students/:studentId/progress', requireAut
     const absent = attendanceRecords.filter(a => a.status === 'absent').length;
     const late = attendanceRecords.filter(a => a.status === 'late').length;
     const excused = attendanceRecords.filter(a => a.status === 'excused').length;
-    const attendanceRate = totalSessions > 0 ? Math.round((attended / totalSessions) * 100 * 10) / 10 : 0;
+    const attendanceMarkedCount = attendanceRecords.length;
+    const denominator = Math.max(totalSessions, attendanceMarkedCount);
+    const attendanceRate = denominator > 0 ? Math.round((attended / denominator) * 100 * 10) / 10 : 0;
 
     // Calculate grade stats
     const grades = gradesResult.data || [];
@@ -30537,6 +31084,7 @@ app.get('/api/teacher/classes/:classId/students/:studentId/progress', requireAut
         className: classData.name,
         attendance: {
           total_sessions: totalSessions,
+          attendance_marked_sessions: attendanceMarkedCount,
           attended,
           absent,
           late,
@@ -30625,6 +31173,77 @@ app.put('/api/teacher/sessions/:id/notes', requireAuth, async (req, res, next) =
 // TEACHER LEAVE REQUEST APIs
 // ============================================================
 
+const LEAVE_TEACHER_COLUMN_CANDIDATES = ['staff_id', 'teacher_id'];
+const LEAVE_TYPE_OPTIONS = ['sick', 'personal', 'annual', 'maternity', 'compensatory', 'other'];
+
+function isMissingColumnError(error, columnName) {
+  const code = String(error?.code || '').toUpperCase();
+  const message = String(error?.message || '').toLowerCase();
+  const details = String(error?.details || '').toLowerCase();
+  const hint = String(error?.hint || '').toLowerCase();
+  const combined = `${message} ${details} ${hint}`;
+
+  return (
+    code === 'PGRST204' ||
+    code === '42703' ||
+    (combined.includes('column') && combined.includes(String(columnName || '').toLowerCase()))
+  );
+}
+
+async function runLeaveQueryWithTeacherColumn(executor) {
+  let lastError = null;
+
+  for (const teacherColumn of LEAVE_TEACHER_COLUMN_CANDIDATES) {
+    const { data, error } = await executor(teacherColumn);
+    if (!error) {
+      return { data, error: null, teacherColumn };
+    }
+
+    lastError = error;
+    if (!isMissingColumnError(error, teacherColumn)) {
+      break;
+    }
+  }
+
+  return { data: null, error: lastError, teacherColumn: null };
+}
+
+function parseISODateToUTC(dateStr) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateStr || ''))) {
+    return null;
+  }
+
+  const [year, month, day] = String(dateStr).split('-').map(Number);
+  const ts = Date.UTC(year, month - 1, day);
+  if (Number.isNaN(ts)) {
+    return null;
+  }
+
+  return new Date(ts);
+}
+
+function mapLeaveMutationError(error) {
+  const code = String(error?.code || '').toUpperCase();
+  const message = String(error?.message || '').toLowerCase();
+  const details = String(error?.details || '').toLowerCase();
+  const hint = String(error?.hint || '').toLowerCase();
+  const combined = `${message} ${details} ${hint}`;
+
+  if (code === '23514' || combined.includes('check constraint')) {
+    return { status: 400, message: 'Dữ liệu đơn nghỉ không hợp lệ. Vui lòng kiểm tra lại thông tin.' };
+  }
+
+  if (code === '23503' || combined.includes('foreign key')) {
+    return { status: 400, message: 'Thông tin giáo viên hoặc trung tâm không hợp lệ.' };
+  }
+
+  if (code === '22P02') {
+    return { status: 400, message: 'Định dạng dữ liệu không hợp lệ.' };
+  }
+
+  return { status: 500, message: 'Không thể xử lý đơn xin nghỉ. Vui lòng thử lại sau.' };
+}
+
 /**
  * GET /api/teacher/leave-requests
  * Láº¥y danh sÃ¡ch Ä‘Æ¡n xin nghá»‰ cá»§a giÃ¡o viÃªn hiá»‡n táº¡i
@@ -30638,12 +31257,14 @@ app.get('/api/teacher/leave-requests', requireAuth, async (req, res, next) => {
       return res.status(403).json({ success: false, message: permError });
     }
 
-    const { data, error } = await supabase
-      .from('leave_requests')
-      .select('*')
-      .eq('teacher_id', teacherId)
-      .eq('center_id', effectiveCenterId)
-      .order('created_at', { ascending: false });
+    const { data, error } = await runLeaveQueryWithTeacherColumn((teacherColumn) => (
+      supabase
+        .from('leave_requests')
+        .select('*')
+        .eq(teacherColumn, teacherId)
+        .eq('center_id', effectiveCenterId)
+        .order('created_at', { ascending: false })
+    ));
 
     if (error) throw error;
 
@@ -30664,50 +31285,78 @@ app.get('/api/teacher/leave-requests', requireAuth, async (req, res, next) => {
 app.post('/api/teacher/leave-requests', requireAuth, async (req, res, next) => {
   try {
     const teacherId = req.user.id;
-    const { leave_type, start_date, end_date, reason } = req.body;
+    const { leave_type, start_date, end_date, reason } = req.body || {};
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, null);
 
     if (permError) {
       return res.status(403).json({ success: false, message: permError });
     }
 
-    if (!leave_type || !start_date || !end_date || !reason) {
+    const leaveType = typeof leave_type === 'string' ? leave_type.trim().toLowerCase() : '';
+    const startDateStr = typeof start_date === 'string' ? start_date.trim() : '';
+    const endDateStr = typeof end_date === 'string' ? end_date.trim() : '';
+    const reasonText = typeof reason === 'string' ? reason.trim() : '';
+
+    if (!leaveType || !startDateStr || !endDateStr || !reasonText) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lÃ²ng nháº­p Ä‘áº§y Ä‘á»§ loáº¡i nghá»‰, ngÃ y báº¯t Ä‘áº§u, ngÃ y káº¿t thÃºc vÃ  lÃ½ do'
+        message: 'Vui lòng nhập đầy đủ loại nghỉ, ngày bắt đầu, ngày kết thúc và lý do'
       });
     }
 
-    const validLeaveTypes = ['sick', 'personal', 'annual', 'other'];
-    if (!validLeaveTypes.includes(leave_type)) {
+    if (!LEAVE_TYPE_OPTIONS.includes(leaveType)) {
       return res.status(400).json({
         success: false,
-        message: 'Loáº¡i nghá»‰ khÃ´ng há»£p lá»‡'
+        message: 'Loại nghỉ không hợp lệ'
       });
     }
 
-    if (new Date(end_date) < new Date(start_date)) {
+    const startDate = parseISODateToUTC(startDateStr);
+    const endDate = parseISODateToUTC(endDateStr);
+    if (!startDate || !endDate) {
       return res.status(400).json({
         success: false,
-        message: 'NgÃ y káº¿t thÃºc pháº£i lá»›n hÆ¡n hoáº·c báº±ng ngÃ y báº¯t Ä‘áº§u'
+        message: 'Ngày bắt đầu hoặc ngày kết thúc không đúng định dạng YYYY-MM-DD'
       });
     }
 
-    const { data, error } = await supabase
-      .from('leave_requests')
-      .insert({
-        teacher_id: teacherId,
-        center_id: effectiveCenterId,
-        leave_type,
-        start_date,
-        end_date,
-        reason: reason.trim(),
-        status: 'pending'
-      })
-      .select('*')
-      .single();
+    if (endDate < startDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu'
+      });
+    }
 
-    if (error) throw error;
+    // Calculate total days
+    const startMs = startDate.getTime();
+    const endMs = endDate.getTime();
+    const totalDays = Math.max(1, Math.floor((endMs - startMs) / (1000 * 60 * 60 * 24)) + 1);
+
+    const { data, error } = await runLeaveQueryWithTeacherColumn((teacherColumn) => (
+      supabase
+        .from('leave_requests')
+        .insert({
+          [teacherColumn]: teacherId,
+          center_id: effectiveCenterId,
+          leave_type: leaveType,
+          start_date: startDateStr,
+          end_date: endDateStr,
+          total_days: totalDays,
+          reason: reasonText,
+          status: 'pending'
+        })
+        .select('*')
+        .single()
+    ));
+
+    if (error) {
+      const mapped = mapLeaveMutationError(error);
+      return res.status(mapped.status).json({
+        success: false,
+        message: mapped.message,
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
 
     res.status(201).json({
       success: true,
@@ -30756,15 +31405,17 @@ app.delete('/api/teacher/leave-requests/:id', requireAuth, async (req, res, next
       return res.status(403).json({ success: false, message: permError });
     }
 
-    const { data, error } = await supabase
-      .from('leave_requests')
-      .delete()
-      .eq('id', id)
-      .eq('teacher_id', teacherId)
-      .eq('center_id', effectiveCenterId)
-      .eq('status', 'pending')
-      .select('id')
-      .single();
+    const { data, error } = await runLeaveQueryWithTeacherColumn((teacherColumn) => (
+      supabase
+        .from('leave_requests')
+        .delete()
+        .eq('id', id)
+        .eq(teacherColumn, teacherId)
+        .eq('center_id', effectiveCenterId)
+        .eq('status', 'pending')
+        .select('id')
+        .single()
+    ));
 
     if (error && error.code !== 'PGRST116') throw error;
 

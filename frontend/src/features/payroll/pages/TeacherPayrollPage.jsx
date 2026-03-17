@@ -31,6 +31,7 @@ import {
 import { PrintPayslipModal } from '../components/PrintPayslipModal';
 import { DisputeModal } from '../components/DisputeModal';
 import { usePayroll } from '../hooks/usePayroll';
+import { useAuth } from '@/contexts/auth-context';
 
 const getAuthHeaders = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -54,6 +55,7 @@ export function TeacherPayrollPage() {
 
     const { submitDispute } = usePayroll();
     const { toast } = useToast();
+    const { profile } = useAuth();
 
     // Fetch payroll list
     const fetchPayrolls = useCallback(async () => {
@@ -104,7 +106,15 @@ export function TeacherPayrollPage() {
 
     // Print payslip
     const handlePrint = (payroll) => {
-        setPrintModal({ isOpen: true, payrollData: payroll });
+        const payrollWithTeacher = {
+            ...payroll,
+            teacher: {
+                full_name: payroll.teacher?.full_name || profile?.full_name || '',
+                email: payroll.teacher?.email || profile?.email || '',
+                hourly_rate: payroll.teacher?.hourly_rate || profile?.hourly_rate || compensation?.hourly_rate || 0
+            }
+        };
+        setPrintModal({ isOpen: true, payrollData: payrollWithTeacher });
     };
 
     // Open dispute modal

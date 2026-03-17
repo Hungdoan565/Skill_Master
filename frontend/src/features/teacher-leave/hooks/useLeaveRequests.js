@@ -2,6 +2,24 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const ALLOWED_LEAVE_TYPES = new Set(['sick', 'personal', 'annual', 'maternity', 'compensatory', 'other']);
+
+const parseJsonSafe = async (response) => {
+    try {
+        return await response.json();
+    } catch {
+        return null;
+    }
+};
+
+const normalizeLeavePayload = (data = {}) => {
+    const leave_type = typeof data.leave_type === 'string' ? data.leave_type.trim().toLowerCase() : '';
+    const start_date = typeof data.start_date === 'string' ? data.start_date.trim() : '';
+    const end_date = typeof data.end_date === 'string' ? data.end_date.trim() : '';
+    const reason = typeof data.reason === 'string' ? data.reason.trim() : '';
+
+    return { leave_type, start_date, end_date, reason };
+};
 
 export function useLeaveRequests() {
     const { session } = useAuth();
@@ -28,7 +46,7 @@ export function useLeaveRequests() {
             const response = await fetch(`${API_URL}/api/teacher/leave-requests`, {
                 headers: getHeaders()
             });
-            const result = await response.json();
+            const result = await parseJsonSafe(response);
 
             if (!response.ok || !result?.success) {
                 throw new Error(result?.message || 'Không thể tải danh sách đơn xin nghỉ');
@@ -47,13 +65,26 @@ export function useLeaveRequests() {
         try {
             setError(null);
 
+            const payload = normalizeLeavePayload(data);
+            if (!payload.leave_type || !payload.start_date || !payload.end_date || !payload.reason) {
+                const message = 'Vui lòng nhập đầy đủ thông tin đơn xin nghỉ';
+                setError(message);
+                return { success: false, message };
+            }
+
+            if (!ALLOWED_LEAVE_TYPES.has(payload.leave_type)) {
+                const message = 'Loại nghỉ không hợp lệ';
+                setError(message);
+                return { success: false, message };
+            }
+
             const response = await fetch(`${API_URL}/api/teacher/leave-requests`, {
                 method: 'POST',
                 headers: getHeaders(),
-                body: JSON.stringify(data)
+                body: JSON.stringify(payload)
             });
 
-            const result = await response.json();
+            const result = await parseJsonSafe(response);
 
             if (!response.ok || !result?.success) {
                 throw new Error(result?.message || 'Không thể tạo đơn xin nghỉ');
@@ -78,7 +109,7 @@ export function useLeaveRequests() {
                 headers: getHeaders()
             });
 
-            const result = await response.json();
+            const result = await parseJsonSafe(response);
 
             if (!response.ok || !result?.success) {
                 throw new Error(result?.message || 'Không thể xoá đơn xin nghỉ');

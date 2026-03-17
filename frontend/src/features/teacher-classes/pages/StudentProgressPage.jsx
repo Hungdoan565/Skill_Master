@@ -48,6 +48,37 @@ const ATTENDANCE_STATUS_CONFIG = {
     excused: { color: 'bg-blue-400', tooltip: 'Có phép' },
 };
 
+const parseDateOnlyLocal = (dateStr) => {
+    if (!dateStr || typeof dateStr !== 'string') return null;
+    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return null;
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const parsed = new Date(year, month - 1, day);
+    if (
+        parsed.getFullYear() !== year ||
+        parsed.getMonth() !== month - 1 ||
+        parsed.getDate() !== day
+    ) {
+        return null;
+    }
+    return parsed;
+};
+
+const formatDateOnlyLocal = (dateStr, options) => {
+    const parsed = parseDateOnlyLocal(dateStr);
+    if (!parsed) return '--';
+    return parsed.toLocaleDateString('vi-VN', options);
+};
+
+const formatDateTimeLocal = (dateInput, options) => {
+    if (!dateInput) return '--';
+    const parsed = new Date(dateInput);
+    if (Number.isNaN(parsed.getTime())) return '--';
+    return parsed.toLocaleDateString('vi-VN', options);
+};
+
 export function StudentProgressPage() {
     const { classId, studentId } = useParams();
     const navigate = useNavigate();
@@ -162,7 +193,7 @@ export function StudentProgressPage() {
                     </div>
                     <p className="text-3xl font-bold text-foreground">{attendance.attendance_rate}%</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                        {attendance.attended}/{attendance.total_sessions} buổi
+                        {attendance.attended}/{attendance.total_sessions} buổi (đã điểm danh: {attendance.attendance_marked_sessions ?? attendance.total_sessions})
                     </p>
                 </div>
 
@@ -211,10 +242,10 @@ export function StudentProgressPage() {
                         {attendance.recent.map((r, i) => {
                             const config = ATTENDANCE_STATUS_CONFIG[r.status] || ATTENDANCE_STATUS_CONFIG.absent;
                             return (
-                                <div key={i} className="flex flex-col items-center gap-1" title={`${config.tooltip} - ${r.session_date}`}>
+                                <div key={i} className="flex flex-col items-center gap-1" title={`${config.tooltip} - ${formatDateOnlyLocal(r.session_date, { day: '2-digit', month: '2-digit', year: 'numeric' })}`}>
                                     <div className={cn('w-4 h-4 rounded-full', config.color)} />
                                     <span className="text-[9px] text-muted-foreground">
-                                        {new Date(r.session_date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}
+                                        {formatDateOnlyLocal(r.session_date, { day: '2-digit', month: '2-digit' })}
                                     </span>
                                 </div>
                             );
@@ -245,11 +276,11 @@ export function StudentProgressPage() {
                             const barColor = pct >= 70 ? 'bg-green-500' : pct >= 50 ? 'bg-amber-400' : 'bg-red-500';
                             return (
                                 <div key={i} className="flex items-center gap-3">
-                                    <span className="text-sm text-foreground w-36 truncate">{g.name || `Bài ${i + 1}`}</span>
-                                    <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
-                                        <div className={cn('h-full rounded-full transition-all', barColor)} style={{ width: `${pct}%` }} />
+                                    <span className="text-sm text-foreground w-36 truncate font-medium">{g.name || `Bài ${i + 1}`}</span>
+                                    <div className="flex-1 h-2.5 rounded-full bg-slate-100 overflow-hidden border border-border/50">
+                                        <div className={cn('h-full rounded-full transition-all duration-1000 ease-out shadow-sm', barColor)} style={{ width: `${pct}%` }} />
                                     </div>
-                                    <span className="text-sm font-medium text-foreground w-20 text-right">{g.score}/{g.max_score}</span>
+                                    <span className="text-sm font-bold text-foreground w-20 text-right">{g.score}/{g.max_score}</span>
                                 </div>
                             );
                         })}
@@ -275,7 +306,7 @@ export function StudentProgressPage() {
                                             {typeInfo.label}
                                         </span>
                                         <span className="text-[10px] text-muted-foreground">
-                                            {new Date(note.created_at).toLocaleDateString('vi-VN', {
+                                            {formatDateTimeLocal(note.created_at, {
                                                 day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
                                             })}
                                         </span>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, ArrowRight, ArrowLeft, Phone, User, Target, BookOpen, Clock, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
+import { X, ArrowRight, ArrowLeft, Phone, User, Target, BookOpen, Clock, CheckCircle, Loader2, AlertCircle, BarChart3, MessageCircle, Monitor, FileEdit, Sunrise, Sun, Sunset, Timer } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 
 // ============================================
@@ -8,11 +8,11 @@ import { supabase } from '../../lib/supabaseClient';
 // ============================================
 
 const GOALS = [
-    { id: 'ielts', label: 'Luyện thi IELTS', icon: '🎯' },
-    { id: 'toeic', label: 'Luyện thi TOEIC', icon: '📊' },
-    { id: 'communication', label: 'Giao tiếp tiếng Anh', icon: '💬' },
-    { id: 'it', label: 'Tin học văn phòng', icon: '💻' },
-    { id: 'other', label: 'Khác', icon: '📝' },
+    { id: 'ielts', label: 'Luyện thi IELTS', Icon: Target },
+    { id: 'toeic', label: 'Luyện thi TOEIC', Icon: BarChart3 },
+    { id: 'communication', label: 'Giao tiếp tiếng Anh', Icon: MessageCircle },
+    { id: 'it', label: 'Tin học văn phòng', Icon: Monitor },
+    { id: 'other', label: 'Khác', Icon: FileEdit },
 ];
 
 const LEVELS = [
@@ -23,10 +23,10 @@ const LEVELS = [
 ];
 
 const CALL_TIMES = [
-    { id: 'morning', label: '8:00 - 12:00', icon: '🌅' },
-    { id: 'afternoon', label: '12:00 - 17:00', icon: '☀️' },
-    { id: 'evening', label: '17:00 - 21:00', icon: '🌆' },
-    { id: 'anytime', label: 'Bất kỳ lúc nào', icon: '⏰' },
+    { id: 'morning', label: '8:00 - 12:00', Icon: Sunrise },
+    { id: 'afternoon', label: '12:00 - 17:00', Icon: Sun },
+    { id: 'evening', label: '17:00 - 21:00', Icon: Sunset },
+    { id: 'anytime', label: 'Bất kỳ lúc nào', Icon: Timer },
 ];
 
 // Phone validation (Vietnam format)
@@ -374,7 +374,7 @@ export const ConsultationModal = ({ isOpen, onClose, source = 'header' }) => {
                                                     : 'bg-stone-50 border-2 border-transparent hover:border-zinc-200 text-zinc-700'
                                                 }`}
                                         >
-                                            <span className="text-lg mb-1 block">{goal.icon}</span>
+                                            <goal.Icon className={`w-5 h-5 mb-1.5 ${formData.goal === goal.id ? 'text-red-600' : 'text-zinc-400'}`} />
                                             {goal.label}
                                         </button>
                                     ))}
@@ -430,7 +430,7 @@ export const ConsultationModal = ({ isOpen, onClose, source = 'header' }) => {
                                                     : 'bg-stone-50 border-2 border-transparent hover:border-zinc-200 text-zinc-700'
                                                 }`}
                                         >
-                                            <span>{time.icon}</span>
+                                            <time.Icon className={`w-4 h-4 ${formData.callTime === time.id ? 'text-red-600' : 'text-zinc-400'}`} />
                                             {time.label}
                                         </button>
                                     ))}

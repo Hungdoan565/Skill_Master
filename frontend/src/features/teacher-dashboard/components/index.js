@@ -3,3 +3,5 @@ export { TodaySchedule } from './TodaySchedule';
 export { AttendanceStats } from './AttendanceStats';
 export { ClassesSummary } from './ClassesSummary';
 export { QuickActions } from './QuickActions';
+export { UpcomingSessions } from './UpcomingSessions';
+export { SmartAlerts } from './SmartAlerts';

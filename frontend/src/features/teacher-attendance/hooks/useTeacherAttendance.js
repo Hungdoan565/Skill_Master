@@ -57,7 +57,14 @@ export function useTeacherAttendance(classId) {
       );
 
       if (response.data?.success) {
-        setSessions(response.data.data?.sessions || []);
+        const classData = response.data.data;
+        // Map session_date to date for frontend compatibility
+        const mappedSessions = (classData?.sessions || []).map(s => ({
+          ...s,
+          date: s.session_date || s.date,
+          class_name: classData?.name || ''
+        }));
+        setSessions(mappedSessions);
       } else {
         throw new Error(response.data?.message || 'Không thể tải danh sách buổi học');
       }

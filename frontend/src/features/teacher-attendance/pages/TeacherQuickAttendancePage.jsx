@@ -24,6 +24,13 @@ import {
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
+const formatDateOnlyLocal = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 const STATUS_CONFIG = {
     completed: { label: 'Đã điểm danh', className: 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20' },
     pending: { label: 'Chưa điểm danh', className: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20' },
@@ -164,8 +171,8 @@ export function TeacherQuickAttendancePage() {
             endDate.setDate(endDate.getDate() + 7);
 
             const params = new URLSearchParams({
-                start_date: startDate.toISOString().split('T')[0],
-                end_date: endDate.toISOString().split('T')[0]
+                start_date: formatDateOnlyLocal(startDate),
+                end_date: formatDateOnlyLocal(endDate)
             });
 
             const response = await fetch(`${API_URL}/api/teacher/schedule?${params}`, {
@@ -178,7 +185,15 @@ export function TeacherQuickAttendancePage() {
             if (!response.ok) throw new Error('Lỗi khi tải lịch dạy');
 
             const result = await response.json();
-            setSessions(result.data?.schedule || []);
+            // schedule is [{date, dayOfWeek, sessions:[...]}, ...] - flatten to flat session array
+            const scheduleGroups = result.data?.schedule || [];
+            const flatSessions = scheduleGroups.flatMap(group =>
+                (group.sessions || []).map(s => ({
+                    ...s,
+                    session_date: s.session_date || group.date
+                }))
+            );
+            setSessions(flatSessions);
         } catch (err) {
             console.error('Schedule fetch error:', err);
             setError(err.message);
@@ -192,7 +207,7 @@ export function TeacherQuickAttendancePage() {
     }, [fetchSchedule]);
 
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = formatDateOnlyLocal(today);
 
     const categorizedSessions = useMemo(() => {
         const now = new Date();
@@ -234,7 +249,7 @@ export function TeacherQuickAttendancePage() {
         return categorizedSessions
             .filter(s => s.session_date > todayStr)
             .sort((a, b) => a.session_date.localeCompare(b.session_date) ||
-                           (a.start_time || '').localeCompare(b.start_time || ''));
+                (a.start_time || '').localeCompare(b.start_time || ''));
     }, [categorizedSessions, todayStr]);
 
     const handleNavigate = (session) => {
@@ -386,4 +401,3 @@ export function TeacherQuickAttendancePage() {
 }
 
 export default TeacherQuickAttendancePage;
-

@@ -98,7 +98,7 @@ export function TeacherSidebar() {
             )}
             <div className="space-y-1">
               {group.items.map((item) => {
-                const isActive = location.pathname === item.path || 
+                const isActive = location.pathname === item.path ||
                   (item.path === '/teacher' && location.pathname === '/teacher/dashboard');
 
                 return (

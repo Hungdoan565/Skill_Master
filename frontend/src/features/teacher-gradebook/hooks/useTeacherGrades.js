@@ -1,6 +1,7 @@
 /**
  * useTeacherGrades Hook
  * Manages grade tracking for teachers
+ * Uses dynamic grade_structures from backend (per-course, UUID-based)
  */
 
 import { useState, useCallback, useMemo } from 'react';
@@ -9,13 +10,11 @@ import { supabase } from '@/lib/supabaseClient';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-const GRADE_TYPES = [
-  { value: 'participation', label: 'Điểm chuyên cần', weight: 0.1 },
-  { value: 'assignment', label: 'Bài tập', weight: 0.2 },
-  { value: 'quiz', label: 'Kiểm tra', weight: 0.2 },
-  { value: 'midterm', label: 'Giữa kỳ', weight: 0.2 },
-  { value: 'final', label: 'Cuối kỳ', weight: 0.3 },
-];
+const toNumberOrNull = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
 
 const getAuthHeaders = async () => {
   const { data: { session } } = await supabase.auth.getSession();
@@ -29,36 +28,116 @@ const getAuthHeaders = async () => {
 };
 
 export function useTeacherGrades(classId) {
-  const [students, setStudents] = useState([]);
-  const [grades, setGrades] = useState([]);
-  const [originalGrades, setOriginalGrades] = useState([]);
-  const [gradeTypes, setGradeTypes] = useState(GRADE_TYPES);
-  const [selectedGradeType, setSelectedGradeType] = useState(null);
-  const [summary, setSummary] = useState(null);
+  // Backend data
+  const [gradeStructures, setGradeStructures] = useState([]);
+  const [studentsWithGrades, setStudentsWithGrades] = useState([]);
+  const [classSummary, setClassSummary] = useState(null);
+  const [lockStatus, setLockStatus] = useState({});
+
+  // UI state
+  const [selectedStructureId, setSelectedStructureId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  const [lockStatus, setLockStatus] = useState({});
+
+  // Local edits tracking: Map<`${enrollmentId}`, { score, notes }>
+  const [localEdits, setLocalEdits] = useState({});
 
   const hasChanges = useMemo(() => {
-    return JSON.stringify(grades) !== JSON.stringify(originalGrades);
-  }, [grades, originalGrades]);
+    return Object.keys(localEdits).length > 0;
+  }, [localEdits]);
 
-  const calculateFinalGrade = useCallback((studentGrades) => {
-    let totalWeight = 0;
-    let weightedSum = 0;
+  // Selected grade structure object
+  const selectedStructure = useMemo(() => {
+    return gradeStructures.find(gs => gs.id === selectedStructureId) || null;
+  }, [gradeStructures, selectedStructureId]);
 
-    studentGrades.forEach(g => {
-      if (g.score !== null && g.score !== undefined) {
-        const normalized = (g.score / g.max_score) * 10;
-        weightedSum += normalized * g.weight;
-        totalWeight += g.weight;
+  // Students list (flattened for UI)
+  const students = useMemo(() => {
+    return studentsWithGrades.map(s => ({
+      id: s.student_id,
+      enrollment_id: s.enrollment_id,
+      full_name: s.student?.full_name || 'Học viên',
+      email: s.student?.email || '',
+      avatar_url: s.student?.avatar_url || null,
+      student_code: s.student?.student_code || '',
+      finalGrade: s.finalGrade
+    }));
+  }, [studentsWithGrades]);
+
+  // Get grade for a specific student + current structure
+  const getStudentGrade = useCallback((enrollmentId) => {
+    const studentData = studentsWithGrades.find(s => s.enrollment_id === enrollmentId);
+    if (!studentData || !selectedStructureId) return null;
+
+    const grade = studentData.grades?.find(
+      g => String(g.grade_structure_id) === String(selectedStructureId)
+    );
+
+    // Check for local edits
+    const editKey = enrollmentId;
+    const localEdit = localEdits[editKey];
+
+    if (localEdit) {
+      return {
+        ...(grade || {}),
+        score: localEdit.score !== undefined ? localEdit.score : (grade?.score ?? null),
+        notes: localEdit.notes !== undefined ? localEdit.notes : (grade?.notes || ''),
+        max_score: selectedStructure?.max_score || 10
+      };
+    }
+
+    return grade ? {
+      ...grade,
+      max_score: selectedStructure?.max_score || 10
+    } : null;
+  }, [studentsWithGrades, selectedStructureId, selectedStructure, localEdits]);
+
+  // Summary stats for selected structure
+  const summaryStats = useMemo(() => {
+    if (!selectedStructureId || !studentsWithGrades.length) {
+      return { average: 0, highest: 0, lowest: 0, count: 0, total: studentsWithGrades.length || 0 };
+    }
+
+    const scores = [];
+    studentsWithGrades.forEach(s => {
+      const editKey = s.enrollment_id;
+      const localEdit = localEdits[editKey];
+      const grade = s.grades?.find(
+        g => String(g.grade_structure_id) === String(selectedStructureId)
+      );
+
+      const score = localEdit?.score !== undefined ? localEdit.score : grade?.score;
+      const numericScore = toNumberOrNull(score);
+      if (numericScore !== null) {
+        scores.push(numericScore);
       }
     });
 
-    return totalWeight > 0 ? (weightedSum / totalWeight).toFixed(2) : null;
-  }, []);
+    const classAverageFallback = toNumberOrNull(classSummary?.classAverage);
+    const classHighestFallback = toNumberOrNull(classSummary?.highest);
+    const classLowestFallback = toNumberOrNull(classSummary?.lowest);
 
+    if (scores.length === 0) {
+      return {
+        average: classAverageFallback !== null ? classAverageFallback.toFixed(2) : 0,
+        highest: classHighestFallback ?? 0,
+        lowest: classLowestFallback ?? 0,
+        count: classSummary?.gradedStudents || 0,
+        total: classSummary?.totalStudents || studentsWithGrades.length
+      };
+    }
+
+    return {
+      average: (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2),
+      highest: Math.max(...scores),
+      lowest: Math.min(...scores),
+      count: scores.length,
+      total: studentsWithGrades.length
+    };
+  }, [studentsWithGrades, selectedStructureId, localEdits, classSummary]);
+
+  // Fetch all data
   const fetchGrades = useCallback(async () => {
     if (!classId) return;
 
@@ -74,77 +153,110 @@ export function useTeacherGrades(classId) {
 
       if (response.data?.success) {
         const data = response.data.data || {};
-        setStudents(data.students || []);
-        const gradesData = data.grades || [];
-        setGrades(gradesData);
-        setOriginalGrades(JSON.parse(JSON.stringify(gradesData)));
-        if (data.grade_types) {
-          setGradeTypes(data.grade_types);
+
+        // Set grade structures (dynamic from backend)
+        const structures = data.gradeStructures || [];
+        setGradeStructures(structures);
+
+        // Auto-select first structure if none selected
+        if (structures.length > 0 && !selectedStructureId) {
+          setSelectedStructureId(structures[0].id);
         }
-        if (data.lock_status) {
-          setLockStatus(data.lock_status);
-        }
+
+        // Set students with grades
+        setStudentsWithGrades(data.students || []);
+
+        // Set summary
+        setClassSummary(data.summary || null);
+
+        // Set lock status (keyed by grade_structure_id)
+        setLockStatus(data.lockStatus || {});
+
+        // Clear local edits
+        setLocalEdits({});
       } else {
         throw new Error(response.data?.message || 'Không thể tải điểm');
       }
     } catch (err) {
       console.error('Error fetching grades:', err);
-      setError(err.message || 'Lỗi khi tải điểm');
+      setError(err.response?.data?.message || err.message || 'Lỗi khi tải điểm');
     } finally {
       setLoading(false);
     }
-  }, [classId]);
+  }, [classId, selectedStructureId]);
 
-  const selectGradeType = useCallback((gradeType) => {
-    setSelectedGradeType(gradeType);
+  // Select a grade structure tab
+  const selectStructure = useCallback((structureId) => {
+    setSelectedStructureId(structureId);
+    setLocalEdits({}); // Clear edits when switching tabs
   }, []);
 
-  const updateGrade = useCallback((studentId, gradeTypeValue, score, maxScore = 10) => {
-    setGrades(prev => {
-      const existingIndex = prev.findIndex(
-        g => g.student_id === studentId && g.grade_type === gradeTypeValue
-      );
+  // Update score locally
+  const updateScore = useCallback((enrollmentId, score, maxScore) => {
+    const numValue = score === '' || score === null ? null : parseFloat(score);
+    if (numValue !== null && (numValue < 0 || numValue > maxScore)) return;
 
-      const gradeType = gradeTypes.find(t => t.value === gradeTypeValue);
-      const weight = gradeType?.weight || 0;
-
-      if (existingIndex >= 0) {
-        const updated = [...prev];
-        updated[existingIndex] = {
-          ...updated[existingIndex],
-          score,
-          max_score: maxScore,
-          weight
-        };
-        return updated;
+    setLocalEdits(prev => ({
+      ...prev,
+      [enrollmentId]: {
+        ...prev[enrollmentId],
+        score: numValue
       }
+    }));
+  }, []);
 
-      return [...prev, {
-        student_id: studentId,
-        grade_type: gradeTypeValue,
-        score,
-        max_score: maxScore,
-        weight
-      }];
-    });
-  }, [gradeTypes]);
+  // Update notes locally
+  const updateNotes = useCallback((enrollmentId, notes) => {
+    setLocalEdits(prev => ({
+      ...prev,
+      [enrollmentId]: {
+        ...prev[enrollmentId],
+        notes
+      }
+    }));
+  }, []);
 
+  // Save grades to backend
   const saveGrades = useCallback(async () => {
-    if (!classId) return { success: false, message: 'Không có lớp học' };
+    if (!classId || !selectedStructureId) {
+      return { success: false, message: 'Thiếu thông tin lớp hoặc loại điểm' };
+    }
+
+    if (Object.keys(localEdits).length === 0) {
+      return { success: false, message: 'Không có thay đổi' };
+    }
 
     setSaving(true);
     setError(null);
 
     try {
       const headers = await getAuthHeaders();
+
+      // Build grades array from local edits
+      const gradesPayload = Object.entries(localEdits).map(([enrollmentId, edit]) => {
+        // Get original grade to merge
+        const studentData = studentsWithGrades.find(s => s.enrollment_id === enrollmentId);
+        const originalGrade = studentData?.grades?.find(g => g.grade_structure_id === selectedStructureId);
+
+        return {
+          enrollment_id: enrollmentId,
+          score: edit.score !== undefined ? edit.score : (originalGrade?.score ?? null),
+          notes: edit.notes !== undefined ? edit.notes : (originalGrade?.notes || null)
+        };
+      });
+
       const response = await axios.post(
         `${API_URL}/api/teacher/classes/${classId}/grades`,
-        { grades },
+        {
+          gradeStructureId: selectedStructureId,
+          grades: gradesPayload
+        },
         { headers }
       );
 
       if (response.data?.success) {
-        setOriginalGrades(JSON.parse(JSON.stringify(grades)));
+        // Refresh data from server
+        await fetchGrades();
         return { success: true, message: 'Lưu điểm thành công' };
       } else {
         throw new Error(response.data?.message || 'Không thể lưu điểm');
@@ -157,17 +269,10 @@ export function useTeacherGrades(classId) {
     } finally {
       setSaving(false);
     }
-  }, [classId, grades]);
+  }, [classId, selectedStructureId, localEdits, studentsWithGrades, fetchGrades]);
 
-  const addGradeType = useCallback((newGradeType) => {
-    setGradeTypes(prev => {
-      const exists = prev.some(t => t.value === newGradeType.value);
-      if (exists) return prev;
-      return [...prev, newGradeType];
-    });
-  }, []);
-
-  const lockGrades = useCallback(async (gradeTypeValue) => {
+  // Lock grades for a structure
+  const lockGrades = useCallback(async (structureId) => {
     if (!classId) return { success: false, message: 'Không có lớp học' };
 
     setLoading(true);
@@ -177,14 +282,18 @@ export function useTeacherGrades(classId) {
       const headers = await getAuthHeaders();
       const response = await axios.post(
         `${API_URL}/api/teacher/classes/${classId}/grades/lock`,
-        { grade_type: gradeTypeValue },
+        { grade_structure_id: structureId || selectedStructureId },
         { headers }
       );
 
       if (response.data?.success) {
         setLockStatus(prev => ({
           ...prev,
-          [gradeTypeValue]: true
+          [structureId || selectedStructureId]: {
+            isLocked: true,
+            lockedAt: new Date().toISOString(),
+            lockedBy: null
+          }
         }));
         return { success: true, message: 'Khóa điểm thành công' };
       } else {
@@ -198,48 +307,21 @@ export function useTeacherGrades(classId) {
     } finally {
       setLoading(false);
     }
-  }, [classId]);
+  }, [classId, selectedStructureId]);
 
-  const fetchSummary = useCallback(async () => {
-    if (!classId) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const headers = await getAuthHeaders();
-      const response = await axios.get(
-        `${API_URL}/api/teacher/classes/${classId}/grades/summary`,
-        { headers }
-      );
-
-      if (response.data?.success) {
-        setSummary(response.data.data);
-      } else {
-        throw new Error(response.data?.message || 'Không thể tải thống kê điểm');
-      }
-    } catch (err) {
-      console.error('Error fetching summary:', err);
-      setError(err.message || 'Lỗi khi tải thống kê điểm');
-    } finally {
-      setLoading(false);
-    }
-  }, [classId]);
-
+  // Refetch all data
   const refetch = useCallback(async () => {
-    await Promise.all([
-      fetchGrades(),
-      fetchSummary()
-    ]);
-  }, [fetchGrades, fetchSummary]);
+    await fetchGrades();
+  }, [fetchGrades]);
 
   return {
     // Data
     students,
-    grades,
-    gradeTypes,
-    selectedGradeType,
-    summary,
+    gradeStructures,
+    selectedStructureId,
+    selectedStructure,
+    summaryStats,
+    classSummary,
     loading,
     saving,
     error,
@@ -248,16 +330,14 @@ export function useTeacherGrades(classId) {
 
     // Actions
     fetchGrades,
-    selectGradeType,
-    updateGrade,
+    selectStructure,
+    updateScore,
+    updateNotes,
     saveGrades,
-    addGradeType,
     lockGrades,
-    fetchSummary,
     refetch,
 
     // Utilities
-    calculateFinalGrade,
+    getStudentGrade,
   };
 }
-

@@ -14,6 +14,7 @@ import {
     Ban
 } from 'lucide-react';
 import { useLeaveRequests } from '../hooks/useLeaveRequests';
+import { TeacherPageHeader } from '@/components/ui/teacher-page-header';
 
 const LEAVE_TYPE_OPTIONS = [
     { value: 'sick', label: 'Nghỉ ốm' },
@@ -149,56 +150,52 @@ export function TeacherLeaveRequestsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-white">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <h1 className="text-2xl font-bold flex items-center gap-2">
-                                <ClipboardList className="h-7 w-7" />
-                                Đơn xin nghỉ của giáo viên
-                            </h1>
-                            <p className="mt-1 text-blue-100">
-                                Quản lý và theo dõi các đơn xin nghỉ của bạn{profile?.full_name ? ` - ${profile.full_name}` : ''}
-                            </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={refetch}
-                                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                                title="Làm mới dữ liệu"
-                            >
-                                <RefreshCw className="h-5 w-5" />
-                            </button>
-                            <button
-                                onClick={openModal}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white text-blue-700 font-semibold hover:bg-blue-50 transition-colors"
-                            >
-                                <Plus className="h-4 w-4" />
-                                Tạo đơn xin nghỉ
-                            </button>
-                        </div>
+        <div className="min-h-screen bg-transparent pb-12">
+            <TeacherPageHeader 
+                title="Đơn xin nghỉ phép"
+                subtitle={`Quản lý và theo dõi các đơn xin nghỉ của bạn${profile?.full_name ? ` - ${profile.full_name}` : ''}`}
+                icon={ClipboardList}
+                breadcrumbs={[
+                    { label: 'Tổng quan', href: '/teacher/dashboard' },
+                    { label: 'Xin nghỉ phép', active: true }
+                ]}
+                actions={
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={refetch}
+                            className="p-2.5 rounded-xl bg-white shadow-sm border border-border hover:bg-slate-50 transition-all hover-card-lift text-slate-600"
+                            title="Làm mới dữ liệu"
+                        >
+                            <RefreshCw className="h-5 w-5" />
+                        </button>
+                        <button
+                            onClick={openModal}
+                            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-all shadow-sm shadow-blue-600/20 btn-tactile hover-card-lift"
+                        >
+                            <Plus className="h-5 w-5" />
+                            Tạo đơn xin nghỉ
+                        </button>
                     </div>
-                </div>
-            </div>
+                }
+            />
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 animate-fade-in-up stagger-1">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-white rounded-2xl border border-border p-5 shadow-sm">
-                        <p className="text-sm text-muted-foreground mb-1">Tổng số đơn</p>
-                        <p className="text-2xl font-bold text-foreground">{stats.total}</p>
+                    <div className="bg-white rounded-2xl border border-border p-5 shadow-sm hover-card-lift transition-all">
+                        <p className="text-sm font-medium text-slate-500 mb-2">Tổng số đơn</p>
+                        <p className="text-3xl font-bold text-slate-800">{stats.total}</p>
                     </div>
-                    <div className="bg-yellow-500/10 rounded-2xl border border-yellow-500/20 p-5 shadow-sm">
-                        <p className="text-sm text-yellow-700 dark:text-yellow-400 mb-1">Chờ duyệt</p>
-                        <p className="text-2xl font-bold text-yellow-800 dark:text-yellow-400">{stats.pending}</p>
+                    <div className="bg-yellow-500/10 rounded-2xl border border-yellow-500/20 p-5 shadow-sm hover-card-lift transition-all">
+                        <p className="text-sm font-medium text-yellow-700 dark:text-yellow-400 mb-2">Chờ duyệt</p>
+                        <p className="text-3xl font-bold text-yellow-800 dark:text-yellow-400">{stats.pending}</p>
                     </div>
-                    <div className="bg-green-500/10 rounded-2xl border border-green-500/20 p-5 shadow-sm">
-                        <p className="text-sm text-green-700 dark:text-green-400 mb-1">Đã duyệt</p>
-                        <p className="text-2xl font-bold text-green-800 dark:text-green-400">{stats.approved}</p>
+                    <div className="bg-green-500/10 rounded-2xl border border-green-500/20 p-5 shadow-sm hover-card-lift transition-all">
+                        <p className="text-sm font-medium text-green-700 dark:text-green-400 mb-2">Đã duyệt</p>
+                        <p className="text-3xl font-bold text-green-800 dark:text-green-400">{stats.approved}</p>
                     </div>
-                    <div className="bg-red-500/10 rounded-2xl border border-red-500/20 p-5 shadow-sm">
-                        <p className="text-sm text-red-700 dark:text-red-400 mb-1">Từ chối</p>
-                        <p className="text-2xl font-bold text-red-800 dark:text-red-400">{stats.rejected}</p>
+                    <div className="bg-red-500/10 rounded-2xl border border-red-500/20 p-5 shadow-sm hover-card-lift transition-all">
+                        <p className="text-sm font-medium text-red-700 dark:text-red-400 mb-2">Từ chối</p>
+                        <p className="text-3xl font-bold text-red-800 dark:text-red-400">{stats.rejected}</p>
                     </div>
                 </div>
                 {error && (
@@ -210,73 +207,88 @@ export function TeacherLeaveRequestsPage() {
 
                 <div className="space-y-4">
                     {requests.length === 0 ? (
-                        <div className="bg-white rounded-2xl border border-border p-10 text-center shadow-sm">
-                            <FileText className="h-10 w-10 mx-auto text-blue-400 mb-3" />
+                        <div className="bg-white rounded-2xl border border-border p-10 text-center shadow-sm animate-fade-in-up stagger-2">
+                            <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <FileText className="h-8 w-8 text-blue-500" />
+                            </div>
                             <h3 className="text-lg font-semibold text-foreground">Chưa có đơn xin nghỉ nào</h3>
-                            <p className="text-muted-foreground mt-1">Hãy tạo đơn mới khi bạn cần xin nghỉ dạy.</p>
+                            <p className="text-muted-foreground mt-1 max-w-sm mx-auto">Hãy tạo đơn mới khi bạn cần xin nghỉ dạy. Quản lý sẽ xét duyệt và phản hồi sớm nhất.</p>
+                            <button
+                                onClick={openModal}
+                                className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-all shadow-sm shadow-blue-600/20 btn-tactile hover-card-lift"
+                            >
+                                <Plus className="h-5 w-5" />
+                                Tạo đơn đầu tiên
+                            </button>
                         </div>
                     ) : (
-                        requests.map((request) => {
+                        requests.map((request, index) => {
                             const status = STATUS_CONFIG[request.status] || STATUS_CONFIG.pending;
                             const canDelete = request.status === 'pending';
+                            const staggerClass = `stagger-${Math.min(index + 2, 5)}`;
 
                             return (
-                                <div key={request.id} className="bg-white rounded-2xl border border-border p-5 shadow-sm">
+                                <div key={request.id} className={`bg-white rounded-2xl border border-border p-5 shadow-sm hover-card-lift transition-all animate-fade-in-up ${staggerClass}`}>
                                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                                        <div className="space-y-2">
-                                            <div className="flex items-center gap-2">
+                                        <div className="space-y-3">
+                                            <div className="flex items-center gap-3">
                                                 <span className={`px-3 py-1 rounded-full text-xs font-semibold ${status.className}`}>
                                                     {status.label}
                                                 </span>
-                                                <span className="text-sm text-muted-foreground">
+                                                <span className="text-sm text-slate-500 flex items-center gap-1.5">
+                                                    <Clock3 className="h-3.5 w-3.5" />
                                                     Tạo lúc: {formatDate(request.created_at)}
                                                 </span>
                                             </div>
 
-                                            <h3 className="text-lg font-semibold text-foreground">
+                                            <h3 className="text-lg font-bold text-slate-800">
                                                 {getLeaveTypeLabel(request.leave_type)}
                                             </h3>
-                                            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                                                <span className="inline-flex items-center gap-1">
+                                            
+                                            <div className="flex items-center gap-4 text-sm font-medium text-slate-600 bg-slate-50 rounded-lg p-3 w-fit border border-slate-100">
+                                                <div className="flex items-center gap-2">
                                                     <CalendarDays className="h-4 w-4 text-blue-500" />
-                                                    {formatDate(request.start_date)} - {formatDate(request.end_date)}
-                                                </span>
-                                                <span className="inline-flex items-center gap-1">
-                                                    <Clock3 className="h-4 w-4 text-blue-500" />
-                                                    {request.start_date === request.end_date ? 'Nghỉ 1 ngày' : 'Nghỉ nhiều ngày'}
-                                                </span>
+                                                    <span>{formatDate(request.start_date)} - {formatDate(request.end_date)}</span>
+                                                </div>
+                                                <div className="w-1 h-1 rounded-full bg-slate-300"></div>
+                                                <div className="flex items-center gap-2 text-indigo-600">
+                                                    <span>{request.start_date === request.end_date ? 'Nghỉ 1 ngày' : 'Nghỉ nhiều ngày'}</span>
+                                                </div>
                                             </div>
 
-                                            <p className="text-foreground leading-relaxed">
-                                                <span className="font-medium">Lý do:</span> {request.reason}
-                                            </p>
+                                            <div className="text-slate-700 bg-white border border-slate-100 p-4 rounded-xl shadow-sm">
+                                                <p className="text-sm font-semibold text-slate-500 mb-1">Lý do nghỉ:</p>
+                                                <p className="leading-relaxed">{request.reason}</p>
+                                            </div>
 
-                                            {request.status === 'approved' && request.reviewer_note && (
-                                                <p className="text-sm text-green-700 dark:text-green-400 bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2">
-                                                    <span className="font-medium">Ghi chú duyệt:</span> {request.reviewer_note}
-                                                </p>
+                                            {request.status === 'approved' && request.reviewer_notes && (
+                                                <div className="text-sm text-green-700 dark:text-green-400 bg-green-500/10 border border-green-500/20 rounded-xl p-4 mt-2">
+                                                    <p className="font-semibold mb-1 flex items-center gap-1.5"><ClipboardList className="w-4 h-4"/> Ghi chú duyệt:</p> 
+                                                    <p>{request.reviewer_notes}</p>
+                                                </div>
                                             )}
 
-                                            {request.status === 'rejected' && request.reviewer_note && (
-                                                <p className="text-sm text-red-700 dark:text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-                                                    <span className="font-medium">Lý do từ chối:</span> {request.reviewer_note}
-                                                </p>
+                                            {request.status === 'rejected' && request.reviewer_notes && (
+                                                <div className="text-sm text-red-700 dark:text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl p-4 mt-2">
+                                                    <p className="font-semibold mb-1 flex items-center gap-1.5"><Ban className="w-4 h-4"/> Lý do từ chối:</p> 
+                                                    <p>{request.reviewer_notes}</p>
+                                                </div>
                                             )}
                                         </div>
 
-                                        <div>
+                                        <div className="pt-2 sm:pt-0">
                                             {canDelete ? (
                                                 <button
                                                     onClick={() => handleDeleteRequest(request.id)}
-                                                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-red-500/20 text-red-600 hover:bg-red-500/10 transition-colors"
+                                                    className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-red-500/20 text-red-600 hover:bg-red-50 hover:border-red-500/30 transition-all font-medium btn-tactile"
                                                 >
                                                     <Trash2 className="h-4 w-4" />
-                                                    Xoá đơn
+                                                    Thu hồi đơn
                                                 </button>
                                             ) : (
-                                                <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-                                                    <Ban className="h-4 w-4" />
-                                                    Không thể xoá
+                                                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-400 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
+                                                    <Ban className="h-3.5 w-3.5" />
+                                                    Đã xử lý
                                                 </span>
                                             )}
                                         </div>

@@ -1,12 +1,12 @@
 import { useAuth } from '@/contexts/auth-context';
 import { useTeacherDashboard } from '../hooks/useTeacherDashboard';
-import {
-    StatCard,
-    TodaySchedule,
-    AttendanceStats,
-    ClassesSummary,
-    QuickActions
-} from '../components';
+import { StatCard } from '../components/StatCard';
+import { QuickActions } from '../components/QuickActions';
+import { TodaySchedule } from '../components/TodaySchedule';
+import { AttendanceStats } from '../components/AttendanceStats';
+import { ClassesSummary } from '../components/ClassesSummary';
+import { UpcomingSessions } from '../components/UpcomingSessions';
+import { SmartAlerts } from '../components/SmartAlerts';
 import {
     CalendarDays,
     Clock,
@@ -14,9 +14,12 @@ import {
     ClipboardCheck,
     RefreshCw,
     AlertTriangle,
-    Lightbulb
+    Home,
+    BookOpen,
+    Banknote
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { TeacherPageHeader } from '@/components/ui/teacher-page-header';
 
 /**
  * Teacher Dashboard Page - Trang tổng quan cho giáo viên
@@ -27,8 +30,10 @@ export function TeacherDashboardPage() {
     const {
         overview,
         todaySessions,
+        upcomingSessions,
         attendanceStats,
         classesSummary,
+        pendingLeaveCount,
         loading,
         error,
         refetch
@@ -49,6 +54,28 @@ export function TeacherDashboardPage() {
             currency: 'VND',
             maximumFractionDigits: 0
         }).format(amount || 0);
+    };
+
+    // Get payroll display info
+    const getPayrollDisplay = () => {
+        const status = overview?.payroll_status;
+        if (!status) return { label: 'Chưa có', variant: 'default', subtitle: 'Chưa chốt lương tháng này' };
+        if (status === 'paid') return {
+            label: 'Đã thanh toán',
+            variant: 'success',
+            subtitle: overview?.payroll_amount ? formatCurrency(overview.payroll_amount) : 'Đã trả đủ'
+        };
+        if (status === 'approved') return {
+            label: 'Đã duyệt',
+            variant: 'primary',
+            subtitle: overview?.payroll_amount ? formatCurrency(overview.payroll_amount) : 'Đang chờ thanh toán'
+        };
+        if (status === 'pending') return {
+            label: 'Chờ duyệt',
+            variant: 'warning',
+            subtitle: 'Admin đang xem xét'
+        };
+        return { label: status, variant: 'default', subtitle: '' };
     };
 
     // Handle mark attendance click
@@ -86,44 +113,48 @@ export function TeacherDashboardPage() {
         );
     }
 
+    const payrollDisplay = getPayrollDisplay();
+
     return (
-        <div className="min-h-screen bg-white">
+        <div className="min-h-screen bg-secondary/30 dark:bg-background pb-12">
             {/* Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h1 className="text-2xl font-bold">
-                                {getGreeting()}, {profile?.full_name || 'Giáo viên'}! 👋
-                            </h1>
-                            <p className="mt-1 text-blue-100">
-                                {new Date().toLocaleDateString('vi-VN', {
-                                    weekday: 'long',
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric'
-                                })}
-                            </p>
-                        </div>
-                        <button
-                            onClick={refetch}
-                            className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                            title="Làm mới dữ liệu"
-                        >
-                            <RefreshCw className="h-5 w-5" />
-                        </button>
-                    </div>
+            <div className="bg-white dark:bg-card border-b border-border/50 sticky top-0 z-10 transition-colors">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                    <TeacherPageHeader
+                        title={`${getGreeting()}, ${profile?.full_name || 'Giáo viên'}! 👋`}
+                        subtitle={new Date().toLocaleDateString('vi-VN', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                        })}
+                        icon={Home}
+                        iconColorClass="text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10"
+                        showBreadcrumb={false}
+                        actions={
+                            <button
+                                onClick={refetch}
+                                className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium border border-border rounded-lg hover:bg-muted dark:hover:bg-slate-800 transition-colors group btn-tactile"
+                                title="Làm mới dữ liệu"
+                            >
+                                <RefreshCw className="h-4 w-4 group-hover:rotate-180 transition-transform duration-500" />
+                                <span className="hidden sm:inline">Làm mới</span>
+                            </button>
+                        }
+                    />
                 </div>
             </div>
 
             {/* Main Content */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-                {/* Stats Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+                {/* Stats Cards - 5 cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 animate-fade-in-up stagger-1">
                     <StatCard
                         title="Buổi dạy hôm nay"
                         value={overview?.today_sessions || 0}
-                        subtitle={overview?.next_session ? `Kế tiếp: ${overview.next_session}` : 'Không có buổi'}
+                        subtitle={overview?.today_completed > 0
+                            ? `${overview.today_completed} đã hoàn thành`
+                            : 'Chưa có buổi hoàn thành'}
                         icon={CalendarDays}
                         variant="primary"
                     />
@@ -137,7 +168,7 @@ export function TeacherDashboardPage() {
                     <StatCard
                         title="Thu nhập ước tính"
                         value={formatCurrency(overview?.estimated_income)}
-                        subtitle="Tháng này"
+                        subtitle="Dựa trên buổi đã hoàn thành"
                         icon={DollarSign}
                         variant="warning"
                     />
@@ -148,51 +179,48 @@ export function TeacherDashboardPage() {
                         icon={ClipboardCheck}
                         variant={overview?.pending_attendance > 0 ? 'danger' : 'default'}
                     />
+                    <StatCard
+                        title="Bảng lương tháng này"
+                        value={payrollDisplay.label}
+                        subtitle={payrollDisplay.subtitle}
+                        icon={Banknote}
+                        variant={payrollDisplay.variant}
+                    />
                 </div>
 
-                {/* Quick Actions */}
-                <QuickActions />
+                {/* Smart Alerts - replaces static Tips */}
+                <div className="animate-fade-in-up stagger-2">
+                    <SmartAlerts
+                        overview={overview}
+                        todaySessions={todaySessions}
+                        pendingLeaveCount={pendingLeaveCount}
+                    />
+                </div>
 
                 {/* Main Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Today Schedule */}
-                    <TodaySchedule
-                        sessions={todaySessions}
-                        onMarkAttendance={handleMarkAttendance}
-                    />
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in-up stagger-3">
+                    {/* Left Column - Main Content */}
+                    <div className="lg:col-span-2 space-y-6">
+                        {/* Today Schedule */}
+                        <TodaySchedule
+                            sessions={todaySessions}
+                            onMarkAttendance={handleMarkAttendance}
+                        />
 
-                    {/* Attendance Stats */}
-                    <AttendanceStats stats={attendanceStats} />
-                </div>
+                        {/* Attendance Stats */}
+                        <AttendanceStats stats={attendanceStats} />
 
-                {/* Classes Summary */}
-                <ClassesSummary classes={classesSummary} />
+                        {/* Classes Summary */}
+                        <ClassesSummary classes={classesSummary} />
+                    </div>
 
-                {/* Tips Section */}
-                <div className="rounded-2xl border border-border bg-gradient-to-r from-amber-500/10 to-orange-500/10 p-6">
-                <h3 className="text-lg font-semibold text-amber-900 mb-3 flex items-center gap-2">
-                        <Lightbulb className="h-5 w-5" />
-                        Mẹo hôm nay
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="bg-white/60 rounded-lg p-4">
-                            <h4 className="font-medium text-amber-800">Điểm danh đúng hạn</h4>
-                            <p className="text-sm text-amber-700 mt-1">
-                                Hãy điểm danh ngay sau mỗi buổi học để đảm bảo dữ liệu chính xác và nhận lương đầy đủ.
-                            </p>
-                        </div>
-                        <div className="bg-white/60 rounded-lg p-4">
-                            <h4 className="font-medium text-amber-800">Cập nhật lịch trống</h4>
-                            <p className="text-sm text-amber-700 mt-1">
-                                Luôn cập nhật lịch trống để admin có thể xếp lịch phù hợp cho bạn.
-                            </p>
-                        </div>
-                        <div className="bg-white/60 rounded-lg p-4">
-                            <h4 className="font-medium text-amber-800">Kiểm tra bảng lương</h4>
-                            <p className="text-sm text-amber-700 mt-1">
-                                Kiểm tra bảng lương định kỳ và báo cáo ngay nếu có sai sót.
-                            </p>
-                        </div>
+                    {/* Right Column - Sidebar */}
+                    <div className="lg:sticky lg:top-24 self-start space-y-6 animate-fade-in-up stagger-4">
+                        {/* Quick Actions */}
+                        <QuickActions pendingLeaveCount={pendingLeaveCount} />
+
+                        {/* Upcoming Sessions - 7 days ahead */}
+                        <UpcomingSessions sessions={upcomingSessions} />
                     </div>
                 </div>
             </div>

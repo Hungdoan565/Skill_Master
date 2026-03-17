@@ -29,10 +29,36 @@ export function ClassesSummary({ classes = [] }) {
         return 'bg-muted-foreground';
     };
 
+    const DAY_NAMES = { 0: 'CN', 1: 'T2', 2: 'T3', 3: 'T4', 4: 'T5', 5: 'T6', 6: 'T7' };
+
     const formatSchedule = (schedule) => {
         if (!schedule) return 'Chưa có lịch';
-        // Schedule format: "T2,T4,T6 18:00-20:00" or similar
-        return schedule;
+
+        // If it's a string, try to parse it
+        let scheduleArr = schedule;
+        if (typeof schedule === 'string') {
+            try {
+                scheduleArr = JSON.parse(schedule);
+            } catch {
+                return schedule; // Return as-is if not valid JSON
+            }
+        }
+
+        if (!Array.isArray(scheduleArr) || scheduleArr.length === 0) {
+            return typeof schedule === 'string' ? schedule : 'Chưa có lịch';
+        }
+
+        // Group by time slot
+        const timeGroups = {};
+        scheduleArr.forEach(s => {
+            const timeKey = `${s.start}-${s.end}`;
+            if (!timeGroups[timeKey]) timeGroups[timeKey] = [];
+            timeGroups[timeKey].push(DAY_NAMES[s.day] || `T${s.day}`);
+        });
+
+        return Object.entries(timeGroups)
+            .map(([time, days]) => `${days.join(', ')} • ${time}`)
+            .join(' | ');
     };
 
     return (
@@ -68,19 +94,19 @@ export function ClassesSummary({ classes = [] }) {
 
                                     {/* Course name */}
                                     <p className="text-sm text-muted-foreground truncate">
-                                        {classItem.course_name}
+                                        {classItem.courses?.title || classItem.course_name || 'Khóa học'}
                                     </p>
                                 </div>
 
                                 {/* Status badge */}
                                 <span className={cn(
                                     'px-2 py-0.5 text-xs font-medium rounded-full shrink-0',
-                                    classItem.status === 'active' ? 'bg-green-500/20 text-green-700 dark:text-green-400' :
+                                    classItem.status === 'active' || classItem.status === 'ongoing' ? 'bg-green-500/20 text-green-700 dark:text-green-400' :
                                         classItem.status === 'upcoming' ? 'bg-blue-500/20 text-blue-700 dark:text-blue-400' :
                                             classItem.status === 'completed' ? 'bg-muted text-foreground' :
                                                 'bg-muted text-muted-foreground'
                                 )}>
-                                    {classItem.status === 'active' ? 'Đang học' :
+                                    {classItem.status === 'active' || classItem.status === 'ongoing' ? 'Đang học' :
                                         classItem.status === 'upcoming' ? 'Sắp khai giảng' :
                                             classItem.status === 'completed' ? 'Hoàn thành' :
                                                 classItem.status}
@@ -91,11 +117,11 @@ export function ClassesSummary({ classes = [] }) {
                             <div className="mt-3 flex items-center gap-4 text-sm text-muted-foreground">
                                 <span className="flex items-center gap-1">
                                     <Users className="h-4 w-4" />
-                                    {classItem.student_count || 0} học viên
+                                    {classItem.studentCount || classItem.student_count || 0} học viên
                                 </span>
                                 <span className="flex items-center gap-1">
                                     <Calendar className="h-4 w-4" />
-                                    {classItem.total_sessions || 0} buổi
+                                    {classItem.totalSessions || classItem.total_sessions || 0} buổi
                                 </span>
                             </div>
 
@@ -110,7 +136,7 @@ export function ClassesSummary({ classes = [] }) {
                                 <div className="flex items-center justify-between text-xs mb-1">
                                     <span className="text-muted-foreground">Tiến độ</span>
                                     <span className="font-medium text-foreground">
-                                        {classItem.completed_sessions || 0}/{classItem.total_sessions || 0} buổi ({progress}%)
+                                        {classItem.completedSessions || classItem.completed_sessions || 0}/{classItem.totalSessions || classItem.total_sessions || 0} buổi ({progress}%)
                                     </span>
                                 </div>
                                 <div className="h-2 bg-muted rounded-full overflow-hidden">

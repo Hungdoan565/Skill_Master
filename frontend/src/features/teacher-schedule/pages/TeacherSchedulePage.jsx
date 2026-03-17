@@ -3,49 +3,53 @@ import { cn } from '@/lib/utils';
 import {
     ChevronLeft,
     ChevronRight,
-    Calendar,
     Clock,
     MapPin,
-    BookOpen,
     CheckCircle,
     XCircle,
     AlertCircle,
     RefreshCw,
     CalendarDays,
-    Sunrise,
     Sun,
-    Moon
+    Moon,
+    Sunrise,
+    AlertTriangle,
+    Repeat,
+    Wallet,
+    Shield,
+    CalendarX
 } from 'lucide-react';
 import { useTeacherSchedule } from '../hooks/useTeacherSchedule';
+import { TeacherPageHeader } from '@/components/ui/teacher-page-header';
 
 // Time slots configuration (Sáng/Chiều/Tối)
 const TIME_SLOTS = [
-    { 
-        key: 'morning', 
-        label: 'Sáng', 
-        Icon: Sunrise, 
-        startHour: 6, 
-        endHour: 12, 
+    {
+        key: 'morning',
+        label: 'Sáng',
+        Icon: Sunrise,
+        startHour: 6,
+        endHour: 12,
         bgClass: 'bg-amber-500/5',
         headerClass: 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20',
         borderClass: 'border-amber-500/20'
     },
-    { 
-        key: 'afternoon', 
-        label: 'Chiều', 
-        Icon: Sun, 
-        startHour: 12, 
-        endHour: 18, 
+    {
+        key: 'afternoon',
+        label: 'Chiều',
+        Icon: Sun,
+        startHour: 12,
+        endHour: 18,
         bgClass: 'bg-orange-500/5',
         headerClass: 'bg-orange-500/10 text-orange-700 dark:text-orange-400 border-orange-500/20',
         borderClass: 'border-orange-500/20'
     },
-    { 
-        key: 'evening', 
-        label: 'Tối', 
-        Icon: Moon, 
-        startHour: 18, 
-        endHour: 23, 
+    {
+        key: 'evening',
+        label: 'Tối',
+        Icon: Moon,
+        startHour: 18,
+        endHour: 23,
         bgClass: 'bg-indigo-500/5',
         headerClass: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-500/20',
         borderClass: 'border-indigo-500/20'
@@ -59,6 +63,13 @@ const getTimeSlot = (timeStr) => {
     if (hour < 12) return 'morning';
     if (hour < 18) return 'afternoon';
     return 'evening';
+};
+
+const formatDateOnlyLocal = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 };
 
 /**
@@ -80,8 +91,8 @@ export function TeacherSchedulePage() {
         return end;
     }, [currentWeekStart]);
 
-    const startDateStr = currentWeekStart.toISOString().split('T')[0];
-    const endDateStr = weekEnd.toISOString().split('T')[0];
+    const startDateStr = formatDateOnlyLocal(currentWeekStart);
+    const endDateStr = formatDateOnlyLocal(weekEnd);
 
     const { schedule, stats, loading, error, refetch } = useTeacherSchedule(startDateStr, endDateStr);
 
@@ -130,12 +141,12 @@ export function TeacherSchedulePage() {
     };
 
     const isToday = (dateStr) => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = formatDateOnlyLocal(new Date());
         return dateStr === today;
     };
 
     const isPast = (dateStr) => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = formatDateOnlyLocal(new Date());
         return dateStr < today;
     };
 
@@ -170,6 +181,73 @@ export function TeacherSchedulePage() {
         return configs[status] || configs.scheduled;
     };
 
+    const getOperationalBadges = (session) => {
+        const meta = session.operationalMeta || {};
+        const badges = [];
+
+        if (meta.isSubstituted) {
+            badges.push({
+                key: 'substituted',
+                icon: Repeat,
+                label: 'Dạy thay',
+                className: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/20'
+            });
+        }
+
+        if (meta.hasAnyConflict) {
+            badges.push({
+                key: 'conflict',
+                icon: AlertTriangle,
+                label: meta.hasTeacherConflict && meta.hasRoomConflict
+                    ? 'Trùng GV + phòng'
+                    : meta.hasTeacherConflict
+                        ? 'Trùng GV'
+                        : 'Trùng phòng',
+                className: 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/20'
+            });
+        }
+
+        if (meta.isHoliday) {
+            badges.push({
+                key: 'holiday',
+                icon: CalendarX,
+                label: meta.holidayName || 'Ngày lễ',
+                className: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20'
+            });
+        }
+
+        if (meta.exceptionType) {
+            badges.push({
+                key: `exception-${meta.exceptionType}`,
+                icon: CalendarDays,
+                label: meta.exceptionType === 'makeup'
+                    ? 'Buổi bù'
+                    : meta.exceptionType === 'reschedule'
+                        ? 'Đổi lịch'
+                        : 'Ngoại lệ',
+                className: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/20'
+            });
+        }
+
+        if (meta.payroll?.isLocked) {
+            badges.push({
+                key: 'payroll-locked',
+                icon: Shield,
+                label: 'Đã khóa lương',
+                className: 'bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/20'
+            });
+        } else if (meta.payroll?.isEligibleForPayroll) {
+            badges.push({
+                key: 'payroll-eligible',
+                icon: Wallet,
+                label: 'Có thể tính lương',
+                className: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20'
+            });
+        }
+
+        return badges;
+    };
+
     if (loading) {
         return (
             <div className="min-h-[60vh] flex items-center justify-center">
@@ -201,76 +279,92 @@ export function TeacherSchedulePage() {
     }
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-12">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <div>
-                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                        <CalendarDays className="h-6 w-6 text-blue-500" />
-                        Lịch dạy
-                    </h1>
-                    <p className="text-muted-foreground mt-1">Xem và theo dõi các buổi dạy của bạn</p>
-                </div>
+            <TeacherPageHeader
+                title="Lịch dạy"
+                subtitle="Xem và theo dõi các buổi dạy của bạn"
+                icon={CalendarDays}
+                iconColorClass="text-blue-600 bg-blue-50"
+                actions={
+                    <div className="flex items-center gap-1 sm:gap-2 bg-white p-1 rounded-xl border shadow-sm">
+                        <button
+                            onClick={goToPrevWeek}
+                            className="p-2 sm:px-3 sm:py-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground btn-tactile"
+                            title="Tuần trước"
+                        >
+                            <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+                        </button>
 
-                {/* Week Navigation */}
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={goToPrevWeek}
-                        className="p-2 rounded-lg border border-border hover:bg-muted transition-colors"
-                        title="Tuần trước"
-                    >
-                        <ChevronLeft className="h-5 w-5" />
-                    </button>
+                        <button
+                            onClick={goToThisWeek}
+                            className="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors btn-tactile whitespace-nowrap"
+                        >
+                            Tuần này
+                        </button>
 
-                    <button
-                        onClick={goToThisWeek}
-                        className="px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
-                    >
-                        Tuần này
-                    </button>
+                        <div className="px-2 sm:px-3 py-1.5 bg-muted/50 rounded-lg text-xs sm:text-sm font-medium text-foreground min-w-[140px] sm:min-w-[170px] text-center border border-border/50">
+                            {formatWeekRange()}
+                        </div>
 
-                    <div className="px-4 py-2 bg-white border border-border rounded-lg text-sm font-medium text-foreground min-w-[180px] text-center">
-                        {formatWeekRange()}
+                        <button
+                            onClick={goToNextWeek}
+                            className="p-2 sm:px-3 sm:py-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground btn-tactile"
+                            title="Tuần sau"
+                        >
+                            <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
+                        </button>
+
+                        <div className="w-px h-6 bg-border mx-1"></div>
+
+                        <button
+                            onClick={refetch}
+                            className="p-2 sm:px-3 sm:py-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground btn-tactile"
+                            title="Làm mới"
+                        >
+                            <RefreshCw className="h-4 w-4 sm:h-5 sm:w-5" />
+                        </button>
                     </div>
-
-                    <button
-                        onClick={goToNextWeek}
-                        className="p-2 rounded-lg border border-border hover:bg-muted transition-colors"
-                        title="Tuần sau"
-                    >
-                        <ChevronRight className="h-5 w-5" />
-                    </button>
-
-                    <button
-                        onClick={refetch}
-                        className="p-2 rounded-lg border border-border hover:bg-muted transition-colors ml-2"
-                        title="Làm mới"
-                    >
-                        <RefreshCw className="h-5 w-5" />
-                    </button>
-                </div>
-            </div>
+                }
+            />
 
             {/* Stats Summary */}
             {stats && (
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                    <div className="bg-white rounded-2xl border border-border p-4 text-center">
-                        <p className="text-2xl font-bold text-blue-600">{stats.totalSessions}</p>
-                        <p className="text-sm text-muted-foreground">Tổng buổi dạy</p>
+                <div className="mb-6 animate-fade-in-up stagger-1">
+                    <div className="mb-2 text-xs text-muted-foreground">
+                        Phạm vi thống kê: tuần đang chọn ({stats.range?.startDate || startDateStr} đến {stats.range?.endDate || endDateStr})
                     </div>
-                    <div className="bg-white rounded-2xl border border-border p-4 text-center">
-                        <p className="text-2xl font-bold text-green-600">{stats.completedSessions}</p>
-                        <p className="text-sm text-muted-foreground">Đã hoàn thành</p>
-                    </div>
-                    <div className="bg-white rounded-2xl border border-border p-4 text-center">
-                        <p className="text-2xl font-bold text-purple-600">{stats.totalHours}h</p>
-                        <p className="text-sm text-muted-foreground">Tổng số giờ</p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                        <div className="bg-white rounded-2xl border border-border p-4 text-center hover-card-lift">
+                            <p className="text-2xl font-bold text-blue-600">{stats.totalSessions}</p>
+                            <p className="text-xs text-muted-foreground">Tổng buổi dạy</p>
+                        </div>
+                        <div className="bg-white rounded-2xl border border-border p-4 text-center hover-card-lift">
+                            <p className="text-2xl font-bold text-green-600">{stats.completedSessions}</p>
+                            <p className="text-xs text-muted-foreground">Đã hoàn thành</p>
+                        </div>
+                        <div className="bg-white rounded-2xl border border-border p-4 text-center hover-card-lift">
+                            <p className="text-2xl font-bold text-purple-600">{stats.totalHours}h</p>
+                            <p className="text-xs text-muted-foreground">Tổng số giờ</p>
+                        </div>
+                        <div className="bg-white rounded-2xl border border-border p-4 text-center hover-card-lift">
+                            <p className="text-2xl font-bold text-rose-600">{stats.conflictSessions || 0}</p>
+                            <p className="text-xs text-muted-foreground">Buổi có xung đột</p>
+                        </div>
+                        <div className="bg-white rounded-2xl border border-border p-4 text-center hover-card-lift">
+                            <p className="text-2xl font-bold text-indigo-600">{stats.substitutedSessions || 0}</p>
+                            <p className="text-xs text-muted-foreground">Buổi dạy thay</p>
+                        </div>
+                        <div className="bg-white rounded-2xl border border-border p-4 text-center hover-card-lift">
+                            <p className="text-2xl font-bold text-amber-600">{stats.holidaySessions || 0}</p>
+                            <p className="text-xs text-muted-foreground">Buổi vào ngày lễ</p>
+                        </div>
                     </div>
                 </div>
             )}
 
             {/* Schedule Grid - with Sáng/Chiều/Tối grouping */}
-            <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden animate-fade-in-up stagger-2">
                 {/* Days Header */}
                 <div className="grid grid-cols-8 border-b border-border bg-slate-50">
                     {/* Empty cell for time slot labels */}
@@ -321,12 +415,12 @@ export function TeacherSchedulePage() {
                                     {slot.startHour}:00 - {slot.endHour}:00
                                 </span>
                             </div>
-                            
+
                             {/* Day cells for this slot */}
                             {schedule.map((day) => {
                                 // Filter sessions for this time slot
                                 const slotSessions = day.sessions.filter(s => getTimeSlot(s.start_time) === slot.key);
-                                
+
                                 return (
                                     <div
                                         key={`${day.date}-${slot.key}`}
@@ -351,8 +445,9 @@ export function TeacherSchedulePage() {
                                                         <div
                                                             key={session.id}
                                                             className={cn(
-                                                                'rounded-lg border p-2 cursor-pointer transition-all hover:shadow-md',
-                                                                statusConfig.class
+                                                                'rounded-lg border p-2 cursor-pointer transition-all hover-card-lift',
+                                                                statusConfig.class,
+                                                                session.operationalMeta?.hasAnyConflict && 'ring-1 ring-inset ring-rose-500/40'
                                                             )}
                                                         >
                                                             {/* Time */}
@@ -384,6 +479,27 @@ export function TeacherSchedulePage() {
                                                                 <StatusIcon className="h-3 w-3" />
                                                                 {statusConfig.label}
                                                             </div>
+
+                                                            {/* Operational badges */}
+                                                            {getOperationalBadges(session).length > 0 && (
+                                                                <div className="flex flex-wrap gap-1 mt-1.5">
+                                                                    {getOperationalBadges(session).map((badge) => {
+                                                                        const Icon = badge.icon;
+                                                                        return (
+                                                                            <span
+                                                                                key={badge.key}
+                                                                                className={cn(
+                                                                                    'inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded-full border',
+                                                                                    badge.className
+                                                                                )}
+                                                                            >
+                                                                                <Icon className="h-2.5 w-2.5" />
+                                                                                {badge.label}
+                                                                            </span>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     );
                                                 })}

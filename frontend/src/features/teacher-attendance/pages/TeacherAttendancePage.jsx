@@ -25,9 +25,10 @@ import {
     Users,
     Save,
     CheckCircle2,
-    ClipboardCheck,
     MessageSquarePlus,
+    ClipboardCheck
 } from 'lucide-react';
+import { TeacherPageHeader } from '@/components/ui/teacher-page-header';
 
 const STATUS_OPTIONS = [
     { value: 'present', label: 'Có mặt', icon: Check, color: 'emerald' },
@@ -69,6 +70,7 @@ export function TeacherAttendancePage() {
 
     const [className, setClassName] = useState('');
     const [noteTarget, setNoteTarget] = useState(null);
+    const [showSaveAnimation, setShowSaveAnimation] = useState(false);
 
     useEffect(() => {
         fetchSessions();
@@ -94,6 +96,8 @@ export function TeacherAttendancePage() {
         const result = await saveAttendance();
         if (result.success) {
             toast.success('Đã lưu điểm danh thành công');
+            setShowSaveAnimation(true);
+            setTimeout(() => setShowSaveAnimation(false), 2000);
         } else {
             toast.error(result.message || 'Lỗi khi lưu điểm danh');
         }
@@ -151,26 +155,27 @@ export function TeacherAttendancePage() {
     return (
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24">
             {/* Header */}
-            <div className="bg-white rounded-2xl shadow-sm border border-border p-6 mb-6">
-                <div className="flex items-center gap-4">
+            <TeacherPageHeader
+                title={`Điểm danh lớp ${className || '...'}`}
+                subtitle="Quản lý điểm danh học viên theo buổi học"
+                icon={ClipboardCheck}
+                iconColorClass="text-emerald-600 bg-emerald-50"
+                breadcrumbs={[
+                    { label: 'Lớp học', href: '/teacher/classes' },
+                    { label: className || 'Chi tiết lớp', href: `/teacher/classes/${id}` },
+                    { label: 'Điểm danh' }
+                ]}
+                actions={
                     <Button
                         variant="outline"
-                        size="icon"
                         onClick={() => navigate(`/teacher/classes/${id}`)}
-                        className="shrink-0"
+                        className="bg-white"
                     >
-                        <ArrowLeft className="h-4 w-4" />
+                        <ArrowLeft className="h-4 w-4 mr-2" />
+                        Trở lại lớp
                     </Button>
-                    <div>
-                        <h1 className="text-2xl font-bold text-foreground">
-                            Điểm danh lớp {className || 'đang tải...'}
-                        </h1>
-                        <p className="text-sm text-muted-foreground mt-1">
-                            Quản lý điểm danh học viên theo buổi học
-                        </p>
-                    </div>
-                </div>
-            </div>
+                }
+            />
 
             {/* Session Selector */}
             <SessionSelector
@@ -234,10 +239,18 @@ export function TeacherAttendancePage() {
                         </Button>
                         <Button
                             onClick={handleSave}
-                            disabled={!canSave}
-                            className="bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50"
+                            disabled={!canSave && !showSaveAnimation}
+                            className={cn(
+                                "bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50 transition-all duration-300",
+                                showSaveAnimation ? "bg-green-500 hover:bg-green-600 animate-success-pop" : ""
+                            )}
                         >
-                            {saving ? (
+                            {showSaveAnimation ? (
+                                <>
+                                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                                    Đã lưu thành công!
+                                </>
+                            ) : saving ? (
                                 <>
                                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                                     Đang lưu...

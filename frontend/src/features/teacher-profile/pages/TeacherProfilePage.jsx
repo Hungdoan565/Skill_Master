@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTeacherProfile } from '../hooks/useTeacherProfile';
 import {
     Mail,
@@ -16,14 +16,22 @@ import {
     Save,
     Check,
     Loader2,
+    Camera,
 } from 'lucide-react';
 
 export default function TeacherProfilePage() {
-    const { profile, loading, saving, error, refetch, updateProfile } = useTeacherProfile();
+    const { profile, loading, saving, error, refetch, updateProfile, uploadAvatar } = useTeacherProfile();
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState({ phone: '' });
     const [editError, setEditError] = useState(null);
     const [successMessage, setSuccessMessage] = useState(null);
+    const [avatarError, setAvatarError] = useState(null);
+    const [avatarUploading, setAvatarUploading] = useState(false);
+    const [avatarPreview, setAvatarPreview] = useState(null);
+    const avatarInputRef = useRef(null);
+
+    const MAX_AVATAR_SIZE = 2 * 1024 * 1024; // 2MB
+    const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
     if (loading) {
         return (
@@ -136,59 +144,131 @@ export default function TeacherProfilePage() {
         }
     };
 
+    const readFileAsDataURL = (file) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Không thể đọc file ảnh'));
+        reader.readAsDataURL(file);
+    });
+
+    const handleAvatarPickClick = () => {
+        avatarInputRef.current?.click();
+    };
+
+    const handleAvatarChange = async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setAvatarError(null);
+        setSuccessMessage(null);
+
+        if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
+            setAvatarError('Chỉ hỗ trợ ảnh JPG, PNG hoặc WEBP');
+            event.target.value = '';
+            return;
+        }
+
+        if (file.size > MAX_AVATAR_SIZE) {
+            setAvatarError('Dung lượng ảnh tối đa là 2MB');
+            event.target.value = '';
+            return;
+        }
+
+        try {
+            setAvatarUploading(true);
+            const base64Image = await readFileAsDataURL(file);
+            setAvatarPreview(base64Image);
+
+            const result = await uploadAvatar(base64Image);
+            if (!result.success) {
+                setAvatarError(result.message || 'Không thể cập nhật ảnh đại diện');
+                setAvatarPreview(null);
+                return;
+            }
+
+            setSuccessMessage(result.message || 'Cập nhật ảnh đại diện thành công');
+            setTimeout(() => setSuccessMessage(null), 3000);
+        } catch (err) {
+            setAvatarError(err.message || 'Không thể xử lý ảnh đại diện');
+            setAvatarPreview(null);
+        } finally {
+            setAvatarUploading(false);
+            event.target.value = '';
+        }
+    };
+
+    const displayAvatarUrl = avatarPreview || avatar_url;
+
     return (
-        <div className="min-h-screen bg-white pb-12">
-            {/* Header / Hero Section */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white pb-16 pt-8">
+        <div className="min-h-screen bg-transparent pb-12">
+            {/* Profile Hero Section */}
+            <div className="bg-white border-b border-border shadow-sm mb-8 pt-8 pb-10">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
+                    <div className="flex flex-col md:flex-row items-center md:items-start gap-8 animate-fade-in-up">
                         {/* Avatar */}
                         <div className="flex-shrink-0 relative group">
-                            {avatar_url ? (
+                            {displayAvatarUrl ? (
                                 <img
-                                    src={avatar_url}
+                                    src={displayAvatarUrl}
                                     alt={full_name}
-                                    className="h-32 w-32 rounded-full border-4 border-white/20 object-cover shadow-lg"
+                                    className="h-32 w-32 rounded-3xl border border-slate-200 object-cover shadow-md hover:shadow-lg transition-all duration-300 group-hover:-translate-y-1"
                                 />
                             ) : (
-                                <div className="h-32 w-32 rounded-full border-4 border-white/20 shadow-lg bg-blue-500 flex items-center justify-center text-4xl font-bold text-white">
+                                <div className="h-32 w-32 rounded-3xl border border-blue-200 shadow-md bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-4xl font-bold text-white transition-all duration-300 group-hover:-translate-y-1 hover:shadow-lg">
                                     {getInitials(full_name)}
                                 </div>
                             )}
+                            <div className="absolute -bottom-2 -right-2 bg-green-500 w-6 h-6 rounded-full border-4 border-white shadow-sm" title="Đang hoạt động"></div>
+                            <button
+                                type="button"
+                                onClick={handleAvatarPickClick}
+                                disabled={avatarUploading || saving}
+                                className="absolute -top-2 -right-2 inline-flex h-9 w-9 items-center justify-center rounded-full border border-blue-200 bg-white text-blue-600 shadow-sm hover:bg-blue-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                                title="Cập nhật ảnh đại diện"
+                            >
+                                {avatarUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                            </button>
+                            <input
+                                ref={avatarInputRef}
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp"
+                                className="hidden"
+                                onChange={handleAvatarChange}
+                            />
                         </div>
 
                         {/* Name & Role */}
-                        <div className="flex-1 text-center md:text-left mt-4 md:mt-0">
-                            <h1 className="text-3xl font-bold">{full_name}</h1>
-                            <div className="mt-2 flex flex-col md:flex-row items-center gap-3">
-                                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-500/30 text-blue-50 border border-blue-400/30">
+                        <div className="flex-1 text-center md:text-left mt-2 md:mt-2">
+                            <h1 className="text-3xl font-bold text-slate-800 tracking-tight">{full_name}</h1>
+                            <div className="mt-3 flex flex-col md:flex-row items-center gap-4">
+                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${status === 'ACTIVE' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
                                     {status === 'ACTIVE' ? 'Đang hoạt động' : 'Tạm nghỉ'}
                                 </span>
-                                <div className="flex items-center text-blue-100 text-sm">
-                                    <Mail className="h-4 w-4 mr-1.5" />
+                                <div className="flex items-center text-slate-500 font-medium text-sm bg-slate-50 px-3 py-1 rounded-lg border border-slate-100">
+                                    <Mail className="h-4 w-4 mr-2 text-slate-400" />
                                     {email}
                                 </div>
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-2 self-center md:self-start mt-4 md:mt-0">
+                        <div className="flex items-center gap-3 self-center md:self-start mt-6 md:mt-2">
+                            <button
+                                onClick={refetch}
+                                className="p-2.5 rounded-xl bg-white shadow-sm border border-border hover:bg-slate-50 transition-all hover-card-lift text-slate-600"
+                                title="Làm mới dữ liệu"
+                            >
+                                <RefreshCw className="h-5 w-5" />
+                            </button>
                             {!isEditing && (
                                 <button
                                     onClick={handleStartEdit}
-                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium"
+                                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-all shadow-sm shadow-blue-600/20 btn-tactile hover-card-lift"
                                     title="Chỉnh sửa hồ sơ"
                                 >
                                     <Pencil className="h-4 w-4" />
                                     <span className="hidden sm:inline">Chỉnh sửa</span>
                                 </button>
                             )}
-                            <button
-                                onClick={refetch}
-                                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                                title="Làm mới dữ liệu"
-                            >
-                                <RefreshCw className="h-5 w-5" />
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -196,189 +276,203 @@ export default function TeacherProfilePage() {
 
             {/* Success Message */}
             {successMessage && (
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-4 mb-2">
-                    <div className="flex items-center gap-2 p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm">
-                        <Check className="h-4 w-4 flex-shrink-0" />
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6 animate-fade-in-up">
+                    <div className="flex items-center gap-2 p-4 rounded-xl bg-green-50 border border-green-200 text-green-700 font-medium shadow-sm">
+                        <Check className="h-5 w-5 flex-shrink-0 text-green-600" />
                         <span>{successMessage}</span>
                     </div>
                 </div>
             )}
 
+            {avatarError && (
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6 animate-fade-in-up">
+                    <div className="flex items-center gap-2 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 font-medium shadow-sm">
+                        <AlertTriangle className="h-5 w-5 flex-shrink-0 text-red-600" />
+                        <span>{avatarError}</span>
+                    </div>
+                </div>
+            )}
+
             {/* Main Content */}
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 space-y-6">
-                
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 animate-fade-in-up stagger-1">
+
                 {/* Stats Row */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {/* Classes Stat */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-border p-5 flex items-center">
-                        <div className="p-3 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 mr-4">
-                            <BookOpen className="h-6 w-6" />
+                    <div className="bg-white rounded-2xl shadow-sm border border-border p-6 flex items-center hover-card-lift transition-all">
+                        <div className="p-4 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 mr-5">
+                            <BookOpen className="h-7 w-7" />
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-muted-foreground">Tổng lớp dạy</p>
-                            <p className="text-2xl font-bold text-foreground">{stats.totalClasses || 0}</p>
+                            <p className="text-sm font-medium text-slate-500 mb-1">Tổng lớp dạy</p>
+                            <p className="text-3xl font-bold text-slate-800 tracking-tight">{stats.totalClasses || 0}</p>
                         </div>
                     </div>
-                    
+
                     {/* Sessions Stat */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-border p-5 flex items-center">
-                        <div className="p-3 rounded-lg bg-green-500/10 text-green-600 dark:text-green-400 mr-4">
-                            <GraduationCap className="h-6 w-6" />
+                    <div className="bg-white rounded-2xl shadow-sm border border-border p-6 flex items-center hover-card-lift transition-all">
+                        <div className="p-4 rounded-2xl bg-green-500/10 text-green-600 dark:text-green-400 mr-5">
+                            <GraduationCap className="h-7 w-7" />
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-muted-foreground">Tổng buổi dạy</p>
-                            <p className="text-2xl font-bold text-foreground">{stats.totalSessions || 0}</p>
+                            <p className="text-sm font-medium text-slate-500 mb-1">Tổng buổi dạy</p>
+                            <p className="text-3xl font-bold text-slate-800 tracking-tight">{stats.totalSessions || 0}</p>
                         </div>
                     </div>
 
                     {/* Hours Stat */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-border p-5 flex items-center">
-                        <div className="p-3 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 mr-4">
-                            <Clock className="h-6 w-6" />
+                    <div className="bg-white rounded-2xl shadow-sm border border-border p-6 flex items-center hover-card-lift transition-all">
+                        <div className="p-4 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 mr-5">
+                            <Clock className="h-7 w-7" />
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-muted-foreground">Số giờ năm nay</p>
-                            <p className="text-2xl font-bold text-foreground">{stats.totalHoursThisYear || 0}</p>
+                            <p className="text-sm font-medium text-slate-500 mb-1">Số giờ năm nay</p>
+                            <p className="text-3xl font-bold text-slate-800 tracking-tight">{stats.totalHoursThisYear || 0}</p>
                         </div>
                     </div>
                 </div>
 
                 {/* Info Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-8">
                     {/* Left Column: Personal Info */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
-                        <div className="px-6 py-4 border-b border-border bg-slate-50 flex items-center justify-between">
-                            <h2 className="text-lg font-semibold text-foreground">Thông tin cá nhân</h2>
+                    <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden hover-card-lift transition-all duration-300">
+                        <div className="px-6 py-5 border-b border-border bg-slate-50/50 flex items-center justify-between">
+                            <h2 className="text-lg font-bold text-slate-800">Thông tin cá nhân</h2>
                             {isEditing && (
                                 <div className="flex items-center gap-2">
                                     <button
                                         onClick={handleCancelEdit}
-                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                                        className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-all btn-tactile"
                                         disabled={saving}
                                     >
-                                        <X className="h-3.5 w-3.5" />
+                                        <X className="h-4 w-4" />
                                         Hủy
                                     </button>
                                     <button
                                         onClick={handleSave}
-                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                                        className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-all disabled:opacity-50 btn-tactile shadow-sm shadow-blue-600/20"
                                         disabled={saving}
                                     >
-                                        {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                                        Lưu
+                                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                                        Lưu thay đổi
                                     </button>
                                 </div>
                             )}
                         </div>
 
                         {editError && (
-                            <div className="mx-6 mt-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2">
-                                <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                            <div className="mx-6 mt-5 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2 font-medium">
+                                <AlertTriangle className="h-5 w-5 flex-shrink-0" />
                                 {editError}
                             </div>
                         )}
 
                         <div className="p-6">
-                            <ul className="space-y-4">
+                            <ul className="space-y-6">
                                 {/* Email — read only always */}
-                                <li className="flex items-center">
-                                    <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground mr-4">
+                                <li className="flex items-start">
+                                    <div className="h-12 w-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 mr-5 border border-slate-200 shadow-sm shrink-0">
                                         <Mail className="h-5 w-5" />
                                     </div>
-                                    <div className="flex-1">
-                                        <p className="text-sm font-medium text-muted-foreground">Email</p>
-                                        <p className="text-base text-foreground">{email}</p>
+                                    <div className="flex-1 pt-1">
+                                        <p className="text-sm font-medium text-slate-500 mb-1">Email</p>
+                                        <p className="text-base font-medium text-slate-800">{email}</p>
                                     </div>
                                 </li>
 
                                 {/* Phone — editable */}
-                                <li className="flex items-center">
-                                    <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground mr-4">
+                                <li className="flex items-start">
+                                    <div className="h-12 w-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 flex-shrink-0 mr-5 border border-blue-100 shadow-sm shrink-0">
                                         <Phone className="h-5 w-5" />
                                     </div>
-                                    <div className="flex-1">
-                                        <p className="text-sm font-medium text-muted-foreground">Số điện thoại</p>
+                                    <div className="flex-1 pt-1">
+                                        <p className="text-sm font-medium text-slate-500 mb-1">Số điện thoại</p>
                                         {isEditing ? (
                                             <input
                                                 type="tel"
                                                 value={editForm.phone}
                                                 onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
                                                 placeholder="0912345678"
-                                                className="mt-1 w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 bg-white text-foreground"
+                                                className="mt-1 w-full px-4 py-2.5 text-base border border-blue-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 bg-white text-slate-800 shadow-inner"
                                                 maxLength={11}
+                                                autoFocus
                                             />
                                         ) : (
-                                            <p className="text-base text-foreground">{phone}</p>
+                                            <p className="text-base font-medium text-slate-800">{phone}</p>
                                         )}
                                     </div>
                                 </li>
 
-                                {/* Hourly rate — read only */}
-                                <li className="flex items-center">
-                                    <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground mr-4">
-                                        <DollarSign className="h-5 w-5" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-muted-foreground">Lương theo giờ</p>
-                                        <p className="text-base text-foreground">{formatCurrency(hourly_rate)}/h</p>
-                                    </div>
-                                </li>
+                                <div className="grid grid-cols-2 gap-4">
+                                    {/* Hourly rate — read only */}
+                                    <li className="flex items-start bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                        <div className="h-10 w-10 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600 mr-4 shrink-0">
+                                            <DollarSign className="h-5 w-5" />
+                                        </div>
+                                        <div className="pt-0.5">
+                                            <p className="text-sm font-medium text-slate-500 mb-0.5">Lương / giờ</p>
+                                            <p className="text-base font-bold text-slate-800">{formatCurrency(hourly_rate)}</p>
+                                        </div>
+                                    </li>
 
-                                {/* Join date — read only */}
-                                <li className="flex items-center">
-                                    <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground mr-4">
-                                        <Calendar className="h-5 w-5" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-muted-foreground">Ngày tham gia</p>
-                                        <p className="text-base text-foreground">{formatDate(created_at)}</p>
-                                    </div>
-                                </li>
+                                    {/* Join date — read only */}
+                                    <li className="flex items-start bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                        <div className="h-10 w-10 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600 mr-4 shrink-0">
+                                            <Calendar className="h-5 w-5" />
+                                        </div>
+                                        <div className="pt-0.5">
+                                            <p className="text-sm font-medium text-slate-500 mb-0.5">Ngày tham gia</p>
+                                            <p className="text-base font-bold text-slate-800">{formatDate(created_at)}</p>
+                                        </div>
+                                    </li>
+                                </div>
                             </ul>
                         </div>
                     </div>
 
                     {/* Right Column: Center Info */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
-                        <div className="px-6 py-4 border-b border-border bg-slate-50">
-                            <h2 className="text-lg font-semibold text-foreground">Trung tâm</h2>
+                    <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden hover-card-lift transition-all duration-300">
+                        <div className="px-6 py-5 border-b border-border bg-slate-50/50">
+                            <h2 className="text-lg font-bold text-slate-800">Trung tâm trực thuộc</h2>
                         </div>
                         <div className="p-6">
                             {primaryCenter ? (
-                                <ul className="space-y-4">
-                                    <li className="flex items-start">
-                                        <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-600 dark:text-blue-400 mr-4 shrink-0">
-                                            <Building2 className="h-5 w-5" />
+                                <ul className="space-y-6">
+                                    <li className="flex items-start bg-indigo-50/50 p-4 rounded-xl border border-indigo-100/50">
+                                        <div className="h-12 w-12 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 mr-5 shrink-0 shadow-sm">
+                                            <Building2 className="h-6 w-6" />
                                         </div>
-                                        <div>
-                                            <p className="text-sm font-medium text-muted-foreground">Tên trung tâm</p>
-                                            <p className="text-base font-medium text-foreground">{primaryCenter.name || 'Chưa cập nhật'}</p>
-                                        </div>
-                                    </li>
-                                    <li className="flex items-start">
-                                        <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground mr-4 shrink-0">
-                                            <Mail className="h-5 w-5" />
-                                        </div>
-                                        <div>
-                                            <p className="text-sm font-medium text-muted-foreground">Địa chỉ</p>
-                                            <p className="text-base text-foreground">{primaryCenter.address || 'Chưa cập nhật'}</p>
+                                        <div className="pt-1">
+                                            <p className="text-sm font-medium text-indigo-600/80 mb-1">Tên trung tâm</p>
+                                            <p className="text-lg font-bold text-indigo-900">{primaryCenter.name || 'Chưa cập nhật'}</p>
                                         </div>
                                     </li>
-                                    <li className="flex items-start">
-                                        <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground mr-4 shrink-0">
-                                            <Phone className="h-5 w-5" />
+                                    <li className="flex items-start px-2">
+                                        <div className="h-10 w-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 mr-5 shrink-0">
+                                            <Mail className="h-4 w-4" />
                                         </div>
-                                        <div>
-                                            <p className="text-sm font-medium text-muted-foreground">Hotline</p>
-                                            <p className="text-base text-foreground">{primaryCenter.phone || primaryCenter.hotline || 'Chưa cập nhật'}</p>
+                                        <div className="pt-1">
+                                            <p className="text-sm font-medium text-slate-500 mb-0.5">Địa chỉ</p>
+                                            <p className="text-base font-medium text-slate-800 leading-relaxed">{primaryCenter.address || 'Chưa cập nhật'}</p>
+                                        </div>
+                                    </li>
+                                    <li className="flex items-start px-2">
+                                        <div className="h-10 w-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 mr-5 shrink-0">
+                                            <Phone className="h-4 w-4" />
+                                        </div>
+                                        <div className="pt-1">
+                                            <p className="text-sm font-medium text-slate-500 mb-0.5">Hotline</p>
+                                            <p className="text-base font-medium text-slate-800">{primaryCenter.phone || primaryCenter.hotline || 'Chưa cập nhật'}</p>
                                         </div>
                                     </li>
                                 </ul>
                             ) : (
-                                <div className="flex flex-col items-center justify-center py-8 text-center">
-                                    <Building2 className="h-12 w-12 text-muted-foreground/30 mb-3" />
-                                    <p className="text-muted-foreground font-medium">Chưa liên kết trung tâm</p>
-                                    <p className="text-sm text-muted-foreground/70 mt-1">Vui lòng liên hệ quản trị viên để được hỗ trợ.</p>
+                                <div className="flex flex-col items-center justify-center py-16 text-center">
+                                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4 border border-slate-100">
+                                        <Building2 className="h-10 w-10 text-slate-300" />
+                                    </div>
+                                    <p className="text-slate-800 font-semibold text-lg">Chưa liên kết trung tâm</p>
+                                    <p className="text-slate-500 mt-2 max-w-xs">Tài khoản của bạn hiện tại chưa được phân công giảng dạy tại trung tâm nào.</p>
                                 </div>
                             )}
                         </div>

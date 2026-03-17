@@ -97,12 +97,12 @@ export function TodaySchedule({ sessions = [], onMarkAttendance }) {
                                 <div className="flex-1 min-w-0">
                                     {/* Class name */}
                                     <h4 className="font-medium text-foreground truncate">
-                                        {session.class_name || 'Lớp học'}
+                                        {session.classes?.name || session.class_name || 'Lớp học'}
                                     </h4>
 
                                     {/* Course name */}
                                     <p className="text-sm text-muted-foreground truncate">
-                                        {session.course_name}
+                                        {session.classes?.courses?.title || session.course_name}
                                     </p>
 
                                     {/* Time & Room */}
@@ -111,21 +111,21 @@ export function TodaySchedule({ sessions = [], onMarkAttendance }) {
                                             <Clock className="h-4 w-4" />
                                             {formatTime(session.start_time)} - {formatTime(session.end_time)}
                                         </span>
-                                        {session.room_name && (
+                                        {(session.roomName || session.room_name || session.classes?.rooms?.name) && (
                                             <span className="flex items-center gap-1 text-muted-foreground">
                                                 <MapPin className="h-4 w-4" />
-                                                {session.room_name}
+                                                {session.roomName || session.room_name || session.classes?.rooms?.name}
                                             </span>
                                         )}
                                         <span className="flex items-center gap-1 text-muted-foreground">
                                             <Users className="h-4 w-4" />
-                                            {session.student_count || 0} học viên
+                                            {session.studentCount || session.student_count || 0} học viên
                                         </span>
                                     </div>
                                 </div>
 
                                 <div className="flex flex-col items-end gap-2">
-                                    {getStatusBadge(session.status, session.attendance_completed)}
+                                    {getStatusBadge(session.status, session.attendanceMarked || session.attendance_completed)}
 
                                     {needsAttendance && onMarkAttendance && (
                                         <button

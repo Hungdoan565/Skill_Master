@@ -1,6 +1,36 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
+function normalizeOperationalMeta(meta) {
+    const payroll = meta?.payroll || {};
+    return {
+        isSubstituted: Boolean(meta?.isSubstituted),
+        substitutionSourceSessionId: meta?.substitutionSourceSessionId || null,
+        hasTeacherConflict: Boolean(meta?.hasTeacherConflict),
+        hasRoomConflict: Boolean(meta?.hasRoomConflict),
+        hasAnyConflict: Boolean(meta?.hasAnyConflict),
+        isHoliday: Boolean(meta?.isHoliday),
+        holidayName: meta?.holidayName || null,
+        exceptionType: meta?.exceptionType || null,
+        payroll: {
+            isLocked: Boolean(payroll?.isLocked),
+            isLinkedToPayroll: Boolean(payroll?.isLinkedToPayroll),
+            isEligibleForPayroll: Boolean(payroll?.isEligibleForPayroll),
+            hourlyRate: typeof payroll?.hourlyRate === 'number' ? payroll.hourlyRate : null
+        }
+    };
+}
+
+function normalizeScheduleDays(days = []) {
+    return (Array.isArray(days) ? days : []).map(day => ({
+        ...day,
+        sessions: (day.sessions || []).map(session => ({
+            ...session,
+            operationalMeta: normalizeOperationalMeta(session.operationalMeta)
+        }))
+    }));
+}
+
 /**
  * Hook để fetch lịch dạy theo tuần của giáo viên
  */
@@ -34,7 +64,7 @@ export function useTeacherSchedule(startDate, endDate) {
             if (!response.ok) throw new Error('Lỗi khi tải lịch dạy');
 
             const result = await response.json();
-            setSchedule(result.data?.schedule || []);
+            setSchedule(normalizeScheduleDays(result.data?.schedule || []));
             setStats(result.data?.stats || null);
 
         } catch (err) {
