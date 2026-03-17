@@ -50,3 +50,5 @@ scripts/debug_*
 .env.local
 frontend/.env.local
 backend/.env.local
+.kilocode/
+.kilocodemodes
