@@ -52,7 +52,7 @@ async function getEnrollmentNotifications() {
     try {
       enrollmentNotifications = await import('./jobs/enrollmentNotification.job.js');
     } catch (err) {
-      console.warn('âš ï¸ Enrollment notifications not available (Redis may not be running):', err.message);
+      console.warn('Ã¢Å¡Â Ã¯Â¸Â Enrollment notifications not available (Redis may not be running):', err.message);
       enrollmentNotifications = false;
     }
   }
@@ -67,7 +67,7 @@ async function getQueueEmail() {
       const jobs = await import('./jobs/index.js');
       queueEmailFn = jobs.queueEmail || false;
     } catch (err) {
-      console.warn('âš ï¸ Email queue not available (Redis may not be running):', err.message);
+      console.warn('Ã¢Å¡Â Ã¯Â¸Â Email queue not available (Redis may not be running):', err.message);
       queueEmailFn = false;
     }
   }
@@ -82,7 +82,7 @@ async function getTriggerCertCheck() {
       const jobs = await import('./jobs/index.js');
       triggerCertCheckFn = jobs.triggerCertificateEligibilityCheck || false;
     } catch (err) {
-      console.warn('âš ï¸ Certificate eligibility trigger not available:', err.message);
+      console.warn('Ã¢Å¡Â Ã¯Â¸Â Certificate eligibility trigger not available:', err.message);
       triggerCertCheckFn = false;
     }
   }
@@ -93,7 +93,7 @@ dotenv.config();
 
 const app = express();
 app.use(cors());
-// TÄƒng limit Ä‘á»ƒ cho phÃ©p upload áº£nh base64 (max 10MB)
+// TÃ„Æ’ng limit Ã„â€˜Ã¡Â»Æ’ cho phÃƒÂ©p upload Ã¡ÂºÂ£nh base64 (max 10MB)
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
@@ -110,7 +110,7 @@ function chatbotConversationRateLimit(req, res, next) {
   if (recentHits.length >= chatbotConversationRateMax) {
     return res.status(429).json({
       success: false,
-      error: 'Báº¡n thao tÃ¡c quÃ¡ nhanh. Vui lÃ²ng thá»­ láº¡i sau Ã­t phÃºt.'
+      error: 'BÃ¡ÂºÂ¡n thao tÃƒÂ¡c quÃƒÂ¡ nhanh. Vui lÃƒÂ²ng thÃ¡Â»Â­ lÃ¡ÂºÂ¡i sau ÃƒÂ­t phÃƒÂºt.'
     });
   }
 
@@ -135,6 +135,143 @@ function getAuditContext(req) {
   };
 }
 
+const CORE_GAP_FLAGS = {
+  ONLINE_ASSESSMENT: 'feature_core_online_assessment_engine',
+  STRUCTURED_ASSIGNMENTS: 'feature_core_structured_assignments_management',
+  LABOR_CONTRACTS: 'feature_core_labor_contract_management'
+};
+
+const CORE_GAP_AUDIT_EVENTS = {
+  FEATURE_FLAG_UPDATE: 'CORE_GAP_FEATURE_FLAG_UPDATE',
+  ASSESSMENT_TEST_CREATE: 'ASSESSMENT_TEST_CREATE',
+  ASSESSMENT_TEST_UPDATE: 'ASSESSMENT_TEST_UPDATE',
+  ASSESSMENT_TEST_PUBLISH: 'ASSESSMENT_TEST_PUBLISH',
+  ASSESSMENT_ATTEMPT_START: 'ASSESSMENT_ATTEMPT_START',
+  ASSESSMENT_ATTEMPT_SUBMIT: 'ASSESSMENT_ATTEMPT_SUBMIT',
+  ASSIGNMENT_CREATE: 'ASSIGNMENT_CREATE',
+  ASSIGNMENT_SUBMIT: 'ASSIGNMENT_SUBMIT',
+  ASSIGNMENT_GRADE: 'ASSIGNMENT_GRADE',
+  ASSIGNMENT_BRIDGE_SYNC: 'ASSIGNMENT_BRIDGE_SYNC',
+  CONTRACT_CREATE: 'LABOR_CONTRACT_CREATE',
+  CONTRACT_UPDATE: 'LABOR_CONTRACT_UPDATE',
+  CONTRACT_TRANSITION: 'LABOR_CONTRACT_TRANSITION'
+};
+
+const coreGapMetrics = {
+  requests: {},
+  transitions: {},
+  failures: {},
+  exposures: {}
+};
+
+const CONTRACT_STATE_TRANSITIONS = {
+  draft: ['active', 'terminated'],
+  active: ['amended', 'expired', 'terminated'],
+  amended: ['active', 'expired', 'terminated'],
+  expired: ['active'],
+  terminated: ['active']
+};
+
+function incrementCoreGapMetric(group, key, value = 1) {
+  const bucket = coreGapMetrics[group] || {};
+  bucket[key] = (bucket[key] || 0) + value;
+  coreGapMetrics[group] = bucket;
+}
+
+function parseFlagEnabled(value) {
+  if (!value) return false;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'object') return Boolean(value.enabled);
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Boolean(parsed?.enabled);
+    } catch {
+      return value === 'true';
+    }
+  }
+  return false;
+}
+
+async function resolveEffectiveCenterIdForRequest(req, requestedCenterId = null) {
+  const { effectiveCenterId, error } = getEffectiveCenterId(req.user, requestedCenterId || null);
+  if (error) {
+    return { error };
+  }
+
+  return { effectiveCenterId };
+}
+
+async function isCoreGapFeatureEnabled(flagKey, req, requestedCenterId = null) {
+  const scope = await resolveEffectiveCenterIdForRequest(req, requestedCenterId);
+  if (scope.error) {
+    return { enabled: false, error: scope.error };
+  }
+
+  const centerId = scope.effectiveCenterId;
+  if (!centerId) {
+    incrementCoreGapMetric('exposures', `${flagKey}:missing_center`);
+    return {
+      enabled: false,
+      error: 'Vui lÃ²ng truyá»n centerId há»£p lá»‡ Ä‘á»ƒ sá»­ dá»¥ng module nÃ y'
+    };
+  }
+  const hasCenter = Boolean(centerId);
+
+  if (hasCenter) {
+    const { data: centerSetting, error: centerError } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', flagKey)
+      .eq('center_id', centerId)
+      .maybeSingle();
+
+    if (!centerError && centerSetting) {
+      const enabled = parseFlagEnabled(centerSetting.value);
+      incrementCoreGapMetric('exposures', `${flagKey}:${enabled ? 'enabled' : 'disabled'}:center`);
+      return { enabled, centerId, source: 'center' };
+    }
+  }
+
+  const { data: globalSetting } = await supabase
+    .from('system_settings')
+    .select('value')
+    .eq('key', flagKey)
+    .is('center_id', null)
+    .maybeSingle();
+
+  const enabled = parseFlagEnabled(globalSetting?.value);
+  incrementCoreGapMetric('exposures', `${flagKey}:${enabled ? 'enabled' : 'disabled'}:global`);
+
+  return {
+    enabled,
+    centerId,
+    source: 'global'
+  };
+}
+
+async function logCoreGapAudit(req, {
+  action,
+  tableName,
+  recordId,
+  oldValues = null,
+  newValues = null,
+  metadata = null,
+  centerId = null
+}) {
+  await AuditLogService.log({
+    ...getAuditContext(req),
+    centerId: centerId || req.user?.centerId || null,
+    action,
+    tableName,
+    recordId,
+    oldValues,
+    newValues,
+    metadata,
+    status: 'SUCCESS'
+  });
+}
+
 // ============ HELPER FUNCTIONS FOR PERMISSION ============
 
 // ============ ATTENDANCE EDIT WINDOW ============
@@ -152,7 +289,7 @@ function isWithinEditWindow(sessionDate, sessionEndTime) {
 
   // Allow editing before session starts (for pre-marking)
   if (hoursSinceEnd < 0) {
-    return { canEdit: true, hoursRemaining: 24, message: 'Buá»•i há»c chÆ°a káº¿t thÃºc' };
+    return { canEdit: true, hoursRemaining: 24, message: 'BuÃ¡Â»â€¢i hÃ¡Â»Âc chÃ†Â°a kÃ¡ÂºÂ¿t thÃƒÂºc' };
   }
 
   // Allow editing up to 24 hours after session ends
@@ -160,14 +297,14 @@ function isWithinEditWindow(sessionDate, sessionEndTime) {
     return {
       canEdit: true,
       hoursRemaining: Math.round((24 - hoursSinceEnd) * 10) / 10,
-      message: `CÃ²n ${Math.round((24 - hoursSinceEnd) * 10) / 10} giá» Ä‘á»ƒ chá»‰nh sá»­a`
+      message: `CÃƒÂ²n ${Math.round((24 - hoursSinceEnd) * 10) / 10} giÃ¡Â»Â Ã„â€˜Ã¡Â»Æ’ chÃ¡Â»â€°nh sÃ¡Â»Â­a`
     };
   }
 
   return {
     canEdit: false,
     hoursRemaining: 0,
-    message: 'ÄÃ£ quÃ¡ 24 giá», khÃ´ng thá»ƒ chá»‰nh sá»­a. LiÃªn há»‡ Admin Ä‘á»ƒ override.'
+    message: 'Ã„ÂÃƒÂ£ quÃƒÂ¡ 24 giÃ¡Â»Â, khÃƒÂ´ng thÃ¡Â»Æ’ chÃ¡Â»â€°nh sÃ¡Â»Â­a. LiÃƒÂªn hÃ¡Â»â€¡ Admin Ã„â€˜Ã¡Â»Æ’ override.'
   };
 }
 
@@ -233,8 +370,8 @@ function isSessionTimeOverlap(startA, endA, startB, endB) {
 function inferScheduleExceptionType(session) {
   if (session?.is_makeup) return 'makeup';
   const notes = (session?.notes || '').toLowerCase();
-  if (notes.startsWith('bỏ qua:') || notes.startsWith('bo qua:')) return 'skip';
-  if (notes.startsWith('dời lịch:') || notes.startsWith('doi lich:')) return 'reschedule';
+  if (notes.startsWith('bá» qua:') || notes.startsWith('bo qua:')) return 'skip';
+  if (notes.startsWith('dá»i lá»‹ch:') || notes.startsWith('doi lich:')) return 'reschedule';
   return null;
 }
 
@@ -257,37 +394,37 @@ function getClassOperationalRiskLevel(summary) {
 // ============ UTILITY FUNCTIONS ============
 
 /**
- * Sinh danh sÃ¡ch buá»•i há»c tá»« lá»‹ch cá»§a lá»›p vÃ  lÆ°u vÃ o báº£ng sessions
- * @param {string} classId - ID lá»›p há»c
- * @param {string} startDate - NgÃ y báº¯t Ä‘áº§u (YYYY-MM-DD)
- * @param {string} endDate - NgÃ y káº¿t thÃºc (YYYY-MM-DD)
- * @param {Array|string} schedule - Lá»‹ch há»c [{day: 2, start: "18:00", end: "20:00"}, ...]
- * @param {string} teacherId - ID giÃ¡o viÃªn
+ * Sinh danh sÃƒÂ¡ch buÃ¡Â»â€¢i hÃ¡Â»Âc tÃ¡Â»Â« lÃ¡Â»â€¹ch cÃ¡Â»Â§a lÃ¡Â»â€ºp vÃƒÂ  lÃ†Â°u vÃƒÂ o bÃ¡ÂºÂ£ng sessions
+ * @param {string} classId - ID lÃ¡Â»â€ºp hÃ¡Â»Âc
+ * @param {string} startDate - NgÃƒÂ y bÃ¡ÂºÂ¯t Ã„â€˜Ã¡ÂºÂ§u (YYYY-MM-DD)
+ * @param {string} endDate - NgÃƒÂ y kÃ¡ÂºÂ¿t thÃƒÂºc (YYYY-MM-DD)
+ * @param {Array|string} schedule - LÃ¡Â»â€¹ch hÃ¡Â»Âc [{day: 2, start: "18:00", end: "20:00"}, ...]
+ * @param {string} teacherId - ID giÃƒÂ¡o viÃƒÂªn
  */
 async function generateSessionsForClass(classId, startDate, endDate, schedule, teacherId = null) {
   if (!classId || !startDate || !endDate || !schedule) {
-    console.log('âš ï¸ KhÃ´ng Ä‘á»§ thÃ´ng tin Ä‘á»ƒ sinh sessions');
+    console.log('Ã¢Å¡Â Ã¯Â¸Â KhÃƒÂ´ng Ã„â€˜Ã¡Â»Â§ thÃƒÂ´ng tin Ã„â€˜Ã¡Â»Æ’ sinh sessions');
     return { success: false, count: 0 };
   }
 
   try {
-    // Parse schedule náº¿u lÃ  string
+    // Parse schedule nÃ¡ÂºÂ¿u lÃƒÂ  string
     let scheduleData = schedule;
     if (typeof schedule === 'string') {
       try {
         scheduleData = JSON.parse(schedule);
       } catch (e) {
-        console.log('âš ï¸ KhÃ´ng parse Ä‘Æ°á»£c schedule:', schedule);
+        console.log('Ã¢Å¡Â Ã¯Â¸Â KhÃƒÂ´ng parse Ã„â€˜Ã†Â°Ã¡Â»Â£c schedule:', schedule);
         return { success: false, count: 0 };
       }
     }
 
     if (!Array.isArray(scheduleData) || scheduleData.length === 0) {
-      console.log('âš ï¸ Schedule rá»—ng hoáº·c khÃ´ng há»£p lá»‡');
+      console.log('Ã¢Å¡Â Ã¯Â¸Â Schedule rÃ¡Â»â€”ng hoÃ¡ÂºÂ·c khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡');
       return { success: false, count: 0 };
     }
 
-    // XÃ³a sessions cÅ© cá»§a class nÃ y
+    // XÃƒÂ³a sessions cÃ…Â© cÃ¡Â»Â§a class nÃƒÂ y
     await supabase.from('sessions').delete().eq('class_id', classId);
 
     // Map day: 2=T2(Monday), 3=T3(Tuesday), ..., 7=T7(Saturday), 8=CN(Sunday)
@@ -302,7 +439,7 @@ async function generateSessionsForClass(classId, startDate, endDate, schedule, t
       8: 0  // CN -> Sunday (0)
     };
 
-    // Táº¡o Set cÃ¡c ngÃ y trong tuáº§n cÃ³ há»c
+    // TÃ¡ÂºÂ¡o Set cÃƒÂ¡c ngÃƒÂ y trong tuÃ¡ÂºÂ§n cÃƒÂ³ hÃ¡Â»Âc
     const scheduleDays = new Set();
     const timeByDay = {};
     scheduleData.forEach(s => {
@@ -313,7 +450,7 @@ async function generateSessionsForClass(classId, startDate, endDate, schedule, t
       }
     });
 
-    // Danh sÃ¡ch ngÃ y nghá»‰ lá»… Viá»‡t Nam
+    // Danh sÃƒÂ¡ch ngÃƒÂ y nghÃ¡Â»â€° lÃ¡Â»â€¦ ViÃ¡Â»â€¡t Nam
     const holidays = new Set([
       '2025-01-01', '2025-01-28', '2025-01-29', '2025-01-30', '2025-01-31',
       '2025-02-01', '2025-02-02', '2025-02-03', '2025-04-30', '2025-05-01', '2025-09-02',
@@ -328,17 +465,17 @@ async function generateSessionsForClass(classId, startDate, endDate, schedule, t
     const end = new Date(endYear, endMonth - 1, endDay);
     let sessionNumber = 1;
 
-    // Duyá»‡t tá»«ng ngÃ y tá»« start Ä‘áº¿n end
+    // DuyÃ¡Â»â€¡t tÃ¡Â»Â«ng ngÃƒÂ y tÃ¡Â»Â« start Ã„â€˜Ã¡ÂºÂ¿n end
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       const dayOfWeek = d.getDay(); // 0=Sunday, 1=Monday, ...
       // Format date as YYYY-MM-DD without timezone conversion
       const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-      // Kiá»ƒm tra ngÃ y nÃ y cÃ³ trong lá»‹ch há»c khÃ´ng vÃ  khÃ´ng pháº£i ngÃ y lá»…
+      // KiÃ¡Â»Æ’m tra ngÃƒÂ y nÃƒÂ y cÃƒÂ³ trong lÃ¡Â»â€¹ch hÃ¡Â»Âc khÃƒÂ´ng vÃƒÂ  khÃƒÂ´ng phÃ¡ÂºÂ£i ngÃƒÂ y lÃ¡Â»â€¦
       if (scheduleDays.has(dayOfWeek) && !holidays.has(dateStr)) {
         const time = timeByDay[dayOfWeek] || { start: '18:00', end: '20:00' };
 
-        // XÃ¡c Ä‘á»‹nh status
+        // XÃƒÂ¡c Ã„â€˜Ã¡Â»â€¹nh status
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const sessionDate = new Date(d);
@@ -360,25 +497,25 @@ async function generateSessionsForClass(classId, startDate, endDate, schedule, t
       }
     }
 
-    // Insert sessions vÃ o DB
+    // Insert sessions vÃƒÂ o DB
     if (sessions.length > 0) {
       const { error } = await supabase.from('sessions').insert(sessions);
       if (error) {
-        console.error('âŒ Lá»—i insert sessions:', error);
+        console.error('Ã¢ÂÅ’ LÃ¡Â»â€”i insert sessions:', error);
         return { success: false, count: 0, error };
       }
     }
 
-    console.log(`âœ… ÄÃ£ sinh ${sessions.length} buá»•i há»c cho lá»›p ${classId}`);
+    console.log(`Ã¢Å“â€¦ Ã„ÂÃƒÂ£ sinh ${sessions.length} buÃ¡Â»â€¢i hÃ¡Â»Âc cho lÃ¡Â»â€ºp ${classId}`);
     return { success: true, count: sessions.length };
 
   } catch (error) {
-    console.error('âŒ Lá»—i generateSessionsForClass:', error);
+    console.error('Ã¢ÂÅ’ LÃ¡Â»â€”i generateSessionsForClass:', error);
     return { success: false, count: 0, error };
   }
 }
 
-// ============ PUBLIC APIs (KhÃ´ng cáº§n Ä‘Äƒng nháº­p) ============
+// ============ PUBLIC APIs (KhÃƒÂ´ng cÃ¡ÂºÂ§n Ã„â€˜Ã„Æ’ng nhÃ¡ÂºÂ­p) ============
 
 app.get('/api/health', async (_req, res) => {
   const status = await getDbStatus();
@@ -394,8 +531,8 @@ app.get('/api/status', async (_req, res, next) => {
   }
 });
 
-// Xem danh sÃ¡ch khÃ³a há»c (public - ai cÅ©ng xem Ä‘Æ°á»£c)
-// Query params: ?status=active Ä‘á»ƒ lá»c theo tráº¡ng thÃ¡i
+// Xem danh sÃƒÂ¡ch khÃƒÂ³a hÃ¡Â»Âc (public - ai cÃ…Â©ng xem Ã„â€˜Ã†Â°Ã¡Â»Â£c)
+// Query params: ?status=active Ã„â€˜Ã¡Â»Æ’ lÃ¡Â»Âc theo trÃ¡ÂºÂ¡ng thÃƒÂ¡i
 app.get('/api/courses', async (req, res, next) => {
   try {
     const { status, search } = req.query;
@@ -427,7 +564,7 @@ app.get('/api/courses', async (req, res, next) => {
   }
 });
 
-// Danh sÃ¡ch khÃ³a há»c cho admin + cháº©n Ä‘oÃ¡n hiá»ƒn thá»‹ phÃ­a há»c viÃªn
+// Danh sÃƒÂ¡ch khÃƒÂ³a hÃ¡Â»Âc cho admin + chÃ¡ÂºÂ©n Ã„â€˜oÃƒÂ¡n hiÃ¡Â»Æ’n thÃ¡Â»â€¹ phÃƒÂ­a hÃ¡Â»Âc viÃƒÂªn
 app.get('/api/admin/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
     const { status, search, center_id } = req.query;
@@ -486,9 +623,9 @@ app.get('/api/admin/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_M
   }
 });
 
-// ============ PROTECTED APIs (Pháº£i Ä‘Äƒng nháº­p) ============
+// ============ PROTECTED APIs (PhÃ¡ÂºÂ£i Ã„â€˜Ã„Æ’ng nhÃ¡ÂºÂ­p) ============
 
-// Táº¡o khÃ³a há»c má»›i (chá»‰ admin má»›i Ä‘Æ°á»£c táº¡o)
+// TÃ¡ÂºÂ¡o khÃƒÂ³a hÃ¡Â»Âc mÃ¡Â»â€ºi (chÃ¡Â»â€° admin mÃ¡Â»â€ºi Ã„â€˜Ã†Â°Ã¡Â»Â£c tÃ¡ÂºÂ¡o)
 app.post('/api/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const {
@@ -504,18 +641,18 @@ app.post('/api/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGE
       status
     } = req.body;
 
-    // Log user Ä‘ang táº¡o (tá»« middleware)
-    console.log(`ðŸ“ User ${req.user.email} Ä‘ang táº¡o khÃ³a há»c: ${title}`);
+    // Log user Ã„â€˜ang tÃ¡ÂºÂ¡o (tÃ¡Â»Â« middleware)
+    console.log(`Ã°Å¸â€œÂ User ${req.user.email} Ã„â€˜ang tÃ¡ÂºÂ¡o khÃƒÂ³a hÃ¡Â»Âc: ${title}`);
 
-    // Validate dá»¯ liá»‡u Ä‘áº§u vÃ o
+    // Validate dÃ¡Â»Â¯ liÃ¡Â»â€¡u Ã„â€˜Ã¡ÂºÂ§u vÃƒÂ o
     if (!code || !title || !category) {
       return res.status(400).json({
         success: false,
-        message: 'MÃ£ khÃ³a há»c, tÃªn vÃ  danh má»¥c lÃ  báº¯t buá»™c'
+        message: 'MÃƒÂ£ khÃƒÂ³a hÃ¡Â»Âc, tÃƒÂªn vÃƒÂ  danh mÃ¡Â»Â¥c lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
       });
     }
 
-    // Check trÃ¹ng code
+    // Check trÃƒÂ¹ng code
     const { data: existing } = await supabase
       .from('courses')
       .select('id')
@@ -525,7 +662,7 @@ app.post('/api/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGE
     if (existing) {
       return res.status(400).json({
         success: false,
-        message: `MÃ£ khÃ³a há»c "${code}" Ä‘Ã£ tá»“n táº¡i`
+        message: `MÃƒÂ£ khÃƒÂ³a hÃ¡Â»Âc "${code}" Ã„â€˜ÃƒÂ£ tÃ¡Â»â€œn tÃ¡ÂºÂ¡i`
       });
     }
 
@@ -560,7 +697,7 @@ app.post('/api/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGE
 
     res.status(201).json({
       success: true,
-      message: 'Táº¡o khÃ³a há»c thÃ nh cÃ´ng',
+      message: 'TÃ¡ÂºÂ¡o khÃƒÂ³a hÃ¡Â»Âc thÃƒÂ nh cÃƒÂ´ng',
       data
     });
   } catch (error) {
@@ -569,7 +706,7 @@ app.post('/api/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGE
   }
 });
 
-// Cáº­p nháº­t khÃ³a há»c (chá»‰ admin)
+// CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t khÃƒÂ³a hÃ¡Â»Âc (chÃ¡Â»â€° admin)
 app.put('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -586,17 +723,17 @@ app.put('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MAN
       status
     } = req.body;
 
-    console.log(`âœï¸ User ${req.user.email} Ä‘ang cáº­p nháº­t khÃ³a há»c: ${id}`);
+    console.log(`Ã¢Å“ÂÃ¯Â¸Â User ${req.user.email} Ã„â€˜ang cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t khÃƒÂ³a hÃ¡Â»Âc: ${id}`);
 
-    // Validate dá»¯ liá»‡u Ä‘áº§u vÃ o
+    // Validate dÃ¡Â»Â¯ liÃ¡Â»â€¡u Ã„â€˜Ã¡ÂºÂ§u vÃƒÂ o
     if (!code || !title || !category) {
       return res.status(400).json({
         success: false,
-        message: 'MÃ£ khÃ³a há»c, tÃªn vÃ  danh má»¥c lÃ  báº¯t buá»™c'
+        message: 'MÃƒÂ£ khÃƒÂ³a hÃ¡Â»Âc, tÃƒÂªn vÃƒÂ  danh mÃ¡Â»Â¥c lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
       });
     }
 
-    // Check trÃ¹ng code (ngoáº¡i trá»« chÃ­nh nÃ³)
+    // Check trÃƒÂ¹ng code (ngoÃ¡ÂºÂ¡i trÃ¡Â»Â« chÃƒÂ­nh nÃƒÂ³)
     const { data: existing } = await supabase
       .from('courses')
       .select('id')
@@ -607,7 +744,7 @@ app.put('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MAN
     if (existing) {
       return res.status(400).json({
         success: false,
-        message: `MÃ£ khÃ³a há»c "${code}" Ä‘Ã£ Ä‘Æ°á»£c sá»­ dá»¥ng bá»Ÿi khÃ³a há»c khÃ¡c`
+        message: `MÃƒÂ£ khÃƒÂ³a hÃ¡Â»Âc "${code}" Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c sÃ¡Â»Â­ dÃ¡Â»Â¥ng bÃ¡Â»Å¸i khÃƒÂ³a hÃ¡Â»Âc khÃƒÂ¡c`
       });
     }
 
@@ -643,7 +780,7 @@ app.put('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MAN
 
     res.json({
       success: true,
-      message: 'Cáº­p nháº­t khÃ³a há»c thÃ nh cÃ´ng',
+      message: 'CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t khÃƒÂ³a hÃ¡Â»Âc thÃƒÂ nh cÃƒÂ´ng',
       data
     });
   } catch (error) {
@@ -690,14 +827,14 @@ app.patch('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_M
   }
 });
 
-// XÃ³a khÃ³a há»c (chá»‰ admin)
+// XÃƒÂ³a khÃƒÂ³a hÃ¡Â»Âc (chÃ¡Â»â€° admin)
 app.delete('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    console.log(`ðŸ—‘ï¸ User ${req.user.email} Ä‘ang xÃ³a khÃ³a há»c: ${id}`);
+    console.log(`Ã°Å¸â€”â€˜Ã¯Â¸Â User ${req.user.email} Ã„â€˜ang xÃƒÂ³a khÃƒÂ³a hÃ¡Â»Âc: ${id}`);
 
-    // Kiá»ƒm tra xem cÃ³ lá»›p há»c nÃ o Ä‘ang sá»­ dá»¥ng khÃ³a há»c nÃ y khÃ´ng
+    // KiÃ¡Â»Æ’m tra xem cÃƒÂ³ lÃ¡Â»â€ºp hÃ¡Â»Âc nÃƒÂ o Ã„â€˜ang sÃ¡Â»Â­ dÃ¡Â»Â¥ng khÃƒÂ³a hÃ¡Â»Âc nÃƒÂ y khÃƒÂ´ng
     const { count: classCount, error: countError } = await supabase
       .from('classes')
       .select('*', { count: 'exact', head: true })
@@ -710,11 +847,11 @@ app.delete('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
     if (classCount && classCount > 0) {
       return res.status(400).json({
         success: false,
-        message: `KhÃ´ng thá»ƒ xÃ³a khÃ³a há»c nÃ y vÃ¬ Ä‘ang cÃ³ ${classCount} lá»›p há»c Ä‘ang sá»­ dá»¥ng. Vui lÃ²ng xÃ³a hoáº·c chuyá»ƒn cÃ¡c lá»›p há»c sang khÃ³a há»c khÃ¡c trÆ°á»›c.`
+        message: `KhÃƒÂ´ng thÃ¡Â»Æ’ xÃƒÂ³a khÃƒÂ³a hÃ¡Â»Âc nÃƒÂ y vÃƒÂ¬ Ã„â€˜ang cÃƒÂ³ ${classCount} lÃ¡Â»â€ºp hÃ¡Â»Âc Ã„â€˜ang sÃ¡Â»Â­ dÃ¡Â»Â¥ng. Vui lÃƒÂ²ng xÃƒÂ³a hoÃ¡ÂºÂ·c chuyÃ¡Â»Æ’n cÃƒÂ¡c lÃ¡Â»â€ºp hÃ¡Â»Âc sang khÃƒÂ³a hÃ¡Â»Âc khÃƒÂ¡c trÃ†Â°Ã¡Â»â€ºc.`
       });
     }
 
-    // XÃ³a grade_structures liÃªn quan trÆ°á»›c (náº¿u cÃ³)
+    // XÃƒÂ³a grade_structures liÃƒÂªn quan trÃ†Â°Ã¡Â»â€ºc (nÃ¡ÂºÂ¿u cÃƒÂ³)
     const { error: gradeError } = await supabase
       .from('grade_structures')
       .delete()
@@ -722,10 +859,10 @@ app.delete('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
 
     if (gradeError) {
       console.error('Error deleting grade structures:', gradeError);
-      // KhÃ´ng throw, tiáº¿p tá»¥c xÃ³a course
+      // KhÃƒÂ´ng throw, tiÃ¡ÂºÂ¿p tÃ¡Â»Â¥c xÃƒÂ³a course
     }
 
-    // XÃ³a khÃ³a há»c
+    // XÃƒÂ³a khÃƒÂ³a hÃ¡Â»Âc
     const { error } = await supabase
       .from('courses')
       .delete()
@@ -743,7 +880,7 @@ app.delete('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
 
     res.json({
       success: true,
-      message: 'XÃ³a khÃ³a há»c thÃ nh cÃ´ng'
+      message: 'XÃƒÂ³a khÃƒÂ³a hÃ¡Â»Âc thÃƒÂ nh cÃƒÂ´ng'
     });
   } catch (error) {
     console.error('Error deleting course:', error);
@@ -751,14 +888,14 @@ app.delete('/api/courses/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
   }
 });
 
-// ============ GRADE STRUCTURES APIs (Cáº¥u hÃ¬nh cá»™t Ä‘iá»ƒm) ============
+// ============ GRADE STRUCTURES APIs (CÃ¡ÂºÂ¥u hÃƒÂ¬nh cÃ¡Â»â„¢t Ã„â€˜iÃ¡Â»Æ’m) ============
 
-// Láº¥y cáº¥u trÃºc Ä‘iá»ƒm cá»§a má»™t khÃ³a há»c (bao gá»“m cáº£ cáº¥u hÃ¬nh tÃ­nh Ä‘iá»ƒm)
+// LÃ¡ÂºÂ¥y cÃ¡ÂºÂ¥u trÃƒÂºc Ã„â€˜iÃ¡Â»Æ’m cÃ¡Â»Â§a mÃ¡Â»â„¢t khÃƒÂ³a hÃ¡Â»Âc (bao gÃ¡Â»â€œm cÃ¡ÂºÂ£ cÃ¡ÂºÂ¥u hÃƒÂ¬nh tÃƒÂ­nh Ã„â€˜iÃ¡Â»Æ’m)
 app.get('/api/courses/:courseId/grade-structures', requireAuth, async (req, res, next) => {
   try {
     const { courseId } = req.params;
 
-    // Láº¥y thÃ´ng tin cáº¥u hÃ¬nh tá»« course
+    // LÃ¡ÂºÂ¥y thÃƒÂ´ng tin cÃ¡ÂºÂ¥u hÃƒÂ¬nh tÃ¡Â»Â« course
     const { data: courseData, error: courseError } = await supabase
       .from('courses')
       .select('calculation_type, pass_score, max_total_score')
@@ -767,7 +904,7 @@ app.get('/api/courses/:courseId/grade-structures', requireAuth, async (req, res,
 
     if (courseError) throw courseError;
 
-    // Láº¥y danh sÃ¡ch cá»™t Ä‘iá»ƒm
+    // LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch cÃ¡Â»â„¢t Ã„â€˜iÃ¡Â»Æ’m
     const { data, error } = await supabase
       .from('grade_structures')
       .select('*')
@@ -776,7 +913,7 @@ app.get('/api/courses/:courseId/grade-structures', requireAuth, async (req, res,
 
     if (error) throw error;
 
-    // TÃ­nh tá»•ng trá»ng sá»‘
+    // TÃƒÂ­nh tÃ¡Â»â€¢ng trÃ¡Â»Âng sÃ¡Â»â€˜
     const totalWeight = data.reduce((sum, col) => sum + parseFloat(col.weight || 0), 0);
 
     res.json({
@@ -795,7 +932,7 @@ app.get('/api/courses/:courseId/grade-structures', requireAuth, async (req, res,
   }
 });
 
-// LÆ°u toÃ n bá»™ cáº¥u trÃºc Ä‘iá»ƒm + cáº¥u hÃ¬nh cá»§a má»™t khÃ³a há»c
+// LÃ†Â°u toÃƒÂ n bÃ¡Â»â„¢ cÃ¡ÂºÂ¥u trÃƒÂºc Ã„â€˜iÃ¡Â»Æ’m + cÃ¡ÂºÂ¥u hÃƒÂ¬nh cÃ¡Â»Â§a mÃ¡Â»â„¢t khÃƒÂ³a hÃ¡Â»Âc
 app.put('/api/courses/:courseId/grade-structures', requireAuth, async (req, res, next) => {
   try {
     const { courseId } = req.params;
@@ -803,32 +940,32 @@ app.put('/api/courses/:courseId/grade-structures', requireAuth, async (req, res,
     // structures: Array of { name, weight, max_score, order_index }
     // config: { calculationType, passScore, maxTotalScore }
 
-    console.log(`ðŸ“Š User ${req.user.email} Ä‘ang cáº­p nháº­t cáº¥u trÃºc Ä‘iá»ƒm cho khÃ³a há»c: ${courseId}`);
+    console.log(`Ã°Å¸â€œÅ  User ${req.user.email} Ã„â€˜ang cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t cÃ¡ÂºÂ¥u trÃƒÂºc Ã„â€˜iÃ¡Â»Æ’m cho khÃƒÂ³a hÃ¡Â»Âc: ${courseId}`);
 
     const calculationType = config?.calculationType || 'weighted';
 
-    // Validate tá»•ng trá»ng sá»‘ = 100% (chá»‰ khi dÃ¹ng weighted)
+    // Validate tÃ¡Â»â€¢ng trÃ¡Â»Âng sÃ¡Â»â€˜ = 100% (chÃ¡Â»â€° khi dÃƒÂ¹ng weighted)
     if (calculationType === 'weighted' && structures.length > 0) {
       const totalWeight = structures.reduce((sum, s) => sum + parseFloat(s.weight || 0), 0);
       if (Math.abs(totalWeight - 1) > 0.01) {
         return res.status(400).json({
           success: false,
-          message: `Tá»•ng trá»ng sá»‘ pháº£i báº±ng 100%. Hiá»‡n táº¡i: ${Math.round(totalWeight * 100)}%`
+          message: `TÃ¡Â»â€¢ng trÃ¡Â»Âng sÃ¡Â»â€˜ phÃ¡ÂºÂ£i bÃ¡ÂºÂ±ng 100%. HiÃ¡Â»â€¡n tÃ¡ÂºÂ¡i: ${Math.round(totalWeight * 100)}%`
         });
       }
     }
 
-    // Validate khÃ´ng cÃ³ tÃªn trÃ¹ng
+    // Validate khÃƒÂ´ng cÃƒÂ³ tÃƒÂªn trÃƒÂ¹ng
     const names = structures.map(s => s.name.trim().toLowerCase());
     const uniqueNames = [...new Set(names)];
     if (names.length !== uniqueNames.length) {
       return res.status(400).json({
         success: false,
-        message: 'KhÃ´ng Ä‘Æ°á»£c cÃ³ 2 cá»™t Ä‘iá»ƒm cÃ¹ng tÃªn'
+        message: 'KhÃƒÂ´ng Ã„â€˜Ã†Â°Ã¡Â»Â£c cÃƒÂ³ 2 cÃ¡Â»â„¢t Ã„â€˜iÃ¡Â»Æ’m cÃƒÂ¹ng tÃƒÂªn'
       });
     }
 
-    // Cáº­p nháº­t cáº¥u hÃ¬nh vÃ o báº£ng courses
+    // CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t cÃ¡ÂºÂ¥u hÃƒÂ¬nh vÃƒÂ o bÃ¡ÂºÂ£ng courses
     const { error: configError } = await supabase
       .from('courses')
       .update({
@@ -840,7 +977,7 @@ app.put('/api/courses/:courseId/grade-structures', requireAuth, async (req, res,
 
     if (configError) throw configError;
 
-    // XÃ³a cáº¥u trÃºc cÅ©
+    // XÃƒÂ³a cÃ¡ÂºÂ¥u trÃƒÂºc cÃ…Â©
     const { error: deleteError } = await supabase
       .from('grade_structures')
       .delete()
@@ -848,7 +985,7 @@ app.put('/api/courses/:courseId/grade-structures', requireAuth, async (req, res,
 
     if (deleteError) throw deleteError;
 
-    // ThÃªm cáº¥u trÃºc má»›i
+    // ThÃƒÂªm cÃ¡ÂºÂ¥u trÃƒÂºc mÃ¡Â»â€ºi
     if (structures.length > 0) {
       const newStructures = structures.map((s, index) => ({
         course_id: courseId,
@@ -866,7 +1003,7 @@ app.put('/api/courses/:courseId/grade-structures', requireAuth, async (req, res,
       if (insertError) throw insertError;
     }
 
-    // Láº¥y láº¡i data má»›i
+    // LÃ¡ÂºÂ¥y lÃ¡ÂºÂ¡i data mÃ¡Â»â€ºi
     const { data, error } = await supabase
       .from('grade_structures')
       .select('*')
@@ -877,7 +1014,7 @@ app.put('/api/courses/:courseId/grade-structures', requireAuth, async (req, res,
 
     res.json({
       success: true,
-      message: 'Cáº­p nháº­t cáº¥u trÃºc Ä‘iá»ƒm thÃ nh cÃ´ng',
+      message: 'CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t cÃ¡ÂºÂ¥u trÃƒÂºc Ã„â€˜iÃ¡Â»Æ’m thÃƒÂ nh cÃƒÂ´ng',
       data,
       config: {
         calculationType: config?.calculationType || 'weighted',
@@ -891,7 +1028,7 @@ app.put('/api/courses/:courseId/grade-structures', requireAuth, async (req, res,
   }
 });
 
-// API kiá»ƒm tra user hiá»‡n táº¡i (debug/profile)
+// API kiÃ¡Â»Æ’m tra user hiÃ¡Â»â€¡n tÃ¡ÂºÂ¡i (debug/profile)
 app.get('/api/me', requireAuth, async (req, res) => {
   res.json({
     success: true,
@@ -907,7 +1044,7 @@ app.get('/api/me', requireAuth, async (req, res) => {
 // ============ SYSTEM SETTINGS APIs ============
 
 /**
- * Láº¥y táº¥t cáº£ settings (global + center-specific)
+ * LÃ¡ÂºÂ¥y tÃ¡ÂºÂ¥t cÃ¡ÂºÂ£ settings (global + center-specific)
  * GET /api/admin/settings
  */
 app.get('/api/admin/settings', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
@@ -915,7 +1052,7 @@ app.get('/api/admin/settings', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
     const { centerId } = req.query;
     const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
 
-    // Láº¥y global settings
+    // LÃ¡ÂºÂ¥y global settings
     const { data: globalSettings, error: globalError } = await supabase
       .from('system_settings')
       .select('*')
@@ -924,7 +1061,7 @@ app.get('/api/admin/settings', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
 
     if (globalError) throw globalError;
 
-    // Láº¥y center-specific settings náº¿u cÃ³
+    // LÃ¡ÂºÂ¥y center-specific settings nÃ¡ÂºÂ¿u cÃƒÂ³
     let centerSettings = [];
     if (effectiveCenterId) {
       const { data, error } = await supabase
@@ -960,7 +1097,7 @@ app.get('/api/admin/settings', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
 });
 
 /**
- * Láº¥y má»™t setting cá»¥ thá»ƒ theo key
+ * LÃ¡ÂºÂ¥y mÃ¡Â»â„¢t setting cÃ¡Â»Â¥ thÃ¡Â»Æ’ theo key
  * GET /api/admin/settings/:key
  */
 app.get('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
@@ -969,7 +1106,7 @@ app.get('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     const { centerId } = req.query;
     const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
 
-    // Thá»­ láº¥y center-specific trÆ°á»›c
+    // ThÃ¡Â»Â­ lÃ¡ÂºÂ¥y center-specific trÃ†Â°Ã¡Â»â€ºc
     if (effectiveCenterId) {
       const { data: centerSetting } = await supabase
         .from('system_settings')
@@ -983,7 +1120,7 @@ app.get('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       }
     }
 
-    // Fallback vá» global
+    // Fallback vÃ¡Â»Â global
     const { data: globalSetting, error } = await supabase
       .from('system_settings')
       .select('*')
@@ -994,7 +1131,7 @@ app.get('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     if (error && error.code !== 'PGRST116') throw error;
 
     if (!globalSetting) {
-      return res.status(404).json({ success: false, message: 'Setting khÃ´ng tá»“n táº¡i' });
+      return res.status(404).json({ success: false, message: 'Setting khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i' });
     }
 
     res.json({ success: true, data: { ...globalSetting, scope: 'global' } });
@@ -1005,7 +1142,7 @@ app.get('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CE
 });
 
 /**
- * Cáº­p nháº­t setting
+ * CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t setting
  * PUT /api/admin/settings/:key
  */
 app.put('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
@@ -1013,16 +1150,16 @@ app.put('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     const { key } = req.params;
     const { value, scope = 'global', centerId } = req.body;
 
-    // Security settings chá»‰ Super Admin Ä‘Æ°á»£c sá»­a
+    // Security settings chÃ¡Â»â€° Super Admin Ã„â€˜Ã†Â°Ã¡Â»Â£c sÃ¡Â»Â­a
     if (key === 'security_config' && req.user.roleCode !== 'SUPER_ADMIN') {
-      return res.status(403).json({ success: false, message: 'Chá»‰ Super Admin má»›i Ä‘Æ°á»£c sá»­a cáº¥u hÃ¬nh báº£o máº­t' });
+      return res.status(403).json({ success: false, message: 'ChÃ¡Â»â€° Super Admin mÃ¡Â»â€ºi Ã„â€˜Ã†Â°Ã¡Â»Â£c sÃ¡Â»Â­a cÃ¡ÂºÂ¥u hÃƒÂ¬nh bÃ¡ÂºÂ£o mÃ¡ÂºÂ­t' });
     }
 
     const targetCenterId = scope === 'center' ? (centerId || req.user.centerId) : null;
 
-    // CENTER_MANAGER khÃ´ng Ä‘Æ°á»£c sá»­a global settings
+    // CENTER_MANAGER khÃƒÂ´ng Ã„â€˜Ã†Â°Ã¡Â»Â£c sÃ¡Â»Â­a global settings
     if (req.user.roleCode === 'CENTER_MANAGER' && !targetCenterId) {
-      return res.status(403).json({ success: false, message: 'Báº¡n chá»‰ cÃ³ thá»ƒ sá»­a cáº¥u hÃ¬nh cá»§a trung tÃ¢m mÃ¬nh' });
+      return res.status(403).json({ success: false, message: 'BÃ¡ÂºÂ¡n chÃ¡Â»â€° cÃƒÂ³ thÃ¡Â»Æ’ sÃ¡Â»Â­a cÃ¡ÂºÂ¥u hÃƒÂ¬nh cÃ¡Â»Â§a trung tÃƒÂ¢m mÃƒÂ¬nh' });
     }
 
     // Upsert setting
@@ -1041,8 +1178,8 @@ app.put('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CE
 
     if (error) throw error;
 
-    console.log(`âš™ï¸ Setting "${key}" updated by ${req.user.email}`);
-    res.json({ success: true, message: 'Cáº­p nháº­t thÃ nh cÃ´ng', data });
+    console.log(`Ã¢Å¡â„¢Ã¯Â¸Â Setting "${key}" updated by ${req.user.email}`);
+    res.json({ success: true, message: 'CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t thÃƒÂ nh cÃƒÂ´ng', data });
   } catch (error) {
     console.error('Error updating setting:', error);
     next(error);
@@ -1050,7 +1187,7 @@ app.put('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CE
 });
 
 /**
- * XÃ³a setting cá»§a center (reset vá» global)
+ * XÃƒÂ³a setting cÃ¡Â»Â§a center (reset vÃ¡Â»Â global)
  * DELETE /api/admin/settings/:key
  */
 app.delete('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
@@ -1060,14 +1197,14 @@ app.delete('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 
 
     const targetCenterId = centerId || req.user.centerId;
 
-    // Chá»‰ cho phÃ©p xÃ³a center-specific, khÃ´ng Ä‘Æ°á»£c xÃ³a global
+    // ChÃ¡Â»â€° cho phÃƒÂ©p xÃƒÂ³a center-specific, khÃƒÂ´ng Ã„â€˜Ã†Â°Ã¡Â»Â£c xÃƒÂ³a global
     if (!targetCenterId) {
-      return res.status(400).json({ success: false, message: 'KhÃ´ng thá»ƒ xÃ³a cáº¥u hÃ¬nh global' });
+      return res.status(400).json({ success: false, message: 'KhÃƒÂ´ng thÃ¡Â»Æ’ xÃƒÂ³a cÃ¡ÂºÂ¥u hÃƒÂ¬nh global' });
     }
 
-    // CENTER_MANAGER chá»‰ xÃ³a Ä‘Æ°á»£c setting cá»§a center mÃ¬nh
+    // CENTER_MANAGER chÃ¡Â»â€° xÃƒÂ³a Ã„â€˜Ã†Â°Ã¡Â»Â£c setting cÃ¡Â»Â§a center mÃƒÂ¬nh
     if (req.user.roleCode === 'CENTER_MANAGER' && targetCenterId !== req.user.centerId) {
-      return res.status(403).json({ success: false, message: 'Báº¡n chá»‰ cÃ³ thá»ƒ xÃ³a cáº¥u hÃ¬nh cá»§a trung tÃ¢m mÃ¬nh' });
+      return res.status(403).json({ success: false, message: 'BÃ¡ÂºÂ¡n chÃ¡Â»â€° cÃƒÂ³ thÃ¡Â»Æ’ xÃƒÂ³a cÃ¡ÂºÂ¥u hÃƒÂ¬nh cÃ¡Â»Â§a trung tÃƒÂ¢m mÃƒÂ¬nh' });
     }
 
     const { error } = await supabase
@@ -1078,8 +1215,8 @@ app.delete('/api/admin/settings/:key', requireAuth, requireRole(['SUPER_ADMIN', 
 
     if (error) throw error;
 
-    console.log(`âš™ï¸ Setting "${key}" reset to global by ${req.user.email}`);
-    res.json({ success: true, message: 'ÄÃ£ reset vá» cáº¥u hÃ¬nh máº·c Ä‘á»‹nh' });
+    console.log(`Ã¢Å¡â„¢Ã¯Â¸Â Setting "${key}" reset to global by ${req.user.email}`);
+    res.json({ success: true, message: 'Ã„ÂÃƒÂ£ reset vÃ¡Â»Â cÃ¡ÂºÂ¥u hÃƒÂ¬nh mÃ¡ÂºÂ·c Ã„â€˜Ã¡Â»â€¹nh' });
   } catch (error) {
     console.error('Error deleting setting:', error);
     next(error);
@@ -1097,18 +1234,1479 @@ app.post('/api/admin/settings/email/test', requireAuth, requireRole(['SUPER_ADMI
     if (!smtpConfig?.smtpHost || !smtpConfig?.smtpPort || !testEmail) {
       return res.status(400).json({
         success: false,
-        error: 'Vui lÃ²ng Ä‘iá»n Ä‘áº§y Ä‘á»§ thÃ´ng tin SMTP vÃ  email thá»­ nghiá»‡m'
+        error: 'Vui lÃƒÂ²ng Ã„â€˜iÃ¡Â»Ân Ã„â€˜Ã¡ÂºÂ§y Ã„â€˜Ã¡Â»Â§ thÃƒÂ´ng tin SMTP vÃƒÂ  email thÃ¡Â»Â­ nghiÃ¡Â»â€¡m'
       });
     }
 
     // TODO: Implement actual SMTP test with nodemailer when ready
-    console.log(`ðŸ“§ SMTP test requested by ${req.user.email} to ${testEmail}`);
+    console.log(`Ã°Å¸â€œÂ§ SMTP test requested by ${req.user.email} to ${testEmail}`);
     res.json({
       success: true,
-      message: 'Cáº¥u hÃ¬nh SMTP há»£p lá»‡. Káº¿t ná»‘i thá»­ nghiá»‡m sáº½ Ä‘Æ°á»£c há»— trá»£ trong phiÃªn báº£n tiáº¿p theo.'
+      message: 'CÃ¡ÂºÂ¥u hÃƒÂ¬nh SMTP hÃ¡Â»Â£p lÃ¡Â»â€¡. KÃ¡ÂºÂ¿t nÃ¡Â»â€˜i thÃ¡Â»Â­ nghiÃ¡Â»â€¡m sÃ¡ÂºÂ½ Ã„â€˜Ã†Â°Ã¡Â»Â£c hÃ¡Â»â€” trÃ¡Â»Â£ trong phiÃƒÂªn bÃ¡ÂºÂ£n tiÃ¡ÂºÂ¿p theo.'
     });
   } catch (error) {
     console.error('Error testing email:', error);
+    next(error);
+  }
+});
+
+// ============ CORE GAP FLAGS / OBSERVABILITY / ASSESSMENT APIs ============
+
+app.get('/api/admin/core-gap-flags', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    incrementCoreGapMetric('requests', 'core_gap_flags_read');
+
+    const { centerId } = req.query;
+    const { effectiveCenterId, error: centerError } = getEffectiveCenterId(req.user, centerId);
+
+    if (centerError) {
+      return res.status(403).json({ success: false, message: centerError });
+    }
+
+    const flagKeys = Object.values(CORE_GAP_FLAGS);
+
+    const { data: globalRows, error: globalError } = await supabase
+      .from('system_settings')
+      .select('key, value, description, updated_at')
+      .in('key', flagKeys)
+      .is('center_id', null);
+
+    if (globalError) throw globalError;
+
+    let centerRows = [];
+    if (effectiveCenterId) {
+      const { data, error } = await supabase
+        .from('system_settings')
+        .select('key, value, description, updated_at')
+        .in('key', flagKeys)
+        .eq('center_id', effectiveCenterId);
+      if (error) throw error;
+      centerRows = data || [];
+    }
+
+    const globalMap = new Map((globalRows || []).map(item => [item.key, item]));
+    const centerMap = new Map((centerRows || []).map(item => [item.key, item]));
+
+    const data = flagKeys.map((key) => {
+      const centerValue = centerMap.get(key);
+      const globalValue = globalMap.get(key);
+      const active = centerValue || globalValue;
+      return {
+        key,
+        enabled: parseFlagEnabled(active?.value),
+        scope: centerValue ? 'center' : 'global',
+        description: active?.description || globalValue?.description || null,
+        updated_at: active?.updated_at || null
+      };
+    });
+
+    res.json({ success: true, data, meta: { center_id: effectiveCenterId || null } });
+  } catch (error) {
+    console.error('Error fetching core gap flags:', error);
+    incrementCoreGapMetric('failures', 'core_gap_flags_read');
+    next(error);
+  }
+});
+
+app.put('/api/admin/core-gap-flags/:flagKey', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    incrementCoreGapMetric('requests', 'core_gap_flags_update');
+
+    const { flagKey } = req.params;
+    const { enabled, centerId } = req.body || {};
+
+    if (!Object.values(CORE_GAP_FLAGS).includes(flagKey)) {
+      return res.status(400).json({ success: false, message: 'Flag khÃ´ng há»£p lá»‡' });
+    }
+
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({ success: false, message: 'enabled pháº£i lÃ  boolean' });
+    }
+
+    const useGlobalScope = req.user?.roleCode === 'SUPER_ADMIN' && req.query.scope === 'global';
+
+    let targetCenterId = null;
+    if (!useGlobalScope) {
+      const { effectiveCenterId, error: centerError } = getEffectiveCenterId(req.user, centerId);
+      if (centerError) {
+        return res.status(403).json({ success: false, message: centerError });
+      }
+      targetCenterId = effectiveCenterId || req.user.centerId || null;
+    }
+
+    const payload = {
+      center_id: targetCenterId,
+      key: flagKey,
+      value: { enabled },
+      description: `Feature flag ${flagKey}`,
+      updated_by: req.user.id
+    };
+
+    const { data, error } = await supabase
+      .from('system_settings')
+      .upsert(payload, { onConflict: 'center_id,key' })
+      .select('id, key, center_id, value, updated_at')
+      .single();
+
+    if (error) throw error;
+
+    await logCoreGapAudit(req, {
+      action: CORE_GAP_AUDIT_EVENTS.FEATURE_FLAG_UPDATE,
+      tableName: 'system_settings',
+      recordId: data.id,
+      newValues: data,
+      metadata: { flag_key: flagKey, enabled },
+      centerId: targetCenterId
+    });
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error updating core gap flag:', error);
+    incrementCoreGapMetric('failures', 'core_gap_flags_update');
+    next(error);
+  }
+});
+
+app.get('/api/admin/core-gap-metrics', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (_req, res) => {
+  res.json({
+    success: true,
+    data: {
+      ...coreGapMetrics,
+      generated_at: new Date().toISOString(),
+      audit_events: CORE_GAP_AUDIT_EVENTS
+    }
+  });
+});
+
+app.get('/api/assessment/tests', requireAuth, async (req, res, next) => {
+  try {
+    incrementCoreGapMetric('requests', 'assessment_tests_list');
+    const { centerId, activeOnly } = req.query;
+
+    const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.ONLINE_ASSESSMENT, req, centerId);
+    if (flag.error) {
+      return res.status(403).json({ success: false, message: flag.error });
+    }
+    if (!flag.enabled) {
+      return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng assessment chÆ°a Ä‘Æ°á»£c báº­t cho trung tÃ¢m nÃ y' });
+    }
+
+    let query = supabase
+      .from('assessment_tests')
+      .select('id, center_id, title, slug, category, duration_minutes, total_questions, attempts_allowed, cooldown_hours, is_active, created_at')
+      .eq('center_id', flag.centerId)
+      .order('created_at', { ascending: false });
+
+    const forceActive = String(activeOnly).toLowerCase() === 'true' || req.user.roleCode === 'STUDENT';
+    if (forceActive) {
+      query = query.eq('is_active', true);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json({ success: true, data: data || [] });
+  } catch (error) {
+    console.error('Error fetching assessment tests:', error);
+    incrementCoreGapMetric('failures', 'assessment_tests_list');
+    next(error);
+  }
+});
+
+app.post('/api/assessment/tests', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    incrementCoreGapMetric('requests', 'assessment_tests_create');
+    const {
+      centerId,
+      title,
+      slug,
+      category = 'placement',
+      duration_minutes = 30,
+      attempts_allowed = 3,
+      cooldown_hours = 24,
+      is_active = false
+    } = req.body || {};
+
+    if (!title || !slug) {
+      return res.status(400).json({ success: false, message: 'Thiáº¿u title hoáº·c slug' });
+    }
+
+    const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.ONLINE_ASSESSMENT, req, centerId);
+    if (flag.error) {
+      return res.status(403).json({ success: false, message: flag.error });
+    }
+    if (!flag.enabled) {
+      return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng assessment chÆ°a Ä‘Æ°á»£c báº­t' });
+    }
+
+    const payload = {
+      center_id: flag.centerId,
+      title: String(title).trim(),
+      slug: String(slug).trim().toLowerCase(),
+      category,
+      duration_minutes,
+      attempts_allowed,
+      cooldown_hours,
+      is_active,
+      created_by: req.user.id,
+      updated_by: req.user.id
+    };
+
+    const { data, error } = await supabase
+      .from('assessment_tests')
+      .insert(payload)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    await logCoreGapAudit(req, {
+      action: CORE_GAP_AUDIT_EVENTS.ASSESSMENT_TEST_CREATE,
+      tableName: 'assessment_tests',
+      recordId: data.id,
+      newValues: data,
+      centerId: flag.centerId
+    });
+
+    res.status(201).json({ success: true, data });
+  } catch (error) {
+    console.error('Error creating assessment test:', error);
+    incrementCoreGapMetric('failures', 'assessment_tests_create');
+    next(error);
+  }
+});
+
+app.put('/api/assessment/tests/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    incrementCoreGapMetric('requests', 'assessment_tests_update');
+    const { id } = req.params;
+    const { centerId, ...updates } = req.body || {};
+
+    const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.ONLINE_ASSESSMENT, req, centerId);
+    if (flag.error) {
+      return res.status(403).json({ success: false, message: flag.error });
+    }
+    if (!flag.enabled) {
+      return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng assessment chÆ°a Ä‘Æ°á»£c báº­t' });
+    }
+
+    const { data: oldTest, error: oldError } = await supabase
+      .from('assessment_tests')
+      .select('*')
+      .eq('id', id)
+      .eq('center_id', flag.centerId)
+      .single();
+
+    if (oldError || !oldTest) {
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y bÃ i assessment' });
+    }
+
+    const payload = {
+      ...updates,
+      updated_by: req.user.id,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabase
+      .from('assessment_tests')
+      .update(payload)
+      .eq('id', id)
+      .eq('center_id', flag.centerId)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    await logCoreGapAudit(req, {
+      action: CORE_GAP_AUDIT_EVENTS.ASSESSMENT_TEST_UPDATE,
+      tableName: 'assessment_tests',
+      recordId: id,
+      oldValues: oldTest,
+      newValues: data,
+      centerId: flag.centerId
+    });
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error updating assessment test:', error);
+    incrementCoreGapMetric('failures', 'assessment_tests_update');
+    next(error);
+  }
+});
+
+app.post('/api/assessment/tests/:id/publish', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    incrementCoreGapMetric('requests', 'assessment_tests_publish');
+    const { id } = req.params;
+    const { centerId, publish = true } = req.body || {};
+
+    const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.ONLINE_ASSESSMENT, req, centerId);
+    if (flag.error) {
+      return res.status(403).json({ success: false, message: flag.error });
+    }
+    if (!flag.enabled) {
+      return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng assessment chÆ°a Ä‘Æ°á»£c báº­t' });
+    }
+
+    const { data, error } = await supabase
+      .from('assessment_tests')
+      .update({
+        is_active: Boolean(publish),
+        updated_by: req.user.id,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .eq('center_id', flag.centerId)
+      .select('*')
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y bÃ i assessment' });
+    }
+
+    await logCoreGapAudit(req, {
+      action: CORE_GAP_AUDIT_EVENTS.ASSESSMENT_TEST_PUBLISH,
+      tableName: 'assessment_tests',
+      recordId: id,
+      newValues: { is_active: data.is_active },
+      metadata: { publish: Boolean(publish) },
+      centerId: flag.centerId
+    });
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error publishing assessment test:', error);
+    incrementCoreGapMetric('failures', 'assessment_tests_publish');
+    next(error);
+  }
+});
+
+app.post('/api/assessment/tests/:id/questions', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    incrementCoreGapMetric('requests', 'assessment_questions_create');
+    const { id } = req.params;
+    const {
+      centerId,
+      question_text,
+      question_type = 'multiple_choice',
+      options = [],
+      correct_answer,
+      points = 1,
+      difficulty = 'medium',
+      skill_area,
+      order_index = 0,
+      explanation = null
+    } = req.body || {};
+
+    if (!question_text || !correct_answer) {
+      return res.status(400).json({ success: false, message: 'Thiáº¿u question_text hoáº·c correct_answer' });
+    }
+
+    const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.ONLINE_ASSESSMENT, req, centerId);
+    if (flag.error) {
+      return res.status(403).json({ success: false, message: flag.error });
+    }
+    if (!flag.enabled) {
+      return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng assessment chÆ°a Ä‘Æ°á»£c báº­t' });
+    }
+
+    const { data: test, error: testError } = await supabase
+      .from('assessment_tests')
+      .select('id, center_id')
+      .eq('id', id)
+      .eq('center_id', flag.centerId)
+      .single();
+
+    if (testError || !test) {
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y test assessment' });
+    }
+
+    const { data, error } = await supabase
+      .from('assessment_questions')
+      .insert({
+        test_id: id,
+        center_id: flag.centerId,
+        question_text,
+        question_type,
+        options,
+        correct_answer,
+        points,
+        difficulty,
+        skill_area,
+        order_index,
+        explanation,
+        created_by: req.user.id,
+        updated_by: req.user.id
+      })
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json({ success: true, data });
+  } catch (error) {
+    console.error('Error creating assessment question:', error);
+    incrementCoreGapMetric('failures', 'assessment_questions_create');
+    next(error);
+  }
+});
+
+app.post('/api/assessment/tests/:id/start', requireAuth, requireRole(['STUDENT']), async (req, res, next) => {
+  try {
+    incrementCoreGapMetric('requests', 'assessment_attempt_start');
+    const { id } = req.params;
+    const { centerId } = req.body || {};
+
+    const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.ONLINE_ASSESSMENT, req, centerId);
+    if (flag.error) {
+      return res.status(403).json({ success: false, message: flag.error });
+    }
+    if (!flag.enabled) {
+      return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng assessment chÆ°a Ä‘Æ°á»£c báº­t' });
+    }
+
+    const { data: test, error: testError } = await supabase
+      .from('assessment_tests')
+      .select('id, slug, center_id, is_active')
+      .eq('id', id)
+      .eq('center_id', flag.centerId)
+      .single();
+
+    if (testError || !test) {
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y bÃ i assessment' });
+    }
+
+    if (!test.is_active) {
+      return res.status(400).json({ success: false, message: 'BÃ i assessment chÆ°a Ä‘Æ°á»£c publish' });
+    }
+
+    const { data: rpcResult, error: rpcError } = await supabase.rpc('start_assessment_attempt', {
+      p_test_slug: test.slug,
+      p_user_id: req.user.id,
+      p_guest_email: null,
+      p_guest_name: null,
+      p_ip_address: req.headers['x-forwarded-for'] || req.ip,
+      p_user_agent: req.headers['user-agent'],
+      p_browser_fingerprint: req.headers['x-browser-fingerprint'] || null
+    });
+
+    if (rpcError) throw rpcError;
+
+    const payload = rpcResult || {};
+    if (!payload.success) {
+      return res.status(400).json({ success: false, message: payload.error || 'KhÃ´ng thá»ƒ báº¯t Ä‘áº§u bÃ i assessment' });
+    }
+
+    incrementCoreGapMetric('transitions', 'assessment_attempt_started');
+
+    await logCoreGapAudit(req, {
+      action: CORE_GAP_AUDIT_EVENTS.ASSESSMENT_ATTEMPT_START,
+      tableName: 'assessment_attempts',
+      recordId: payload.attempt_id,
+      metadata: { test_id: id },
+      centerId: flag.centerId
+    });
+
+    res.status(201).json({ success: true, data: payload });
+  } catch (error) {
+    console.error('Error starting assessment attempt:', error);
+    incrementCoreGapMetric('failures', 'assessment_attempt_start');
+    next(error);
+  }
+});
+
+app.get('/api/assessment/attempts/:attemptId', requireAuth, async (req, res, next) => {
+  try {
+    incrementCoreGapMetric('requests', 'assessment_attempt_progress');
+    const { attemptId } = req.params;
+    const { centerId } = req.query;
+
+    const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.ONLINE_ASSESSMENT, req, centerId);
+    if (flag.error) {
+      return res.status(403).json({ success: false, message: flag.error });
+    }
+    if (!flag.enabled) {
+      return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng assessment chÆ°a Ä‘Æ°á»£c báº­t' });
+    }
+
+    const { data, error } = await supabase
+      .from('assessment_attempts')
+      .select('id, test_id, user_id, center_id, status, started_at, expires_at, questions_order, answers, time_spent_seconds, tab_switches')
+      .eq('id', attemptId)
+      .eq('center_id', flag.centerId)
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lÆ°á»£t lÃ m bÃ i' });
+    }
+
+    const privileged = ['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER'].includes(req.user.roleCode);
+    if (!privileged && data.user_id !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem lÆ°á»£t lÃ m bÃ i nÃ y' });
+    }
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error fetching assessment attempt progress:', error);
+    incrementCoreGapMetric('failures', 'assessment_attempt_progress');
+    next(error);
+  }
+});
+
+app.post('/api/assessment/attempts/:attemptId/submit', requireAuth, requireRole(['STUDENT']), async (req, res, next) => {
+  try {
+    incrementCoreGapMetric('requests', 'assessment_attempt_submit');
+    const { attemptId } = req.params;
+    const {
+      answers = {},
+      time_spent_seconds = 0,
+      tab_switches = 0,
+      centerId
+    } = req.body || {};
+
+    const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.ONLINE_ASSESSMENT, req, centerId);
+    if (flag.error) {
+      return res.status(403).json({ success: false, message: flag.error });
+    }
+    if (!flag.enabled) {
+      return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng assessment chÆ°a Ä‘Æ°á»£c báº­t' });
+    }
+
+    const { data: attempt, error: attemptError } = await supabase
+      .from('assessment_attempts')
+      .select('id, user_id, center_id, status')
+      .eq('id', attemptId)
+      .eq('center_id', flag.centerId)
+      .single();
+
+    if (attemptError || !attempt) {
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lÆ°á»£t lÃ m bÃ i' });
+    }
+
+    if (attempt.user_id !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n submit lÆ°á»£t lÃ m bÃ i nÃ y' });
+    }
+
+    if (attempt.status === 'completed') {
+      const { data: existingResult } = await supabase
+        .from('assessment_attempts')
+        .select('id, score, max_score, percentage, result_level, result_level_name, result_level_description, result_recommended_courses, completed_at, status')
+        .eq('id', attemptId)
+        .eq('center_id', flag.centerId)
+        .single();
+
+      return res.json({
+        success: true,
+        data: {
+          success: true,
+          idempotent: true,
+          attempt_id: attemptId,
+          score: existingResult?.score ?? null,
+          max_score: existingResult?.max_score ?? null,
+          percentage: existingResult?.percentage ?? null,
+          level_code: existingResult?.result_level ?? null,
+          level_name: existingResult?.result_level_name ?? null,
+          description: existingResult?.result_level_description ?? null,
+          recommended_courses: existingResult?.result_recommended_courses ?? [],
+          completed_at: existingResult?.completed_at ?? null,
+          status: existingResult?.status ?? 'completed'
+        }
+      });
+    }
+
+    const { data: rpcResult, error: rpcError } = await supabase.rpc('submit_assessment_attempt', {
+      p_attempt_id: attemptId,
+      p_answers: answers,
+      p_time_spent_seconds: time_spent_seconds,
+      p_tab_switches: tab_switches
+    });
+
+    if (rpcError) throw rpcError;
+
+    const payload = rpcResult || {};
+    if (!payload.success) {
+      return res.status(400).json({ success: false, message: payload.error || 'KhÃ´ng thá»ƒ ná»™p bÃ i assessment' });
+    }
+
+    incrementCoreGapMetric('transitions', 'assessment_attempt_submitted');
+
+    await logCoreGapAudit(req, {
+      action: CORE_GAP_AUDIT_EVENTS.ASSESSMENT_ATTEMPT_SUBMIT,
+      tableName: 'assessment_attempts',
+      recordId: attemptId,
+      oldValues: { status: attempt.status },
+      newValues: { status: 'completed' },
+      centerId: flag.centerId
+    });
+
+    res.json({ success: true, data: payload });
+  } catch (error) {
+    console.error('Error submitting assessment attempt:', error);
+    incrementCoreGapMetric('failures', 'assessment_attempt_submit');
+    next(error);
+  }
+});
+
+app.get('/api/assessment/attempts/:attemptId/result', requireAuth, async (req, res, next) => {
+  try {
+    incrementCoreGapMetric('requests', 'assessment_attempt_result');
+    const { attemptId } = req.params;
+    const { centerId } = req.query;
+
+    const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.ONLINE_ASSESSMENT, req, centerId);
+    if (flag.error) {
+      return res.status(403).json({ success: false, message: flag.error });
+    }
+    if (!flag.enabled) {
+      return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng assessment chÆ°a Ä‘Æ°á»£c báº­t' });
+    }
+
+    const { data, error } = await supabase
+      .from('assessment_attempts')
+      .select(`
+        *,
+        assessment_tests (id, title, slug, category, duration_minutes),
+        assessment_results_mapping (level_code, level_name, description, color_code, recommended_courses)
+      `)
+      .eq('id', attemptId)
+      .eq('center_id', flag.centerId)
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y káº¿t quáº£ assessment' });
+    }
+
+    const privileged = ['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER'].includes(req.user.roleCode);
+    if (!privileged && data.user_id !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem káº¿t quáº£ nÃ y' });
+    }
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error fetching assessment result:', error);
+    incrementCoreGapMetric('failures', 'assessment_attempt_result');
+    next(error);
+  }
+});
+
+// ============ STRUCTURED ASSIGNMENTS APIs ============
+
+app.post('/api/assignments', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    incrementCoreGapMetric('requests', 'assignment_create');
+    const {
+      centerId,
+      class_id,
+      course_id,
+      legacy_session_id = null,
+      title,
+      instructions,
+      due_at = null,
+      max_score = 100,
+      status = 'draft'
+    } = req.body || {};
+
+    if (!title || !class_id) {
+      return res.status(400).json({ success: false, message: 'Thiáº¿u class_id hoáº·c title' });
+    }
+
+    const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.STRUCTURED_ASSIGNMENTS, req, centerId);
+    if (flag.error) {
+      return res.status(403).json({ success: false, message: flag.error });
+    }
+    if (!flag.enabled) {
+      return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng assignments chÆ°a Ä‘Æ°á»£c báº­t' });
+    }
+
+    const payload = {
+      center_id: flag.centerId,
+      class_id,
+      course_id,
+      legacy_session_id,
+      title,
+      instructions,
+      due_at,
+      max_score,
+      status,
+      created_by: req.user.id,
+      updated_by: req.user.id
+    };
+
+    const { data, error } = await supabase
+      .from('assignments')
+      .insert(payload)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    // Bridge: dual-write into sessions.homework when linked legacy session exists
+    if (legacy_session_id && instructions) {
+      await supabase
+        .from('sessions')
+        .update({ homework: instructions })
+        .eq('id', legacy_session_id)
+        .eq('center_id', flag.centerId);
+
+      await logCoreGapAudit(req, {
+        action: CORE_GAP_AUDIT_EVENTS.ASSIGNMENT_BRIDGE_SYNC,
+        tableName: 'sessions',
+        recordId: legacy_session_id,
+        newValues: { homework: instructions },
+        metadata: { assignment_id: data.id },
+        centerId: flag.centerId
+      });
+    }
+
+    await logCoreGapAudit(req, {
+      action: CORE_GAP_AUDIT_EVENTS.ASSIGNMENT_CREATE,
+      tableName: 'assignments',
+      recordId: data.id,
+      newValues: data,
+      centerId: flag.centerId
+    });
+
+    res.status(201).json({ success: true, data });
+  } catch (error) {
+    console.error('Error creating assignment:', error);
+    incrementCoreGapMetric('failures', 'assignment_create');
+    next(error);
+  }
+});
+
+app.get('/api/assignments', requireAuth, async (req, res, next) => {
+  try {
+    incrementCoreGapMetric('requests', 'assignment_list');
+    const { centerId, class_id, status } = req.query;
+
+    const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.STRUCTURED_ASSIGNMENTS, req, centerId);
+    if (flag.error) {
+      return res.status(403).json({ success: false, message: flag.error });
+    }
+    if (!flag.enabled) {
+      return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng assignments chÆ°a Ä‘Æ°á»£c báº­t' });
+    }
+
+    let query = supabase
+      .from('assignments')
+      .select('*')
+      .eq('center_id', flag.centerId)
+      .order('created_at', { ascending: false });
+
+    if (class_id) {
+      query = query.eq('class_id', class_id);
+    }
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    // Student can only view published assignments
+    if (req.user.roleCode === 'STUDENT') {
+      query = query.eq('status', 'published');
+    }
+
+    const { data: assignments, error } = await query;
+    if (error) throw error;
+
+    // Student: merge own submission status
+    if (req.user.roleCode === 'STUDENT' && assignments?.length) {
+      const assignmentIds = assignments.map((a) => a.id);
+      const { data: submissions } = await supabase
+        .from('assignment_submissions')
+        .select('assignment_id, status, submitted_at, grade, graded_at')
+        .in('assignment_id', assignmentIds)
+        .eq('student_user_id', req.user.id);
+
+      const submissionMap = new Map((submissions || []).map((s) => [s.assignment_id, s]));
+      const merged = assignments.map((assignment) => ({
+        ...assignment,
+        my_submission: submissionMap.get(assignment.id) || null
+      }));
+
+      return res.json({ success: true, data: merged });
+    }
+
+    res.json({ success: true, data: assignments || [] });
+  } catch (error) {
+    console.error('Error fetching assignments:', error);
+    incrementCoreGapMetric('failures', 'assignment_list');
+    next(error);
+  }
+});
+
+app.post('/api/assignments/:id/submit', requireAuth, requireRole(['STUDENT']), async (req, res, next) => {
+  try {
+    incrementCoreGapMetric('requests', 'assignment_submit');
+    const { id } = req.params;
+    const { centerId, content = {} } = req.body || {};
+
+    const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.STRUCTURED_ASSIGNMENTS, req, centerId);
+    if (flag.error) {
+      return res.status(403).json({ success: false, message: flag.error });
+    }
+    if (!flag.enabled) {
+      return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng assignments chÆ°a Ä‘Æ°á»£c báº­t' });
+    }
+
+    const { data: assignment, error: assignmentError } = await supabase
+      .from('assignments')
+      .select('id, center_id, status')
+      .eq('id', id)
+      .eq('center_id', flag.centerId)
+      .single();
+
+    if (assignmentError || !assignment) {
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y assignment' });
+    }
+
+    if (assignment.status !== 'published') {
+      return res.status(400).json({ success: false, message: 'Assignment chÆ°a má»Ÿ ná»™p bÃ i' });
+    }
+
+    const { data: existing } = await supabase
+      .from('assignment_submissions')
+      .select('id, status')
+      .eq('assignment_id', id)
+      .eq('student_user_id', req.user.id)
+      .maybeSingle();
+
+    const nowIso = new Date().toISOString();
+    const nextStatus = existing?.id ? 'resubmitted' : 'submitted';
+
+    const { data, error } = await supabase
+      .from('assignment_submissions')
+      .upsert({
+        assignment_id: id,
+        student_user_id: req.user.id,
+        status: nextStatus,
+        content,
+        submitted_at: nowIso,
+        updated_at: nowIso
+      }, { onConflict: 'assignment_id,student_user_id' })
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    incrementCoreGapMetric('transitions', 'assignment_submitted');
+
+    await logCoreGapAudit(req, {
+      action: CORE_GAP_AUDIT_EVENTS.ASSIGNMENT_SUBMIT,
+      tableName: 'assignment_submissions',
+      recordId: data.id,
+      oldValues: existing || null,
+      newValues: data,
+      centerId: flag.centerId
+    });
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error submitting assignment:', error);
+    incrementCoreGapMetric('failures', 'assignment_submit');
+    next(error);
+  }
+});
+
+app.post('/api/assignments/:id/grade', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    incrementCoreGapMetric('requests', 'assignment_grade');
+    const { id } = req.params;
+    const { centerId, student_user_id, grade, feedback_text = '' } = req.body || {};
+
+    if (!student_user_id || typeof grade !== 'number') {
+      return res.status(400).json({ success: false, message: 'Thiáº¿u student_user_id hoáº·c grade khÃ´ng há»£p lá»‡' });
+    }
+
+    const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.STRUCTURED_ASSIGNMENTS, req, centerId);
+    if (flag.error) {
+      return res.status(403).json({ success: false, message: flag.error });
+    }
+    if (!flag.enabled) {
+      return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng assignments chÆ°a Ä‘Æ°á»£c báº­t' });
+    }
+
+    // Verify assignment belongs to the caller's center and fetch max_score for range validation
+    const { data: assignmentRow, error: assignmentLookupError } = await supabase
+      .from('assignments')
+      .select('id, max_score')
+      .eq('id', id)
+      .eq('center_id', flag.centerId)
+      .single();
+
+    if (assignmentLookupError || !assignmentRow) {
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y assignment trong trung tÃ¢m hiá»‡n táº¡i' });
+    }
+
+    if (grade < 0 || grade > assignmentRow.max_score) {
+      return res.status(400).json({
+        success: false,
+        message: `Äiá»ƒm pháº£i náº±m trong khoáº£ng 0â€“${assignmentRow.max_score}`
+      });
+    }
+
+    const { data: submission, error: submissionError } = await supabase
+      .from('assignment_submissions')
+      .select('id, assignment_id, status, grade')
+      .eq('assignment_id', id)
+      .eq('student_user_id', student_user_id)
+      .single();
+
+    if (submissionError || !submission) {
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y submission Ä‘á»ƒ cháº¥m' });
+    }
+
+    const nowIso = new Date().toISOString();
+    const { data: graded, error: gradeError } = await supabase
+      .from('assignment_submissions')
+      .update({
+        status: 'graded',
+        grade,
+        graded_at: nowIso,
+        grader_user_id: req.user.id,
+        updated_at: nowIso
+      })
+      .eq('id', submission.id)
+      .select('*')
+      .single();
+
+    if (gradeError) throw gradeError;
+
+    if (feedback_text && feedback_text.trim()) {
+      await supabase
+        .from('assignment_feedback')
+        .insert({
+          submission_id: submission.id,
+          feedback_text,
+          created_by: req.user.id
+        });
+    }
+
+    incrementCoreGapMetric('transitions', 'assignment_graded');
+
+    await logCoreGapAudit(req, {
+      action: CORE_GAP_AUDIT_EVENTS.ASSIGNMENT_GRADE,
+      tableName: 'assignment_submissions',
+      recordId: submission.id,
+      oldValues: submission,
+      newValues: graded,
+      centerId: flag.centerId
+    });
+
+    res.json({ success: true, data: graded });
+  } catch (error) {
+    console.error('Error grading assignment:', error);
+    incrementCoreGapMetric('failures', 'assignment_grade');
+    next(error);
+  }
+});
+
+app.get('/api/assignments/:id/submissions', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    incrementCoreGapMetric('requests', 'assignment_submissions_list');
+    const { id } = req.params;
+    const { centerId } = req.query;
+
+    const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.STRUCTURED_ASSIGNMENTS, req, centerId);
+    if (flag.error) {
+      return res.status(403).json({ success: false, message: flag.error });
+    }
+    if (!flag.enabled) {
+      return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng assignments chÆ°a Ä‘Æ°á»£c báº­t' });
+    }
+
+    const { data: assignment, error: assignmentError } = await supabase
+      .from('assignments')
+      .select('id, center_id')
+      .eq('id', id)
+      .eq('center_id', flag.centerId)
+      .single();
+
+    if (assignmentError || !assignment) {
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y assignment trong trung tÃ¢m hiá»‡n táº¡i' });
+    }
+
+    const { data, error } = await supabase
+      .from('assignment_submissions')
+      .select(`
+        *,
+        assignment_feedback(id, feedback_text, created_at, created_by),
+        users!assignment_submissions_student_user_id_fkey(id, full_name, email)
+      `)
+      .eq('assignment_id', id)
+      .order('submitted_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({ success: true, data: data || [] });
+  } catch (error) {
+    console.error('Error fetching assignment submissions:', error);
+    incrementCoreGapMetric('failures', 'assignment_submissions_list');
+    next(error);
+  }
+});
+
+app.get('/api/assignments/bridge/session/:sessionId', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    incrementCoreGapMetric('requests', 'assignment_bridge_read');
+    const { sessionId } = req.params;
+    const { centerId } = req.query;
+
+    const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.STRUCTURED_ASSIGNMENTS, req, centerId);
+    if (flag.error) {
+      return res.status(403).json({ success: false, message: flag.error });
+    }
+    if (!flag.enabled) {
+      return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng assignments chÆ°a Ä‘Æ°á»£c báº­t' });
+    }
+
+    const { data: sessionRow, error: sessionError } = await supabase
+      .from('sessions')
+      .select('id, center_id, homework, teacher_notes')
+      .eq('id', sessionId)
+      .eq('center_id', flag.centerId)
+      .single();
+
+    if (sessionError || !sessionRow) {
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y session' });
+    }
+
+    const { data: linkedAssignments } = await supabase
+      .from('assignments')
+      .select('*')
+      .eq('legacy_session_id', sessionId)
+      .order('created_at', { ascending: false });
+
+    res.json({
+      success: true,
+      data: {
+        session: sessionRow,
+        linked_assignments: linkedAssignments || []
+      }
+    });
+  } catch (error) {
+    console.error('Error reading assignment bridge:', error);
+    incrementCoreGapMetric('failures', 'assignment_bridge_read');
+    next(error);
+  }
+});
+
+app.put('/api/assignments/bridge/session/:sessionId', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
+  try {
+    incrementCoreGapMetric('requests', 'assignment_bridge_write');
+    const { sessionId } = req.params;
+    const { centerId, homework, title = 'BÃ i táº­p tá»« buá»•i há»c', due_at = null } = req.body || {};
+
+    const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.STRUCTURED_ASSIGNMENTS, req, centerId);
+    if (flag.error) {
+      return res.status(403).json({ success: false, message: flag.error });
+    }
+    if (!flag.enabled) {
+      return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng assignments chÆ°a Ä‘Æ°á»£c báº­t' });
+    }
+
+    const { data: sessionRow, error: sessionError } = await supabase
+      .from('sessions')
+      .select('id, center_id, class_id, homework')
+      .eq('id', sessionId)
+      .eq('center_id', flag.centerId)
+      .single();
+
+    if (sessionError || !sessionRow) {
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y session' });
+    }
+
+    await supabase
+      .from('sessions')
+      .update({ homework: homework || null })
+      .eq('id', sessionId)
+      .eq('center_id', flag.centerId);
+
+    let assignmentRecord = null;
+    if (homework && String(homework).trim()) {
+      const { data } = await supabase
+        .from('assignments')
+        .upsert({
+          center_id: flag.centerId,
+          class_id: sessionRow.class_id,
+          legacy_session_id: sessionId,
+          title,
+          instructions: homework,
+          due_at,
+          status: 'published',
+          created_by: req.user.id,
+          updated_by: req.user.id,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'legacy_session_id' })
+        .select('*')
+        .limit(1)
+        .maybeSingle();
+      assignmentRecord = data || null;
+    }
+
+    await logCoreGapAudit(req, {
+      action: CORE_GAP_AUDIT_EVENTS.ASSIGNMENT_BRIDGE_SYNC,
+      tableName: 'sessions',
+      recordId: sessionId,
+      oldValues: { homework: sessionRow.homework },
+      newValues: { homework },
+      metadata: { assignment_id: assignmentRecord?.id || null },
+      centerId: flag.centerId
+    });
+
+    res.json({ success: true, data: { session_id: sessionId, assignment: assignmentRecord } });
+  } catch (error) {
+    console.error('Error syncing assignment bridge:', error);
+    incrementCoreGapMetric('failures', 'assignment_bridge_write');
+    next(error);
+  }
+});
+
+// ============ LABOR CONTRACT APIs ============
+
+app.get('/api/admin/hr/contracts', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    incrementCoreGapMetric('requests', 'contract_list');
+    const { centerId, status, staff_user_id } = req.query;
+
+    const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.LABOR_CONTRACTS, req, centerId);
+    if (flag.error) {
+      return res.status(403).json({ success: false, message: flag.error });
+    }
+    if (!flag.enabled) {
+      return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng há»£p Ä‘á»“ng lao Ä‘á»™ng chÆ°a Ä‘Æ°á»£c báº­t' });
+    }
+
+    let query = supabase
+      .from('hr_contracts')
+      .select(`
+        *,
+        users!hr_contracts_staff_user_id_fkey(id, full_name, email)
+      `)
+      .eq('center_id', flag.centerId)
+      .order('created_at', { ascending: false });
+
+    if (status) {
+      query = query.eq('status', status);
+    }
+    if (staff_user_id) {
+      query = query.eq('staff_user_id', staff_user_id);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    res.json({ success: true, data: data || [] });
+  } catch (error) {
+    console.error('Error fetching labor contracts:', error);
+    incrementCoreGapMetric('failures', 'contract_list');
+    next(error);
+  }
+});
+
+app.post('/api/admin/hr/contracts', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    incrementCoreGapMetric('requests', 'contract_create');
+    const {
+      centerId,
+      staff_user_id,
+      contract_code,
+      contract_type = 'full_time',
+      effective_from,
+      effective_to = null,
+      base_salary = 0,
+      allowances = {},
+      terms = {},
+      notes = null
+    } = req.body || {};
+
+    if (!staff_user_id || !contract_code || !effective_from) {
+      return res.status(400).json({ success: false, message: 'Thiáº¿u thÃ´ng tin há»£p Ä‘á»“ng báº¯t buá»™c' });
+    }
+
+    const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.LABOR_CONTRACTS, req, centerId);
+    if (flag.error) {
+      return res.status(403).json({ success: false, message: flag.error });
+    }
+    if (!flag.enabled) {
+      return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng há»£p Ä‘á»“ng lao Ä‘á»™ng chÆ°a Ä‘Æ°á»£c báº­t' });
+    }
+
+    const { data, error } = await supabase
+      .from('hr_contracts')
+      .insert({
+        center_id: flag.centerId,
+        staff_user_id,
+        contract_code,
+        contract_type,
+        effective_from,
+        effective_to,
+        base_salary,
+        allowances,
+        terms,
+        notes,
+        status: 'draft',
+        created_by: req.user.id,
+        updated_by: req.user.id
+      })
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    await supabase.from('hr_contract_events').insert({
+      contract_id: data.id,
+      center_id: flag.centerId,
+      event_type: 'create',
+      from_status: null,
+      to_status: 'draft',
+      event_payload: { contract_code },
+      created_by: req.user.id
+    });
+
+    await logCoreGapAudit(req, {
+      action: CORE_GAP_AUDIT_EVENTS.CONTRACT_CREATE,
+      tableName: 'hr_contracts',
+      recordId: data.id,
+      newValues: data,
+      centerId: flag.centerId
+    });
+
+    res.status(201).json({ success: true, data });
+  } catch (error) {
+    console.error('Error creating labor contract:', error);
+    incrementCoreGapMetric('failures', 'contract_create');
+    next(error);
+  }
+});
+
+app.put('/api/admin/hr/contracts/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    incrementCoreGapMetric('requests', 'contract_update');
+    const { id } = req.params;
+    const { centerId, ...updates } = req.body || {};
+
+    const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.LABOR_CONTRACTS, req, centerId);
+    if (flag.error) {
+      return res.status(403).json({ success: false, message: flag.error });
+    }
+    if (!flag.enabled) {
+      return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng há»£p Ä‘á»“ng lao Ä‘á»™ng chÆ°a Ä‘Æ°á»£c báº­t' });
+    }
+
+    const { data: oldContract, error: oldError } = await supabase
+      .from('hr_contracts')
+      .select('*')
+      .eq('id', id)
+      .eq('center_id', flag.centerId)
+      .single();
+
+    if (oldError || !oldContract) {
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y há»£p Ä‘á»“ng' });
+    }
+
+    const payload = {
+      ...updates,
+      updated_by: req.user.id,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabase
+      .from('hr_contracts')
+      .update(payload)
+      .eq('id', id)
+      .eq('center_id', flag.centerId)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    await logCoreGapAudit(req, {
+      action: CORE_GAP_AUDIT_EVENTS.CONTRACT_UPDATE,
+      tableName: 'hr_contracts',
+      recordId: id,
+      oldValues: oldContract,
+      newValues: data,
+      centerId: flag.centerId
+    });
+
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error updating labor contract:', error);
+    incrementCoreGapMetric('failures', 'contract_update');
+    next(error);
+  }
+});
+
+app.post('/api/admin/hr/contracts/:id/transition', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    incrementCoreGapMetric('requests', 'contract_transition');
+    const { id } = req.params;
+    const {
+      centerId,
+      to_status,
+      event_type,
+      reason = null,
+      event_payload = {},
+      effective_date = null
+    } = req.body || {};
+
+    if (!to_status || !event_type) {
+      return res.status(400).json({ success: false, message: 'Thiáº¿u to_status hoáº·c event_type' });
+    }
+
+    const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.LABOR_CONTRACTS, req, centerId);
+    if (flag.error) {
+      return res.status(403).json({ success: false, message: flag.error });
+    }
+    if (!flag.enabled) {
+      return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng há»£p Ä‘á»“ng lao Ä‘á»™ng chÆ°a Ä‘Æ°á»£c báº­t' });
+    }
+
+    const { data: contract, error: contractError } = await supabase
+      .from('hr_contracts')
+      .select('*')
+      .eq('id', id)
+      .eq('center_id', flag.centerId)
+      .single();
+
+    if (contractError || !contract) {
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y há»£p Ä‘á»“ng' });
+    }
+
+    const currentStatus = contract.status;
+    const allowedTransitions = CONTRACT_STATE_TRANSITIONS[currentStatus] || [];
+    if (!allowedTransitions.includes(to_status)) {
+      return res.status(400).json({
+        success: false,
+        message: `KhÃ´ng thá»ƒ chuyá»ƒn tá»« ${currentStatus} sang ${to_status}`
+      });
+    }
+
+    const updatePayload = {
+      status: to_status,
+      updated_by: req.user.id,
+      updated_at: new Date().toISOString()
+    };
+
+    if (to_status === 'amended') {
+      updatePayload.current_version = (contract.current_version || 1) + 1;
+    }
+
+    const { data: updatedContract, error: updateError } = await supabase
+      .from('hr_contracts')
+      .update(updatePayload)
+      .eq('id', id)
+      .eq('center_id', flag.centerId)
+      .select('*')
+      .single();
+
+    if (updateError) throw updateError;
+
+    await supabase.from('hr_contract_events').insert({
+      contract_id: id,
+      center_id: flag.centerId,
+      event_type,
+      from_status: currentStatus,
+      to_status,
+      event_payload,
+      reason,
+      effective_date,
+      created_by: req.user.id
+    });
+
+    incrementCoreGapMetric('transitions', `contract_${event_type}`);
+
+    await logCoreGapAudit(req, {
+      action: CORE_GAP_AUDIT_EVENTS.CONTRACT_TRANSITION,
+      tableName: 'hr_contracts',
+      recordId: id,
+      oldValues: { status: currentStatus },
+      newValues: { status: to_status },
+      metadata: { event_type, reason },
+      centerId: flag.centerId
+    });
+
+    res.json({ success: true, data: updatedContract });
+  } catch (error) {
+    console.error('Error transitioning labor contract:', error);
+    incrementCoreGapMetric('failures', 'contract_transition');
+    next(error);
+  }
+});
+
+app.get('/api/admin/hr/contracts/:id/events', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    incrementCoreGapMetric('requests', 'contract_events_list');
+    const { id } = req.params;
+    const { centerId } = req.query;
+
+    const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.LABOR_CONTRACTS, req, centerId);
+    if (flag.error) {
+      return res.status(403).json({ success: false, message: flag.error });
+    }
+    if (!flag.enabled) {
+      return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng há»£p Ä‘á»“ng lao Ä‘á»™ng chÆ°a Ä‘Æ°á»£c báº­t' });
+    }
+
+    const { data, error } = await supabase
+      .from('hr_contract_events')
+      .select('*')
+      .eq('contract_id', id)
+      .eq('center_id', flag.centerId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({ success: true, data: data || [] });
+  } catch (error) {
+    console.error('Error fetching contract events:', error);
+    incrementCoreGapMetric('failures', 'contract_events_list');
+    next(error);
+  }
+});
+
+app.get('/api/admin/hr/contracts/payroll-effective', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    incrementCoreGapMetric('requests', 'contract_payroll_effective');
+    const { centerId, staff_user_id, date } = req.query;
+
+    if (!staff_user_id) {
+      return res.status(400).json({ success: false, message: 'Thiáº¿u staff_user_id' });
+    }
+
+    const targetDate = date ? new Date(date) : new Date();
+    if (Number.isNaN(targetDate.getTime())) {
+      return res.status(400).json({ success: false, message: 'date khÃ´ng há»£p lá»‡' });
+    }
+
+    const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.LABOR_CONTRACTS, req, centerId);
+    if (flag.error) {
+      return res.status(403).json({ success: false, message: flag.error });
+    }
+    if (!flag.enabled) {
+      return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng há»£p Ä‘á»“ng lao Ä‘á»™ng chÆ°a Ä‘Æ°á»£c báº­t' });
+    }
+
+    const targetIsoDate = targetDate.toISOString().split('T')[0];
+
+    const { data, error } = await supabase
+      .from('hr_contracts')
+      .select('*')
+      .eq('center_id', flag.centerId)
+      .eq('staff_user_id', staff_user_id)
+      .in('status', ['active', 'amended'])
+      .lte('effective_from', targetIsoDate)
+      .or(`effective_to.is.null,effective_to.gte.${targetIsoDate}`)
+      .order('effective_from', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    res.json({ success: true, data: data || null, meta: { date: targetIsoDate } });
+  } catch (error) {
+    console.error('Error fetching payroll effective contract:', error);
+    incrementCoreGapMetric('failures', 'contract_payroll_effective');
     next(error);
   }
 });
@@ -1182,7 +2780,7 @@ app.put('/api/user/notification-preferences', requireAuth, async (req, res, next
 
     if (error) throw error;
 
-    console.log(`ðŸ”” Notification prefs updated for ${req.user.email}`);
+    console.log(`Ã°Å¸â€â€ Notification prefs updated for ${req.user.email}`);
     res.json({ success: true, data: data.value });
   } catch (error) {
     console.error('Error updating notification preferences:', error);
@@ -1193,7 +2791,7 @@ app.put('/api/user/notification-preferences', requireAuth, async (req, res, next
 // ============ USER PROFILE APIs ============
 
 /**
- * Láº¥y profile cá»§a user hiá»‡n táº¡i
+ * LÃ¡ÂºÂ¥y profile cÃ¡Â»Â§a user hiÃ¡Â»â€¡n tÃ¡ÂºÂ¡i
  * GET /api/users/me/profile
  */
 app.get('/api/users/me/profile', requireAuth, async (req, res, next) => {
@@ -1225,7 +2823,7 @@ app.get('/api/users/me/profile', requireAuth, async (req, res, next) => {
 });
 
 /**
- * Cáº­p nháº­t profile cá»§a user hiá»‡n táº¡i
+ * CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t profile cÃ¡Â»Â§a user hiÃ¡Â»â€¡n tÃ¡ÂºÂ¡i
  * PUT /api/users/me/profile
  */
 app.put('/api/users/me/profile', requireAuth, async (req, res, next) => {
@@ -1238,7 +2836,7 @@ app.put('/api/users/me/profile', requireAuth, async (req, res, next) => {
     if (avatar_url !== undefined) updateData.avatar_url = avatar_url;
 
     if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({ success: false, message: 'KhÃ´ng cÃ³ dá»¯ liá»‡u Ä‘á»ƒ cáº­p nháº­t' });
+      return res.status(400).json({ success: false, message: 'KhÃƒÂ´ng cÃƒÂ³ dÃ¡Â»Â¯ liÃ¡Â»â€¡u Ã„â€˜Ã¡Â»Æ’ cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t' });
     }
 
     const { data, error } = await supabase
@@ -1258,8 +2856,8 @@ app.put('/api/users/me/profile', requireAuth, async (req, res, next) => {
 
     if (error) throw error;
 
-    console.log(`ðŸ‘¤ Profile updated for ${req.user.email}`);
-    res.json({ success: true, message: 'Cáº­p nháº­t thÃ nh cÃ´ng', data });
+    console.log(`Ã°Å¸â€˜Â¤ Profile updated for ${req.user.email}`);
+    res.json({ success: true, message: 'CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t thÃƒÂ nh cÃƒÂ´ng', data });
   } catch (error) {
     console.error('Error updating profile:', error);
     next(error);
@@ -1267,7 +2865,7 @@ app.put('/api/users/me/profile', requireAuth, async (req, res, next) => {
 });
 
 /**
- * Äá»•i máº­t kháº©u
+ * Ã„ÂÃ¡Â»â€¢i mÃ¡ÂºÂ­t khÃ¡ÂºÂ©u
  * PUT /api/users/me/password
  */
 app.put('/api/users/me/password', requireAuth, async (req, res, next) => {
@@ -1275,28 +2873,28 @@ app.put('/api/users/me/password', requireAuth, async (req, res, next) => {
     const { currentPassword, newPassword } = req.body;
 
     if (!newPassword || newPassword.length < 6) {
-      return res.status(400).json({ success: false, message: 'Máº­t kháº©u má»›i pháº£i cÃ³ Ã­t nháº¥t 6 kÃ½ tá»±' });
+      return res.status(400).json({ success: false, message: 'MÃ¡ÂºÂ­t khÃ¡ÂºÂ©u mÃ¡Â»â€ºi phÃ¡ÂºÂ£i cÃƒÂ³ ÃƒÂ­t nhÃ¡ÂºÂ¥t 6 kÃƒÂ½ tÃ¡Â»Â±' });
     }
 
-    // Verify current password báº±ng cÃ¡ch thá»­ Ä‘Äƒng nháº­p
+    // Verify current password bÃ¡ÂºÂ±ng cÃƒÂ¡ch thÃ¡Â»Â­ Ã„â€˜Ã„Æ’ng nhÃ¡ÂºÂ­p
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email: req.user.email,
       password: currentPassword
     });
 
     if (signInError) {
-      return res.status(400).json({ success: false, message: 'Máº­t kháº©u hiá»‡n táº¡i khÃ´ng Ä‘Ãºng' });
+      return res.status(400).json({ success: false, message: 'MÃ¡ÂºÂ­t khÃ¡ÂºÂ©u hiÃ¡Â»â€¡n tÃ¡ÂºÂ¡i khÃƒÂ´ng Ã„â€˜ÃƒÂºng' });
     }
 
-    // Äá»•i máº­t kháº©u
+    // Ã„ÂÃ¡Â»â€¢i mÃ¡ÂºÂ­t khÃ¡ÂºÂ©u
     const { error } = await supabase.auth.admin.updateUserById(req.user.id, {
       password: newPassword
     });
 
     if (error) throw error;
 
-    console.log(`ðŸ” Password changed for ${req.user.email}`);
-    res.json({ success: true, message: 'Äá»•i máº­t kháº©u thÃ nh cÃ´ng' });
+    console.log(`Ã°Å¸â€Â Password changed for ${req.user.email}`);
+    res.json({ success: true, message: 'Ã„ÂÃ¡Â»â€¢i mÃ¡ÂºÂ­t khÃ¡ÂºÂ©u thÃƒÂ nh cÃƒÂ´ng' });
   } catch (error) {
     console.error('Error changing password:', error);
     next(error);
@@ -1312,10 +2910,10 @@ app.post('/api/users/me/avatar', requireAuth, async (req, res, next) => {
     const { avatar_base64 } = req.body;
 
     if (!avatar_base64) {
-      return res.status(400).json({ success: false, message: 'Vui lÃ²ng cung cáº¥p áº£nh' });
+      return res.status(400).json({ success: false, message: 'Vui lÃƒÂ²ng cung cÃ¡ÂºÂ¥p Ã¡ÂºÂ£nh' });
     }
 
-    // Decode base64 vÃ  upload lÃªn Supabase Storage
+    // Decode base64 vÃƒÂ  upload lÃƒÂªn Supabase Storage
     const base64Data = avatar_base64.replace(/^data:image\/\w+;base64,/, '');
     const buffer = Buffer.from(base64Data, 'base64');
 
@@ -1330,7 +2928,7 @@ app.post('/api/users/me/avatar', requireAuth, async (req, res, next) => {
 
     if (uploadError) {
       console.error('Upload error:', uploadError);
-      // Náº¿u bucket chÆ°a tá»“n táº¡i, lÆ°u base64 trá»±c tiáº¿p vÃ o DB
+      // NÃ¡ÂºÂ¿u bucket chÃ†Â°a tÃ¡Â»â€œn tÃ¡ÂºÂ¡i, lÃ†Â°u base64 trÃ¡Â»Â±c tiÃ¡ÂºÂ¿p vÃƒÂ o DB
       const { data, error } = await supabase
         .from('users')
         .update({ avatar_url: avatar_base64 })
@@ -1342,12 +2940,12 @@ app.post('/api/users/me/avatar', requireAuth, async (req, res, next) => {
       return res.json({ success: true, data: { avatar_url: data.avatar_url } });
     }
 
-    // Láº¥y public URL
+    // LÃ¡ÂºÂ¥y public URL
     const { data: { publicUrl } } = supabase.storage
       .from('avatars')
       .getPublicUrl(fileName);
 
-    // Cáº­p nháº­t avatar_url trong users
+    // CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t avatar_url trong users
     const { error: updateError } = await supabase
       .from('users')
       .update({ avatar_url: publicUrl })
@@ -1355,7 +2953,7 @@ app.post('/api/users/me/avatar', requireAuth, async (req, res, next) => {
 
     if (updateError) throw updateError;
 
-    console.log(`ðŸ“· Avatar uploaded for ${req.user.email}`);
+    console.log(`Ã°Å¸â€œÂ· Avatar uploaded for ${req.user.email}`);
     res.json({ success: true, data: { avatar_url: publicUrl } });
   } catch (error) {
     console.error('Error uploading avatar:', error);
@@ -1363,9 +2961,9 @@ app.post('/api/users/me/avatar', requireAuth, async (req, res, next) => {
   }
 });
 
-// ============ ADMIN APIs (Chá»‰ Admin má»›i Ä‘Æ°á»£c dÃ¹ng) ============
+// ============ ADMIN APIs (ChÃ¡Â»â€° Admin mÃ¡Â»â€ºi Ã„â€˜Ã†Â°Ã¡Â»Â£c dÃƒÂ¹ng) ============
 
-// Láº¥y danh sÃ¡ch nhÃ¢n sá»± (Teacher, Manager)
+// LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch nhÃƒÂ¢n sÃ¡Â»Â± (Teacher, Manager)
 app.get('/api/admin/staff', requireAuth, async (req, res, next) => {
   try {
     const { role, centerId, search, limit = 50, page = 1 } = req.query;
@@ -1398,9 +2996,9 @@ app.get('/api/admin/staff', requireAuth, async (req, res, next) => {
 
     let query;
 
-    // Filter theo role náº¿u cÃ³
+    // Filter theo role nÃ¡ÂºÂ¿u cÃƒÂ³
     if (role) {
-      // Láº¥y role_id tá»« code
+      // LÃ¡ÂºÂ¥y role_id tÃ¡Â»Â« code
       const { data: roleData } = await supabase
         .from('roles')
         .select('id')
@@ -1417,7 +3015,7 @@ app.get('/api/admin/staff', requireAuth, async (req, res, next) => {
         return res.json({ success: true, data: [], pagination: { total: 0, page: pageNum, limit: limitNum } });
       }
     } else {
-      // Láº¥y táº¥t cáº£ staff (khÃ´ng pháº£i STUDENT vÃ  khÃ´ng pháº£i SUPER_ADMIN vÃ¬ SA khÃ´ng xuáº¥t hiá»‡n trong list nhÃ¢n viÃªn)
+      // LÃ¡ÂºÂ¥y tÃ¡ÂºÂ¥t cÃ¡ÂºÂ£ staff (khÃƒÂ´ng phÃ¡ÂºÂ£i STUDENT vÃƒÂ  khÃƒÂ´ng phÃ¡ÂºÂ£i SUPER_ADMIN vÃƒÂ¬ SA khÃƒÂ´ng xuÃ¡ÂºÂ¥t hiÃ¡Â»â€¡n trong list nhÃƒÂ¢n viÃƒÂªn)
       const { data: excludeRoles } = await supabase
         .from('roles')
         .select('id')
@@ -1472,12 +3070,12 @@ app.get('/api/admin/staff', requireAuth, async (req, res, next) => {
 
 // ============ STAFF DETAIL APIs ============
 
-// Láº¥y chi tiáº¿t nhÃ¢n viÃªn (kÃ¨m thá»‘ng kÃª lá»›p dáº¡y, giá» dáº¡y)
+// LÃ¡ÂºÂ¥y chi tiÃ¡ÂºÂ¿t nhÃƒÂ¢n viÃƒÂªn (kÃƒÂ¨m thÃ¡Â»â€˜ng kÃƒÂª lÃ¡Â»â€ºp dÃ¡ÂºÂ¡y, giÃ¡Â»Â dÃ¡ÂºÂ¡y)
 app.get('/api/admin/staff/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // Láº¥y thÃ´ng tin user
+    // LÃ¡ÂºÂ¥y thÃƒÂ´ng tin user
     const { data: user, error: userError } = await supabase
       .from('users')
       .select(`
@@ -1500,29 +3098,29 @@ app.get('/api/admin/staff/:id', requireAuth, async (req, res, next) => {
     if (userError || !user) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y nhÃ¢n viÃªn'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y nhÃƒÂ¢n viÃƒÂªn'
       });
     }
 
-    // Kiá»ƒm tra cÃ³ pháº£i staff khÃ´ng (TEACHER hoáº·c CENTER_MANAGER)
+    // KiÃ¡Â»Æ’m tra cÃƒÂ³ phÃ¡ÂºÂ£i staff khÃƒÂ´ng (TEACHER hoÃ¡ÂºÂ·c CENTER_MANAGER)
     if (!['TEACHER', 'CENTER_MANAGER', 'SUPER_ADMIN'].includes(user.roles?.code)) {
       return res.status(400).json({
         success: false,
-        message: 'User nÃ y khÃ´ng pháº£i nhÃ¢n viÃªn'
+        message: 'User nÃƒÂ y khÃƒÂ´ng phÃ¡ÂºÂ£i nhÃƒÂ¢n viÃƒÂªn'
       });
     }
 
-    // Láº¥y thá»‘ng kÃª lá»›p Ä‘ang dáº¡y (náº¿u lÃ  TEACHER)
+    // LÃ¡ÂºÂ¥y thÃ¡Â»â€˜ng kÃƒÂª lÃ¡Â»â€ºp Ã„â€˜ang dÃ¡ÂºÂ¡y (nÃ¡ÂºÂ¿u lÃƒÂ  TEACHER)
     let teachingStats = null;
     if (user.roles?.code === 'TEACHER') {
-      // Äáº¿m lá»›p Ä‘ang dáº¡y
+      // Ã„ÂÃ¡ÂºÂ¿m lÃ¡Â»â€ºp Ã„â€˜ang dÃ¡ÂºÂ¡y
       const { count: activeClasses } = await supabase
         .from('classes')
         .select('*', { count: 'exact', head: true })
         .eq('teacher_id', id)
         .in('status', ['upcoming', 'ongoing']);
 
-      // Äáº¿m tá»•ng sá»‘ buá»•i Ä‘Ã£ dáº¡y trong thÃ¡ng nÃ y
+      // Ã„ÂÃ¡ÂºÂ¿m tÃ¡Â»â€¢ng sÃ¡Â»â€˜ buÃ¡Â»â€¢i Ã„â€˜ÃƒÂ£ dÃ¡ÂºÂ¡y trong thÃƒÂ¡ng nÃƒÂ y
       const now = new Date();
       const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
       const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
@@ -1538,7 +3136,7 @@ app.get('/api/admin/staff/:id', requireAuth, async (req, res, next) => {
       const totalHoursThisMonth = (sessionsThisMonth || []).reduce((sum, s) => sum + (s.duration_hours || 0), 0);
       const totalEarningsThisMonth = (sessionsThisMonth || []).reduce((sum, s) => sum + ((s.duration_hours || 0) * (s.teacher_rate || 0)), 0);
 
-      // Tá»•ng sá»‘ buá»•i Ä‘Ã£ dáº¡y (all time)
+      // TÃ¡Â»â€¢ng sÃ¡Â»â€˜ buÃ¡Â»â€¢i Ã„â€˜ÃƒÂ£ dÃ¡ÂºÂ¡y (all time)
       const { count: totalSessions } = await supabase
         .from('sessions')
         .select('*', { count: 'exact', head: true })
@@ -1567,23 +3165,23 @@ app.get('/api/admin/staff/:id', requireAuth, async (req, res, next) => {
   }
 });
 
-// Cáº­p nháº­t thÃ´ng tin nhÃ¢n viÃªn
+// CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t thÃƒÂ´ng tin nhÃƒÂ¢n viÃƒÂªn
 app.put('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { full_name, phone, status, hourly_rate, center_id, role_code } = req.body;
 
-    console.log(`âœï¸ Admin ${req.user.email} Ä‘ang cáº­p nháº­t nhÃ¢n viÃªn: ${id}`);
+    console.log(`Ã¢Å“ÂÃ¯Â¸Â Admin ${req.user.email} Ã„â€˜ang cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t nhÃƒÂ¢n viÃƒÂªn: ${id}`);
 
     // Validate
     if (!full_name) {
       return res.status(400).json({
         success: false,
-        message: 'Há» tÃªn lÃ  báº¯t buá»™c'
+        message: 'HÃ¡Â»Â tÃƒÂªn lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
       });
     }
 
-    // Kiá»ƒm tra user tá»“n táº¡i vÃ  lÃ  staff
+    // KiÃ¡Â»Æ’m tra user tÃ¡Â»â€œn tÃ¡ÂºÂ¡i vÃƒÂ  lÃƒÂ  staff
     const { data: existingUser, error: checkError } = await supabase
       .from('users')
       .select('id, roles(code)')
@@ -1593,18 +3191,18 @@ app.put('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
     if (checkError || !existingUser) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y nhÃ¢n viÃªn'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y nhÃƒÂ¢n viÃƒÂªn'
       });
     }
 
     if (!['TEACHER', 'CENTER_MANAGER'].includes(existingUser.roles?.code)) {
       return res.status(400).json({
         success: false,
-        message: 'User nÃ y khÃ´ng pháº£i nhÃ¢n viÃªn, khÃ´ng thá»ƒ sá»­a tá»« Ä‘Ã¢y'
+        message: 'User nÃƒÂ y khÃƒÂ´ng phÃ¡ÂºÂ£i nhÃƒÂ¢n viÃƒÂªn, khÃƒÂ´ng thÃ¡Â»Æ’ sÃ¡Â»Â­a tÃ¡Â»Â« Ã„â€˜ÃƒÂ¢y'
       });
     }
 
-    // Láº¥y default hourly_rate tá»« settings náº¿u khÃ´ng truyá»n vÃ o
+    // LÃ¡ÂºÂ¥y default hourly_rate tÃ¡Â»Â« settings nÃ¡ÂºÂ¿u khÃƒÂ´ng truyÃ¡Â»Ân vÃƒÂ o
     let effectiveHourlyRate = hourly_rate;
     if (effectiveHourlyRate === undefined || effectiveHourlyRate === null) {
       const { data: payrollSetting } = await supabase
@@ -1625,17 +3223,17 @@ app.put('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
       updated_at: new Date().toISOString()
     };
 
-    // Náº¿u cÃ³ center_id thÃ¬ update
+    // NÃ¡ÂºÂ¿u cÃƒÂ³ center_id thÃƒÂ¬ update
     if (center_id !== undefined) {
       updateData.center_id = center_id || null;
     }
 
-    // Náº¿u Ä‘á»•i role
+    // NÃ¡ÂºÂ¿u Ã„â€˜Ã¡Â»â€¢i role
     if (role_code && role_code !== existingUser.roles?.code) {
       if (!['TEACHER', 'CENTER_MANAGER'].includes(role_code)) {
         return res.status(400).json({
           success: false,
-          message: 'Role khÃ´ng há»£p lá»‡ cho nhÃ¢n viÃªn'
+          message: 'Role khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡ cho nhÃƒÂ¢n viÃƒÂªn'
         });
       }
 
@@ -1666,7 +3264,7 @@ app.put('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
 
     res.json({
       success: true,
-      message: 'Cáº­p nháº­t nhÃ¢n viÃªn thÃ nh cÃ´ng',
+      message: 'CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t nhÃƒÂ¢n viÃƒÂªn thÃƒÂ nh cÃƒÂ´ng',
       data
     });
   } catch (error) {
@@ -1675,15 +3273,15 @@ app.put('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
   }
 });
 
-// XÃ³a/VÃ´ hiá»‡u hÃ³a nhÃ¢n viÃªn (soft delete - chuyá»ƒn status thÃ nh inactive)
+// XÃƒÂ³a/VÃƒÂ´ hiÃ¡Â»â€¡u hÃƒÂ³a nhÃƒÂ¢n viÃƒÂªn (soft delete - chuyÃ¡Â»Æ’n status thÃƒÂ nh inactive)
 app.delete('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { permanent } = req.query; // ?permanent=true Ä‘á»ƒ xÃ³a vÄ©nh viá»…n
+    const { permanent } = req.query; // ?permanent=true Ã„â€˜Ã¡Â»Æ’ xÃƒÂ³a vÃ„Â©nh viÃ¡Â»â€¦n
 
-    console.log(`ðŸ—‘ï¸ Admin ${req.user.email} Ä‘ang xÃ³a nhÃ¢n viÃªn: ${id}`);
+    console.log(`Ã°Å¸â€”â€˜Ã¯Â¸Â Admin ${req.user.email} Ã„â€˜ang xÃƒÂ³a nhÃƒÂ¢n viÃƒÂªn: ${id}`);
 
-    // Kiá»ƒm tra user tá»“n táº¡i
+    // KiÃ¡Â»Æ’m tra user tÃ¡Â»â€œn tÃ¡ÂºÂ¡i
     const { data: existingUser, error: checkError } = await supabase
       .from('users')
       .select('id, email, full_name, roles(code)')
@@ -1693,18 +3291,18 @@ app.delete('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
     if (checkError || !existingUser) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y nhÃ¢n viÃªn'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y nhÃƒÂ¢n viÃƒÂªn'
       });
     }
 
     if (!['TEACHER', 'CENTER_MANAGER'].includes(existingUser.roles?.code)) {
       return res.status(400).json({
         success: false,
-        message: 'User nÃ y khÃ´ng pháº£i nhÃ¢n viÃªn'
+        message: 'User nÃƒÂ y khÃƒÂ´ng phÃ¡ÂºÂ£i nhÃƒÂ¢n viÃƒÂªn'
       });
     }
 
-    // Kiá»ƒm tra xem cÃ³ Ä‘ang dáº¡y lá»›p nÃ o khÃ´ng
+    // KiÃ¡Â»Æ’m tra xem cÃƒÂ³ Ã„â€˜ang dÃ¡ÂºÂ¡y lÃ¡Â»â€ºp nÃƒÂ o khÃƒÂ´ng
     const { count: activeClasses } = await supabase
       .from('classes')
       .select('*', { count: 'exact', head: true })
@@ -1714,18 +3312,18 @@ app.delete('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
     if (activeClasses && activeClasses > 0) {
       return res.status(400).json({
         success: false,
-        message: `KhÃ´ng thá»ƒ xÃ³a vÃ¬ nhÃ¢n viÃªn Ä‘ang phá»¥ trÃ¡ch ${activeClasses} lá»›p há»c. Vui lÃ²ng chuyá»ƒn lá»›p cho ngÆ°á»i khÃ¡c trÆ°á»›c.`
+        message: `KhÃƒÂ´ng thÃ¡Â»Æ’ xÃƒÂ³a vÃƒÂ¬ nhÃƒÂ¢n viÃƒÂªn Ã„â€˜ang phÃ¡Â»Â¥ trÃƒÂ¡ch ${activeClasses} lÃ¡Â»â€ºp hÃ¡Â»Âc. Vui lÃƒÂ²ng chuyÃ¡Â»Æ’n lÃ¡Â»â€ºp cho ngÃ†Â°Ã¡Â»Âi khÃƒÂ¡c trÃ†Â°Ã¡Â»â€ºc.`
       });
     }
 
     if (permanent === 'true') {
-      // XÃ³a vÄ©nh viá»…n - cáº§n xÃ³a cáº£ trong Supabase Auth
-      // LÆ°u Ã½: Äiá»u nÃ y sáº½ cascade delete cÃ¡c record liÃªn quan
+      // XÃƒÂ³a vÃ„Â©nh viÃ¡Â»â€¦n - cÃ¡ÂºÂ§n xÃƒÂ³a cÃ¡ÂºÂ£ trong Supabase Auth
+      // LÃ†Â°u ÃƒÂ½: Ã„ÂiÃ¡Â»Âu nÃƒÂ y sÃ¡ÂºÂ½ cascade delete cÃƒÂ¡c record liÃƒÂªn quan
       const { error: deleteError } = await supabase.auth.admin.deleteUser(id);
 
       if (deleteError) {
         console.error('Error deleting from auth:', deleteError);
-        // Váº«n thá»­ xÃ³a tá»« public.users
+        // VÃ¡ÂºÂ«n thÃ¡Â»Â­ xÃƒÂ³a tÃ¡Â»Â« public.users
       }
 
       const { error } = await supabase
@@ -1737,10 +3335,10 @@ app.delete('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
 
       res.json({
         success: true,
-        message: `ÄÃ£ xÃ³a vÄ©nh viá»…n nhÃ¢n viÃªn "${existingUser.full_name}"`
+        message: `Ã„ÂÃƒÂ£ xÃƒÂ³a vÃ„Â©nh viÃ¡Â»â€¦n nhÃƒÂ¢n viÃƒÂªn "${existingUser.full_name}"`
       });
     } else {
-      // Soft delete - chá»‰ Ä‘á»•i status
+      // Soft delete - chÃ¡Â»â€° Ã„â€˜Ã¡Â»â€¢i status
       const { data, error } = await supabase
         .from('users')
         .update({
@@ -1755,7 +3353,7 @@ app.delete('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
 
       res.json({
         success: true,
-        message: `ÄÃ£ vÃ´ hiá»‡u hÃ³a nhÃ¢n viÃªn "${existingUser.full_name}"`,
+        message: `Ã„ÂÃƒÂ£ vÃƒÂ´ hiÃ¡Â»â€¡u hÃƒÂ³a nhÃƒÂ¢n viÃƒÂªn "${existingUser.full_name}"`,
         data
       });
     }
@@ -1765,7 +3363,7 @@ app.delete('/api/admin/staff/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
   }
 });
 
-// KhÃ´i phá»¥c nhÃ¢n viÃªn Ä‘Ã£ vÃ´ hiá»‡u hÃ³a
+// KhÃƒÂ´i phÃ¡Â»Â¥c nhÃƒÂ¢n viÃƒÂªn Ã„â€˜ÃƒÂ£ vÃƒÂ´ hiÃ¡Â»â€¡u hÃƒÂ³a
 app.patch('/api/admin/staff/:id/restore', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -1784,7 +3382,7 @@ app.patch('/api/admin/staff/:id/restore', requireAuth, requireRole(['SUPER_ADMIN
 
     res.json({
       success: true,
-      message: `ÄÃ£ khÃ´i phá»¥c nhÃ¢n viÃªn "${data.full_name}"`,
+      message: `Ã„ÂÃƒÂ£ khÃƒÂ´i phÃ¡Â»Â¥c nhÃƒÂ¢n viÃƒÂªn "${data.full_name}"`,
       data
     });
   } catch (error) {
@@ -1794,19 +3392,19 @@ app.patch('/api/admin/staff/:id/restore', requireAuth, requireRole(['SUPER_ADMIN
 });
 
 // ============================================================
-// CENTERS MANAGEMENT APIs - Quáº£n lÃ½ Trung tÃ¢m
+// CENTERS MANAGEMENT APIs - QuÃ¡ÂºÂ£n lÃƒÂ½ Trung tÃƒÂ¢m
 // ============================================================
 
 /**
- * GET /api/admin/centers - Láº¥y danh sÃ¡ch trung tÃ¢m (vá»›i thá»‘ng kÃª)
+ * GET /api/admin/centers - LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch trung tÃƒÂ¢m (vÃ¡Â»â€ºi thÃ¡Â»â€˜ng kÃƒÂª)
  */
 app.get('/api/admin/centers', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { status, search, withStats } = req.query;
 
-    console.log(`ðŸ¢ Admin ${req.user.email} xem danh sÃ¡ch trung tÃ¢m`);
+    console.log(`Ã°Å¸ÂÂ¢ Admin ${req.user.email} xem danh sÃƒÂ¡ch trung tÃƒÂ¢m`);
 
-    // CENTER_MANAGER chá»‰ tháº¥y trung tÃ¢m cá»§a mÃ¬nh
+    // CENTER_MANAGER chÃ¡Â»â€° thÃ¡ÂºÂ¥y trung tÃƒÂ¢m cÃ¡Â»Â§a mÃƒÂ¬nh
     const userRole = req.user.roleCode;
     const userCenterId = req.user.center_id;
     let query = supabase
@@ -1828,7 +3426,7 @@ app.get('/api/admin/centers', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_M
       `)
       .order('name');
 
-    // Scope theo role: CENTER_MANAGER chá»‰ tháº¥y center cá»§a mÃ¬nh
+    // Scope theo role: CENTER_MANAGER chÃ¡Â»â€° thÃ¡ÂºÂ¥y center cÃ¡Â»Â§a mÃƒÂ¬nh
     if (userRole !== 'SUPER_ADMIN' && userCenterId) {
       query = query.eq('id', userCenterId);
     }
@@ -1846,38 +3444,38 @@ app.get('/api/admin/centers', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_M
     const { data: centers, error } = await query;
     if (error) throw error;
 
-    // Náº¿u yÃªu cáº§u thá»‘ng kÃª
+    // NÃ¡ÂºÂ¿u yÃƒÂªu cÃ¡ÂºÂ§u thÃ¡Â»â€˜ng kÃƒÂª
     if (withStats === 'true') {
       const centersWithStats = await Promise.all(
         (centers || []).map(async (center) => {
-          // Äáº¿m sá»‘ phÃ²ng
+          // Ã„ÂÃ¡ÂºÂ¿m sÃ¡Â»â€˜ phÃƒÂ²ng
           const { count: roomCount } = await supabase
             .from('rooms')
             .select('*', { count: 'exact', head: true })
             .eq('center_id', center.id);
 
-          // Äáº¿m sá»‘ lá»›p Ä‘ang hoáº¡t Ä‘á»™ng
+          // Ã„ÂÃ¡ÂºÂ¿m sÃ¡Â»â€˜ lÃ¡Â»â€ºp Ã„â€˜ang hoÃ¡ÂºÂ¡t Ã„â€˜Ã¡Â»â„¢ng
           const { count: classCount } = await supabase
             .from('classes')
             .select('*', { count: 'exact', head: true })
             .eq('center_id', center.id)
             .in('status', ['upcoming', 'ongoing']);
 
-          // Äáº¿m sá»‘ nhÃ¢n viÃªn
+          // Ã„ÂÃ¡ÂºÂ¿m sÃ¡Â»â€˜ nhÃƒÂ¢n viÃƒÂªn
           const { count: staffCount } = await supabase
             .from('users')
             .select('*', { count: 'exact', head: true })
             .eq('center_id', center.id)
             .eq('status', 'active');
 
-          // Äáº¿m sá»‘ há»c viÃªn Ä‘ang há»c
+          // Ã„ÂÃ¡ÂºÂ¿m sÃ¡Â»â€˜ hÃ¡Â»Âc viÃƒÂªn Ã„â€˜ang hÃ¡Â»Âc
           const { count: studentCount } = await supabase
             .from('enrollments')
             .select('id, classes!inner(center_id)', { count: 'exact', head: true })
             .eq('classes.center_id', center.id)
             .eq('status', 'active');
 
-          // Láº¥y thÃ´ng tin manager náº¿u cÃ³
+          // LÃ¡ÂºÂ¥y thÃƒÂ´ng tin manager nÃ¡ÂºÂ¿u cÃƒÂ³
           let manager = null;
           if (center.manager_id) {
             const { data: managerData } = await supabase
@@ -1914,25 +3512,25 @@ app.get('/api/admin/centers', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_M
 });
 
 /**
- * GET /api/admin/centers/:id - Chi tiáº¿t trung tÃ¢m
+ * GET /api/admin/centers/:id - Chi tiÃ¡ÂºÂ¿t trung tÃƒÂ¢m
  */
 app.get('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    console.log(`ðŸ¢ Admin ${req.user.email} xem chi tiáº¿t center: ${id}`);
+    console.log(`Ã°Å¸ÂÂ¢ Admin ${req.user.email} xem chi tiÃ¡ÂºÂ¿t center: ${id}`);
 
-    // CENTER_MANAGER chá»‰ Ä‘Æ°á»£c xem center cá»§a mÃ¬nh
+    // CENTER_MANAGER chÃ¡Â»â€° Ã„â€˜Ã†Â°Ã¡Â»Â£c xem center cÃ¡Â»Â§a mÃƒÂ¬nh
     const userRole = req.user.roleCode;
     const userCenterId = req.user.center_id;
     if (userRole !== 'SUPER_ADMIN' && userCenterId && id !== userCenterId) {
       return res.status(403).json({
         success: false,
-        message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem trung tÃ¢m nÃ y'
+        message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xem trung tÃƒÂ¢m nÃƒÂ y'
       });
     }
 
-    // Láº¥y thÃ´ng tin center
+    // LÃ¡ÂºÂ¥y thÃƒÂ´ng tin center
     const { data: center, error } = await supabase
       .from('centers')
       .select('*')
@@ -1942,11 +3540,11 @@ app.get('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
     if (error || !center) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y trung tÃ¢m'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y trung tÃƒÂ¢m'
       });
     }
 
-    // Láº¥y manager info
+    // LÃ¡ÂºÂ¥y manager info
     let manager = null;
     if (center.manager_id) {
       const { data: managerData } = await supabase
@@ -1957,12 +3555,12 @@ app.get('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
       manager = managerData;
     }
 
-    // Thá»‘ng kÃª chi tiáº¿t
+    // ThÃ¡Â»â€˜ng kÃƒÂª chi tiÃ¡ÂºÂ¿t
     const [roomsRes, classesRes, staffRes, studentsRes] = await Promise.all([
       supabase.from('rooms').select('*', { count: 'exact', head: true }).eq('center_id', id),
       supabase.from('classes').select('*', { count: 'exact', head: true }).eq('center_id', id),
       supabase.from('users').select('*', { count: 'exact', head: true }).eq('center_id', id).eq('status', 'active'),
-      // Äáº¿m há»c viÃªn Ä‘ang há»c táº¡i center (qua enrollments)
+      // Ã„ÂÃ¡ÂºÂ¿m hÃ¡Â»Âc viÃƒÂªn Ã„â€˜ang hÃ¡Â»Âc tÃ¡ÂºÂ¡i center (qua enrollments)
       supabase
         .from('enrollments')
         .select('student_id, classes!inner(center_id)', { count: 'exact', head: true })
@@ -1994,25 +3592,25 @@ app.get('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
 });
 
 /**
- * GET /api/admin/centers/:id/stats - Thá»‘ng kÃª chi tiáº¿t trung tÃ¢m
+ * GET /api/admin/centers/:id/stats - ThÃ¡Â»â€˜ng kÃƒÂª chi tiÃ¡ÂºÂ¿t trung tÃƒÂ¢m
  */
 app.get('/api/admin/centers/:id/stats', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    console.log(`ðŸ“Š Admin ${req.user.email} xem thá»‘ng kÃª center: ${id}`);
+    console.log(`Ã°Å¸â€œÅ  Admin ${req.user.email} xem thÃ¡Â»â€˜ng kÃƒÂª center: ${id}`);
 
-    // CENTER_MANAGER chá»‰ Ä‘Æ°á»£c xem stats center cá»§a mÃ¬nh
+    // CENTER_MANAGER chÃ¡Â»â€° Ã„â€˜Ã†Â°Ã¡Â»Â£c xem stats center cÃ¡Â»Â§a mÃƒÂ¬nh
     const userRole = req.user.roleCode;
     const userCenterId = req.user.center_id;
     if (userRole !== 'SUPER_ADMIN' && userCenterId && id !== userCenterId) {
       return res.status(403).json({
         success: false,
-        message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem thá»‘ng kÃª trung tÃ¢m nÃ y'
+        message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xem thÃ¡Â»â€˜ng kÃƒÂª trung tÃƒÂ¢m nÃƒÂ y'
       });
     }
 
-    // Kiá»ƒm tra center tá»“n táº¡i
+    // KiÃ¡Â»Æ’m tra center tÃ¡Â»â€œn tÃ¡ÂºÂ¡i
     const { data: center, error: centerError } = await supabase
       .from('centers')
       .select('id, name, code')
@@ -2022,7 +3620,7 @@ app.get('/api/admin/centers/:id/stats', requireAuth, requireRole(['SUPER_ADMIN',
     if (centerError || !center) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y trung tÃ¢m'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y trung tÃƒÂ¢m'
       });
     }
 
@@ -2032,28 +3630,29 @@ app.get('/api/admin/centers/:id/stats', requireAuth, requireRole(['SUPER_ADMIN',
       classesRes,
       staffByRoleRes,
       revenueRes,
-      sessionsRes
+      sessionsRes,
+      studentsRes
     ] = await Promise.all([
-      // 1. Thá»‘ng kÃª phÃ²ng há»c
+      // 1. ThÃ¡Â»â€˜ng kÃƒÂª phÃƒÂ²ng hÃ¡Â»Âc
       supabase
         .from('rooms')
         .select('status, room_type')
         .eq('center_id', id),
 
-      // 2. Thá»‘ng kÃª lá»›p há»c theo status
+      // 2. ThÃ¡Â»â€˜ng kÃƒÂª lÃ¡Â»â€ºp hÃ¡Â»Âc theo status
       supabase
         .from('classes')
         .select('status')
         .eq('center_id', id),
 
-      // 3. NhÃ¢n sá»± theo role
+      // 3. NhÃƒÂ¢n sÃ¡Â»Â± theo role
       supabase
         .from('users')
         .select('roles(code)')
         .eq('center_id', id)
         .eq('status', 'active'),
 
-      // 4. Doanh thu thÃ¡ng nÃ y
+      // 4. Doanh thu thÃƒÂ¡ng nÃƒÂ y
       supabase
         .from('invoices')
         .select('paid_amount, classes!inner(center_id)')
@@ -2061,12 +3660,18 @@ app.get('/api/admin/centers/:id/stats', requireAuth, requireRole(['SUPER_ADMIN',
         .eq('status', 'paid')
         .gte('paid_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
 
-      // 5. Sessions thÃ¡ng nÃ y
+      // 5. Sessions thÃƒÂ¡ng nÃƒÂ y
       supabase
         .from('sessions')
         .select('status, classes!inner(center_id)')
         .eq('classes.center_id', id)
-        .gte('session_date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0])
+        .gte('session_date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]),
+
+      // 6. Enrollments for student count
+      supabase
+        .from('enrollments')
+        .select('status, student_id, classes!inner(center_id)')
+        .eq('classes.center_id', id)
     ]);
 
     // Process room stats
@@ -2111,6 +3716,15 @@ app.get('/api/admin/centers/:id/stats', requireAuth, requireRole(['SUPER_ADMIN',
       scheduled: sessions.filter(s => s.status === 'scheduled').length
     };
 
+    // Process students (unique student_ids with active enrollments)
+    const enrollmentsList = studentsRes.data || [];
+    const activeStudentIds = new Set(enrollmentsList.filter(e => e.status === 'active').map(e => e.student_id));
+    const allStudentIds = new Set(enrollmentsList.map(e => e.student_id));
+    const studentStats = {
+      total: allStudentIds.size,
+      active: activeStudentIds.size
+    };
+
     res.json({
       success: true,
       data: {
@@ -2118,6 +3732,7 @@ app.get('/api/admin/centers/:id/stats', requireAuth, requireRole(['SUPER_ADMIN',
         rooms: roomStats,
         classes: classStats,
         staff: staffStats,
+        students: studentStats,
         sessions: sessionStats,
         revenue: {
           monthly: monthlyRevenue,
@@ -2132,23 +3747,23 @@ app.get('/api/admin/centers/:id/stats', requireAuth, requireRole(['SUPER_ADMIN',
 });
 
 /**
- * POST /api/admin/centers - Táº¡o trung tÃ¢m má»›i (SUPER_ADMIN only)
+ * POST /api/admin/centers - TÃ¡ÂºÂ¡o trung tÃƒÂ¢m mÃ¡Â»â€ºi (SUPER_ADMIN only)
  */
 app.post('/api/admin/centers', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
   try {
     const { code, name, address, hotline, email, logo_url, description, working_hours, manager_id } = req.body;
 
-    console.log(`ðŸ¢ SUPER_ADMIN ${req.user.email} táº¡o trung tÃ¢m má»›i: ${name}`);
+    console.log(`Ã°Å¸ÂÂ¢ SUPER_ADMIN ${req.user.email} tÃ¡ÂºÂ¡o trung tÃƒÂ¢m mÃ¡Â»â€ºi: ${name}`);
 
     // Validate required fields
     if (!name) {
       return res.status(400).json({
         success: false,
-        message: 'TÃªn trung tÃ¢m lÃ  báº¯t buá»™c'
+        message: 'TÃƒÂªn trung tÃƒÂ¢m lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
       });
     }
 
-    // Auto-generate code náº¿u khÃ´ng cÃ³
+    // Auto-generate code nÃ¡ÂºÂ¿u khÃƒÂ´ng cÃƒÂ³
     let centerCode = code;
     if (!centerCode) {
       const { count } = await supabase
@@ -2167,7 +3782,7 @@ app.post('/api/admin/centers', requireAuth, requireRole(['SUPER_ADMIN']), async 
     if (existingCode) {
       return res.status(400).json({
         success: false,
-        message: 'MÃ£ trung tÃ¢m Ä‘Ã£ tá»“n táº¡i'
+        message: 'MÃƒÂ£ trung tÃƒÂ¢m Ã„â€˜ÃƒÂ£ tÃ¡Â»â€œn tÃ¡ÂºÂ¡i'
       });
     }
 
@@ -2191,7 +3806,7 @@ app.post('/api/admin/centers', requireAuth, requireRole(['SUPER_ADMIN']), async 
 
     if (error) throw error;
 
-    // Náº¿u cÃ³ manager_id, cáº­p nháº­t center_id cho manager
+    // NÃ¡ÂºÂ¿u cÃƒÂ³ manager_id, cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t center_id cho manager
     if (manager_id) {
       await supabase
         .from('users')
@@ -2203,7 +3818,7 @@ app.post('/api/admin/centers', requireAuth, requireRole(['SUPER_ADMIN']), async 
 
     res.status(201).json({
       success: true,
-      message: 'Táº¡o trung tÃ¢m thÃ nh cÃ´ng',
+      message: 'TÃ¡ÂºÂ¡o trung tÃƒÂ¢m thÃƒÂ nh cÃƒÂ´ng',
       data
     });
   } catch (error) {
@@ -2213,14 +3828,14 @@ app.post('/api/admin/centers', requireAuth, requireRole(['SUPER_ADMIN']), async 
 });
 
 /**
- * PUT /api/admin/centers/:id - Cáº­p nháº­t trung tÃ¢m (SUPER_ADMIN only)
+ * PUT /api/admin/centers/:id - CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t trung tÃƒÂ¢m (SUPER_ADMIN only)
  */
 app.put('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const updates = req.body;
 
-    console.log(`âœï¸ SUPER_ADMIN ${req.user.email} cáº­p nháº­t center: ${id}`);
+    console.log(`Ã¢Å“ÂÃ¯Â¸Â SUPER_ADMIN ${req.user.email} cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t center: ${id}`);
 
     // Validate
     const { data: existing, error: checkError } = await supabase
@@ -2232,11 +3847,11 @@ app.put('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), asy
     if (checkError || !existing) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y trung tÃ¢m'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y trung tÃƒÂ¢m'
       });
     }
 
-    // Kiá»ƒm tra code uniqueness náº¿u thay Ä‘á»•i
+    // KiÃ¡Â»Æ’m tra code uniqueness nÃ¡ÂºÂ¿u thay Ã„â€˜Ã¡Â»â€¢i
     if (updates.code && updates.code !== existing.code) {
       const { data: existingCode } = await supabase
         .from('centers')
@@ -2248,12 +3863,12 @@ app.put('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), asy
       if (existingCode) {
         return res.status(400).json({
           success: false,
-          message: 'MÃ£ trung tÃ¢m Ä‘Ã£ tá»“n táº¡i'
+          message: 'MÃƒÂ£ trung tÃƒÂ¢m Ã„â€˜ÃƒÂ£ tÃ¡Â»â€œn tÃ¡ÂºÂ¡i'
         });
       }
     }
 
-    // Remove fields khÃ´ng Ä‘Æ°á»£c update
+    // Remove fields khÃƒÂ´ng Ã„â€˜Ã†Â°Ã¡Â»Â£c update
     delete updates.id;
     delete updates.created_at;
 
@@ -2267,7 +3882,7 @@ app.put('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), asy
 
     if (error) throw error;
 
-    // Náº¿u thay Ä‘á»•i manager
+    // NÃ¡ÂºÂ¿u thay Ã„â€˜Ã¡Â»â€¢i manager
     if (updates.manager_id !== undefined && updates.manager_id !== existing.manager_id) {
       // Remove center_id from old manager
       if (existing.manager_id) {
@@ -2289,7 +3904,7 @@ app.put('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), asy
 
     res.json({
       success: true,
-      message: 'Cáº­p nháº­t trung tÃ¢m thÃ nh cÃ´ng',
+      message: 'CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t trung tÃƒÂ¢m thÃƒÂ nh cÃƒÂ´ng',
       data
     });
   } catch (error) {
@@ -2299,14 +3914,14 @@ app.put('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), asy
 });
 
 /**
- * DELETE /api/admin/centers/:id - VÃ´ hiá»‡u hÃ³a trung tÃ¢m (SUPER_ADMIN only)
+ * DELETE /api/admin/centers/:id - VÃƒÂ´ hiÃ¡Â»â€¡u hÃƒÂ³a trung tÃƒÂ¢m (SUPER_ADMIN only)
  */
 app.delete('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { permanent } = req.query;
 
-    console.log(`ðŸ—‘ï¸ SUPER_ADMIN ${req.user.email} xÃ³a center: ${id}`);
+    console.log(`Ã°Å¸â€”â€˜Ã¯Â¸Â SUPER_ADMIN ${req.user.email} xÃƒÂ³a center: ${id}`);
 
     // Check existence
     const { data: existing, error: checkError } = await supabase
@@ -2318,11 +3933,11 @@ app.delete('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), 
     if (checkError || !existing) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y trung tÃ¢m'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y trung tÃƒÂ¢m'
       });
     }
 
-    // Kiá»ƒm tra cÃ²n lá»›p Ä‘ang hoáº¡t Ä‘á»™ng khÃ´ng
+    // KiÃ¡Â»Æ’m tra cÃƒÃ²n lÃ¡Â»â€ºp Ã„â€˜ang hoÃ¡ÂºÂ¡t Ã„â€˜Ã¡Â»â„¢ng khÃƒÂ´ng
     const { count: activeClasses } = await supabase
       .from('classes')
       .select('*', { count: 'exact', head: true })
@@ -2332,13 +3947,13 @@ app.delete('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), 
     if (activeClasses > 0) {
       return res.status(400).json({
         success: false,
-        message: `KhÃ´ng thá»ƒ xÃ³a. Trung tÃ¢m cÃ²n ${activeClasses} lá»›p Ä‘ang hoáº¡t Ä‘á»™ng.`
+        message: `KhÃƒÂ´ng thÃ¡Â»Æ’ xÃƒÂ³a. Trung tÃƒÂ¢m cÃƒÂ²n ${activeClasses} lÃ¡Â»â€ºp Ã„â€˜ang hoÃ¡ÂºÂ¡t Ã„â€˜Ã¡Â»â„¢ng.`
       });
     }
 
-    // Soft delete (default) hoáº·c hard delete
+    // Soft delete (default) hoÃ¡ÂºÂ·c hard delete
     if (permanent === 'true') {
-      // Hard delete - chá»‰ khi khÃ´ng cÃ²n data liÃªn quan
+      // Hard delete - chÃ¡Â»â€° khi khÃƒÂ´ng cÃƒÂ²n data liÃƒÂªn quan
       const { count: roomCount } = await supabase
         .from('rooms')
         .select('*', { count: 'exact', head: true })
@@ -2347,7 +3962,7 @@ app.delete('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), 
       if (roomCount > 0) {
         return res.status(400).json({
           success: false,
-          message: `KhÃ´ng thá»ƒ xÃ³a vÄ©nh viá»…n. Trung tÃ¢m cÃ²n ${roomCount} phÃ²ng há»c.`
+          message: `KhÃƒÂ´ng thÃ¡Â»Æ’ xÃƒÂ³a vÃ„Â©nh viÃ¡Â»â€¦n. Trung tÃƒÂ¢m cÃƒÂ²n ${roomCount} phÃƒÂ²ng hÃ¡Â»Âc.`
         });
       }
 
@@ -2362,11 +3977,11 @@ app.delete('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), 
 
       return res.json({
         success: true,
-        message: `ÄÃ£ xÃ³a vÄ©nh viá»…n trung tÃ¢m "${existing.name}"`
+        message: `Ã„ÂÃƒÂ£ xÃƒÂ³a vÃ„Â©nh viÃ¡Â»â€¦n trung tÃƒÂ¢m "${existing.name}"`
       });
     }
 
-    // Soft delete - chuyá»ƒn status thÃ nh inactive
+    // Soft delete - chuyÃ¡Â»Æ’n status thÃƒÂ nh inactive
     const { data, error } = await supabase
       .from('centers')
       .update({ status: 'inactive' })
@@ -2380,7 +3995,7 @@ app.delete('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), 
 
     res.json({
       success: true,
-      message: `ÄÃ£ vÃ´ hiá»‡u hÃ³a trung tÃ¢m "${existing.name}"`,
+      message: `Ã„ÂÃƒÂ£ vÃƒÂ´ hiÃ¡Â»â€¡u hÃƒÂ³a trung tÃƒÂ¢m "${existing.name}"`,
       data
     });
   } catch (error) {
@@ -2390,13 +4005,13 @@ app.delete('/api/admin/centers/:id', requireAuth, requireRole(['SUPER_ADMIN']), 
 });
 
 /**
- * PATCH /api/admin/centers/:id/restore - KhÃ´i phá»¥c trung tÃ¢m
+ * PATCH /api/admin/centers/:id/restore - KhÃƒÂ´i phÃ¡Â»Â¥c trung tÃƒÂ¢m
  */
 app.patch('/api/admin/centers/:id/restore', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    console.log(`â™»ï¸ SUPER_ADMIN ${req.user.email} khÃ´i phá»¥c center: ${id}`);
+    console.log(`Ã¢â„¢Â»Ã¯Â¸Â SUPER_ADMIN ${req.user.email} khÃƒÂ´i phÃ¡Â»Â¥c center: ${id}`);
 
     const { data, error } = await supabase
       .from('centers')
@@ -2411,7 +4026,7 @@ app.patch('/api/admin/centers/:id/restore', requireAuth, requireRole(['SUPER_ADM
 
     res.json({
       success: true,
-      message: `ÄÃ£ khÃ´i phá»¥c trung tÃ¢m "${data.name}"`,
+      message: `Ã„ÂÃƒÂ£ khÃƒÂ´i phÃ¡Â»Â¥c trung tÃƒÂ¢m "${data.name}"`,
       data
     });
   } catch (error) {
@@ -2421,14 +4036,14 @@ app.patch('/api/admin/centers/:id/restore', requireAuth, requireRole(['SUPER_ADM
 });
 
 /**
- * PATCH /api/admin/centers/:id/manager - GÃ¡n/Ä‘á»•i quáº£n lÃ½ trung tÃ¢m
+ * PATCH /api/admin/centers/:id/manager - GÃƒÂ¡n/Ã„â€˜Ã¡Â»â€¢i quÃ¡ÂºÂ£n lÃƒÂ½ trung tÃƒÂ¢m
  */
 app.patch('/api/admin/centers/:id/manager', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { manager_id } = req.body;
 
-    console.log(`ðŸ‘” SUPER_ADMIN ${req.user.email} gÃ¡n manager cho center: ${id}`);
+    console.log(`Ã°Å¸â€˜â€ SUPER_ADMIN ${req.user.email} gÃƒÂ¡n manager cho center: ${id}`);
 
     // Validate manager
     if (manager_id) {
@@ -2441,19 +4056,39 @@ app.patch('/api/admin/centers/:id/manager', requireAuth, requireRole(['SUPER_ADM
       if (managerError || !manager) {
         return res.status(400).json({
           success: false,
-          message: 'KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i dÃ¹ng'
+          message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y ngÃ†Â°Ã¡Â»Âi dÃƒÂ¹ng'
         });
       }
 
-      if (manager.roles?.code !== 'CENTER_MANAGER') {
+      const currentRole = manager.roles?.code;
+
+      // Reject STUDENT/PARENT
+      if (['STUDENT', 'PARENT'].includes(currentRole)) {
         return res.status(400).json({
           success: false,
-          message: 'NgÆ°á»i Ä‘Æ°á»£c chá»n pháº£i cÃ³ vai trÃ² Quáº£n lÃ½ (CENTER_MANAGER)'
+          message: 'Há»c viÃªn hoáº·c phá»¥ huynh khÃ´ng thá»ƒ lÃ m quáº£n lÃ½ trung tÃ¢m'
         });
       }
+
+      // Auto-promote TEACHER -> CENTER_MANAGER
+      if (currentRole === 'TEACHER') {
+        const { data: managerRole } = await supabase
+          .from('roles')
+          .select('id')
+          .eq('code', 'CENTER_MANAGER')
+          .single();
+
+        if (managerRole) {
+          await supabase
+            .from('users')
+            .update({ role_id: managerRole.id })
+            .eq('id', manager_id);
+        }
+      }
+      // SUPER_ADMIN, CENTER_MANAGER - keep role as-is
     }
 
-    // Láº¥y old manager Ä‘á»ƒ remove
+    // LÃ¡ÂºÂ¥y old manager Ã„â€˜Ã¡Â»Æ’ remove
     const { data: center } = await supabase
       .from('centers')
       .select('manager_id')
@@ -2482,7 +4117,7 @@ app.patch('/api/admin/centers/:id/manager', requireAuth, requireRole(['SUPER_ADM
 
     res.json({
       success: true,
-      message: manager_id ? 'ÄÃ£ gÃ¡n quáº£n lÃ½ cho trung tÃ¢m' : 'ÄÃ£ xÃ³a quáº£n lÃ½ trung tÃ¢m',
+      message: manager_id ? 'Ã„ÂÃƒÂ£ gÃƒÂ¡n quÃ¡ÂºÂ£n lÃƒÂ½ cho trung tÃƒÂ¢m' : 'Ã„ÂÃƒÂ£ xÃƒÂ³a quÃ¡ÂºÂ£n lÃƒÂ½ trung tÃƒÂ¢m',
       data
     });
   } catch (error) {
@@ -2495,30 +4130,30 @@ app.patch('/api/admin/centers/:id/manager', requireAuth, requireRole(['SUPER_ADM
 // END CENTERS MANAGEMENT APIs
 // ============================================================
 
-// Táº¡o tÃ i khoáº£n nhÃ¢n viÃªn má»›i (Admin only)
+// TÃ¡ÂºÂ¡o tÃƒÂ i khoÃ¡ÂºÂ£n nhÃƒÂ¢n viÃƒÂªn mÃ¡Â»â€ºi (Admin only)
 app.post('/api/admin/users', requireAuth, async (req, res, next) => {
   try {
     const { email, full_name, phone, role_code, hourly_rate, center_id } = req.body;
 
-    console.log(`ðŸ‘¤ Admin ${req.user.email} Ä‘ang táº¡o user: ${email} vá»›i role ${role_code}`);
+    console.log(`Ã°Å¸â€˜Â¤ Admin ${req.user.email} Ã„â€˜ang tÃ¡ÂºÂ¡o user: ${email} vÃ¡Â»â€ºi role ${role_code}`);
 
     // Validate input
     if (!email || !full_name || !role_code) {
       return res.status(400).json({
         success: false,
-        message: 'Email, há» tÃªn vÃ  vai trÃ² lÃ  báº¯t buá»™c'
+        message: 'Email, hÃ¡Â»Â tÃƒÂªn vÃƒÂ  vai trÃƒÂ² lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
       });
     }
 
-    // Chá»‰ cho phÃ©p táº¡o TEACHER hoáº·c CENTER_MANAGER
+    // ChÃ¡Â»â€° cho phÃƒÂ©p tÃ¡ÂºÂ¡o TEACHER hoÃ¡ÂºÂ·c CENTER_MANAGER
     if (!['TEACHER', 'CENTER_MANAGER'].includes(role_code)) {
       return res.status(400).json({
         success: false,
-        message: 'Vai trÃ² khÃ´ng há»£p lá»‡. Chá»‰ Ä‘Æ°á»£c táº¡o Teacher hoáº·c Manager.'
+        message: 'Vai trÃƒÂ² khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡. ChÃ¡Â»â€° Ã„â€˜Ã†Â°Ã¡Â»Â£c tÃ¡ÂºÂ¡o Teacher hoÃ¡ÂºÂ·c Manager.'
       });
     }
 
-    // Láº¥y cáº¥u hÃ¬nh tá»« system_settings
+    // LÃ¡ÂºÂ¥y cÃ¡ÂºÂ¥u hÃƒÂ¬nh tÃ¡Â»Â« system_settings
     const { data: payrollSetting } = await supabase
       .from('system_settings')
       .select('value')
@@ -2530,9 +4165,9 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
     const defaultHourlyRate = payrollConfig.defaultHourlyRate || 150000;
     const defaultPassword = payrollConfig.defaultPassword || 'SkillMaster@123';
 
-    console.log(`ðŸ’° Using default hourly rate: ${defaultHourlyRate}, password: ${defaultPassword}`);
+    console.log(`Ã°Å¸â€™Â° Using default hourly rate: ${defaultHourlyRate}, password: ${defaultPassword}`);
 
-    // Láº¥y role_id tá»« code
+    // LÃ¡ÂºÂ¥y role_id tÃ¡Â»Â« code
     const { data: roleData, error: roleError } = await supabase
       .from('roles')
       .select('id')
@@ -2542,14 +4177,14 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
     if (roleError || !roleData) {
       return res.status(400).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y vai trÃ² trong há»‡ thá»‘ng'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y vai trÃƒÂ² trong hÃ¡Â»â€¡ thÃ¡Â»â€˜ng'
       });
     }
 
-    // XÃ¡c Ä‘á»‹nh center_id trÆ°á»›c Ä‘á»ƒ truyá»n vÃ o metadata
+    // XÃƒÂ¡c Ã„â€˜Ã¡Â»â€¹nh center_id trÃ†Â°Ã¡Â»â€ºc Ã„â€˜Ã¡Â»Æ’ truyÃ¡Â»Ân vÃƒÂ o metadata
     const effectiveCenterId = center_id || req.user.centerId || null;
 
-    // Táº¡o user trong Supabase Auth vá»›i password tá»« settings
+    // TÃ¡ÂºÂ¡o user trong Supabase Auth vÃ¡Â»â€ºi password tÃ¡Â»Â« settings
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password: defaultPassword,
@@ -2557,15 +4192,15 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
       user_metadata: {
         full_name,
         phone,
-        role_code,  // âœ… Truyá»n role Ä‘á»ƒ trigger táº¡o profile Ä‘Ãºng
-        center_id: effectiveCenterId,  // âœ… Truyá»n center
+        role_code,  // Ã¢Å“â€¦ TruyÃ¡Â»Ân role Ã„â€˜Ã¡Â»Æ’ trigger tÃ¡ÂºÂ¡o profile Ã„â€˜ÃƒÂºng
+        center_id: effectiveCenterId,  // Ã¢Å“â€¦ TruyÃ¡Â»Ân center
         hourly_rate: hourly_rate || defaultHourlyRate
       }
     });
 
     if (authError) {
       console.error('Auth error:', authError);
-      // Náº¿u user Ä‘Ã£ tá»“n táº¡i trong auth, váº«n thá»­ táº¡o trong public.users
+      // NÃ¡ÂºÂ¿u user Ã„â€˜ÃƒÂ£ tÃ¡Â»â€œn tÃ¡ÂºÂ¡i trong auth, vÃ¡ÂºÂ«n thÃ¡Â»Â­ tÃ¡ÂºÂ¡o trong public.users
       if (!authError.message.includes('already been registered')) {
         return res.status(400).json({
           success: false,
@@ -2574,11 +4209,11 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
       }
     }
 
-    // Insert vÃ o public.users vá»›i role Ä‘Æ°á»£c chá»‰ Ä‘á»‹nh
+    // Insert vÃƒÂ o public.users vÃ¡Â»â€ºi role Ã„â€˜Ã†Â°Ã¡Â»Â£c chÃ¡Â»â€° Ã„â€˜Ã¡Â»â€¹nh
     const userId = authData?.user?.id;
 
     if (userId) {
-      // Kiá»ƒm tra xem trigger Ä‘Ã£ táº¡o profile chÆ°a
+      // KiÃ¡Â»Æ’m tra xem trigger Ã„â€˜ÃƒÂ£ tÃ¡ÂºÂ¡o profile chÃ†Â°a
       const { data: existingProfile } = await supabase
         .from('users')
         .select('id, role_id')
@@ -2586,10 +4221,10 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
         .single();
 
       if (existingProfile) {
-        // Profile Ä‘Ã£ Ä‘Æ°á»£c trigger táº¡o, chá»‰ cáº§n update náº¿u cáº§n
-        console.log(`âœ… Profile Ä‘Ã£ Ä‘Æ°á»£c trigger táº¡o vá»›i role_id: ${existingProfile.role_id}`);
+        // Profile Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c trigger tÃ¡ÂºÂ¡o, chÃ¡Â»â€° cÃ¡ÂºÂ§n update nÃ¡ÂºÂ¿u cÃ¡ÂºÂ§n
+        console.log(`Ã¢Å“â€¦ Profile Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c trigger tÃ¡ÂºÂ¡o vÃ¡Â»â€ºi role_id: ${existingProfile.role_id}`);
 
-        // Náº¿u role khÃ´ng Ä‘Ãºng (trigger táº¡o sai), update láº¡i
+        // NÃ¡ÂºÂ¿u role khÃƒÂ´ng Ã„â€˜ÃƒÂºng (trigger tÃ¡ÂºÂ¡o sai), update lÃ¡ÂºÂ¡i
         if (existingProfile.role_id !== roleData.id) {
           const { error: updateError } = await supabase
             .from('users')
@@ -2602,8 +4237,8 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
           if (updateError) console.error('Update role error:', updateError);
         }
       } else {
-        // Trigger khÃ´ng cháº¡y, táº¡o profile thá»§ cÃ´ng
-        console.log(`âš ï¸ Trigger khÃ´ng táº¡o profile, táº¡o thá»§ cÃ´ng...`);
+        // Trigger khÃƒÂ´ng chÃ¡ÂºÂ¡y, tÃ¡ÂºÂ¡o profile thÃ¡Â»Â§ cÃƒÂ´ng
+        console.log(`Ã¢Å¡Â Ã¯Â¸Â Trigger khÃƒÂ´ng tÃ¡ÂºÂ¡o profile, tÃ¡ÂºÂ¡o thÃ¡Â»Â§ cÃƒÂ´ng...`);
         const { error: insertError } = await supabase
           .from('users')
           .insert({
@@ -2627,7 +4262,7 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: `Táº¡o tÃ i khoáº£n thÃ nh cÃ´ng. Password máº·c Ä‘á»‹nh: ${defaultPassword}`,
+      message: `TÃ¡ÂºÂ¡o tÃƒÂ i khoÃ¡ÂºÂ£n thÃƒÂ nh cÃƒÂ´ng. Password mÃ¡ÂºÂ·c Ã„â€˜Ã¡Â»â€¹nh: ${defaultPassword}`,
       data: {
         id: userId,
         email,
@@ -2644,13 +4279,13 @@ app.post('/api/admin/users', requireAuth, async (req, res, next) => {
   }
 });
 
-// Láº¥y danh sÃ¡ch roles (Ä‘á»ƒ hiá»ƒn thá»‹ trong dropdown)
+// LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch roles (Ã„â€˜Ã¡Â»Æ’ hiÃ¡Â»Æ’n thÃ¡Â»â€¹ trong dropdown)
 app.get('/api/roles', async (_req, res, next) => {
   try {
     const { data, error } = await supabase
       .from('roles')
       .select('id, code, name, description')
-      .in('code', ['TEACHER', 'CENTER_MANAGER']) // Chá»‰ láº¥y role staff
+      .in('code', ['TEACHER', 'CENTER_MANAGER']) // ChÃ¡Â»â€° lÃ¡ÂºÂ¥y role staff
       .order('name');
 
     if (error) throw error;
@@ -2702,7 +4337,7 @@ app.get('/api/students/search', requireAuth, async (req, res, next) => {
   }
 });
 
-// Láº¥y danh sÃ¡ch há»c viÃªn (STUDENT)
+// LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch hÃ¡Â»Âc viÃƒÂªn (STUDENT)
 app.get('/api/admin/students', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const {
@@ -2726,7 +4361,7 @@ app.get('/api/admin/students', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
       return res.status(403).json({ success: false, message: permError });
     }
 
-    // Láº¥y role_id cá»§a STUDENT
+    // LÃ¡ÂºÂ¥y role_id cÃ¡Â»Â§a STUDENT
     const { data: studentRole } = await supabase
       .from('roles')
       .select('id')
@@ -2823,14 +4458,14 @@ app.get('/api/admin/students', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
       .order('created_at', { ascending: false })
       .range(offset, offset + limitNum - 1);
 
-    // Filter theo status náº¿u cÃ³
+    // Filter theo status nÃ¡ÂºÂ¿u cÃƒÂ³
     if (status) {
       query = query.eq('status', status);
     }
 
     // ====== CENTER FILTER ======
-    // CENTER_MANAGER: chá»‰ hiá»ƒn thá»‹ há»c viÃªn thuá»™c center cá»§a mÃ¬nh
-    // SUPER_ADMIN: náº¿u cÃ³ centerId trong query thÃ¬ filter, khÃ´ng thÃ¬ hiá»ƒn thá»‹ táº¥t cáº£
+    // CENTER_MANAGER: chÃ¡Â»â€° hiÃ¡Â»Æ’n thÃ¡Â»â€¹ hÃ¡Â»Âc viÃƒÂªn thuÃ¡Â»â„¢c center cÃ¡Â»Â§a mÃƒÂ¬nh
+    // SUPER_ADMIN: nÃ¡ÂºÂ¿u cÃƒÂ³ centerId trong query thÃƒÂ¬ filter, khÃƒÂ´ng thÃƒÂ¬ hiÃ¡Â»Æ’n thÃ¡Â»â€¹ tÃ¡ÂºÂ¥t cÃ¡ÂºÂ£
     if (effectiveCenterId) {
       query = query.eq('center_id', effectiveCenterId);
     }
@@ -2873,11 +4508,11 @@ app.patch('/api/admin/students/bulk/status', requireAuth, requireRole(['SUPER_AD
     const { studentIds = [], status } = req.body;
 
     if (!Array.isArray(studentIds) || studentIds.length === 0) {
-      return res.status(400).json({ success: false, message: 'Vui lÃ²ng chá»n Ã­t nháº¥t má»™t há»c viÃªn' });
+      return res.status(400).json({ success: false, message: 'Vui lÃƒÂ²ng chÃ¡Â»Ân ÃƒÂ­t nhÃ¡ÂºÂ¥t mÃ¡Â»â„¢t hÃ¡Â»Âc viÃƒÂªn' });
     }
 
     if (!['active', 'inactive'].includes(status)) {
-      return res.status(400).json({ success: false, message: 'Tráº¡ng thÃ¡i khÃ´ng há»£p lá»‡' });
+      return res.status(400).json({ success: false, message: 'TrÃ¡ÂºÂ¡ng thÃƒÂ¡i khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡' });
     }
 
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, null);
@@ -2899,7 +4534,7 @@ app.patch('/api/admin/students/bulk/status', requireAuth, requireRole(['SUPER_AD
 
     const validStudents = (students || []).filter((student) => student.roles?.code === 'STUDENT');
     if (validStudents.length === 0) {
-      return res.status(400).json({ success: false, message: 'KhÃ´ng cÃ³ há»c viÃªn há»£p lá»‡ Ä‘á»ƒ cáº­p nháº­t' });
+      return res.status(400).json({ success: false, message: 'KhÃƒÂ´ng cÃƒÂ³ hÃ¡Â»Âc viÃƒÂªn hÃ¡Â»Â£p lÃ¡Â»â€¡ Ã„â€˜Ã¡Â»Æ’ cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t' });
     }
 
     if (status === 'inactive') {
@@ -2916,7 +4551,7 @@ app.patch('/api/admin/students/bulk/status', requireAuth, requireRole(['SUPER_AD
       if (allowedStudents.length === 0) {
         return res.status(400).json({
           success: false,
-          message: 'KhÃ´ng thá»ƒ vÃ´ hiá»‡u hÃ³a cÃ¡c há»c viÃªn Ä‘ang há»c lá»›p active',
+          message: 'KhÃƒÂ´ng thÃ¡Â»Æ’ vÃƒÂ´ hiÃ¡Â»â€¡u hÃƒÂ³a cÃƒÂ¡c hÃ¡Â»Âc viÃƒÂªn Ã„â€˜ang hÃ¡Â»Âc lÃ¡Â»â€ºp active',
           blockedStudentIds: [...blockedStudentIds],
         });
       }
@@ -2930,7 +4565,7 @@ app.patch('/api/admin/students/bulk/status', requireAuth, requireRole(['SUPER_AD
 
       return res.json({
         success: true,
-        message: `ÄÃ£ vÃ´ hiá»‡u hÃ³a ${updatedStudents?.length || 0} há»c viÃªn`,
+        message: `Ã„ÂÃƒÂ£ vÃƒÂ´ hiÃ¡Â»â€¡u hÃƒÂ³a ${updatedStudents?.length || 0} hÃ¡Â»Âc viÃƒÂªn`,
         data: updatedStudents || [],
         blockedStudentIds: [...blockedStudentIds],
       });
@@ -2945,7 +4580,7 @@ app.patch('/api/admin/students/bulk/status', requireAuth, requireRole(['SUPER_AD
 
     res.json({
       success: true,
-      message: `ÄÃ£ khÃ´i phá»¥c ${updatedStudents?.length || 0} há»c viÃªn`,
+      message: `Ã„ÂÃƒÂ£ khÃƒÂ´i phÃ¡Â»Â¥c ${updatedStudents?.length || 0} hÃ¡Â»Âc viÃƒÂªn`,
       data: updatedStudents || [],
     });
   } catch (error) {
@@ -2959,7 +4594,7 @@ app.post('/api/admin/students/bulk-delete-check', requireAuth, requireRole(['SUP
     const { studentIds = [] } = req.body;
 
     if (!Array.isArray(studentIds) || studentIds.length === 0) {
-      return res.status(400).json({ success: false, message: 'Vui lÃ²ng chá»n Ã­t nháº¥t má»™t há»c viÃªn' });
+      return res.status(400).json({ success: false, message: 'Vui lÃƒÂ²ng chÃ¡Â»Ân ÃƒÂ­t nhÃ¡ÂºÂ¥t mÃ¡Â»â„¢t hÃ¡Â»Âc viÃƒÂªn' });
     }
 
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, null);
@@ -2999,9 +4634,9 @@ app.post('/api/admin/students/bulk-delete-check', requireAuth, requireRole(['SUP
       blockedReasonsByStudentId.set(studentId, reasons);
     };
 
-    (enrollmentsRes.data || []).forEach((row) => addReason(row.student_id, `ÄÃ£ cÃ³ ghi danh/lá»›p (${row.status})`));
-    (invoicesRes.data || []).forEach((row) => addReason(row.student_id, `ÄÃ£ cÃ³ hÃ³a Ä‘Æ¡n (${row.status})`));
-    (certificatesRes.data || []).forEach((row) => addReason(row.student_id, `ÄÃ£ cÃ³ chá»©ng chá»‰ (${row.status})`));
+    (enrollmentsRes.data || []).forEach((row) => addReason(row.student_id, `Ã„ÂÃƒÂ£ cÃƒÂ³ ghi danh/lÃ¡Â»â€ºp (${row.status})`));
+    (invoicesRes.data || []).forEach((row) => addReason(row.student_id, `Ã„ÂÃƒÂ£ cÃƒÂ³ hÃƒÂ³a Ã„â€˜Ã†Â¡n (${row.status})`));
+    (certificatesRes.data || []).forEach((row) => addReason(row.student_id, `Ã„ÂÃƒÂ£ cÃƒÂ³ chÃ¡Â»Â©ng chÃ¡Â»â€° (${row.status})`));
 
     const blocked = validStudents.filter((student) => blockedReasonsByStudentId.has(student.id)).map((student) => ({
       id: student.id,
@@ -3023,7 +4658,7 @@ app.delete('/api/admin/students/bulk', requireAuth, requireRole(['SUPER_ADMIN', 
     const { studentIds = [] } = req.body;
 
     if (!Array.isArray(studentIds) || studentIds.length === 0) {
-      return res.status(400).json({ success: false, message: 'Vui lÃ²ng chá»n Ã­t nháº¥t má»™t há»c viÃªn' });
+      return res.status(400).json({ success: false, message: 'Vui lÃƒÂ²ng chÃ¡Â»Ân ÃƒÂ­t nhÃ¡ÂºÂ¥t mÃ¡Â»â„¢t hÃ¡Â»Âc viÃƒÂªn' });
     }
 
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, null);
@@ -3066,7 +4701,7 @@ app.delete('/api/admin/students/bulk', requireAuth, requireRole(['SUPER_ADMIN', 
     if (deletableIds.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'KhÃ´ng cÃ³ há»c viÃªn nÃ o Ä‘á»§ Ä‘iá»u kiá»‡n xÃ³a hÃ ng loáº¡t',
+        message: 'KhÃƒÂ´ng cÃƒÂ³ hÃ¡Â»Âc viÃƒÂªn nÃƒÂ o Ã„â€˜Ã¡Â»Â§ Ã„â€˜iÃ¡Â»Âu kiÃ¡Â»â€¡n xÃƒÂ³a hÃƒÂ ng loÃ¡ÂºÂ¡t',
         blockedStudentIds: [...blockedIds],
       });
     }
@@ -3080,7 +4715,7 @@ app.delete('/api/admin/students/bulk', requireAuth, requireRole(['SUPER_ADMIN', 
 
     res.json({
       success: true,
-      message: `ÄÃ£ vÃ´ hiá»‡u hÃ³a ${updatedStudents?.length || 0} há»c viÃªn Ä‘á»§ Ä‘iá»u kiá»‡n`,
+      message: `Ã„ÂÃƒÂ£ vÃƒÂ´ hiÃ¡Â»â€¡u hÃƒÂ³a ${updatedStudents?.length || 0} hÃ¡Â»Âc viÃƒÂªn Ã„â€˜Ã¡Â»Â§ Ã„â€˜iÃ¡Â»Âu kiÃ¡Â»â€¡n`,
       data: updatedStudents || [],
       blockedStudentIds: [...blockedIds],
     });
@@ -3090,7 +4725,7 @@ app.delete('/api/admin/students/bulk', requireAuth, requireRole(['SUPER_ADMIN', 
   }
 });
 
-// Import há»c viÃªn tá»« Excel/CSV
+// Import hÃ¡Â»Âc viÃƒÂªn tÃ¡Â»Â« Excel/CSV
 app.post('/api/students/import', requireAuth, async (req, res, next) => {
   try {
     const { students } = req.body;
@@ -3098,7 +4733,7 @@ app.post('/api/students/import', requireAuth, async (req, res, next) => {
     if (!Array.isArray(students) || students.length === 0) {
       return res.status(400).json({
         success: 0,
-        errors: [{ row: 0, message: 'KhÃ´ng cÃ³ dá»¯ liá»‡u há»c viÃªn Ä‘á»ƒ import' }]
+        errors: [{ row: 0, message: 'KhÃƒÂ´ng cÃƒÂ³ dÃ¡Â»Â¯ liÃ¡Â»â€¡u hÃ¡Â»Âc viÃƒÂªn Ã„â€˜Ã¡Â»Æ’ import' }]
       });
     }
 
@@ -3106,7 +4741,7 @@ app.post('/api/students/import', requireAuth, async (req, res, next) => {
     if (!centerId) {
       return res.status(403).json({
         success: 0,
-        errors: [{ row: 0, message: 'TÃ i khoáº£n chÆ°a Ä‘Æ°á»£c gÃ¡n trung tÃ¢m' }]
+        errors: [{ row: 0, message: 'TÃƒÂ i khoÃ¡ÂºÂ£n chÃ†Â°a Ã„â€˜Ã†Â°Ã¡Â»Â£c gÃƒÂ¡n trung tÃƒÂ¢m' }]
       });
     }
 
@@ -3126,12 +4761,12 @@ app.post('/api/students/import', requireAuth, async (req, res, next) => {
       const notes = student?.notes ? String(student.notes).trim() : null;
 
       if (!fullName) {
-        errors.push({ row, message: 'Há» tÃªn lÃ  báº¯t buá»™c' });
+        errors.push({ row, message: 'HÃ¡Â»Â tÃƒÂªn lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c' });
         return;
       }
 
       if (email && !emailRegex.test(email)) {
-        errors.push({ row, message: 'Email khÃ´ng há»£p lá»‡' });
+        errors.push({ row, message: 'Email khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡' });
         return;
       }
 
@@ -3139,7 +4774,7 @@ app.post('/api/students/import', requireAuth, async (req, res, next) => {
         if (!emailRows.has(email)) {
           emailRows.set(email, row);
         } else {
-          errors.push({ row, message: `Email trÃ¹ng trong file vá»›i dÃ²ng ${emailRows.get(email)}` });
+          errors.push({ row, message: `Email trÃƒÂ¹ng trong file vÃ¡Â»â€ºi dÃƒÂ²ng ${emailRows.get(email)}` });
           return;
         }
       }
@@ -3185,7 +4820,7 @@ app.post('/api/students/import', requireAuth, async (req, res, next) => {
         validStudents.forEach((student, index) => {
           if (student.email && existingEmailSet.has(student.email.toLowerCase())) {
             const row = Number(students[index]?._row) || index + 1;
-            errors.push({ row, message: `Email Ä‘Ã£ tá»“n táº¡i trong trung tÃ¢m: ${student.email}` });
+            errors.push({ row, message: `Email Ã„â€˜ÃƒÂ£ tÃ¡Â»â€œn tÃ¡ÂºÂ¡i trong trung tÃƒÂ¢m: ${student.email}` });
           }
         });
       }
@@ -3214,12 +4849,12 @@ app.post('/api/students/import', requireAuth, async (req, res, next) => {
 
 // ============ STUDENT DETAIL APIs ============
 
-// Láº¥y chi tiáº¿t há»c viÃªn (kÃ¨m enrollments, invoices, attendance)
+// LÃ¡ÂºÂ¥y chi tiÃ¡ÂºÂ¿t hÃ¡Â»Âc viÃƒÂªn (kÃƒÂ¨m enrollments, invoices, attendance)
 app.get('/api/admin/students/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // Láº¥y thÃ´ng tin user
+    // LÃ¡ÂºÂ¥y thÃƒÂ´ng tin user
     const { data: user, error: userError } = await supabase
       .from('users')
       .select(`
@@ -3244,19 +4879,19 @@ app.get('/api/admin/students/:id', requireAuth, async (req, res, next) => {
     if (userError || !user) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y há»c viÃªn'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y hÃ¡Â»Âc viÃƒÂªn'
       });
     }
 
-    // Kiá»ƒm tra cÃ³ pháº£i STUDENT khÃ´ng
+    // KiÃ¡Â»Æ’m tra cÃƒÂ³ phÃ¡ÂºÂ£i STUDENT khÃƒÂ´ng
     if (user.roles?.code !== 'STUDENT') {
       return res.status(400).json({
         success: false,
-        message: 'User nÃ y khÃ´ng pháº£i há»c viÃªn'
+        message: 'User nÃƒÂ y khÃƒÂ´ng phÃ¡ÂºÂ£i hÃ¡Â»Âc viÃƒÂªn'
       });
     }
 
-    // Láº¥y danh sÃ¡ch lá»›p Ä‘ang há»c (enrollments)
+    // LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch lÃ¡Â»â€ºp Ã„â€˜ang hÃ¡Â»Âc (enrollments)
     const { data: enrollments } = await supabase
       .from('enrollments')
       .select(`
@@ -3279,7 +4914,7 @@ app.get('/api/admin/students/:id', requireAuth, async (req, res, next) => {
       .eq('student_id', id)
       .order('enrolled_at', { ascending: false });
 
-    // Láº¥y danh sÃ¡ch hÃ³a Ä‘Æ¡n
+    // LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch hÃƒÂ³a Ã„â€˜Ã†Â¡n
     const { data: invoices } = await supabase
       .from('invoices')
       .select(`
@@ -3295,7 +4930,7 @@ app.get('/api/admin/students/:id', requireAuth, async (req, res, next) => {
       .order('created_at', { ascending: false })
       .limit(10);
 
-    // Láº¥y danh sÃ¡ch chá»©ng chá»‰ (bao gá»“m certificate_types)
+    // LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch chÃ¡Â»Â©ng chÃ¡Â»â€° (bao gÃ¡Â»â€œm certificate_types)
     const { data: certificates } = await supabase
       .from('certificates')
       .select(`
@@ -3325,7 +4960,7 @@ app.get('/api/admin/students/:id', requireAuth, async (req, res, next) => {
       .eq('student_id', id)
       .order('issued_at', { ascending: false });
 
-    // TÃ­nh thá»‘ng kÃª
+    // TÃƒÂ­nh thÃ¡Â»â€˜ng kÃƒÂª
     const activeEnrollments = (enrollments || []).filter(e => e.status === 'active');
     const completedEnrollments = (enrollments || []).filter(e => e.status === 'completed');
 
@@ -3334,7 +4969,7 @@ app.get('/api/admin/students/:id', requireAuth, async (req, res, next) => {
       .filter(inv => inv.status !== 'paid' && inv.status !== 'cancelled')
       .reduce((sum, inv) => sum + ((inv.final_amount || 0) - (inv.paid_amount || 0)), 0);
 
-    // Láº¥y thá»‘ng kÃª Ä‘iá»ƒm danh (30 ngÃ y gáº§n nháº¥t)
+    // LÃ¡ÂºÂ¥y thÃ¡Â»â€˜ng kÃƒÂª Ã„â€˜iÃ¡Â»Æ’m danh (30 ngÃƒÂ y gÃ¡ÂºÂ§n nhÃ¡ÂºÂ¥t)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -3375,7 +5010,7 @@ app.get('/api/admin/students/:id', requireAuth, async (req, res, next) => {
   }
 });
 
-// Cáº­p nháº­t thÃ´ng tin há»c viÃªn
+// CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t thÃƒÂ´ng tin hÃ¡Â»Âc viÃƒÂªn
 app.put('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -3390,17 +5025,17 @@ app.put('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
       date_of_birth
     } = req.body;
 
-    console.log(`âœï¸ Admin ${req.user.email} Ä‘ang cáº­p nháº­t há»c viÃªn: ${id}`);
+    console.log(`Ã¢Å“ÂÃ¯Â¸Â Admin ${req.user.email} Ã„â€˜ang cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t hÃ¡Â»Âc viÃƒÂªn: ${id}`);
 
     // Validate
     if (!full_name) {
       return res.status(400).json({
         success: false,
-        message: 'Há» tÃªn lÃ  báº¯t buá»™c'
+        message: 'HÃ¡Â»Â tÃƒÂªn lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
       });
     }
 
-    // Kiá»ƒm tra user tá»“n táº¡i vÃ  lÃ  student
+    // KiÃ¡Â»Æ’m tra user tÃ¡Â»â€œn tÃ¡ÂºÂ¡i vÃƒÂ  lÃƒÂ  student
     const { data: existingUser, error: checkError } = await supabase
       .from('users')
       .select('id, roles(code)')
@@ -3410,14 +5045,14 @@ app.put('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
     if (checkError || !existingUser) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y há»c viÃªn'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y hÃ¡Â»Âc viÃƒÂªn'
       });
     }
 
     if (existingUser.roles?.code !== 'STUDENT') {
       return res.status(400).json({
         success: false,
-        message: 'User nÃ y khÃ´ng pháº£i há»c viÃªn'
+        message: 'User nÃƒÂ y khÃƒÂ´ng phÃ¡ÂºÂ£i hÃ¡Â»Âc viÃƒÂªn'
       });
     }
 
@@ -3447,7 +5082,7 @@ app.put('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
 
     res.json({
       success: true,
-      message: 'Cáº­p nháº­t há»c viÃªn thÃ nh cÃ´ng',
+      message: 'CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t hÃ¡Â»Âc viÃƒÂªn thÃƒÂ nh cÃƒÂ´ng',
       data
     });
   } catch (error) {
@@ -3456,14 +5091,14 @@ app.put('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
   }
 });
 
-// VÃ´ hiá»‡u hÃ³a há»c viÃªn
+// VÃƒÂ´ hiÃ¡Â»â€¡u hÃƒÂ³a hÃ¡Â»Âc viÃƒÂªn
 app.delete('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    console.log(`ðŸ—‘ï¸ Admin ${req.user.email} Ä‘ang vÃ´ hiá»‡u hÃ³a há»c viÃªn: ${id}`);
+    console.log(`Ã°Å¸â€”â€˜Ã¯Â¸Â Admin ${req.user.email} Ã„â€˜ang vÃƒÂ´ hiÃ¡Â»â€¡u hÃƒÂ³a hÃ¡Â»Âc viÃƒÂªn: ${id}`);
 
-    // Kiá»ƒm tra user tá»“n táº¡i
+    // KiÃ¡Â»Æ’m tra user tÃ¡Â»â€œn tÃ¡ÂºÂ¡i
     const { data: existingUser, error: checkError } = await supabase
       .from('users')
       .select('id, full_name, roles(code)')
@@ -3473,18 +5108,18 @@ app.delete('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', '
     if (checkError || !existingUser) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y há»c viÃªn'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y hÃ¡Â»Âc viÃƒÂªn'
       });
     }
 
     if (existingUser.roles?.code !== 'STUDENT') {
       return res.status(400).json({
         success: false,
-        message: 'User nÃ y khÃ´ng pháº£i há»c viÃªn'
+        message: 'User nÃƒÂ y khÃƒÂ´ng phÃ¡ÂºÂ£i hÃ¡Â»Âc viÃƒÂªn'
       });
     }
 
-    // Kiá»ƒm tra cÃ²n enrollment active khÃ´ng
+    // KiÃ¡Â»Æ’m tra cÃƒÂ²n enrollment active khÃƒÂ´ng
     const { count: activeEnrollments } = await supabase
       .from('enrollments')
       .select('*', { count: 'exact', head: true })
@@ -3494,7 +5129,7 @@ app.delete('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', '
     if (activeEnrollments && activeEnrollments > 0) {
       return res.status(400).json({
         success: false,
-        message: `KhÃ´ng thá»ƒ vÃ´ hiá»‡u hÃ³a vÃ¬ há»c viÃªn Ä‘ang há»c ${activeEnrollments} lá»›p. Vui lÃ²ng rÃºt khá»i lá»›p trÆ°á»›c.`
+        message: `KhÃƒÂ´ng thÃ¡Â»Æ’ vÃƒÂ´ hiÃ¡Â»â€¡u hÃƒÂ³a vÃƒÂ¬ hÃ¡Â»Âc viÃƒÂªn Ã„â€˜ang hÃ¡Â»Âc ${activeEnrollments} lÃ¡Â»â€ºp. Vui lÃƒÂ²ng rÃƒÂºt khÃ¡Â»Âi lÃ¡Â»â€ºp trÃ†Â°Ã¡Â»â€ºc.`
       });
     }
 
@@ -3513,7 +5148,7 @@ app.delete('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', '
 
     res.json({
       success: true,
-      message: `ÄÃ£ vÃ´ hiá»‡u hÃ³a há»c viÃªn "${existingUser.full_name}"`,
+      message: `Ã„ÂÃƒÂ£ vÃƒÂ´ hiÃ¡Â»â€¡u hÃƒÂ³a hÃ¡Â»Âc viÃƒÂªn "${existingUser.full_name}"`,
       data
     });
   } catch (error) {
@@ -3522,7 +5157,7 @@ app.delete('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', '
   }
 });
 
-// KhÃ´i phá»¥c há»c viÃªn
+// KhÃƒÂ´i phÃ¡Â»Â¥c hÃ¡Â»Âc viÃƒÂªn
 app.patch('/api/admin/students/:id/restore', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -3541,7 +5176,7 @@ app.patch('/api/admin/students/:id/restore', requireAuth, requireRole(['SUPER_AD
 
     res.json({
       success: true,
-      message: `ÄÃ£ khÃ´i phá»¥c há»c viÃªn "${data.full_name}"`,
+      message: `Ã„ÂÃƒÂ£ khÃƒÂ´i phÃ¡Â»Â¥c hÃ¡Â»Âc viÃƒÂªn "${data.full_name}"`,
       data
     });
   } catch (error) {
@@ -3550,23 +5185,23 @@ app.patch('/api/admin/students/:id/restore', requireAuth, requireRole(['SUPER_AD
   }
 });
 
-// Cáº­p nháº­t role cá»§a user (Admin nÃ¢ng cáº¥p Student -> Teacher/Manager)
+// CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t role cÃ¡Â»Â§a user (Admin nÃƒÂ¢ng cÃ¡ÂºÂ¥p Student -> Teacher/Manager)
 app.patch('/api/admin/users/:id/role', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
     const { role_code } = req.body;
 
-    console.log(`ðŸ”„ Admin ${req.user.email} Ä‘ang Ä‘á»•i role cá»§a user ${id} thÃ nh ${role_code}`);
+    console.log(`Ã°Å¸â€â€ž Admin ${req.user.email} Ã„â€˜ang Ã„â€˜Ã¡Â»â€¢i role cÃ¡Â»Â§a user ${id} thÃƒÂ nh ${role_code}`);
 
     // Validate role_code
     if (!['STUDENT', 'TEACHER', 'CENTER_MANAGER'].includes(role_code)) {
       return res.status(400).json({
         success: false,
-        message: 'Role khÃ´ng há»£p lá»‡'
+        message: 'Role khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡'
       });
     }
 
-    // Láº¥y role_id tá»« code
+    // LÃ¡ÂºÂ¥y role_id tÃ¡Â»Â« code
     const { data: roleData, error: roleError } = await supabase
       .from('roles')
       .select('id')
@@ -3576,7 +5211,7 @@ app.patch('/api/admin/users/:id/role', requireAuth, async (req, res, next) => {
     if (roleError || !roleData) {
       return res.status(400).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y role'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y role'
       });
     }
 
@@ -3599,7 +5234,7 @@ app.patch('/api/admin/users/:id/role', requireAuth, async (req, res, next) => {
 
     res.json({
       success: true,
-      message: `ÄÃ£ chuyá»ƒn thÃ nh ${role_code}`,
+      message: `Ã„ÂÃƒÂ£ chuyÃ¡Â»Æ’n thÃƒÂ nh ${role_code}`,
       data
     });
   } catch (error) {
@@ -3610,7 +5245,7 @@ app.patch('/api/admin/users/:id/role', requireAuth, async (req, res, next) => {
 
 // ============ CLASS MANAGEMENT APIs ============
 
-// Láº¥y danh sÃ¡ch giÃ¡o viÃªn (Ä‘á»ƒ chá»n trong dropdown)
+// LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch giÃƒÂ¡o viÃƒÂªn (Ã„â€˜Ã¡Â»Æ’ chÃ¡Â»Ân trong dropdown)
 app.get('/api/teachers', requireAuth, async (req, res, next) => {
   try {
     const { data: teacherRole } = await supabase
@@ -3633,7 +5268,7 @@ app.get('/api/teachers', requireAuth, async (req, res, next) => {
   }
 });
 
-// Láº¥y danh sÃ¡ch trung tÃ¢m
+// LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch trung tÃƒÂ¢m
 app.get('/api/centers', async (_req, res, next) => {
   try {
     const { data, error } = await supabase
@@ -3648,10 +5283,10 @@ app.get('/api/centers', async (_req, res, next) => {
   }
 });
 
-// Láº¥y danh sÃ¡ch lá»›p há»c (vá»›i thÃ´ng tin liÃªn quan)
+// LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch lÃ¡Â»â€ºp hÃ¡Â»Âc (vÃ¡Â»â€ºi thÃƒÂ´ng tin liÃƒÂªn quan)
 // Supports advanced filters: status, course_id, teacher_id, centerId, date_start, date_end
 app.get('/api/classes', requireAuth, async (req, res, next) => {
-  console.time('â±ï¸ /api/classes');
+  console.time('Ã¢ÂÂ±Ã¯Â¸Â /api/classes');
   try {
     const { status, course_id, teacher_id, centerId, date_start, date_end, minimal, limit, offset, smart_filter, search } = req.query;
 
@@ -4015,11 +5650,11 @@ app.get('/api/classes', requireAuth, async (req, res, next) => {
     console.error('Error fetching classes:', error);
     next(error);
   } finally {
-    console.timeEnd('â±ï¸ /api/classes');
+    console.timeEnd('Ã¢ÂÂ±Ã¯Â¸Â /api/classes');
   }
 });
 
-// Láº¥y chi tiáº¿t 1 lá»›p há»c
+// LÃ¡ÂºÂ¥y chi tiÃ¡ÂºÂ¿t 1 lÃ¡Â»â€ºp hÃ¡Â»Âc
 app.get('/api/classes/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -4059,7 +5694,7 @@ app.get('/api/classes/:id', requireAuth, async (req, res, next) => {
 });
 
 // ========================================
-// ðŸ”¥ API KIá»‚M TRA XUNG Äá»˜T Lá»ŠCH Há»ŒC (Real-time check tá»« Frontend)
+// Ã°Å¸â€Â¥ API KIÃ¡Â»â€šM TRA XUNG Ã„ÂÃ¡Â»ËœT LÃ¡Â»Å CH HÃ¡Â»Å’C (Real-time check tÃ¡Â»Â« Frontend)
 // ========================================
 app.post('/api/classes/check-conflict', requireAuth, async (req, res, next) => {
   try {
@@ -4087,10 +5722,10 @@ app.post('/api/classes/check-conflict', requireAuth, async (req, res, next) => {
       schedule
     }, exclude_class_id);
 
-    // Format messages cho tá»«ng conflict
+    // Format messages cho tÃ¡Â»Â«ng conflict
     const conflictsWithMessages = (conflictCheck.conflicts || []).map(c => ({
       ...c,
-      message: `${c.conflict_type.includes('room') ? `PhÃ²ng ${c.room_name || 'Ä‘Ã£ chá»n'}` : `GV ${c.teacher_name || 'Ä‘Ã£ chá»n'}`} trÃ¹ng lá»‹ch vá»›i lá»›p "${c.class_name}" vÃ o ${c.conflict_day} (${c.conflict_time?.existing})`
+      message: `${c.conflict_type.includes('room') ? `PhÃƒÂ²ng ${c.room_name || 'Ã„â€˜ÃƒÂ£ chÃ¡Â»Ân'}` : `GV ${c.teacher_name || 'Ã„â€˜ÃƒÂ£ chÃ¡Â»Ân'}`} trÃƒÂ¹ng lÃ¡Â»â€¹ch vÃ¡Â»â€ºi lÃ¡Â»â€ºp "${c.class_name}" vÃƒÂ o ${c.conflict_day} (${c.conflict_time?.existing})`
     }));
 
     res.json({
@@ -4106,23 +5741,23 @@ app.post('/api/classes/check-conflict', requireAuth, async (req, res, next) => {
   }
 });
 
-// Táº¡o lá»›p há»c má»›i
+// TÃ¡ÂºÂ¡o lÃ¡Â»â€ºp hÃ¡Â»Âc mÃ¡Â»â€ºi
 app.post('/api/admin/classes', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     let { code, name, course_id, teacher_id, center_id, room_id, start_date, end_date, schedule, room, max_students, status } = req.body;
 
-    console.log(`ðŸ“š Admin ${req.user.email} táº¡o lá»›p: ${name}`);
+    console.log(`Ã°Å¸â€œÅ¡ Admin ${req.user.email} tÃ¡ÂºÂ¡o lÃ¡Â»â€ºp: ${name}`);
 
-    // Validate required fields (code sáº½ tá»± táº¡o náº¿u khÃ´ng cÃ³)
+    // Validate required fields (code sÃ¡ÂºÂ½ tÃ¡Â»Â± tÃ¡ÂºÂ¡o nÃ¡ÂºÂ¿u khÃƒÂ´ng cÃƒÂ³)
     if (!name || !course_id || !center_id) {
       return res.status(400).json({
         success: false,
-        message: 'TÃªn lá»›p, khÃ³a há»c vÃ  trung tÃ¢m lÃ  báº¯t buá»™c'
+        message: 'TÃƒÂªn lÃ¡Â»â€ºp, khÃƒÂ³a hÃ¡Â»Âc vÃƒÂ  trung tÃƒÂ¢m lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
       });
     }
 
     // ========================================
-    // ðŸ”¥ KIá»‚M TRA XUNG Äá»˜T Lá»ŠCH Há»ŒC
+    // Ã°Å¸â€Â¥ KIÃ¡Â»â€šM TRA XUNG Ã„ÂÃ¡Â»ËœT LÃ¡Â»Å CH HÃ¡Â»Å’C
     // ========================================
     if ((room_id || teacher_id) && start_date && end_date && schedule && schedule.length > 0) {
       const conflictCheck = await checkScheduleConflict(supabase, {
@@ -4134,22 +5769,22 @@ app.post('/api/admin/classes', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
       });
 
       if (conflictCheck.hasConflict) {
-        console.log(`âš ï¸ PhÃ¡t hiá»‡n xung Ä‘á»™t lá»‹ch:`, conflictCheck.conflicts);
+        console.log(`Ã¢Å¡Â Ã¯Â¸Â PhÃƒÂ¡t hiÃ¡Â»â€¡n xung Ã„â€˜Ã¡Â»â„¢t lÃ¡Â»â€¹ch:`, conflictCheck.conflicts);
         return res.status(409).json({
           success: false,
-          message: conflictCheck.summary || 'PhÃ¡t hiá»‡n xung Ä‘á»™t lá»‹ch há»c',
+          message: conflictCheck.summary || 'PhÃƒÂ¡t hiÃ¡Â»â€¡n xung Ã„â€˜Ã¡Â»â„¢t lÃ¡Â»â€¹ch hÃ¡Â»Âc',
           conflicts: conflictCheck.conflicts
         });
       }
     }
 
-    // Tá»± Ä‘á»™ng táº¡o mÃ£ lá»›p náº¿u khÃ´ng truyá»n
+    // TÃ¡Â»Â± Ã„â€˜Ã¡Â»â„¢ng tÃ¡ÂºÂ¡o mÃƒÂ£ lÃ¡Â»â€ºp nÃ¡ÂºÂ¿u khÃƒÂ´ng truyÃ¡Â»Ân
     if (!code) {
       const randomNum = Math.floor(100000 + Math.random() * 900000);
       code = `CLS-${randomNum}`;
     }
 
-    // Kiá»ƒm tra mÃ£ lá»›p Ä‘Ã£ tá»“n táº¡i chÆ°a
+    // KiÃ¡Â»Æ’m tra mÃƒÂ£ lÃ¡Â»â€ºp Ã„â€˜ÃƒÂ£ tÃ¡Â»â€œn tÃ¡ÂºÂ¡i chÃ†Â°a
     const { data: existing } = await supabase
       .from('classes')
       .select('id')
@@ -4159,7 +5794,7 @@ app.post('/api/admin/classes', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
     if (existing) {
       return res.status(400).json({
         success: false,
-        message: 'MÃ£ lá»›p Ä‘Ã£ tá»“n táº¡i, vui lÃ²ng thá»­ láº¡i'
+        message: 'MÃƒÂ£ lÃ¡Â»â€ºp Ã„â€˜ÃƒÂ£ tÃ¡Â»â€œn tÃ¡ÂºÂ¡i, vui lÃƒÂ²ng thÃ¡Â»Â­ lÃ¡ÂºÂ¡i'
       });
     }
 
@@ -4190,7 +5825,7 @@ app.post('/api/admin/classes', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
 
     if (error) throw error;
 
-    // ðŸ”¥ Tá»± Ä‘á»™ng sinh sessions cho lá»›p má»›i
+    // Ã°Å¸â€Â¥ TÃ¡Â»Â± Ã„â€˜Ã¡Â»â„¢ng sinh sessions cho lÃ¡Â»â€ºp mÃ¡Â»â€ºi
     let sessionResult = null;
     if (data && start_date && end_date && schedule && schedule.length > 0) {
       sessionResult = await generateClassSessions(supabase, {
@@ -4200,7 +5835,7 @@ app.post('/api/admin/classes', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
         schedule,
         teacher_id: teacher_id || null
       });
-      console.log(`ðŸ“… Sessions generated: ${sessionResult.count} buá»•i`);
+      console.log(`Ã°Å¸â€œâ€¦ Sessions generated: ${sessionResult.count} buÃ¡Â»â€¢i`);
     }
 
     AuditLogService.log({
@@ -4214,7 +5849,7 @@ app.post('/api/admin/classes', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
 
     res.status(201).json({
       success: true,
-      message: 'Táº¡o lá»›p há»c thÃ nh cÃ´ng',
+      message: 'TÃ¡ÂºÂ¡o lÃ¡Â»â€ºp hÃ¡Â»Âc thÃƒÂ nh cÃƒÂ´ng',
       data,
       sessions: sessionResult ? {
         count: sessionResult.count,
@@ -4227,20 +5862,20 @@ app.post('/api/admin/classes', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
   }
 });
 
-// Cáº­p nháº­t lá»›p há»c
+// CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t lÃ¡Â»â€ºp hÃ¡Â»Âc
 app.put('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const updates = req.body;
     const { regenerate_sessions } = req.query; // ?regenerate_sessions=true
 
-    console.log(`âœï¸ Admin ${req.user.email} cáº­p nháº­t lá»›p: ${id}`);
+    console.log(`Ã¢Å“ÂÃ¯Â¸Â Admin ${req.user.email} cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t lÃ¡Â»â€ºp: ${id}`);
 
     delete updates.id;
     delete updates.created_at;
 
     // ========================================
-    // ðŸ”¥ KIá»‚M TRA XUNG Äá»˜T Lá»ŠCH Há»ŒC KHI UPDATE
+    // Ã°Å¸â€Â¥ KIÃ¡Â»â€šM TRA XUNG Ã„ÂÃ¡Â»ËœT LÃ¡Â»Å CH HÃ¡Â»Å’C KHI UPDATE
     // ========================================
     const { room_id, teacher_id, start_date, end_date, schedule } = updates;
 
@@ -4251,13 +5886,13 @@ app.put('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
         start_date,
         end_date,
         schedule
-      }, id); // Loáº¡i trá»« chÃ­nh lá»›p Ä‘ang update
+      }, id); // LoÃ¡ÂºÂ¡i trÃ¡Â»Â« chÃƒÂ­nh lÃ¡Â»â€ºp Ã„â€˜ang update
 
       if (conflictCheck.hasConflict) {
-        console.log(`âš ï¸ PhÃ¡t hiá»‡n xung Ä‘á»™t lá»‹ch khi update:`, conflictCheck.conflicts);
+        console.log(`Ã¢Å¡Â Ã¯Â¸Â PhÃƒÂ¡t hiÃ¡Â»â€¡n xung Ã„â€˜Ã¡Â»â„¢t lÃ¡Â»â€¹ch khi update:`, conflictCheck.conflicts);
         return res.status(409).json({
           success: false,
-          message: conflictCheck.summary || 'PhÃ¡t hiá»‡n xung Ä‘á»™t lá»‹ch há»c',
+          message: conflictCheck.summary || 'PhÃƒÂ¡t hiÃ¡Â»â€¡n xung Ã„â€˜Ã¡Â»â„¢t lÃ¡Â»â€¹ch hÃ¡Â»Âc',
           conflicts: conflictCheck.conflicts
         });
       }
@@ -4277,10 +5912,10 @@ app.put('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
 
     if (error) throw error;
 
-    // ðŸ”¥ Regenerate sessions náº¿u Ä‘Æ°á»£c yÃªu cáº§u vÃ  cÃ³ Ä‘á»§ thÃ´ng tin
+    // Ã°Å¸â€Â¥ Regenerate sessions nÃ¡ÂºÂ¿u Ã„â€˜Ã†Â°Ã¡Â»Â£c yÃƒÂªu cÃ¡ÂºÂ§u vÃƒÂ  cÃƒÂ³ Ã„â€˜Ã¡Â»Â§ thÃƒÂ´ng tin
     let sessionsUpdated = 0;
     if (regenerate_sessions === 'true' && data.start_date && data.end_date && data.schedule) {
-      // DÃ¹ng generateClassSessions vá»›i option deleteExisting = true
+      // DÃƒÂ¹ng generateClassSessions vÃ¡Â»â€ºi option deleteExisting = true
       const sessionResult = await generateClassSessions(supabase, {
         id: id,
         start_date: data.start_date,
@@ -4290,7 +5925,7 @@ app.put('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
       }, { deleteExisting: true, skipLocked: true });
 
       sessionsUpdated = sessionResult.count;
-      console.log(`ðŸ“… Sessions regenerated: ${sessionsUpdated} buá»•i`);
+      console.log(`Ã°Å¸â€œâ€¦ Sessions regenerated: ${sessionsUpdated} buÃ¡Â»â€¢i`);
     }
 
     AuditLogService.log({
@@ -4304,7 +5939,7 @@ app.put('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
 
     res.json({
       success: true,
-      message: 'Cáº­p nháº­t lá»›p há»c thÃ nh cÃ´ng',
+      message: 'CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t lÃ¡Â»â€ºp hÃ¡Â»Âc thÃƒÂ nh cÃƒÂ´ng',
       data,
       sessionsUpdated
     });
@@ -4314,14 +5949,14 @@ app.put('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
   }
 });
 
-// XÃ³a lá»›p há»c
+// XÃƒÂ³a lÃ¡Â»â€ºp hÃ¡Â»Âc
 app.delete('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    console.log(`ðŸ—‘ï¸ Admin ${req.user.email} xÃ³a lá»›p: ${id}`);
+    console.log(`Ã°Å¸â€”â€˜Ã¯Â¸Â Admin ${req.user.email} xÃƒÂ³a lÃ¡Â»â€ºp: ${id}`);
 
-    // Kiá»ƒm tra sá»‘ há»c viÃªn Ä‘Ã£ ghi danh (chá»‰ Ä‘áº¿m active enrollments)
+    // KiÃ¡Â»Æ’m tra sÃ¡Â»â€˜ hÃ¡Â»Âc viÃƒÂªn Ã„â€˜ÃƒÂ£ ghi danh (chÃ¡Â»â€° Ã„â€˜Ã¡ÂºÂ¿m active enrollments)
     const { count, error: countError } = await supabase
       .from('enrollments')
       .select('*', { count: 'exact', head: true })
@@ -4335,11 +5970,11 @@ app.delete('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'C
     if (count && count > 0) {
       return res.status(400).json({
         success: false,
-        message: `KhÃ´ng thá»ƒ xÃ³a lá»›p há»c vÃ¬ cÃ³ ${count} há»c viÃªn Ä‘ang ghi danh. Vui lÃ²ng há»§y ghi danh táº¥t cáº£ há»c viÃªn trÆ°á»›c.`
+        message: `KhÃƒÂ´ng thÃ¡Â»Æ’ xÃƒÂ³a lÃ¡Â»â€ºp hÃ¡Â»Âc vÃƒÂ¬ cÃƒÂ³ ${count} hÃ¡Â»Âc viÃƒÂªn Ã„â€˜ang ghi danh. Vui lÃƒÂ²ng hÃ¡Â»Â§y ghi danh tÃ¡ÂºÂ¥t cÃ¡ÂºÂ£ hÃ¡Â»Âc viÃƒÂªn trÃ†Â°Ã¡Â»â€ºc.`
       });
     }
 
-    // Há»§y cÃ¡c hÃ³a Ä‘Æ¡n chÆ°a thanh toÃ¡n cá»§a lá»›p nÃ y (vÃ¬ khÃ´ng cÃ²n há»c viÃªn)
+    // HÃ¡Â»Â§y cÃƒÂ¡c hÃƒÂ³a Ã„â€˜Ã†Â¡n chÃ†Â°a thanh toÃƒÂ¡n cÃ¡Â»Â§a lÃ¡Â»â€ºp nÃƒÂ y (vÃƒÂ¬ khÃƒÂ´ng cÃƒÂ²n hÃ¡Â»Âc viÃƒÂªn)
     const { error: cancelInvoicesError } = await supabase
       .from('invoices')
       .update({ status: 'cancelled', class_id: null })
@@ -4350,7 +5985,7 @@ app.delete('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'C
       console.error('Error cancelling unpaid invoices:', cancelInvoicesError);
     }
 
-    // Há»§y liÃªn káº¿t cÃ¡c hÃ³a Ä‘Æ¡n Ä‘Ã£ thanh toÃ¡n (giá»¯ láº¡i lá»‹ch sá»­)
+    // HÃ¡Â»Â§y liÃƒÂªn kÃ¡ÂºÂ¿t cÃƒÂ¡c hÃƒÂ³a Ã„â€˜Ã†Â¡n Ã„â€˜ÃƒÂ£ thanh toÃƒÂ¡n (giÃ¡Â»Â¯ lÃ¡ÂºÂ¡i lÃ¡Â»â€¹ch sÃ¡Â»Â­)
     const { error: unlinkInvoicesError } = await supabase
       .from('invoices')
       .update({ class_id: null })
@@ -4360,7 +5995,7 @@ app.delete('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'C
       console.error('Error unlinking invoices:', unlinkInvoicesError);
     }
 
-    // XÃ³a cÃ¡c sessions liÃªn quan trÆ°á»›c
+    // XÃƒÂ³a cÃƒÂ¡c sessions liÃƒÂªn quan trÃ†Â°Ã¡Â»â€ºc
     const { error: sessionsError } = await supabase
       .from('sessions')
       .delete()
@@ -4370,13 +6005,13 @@ app.delete('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'C
       console.error('Error deleting sessions:', sessionsError);
     }
 
-    // Láº¥y danh sÃ¡ch Táº¤T Cáº¢ enrollment IDs cá»§a lá»›p nÃ y (vÃ¬ khÃ´ng cÃ²n active)
+    // LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch TÃ¡ÂºÂ¤T CÃ¡ÂºÂ¢ enrollment IDs cÃ¡Â»Â§a lÃ¡Â»â€ºp nÃƒÂ y (vÃƒÂ¬ khÃƒÂ´ng cÃƒÂ²n active)
     const { data: enrollments } = await supabase
       .from('enrollments')
       .select('id')
       .eq('class_id', id);
 
-    // XÃ³a attendance records liÃªn quan Ä‘áº¿n cÃ¡c enrollments
+    // XÃƒÂ³a attendance records liÃƒÂªn quan Ã„â€˜Ã¡ÂºÂ¿n cÃƒÂ¡c enrollments
     if (enrollments && enrollments.length > 0) {
       const ids = enrollments.map(e => e.id);
       const { error: attendanceError } = await supabase
@@ -4388,7 +6023,7 @@ app.delete('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'C
         console.error('Error deleting attendance:', attendanceError);
       }
 
-      // XÃ³a grades náº¿u cÃ³
+      // XÃƒÂ³a grades nÃ¡ÂºÂ¿u cÃƒÂ³
       const { error: gradesError } = await supabase
         .from('grades')
         .delete()
@@ -4399,7 +6034,7 @@ app.delete('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'C
       }
     }
 
-    // XÃ³a Táº¤T Cáº¢ enrollments cá»§a lá»›p (vÃ¬ Ä‘Ã£ kiá»ƒm tra khÃ´ng cÃ²n active)
+    // XÃƒÂ³a TÃ¡ÂºÂ¤T CÃ¡ÂºÂ¢ enrollments cÃ¡Â»Â§a lÃ¡Â»â€ºp (vÃƒÂ¬ Ã„â€˜ÃƒÂ£ kiÃ¡Â»Æ’m tra khÃƒÂ´ng cÃƒÂ²n active)
     const { error: enrollmentsError } = await supabase
       .from('enrollments')
       .delete()
@@ -4409,7 +6044,7 @@ app.delete('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'C
       console.error('Error deleting inactive enrollments:', enrollmentsError);
     }
 
-    // XÃ³a lá»›p há»c
+    // XÃƒÂ³a lÃ¡Â»â€ºp hÃ¡Â»Âc
     const { error } = await supabase.from('classes').delete().eq('id', id);
     if (error) throw error;
 
@@ -4421,7 +6056,7 @@ app.delete('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'C
       recordId: req.params.id
     });
 
-    res.json({ success: true, message: 'XÃ³a lá»›p há»c thÃ nh cÃ´ng' });
+    res.json({ success: true, message: 'XÃƒÂ³a lÃ¡Â»â€ºp hÃ¡Â»Âc thÃƒÂ nh cÃƒÂ´ng' });
   } catch (error) {
     console.error('Error deleting class:', error);
     next(error);
@@ -4431,10 +6066,10 @@ app.delete('/api/admin/classes/:id', requireAuth, requireRole(['SUPER_ADMIN', 'C
 // ============ SESSION MANAGEMENT APIs ============
 
 // ========================================
-// ðŸ”¥ GLOBAL SESSIONS - Tá»•ng quan lá»‹ch dáº¡y toÃ n trung tÃ¢m
+// Ã°Å¸â€Â¥ GLOBAL SESSIONS - TÃ¡Â»â€¢ng quan lÃ¡Â»â€¹ch dÃ¡ÂºÂ¡y toÃƒÂ n trung tÃƒÂ¢m
 // ========================================
 app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
-  console.time('â±ï¸ /api/admin/sessions');
+  console.time('Ã¢ÂÂ±Ã¯Â¸Â /api/admin/sessions');
   try {
     const {
       startDate,      // YYYY-MM-DD
@@ -4451,36 +6086,36 @@ app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
     const pageOffset = Number(offset) || 0;
 
     // ====== PERMISSION CHECK ======
-    // SUPER_ADMIN: xem táº¥t cáº£ centers
-    // CENTER_MANAGER: chá»‰ xem center cá»§a mÃ¬nh
+    // SUPER_ADMIN: xem tÃ¡ÂºÂ¥t cÃ¡ÂºÂ£ centers
+    // CENTER_MANAGER: chÃ¡Â»â€° xem center cÃ¡Â»Â§a mÃƒÂ¬nh
     const userRole = req.user.roleCode;
     const userCenterId = req.user.centerId;
 
-    let effectiveCenterId = centerId; // centerId tá»« query param
+    let effectiveCenterId = centerId; // centerId tÃ¡Â»Â« query param
 
     if (userRole !== 'SUPER_ADMIN') {
-      // KhÃ´ng pháº£i SUPER_ADMIN => báº¯t buá»™c dÃ¹ng center cá»§a user
+      // KhÃƒÂ´ng phÃ¡ÂºÂ£i SUPER_ADMIN => bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c dÃƒÂ¹ng center cÃ¡Â»Â§a user
       if (!userCenterId) {
         return res.status(403).json({
           success: false,
-          message: 'Báº¡n chÆ°a Ä‘Æ°á»£c gÃ¡n vÃ o trung tÃ¢m nÃ o. Vui lÃ²ng liÃªn há»‡ admin.'
+          message: 'BÃ¡ÂºÂ¡n chÃ†Â°a Ã„â€˜Ã†Â°Ã¡Â»Â£c gÃƒÂ¡n vÃƒÂ o trung tÃƒÂ¢m nÃƒÂ o. Vui lÃƒÂ²ng liÃƒÂªn hÃ¡Â»â€¡ admin.'
         });
       }
 
-      // Náº¿u client request centerId khÃ¡c vá»›i center cá»§a user => reject
+      // NÃ¡ÂºÂ¿u client request centerId khÃƒÂ¡c vÃ¡Â»â€ºi center cÃ¡Â»Â§a user => reject
       if (centerId && centerId !== userCenterId) {
-        console.warn(`âš ï¸ User ${req.user.email} (${userRole}) tried to access center ${centerId} but belongs to ${userCenterId}`);
+        console.warn(`Ã¢Å¡Â Ã¯Â¸Â User ${req.user.email} (${userRole}) tried to access center ${centerId} but belongs to ${userCenterId}`);
         return res.status(403).json({
           success: false,
-          message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem dá»¯ liá»‡u cá»§a trung tÃ¢m khÃ¡c.'
+          message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xem dÃ¡Â»Â¯ liÃ¡Â»â€¡u cÃ¡Â»Â§a trung tÃƒÂ¢m khÃƒÂ¡c.'
         });
       }
 
-      // Force sá»­ dá»¥ng center cá»§a user
+      // Force sÃ¡Â»Â­ dÃ¡Â»Â¥ng center cÃ¡Â»Â§a user
       effectiveCenterId = userCenterId;
     }
 
-    console.log(`ðŸ“… Admin ${req.user.email} (${userRole}) xem lá»‹ch dáº¡y: ${startDate} - ${endDate} | Center: ${effectiveCenterId || 'ALL'}`);
+    console.log(`Ã°Å¸â€œâ€¦ Admin ${req.user.email} (${userRole}) xem lÃ¡Â»â€¹ch dÃ¡ÂºÂ¡y: ${startDate} - ${endDate} | Center: ${effectiveCenterId || 'ALL'}`);
 
     let query = supabase
       .from('sessions')
@@ -4513,11 +6148,11 @@ app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
       .order('session_date', { ascending: true })
       .order('start_time', { ascending: true });
 
-    // Filter theo date range (Báº®T BUá»˜C Ä‘á»ƒ trÃ¡nh load quÃ¡ nhiá»u)
+    // Filter theo date range (BÃ¡ÂºÂ®T BUÃ¡Â»ËœC Ã„â€˜Ã¡Â»Æ’ trÃƒÂ¡nh load quÃƒÂ¡ nhiÃ¡Â»Âu)
     if (startDate) {
       query = query.gte('session_date', startDate);
     } else {
-      // Default: tá»« Ä‘áº§u thÃ¡ng hiá»‡n táº¡i
+      // Default: tÃ¡Â»Â« Ã„â€˜Ã¡ÂºÂ§u thÃƒÂ¡ng hiÃ¡Â»â€¡n tÃ¡ÂºÂ¡i
       const today = new Date();
       const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
       query = query.gte('session_date', firstDay.toISOString().split('T')[0]);
@@ -4526,7 +6161,7 @@ app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
     if (endDate) {
       query = query.lte('session_date', endDate);
     } else {
-      // Default: Ä‘áº¿n cuá»‘i thÃ¡ng hiá»‡n táº¡i
+      // Default: Ã„â€˜Ã¡ÂºÂ¿n cuÃ¡Â»â€˜i thÃƒÂ¡ng hiÃ¡Â»â€¡n tÃ¡ÂºÂ¡i
       const today = new Date();
       const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
       query = query.lte('session_date', lastDay.toISOString().split('T')[0]);
@@ -4541,7 +6176,7 @@ app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
       }
     }
 
-    // Filter theo giÃ¡o viÃªn
+    // Filter theo giÃƒÂ¡o viÃƒÂªn
     if (teacherId) {
       query = query.eq('teacher_id', teacherId);
     }
@@ -4552,10 +6187,10 @@ app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
     const { data, error, count } = await query;
     if (error) throw error;
 
-    // Post-filter theo center vÃ  room (vÃ¬ nested filter khÃ´ng Ä‘Æ°á»£c support trá»±c tiáº¿p)
+    // Post-filter theo center vÃƒÂ  room (vÃƒÂ¬ nested filter khÃƒÂ´ng Ã„â€˜Ã†Â°Ã¡Â»Â£c support trÃ¡Â»Â±c tiÃ¡ÂºÂ¿p)
     let filteredData = data || [];
 
-    // DÃ¹ng effectiveCenterId (Ä‘Ã£ Ä‘Æ°á»£c permission check á»Ÿ trÃªn)
+    // DÃƒÂ¹ng effectiveCenterId (Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c permission check Ã¡Â»Å¸ trÃƒÂªn)
     if (effectiveCenterId) {
       filteredData = filteredData.filter(s => s.classes?.center_id === effectiveCenterId);
     }
@@ -4564,13 +6199,13 @@ app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
       filteredData = filteredData.filter(s => s.classes?.room_id === roomId);
     }
 
-    // Thá»‘ng kÃª nhanh
+    // ThÃ¡Â»â€˜ng kÃƒÂª nhanh
     const stats = {
       total: filteredData.length,
       scheduled: filteredData.filter(s => s.status === 'scheduled').length,
       completed: filteredData.filter(s => s.status === 'completed').length,
       cancelled: filteredData.filter(s => s.status === 'cancelled').length,
-      // Buá»•i há»c Ä‘Ã£ quÃ¡ giá» mÃ  chÆ°a Ä‘iá»ƒm danh
+      // BuÃ¡Â»â€¢i hÃ¡Â»Âc Ã„â€˜ÃƒÂ£ quÃƒÂ¡ giÃ¡Â»Â mÃƒÂ  chÃ†Â°a Ã„â€˜iÃ¡Â»Æ’m danh
       overdue: filteredData.filter(s => {
         if (s.status !== 'scheduled') return false;
         const sessionDateTime = new Date(`${s.session_date}T${s.end_time}`);
@@ -4588,11 +6223,11 @@ app.get('/api/admin/sessions', requireAuth, async (req, res, next) => {
     console.error('Error fetching global sessions:', error);
     next(error);
   } finally {
-    console.timeEnd('â±ï¸ /api/admin/sessions');
+    console.timeEnd('Ã¢ÂÂ±Ã¯Â¸Â /api/admin/sessions');
   }
 });
 
-// Láº¥y danh sÃ¡ch sessions cá»§a má»™t lá»›p
+// LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch sessions cÃ¡Â»Â§a mÃ¡Â»â„¢t lÃ¡Â»â€ºp
 app.get('/api/admin/classes/:classId/sessions', requireAuth, async (req, res, next) => {
   try {
     const { classId } = req.params;
@@ -4610,7 +6245,7 @@ app.get('/api/admin/classes/:classId/sessions', requireAuth, async (req, res, ne
 
     if (status) query = query.eq('status', status);
 
-    // Filter theo thÃ¡ng/nÄƒm (cho payroll)
+    // Filter theo thÃƒÂ¡ng/nÃ„Æ’m (cho payroll)
     if (month && year) {
       const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
       const endDate = `${year}-${String(month).padStart(2, '0')}-31`;
@@ -4626,7 +6261,7 @@ app.get('/api/admin/classes/:classId/sessions', requireAuth, async (req, res, ne
   }
 });
 
-// Láº¥y danh sÃ¡ch documents cá»§a má»™t lá»›p
+// LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch documents cÃ¡Â»Â§a mÃ¡Â»â„¢t lÃ¡Â»â€ºp
 app.get('/api/admin/classes/:classId/documents', requireAuth, async (req, res, next) => {
   try {
     const { classId } = req.params;
@@ -4672,25 +6307,25 @@ app.get('/api/admin/classes/:classId/documents', requireAuth, async (req, res, n
   }
 });
 
-// Regenerate sessions cho má»™t lá»›p
+// Regenerate sessions cho mÃ¡Â»â„¢t lÃ¡Â»â€ºp
 app.post('/api/admin/classes/:classId/regenerate-sessions', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { classId } = req.params;
 
-    console.log(`ðŸ”„ Admin ${req.user.email} regenerate sessions cho lá»›p: ${classId}`);
+    console.log(`Ã°Å¸â€â€ž Admin ${req.user.email} regenerate sessions cho lÃ¡Â»â€ºp: ${classId}`);
 
     const result = await regenerateClassSessions(supabase, classId);
 
     if (!result.success) {
       return res.status(400).json({
         success: false,
-        message: result.error || 'KhÃ´ng thá»ƒ táº¡o sessions'
+        message: result.error || 'KhÃƒÂ´ng thÃ¡Â»Æ’ tÃ¡ÂºÂ¡o sessions'
       });
     }
 
     res.json({
       success: true,
-      message: `ÄÃ£ táº¡o ${result.count} buá»•i há»c`,
+      message: `Ã„ÂÃƒÂ£ tÃ¡ÂºÂ¡o ${result.count} buÃ¡Â»â€¢i hÃ¡Â»Âc`,
       count: result.count,
       summary: result.summary
     });
@@ -4700,21 +6335,21 @@ app.post('/api/admin/classes/:classId/regenerate-sessions', requireAuth, require
 });
 
 // ========================================
-// ðŸ”¥ PREVIEW SESSIONS - Check conflicts before creating
+// Ã°Å¸â€Â¥ PREVIEW SESSIONS - Check conflicts before creating
 // ========================================
 app.post('/api/classes/:classId/sessions/preview', requireAuth, async (req, res, next) => {
   try {
     const { classId } = req.params;
     const { schedule, start_date, end_date, skip_holidays = true, exclude_dates = [] } = req.body;
 
-    console.log(`ðŸ‘€ Preview sessions cho lá»›p: ${classId}`);
+    console.log(`Ã°Å¸â€˜â‚¬ Preview sessions cho lÃ¡Â»â€ºp: ${classId}`);
 
     // Validate input
     if (!schedule || !Array.isArray(schedule) || schedule.length === 0) {
-      return res.status(400).json({ success: false, message: 'Vui lÃ²ng chá»n lá»‹ch há»c' });
+      return res.status(400).json({ success: false, message: 'Vui lÃƒÂ²ng chÃ¡Â»Ân lÃ¡Â»â€¹ch hÃ¡Â»Âc' });
     }
     if (!start_date || !end_date) {
-      return res.status(400).json({ success: false, message: 'Vui lÃ²ng chá»n ngÃ y báº¯t Ä‘áº§u vÃ  káº¿t thÃºc' });
+      return res.status(400).json({ success: false, message: 'Vui lÃƒÂ²ng chÃ¡Â»Ân ngÃƒÂ y bÃ¡ÂºÂ¯t Ã„â€˜Ã¡ÂºÂ§u vÃƒÂ  kÃ¡ÂºÂ¿t thÃƒÂºc' });
     }
 
     // Get class info
@@ -4725,7 +6360,7 @@ app.post('/api/classes/:classId/sessions/preview', requireAuth, async (req, res,
       .single();
 
     if (classError || !classData) {
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c' });
+      return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y lÃ¡Â»â€ºp hÃ¡Â»Âc' });
     }
 
     // Vietnamese holidays
@@ -4872,7 +6507,7 @@ app.post('/api/classes/:classId/sessions/preview', requireAuth, async (req, res,
 });
 
 // ========================================
-// ðŸ”¥ BULK CREATE SESSIONS FROM SCHEDULE PATTERN
+// Ã°Å¸â€Â¥ BULK CREATE SESSIONS FROM SCHEDULE PATTERN
 // Creates multiple sessions based on recurring pattern
 // ========================================
 app.post('/api/classes/:classId/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
@@ -4880,14 +6515,14 @@ app.post('/api/classes/:classId/sessions/bulk', requireAuth, requireRole(['SUPER
     const { classId } = req.params;
     const { schedule, start_date, end_date, skip_holidays = true, exclude_dates = [], replace_existing = false } = req.body;
 
-    console.log(`ðŸ”¥ Admin ${req.user.email} bulk create sessions cho lá»›p: ${classId}`);
+    console.log(`Ã°Å¸â€Â¥ Admin ${req.user.email} bulk create sessions cho lÃ¡Â»â€ºp: ${classId}`);
 
     // Validate input
     if (!schedule || !Array.isArray(schedule) || schedule.length === 0) {
-      return res.status(400).json({ success: false, message: 'Vui lÃ²ng chá»n lá»‹ch há»c' });
+      return res.status(400).json({ success: false, message: 'Vui lÃƒÂ²ng chÃ¡Â»Ân lÃ¡Â»â€¹ch hÃ¡Â»Âc' });
     }
     if (!start_date || !end_date) {
-      return res.status(400).json({ success: false, message: 'Vui lÃ²ng chá»n ngÃ y báº¯t Ä‘áº§u vÃ  káº¿t thÃºc' });
+      return res.status(400).json({ success: false, message: 'Vui lÃƒÂ²ng chÃ¡Â»Ân ngÃƒÂ y bÃ¡ÂºÂ¯t Ã„â€˜Ã¡ÂºÂ§u vÃƒÂ  kÃ¡ÂºÂ¿t thÃƒÂºc' });
     }
 
     // Get class info
@@ -4898,7 +6533,7 @@ app.post('/api/classes/:classId/sessions/bulk', requireAuth, requireRole(['SUPER
       .single();
 
     if (classError || !classData) {
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c' });
+      return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y lÃ¡Â»â€ºp hÃ¡Â»Âc' });
     }
 
     // Vietnamese holidays
@@ -4978,7 +6613,7 @@ app.post('/api/classes/:classId/sessions/bulk', requireAuth, requireRole(['SUPER
     if (sessions.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'KhÃ´ng cÃ³ buá»•i há»c má»›i Ä‘á»ƒ táº¡o. CÃ¡c ngÃ y Ä‘Ã£ chá»n cÃ³ thá»ƒ Ä‘Ã£ cÃ³ buá»•i há»c hoáº·c trÃ¹ng ngÃ y lá»….'
+        message: 'KhÃƒÂ´ng cÃƒÂ³ buÃ¡Â»â€¢i hÃ¡Â»Âc mÃ¡Â»â€ºi Ã„â€˜Ã¡Â»Æ’ tÃ¡ÂºÂ¡o. CÃƒÂ¡c ngÃƒÂ y Ã„â€˜ÃƒÂ£ chÃ¡Â»Ân cÃƒÂ³ thÃ¡Â»Æ’ Ã„â€˜ÃƒÂ£ cÃƒÂ³ buÃ¡Â»â€¢i hÃ¡Â»Âc hoÃ¡ÂºÂ·c trÃƒÂ¹ng ngÃƒÂ y lÃ¡Â»â€¦.'
       });
     }
 
@@ -4986,7 +6621,7 @@ app.post('/api/classes/:classId/sessions/bulk', requireAuth, requireRole(['SUPER
     if (sessions.length > 100) {
       return res.status(400).json({
         success: false,
-        message: 'Tá»‘i Ä‘a 100 buá»•i há»c má»—i láº§n táº¡o. Vui lÃ²ng rÃºt ngáº¯n khoáº£ng thá»i gian.'
+        message: 'TÃ¡Â»â€˜i Ã„â€˜a 100 buÃ¡Â»â€¢i hÃ¡Â»Âc mÃ¡Â»â€”i lÃ¡ÂºÂ§n tÃ¡ÂºÂ¡o. Vui lÃƒÂ²ng rÃƒÂºt ngÃ¡ÂºÂ¯n khoÃ¡ÂºÂ£ng thÃ¡Â»Âi gian.'
       });
     }
 
@@ -5002,18 +6637,18 @@ app.post('/api/classes/:classId/sessions/bulk', requireAuth, requireRole(['SUPER
         console.error('Error inserting batch:', insertError);
         return res.status(500).json({
           success: false,
-          message: `Lá»—i khi táº¡o buá»•i há»c: ${insertError.message}`,
+          message: `LÃ¡Â»â€”i khi tÃ¡ÂºÂ¡o buÃ¡Â»â€¢i hÃ¡Â»Âc: ${insertError.message}`,
           insertedCount
         });
       }
       insertedCount += batch.length;
     }
 
-    console.log(`âœ… ÄÃ£ táº¡o ${insertedCount} buá»•i há»c cho lá»›p ${classId}`);
+    console.log(`Ã¢Å“â€¦ Ã„ÂÃƒÂ£ tÃ¡ÂºÂ¡o ${insertedCount} buÃ¡Â»â€¢i hÃ¡Â»Âc cho lÃ¡Â»â€ºp ${classId}`);
 
     res.json({
       success: true,
-      message: `ÄÃ£ táº¡o ${insertedCount} buá»•i há»c thÃ nh cÃ´ng`,
+      message: `Ã„ÂÃƒÂ£ tÃ¡ÂºÂ¡o ${insertedCount} buÃ¡Â»â€¢i hÃ¡Â»Âc thÃƒÂ nh cÃƒÂ´ng`,
       data: {
         count: insertedCount,
         startSessionNumber
@@ -5026,7 +6661,7 @@ app.post('/api/classes/:classId/sessions/bulk', requireAuth, requireRole(['SUPER
 });
 
 // ========================================
-// ðŸ”¥ OLD BULK CREATE (keep for backward compatibility)
+// Ã°Å¸â€Â¥ OLD BULK CREATE (keep for backward compatibility)
 // Creates multiple sessions based on preview array
 // ========================================
 app.post('/api/admin/classes/:classId/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
@@ -5034,13 +6669,13 @@ app.post('/api/admin/classes/:classId/sessions/bulk', requireAuth, requireRole([
     const { classId } = req.params;
     const { pattern, sessions: previewSessions, preview = false } = req.body;
 
-    console.log(`ðŸ”„ Admin ${req.user.email} bulk create sessions cho lá»›p: ${classId}`);
+    console.log(`Ã°Å¸â€â€ž Admin ${req.user.email} bulk create sessions cho lÃ¡Â»â€ºp: ${classId}`);
 
     // Validate input
     if (!previewSessions || !Array.isArray(previewSessions) || previewSessions.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Danh sÃ¡ch buá»•i há»c khÃ´ng há»£p lá»‡'
+        message: 'Danh sÃƒÂ¡ch buÃ¡Â»â€¢i hÃ¡Â»Âc khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡'
       });
     }
 
@@ -5048,7 +6683,7 @@ app.post('/api/admin/classes/:classId/sessions/bulk', requireAuth, requireRole([
     if (previewSessions.length > 100) {
       return res.status(400).json({
         success: false,
-        message: 'Tá»‘i Ä‘a 100 buá»•i há»c má»—i láº§n táº¡o'
+        message: 'TÃ¡Â»â€˜i Ã„â€˜a 100 buÃ¡Â»â€¢i hÃ¡Â»Âc mÃ¡Â»â€”i lÃ¡ÂºÂ§n tÃ¡ÂºÂ¡o'
       });
     }
 
@@ -5062,7 +6697,7 @@ app.post('/api/admin/classes/:classId/sessions/bulk', requireAuth, requireRole([
     if (classError || !classData) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y lÃ¡Â»â€ºp hÃ¡Â»Âc'
       });
     }
 
@@ -5095,7 +6730,7 @@ app.post('/api/admin/classes/:classId/sessions/bulk', requireAuth, requireRole([
         preview: true,
         sessions: sessionsToInsert,
         count: sessionsToInsert.length,
-        message: `Sáº½ táº¡o ${sessionsToInsert.length} buá»•i há»c tá»« buá»•i #${startSessionNumber}`
+        message: `SÃ¡ÂºÂ½ tÃ¡ÂºÂ¡o ${sessionsToInsert.length} buÃ¡Â»â€¢i hÃ¡Â»Âc tÃ¡Â»Â« buÃ¡Â»â€¢i #${startSessionNumber}`
       });
     }
 
@@ -5110,7 +6745,7 @@ app.post('/api/admin/classes/:classId/sessions/bulk', requireAuth, requireRole([
     if (conflictingSessions && conflictingSessions.length > 0) {
       return res.status(400).json({
         success: false,
-        message: `CÃ³ ${conflictingSessions.length} ngÃ y Ä‘Ã£ cÃ³ buá»•i há»c. Vui lÃ²ng kiá»ƒm tra láº¡i.`,
+        message: `CÃƒÂ³ ${conflictingSessions.length} ngÃƒÂ y Ã„â€˜ÃƒÂ£ cÃƒÂ³ buÃ¡Â»â€¢i hÃ¡Â»Âc. Vui lÃƒÂ²ng kiÃ¡Â»Æ’m tra lÃ¡ÂºÂ¡i.`,
         conflicts: conflictingSessions
       });
     }
@@ -5129,18 +6764,18 @@ app.post('/api/admin/classes/:classId/sessions/bulk', requireAuth, requireRole([
         console.error('Error inserting batch:', insertError);
         return res.status(500).json({
           success: false,
-          message: `Lá»—i khi táº¡o buá»•i há»c: ${insertError.message}`,
+          message: `LÃ¡Â»â€”i khi tÃ¡ÂºÂ¡o buÃ¡Â»â€¢i hÃ¡Â»Âc: ${insertError.message}`,
           insertedCount
         });
       }
       insertedCount += batch.length;
     }
 
-    console.log(`âœ… ÄÃ£ táº¡o ${insertedCount} buá»•i há»c cho lá»›p ${classId}`);
+    console.log(`Ã¢Å“â€¦ Ã„ÂÃƒÂ£ tÃ¡ÂºÂ¡o ${insertedCount} buÃ¡Â»â€¢i hÃ¡Â»Âc cho lÃ¡Â»â€ºp ${classId}`);
 
     res.json({
       success: true,
-      message: `ÄÃ£ táº¡o ${insertedCount} buá»•i há»c thÃ nh cÃ´ng`,
+      message: `Ã„ÂÃƒÂ£ tÃ¡ÂºÂ¡o ${insertedCount} buÃ¡Â»â€¢i hÃ¡Â»Âc thÃƒÂ nh cÃƒÂ´ng`,
       count: insertedCount,
       startSessionNumber
     });
@@ -5151,7 +6786,7 @@ app.post('/api/admin/classes/:classId/sessions/bulk', requireAuth, requireRole([
 });
 
 // ========================================
-// Import nhiá»u lá»›p há»c tá»« file
+// Import nhiÃ¡Â»Âu lÃ¡Â»â€ºp hÃ¡Â»Âc tÃ¡Â»Â« file
 // ========================================
 app.post('/api/admin/classes/import', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -5160,11 +6795,11 @@ app.post('/api/admin/classes/import', requireAuth, requireRole(['SUPER_ADMIN', '
     if (!classesData || !Array.isArray(classesData) || classesData.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Dá»¯ liá»‡u import khÃ´ng há»£p lá»‡'
+        message: 'DÃ¡Â»Â¯ liÃ¡Â»â€¡u import khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡'
       });
     }
 
-    console.log(`ðŸ“¥ Admin ${req.user.email} import ${classesData.length} lá»›p há»c`);
+    console.log(`Ã°Å¸â€œÂ¥ Admin ${req.user.email} import ${classesData.length} lÃ¡Â»â€ºp hÃ¡Â»Âc`);
 
     // Fetch lookup data
     const [coursesRes, teachersRes, centersRes, roomsRes] = await Promise.all([
@@ -5203,7 +6838,7 @@ app.post('/api/admin/classes/import', requireAuth, requireRole(['SUPER_ADMIN', '
           results.failed++;
           results.errors.push({
             row: rowNum,
-            error: `KhÃ´ng tÃ¬m tháº¥y khÃ³a há»c vá»›i mÃ£: ${row.course_code}`
+            error: `KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y khÃƒÂ³a hÃ¡Â»Âc vÃ¡Â»â€ºi mÃƒÂ£: ${row.course_code}`
           });
           continue;
         }
@@ -5216,7 +6851,7 @@ app.post('/api/admin/classes/import', requireAuth, requireRole(['SUPER_ADMIN', '
             results.failed++;
             results.errors.push({
               row: rowNum,
-              error: `KhÃ´ng tÃ¬m tháº¥y giÃ¡o viÃªn vá»›i email: ${row.teacher_email}`
+              error: `KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y giÃƒÂ¡o viÃƒÂªn vÃ¡Â»â€ºi email: ${row.teacher_email}`
             });
             continue;
           }
@@ -5230,7 +6865,7 @@ app.post('/api/admin/classes/import', requireAuth, requireRole(['SUPER_ADMIN', '
             results.failed++;
             results.errors.push({
               row: rowNum,
-              error: `KhÃ´ng tÃ¬m tháº¥y trung tÃ¢m vá»›i mÃ£: ${row.center_code}`
+              error: `KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y trung tÃƒÂ¢m vÃ¡Â»â€ºi mÃƒÂ£: ${row.center_code}`
             });
             continue;
           }
@@ -5265,7 +6900,7 @@ app.post('/api/admin/classes/import', requireAuth, requireRole(['SUPER_ADMIN', '
           results.failed++;
           results.errors.push({
             row: rowNum,
-            error: `MÃ£ lá»›p ${code} Ä‘Ã£ tá»“n táº¡i`
+            error: `MÃƒÂ£ lÃ¡Â»â€ºp ${code} Ã„â€˜ÃƒÂ£ tÃ¡Â»â€œn tÃ¡ÂºÂ¡i`
           });
           continue;
         }
@@ -5299,7 +6934,7 @@ app.post('/api/admin/classes/import', requireAuth, requireRole(['SUPER_ADMIN', '
           results.failed++;
           results.errors.push({
             row: rowNum,
-            error: `Lá»—i táº¡o lá»›p: ${insertError.message}`
+            error: `LÃ¡Â»â€”i tÃ¡ÂºÂ¡o lÃ¡Â»â€ºp: ${insertError.message}`
           });
           continue;
         }
@@ -5320,7 +6955,7 @@ app.post('/api/admin/classes/import', requireAuth, requireRole(['SUPER_ADMIN', '
       }
     }
 
-    console.log(`âœ… Import káº¿t quáº£: ${results.success} thÃ nh cÃ´ng, ${results.failed} tháº¥t báº¡i`);
+    console.log(`Ã¢Å“â€¦ Import kÃ¡ÂºÂ¿t quÃ¡ÂºÂ£: ${results.success} thÃƒÂ nh cÃƒÂ´ng, ${results.failed} thÃ¡ÂºÂ¥t bÃ¡ÂºÂ¡i`);
 
     res.json({
       success: true,
@@ -5333,13 +6968,13 @@ app.post('/api/admin/classes/import', requireAuth, requireRole(['SUPER_ADMIN', '
   }
 });
 
-// Cáº­p nháº­t má»™t session (Ä‘á»•i GV, Ä‘á»•i status, etc.)
+// CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t mÃ¡Â»â„¢t session (Ã„â€˜Ã¡Â»â€¢i GV, Ã„â€˜Ã¡Â»â€¢i status, etc.)
 app.put('/api/admin/sessions/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
     const updates = req.body;
 
-    // Kiá»ƒm tra session cÃ³ bá»‹ lock khÃ´ng
+    // KiÃ¡Â»Æ’m tra session cÃƒÂ³ bÃ¡Â»â€¹ lock khÃƒÂ´ng
     const { data: session, error: sessionError } = await supabase
       .from('sessions')
       .select('is_locked, class_id')
@@ -5348,29 +6983,29 @@ app.put('/api/admin/sessions/:id', requireAuth, async (req, res, next) => {
 
     if (sessionError) throw sessionError;
     if (!session) {
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y buá»•i há»c' });
+      return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y buÃ¡Â»â€¢i hÃ¡Â»Âc' });
     }
 
     if (session?.is_locked) {
       return res.status(400).json({
         success: false,
-        message: 'Buá»•i há»c Ä‘Ã£ Ä‘Æ°á»£c khÃ³a sá»•, khÃ´ng thá»ƒ sá»­a'
+        message: 'BuÃ¡Â»â€¢i hÃ¡Â»Âc Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c khÃƒÂ³a sÃ¡Â»â€¢, khÃƒÂ´ng thÃ¡Â»Æ’ sÃ¡Â»Â­a'
       });
     }
 
-    // KhÃ´ng cho sá»­a cÃ¡c trÆ°á»ng quan trá»ng
+    // KhÃƒÂ´ng cho sÃ¡Â»Â­a cÃƒÂ¡c trÃ†Â°Ã¡Â»Âng quan trÃ¡Â»Âng
     delete updates.is_locked;
     delete updates.payroll_id;
     delete updates.class_id;
 
-    // Xá»­ lÃ½ Ä‘áº·c biá»‡t cho room_id - kiá»ƒm tra xem cá»™t cÃ³ tá»“n táº¡i khÃ´ng
+    // XÃ¡Â»Â­ lÃƒÂ½ Ã„â€˜Ã¡ÂºÂ·c biÃ¡Â»â€¡t cho room_id - kiÃ¡Â»Æ’m tra xem cÃ¡Â»â„¢t cÃƒÂ³ tÃ¡Â»â€œn tÃ¡ÂºÂ¡i khÃƒÂ´ng
     const roomIdUpdate = updates.room_id;
-    delete updates.room_id; // XÃ³a khá»i updates chung Ä‘á»ƒ xá»­ lÃ½ riÃªng
+    delete updates.room_id; // XÃƒÂ³a khÃ¡Â»Âi updates chung Ã„â€˜Ã¡Â»Æ’ xÃ¡Â»Â­ lÃƒÂ½ riÃƒÂªng
 
-    // Update cÃ¡c trÆ°á»ng thÃ´ng thÆ°á»ng
+    // Update cÃƒÂ¡c trÃ†Â°Ã¡Â»Âng thÃƒÂ´ng thÃ†Â°Ã¡Â»Âng
     const safeUpdates = { ...updates, updated_at: new Date().toISOString() };
 
-    // Chá»‰ thÃªm room_id náº¿u cÃ³ yÃªu cáº§u Ä‘á»•i phÃ²ng
+    // ChÃ¡Â»â€° thÃƒÂªm room_id nÃ¡ÂºÂ¿u cÃƒÂ³ yÃƒÂªu cÃ¡ÂºÂ§u Ã„â€˜Ã¡Â»â€¢i phÃƒÂ²ng
     if (roomIdUpdate !== undefined) {
       safeUpdates.room_id = roomIdUpdate;
     }
@@ -5383,11 +7018,11 @@ app.put('/api/admin/sessions/:id', requireAuth, async (req, res, next) => {
       .single();
 
     if (error) {
-      // Náº¿u lá»—i lÃ  do cá»™t room_id khÃ´ng tá»“n táº¡i
+      // NÃ¡ÂºÂ¿u lÃ¡Â»â€”i lÃƒÂ  do cÃ¡Â»â„¢t room_id khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i
       if (error.code === 'PGRST204' && error.message?.includes('room_id')) {
         return res.status(400).json({
           success: false,
-          message: 'Chá»©c nÄƒng Ä‘á»•i phÃ²ng tá»«ng buá»•i chÆ°a Ä‘Æ°á»£c kÃ­ch hoáº¡t. Vui lÃ²ng cháº¡y migration 13_add_room_to_sessions.sql'
+          message: 'ChÃ¡Â»Â©c nÃ„Æ’ng Ã„â€˜Ã¡Â»â€¢i phÃƒÂ²ng tÃ¡Â»Â«ng buÃ¡Â»â€¢i chÃ†Â°a Ã„â€˜Ã†Â°Ã¡Â»Â£c kÃƒÂ­ch hoÃ¡ÂºÂ¡t. Vui lÃƒÂ²ng chÃ¡ÂºÂ¡y migration 13_add_room_to_sessions.sql'
         });
       }
       throw error;
@@ -5401,7 +7036,7 @@ app.put('/api/admin/sessions/:id', requireAuth, async (req, res, next) => {
 });
 
 // ========================================
-// Bulk update nhiá»u sessions cÃ¹ng lÃºc
+// Bulk update nhiÃ¡Â»Âu sessions cÃƒÂ¹ng lÃƒÂºc
 // ========================================
 app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -5410,18 +7045,18 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     if (!sessionIds || !Array.isArray(sessionIds) || sessionIds.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Danh sÃ¡ch buá»•i há»c khÃ´ng há»£p lá»‡'
+        message: 'Danh sÃƒÂ¡ch buÃ¡Â»â€¢i hÃ¡Â»Âc khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡'
       });
     }
 
     if (!updates || Object.keys(updates).length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'KhÃ´ng cÃ³ thay Ä‘á»•i nÃ o Ä‘Æ°á»£c gá»­i'
+        message: 'KhÃƒÂ´ng cÃƒÂ³ thay Ã„â€˜Ã¡Â»â€¢i nÃƒÂ o Ã„â€˜Ã†Â°Ã¡Â»Â£c gÃ¡Â»Â­i'
       });
     }
 
-    console.log(`ðŸ“ Admin ${req.user.email} bulk update ${sessionIds.length} sessions:`, updates);
+    console.log(`Ã°Å¸â€œÂ Admin ${req.user.email} bulk update ${sessionIds.length} sessions:`, updates);
 
     // Check for locked sessions
     const { data: sessions, error: fetchError } = await supabase
@@ -5435,7 +7070,7 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     if (lockedSessions.length > 0) {
       return res.status(400).json({
         success: false,
-        message: `${lockedSessions.length} buá»•i há»c Ä‘Ã£ bá»‹ khÃ³a sá»•, khÃ´ng thá»ƒ sá»­a`
+        message: `${lockedSessions.length} buÃ¡Â»â€¢i hÃ¡Â»Âc Ã„â€˜ÃƒÂ£ bÃ¡Â»â€¹ khÃƒÂ³a sÃ¡Â»â€¢, khÃƒÂ´ng thÃ¡Â»Æ’ sÃ¡Â»Â­a`
       });
     }
 
@@ -5457,11 +7092,11 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
 
     if (updateError) throw updateError;
 
-    console.log(`âœ… ÄÃ£ cáº­p nháº­t ${data?.length || 0} buá»•i há»c`);
+    console.log(`Ã¢Å“â€¦ Ã„ÂÃƒÂ£ cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t ${data?.length || 0} buÃ¡Â»â€¢i hÃ¡Â»Âc`);
 
     res.json({
       success: true,
-      message: `ÄÃ£ cáº­p nháº­t ${data?.length || 0} buá»•i há»c`,
+      message: `Ã„ÂÃƒÂ£ cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t ${data?.length || 0} buÃ¡Â»â€¢i hÃ¡Â»Âc`,
       updated: data?.length || 0,
       data
     });
@@ -5472,12 +7107,12 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
   }
 });
 
-// Láº¥y danh sÃ¡ch GV ráº£nh vÃ o má»™t khung giá» cá»¥ thá»ƒ
+// LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch GV rÃ¡ÂºÂ£nh vÃƒÂ o mÃ¡Â»â„¢t khung giÃ¡Â»Â cÃ¡Â»Â¥ thÃ¡Â»Æ’
 app.get('/api/admin/sessions/:sessionId/available-teachers', requireAuth, async (req, res, next) => {
   try {
     const { sessionId } = req.params;
 
-    // Láº¥y thÃ´ng tin session hiá»‡n táº¡i
+    // LÃ¡ÂºÂ¥y thÃƒÂ´ng tin session hiÃ¡Â»â€¡n tÃ¡ÂºÂ¡i
     const { data: session, error: sessionError } = await supabase
       .from('sessions')
       .select('session_date, start_time, end_time, teacher_id, classes(center_id)')
@@ -5485,9 +7120,9 @@ app.get('/api/admin/sessions/:sessionId/available-teachers', requireAuth, async 
       .single();
 
     if (sessionError) throw sessionError;
-    if (!session) return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y buá»•i há»c' });
+    if (!session) return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y buÃ¡Â»â€¢i hÃ¡Â»Âc' });
 
-    // Láº¥y táº¥t cáº£ giÃ¡o viÃªn
+    // LÃ¡ÂºÂ¥y tÃ¡ÂºÂ¥t cÃ¡ÂºÂ£ giÃƒÂ¡o viÃƒÂªn
     const { data: teachers, error: teachersError } = await supabase
       .from('users')
       .select('id, full_name, email, avatar_url')
@@ -5495,7 +7130,7 @@ app.get('/api/admin/sessions/:sessionId/available-teachers', requireAuth, async 
 
     if (teachersError) throw teachersError;
 
-    // Láº¥y cÃ¡c sessions trÃ¹ng giá»
+    // LÃ¡ÂºÂ¥y cÃƒÂ¡c sessions trÃƒÂ¹ng giÃ¡Â»Â
     const { data: busySessions } = await supabase
       .from('sessions')
       .select('teacher_id')
@@ -5506,7 +7141,7 @@ app.get('/api/admin/sessions/:sessionId/available-teachers', requireAuth, async 
 
     const busyTeacherIds = new Set((busySessions || []).map(s => s.teacher_id).filter(Boolean));
 
-    // ÄÃ¡nh dáº¥u GV nÃ o Ä‘ang báº­n
+    // Ã„ÂÃƒÂ¡nh dÃ¡ÂºÂ¥u GV nÃƒÂ o Ã„â€˜ang bÃ¡ÂºÂ­n
     const result = (teachers || []).map(t => ({
       ...t,
       isBusy: busyTeacherIds.has(t.id),
@@ -5528,12 +7163,12 @@ app.get('/api/admin/sessions/:sessionId/available-teachers', requireAuth, async 
   }
 });
 
-// Láº¥y danh sÃ¡ch phÃ²ng trá»‘ng vÃ o má»™t khung giá» cá»¥ thá»ƒ
+// LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch phÃƒÂ²ng trÃ¡Â»â€˜ng vÃƒÂ o mÃ¡Â»â„¢t khung giÃ¡Â»Â cÃ¡Â»Â¥ thÃ¡Â»Æ’
 app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, async (req, res, next) => {
   try {
     const { sessionId } = req.params;
 
-    // Láº¥y thÃ´ng tin session hiá»‡n táº¡i (session khÃ´ng cÃ³ room_id, láº¥y tá»« class)
+    // LÃ¡ÂºÂ¥y thÃƒÂ´ng tin session hiÃ¡Â»â€¡n tÃ¡ÂºÂ¡i (session khÃƒÂ´ng cÃƒÂ³ room_id, lÃ¡ÂºÂ¥y tÃ¡Â»Â« class)
     const { data: session, error: sessionError } = await supabase
       .from('sessions')
       .select('id, session_date, start_time, end_time, class_id, classes(id, center_id, room_id, rooms(id, name))')
@@ -5544,9 +7179,9 @@ app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, async (re
       console.error('Session error:', sessionError);
       throw sessionError;
     }
-    if (!session) return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y buá»•i há»c' });
+    if (!session) return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y buÃ¡Â»â€¢i hÃ¡Â»Âc' });
 
-    // Láº¥y táº¥t cáº£ phÃ²ng há»c (cÃ¹ng center náº¿u cáº§n)
+    // LÃ¡ÂºÂ¥y tÃ¡ÂºÂ¥t cÃ¡ÂºÂ£ phÃƒÂ²ng hÃ¡Â»Âc (cÃƒÂ¹ng center nÃ¡ÂºÂ¿u cÃ¡ÂºÂ§n)
     let roomQuery = supabase.from('rooms').select('id, name, code, capacity, center_id, centers(name)');
     if (session.classes?.center_id) {
       roomQuery = roomQuery.eq('center_id', session.classes.center_id);
@@ -5558,7 +7193,7 @@ app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, async (re
       throw roomsError;
     }
 
-    // Láº¥y cÃ¡c sessions trÃ¹ng giá» trong cÃ¹ng ngÃ y
+    // LÃ¡ÂºÂ¥y cÃƒÂ¡c sessions trÃƒÂ¹ng giÃ¡Â»Â trong cÃƒÂ¹ng ngÃƒÂ y
     const { data: busySessions, error: busyError } = await supabase
       .from('sessions')
       .select('id, class_id')
@@ -5570,7 +7205,7 @@ app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, async (re
       console.error('Busy sessions error:', busyError);
     }
 
-    // Láº¥y room cá»§a cÃ¡c class cÃ³ session trÃ¹ng ngÃ y
+    // LÃ¡ÂºÂ¥y room cÃ¡Â»Â§a cÃƒÂ¡c class cÃƒÂ³ session trÃƒÂ¹ng ngÃƒÂ y
     const busyRoomIds = new Set();
     if (busySessions && busySessions.length > 0) {
       const classIds = [...new Set(busySessions.map(s => s.class_id).filter(Boolean))];
@@ -5588,7 +7223,7 @@ app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, async (re
 
     const currentRoomId = session.classes?.room_id;
 
-    // ÄÃ¡nh dáº¥u phÃ²ng nÃ o Ä‘ang báº­n
+    // Ã„ÂÃƒÂ¡nh dÃ¡ÂºÂ¥u phÃƒÂ²ng nÃƒÂ o Ã„â€˜ang bÃ¡ÂºÂ­n
     const result = (rooms || []).map(r => ({
       ...r,
       isBusy: busyRoomIds.has(r.id) && r.id !== currentRoomId,
@@ -5613,7 +7248,7 @@ app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, async (re
 
 // ============ ATTENDANCE MANAGEMENT APIs ============
 
-// Láº¥y danh sÃ¡ch Ä‘iá»ƒm danh cá»§a má»™t session
+// LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch Ã„â€˜iÃ¡Â»Æ’m danh cÃ¡Â»Â§a mÃ¡Â»â„¢t session
 app.get('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, res, next) => {
   try {
     const { sessionId } = req.params;
@@ -5634,7 +7269,7 @@ app.get('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, re
   }
 });
 
-// Äiá»ƒm danh hÃ ng loáº¡t (Batch attendance)
+// Ã„ÂiÃ¡Â»Æ’m danh hÃƒÂ ng loÃ¡ÂºÂ¡t (Batch attendance)
 app.post('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, res, next) => {
   try {
     const { sessionId } = req.params;
@@ -5643,13 +7278,13 @@ app.post('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, r
     if (!attendances || !Array.isArray(attendances)) {
       return res.status(400).json({
         success: false,
-        message: 'Cáº§n truyá»n máº£ng attendances'
+        message: 'CÃ¡ÂºÂ§n truyÃ¡Â»Ân mÃ¡ÂºÂ£ng attendances'
       });
     }
 
-    console.log(`ðŸ“‹ Admin ${req.user.email} Ä‘iá»ƒm danh ${attendances.length} há»c viÃªn`);
+    console.log(`Ã°Å¸â€œâ€¹ Admin ${req.user.email} Ã„â€˜iÃ¡Â»Æ’m danh ${attendances.length} hÃ¡Â»Âc viÃƒÂªn`);
 
-    // Kiá»ƒm tra session cÃ³ tá»“n táº¡i khÃ´ng
+    // KiÃ¡Â»Æ’m tra session cÃƒÂ³ tÃ¡Â»â€œn tÃ¡ÂºÂ¡i khÃƒÂ´ng
     const { data: session } = await supabase
       .from('sessions')
       .select('id, is_locked')
@@ -5659,18 +7294,18 @@ app.post('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, r
     if (!session) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y buá»•i há»c'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y buÃ¡Â»â€¢i hÃ¡Â»Âc'
       });
     }
 
     if (session.is_locked) {
       return res.status(400).json({
         success: false,
-        message: 'Buá»•i há»c Ä‘Ã£ khÃ³a sá»•, khÃ´ng thá»ƒ Ä‘iá»ƒm danh'
+        message: 'BuÃ¡Â»â€¢i hÃ¡Â»Âc Ã„â€˜ÃƒÂ£ khÃƒÂ³a sÃ¡Â»â€¢, khÃƒÂ´ng thÃ¡Â»Æ’ Ã„â€˜iÃ¡Â»Æ’m danh'
       });
     }
 
-    // Upsert tá»«ng attendance
+    // Upsert tÃ¡Â»Â«ng attendance
     const results = [];
     const errors = [];
 
@@ -5680,7 +7315,7 @@ app.post('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, r
       if (att.status && !validStatuses.includes(att.status)) {
         errors.push({
           student_id: att.student_id,
-          error: `Tráº¡ng thÃ¡i khÃ´ng há»£p lá»‡: ${att.status}. Chá»‰ cháº¥p nháº­n: ${validStatuses.join(', ')}`
+          error: `TrÃ¡ÂºÂ¡ng thÃƒÂ¡i khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡: ${att.status}. ChÃ¡Â»â€° chÃ¡ÂºÂ¥p nhÃ¡ÂºÂ­n: ${validStatuses.join(', ')}`
         });
         continue;
       }
@@ -5710,7 +7345,7 @@ app.post('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, r
       }
     }
 
-    // Cáº­p nháº­t status cá»§a session thÃ nh completed náº¿u Ä‘Ã£ Ä‘iá»ƒm danh
+    // CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t status cÃ¡Â»Â§a session thÃƒÂ nh completed nÃ¡ÂºÂ¿u Ã„â€˜ÃƒÂ£ Ã„â€˜iÃ¡Â»Æ’m danh
     await supabase
       .from('sessions')
       .update({ status: 'completed', updated_at: new Date().toISOString() })
@@ -5718,7 +7353,7 @@ app.post('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, r
 
     res.json({
       success: true,
-      message: `ÄÃ£ lÆ°u Ä‘iá»ƒm danh cho ${results.length} há»c viÃªn`,
+      message: `Ã„ÂÃƒÂ£ lÃ†Â°u Ã„â€˜iÃ¡Â»Æ’m danh cho ${results.length} hÃ¡Â»Âc viÃƒÂªn`,
       data: results,
       errors: errors.length > 0 ? errors : undefined
     });
@@ -5730,7 +7365,7 @@ app.post('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, r
 /**
  * POST /api/admin/attendance/override
  * Admin override attendance (bypasses 24h window, requires reason)
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER only
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER only
  *
  * Body: {
  *   sessionId: UUID,
@@ -5747,10 +7382,10 @@ app.post('/api/admin/attendance/override', requireAuth, requireRole(['SUPER_ADMI
 
     // Validate override_reason
     if (!override_reason || typeof override_reason !== 'string' || override_reason.trim().length < 10) {
-      console.log(`âš ï¸ Admin ${req.user.email} override bá»‹ tá»« chá»‘i: lÃ½ do khÃ´ng há»£p lá»‡`);
+      console.log(`Ã¢Å¡Â Ã¯Â¸Â Admin ${req.user.email} override bÃ¡Â»â€¹ tÃ¡Â»Â« chÃ¡Â»â€˜i: lÃƒÂ½ do khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡`);
       return res.status(400).json({
         success: false,
-        message: 'LÃ½ do override pháº£i cÃ³ Ã­t nháº¥t 10 kÃ½ tá»±'
+        message: 'LÃƒÂ½ do override phÃ¡ÂºÂ£i cÃƒÂ³ ÃƒÂ­t nhÃ¡ÂºÂ¥t 10 kÃƒÂ½ tÃ¡Â»Â±'
       });
     }
 
@@ -5758,7 +7393,7 @@ app.post('/api/admin/attendance/override', requireAuth, requireRole(['SUPER_ADMI
     if (!sessionId) {
       return res.status(400).json({
         success: false,
-        message: 'Thiáº¿u sessionId'
+        message: 'ThiÃ¡ÂºÂ¿u sessionId'
       });
     }
 
@@ -5766,7 +7401,7 @@ app.post('/api/admin/attendance/override', requireAuth, requireRole(['SUPER_ADMI
     if (!attendances || !Array.isArray(attendances) || attendances.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Cáº§n truyá»n máº£ng attendances'
+        message: 'CÃ¡ÂºÂ§n truyÃ¡Â»Ân mÃ¡ÂºÂ£ng attendances'
       });
     }
 
@@ -5787,10 +7422,10 @@ app.post('/api/admin/attendance/override', requireAuth, requireRole(['SUPER_ADMI
       .single();
 
     if (sessionError || !session) {
-      console.log(`âš ï¸ Admin ${req.user.email} override session khÃ´ng tá»“n táº¡i: ${sessionId}`);
+      console.log(`Ã¢Å¡Â Ã¯Â¸Â Admin ${req.user.email} override session khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i: ${sessionId}`);
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y buá»•i há»c'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y buÃ¡Â»â€¢i hÃ¡Â»Âc'
       });
     }
 
@@ -5798,15 +7433,15 @@ app.post('/api/admin/attendance/override', requireAuth, requireRole(['SUPER_ADMI
     if (userRole === 'CENTER_MANAGER') {
       const classCenterId = session.classes?.center_id;
       if (classCenterId !== userCenterId) {
-        console.log(`â›” CENTER_MANAGER ${req.user.email} bá»‹ cháº·n override session ${sessionId} - khÃ´ng thuá»™c center cá»§a há»`);
+        console.log(`Ã¢â€ºâ€ CENTER_MANAGER ${req.user.email} bÃ¡Â»â€¹ chÃ¡ÂºÂ·n override session ${sessionId} - khÃƒÂ´ng thuÃ¡Â»â„¢c center cÃ¡Â»Â§a hÃ¡Â»Â`);
         return res.status(403).json({
           success: false,
-          message: 'Báº¡n chá»‰ cÃ³ thá»ƒ override Ä‘iá»ƒm danh cho cÃ¡c lá»›p thuá»™c trung tÃ¢m cá»§a mÃ¬nh'
+          message: 'BÃ¡ÂºÂ¡n chÃ¡Â»â€° cÃƒÂ³ thÃ¡Â»Æ’ override Ã„â€˜iÃ¡Â»Æ’m danh cho cÃƒÂ¡c lÃ¡Â»â€ºp thuÃ¡Â»â„¢c trung tÃƒÂ¢m cÃ¡Â»Â§a mÃƒÂ¬nh'
         });
       }
     }
 
-    console.log(`ðŸ” Admin ${req.user.email} (${userRole}) override Ä‘iá»ƒm danh session ${sessionId} - LÃ½ do: ${override_reason.substring(0, 50)}...`);
+    console.log(`Ã°Å¸â€Â Admin ${req.user.email} (${userRole}) override Ã„â€˜iÃ¡Â»Æ’m danh session ${sessionId} - LÃƒÂ½ do: ${override_reason.substring(0, 50)}...`);
 
     // Process attendance overrides (bypass is_locked and 24h window)
     const results = [];
@@ -5819,7 +7454,7 @@ app.post('/api/admin/attendance/override', requireAuth, requireRole(['SUPER_ADMI
       if (att.status && !validStatuses.includes(att.status)) {
         errors.push({
           student_id: att.student_id,
-          error: `Tráº¡ng thÃ¡i khÃ´ng há»£p lá»‡: ${att.status}. Chá»‰ cháº¥p nháº­n: ${validStatuses.join(', ')}`
+          error: `TrÃ¡ÂºÂ¡ng thÃƒÂ¡i khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡: ${att.status}. ChÃ¡Â»â€° chÃ¡ÂºÂ¥p nhÃ¡ÂºÂ­n: ${validStatuses.join(', ')}`
         });
         continue;
       }
@@ -5844,7 +7479,7 @@ app.post('/api/admin/attendance/override', requireAuth, requireRole(['SUPER_ADMI
         .single();
 
       if (error) {
-        console.log(`âš ï¸ Lá»—i override attendance cho student ${att.student_id}: ${error.message}`);
+        console.log(`Ã¢Å¡Â Ã¯Â¸Â LÃ¡Â»â€”i override attendance cho student ${att.student_id}: ${error.message}`);
         errors.push({
           student_id: att.student_id,
           error: error.message
@@ -5868,16 +7503,16 @@ app.post('/api/admin/attendance/override', requireAuth, requireRole(['SUPER_ADMI
       }
     }
 
-    console.log(`ðŸ“ Override hoÃ n táº¥t: ${results.length} thÃ nh cÃ´ng, ${errors.length} lá»—i`);
+    console.log(`Ã°Å¸â€œÂ Override hoÃƒÂ n tÃ¡ÂºÂ¥t: ${results.length} thÃƒÂ nh cÃƒÂ´ng, ${errors.length} lÃ¡Â»â€”i`);
 
     res.json({
       success: true,
-      message: `ÄÃ£ override Ä‘iá»ƒm danh cho ${results.length} há»c viÃªn`,
+      message: `Ã„ÂÃƒÂ£ override Ã„â€˜iÃ¡Â»Æ’m danh cho ${results.length} hÃ¡Â»Âc viÃƒÂªn`,
       data: results,
       errors: errors.length > 0 ? errors : undefined
     });
   } catch (error) {
-    console.error('âŒ Error in attendance override:', error);
+    console.error('Ã¢ÂÅ’ Error in attendance override:', error);
     next(error);
   }
 });
@@ -5885,7 +7520,7 @@ app.post('/api/admin/attendance/override', requireAuth, requireRole(['SUPER_ADMI
 /**
  * GET /api/admin/attendance/audit/:sessionId
  * Get audit history for a session's attendance
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/attendance/audit/:sessionId', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -5909,7 +7544,7 @@ app.get('/api/admin/attendance/audit/:sessionId', requireAuth, requireRole(['SUP
     if (sessionError || !session) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y buá»•i há»c'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y buÃ¡Â»â€¢i hÃ¡Â»Âc'
       });
     }
 
@@ -5917,15 +7552,15 @@ app.get('/api/admin/attendance/audit/:sessionId', requireAuth, requireRole(['SUP
     if (userRole === 'CENTER_MANAGER') {
       const classCenterId = session.classes?.center_id;
       if (classCenterId !== userCenterId) {
-        console.log(`â›” CENTER_MANAGER ${req.user.email} bá»‹ cháº·n xem audit session ${sessionId} - khÃ´ng thuá»™c center cá»§a há»`);
+        console.log(`Ã¢â€ºâ€ CENTER_MANAGER ${req.user.email} bÃ¡Â»â€¹ chÃ¡ÂºÂ·n xem audit session ${sessionId} - khÃƒÂ´ng thuÃ¡Â»â„¢c center cÃ¡Â»Â§a hÃ¡Â»Â`);
         return res.status(403).json({
           success: false,
-          message: 'Báº¡n chá»‰ cÃ³ thá»ƒ xem audit cho cÃ¡c lá»›p thuá»™c trung tÃ¢m cá»§a mÃ¬nh'
+          message: 'BÃ¡ÂºÂ¡n chÃ¡Â»â€° cÃƒÂ³ thÃ¡Â»Æ’ xem audit cho cÃƒÂ¡c lÃ¡Â»â€ºp thuÃ¡Â»â„¢c trung tÃƒÂ¢m cÃ¡Â»Â§a mÃƒÂ¬nh'
         });
       }
     }
 
-    console.log(`ðŸ” Admin ${req.user.email} xem audit Ä‘iá»ƒm danh session ${sessionId}`);
+    console.log(`Ã°Å¸â€Â Admin ${req.user.email} xem audit Ã„â€˜iÃ¡Â»Æ’m danh session ${sessionId}`);
 
     // Get audit history for this session
     const { data: auditLogs, error: auditError } = await supabase
@@ -5958,17 +7593,17 @@ app.get('/api/admin/attendance/audit/:sessionId', requireAuth, requireRole(['SUP
       .order('changed_at', { ascending: false });
 
     if (auditError) {
-      console.error('âŒ Error fetching attendance audit:', auditError);
+      console.error('Ã¢ÂÅ’ Error fetching attendance audit:', auditError);
       throw auditError;
     }
 
     res.json({
       success: true,
       data: auditLogs || [],
-      message: `TÃ¬m tháº¥y ${auditLogs?.length || 0} báº£n ghi audit`
+      message: `TÃƒÂ¬m thÃ¡ÂºÂ¥y ${auditLogs?.length || 0} bÃ¡ÂºÂ£n ghi audit`
     });
   } catch (error) {
-    console.error('âŒ Error in attendance audit:', error);
+    console.error('Ã¢ÂÅ’ Error in attendance audit:', error);
     next(error);
   }
 });
@@ -5976,7 +7611,7 @@ app.get('/api/admin/attendance/audit/:sessionId', requireAuth, requireRole(['SUP
 /**
  * GET /api/admin/sessions/:sessionId/available-teachers
  * Get available teachers for a session (exclude conflicts)
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/sessions/:sessionId/available-teachers', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -6001,7 +7636,7 @@ app.get('/api/admin/sessions/:sessionId/available-teachers', requireAuth, requir
     if (sessionError || !session) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y buá»•i há»c'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y buÃ¡Â»â€¢i hÃ¡Â»Âc'
       });
     }
 
@@ -6009,7 +7644,7 @@ app.get('/api/admin/sessions/:sessionId/available-teachers', requireAuth, requir
     if (!sessionCenterId) {
       return res.status(400).json({
         success: false,
-        message: 'Buá»•i há»c chÆ°a Ä‘Æ°á»£c gÃ¡n trung tÃ¢m'
+        message: 'BuÃ¡Â»â€¢i hÃ¡Â»Âc chÃ†Â°a Ã„â€˜Ã†Â°Ã¡Â»Â£c gÃƒÂ¡n trung tÃƒÂ¢m'
       });
     }
 
@@ -6080,7 +7715,7 @@ app.get('/api/admin/sessions/:sessionId/available-teachers', requireAuth, requir
       data: availableTeachers
     });
   } catch (error) {
-    console.error('âŒ Error in available teachers:', error);
+    console.error('Ã¢ÂÅ’ Error in available teachers:', error);
     next(error);
   }
 });
@@ -6088,7 +7723,7 @@ app.get('/api/admin/sessions/:sessionId/available-teachers', requireAuth, requir
 /**
  * GET /api/admin/sessions/:sessionId/available-rooms
  * Get available rooms for a session (exclude conflicts)
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -6113,7 +7748,7 @@ app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, requireRo
     if (sessionError || !session) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y buá»•i há»c'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y buÃ¡Â»â€¢i hÃ¡Â»Âc'
       });
     }
 
@@ -6121,7 +7756,7 @@ app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, requireRo
     if (!sessionCenterId) {
       return res.status(400).json({
         success: false,
-        message: 'Buá»•i há»c chÆ°a Ä‘Æ°á»£c gÃ¡n trung tÃ¢m'
+        message: 'BuÃ¡Â»â€¢i hÃ¡Â»Âc chÃ†Â°a Ã„â€˜Ã†Â°Ã¡Â»Â£c gÃƒÂ¡n trung tÃƒÂ¢m'
       });
     }
 
@@ -6192,7 +7827,7 @@ app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, requireRo
       data: availableRooms
     });
   } catch (error) {
-    console.error('âŒ Error in available rooms:', error);
+    console.error('Ã¢ÂÅ’ Error in available rooms:', error);
     next(error);
   }
 });
@@ -6200,7 +7835,7 @@ app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, requireRo
 /**
  * GET /api/admin/classes/:classId/students
  * Get students in a class (active + pending enrollments)
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/classes/:classId/students', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -6218,17 +7853,17 @@ app.get('/api/admin/classes/:classId/students', requireAuth, requireRole(['SUPER
     if (classError || !classData) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y lÃ¡Â»â€ºp hÃ¡Â»Âc'
       });
     }
 
     // 2) CENTER_MANAGER can only access their center
     if (userRole === 'CENTER_MANAGER') {
       if (classData.center_id !== userCenterId) {
-        console.log(`â›” CENTER_MANAGER ${req.user.email} bá»‹ cháº·n xem danh sÃ¡ch há»c viÃªn lá»›p ${classId} - khÃ´ng thuá»™c center cá»§a há»`);
+        console.log(`Ã¢â€ºâ€ CENTER_MANAGER ${req.user.email} bÃ¡Â»â€¹ chÃ¡ÂºÂ·n xem danh sÃƒÂ¡ch hÃ¡Â»Âc viÃƒÂªn lÃ¡Â»â€ºp ${classId} - khÃƒÂ´ng thuÃ¡Â»â„¢c center cÃ¡Â»Â§a hÃ¡Â»Â`);
         return res.status(403).json({
           success: false,
-          message: 'Báº¡n chá»‰ cÃ³ thá»ƒ xem cÃ¡c lá»›p thuá»™c trung tÃ¢m cá»§a mÃ¬nh'
+          message: 'BÃ¡ÂºÂ¡n chÃ¡Â»â€° cÃƒÂ³ thÃ¡Â»Æ’ xem cÃƒÂ¡c lÃ¡Â»â€ºp thuÃ¡Â»â„¢c trung tÃƒÂ¢m cÃ¡Â»Â§a mÃƒÂ¬nh'
         });
       }
     }
@@ -6280,7 +7915,7 @@ app.get('/api/admin/classes/:classId/students', requireAuth, requireRole(['SUPER
       data: result
     });
   } catch (error) {
-    console.error('âŒ Error in class students:', error);
+    console.error('Ã¢ÂÅ’ Error in class students:', error);
     next(error);
   }
 });
@@ -6290,13 +7925,13 @@ app.get('/api/admin/classes/:classId/students', requireAuth, requireRole(['SUPER
 /**
  * POST /api/admin/sessions/auto-complete
  * Manually trigger session auto-complete
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/sessions/auto-complete', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { dryRun = false, sessionIds = null } = req.body;
 
-    console.log(`ðŸ”„ Admin ${req.user.email} triggered session auto-complete (dryRun: ${dryRun})`);
+    console.log(`Ã°Å¸â€â€ž Admin ${req.user.email} triggered session auto-complete (dryRun: ${dryRun})`);
 
     // Import the function
     const { autoCompleteSessionsManual } = await import('./jobs/sessionAutoComplete.job.js');
@@ -6308,7 +7943,7 @@ app.post('/api/admin/sessions/auto-complete', requireAuth, requireRole(['SUPER_A
       ...result
     });
   } catch (error) {
-    console.error('âŒ Error in session auto-complete:', error);
+    console.error('Ã¢ÂÅ’ Error in session auto-complete:', error);
     next(error);
   }
 });
@@ -6316,7 +7951,7 @@ app.post('/api/admin/sessions/auto-complete', requireAuth, requireRole(['SUPER_A
 /**
  * PUT /api/admin/sessions/bulk
  * Bulk update sessions (complete or cancel multiple)
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -6326,18 +7961,18 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     if (!sessionIds || !Array.isArray(sessionIds) || sessionIds.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Cáº§n cung cáº¥p danh sÃ¡ch buá»•i há»c (sessionIds)'
+        message: 'CÃ¡ÂºÂ§n cung cÃ¡ÂºÂ¥p danh sÃƒÂ¡ch buÃ¡Â»â€¢i hÃ¡Â»Âc (sessionIds)'
       });
     }
 
     if (!['complete', 'cancel'].includes(action)) {
       return res.status(400).json({
         success: false,
-        message: 'Action pháº£i lÃ  "complete" hoáº·c "cancel"'
+        message: 'Action phÃ¡ÂºÂ£i lÃƒÂ  "complete" hoÃ¡ÂºÂ·c "cancel"'
       });
     }
 
-    console.log(`ðŸ“¦ Admin ${req.user.email} bulk ${action} ${sessionIds.length} sessions`);
+    console.log(`Ã°Å¸â€œÂ¦ Admin ${req.user.email} bulk ${action} ${sessionIds.length} sessions`);
 
     // 1) Check all sessions exist and are not locked
     const { data: sessions, error: fetchError } = await supabase
@@ -6359,7 +7994,7 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     if (!sessions || sessions.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y buá»•i há»c nÃ o'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y buÃ¡Â»â€¢i hÃ¡Â»Âc nÃƒÂ o'
       });
     }
 
@@ -6372,7 +8007,7 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       if (userRole !== 'SUPER_ADMIN' && sessionCenterId !== userCenterId) {
         return res.status(403).json({
           success: false,
-          message: `Báº¡n khÃ´ng cÃ³ quyá»n thao tÃ¡c buá»•i há»c thuá»™c trung tÃ¢m khÃ¡c`
+          message: `BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân thao tÃƒÂ¡c buÃ¡Â»â€¢i hÃ¡Â»Âc thuÃ¡Â»â„¢c trung tÃƒÂ¢m khÃƒÂ¡c`
         });
       }
     }
@@ -6384,7 +8019,7 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     if (editableSessions.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Táº¥t cáº£ buá»•i há»c Ä‘Ã£ bá»‹ khÃ³a, khÃ´ng thá»ƒ thay Ä‘á»•i',
+        message: 'TÃ¡ÂºÂ¥t cÃ¡ÂºÂ£ buÃ¡Â»â€¢i hÃ¡Â»Âc Ã„â€˜ÃƒÂ£ bÃ¡Â»â€¹ khÃƒÂ³a, khÃƒÂ´ng thÃ¡Â»Æ’ thay Ã„â€˜Ã¡Â»â€¢i',
         lockedCount: lockedSessions.length
       });
     }
@@ -6405,7 +8040,7 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     if (toUpdate.length === 0) {
       return res.status(400).json({
         success: false,
-        message: `KhÃ´ng cÃ³ buá»•i há»c nÃ o cÃ³ thá»ƒ ${action === 'complete' ? 'hoÃ n thÃ nh' : 'há»§y'}`,
+        message: `KhÃƒÂ´ng cÃƒÂ³ buÃ¡Â»â€¢i hÃ¡Â»Âc nÃƒÂ o cÃƒÂ³ thÃ¡Â»Æ’ ${action === 'complete' ? 'hoÃƒÂ n thÃƒÂ nh' : 'hÃ¡Â»Â§y'}`,
         lockedCount: lockedSessions.length,
         skippedByStatus: skippedByStatus.length
       });
@@ -6425,7 +8060,7 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
 
     if (updateError) throw updateError;
 
-    console.log(`âœ… Bulk ${action}: ${idsToUpdate.length} sessions updated`);
+    console.log(`Ã¢Å“â€¦ Bulk ${action}: ${idsToUpdate.length} sessions updated`);
 
     res.json({
       success: true,
@@ -6433,17 +8068,17 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       lockedCount: lockedSessions.length,
       skippedByStatus: skippedByStatus.length,
       updatedIds: idsToUpdate,
-      message: `ÄÃ£ ${action === 'complete' ? 'hoÃ n thÃ nh' : 'há»§y'} ${idsToUpdate.length} buá»•i há»c`
+      message: `Ã„ÂÃƒÂ£ ${action === 'complete' ? 'hoÃƒÂ n thÃƒÂ nh' : 'hÃ¡Â»Â§y'} ${idsToUpdate.length} buÃ¡Â»â€¢i hÃ¡Â»Âc`
     });
   } catch (error) {
-    console.error('âŒ Error in bulk session update:', error);
+    console.error('Ã¢ÂÅ’ Error in bulk session update:', error);
     next(error);
   }
 });
 
 // ============ ROOM MANAGEMENT APIs ============
 
-// Láº¥y danh sÃ¡ch phÃ²ng há»c
+// LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch phÃƒÂ²ng hÃ¡Â»Âc
 app.get('/api/rooms', requireAuth, async (req, res, next) => {
   try {
     const { center_id, status } = req.query;
@@ -6480,7 +8115,7 @@ app.get('/api/rooms', requireAuth, async (req, res, next) => {
   }
 });
 
-// Láº¥y chi tiáº¿t phÃ²ng há»c
+// LÃ¡ÂºÂ¥y chi tiÃ¡ÂºÂ¿t phÃƒÂ²ng hÃ¡Â»Âc
 app.get('/api/rooms/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -6501,29 +8136,29 @@ app.get('/api/rooms/:id', async (req, res, next) => {
   }
 });
 
-// Táº¡o phÃ²ng há»c má»›i
+// TÃ¡ÂºÂ¡o phÃƒÂ²ng hÃ¡Â»Âc mÃ¡Â»â€ºi
 app.post('/api/admin/rooms', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { name, code, capacity, room_type, equipment, center_id, notes } = req.body;
 
-    console.log(`ðŸ  Admin ${req.user.email} táº¡o phÃ²ng má»›i:`, { name, code, center_id, room_type, capacity });
+    console.log(`Ã°Å¸ÂÂ  Admin ${req.user.email} tÃ¡ÂºÂ¡o phÃƒÂ²ng mÃ¡Â»â€ºi:`, { name, code, center_id, room_type, capacity });
 
     // Validation
     if (!name || !name.trim()) {
       return res.status(400).json({
         success: false,
-        message: 'TÃªn phÃ²ng lÃ  báº¯t buá»™c'
+        message: 'TÃƒÂªn phÃƒÂ²ng lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
       });
     }
 
     if (!center_id) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lÃ²ng chá»n trung tÃ¢m'
+        message: 'Vui lÃƒÂ²ng chÃ¡Â»Ân trung tÃƒÂ¢m'
       });
     }
 
-    // Auto generate code náº¿u khÃ´ng cÃ³
+    // Auto generate code nÃ¡ÂºÂ¿u khÃƒÂ´ng cÃƒÂ³
     let roomCode = code;
     if (!roomCode) {
       const randomNum = Math.floor(100 + Math.random() * 900);
@@ -6546,39 +8181,39 @@ app.post('/api/admin/rooms', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MA
       .single();
 
     if (error) {
-      console.error('âŒ Supabase error creating room:', error);
+      console.error('Ã¢ÂÅ’ Supabase error creating room:', error);
 
       // Handle specific errors
       if (error.code === '23505') { // Unique violation
         return res.status(400).json({
           success: false,
-          message: 'MÃ£ phÃ²ng Ä‘Ã£ tá»“n táº¡i, vui lÃ²ng chá»n mÃ£ khÃ¡c'
+          message: 'MÃƒÂ£ phÃƒÂ²ng Ã„â€˜ÃƒÂ£ tÃ¡Â»â€œn tÃ¡ÂºÂ¡i, vui lÃƒÂ²ng chÃ¡Â»Ân mÃƒÂ£ khÃƒÂ¡c'
         });
       }
       if (error.code === '23503') { // Foreign key violation
         return res.status(400).json({
           success: false,
-          message: 'Trung tÃ¢m khÃ´ng há»£p lá»‡'
+          message: 'Trung tÃƒÂ¢m khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡'
         });
       }
 
       throw error;
     }
 
-    console.log('âœ… Táº¡o phÃ²ng thÃ nh cÃ´ng:', data.name);
+    console.log('Ã¢Å“â€¦ TÃ¡ÂºÂ¡o phÃƒÂ²ng thÃƒÂ nh cÃƒÂ´ng:', data.name);
 
     res.status(201).json({
       success: true,
-      message: 'Táº¡o phÃ²ng há»c thÃ nh cÃ´ng',
+      message: 'TÃ¡ÂºÂ¡o phÃƒÂ²ng hÃ¡Â»Âc thÃƒÂ nh cÃƒÂ´ng',
       data
     });
   } catch (error) {
-    console.error('ðŸ’¥ Error creating room:', error);
+    console.error('Ã°Å¸â€™Â¥ Error creating room:', error);
     next(error);
   }
 });
 
-// Import phÃ²ng há»c tá»« Excel/CSV
+// Import phÃƒÂ²ng hÃ¡Â»Âc tÃ¡Â»Â« Excel/CSV
 app.post('/api/admin/rooms/import', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { rooms } = req.body;
@@ -6586,18 +8221,18 @@ app.post('/api/admin/rooms/import', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     if (!rooms || !Array.isArray(rooms) || rooms.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'KhÃ´ng cÃ³ dá»¯ liá»‡u phÃ²ng Ä‘á»ƒ import'
+        message: 'KhÃƒÂ´ng cÃƒÂ³ dÃ¡Â»Â¯ liÃ¡Â»â€¡u phÃƒÂ²ng Ã„â€˜Ã¡Â»Æ’ import'
       });
     }
 
-    console.log(`ðŸ“¥ Admin ${req.user.email} import ${rooms.length} phÃ²ng`);
+    console.log(`Ã°Å¸â€œÂ¥ Admin ${req.user.email} import ${rooms.length} phÃƒÂ²ng`);
 
     // Validate all rooms have required fields
     const invalidRooms = rooms.filter(r => !r.name || !r.code || !r.center_id);
     if (invalidRooms.length > 0) {
       return res.status(400).json({
         success: false,
-        message: `${invalidRooms.length} phÃ²ng thiáº¿u thÃ´ng tin báº¯t buá»™c (tÃªn, mÃ£, trung tÃ¢m)`
+        message: `${invalidRooms.length} phÃƒÂ²ng thiÃ¡ÂºÂ¿u thÃƒÂ´ng tin bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c (tÃƒÂªn, mÃƒÂ£, trung tÃƒÂ¢m)`
       });
     }
 
@@ -6617,7 +8252,7 @@ app.post('/api/admin/rooms/import', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     if (newRooms.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Táº¥t cáº£ mÃ£ phÃ²ng Ä‘Ã£ tá»“n táº¡i trong há»‡ thá»‘ng',
+        message: 'TÃ¡ÂºÂ¥t cÃ¡ÂºÂ£ mÃƒÂ£ phÃƒÂ²ng Ã„â€˜ÃƒÂ£ tÃ¡Â»â€œn tÃ¡ÂºÂ¡i trong hÃ¡Â»â€¡ thÃ¡Â»â€˜ng',
         skipped: skippedCount
       });
     }
@@ -6647,35 +8282,35 @@ app.post('/api/admin/rooms/import', requireAuth, requireRole(['SUPER_ADMIN', 'CE
         .select();
 
       if (error) {
-        console.error(`âŒ Batch ${i / batchSize + 1} error:`, error);
-        results.errors.push(`Lá»—i batch ${i / batchSize + 1}: ${error.message}`);
+        console.error(`Ã¢ÂÅ’ Batch ${i / batchSize + 1} error:`, error);
+        results.errors.push(`LÃ¡Â»â€”i batch ${i / batchSize + 1}: ${error.message}`);
       } else {
         results.created += data.length;
       }
     }
 
-    console.log(`âœ… Import hoÃ n thÃ nh: ${results.created} táº¡o má»›i, ${skippedCount} bá» qua`);
+    console.log(`Ã¢Å“â€¦ Import hoÃƒÂ n thÃƒÂ nh: ${results.created} tÃ¡ÂºÂ¡o mÃ¡Â»â€ºi, ${skippedCount} bÃ¡Â»Â qua`);
 
     res.json({
       success: true,
-      message: `ÄÃ£ import ${results.created} phÃ²ng thÃ nh cÃ´ng`,
+      message: `Ã„ÂÃƒÂ£ import ${results.created} phÃƒÂ²ng thÃƒÂ nh cÃƒÂ´ng`,
       created: results.created,
       skipped: skippedCount,
       errors: results.errors
     });
   } catch (error) {
-    console.error('ðŸ’¥ Error importing rooms:', error);
+    console.error('Ã°Å¸â€™Â¥ Error importing rooms:', error);
     next(error);
   }
 });
 
-// Cáº­p nháº­t phÃ²ng há»c
+// CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t phÃƒÂ²ng hÃ¡Â»Âc
 app.put('/api/admin/rooms/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const updates = req.body;
 
-    console.log(`âœï¸ Admin ${req.user.email} cáº­p nháº­t phÃ²ng: ${id}`);
+    console.log(`Ã¢Å“ÂÃ¯Â¸Â Admin ${req.user.email} cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t phÃƒÂ²ng: ${id}`);
 
     delete updates.id;
     delete updates.created_at;
@@ -6688,21 +8323,21 @@ app.put('/api/admin/rooms/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
       .single();
 
     if (error) throw error;
-    res.json({ success: true, message: 'Cáº­p nháº­t phÃ²ng há»c thÃ nh cÃ´ng', data });
+    res.json({ success: true, message: 'CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t phÃƒÂ²ng hÃ¡Â»Âc thÃƒÂ nh cÃƒÂ´ng', data });
   } catch (error) {
     console.error('Error updating room:', error);
     next(error);
   }
 });
 
-// XÃ³a phÃ²ng há»c
+// XÃƒÂ³a phÃƒÂ²ng hÃ¡Â»Âc
 app.delete('/api/admin/rooms/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    console.log(`ðŸ—‘ï¸ Admin ${req.user.email} xÃ³a phÃ²ng: ${id}`);
+    console.log(`Ã°Å¸â€”â€˜Ã¯Â¸Â Admin ${req.user.email} xÃƒÂ³a phÃƒÂ²ng: ${id}`);
 
-    // Kiá»ƒm tra phÃ²ng cÃ³ Ä‘ang Ä‘Æ°á»£c sá»­ dá»¥ng khÃ´ng
+    // KiÃ¡Â»Æ’m tra phÃƒÂ²ng cÃƒÂ³ Ã„â€˜ang Ã„â€˜Ã†Â°Ã¡Â»Â£c sÃ¡Â»Â­ dÃ¡Â»Â¥ng khÃƒÂ´ng
     const { count } = await supabase
       .from('classes')
       .select('*', { count: 'exact', head: true })
@@ -6712,14 +8347,14 @@ app.delete('/api/admin/rooms/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
     if (count > 0) {
       return res.status(400).json({
         success: false,
-        message: `KhÃ´ng thá»ƒ xÃ³a phÃ²ng Ä‘ang Ä‘Æ°á»£c sá»­ dá»¥ng bá»Ÿi ${count} lá»›p há»c`
+        message: `KhÃƒÂ´ng thÃ¡Â»Æ’ xÃƒÂ³a phÃƒÂ²ng Ã„â€˜ang Ã„â€˜Ã†Â°Ã¡Â»Â£c sÃ¡Â»Â­ dÃ¡Â»Â¥ng bÃ¡Â»Å¸i ${count} lÃ¡Â»â€ºp hÃ¡Â»Âc`
       });
     }
 
     const { error } = await supabase.from('rooms').delete().eq('id', id);
     if (error) throw error;
 
-    res.json({ success: true, message: 'XÃ³a phÃ²ng há»c thÃ nh cÃ´ng' });
+    res.json({ success: true, message: 'XÃƒÂ³a phÃƒÂ²ng hÃ¡Â»Âc thÃƒÂ nh cÃƒÂ´ng' });
   } catch (error) {
     console.error('Error deleting room:', error);
     next(error);
@@ -6728,24 +8363,24 @@ app.delete('/api/admin/rooms/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
 
 // ============ SCHEDULE CONFLICT CHECK API ============
 
-// Helper: Kiá»ƒm tra 2 khoáº£ng thá»i gian cÃ³ giao nhau khÃ´ng
+// Helper: KiÃ¡Â»Æ’m tra 2 khoÃ¡ÂºÂ£ng thÃ¡Â»Âi gian cÃƒÂ³ giao nhau khÃƒÂ´ng
 function isTimeOverlap(start1, end1, start2, end2) {
-  // Chuyá»ƒn string "HH:MM" thÃ nh sá»‘ phÃºt tá»« 00:00
+  // ChuyÃ¡Â»Æ’n string "HH:MM" thÃƒÂ nh sÃ¡Â»â€˜ phÃƒÂºt tÃ¡Â»Â« 00:00
   const toMinutes = (time) => {
     const [h, m] = time.split(':').map(Number);
     return h * 60 + m;
   };
   const s1 = toMinutes(start1), e1 = toMinutes(end1);
   const s2 = toMinutes(start2), e2 = toMinutes(end2);
-  return s1 < e2 && s2 < e1; // CÃ´ng thá»©c giao nhau kinh Ä‘iá»ƒn
+  return s1 < e2 && s2 < e1; // CÃƒÂ´ng thÃ¡Â»Â©c giao nhau kinh Ã„â€˜iÃ¡Â»Æ’n
 }
 
-// Helper: Kiá»ƒm tra 2 khoáº£ng ngÃ y cÃ³ giao nhau khÃ´ng
+// Helper: KiÃ¡Â»Æ’m tra 2 khoÃ¡ÂºÂ£ng ngÃƒÂ y cÃƒÂ³ giao nhau khÃƒÂ´ng
 function isDateRangeOverlap(start1, end1, start2, end2) {
   return start1 <= end2 && start2 <= end1;
 }
 
-// Helper: Parse schedule an toÃ n (cÃ³ thá»ƒ lÃ  null, string, hoáº·c array)
+// Helper: Parse schedule an toÃƒÂ n (cÃƒÂ³ thÃ¡Â»Æ’ lÃƒÂ  null, string, hoÃ¡ÂºÂ·c array)
 function parseScheduleSafe(schedule) {
   if (!schedule) return [];
   if (Array.isArray(schedule)) return schedule;
@@ -6760,19 +8395,19 @@ function parseScheduleSafe(schedule) {
   return [];
 }
 
-// API kiá»ƒm tra xung Ä‘á»™t lá»‹ch
+// API kiÃ¡Â»Æ’m tra xung Ã„â€˜Ã¡Â»â„¢t lÃ¡Â»â€¹ch
 app.post('/api/classes/check-conflict', requireAuth, async (req, res, next) => {
   try {
     const { teacher_id, room_id, start_date, end_date, schedule, exclude_class_id } = req.body;
 
-    // schedule lÃ  máº£ng: [{ day: 2, start: "18:00", end: "20:00" }, ...]
+    // schedule lÃƒÂ  mÃ¡ÂºÂ£ng: [{ day: 2, start: "18:00", end: "20:00" }, ...]
     if (!schedule || !Array.isArray(schedule) || schedule.length === 0) {
-      return res.json({ conflict: false, message: 'KhÃ´ng cÃ³ lá»‹ch Ä‘á»ƒ kiá»ƒm tra' });
+      return res.json({ conflict: false, message: 'KhÃƒÂ´ng cÃƒÂ³ lÃ¡Â»â€¹ch Ã„â€˜Ã¡Â»Æ’ kiÃ¡Â»Æ’m tra' });
     }
 
     const conflicts = [];
 
-    // 1. Kiá»ƒm tra xung Ä‘á»™t GIÃO VIÃŠN
+    // 1. KiÃ¡Â»Æ’m tra xung Ã„â€˜Ã¡Â»â„¢t GIÃƒÂO VIÃƒÅ N
     if (teacher_id) {
       let teacherQuery = supabase
         .from('classes')
@@ -6788,7 +8423,7 @@ app.post('/api/classes/check-conflict', requireAuth, async (req, res, next) => {
 
       for (const newSession of schedule) {
         for (const oldClass of (teacherClasses || [])) {
-          // Kiá»ƒm tra ngÃ y thÃ¡ng cÃ³ giao nhau khÃ´ng
+          // KiÃ¡Â»Æ’m tra ngÃƒÂ y thÃƒÂ¡ng cÃƒÂ³ giao nhau khÃƒÂ´ng
           if (!isDateRangeOverlap(start_date, end_date, oldClass.start_date, oldClass.end_date)) {
             continue;
           }
@@ -6800,17 +8435,17 @@ app.post('/api/classes/check-conflict', requireAuth, async (req, res, next) => {
           );
 
           if (clash) {
-            const dayNames = ['', '', 'Thá»© 2', 'Thá»© 3', 'Thá»© 4', 'Thá»© 5', 'Thá»© 6', 'Thá»© 7', 'Chá»§ nháº­t'];
+            const dayNames = ['', '', 'ThÃ¡Â»Â© 2', 'ThÃ¡Â»Â© 3', 'ThÃ¡Â»Â© 4', 'ThÃ¡Â»Â© 5', 'ThÃ¡Â»Â© 6', 'ThÃ¡Â»Â© 7', 'ChÃ¡Â»Â§ nhÃ¡ÂºÂ­t'];
             conflicts.push({
               type: 'teacher',
-              message: `GiÃ¡o viÃªn báº­n dáº¡y lá»›p "${oldClass.name}" vÃ o ${dayNames[newSession.day]} (${clash.start}-${clash.end})`
+              message: `GiÃƒÂ¡o viÃƒÂªn bÃ¡ÂºÂ­n dÃ¡ÂºÂ¡y lÃ¡Â»â€ºp "${oldClass.name}" vÃƒÂ o ${dayNames[newSession.day]} (${clash.start}-${clash.end})`
             });
           }
         }
       }
     }
 
-    // 2. Kiá»ƒm tra xung Ä‘á»™t PHÃ’NG Há»ŒC
+    // 2. KiÃ¡Â»Æ’m tra xung Ã„â€˜Ã¡Â»â„¢t PHÃƒâ€™NG HÃ¡Â»Å’C
     if (room_id) {
       let roomQuery = supabase
         .from('classes')
@@ -6837,10 +8472,10 @@ app.post('/api/classes/check-conflict', requireAuth, async (req, res, next) => {
           );
 
           if (clash) {
-            const dayNames = ['', '', 'Thá»© 2', 'Thá»© 3', 'Thá»© 4', 'Thá»© 5', 'Thá»© 6', 'Thá»© 7', 'Chá»§ nháº­t'];
+            const dayNames = ['', '', 'ThÃ¡Â»Â© 2', 'ThÃ¡Â»Â© 3', 'ThÃ¡Â»Â© 4', 'ThÃ¡Â»Â© 5', 'ThÃ¡Â»Â© 6', 'ThÃ¡Â»Â© 7', 'ChÃ¡Â»Â§ nhÃ¡ÂºÂ­t'];
             conflicts.push({
               type: 'room',
-              message: `PhÃ²ng Ä‘Ã£ Ä‘Æ°á»£c lá»›p "${oldClass.name}" sá»­ dá»¥ng vÃ o ${dayNames[newSession.day]} (${clash.start}-${clash.end})`
+              message: `PhÃƒÂ²ng Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c lÃ¡Â»â€ºp "${oldClass.name}" sÃ¡Â»Â­ dÃ¡Â»Â¥ng vÃƒÂ o ${dayNames[newSession.day]} (${clash.start}-${clash.end})`
             });
           }
         }
@@ -6851,8 +8486,8 @@ app.post('/api/classes/check-conflict', requireAuth, async (req, res, next) => {
       conflict: conflicts.length > 0,
       conflicts,
       message: conflicts.length > 0
-        ? `PhÃ¡t hiá»‡n ${conflicts.length} xung Ä‘á»™t lá»‹ch`
-        : 'Lá»‹ch há»£p lá»‡, khÃ´ng cÃ³ xung Ä‘á»™t'
+        ? `PhÃƒÂ¡t hiÃ¡Â»â€¡n ${conflicts.length} xung Ã„â€˜Ã¡Â»â„¢t lÃ¡Â»â€¹ch`
+        : 'LÃ¡Â»â€¹ch hÃ¡Â»Â£p lÃ¡Â»â€¡, khÃƒÂ´ng cÃƒÂ³ xung Ã„â€˜Ã¡Â»â„¢t'
     });
   } catch (error) {
     console.error('Error checking conflict:', error);
@@ -6860,7 +8495,7 @@ app.post('/api/classes/check-conflict', requireAuth, async (req, res, next) => {
   }
 });
 
-// API láº¥y lá»‹ch báº­n cá»§a giÃ¡o viÃªn (cho calendar preview)
+// API lÃ¡ÂºÂ¥y lÃ¡Â»â€¹ch bÃ¡ÂºÂ­n cÃ¡Â»Â§a giÃƒÂ¡o viÃƒÂªn (cho calendar preview)
 app.get('/api/teachers/:id/schedule', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -6885,7 +8520,7 @@ app.get('/api/teachers/:id/schedule', requireAuth, async (req, res, next) => {
   }
 });
 
-// API láº¥y lá»‹ch báº­n cá»§a phÃ²ng há»c (cho calendar preview)
+// API lÃ¡ÂºÂ¥y lÃ¡Â»â€¹ch bÃ¡ÂºÂ­n cÃ¡Â»Â§a phÃƒÂ²ng hÃ¡Â»Âc (cho calendar preview)
 app.get('/api/rooms/:id/schedule', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -6911,10 +8546,10 @@ app.get('/api/rooms/:id/schedule', requireAuth, async (req, res, next) => {
 });
 
 // ============================================================
-// CLASS DETAIL APIs - Quáº£n lÃ½ chi tiáº¿t lá»›p há»c
+// CLASS DETAIL APIs - QuÃ¡ÂºÂ£n lÃƒÂ½ chi tiÃ¡ÂºÂ¿t lÃ¡Â»â€ºp hÃ¡Â»Âc
 // ============================================================
 
-// API: Láº¥y thÃ´ng tin chi tiáº¿t 1 lá»›p há»c
+// API: LÃ¡ÂºÂ¥y thÃƒÂ´ng tin chi tiÃ¡ÂºÂ¿t 1 lÃ¡Â»â€ºp hÃ¡Â»Âc
 app.get('/api/classes/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -6933,12 +8568,12 @@ app.get('/api/classes/:id', requireAuth, async (req, res, next) => {
 
     if (error) {
       if (error.code === 'PGRST116') {
-        return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c' });
+        return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y lÃ¡Â»â€ºp hÃ¡Â»Âc' });
       }
       throw error;
     }
 
-    // Äáº¿m sá»‘ há»c viÃªn hiá»‡n táº¡i
+    // Ã„ÂÃ¡ÂºÂ¿m sÃ¡Â»â€˜ hÃ¡Â»Âc viÃƒÂªn hiÃ¡Â»â€¡n tÃ¡ÂºÂ¡i
     const { count: studentCount } = await supabase
       .from('enrollments')
       .select('*', { count: 'exact', head: true })
@@ -6958,7 +8593,7 @@ app.get('/api/classes/:id', requireAuth, async (req, res, next) => {
   }
 });
 
-// API: Láº¥y danh sÃ¡ch há»c viÃªn trong lá»›p
+// API: LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch hÃ¡Â»Âc viÃƒÂªn trong lÃ¡Â»â€ºp
 app.get('/api/classes/:id/students', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -6974,7 +8609,7 @@ app.get('/api/classes/:id/students', requireAuth, async (req, res, next) => {
     const from = (pageNum - 1) * limitNum;
     const to = from + limitNum - 1;
 
-    // 1. Query cÆ¡ báº£n vá»›i count Ä‘á»ƒ phÃ¢n trang
+    // 1. Query cÃ†Â¡ bÃ¡ÂºÂ£n vÃ¡Â»â€ºi count Ã„â€˜Ã¡Â»Æ’ phÃƒÂ¢n trang
     let query = supabase
       .from('enrollments')
       .select(`
@@ -6997,13 +8632,13 @@ app.get('/api/classes/:id/students', requireAuth, async (req, res, next) => {
       .eq('class_id', id)
       .eq('status', 'active');
 
-    // 2. Thá»±c hiá»‡n query Ä‘á»ƒ láº¥y data
+    // 2. ThÃ¡Â»Â±c hiÃ¡Â»â€¡n query Ã„â€˜Ã¡Â»Æ’ lÃ¡ÂºÂ¥y data
     const { data: allData, error: countError, count: totalCount } = await query
       .order('enrolled_at', { ascending: false });
 
     if (countError) throw countError;
 
-    // 3. Transform vÃ  filter
+    // 3. Transform vÃƒÂ  filter
     let students = (allData || []).map(enrollment => {
       const tuition = enrollment.tuition_fee || 0;
       const discount = enrollment.discount_amount || 0;
@@ -7011,7 +8646,7 @@ app.get('/api/classes/:id/students', requireAuth, async (req, res, next) => {
       const amountDue = tuition - discount;
       const remaining = amountDue - paid;
 
-      // TÃ­nh payment status
+      // TÃƒÂ­nh payment status
       let paymentStatusCalc = 'unpaid';
       if (remaining <= 0 && amountDue > 0) paymentStatusCalc = 'paid';
       else if (paid > 0) paymentStatusCalc = 'partial';
@@ -7024,13 +8659,13 @@ app.get('/api/classes/:id/students', requireAuth, async (req, res, next) => {
         discount_amount: discount,
         paid_amount: paid,
         notes: enrollment.notes,
-        // ThÃ´ng tin há»c viÃªn
+        // ThÃƒÂ´ng tin hÃ¡Â»Âc viÃƒÂªn
         student_id: enrollment.users?.id,
         full_name: enrollment.users?.full_name,
         email: enrollment.users?.email,
         phone: enrollment.users?.phone,
         avatar_url: enrollment.users?.avatar_url,
-        // TÃ­nh toÃ¡n
+        // TÃƒÂ­nh toÃƒÂ¡n
         amount_due: amountDue,
         remaining: remaining,
         payment_status: paymentStatusCalc
@@ -7044,7 +8679,7 @@ app.get('/api/classes/:id/students', requireAuth, async (req, res, next) => {
       students = students.filter(s => s.payment_status !== 'paid');
     }
 
-    // 5. Filter theo search (tÃ¬m theo tÃªn, email, phone)
+    // 5. Filter theo search (tÃƒÂ¬m theo tÃƒÂªn, email, phone)
     if (search && search.trim()) {
       const searchLower = search.toLowerCase().trim();
       students = students.filter(s =>
@@ -7054,11 +8689,11 @@ app.get('/api/classes/:id/students', requireAuth, async (req, res, next) => {
       );
     }
 
-    // 6. TÃ­nh pagination sau khi filter
+    // 6. TÃƒÂ­nh pagination sau khi filter
     const filteredTotal = students.length;
     const totalPages = Math.ceil(filteredTotal / limitNum);
 
-    // 7. Slice Ä‘á»ƒ láº¥y Ä‘Ãºng trang
+    // 7. Slice Ã„â€˜Ã¡Â»Æ’ lÃ¡ÂºÂ¥y Ã„â€˜ÃƒÂºng trang
     const paginatedStudents = students.slice(from, from + limitNum);
 
     res.json({
@@ -7085,12 +8720,12 @@ app.get('/api/classes/:id/students', requireAuth, async (req, res, next) => {
   }
 });
 
-// API: TÃ¬m kiáº¿m há»c viÃªn Ä‘á»ƒ thÃªm vÃ o lá»›p (chá»‰ láº¥y users cÃ³ role STUDENT)
+// API: TÃƒÂ¬m kiÃ¡ÂºÂ¿m hÃ¡Â»Âc viÃƒÂªn Ã„â€˜Ã¡Â»Æ’ thÃƒÂªm vÃƒÂ o lÃ¡Â»â€ºp (chÃ¡Â»â€° lÃ¡ÂºÂ¥y users cÃƒÂ³ role STUDENT)
 app.get('/api/students/search', requireAuth, async (req, res, next) => {
   try {
     const { q, exclude_class_id } = req.query;
 
-    // Láº¥y role_id cá»§a STUDENT
+    // LÃ¡ÂºÂ¥y role_id cÃ¡Â»Â§a STUDENT
     const { data: studentRole } = await supabase
       .from('roles')
       .select('id')
@@ -7098,7 +8733,7 @@ app.get('/api/students/search', requireAuth, async (req, res, next) => {
       .single();
 
     if (!studentRole) {
-      return res.status(500).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y role STUDENT' });
+      return res.status(500).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y role STUDENT' });
     }
 
     // Base query
@@ -7113,22 +8748,22 @@ app.get('/api/students/search', requireAuth, async (req, res, next) => {
       if (q.trim().length < 2) {
         return res.status(400).json({
           success: false,
-          message: 'Tá»« khÃ³a tÃ¬m kiáº¿m pháº£i cÃ³ Ã­t nháº¥t 2 kÃ½ tá»±'
+          message: 'TÃ¡Â»Â« khÃƒÂ³a tÃƒÂ¬m kiÃ¡ÂºÂ¿m phÃ¡ÂºÂ£i cÃƒÂ³ ÃƒÂ­t nhÃ¡ÂºÂ¥t 2 kÃƒÂ½ tÃ¡Â»Â±'
         });
       }
 
-      // CÃ³ tá»« khÃ³a -> TÃ¬m kiáº¿m theo tÃªn/email/phone
+      // CÃƒÂ³ tÃ¡Â»Â« khÃƒÂ³a -> TÃƒÂ¬m kiÃ¡ÂºÂ¿m theo tÃƒÂªn/email/phone
       query = query.or(`full_name.ilike.%${q}%,email.ilike.%${q}%,phone.ilike.%${q}%`);
       query = query.limit(20);
     } else {
-      // KhÃ´ng cÃ³ tá»« khÃ³a -> Tráº£ vá» há»c viÃªn má»›i Ä‘Äƒng kÃ½ gáº§n Ä‘Ã¢y nháº¥t
+      // KhÃƒÂ´ng cÃƒÂ³ tÃ¡Â»Â« khÃƒÂ³a -> TrÃ¡ÂºÂ£ vÃ¡Â»Â hÃ¡Â»Âc viÃƒÂªn mÃ¡Â»â€ºi Ã„â€˜Ã„Æ’ng kÃƒÂ½ gÃ¡ÂºÂ§n Ã„â€˜ÃƒÂ¢y nhÃ¡ÂºÂ¥t
       query = query.order('created_at', { ascending: false }).limit(10);
     }
 
     const { data: students, error } = await query;
     if (error) throw error;
 
-    // Náº¿u cÃ³ exclude_class_id, loáº¡i bá» nhá»¯ng há»c viÃªn Ä‘Ã£ cÃ³ enrollment trong lá»›p Ä‘Ã³ (báº¥t ká»³ status)
+    // NÃ¡ÂºÂ¿u cÃƒÂ³ exclude_class_id, loÃ¡ÂºÂ¡i bÃ¡Â»Â nhÃ¡Â»Â¯ng hÃ¡Â»Âc viÃƒÂªn Ã„â€˜ÃƒÂ£ cÃƒÂ³ enrollment trong lÃ¡Â»â€ºp Ã„â€˜ÃƒÂ³ (bÃ¡ÂºÂ¥t kÃ¡Â»Â³ status)
     if (exclude_class_id && students?.length > 0) {
       const { data: enrolled } = await supabase
         .from('enrollments')
@@ -7141,7 +8776,7 @@ app.get('/api/students/search', requireAuth, async (req, res, next) => {
       return res.json({
         success: true,
         data: filtered,
-        type: q ? 'search' : 'recent' // Cho FE biáº¿t Ä‘Ã¢y lÃ  káº¿t quáº£ tÃ¬m kiáº¿m hay gá»£i Ã½
+        type: q ? 'search' : 'recent' // Cho FE biÃ¡ÂºÂ¿t Ã„â€˜ÃƒÂ¢y lÃƒÂ  kÃ¡ÂºÂ¿t quÃ¡ÂºÂ£ tÃƒÂ¬m kiÃ¡ÂºÂ¿m hay gÃ¡Â»Â£i ÃƒÂ½
       });
     }
 
@@ -7156,7 +8791,7 @@ app.get('/api/students/search', requireAuth, async (req, res, next) => {
   }
 });
 
-// API: ThÃªm há»c viÃªn vÃ o lá»›p (Ghi danh / Enroll)
+// API: ThÃƒÂªm hÃ¡Â»Âc viÃƒÂªn vÃƒÂ o lÃ¡Â»â€ºp (Ghi danh / Enroll)
 app.post('/api/classes/:id/enroll', requireAuth, async (req, res, next) => {
   try {
     const { id: class_id } = req.params;
@@ -7164,29 +8799,29 @@ app.post('/api/classes/:id/enroll', requireAuth, async (req, res, next) => {
 
     // Validation
     if (!student_id) {
-      return res.status(400).json({ success: false, message: 'Thiáº¿u student_id' });
+      return res.status(400).json({ success: false, message: 'ThiÃ¡ÂºÂ¿u student_id' });
     }
 
     if (!class_id) {
-      return res.status(400).json({ success: false, message: 'Thiáº¿u class_id' });
+      return res.status(400).json({ success: false, message: 'ThiÃ¡ÂºÂ¿u class_id' });
     }
 
     // Validate tuition_fee if provided
     if (tuition_fee !== undefined && (tuition_fee < 0 || isNaN(tuition_fee))) {
-      return res.status(400).json({ success: false, message: 'Há»c phÃ­ khÃ´ng há»£p lá»‡' });
+      return res.status(400).json({ success: false, message: 'HÃ¡Â»Âc phÃƒÂ­ khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡' });
     }
 
     // Validate discount_amount if provided
     if (discount_amount !== undefined && (discount_amount < 0 || isNaN(discount_amount))) {
-      return res.status(400).json({ success: false, message: 'Sá»‘ tiá»n giáº£m giÃ¡ khÃ´ng há»£p lá»‡' });
+      return res.status(400).json({ success: false, message: 'SÃ¡Â»â€˜ tiÃ¡Â»Ân giÃ¡ÂºÂ£m giÃƒÂ¡ khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡' });
     }
 
     // Validate paid_amount if provided
     if (paid_amount !== undefined && (paid_amount < 0 || isNaN(paid_amount))) {
-      return res.status(400).json({ success: false, message: 'Sá»‘ tiá»n Ä‘Ã£ Ä‘Ã³ng khÃ´ng há»£p lá»‡' });
+      return res.status(400).json({ success: false, message: 'SÃ¡Â»â€˜ tiÃ¡Â»Ân Ã„â€˜ÃƒÂ£ Ã„â€˜ÃƒÂ³ng khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡' });
     }
 
-    // ðŸ”¥ Use unified enrollment service
+    // Ã°Å¸â€Â¥ Use unified enrollment service
     const result = await createEnrollmentWithDraftInvoice(supabase, {
       student_id,
       class_id,
@@ -7204,7 +8839,7 @@ app.post('/api/classes/:id/enroll', requireAuth, async (req, res, next) => {
       });
     }
 
-    console.log(`âœ… ${result.message || 'Ghi danh thÃ nh cÃ´ng'} - Invoice: ${result.invoice?.invoice_number} (draft)`);
+    console.log(`Ã¢Å“â€¦ ${result.message || 'Ghi danh thÃƒÂ nh cÃƒÂ´ng'} - Invoice: ${result.invoice?.invoice_number} (draft)`);
     AuditLogService.log({
       ...getAuditContext(req),
       centerId: getEffectiveCenterId(req),
@@ -7219,7 +8854,7 @@ app.post('/api/classes/:id/enroll', requireAuth, async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: result.message || 'Ghi danh thÃ nh cÃ´ng',
+      message: result.message || 'Ghi danh thÃƒÂ nh cÃƒÂ´ng',
       data: result.enrollment,
       invoice: result.invoice
     });
@@ -7230,8 +8865,8 @@ app.post('/api/classes/:id/enroll', requireAuth, async (req, res, next) => {
         userId: result?.enrollment?.student_id || student_id,
         centerId: result?.enrollment?.center_id,
         type: 'enrollment',
-        title: 'ÄÄƒng kÃ½ lá»›p há»c thÃ nh cÃ´ng',
-        message: 'Báº¡n Ä‘Ã£ Ä‘Æ°á»£c Ä‘Äƒng kÃ½ vÃ o lá»›p há»c má»›i',
+        title: 'Ã„ÂÃ„Æ’ng kÃƒÂ½ lÃ¡Â»â€ºp hÃ¡Â»Âc thÃƒÂ nh cÃƒÂ´ng',
+        message: 'BÃ¡ÂºÂ¡n Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c Ã„â€˜Ã„Æ’ng kÃƒÂ½ vÃƒÂ o lÃ¡Â»â€ºp hÃ¡Â»Âc mÃ¡Â»â€ºi',
         referenceId: result?.enrollment?.id,
         referenceType: 'enrollment'
       }).catch(err => console.warn('Notification error:', err.message));
@@ -7240,18 +8875,18 @@ app.post('/api/classes/:id/enroll', requireAuth, async (req, res, next) => {
     console.error('Error enrolling student:', error);
     res.status(500).json({
       success: false,
-      message: 'CÃ³ lá»—i xáº£y ra khi ghi danh há»c viÃªn'
+      message: 'CÃƒÂ³ lÃ¡Â»â€”i xÃ¡ÂºÂ£y ra khi ghi danh hÃ¡Â»Âc viÃƒÂªn'
     });
   }
 });
 
-// API: XÃ³a há»c viÃªn khá»i lá»›p (hoáº·c Ä‘á»•i tráº¡ng thÃ¡i thÃ nh dropped)
+// API: XÃƒÂ³a hÃ¡Â»Âc viÃƒÂªn khÃ¡Â»Âi lÃ¡Â»â€ºp (hoÃ¡ÂºÂ·c Ã„â€˜Ã¡Â»â€¢i trÃ¡ÂºÂ¡ng thÃƒÂ¡i thÃƒÂ nh dropped)
 app.delete('/api/classes/:classId/students/:studentId', requireAuth, async (req, res, next) => {
   try {
     const { classId, studentId } = req.params;
-    const { permanent } = req.query; // ?permanent=true Ä‘á»ƒ xÃ³a háº³n
+    const { permanent } = req.query; // ?permanent=true Ã„â€˜Ã¡Â»Æ’ xÃƒÂ³a hÃ¡ÂºÂ³n
 
-    // Láº¥y enrollment_id trÆ°á»›c
+    // LÃ¡ÂºÂ¥y enrollment_id trÃ†Â°Ã¡Â»â€ºc
     const { data: enrollment } = await supabase
       .from('enrollments')
       .select('id')
@@ -7260,19 +8895,19 @@ app.delete('/api/classes/:classId/students/:studentId', requireAuth, async (req,
       .single();
 
     if (enrollment) {
-      // XÃ³a attendance records cá»§a enrollment nÃ y
+      // XÃƒÂ³a attendance records cÃ¡Â»Â§a enrollment nÃƒÂ y
       await supabase
         .from('attendance')
         .delete()
         .eq('enrollment_id', enrollment.id);
 
-      // XÃ³a grades cá»§a enrollment nÃ y
+      // XÃƒÂ³a grades cÃ¡Â»Â§a enrollment nÃƒÂ y
       await supabase
         .from('grades')
         .delete()
         .eq('enrollment_id', enrollment.id);
 
-      // Láº¥y danh sÃ¡ch invoice_ids Ä‘á»ƒ xÃ³a payments trÆ°á»›c
+      // LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch invoice_ids Ã„â€˜Ã¡Â»Æ’ xÃƒÂ³a payments trÃ†Â°Ã¡Â»â€ºc
       const { data: invoices } = await supabase
         .from('invoices')
         .select('id')
@@ -7282,13 +8917,13 @@ app.delete('/api/classes/:classId/students/:studentId', requireAuth, async (req,
       if (invoices && invoices.length > 0) {
         const invoiceIds = invoices.map(inv => inv.id);
 
-        // XÃ³a payments liÃªn quan
+        // XÃƒÂ³a payments liÃƒÂªn quan
         await supabase
           .from('payments')
           .delete()
           .in('invoice_id', invoiceIds);
 
-        // XÃ³a háº³n táº¥t cáº£ hÃ³a Ä‘Æ¡n cá»§a há»c viÃªn nÃ y trong lá»›p
+        // XÃƒÂ³a hÃ¡ÂºÂ³n tÃ¡ÂºÂ¥t cÃ¡ÂºÂ£ hÃƒÂ³a Ã„â€˜Ã†Â¡n cÃ¡Â»Â§a hÃ¡Â»Âc viÃƒÂªn nÃƒÂ y trong lÃ¡Â»â€ºp
         await supabase
           .from('invoices')
           .delete()
@@ -7298,7 +8933,7 @@ app.delete('/api/classes/:classId/students/:studentId', requireAuth, async (req,
     }
 
     if (permanent === 'true') {
-      // XÃ³a háº³n enrollment
+      // XÃƒÂ³a hÃ¡ÂºÂ³n enrollment
       const { error } = await supabase
         .from('enrollments')
         .delete()
@@ -7319,10 +8954,10 @@ app.delete('/api/classes/:classId/students/:studentId', requireAuth, async (req,
         }
       });
 
-      return res.json({ success: true, message: 'ÄÃ£ xÃ³a há»c viÃªn khá»i lá»›p' });
+      return res.json({ success: true, message: 'Ã„ÂÃƒÂ£ xÃƒÂ³a hÃ¡Â»Âc viÃƒÂªn khÃ¡Â»Âi lÃ¡Â»â€ºp' });
     }
 
-    // Soft delete - Ä‘á»•i status thÃ nh dropped
+    // Soft delete - Ã„â€˜Ã¡Â»â€¢i status thÃƒÂ nh dropped
     const { data: currentEnrollment, error: checkError } = await supabase
       .from('enrollments')
       .select('id, status')
@@ -7333,7 +8968,7 @@ app.delete('/api/classes/:classId/students/:studentId', requireAuth, async (req,
     if (checkError || !currentEnrollment) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y thÃ´ng tin ghi danh'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y thÃƒÂ´ng tin ghi danh'
       });
     }
 
@@ -7341,7 +8976,7 @@ app.delete('/api/classes/:classId/students/:studentId', requireAuth, async (req,
     if (currentEnrollment.status === 'dropped') {
       return res.status(400).json({
         success: false,
-        message: 'Há»c viÃªn Ä‘Ã£ Ä‘Æ°á»£c cho nghá»‰ há»c trÆ°á»›c Ä‘Ã³'
+        message: 'HÃ¡Â»Âc viÃƒÂªn Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c cho nghÃ¡Â»â€° hÃ¡Â»Âc trÃ†Â°Ã¡Â»â€ºc Ã„â€˜ÃƒÂ³'
       });
     }
 
@@ -7367,7 +9002,7 @@ app.delete('/api/classes/:classId/students/:studentId', requireAuth, async (req,
       }
     });
 
-    res.json({ success: true, message: 'Há»c viÃªn Ä‘Ã£ rá»i lá»›p', data });
+    res.json({ success: true, message: 'HÃ¡Â»Âc viÃƒÂªn Ã„â€˜ÃƒÂ£ rÃ¡Â»Âi lÃ¡Â»â€ºp', data });
 
     // Auto-promote waitlisted enrollment request (FIFO)
     try {
@@ -7390,8 +9025,8 @@ app.delete('/api/classes/:classId/students/:studentId', requireAuth, async (req,
           userId: waitlisted.student_id,
           centerId: req.user.center_id || req.user.centerId,
           type: 'enrollment_waitlist_promoted',
-          title: 'CÃ³ slot trá»‘ng cho lá»›p báº¡n chá»',
-          message: 'ÄÃ£ cÃ³ slot trá»‘ng. YÃªu cáº§u Ä‘Äƒng kÃ½ cá»§a báº¡n Ä‘ang chá» phÃª duyá»‡t.',
+          title: 'CÃƒÂ³ slot trÃ¡Â»â€˜ng cho lÃ¡Â»â€ºp bÃ¡ÂºÂ¡n chÃ¡Â»Â',
+          message: 'Ã„ÂÃƒÂ£ cÃƒÂ³ slot trÃ¡Â»â€˜ng. YÃƒÂªu cÃ¡ÂºÂ§u Ã„â€˜Ã„Æ’ng kÃƒÂ½ cÃ¡Â»Â§a bÃ¡ÂºÂ¡n Ã„â€˜ang chÃ¡Â»Â phÃƒÂª duyÃ¡Â»â€¡t.',
           referenceId: waitlisted.id,
           referenceType: 'enrollment_request'
         }).catch(err => console.warn('Waitlist promotion notification failed:', err));
@@ -7405,7 +9040,7 @@ app.delete('/api/classes/:classId/students/:studentId', requireAuth, async (req,
   }
 });
 
-// API: Cáº­p nháº­t thÃ´ng tin ghi danh (há»c phÃ­, giáº£m giÃ¡, Ä‘Ã£ Ä‘Ã³ng)
+// API: CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t thÃƒÂ´ng tin ghi danh (hÃ¡Â»Âc phÃƒÂ­, giÃ¡ÂºÂ£m giÃƒÂ¡, Ã„â€˜ÃƒÂ£ Ã„â€˜ÃƒÂ³ng)
 app.patch('/api/enrollments/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -7436,15 +9071,15 @@ app.patch('/api/enrollments/:id', requireAuth, async (req, res, next) => {
       newValues: req.body
     });
 
-    res.json({ success: true, message: 'Cáº­p nháº­t thÃ nh cÃ´ng', data });
+    res.json({ success: true, message: 'CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t thÃƒÂ nh cÃƒÂ´ng', data });
 
     // Notification: Enrollment status updated
     try {
       const nextStatus = data?.status || status;
       let statusTitle = '';
-      if (nextStatus === 'approved') statusTitle = 'ÄÄƒng kÃ½ Ä‘Ã£ Ä‘Æ°á»£c duyá»‡t';
-      if (nextStatus === 'rejected') statusTitle = 'ÄÄƒng kÃ½ bá»‹ tá»« chá»‘i';
-      if (nextStatus === 'completed') statusTitle = 'HoÃ n thÃ nh khÃ³a há»c';
+      if (nextStatus === 'approved') statusTitle = 'Ã„ÂÃ„Æ’ng kÃƒÂ½ Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c duyÃ¡Â»â€¡t';
+      if (nextStatus === 'rejected') statusTitle = 'Ã„ÂÃ„Æ’ng kÃƒÂ½ bÃ¡Â»â€¹ tÃ¡Â»Â« chÃ¡Â»â€˜i';
+      if (nextStatus === 'completed') statusTitle = 'HoÃƒÂ n thÃƒÂ nh khÃƒÂ³a hÃ¡Â»Âc';
 
       if (statusTitle) {
         createNotification(supabase, {
@@ -7452,7 +9087,7 @@ app.patch('/api/enrollments/:id', requireAuth, async (req, res, next) => {
           centerId: data?.center_id,
           type: 'enrollment',
           title: statusTitle,
-          message: `Tráº¡ng thÃ¡i ghi danh cá»§a báº¡n Ä‘Ã£ Ä‘Æ°á»£c cáº­p nháº­t: ${nextStatus}`,
+          message: `TrÃ¡ÂºÂ¡ng thÃƒÂ¡i ghi danh cÃ¡Â»Â§a bÃ¡ÂºÂ¡n Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t: ${nextStatus}`,
           referenceId: data?.id,
           referenceType: 'enrollment'
         }).catch(err => console.warn('Notification error:', err.message));
@@ -7470,10 +9105,10 @@ app.patch('/api/enrollments/:id', requireAuth, async (req, res, next) => {
             classId: data.class_id,
             centerId: data.center_id
           });
-          console.log(`ðŸ† Certificate eligibility check triggered for enrollment ${data.id}`);
+          console.log(`Ã°Å¸Ââ€  Certificate eligibility check triggered for enrollment ${data.id}`);
         }
       } catch (certErr) {
-        console.warn('âš ï¸ Failed to trigger certificate eligibility check:', certErr.message);
+        console.warn('Ã¢Å¡Â Ã¯Â¸Â Failed to trigger certificate eligibility check:', certErr.message);
         // Don't fail the enrollment update if cert check trigger fails
       }
     }
@@ -7500,8 +9135,8 @@ app.patch('/api/enrollments/:id', requireAuth, async (req, res, next) => {
             userId: waitlisted.student_id,
             centerId: req.user.center_id || req.user.centerId,
             type: 'enrollment_waitlist_promoted',
-            title: 'CÃ³ slot trá»‘ng cho lá»›p báº¡n chá»',
-            message: 'ÄÃ£ cÃ³ slot trá»‘ng. YÃªu cáº§u Ä‘Äƒng kÃ½ cá»§a báº¡n Ä‘ang chá» phÃª duyá»‡t.',
+            title: 'CÃƒÂ³ slot trÃ¡Â»â€˜ng cho lÃ¡Â»â€ºp bÃ¡ÂºÂ¡n chÃ¡Â»Â',
+            message: 'Ã„ÂÃƒÂ£ cÃƒÂ³ slot trÃ¡Â»â€˜ng. YÃƒÂªu cÃ¡ÂºÂ§u Ã„â€˜Ã„Æ’ng kÃƒÂ½ cÃ¡Â»Â§a bÃ¡ÂºÂ¡n Ã„â€˜ang chÃ¡Â»Â phÃƒÂª duyÃ¡Â»â€¡t.',
             referenceId: waitlisted.id,
             referenceType: 'enrollment_request'
           }).catch(err => console.warn('Waitlist promotion notification failed:', err));
@@ -7521,15 +9156,15 @@ app.patch('/api/enrollments/:id', requireAuth, async (req, res, next) => {
 // ========================================
 
 /**
- * GET /api/classes/:id/performance - Láº¥y performance data cho táº¥t cáº£ há»c viÃªn trong lá»›p
- * Bao gá»“m: attendance rate, average grade, rank, trend, alerts
+ * GET /api/classes/:id/performance - LÃ¡ÂºÂ¥y performance data cho tÃ¡ÂºÂ¥t cÃ¡ÂºÂ£ hÃ¡Â»Âc viÃƒÂªn trong lÃ¡Â»â€ºp
+ * Bao gÃ¡Â»â€œm: attendance rate, average grade, rank, trend, alerts
  */
 app.get('/api/classes/:id/performance', requireAuth, async (req, res, next) => {
   try {
     const { id: classId } = req.params;
-    console.log(`ðŸ“Š Fetching performance data for class ${classId}`);
+    console.log(`Ã°Å¸â€œÅ  Fetching performance data for class ${classId}`);
 
-    // 1. Láº¥y thÃ´ng tin lá»›p vÃ  course
+    // 1. LÃ¡ÂºÂ¥y thÃƒÂ´ng tin lÃ¡Â»â€ºp vÃƒÂ  course
     const { data: classData, error: classError } = await supabase
       .from('classes')
       .select(`
@@ -7540,10 +9175,10 @@ app.get('/api/classes/:id/performance', requireAuth, async (req, res, next) => {
       .single();
 
     if (classError || !classData) {
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c' });
+      return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y lÃ¡Â»â€ºp hÃ¡Â»Âc' });
     }
 
-    // 2. Láº¥y táº¥t cáº£ enrollments trong lá»›p
+    // 2. LÃ¡ÂºÂ¥y tÃ¡ÂºÂ¥t cÃ¡ÂºÂ£ enrollments trong lÃ¡Â»â€ºp
     const { data: enrollments, error: enrollmentsError } = await supabase
       .from('enrollments')
       .select(`
@@ -7574,13 +9209,13 @@ app.get('/api/classes/:id/performance', requireAuth, async (req, res, next) => {
     const enrollmentIds = enrollments.map(e => e.id);
     const studentIds = enrollments.map(e => e.student_id);
 
-    // 3. Láº¥y attendance data
+    // 3. LÃ¡ÂºÂ¥y attendance data
     const { data: attendance } = await supabase
       .from('attendance')
       .select('enrollment_id, status, session_date')
       .in('enrollment_id', enrollmentIds);
 
-    // 4. Láº¥y sessions Ä‘á»ƒ tÃ­nh tá»•ng sá»‘ buá»•i
+    // 4. LÃ¡ÂºÂ¥y sessions Ã„â€˜Ã¡Â»Æ’ tÃƒÂ­nh tÃ¡Â»â€¢ng sÃ¡Â»â€˜ buÃ¡Â»â€¢i
     const { data: sessions } = await supabase
       .from('sessions')
       .select('id, session_date, status')
@@ -7589,7 +9224,7 @@ app.get('/api/classes/:id/performance', requireAuth, async (req, res, next) => {
 
     const totalSessions = sessions?.length || 0;
 
-    // 5. Láº¥y grades data
+    // 5. LÃ¡ÂºÂ¥y grades data
     const { data: grades } = await supabase
       .from('grades')
       .select(`
@@ -7599,14 +9234,14 @@ app.get('/api/classes/:id/performance', requireAuth, async (req, res, next) => {
       `)
       .in('enrollment_id', enrollmentIds);
 
-    // 6. Láº¥y grade structures cá»§a course
+    // 6. LÃ¡ÂºÂ¥y grade structures cÃ¡Â»Â§a course
     const { data: gradeStructures } = await supabase
       .from('grade_structures')
       .select('id, name, weight, max_score, order_index')
       .eq('course_id', classData.courses?.id)
       .order('order_index');
 
-    // 7. Build performance data cho tá»«ng há»c viÃªn
+    // 7. Build performance data cho tÃ¡Â»Â«ng hÃ¡Â»Âc viÃƒÂªn
     const performanceData = enrollments.map(enrollment => {
       const student = enrollment.users;
       const enrollmentId = enrollment.id;
@@ -7752,7 +9387,7 @@ app.get('/api/classes/:id/performance', requireAuth, async (req, res, next) => {
       ? Math.round(studentsWithGrades.reduce((sum, s) => sum + s.averageGrade, 0) / studentsWithGrades.length * 10) / 10
       : 0;
 
-    console.log(`âœ… Performance data: ${total} students, avg attendance: ${avgAttendance}%, avg grade: ${avgGrade}`);
+    console.log(`Ã¢Å“â€¦ Performance data: ${total} students, avg attendance: ${avgAttendance}%, avg grade: ${avgGrade}`);
 
     res.json({
       success: true,
@@ -7773,19 +9408,19 @@ app.get('/api/classes/:id/performance', requireAuth, async (req, res, next) => {
 });
 
 // ============================================================
-// PAYMENT APIs - Thu há»c phÃ­
+// PAYMENT APIs - Thu hÃ¡Â»Âc phÃƒÂ­
 // ============================================================
 
-// API: Táº¡o thanh toÃ¡n má»›i (Thu tiá»n há»c viÃªn)
+// API: TÃ¡ÂºÂ¡o thanh toÃƒÂ¡n mÃ¡Â»â€ºi (Thu tiÃ¡Â»Ân hÃ¡Â»Âc viÃƒÂªn)
 app.post('/api/payments', requireAuth, async (req, res, next) => {
   try {
     const { enrollment_id, student_id, class_id, amount, payment_method, notes } = req.body;
 
     if (!enrollment_id || !amount) {
-      return res.status(400).json({ success: false, message: 'Thiáº¿u thÃ´ng tin enrollment_id hoáº·c amount' });
+      return res.status(400).json({ success: false, message: 'ThiÃ¡ÂºÂ¿u thÃƒÂ´ng tin enrollment_id hoÃ¡ÂºÂ·c amount' });
     }
 
-    // 1. Láº¥y thÃ´ng tin enrollment hiá»‡n táº¡i
+    // 1. LÃ¡ÂºÂ¥y thÃƒÂ´ng tin enrollment hiÃ¡Â»â€¡n tÃ¡ÂºÂ¡i
     const { data: enrollment, error: enrollmentError } = await supabase
       .from('enrollments')
       .select('id, student_id, center_id, tuition_fee, discount_amount, paid_amount')
@@ -7793,22 +9428,22 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
       .single();
 
     if (enrollmentError || !enrollment) {
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y enrollment' });
+      return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y enrollment' });
     }
 
     const currentPaid = enrollment.paid_amount || 0;
     const amountDue = (enrollment.tuition_fee || 0) - (enrollment.discount_amount || 0);
     const remaining = amountDue - currentPaid;
 
-    // Kiá»ƒm tra sá»‘ tiá»n thanh toÃ¡n cÃ³ vÆ°á»£t quÃ¡ sá»‘ ná»£ khÃ´ng
+    // KiÃ¡Â»Æ’m tra sÃ¡Â»â€˜ tiÃ¡Â»Ân thanh toÃƒÂ¡n cÃƒÂ³ vÃ†Â°Ã¡Â»Â£t quÃƒÂ¡ sÃ¡Â»â€˜ nÃ¡Â»Â£ khÃƒÂ´ng
     if (amount > remaining) {
       return res.status(400).json({
         success: false,
-        message: `Sá»‘ tiá»n thanh toÃ¡n (${amount.toLocaleString()}Ä‘) vÆ°á»£t quÃ¡ sá»‘ ná»£ (${remaining.toLocaleString()}Ä‘)`
+        message: `SÃ¡Â»â€˜ tiÃ¡Â»Ân thanh toÃƒÂ¡n (${amount.toLocaleString()}Ã„â€˜) vÃ†Â°Ã¡Â»Â£t quÃƒÂ¡ sÃ¡Â»â€˜ nÃ¡Â»Â£ (${remaining.toLocaleString()}Ã„â€˜)`
       });
     }
 
-    // 2. TÃ¬m hoáº·c táº¡o invoice cho enrollment nÃ y
+    // 2. TÃƒÂ¬m hoÃ¡ÂºÂ·c tÃ¡ÂºÂ¡o invoice cho enrollment nÃƒÂ y
     let { data: invoice } = await supabase
       .from('invoices')
       .select('id, invoice_code')
@@ -7818,7 +9453,7 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
       .limit(1)
       .single();
 
-    // Náº¿u chÆ°a cÃ³ invoice unpaid, tÃ¬m invoice partial
+    // NÃ¡ÂºÂ¿u chÃ†Â°a cÃƒÂ³ invoice unpaid, tÃƒÂ¬m invoice partial
     if (!invoice) {
       const { data: partialInvoice } = await supabase
         .from('invoices')
@@ -7831,7 +9466,7 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
       invoice = partialInvoice;
     }
 
-    // Náº¿u váº«n khÃ´ng cÃ³ invoice nÃ o, táº¡o má»›i
+    // NÃ¡ÂºÂ¿u vÃ¡ÂºÂ«n khÃƒÂ´ng cÃƒÂ³ invoice nÃƒÂ o, tÃ¡ÂºÂ¡o mÃ¡Â»â€ºi
     if (!invoice) {
       const { data: classInfo } = await supabase
         .from('classes')
@@ -7850,7 +9485,7 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
           final_amount: amountDue,
           paid_amount: currentPaid,
           status: currentPaid > 0 ? 'partial' : 'unpaid',
-          description: `Há»c phÃ­ lá»›p ${classInfo?.name || 'N/A'}`,
+          description: `HÃ¡Â»Âc phÃƒÂ­ lÃ¡Â»â€ºp ${classInfo?.name || 'N/A'}`,
           due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           created_by: req.user?.id
         }])
@@ -7858,13 +9493,13 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
         .single();
 
       if (invoiceError) {
-        console.warn('âš ï¸ KhÃ´ng thá»ƒ táº¡o invoice:', invoiceError.message);
+        console.warn('Ã¢Å¡Â Ã¯Â¸Â KhÃƒÂ´ng thÃ¡Â»Æ’ tÃ¡ÂºÂ¡o invoice:', invoiceError.message);
       } else {
         invoice = newInvoice;
       }
     }
 
-    // 3. Táº¡o payment record (náº¿u cÃ³ báº£ng payments)
+    // 3. TÃ¡ÂºÂ¡o payment record (nÃ¡ÂºÂ¿u cÃƒÂ³ bÃ¡ÂºÂ£ng payments)
     let paymentRecord = null;
     if (invoice) {
       const { data: payment, error: paymentError } = await supabase
@@ -7881,15 +9516,15 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
         .single();
 
       if (paymentError) {
-        console.warn('âš ï¸ KhÃ´ng thá»ƒ táº¡o payment record:', paymentError.message);
-        // KhÃ´ng throw - váº«n tiáº¿p tá»¥c cáº­p nháº­t enrollment
+        console.warn('Ã¢Å¡Â Ã¯Â¸Â KhÃƒÂ´ng thÃ¡Â»Æ’ tÃ¡ÂºÂ¡o payment record:', paymentError.message);
+        // KhÃƒÂ´ng throw - vÃ¡ÂºÂ«n tiÃ¡ÂºÂ¿p tÃ¡Â»Â¥c cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t enrollment
       } else {
         paymentRecord = payment;
-        console.log(`ðŸ’° Payment #${payment.id} created: ${amount.toLocaleString()}Ä‘`);
+        console.log(`Ã°Å¸â€™Â° Payment #${payment.id} created: ${amount.toLocaleString()}Ã„â€˜`);
       }
     }
 
-    // 4. Cáº­p nháº­t paid_amount trong enrollment
+    // 4. CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t paid_amount trong enrollment
     const newPaidAmount = currentPaid + amount;
     const { data: updatedEnrollment, error: updateError } = await supabase
       .from('enrollments')
@@ -7903,7 +9538,7 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
 
     if (updateError) throw updateError;
 
-    // 5. Cáº­p nháº­t invoice status (trigger trong DB sáº½ tá»± Ä‘á»™ng lÃ m, nhÆ°ng backup á»Ÿ Ä‘Ã¢y)
+    // 5. CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t invoice status (trigger trong DB sÃ¡ÂºÂ½ tÃ¡Â»Â± Ã„â€˜Ã¡Â»â„¢ng lÃƒÂ m, nhÃ†Â°ng backup Ã¡Â»Å¸ Ã„â€˜ÃƒÂ¢y)
     if (invoice) {
       const newInvoicePaid = (invoice.paid_amount || 0) + amount;
       const invoiceFinal = invoice.final_amount || amountDue;
@@ -7922,11 +9557,11 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
         .eq('id', invoice.id);
     }
 
-    console.log(`âœ… Payment processed: ${amount.toLocaleString()}Ä‘ for enrollment ${enrollment_id}`);
+    console.log(`Ã¢Å“â€¦ Payment processed: ${amount.toLocaleString()}Ã„â€˜ for enrollment ${enrollment_id}`);
 
     res.status(201).json({
       success: true,
-      message: `ÄÃ£ thu ${amount.toLocaleString()}Ä‘ thÃ nh cÃ´ng`,
+      message: `Ã„ÂÃƒÂ£ thu ${amount.toLocaleString()}Ã„â€˜ thÃƒÂ nh cÃƒÂ´ng`,
       data: {
         payment: paymentRecord,
         enrollment: updatedEnrollment,
@@ -7940,8 +9575,8 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
         userId: enrollment?.student_id || student_id,
         centerId: enrollment?.center_id || updatedEnrollment?.center_id,
         type: 'payment',
-        title: 'Thanh toÃ¡n thÃ nh cÃ´ng',
-        message: `Báº¡n Ä‘Ã£ thanh toÃ¡n thÃ nh cÃ´ng ${amount.toLocaleString()}Ä‘`,
+        title: 'Thanh toÃƒÂ¡n thÃƒÂ nh cÃƒÂ´ng',
+        message: `BÃ¡ÂºÂ¡n Ã„â€˜ÃƒÂ£ thanh toÃƒÂ¡n thÃƒÂ nh cÃƒÂ´ng ${amount.toLocaleString()}Ã„â€˜`,
         referenceId: paymentRecord?.id || enrollment_id,
         referenceType: 'payment'
       }).catch(err => console.warn('Notification error:', err.message));
@@ -7953,12 +9588,12 @@ app.post('/api/payments', requireAuth, async (req, res, next) => {
   }
 });
 
-// API: Láº¥y lá»‹ch sá»­ thanh toÃ¡n cá»§a má»™t enrollment
+// API: LÃ¡ÂºÂ¥y lÃ¡Â»â€¹ch sÃ¡Â»Â­ thanh toÃƒÂ¡n cÃ¡Â»Â§a mÃ¡Â»â„¢t enrollment
 app.get('/api/enrollments/:id/payments', requireAuth, async (req, res, next) => {
   try {
     const { id: enrollment_id } = req.params;
 
-    // Láº¥y invoice(s) cá»§a enrollment
+    // LÃ¡ÂºÂ¥y invoice(s) cÃ¡Â»Â§a enrollment
     const { data: invoices, error: invoiceError } = await supabase
       .from('invoices')
       .select('id')
@@ -7970,7 +9605,7 @@ app.get('/api/enrollments/:id/payments', requireAuth, async (req, res, next) => 
       return res.json({ success: true, data: [] });
     }
 
-    // Láº¥y payments cá»§a cÃ¡c invoices
+    // LÃ¡ÂºÂ¥y payments cÃ¡Â»Â§a cÃƒÂ¡c invoices
     const invoiceIds = invoices.map(inv => inv.id);
     const { data: payments, error: paymentsError } = await supabase
       .from('payments')
@@ -8000,10 +9635,10 @@ app.get('/api/enrollments/:id/payments', requireAuth, async (req, res, next) => 
 // ============================================================
 
 // ============================================================
-// ATTENDANCE APIs - Module Äiá»ƒm danh
+// ATTENDANCE APIs - Module Ã„ÂiÃ¡Â»Æ’m danh
 // ============================================================
 
-// Utility: Parse schedule tá»« nhiá»u format khÃ¡c nhau
+// Utility: Parse schedule tÃ¡Â»Â« nhiÃ¡Â»Âu format khÃƒÂ¡c nhau
 function parseScheduleData(schedule) {
   if (!schedule) return { days: [], startTime: '18:00', endTime: '20:00' };
 
@@ -8012,8 +9647,8 @@ function parseScheduleData(schedule) {
     try {
       const parsed = JSON.parse(schedule);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        // day: 2=T2, 3=T3, ..., 7=T7, 8=CN (theo format cá»§a frontend)
-        // Cáº§n convert sang dayOfWeek: 0=CN, 1=T2, 2=T3, ...
+        // day: 2=T2, 3=T3, ..., 7=T7, 8=CN (theo format cÃ¡Â»Â§a frontend)
+        // CÃ¡ÂºÂ§n convert sang dayOfWeek: 0=CN, 1=T2, 2=T3, ...
         const dayMapping = { 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 0 };
         const days = parsed.map(s => dayMapping[s.day]).filter(d => d !== undefined);
         return {
@@ -8048,7 +9683,7 @@ function parseScheduleData(schedule) {
   return { days: [], startTime: '18:00', endTime: '20:00' };
 }
 
-// Utility: Sinh danh sÃ¡ch cÃ¡c buá»•i há»c tá»« lá»‹ch lá»›p
+// Utility: Sinh danh sÃƒÂ¡ch cÃƒÂ¡c buÃ¡Â»â€¢i hÃ¡Â»Âc tÃ¡Â»Â« lÃ¡Â»â€¹ch lÃ¡Â»â€ºp
 function generateSessions(startDate, endDate, schedule) {
   const sessions = [];
   if (!startDate || !endDate || !schedule) return sessions;
@@ -8063,13 +9698,13 @@ function generateSessions(startDate, endDate, schedule) {
   const end = new Date(endYear, endMonth - 1, endDay);
   let sessionNumber = 1;
 
-  // Danh sÃ¡ch ngÃ y nghá»‰ lá»… Viá»‡t Nam 2025-2026
+  // Danh sÃƒÂ¡ch ngÃƒÂ y nghÃ¡Â»â€° lÃ¡Â»â€¦ ViÃ¡Â»â€¡t Nam 2025-2026
   const holidays = [
-    '2025-01-01', // Táº¿t DÆ°Æ¡ng lá»‹ch
-    '2025-01-28', '2025-01-29', '2025-01-30', '2025-01-31', '2025-02-01', '2025-02-02', '2025-02-03', // Táº¿t NguyÃªn Ä‘Ã¡n
-    '2025-04-30', // Giáº£i phÃ³ng miá»n Nam
-    '2025-05-01', // Quá»‘c táº¿ Lao Ä‘á»™ng
-    '2025-09-02', // Quá»‘c khÃ¡nh
+    '2025-01-01', // TÃ¡ÂºÂ¿t DÃ†Â°Ã†Â¡ng lÃ¡Â»â€¹ch
+    '2025-01-28', '2025-01-29', '2025-01-30', '2025-01-31', '2025-02-01', '2025-02-02', '2025-02-03', // TÃ¡ÂºÂ¿t NguyÃƒÂªn Ã„â€˜ÃƒÂ¡n
+    '2025-04-30', // GiÃ¡ÂºÂ£i phÃƒÂ³ng miÃ¡Â»Ân Nam
+    '2025-05-01', // QuÃ¡Â»â€˜c tÃ¡ÂºÂ¿ Lao Ã„â€˜Ã¡Â»â„¢ng
+    '2025-09-02', // QuÃ¡Â»â€˜c khÃƒÂ¡nh
   ];
 
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
@@ -8105,18 +9740,18 @@ function generateSessions(startDate, endDate, schedule) {
   return sessions;
 }
 
-// Utility: TÃªn thá»© tiáº¿ng Viá»‡t
+// Utility: TÃƒÂªn thÃ¡Â»Â© tiÃ¡ÂºÂ¿ng ViÃ¡Â»â€¡t
 function getDayName(dayOfWeek) {
-  const days = ['Chá»§ nháº­t', 'Thá»© 2', 'Thá»© 3', 'Thá»© 4', 'Thá»© 5', 'Thá»© 6', 'Thá»© 7'];
+  const days = ['ChÃ¡Â»Â§ nhÃ¡ÂºÂ­t', 'ThÃ¡Â»Â© 2', 'ThÃ¡Â»Â© 3', 'ThÃ¡Â»Â© 4', 'ThÃ¡Â»Â© 5', 'ThÃ¡Â»Â© 6', 'ThÃ¡Â»Â© 7'];
   return days[dayOfWeek];
 }
 
-// API: Láº¥y danh sÃ¡ch buá»•i há»c cá»§a má»™t lá»›p
+// API: LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch buÃ¡Â»â€¢i hÃ¡Â»Âc cÃ¡Â»Â§a mÃ¡Â»â„¢t lÃ¡Â»â€ºp
 app.get('/api/classes/:id/sessions', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // Láº¥y thÃ´ng tin lá»›p há»c
+    // LÃ¡ÂºÂ¥y thÃƒÂ´ng tin lÃ¡Â»â€ºp hÃ¡Â»Âc
     const { data: classData, error: classError } = await supabase
       .from('classes')
       .select(`
@@ -8129,17 +9764,17 @@ app.get('/api/classes/:id/sessions', requireAuth, async (req, res, next) => {
 
     if (classError) throw classError;
     if (!classData) {
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c' });
+      return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y lÃ¡Â»â€ºp hÃ¡Â»Âc' });
     }
 
-    // Sinh danh sÃ¡ch buá»•i há»c
+    // Sinh danh sÃƒÂ¡ch buÃ¡Â»â€¢i hÃ¡Â»Âc
     const sessions = generateSessions(
       classData.start_date,
       classData.end_date,
       classData.schedule
     );
 
-    // Láº¥y thÃ´ng tin Ä‘iá»ƒm danh Ä‘Ã£ cÃ³
+    // LÃ¡ÂºÂ¥y thÃƒÂ´ng tin Ã„â€˜iÃ¡Â»Æ’m danh Ã„â€˜ÃƒÂ£ cÃƒÂ³
     const { data: attendanceData, error: attendanceError } = await supabase
       .from('attendance')
       .select(`
@@ -8149,7 +9784,7 @@ app.get('/api/classes/:id/sessions', requireAuth, async (req, res, next) => {
       `)
       .eq('enrollment_id', supabase.rpc('get_enrollment_ids_by_class', { class_id: id }));
 
-    // Äáº¿m sá»‘ há»c viÃªn Ä‘Ã£ Ä‘iá»ƒm danh cho má»—i buá»•i
+    // Ã„ÂÃ¡ÂºÂ¿m sÃ¡Â»â€˜ hÃ¡Â»Âc viÃƒÂªn Ã„â€˜ÃƒÂ£ Ã„â€˜iÃ¡Â»Æ’m danh cho mÃ¡Â»â€”i buÃ¡Â»â€¢i
     const sessionDates = sessions.map(s => s.date);
 
     const { data: attendanceSummary, error: summaryError } = await supabase
@@ -8162,7 +9797,7 @@ app.get('/api/classes/:id/sessions', requireAuth, async (req, res, next) => {
       .eq('enrollments.class_id', id)
       .in('session_date', sessionDates);
 
-    // TÃ­nh tá»•ng sá»‘ há»c viÃªn trong lá»›p
+    // TÃƒÂ­nh tÃ¡Â»â€¢ng sÃ¡Â»â€˜ hÃ¡Â»Âc viÃƒÂªn trong lÃ¡Â»â€ºp
     const { count: totalStudents } = await supabase
       .from('enrollments')
       .select('id', { count: 'exact' })
@@ -8215,17 +9850,17 @@ app.get('/api/classes/:id/sessions', requireAuth, async (req, res, next) => {
   }
 });
 
-// API: Láº¥y báº£ng Ä‘iá»ƒm danh cá»§a má»™t buá»•i há»c cá»¥ thá»ƒ
+// API: LÃ¡ÂºÂ¥y bÃ¡ÂºÂ£ng Ã„â€˜iÃ¡Â»Æ’m danh cÃ¡Â»Â§a mÃ¡Â»â„¢t buÃ¡Â»â€¢i hÃ¡Â»Âc cÃ¡Â»Â¥ thÃ¡Â»Æ’
 app.get('/api/classes/:id/attendance', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
     const { date } = req.query;
 
     if (!date) {
-      return res.status(400).json({ success: false, message: 'Thiáº¿u tham sá»‘ date' });
+      return res.status(400).json({ success: false, message: 'ThiÃ¡ÂºÂ¿u tham sÃ¡Â»â€˜ date' });
     }
 
-    // Láº¥y danh sÃ¡ch há»c viÃªn trong lá»›p
+    // LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch hÃ¡Â»Âc viÃƒÂªn trong lÃ¡Â»â€ºp
     const { data: enrollments, error: enrollError } = await supabase
       .from('enrollments')
       .select(`
@@ -8241,7 +9876,7 @@ app.get('/api/classes/:id/attendance', requireAuth, async (req, res, next) => {
 
     if (enrollError) throw enrollError;
 
-    // Láº¥y Ä‘iá»ƒm danh Ä‘Ã£ cÃ³ cho ngÃ y nÃ y
+    // LÃ¡ÂºÂ¥y Ã„â€˜iÃ¡Â»Æ’m danh Ã„â€˜ÃƒÂ£ cÃƒÂ³ cho ngÃƒÂ y nÃƒÂ y
     const enrollmentIds = enrollments.map(e => e.id);
     const { data: attendanceRecords, error: attError } = await supabase
       .from('attendance')
@@ -8286,7 +9921,7 @@ app.get('/api/classes/:id/attendance', requireAuth, async (req, res, next) => {
   }
 });
 
-// API: LÆ°u/Cáº­p nháº­t Ä‘iá»ƒm danh hÃ ng loáº¡t
+// API: LÃ†Â°u/CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t Ã„â€˜iÃ¡Â»Æ’m danh hÃƒÂ ng loÃ¡ÂºÂ¡t
 app.post('/api/attendance/mark', requireAuth, async (req, res, next) => {
   try {
     const { class_id, date, attendances, session_id } = req.body;
@@ -8295,11 +9930,11 @@ app.post('/api/attendance/mark', requireAuth, async (req, res, next) => {
     if (!class_id || !date || !attendances || !Array.isArray(attendances)) {
       return res.status(400).json({
         success: false,
-        message: 'Thiáº¿u thÃ´ng tin: class_id, date, attendances'
+        message: 'ThiÃ¡ÂºÂ¿u thÃƒÂ´ng tin: class_id, date, attendances'
       });
     }
 
-    console.log(`ðŸ“ Äiá»ƒm danh lá»›p ${class_id} ngÃ y ${date} bá»Ÿi user ${req.user.email}`);
+    console.log(`Ã°Å¸â€œÂ Ã„ÂiÃ¡Â»Æ’m danh lÃ¡Â»â€ºp ${class_id} ngÃƒÂ y ${date} bÃ¡Â»Å¸i user ${req.user.email}`);
 
     // Validate class exists
     const { data: classData, error: classError } = await supabase
@@ -8309,10 +9944,10 @@ app.post('/api/attendance/mark', requireAuth, async (req, res, next) => {
       .single();
 
     if (classError || !classData) {
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c' });
+      return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y lÃ¡Â»â€ºp hÃ¡Â»Âc' });
     }
 
-    // TÃ­nh session_number
+    // TÃƒÂ­nh session_number
     const { data: sessionData } = await supabase
       .from('classes')
       .select('start_date, end_date, schedule')
@@ -8348,7 +9983,7 @@ app.post('/api/attendance/mark', requireAuth, async (req, res, next) => {
 
     if (upsertError) throw upsertError;
 
-    // ðŸ”¥ Cáº­p nháº­t session status thÃ nh 'completed' náº¿u cÃ³ session_id
+    // Ã°Å¸â€Â¥ CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t session status thÃƒÂ nh 'completed' nÃ¡ÂºÂ¿u cÃƒÂ³ session_id
     if (session_id) {
       const { error: sessionUpdateError } = await supabase
         .from('sessions')
@@ -8361,10 +9996,10 @@ app.post('/api/attendance/mark', requireAuth, async (req, res, next) => {
       if (sessionUpdateError) {
         console.warn('Warning updating session status:', sessionUpdateError);
       } else {
-        console.log(`âœ… Session ${session_id} marked as completed`);
+        console.log(`Ã¢Å“â€¦ Session ${session_id} marked as completed`);
       }
     } else {
-      // Fallback: tÃ¬m session theo class_id vÃ  date
+      // Fallback: tÃƒÂ¬m session theo class_id vÃƒÂ  date
       const { error: sessionUpdateError } = await supabase
         .from('sessions')
         .update({
@@ -8375,11 +10010,11 @@ app.post('/api/attendance/mark', requireAuth, async (req, res, next) => {
         .eq('session_date', date);
 
       if (!sessionUpdateError) {
-        console.log(`âœ… Session for class ${class_id} on ${date} marked as completed`);
+        console.log(`Ã¢Å“â€¦ Session for class ${class_id} on ${date} marked as completed`);
       }
     }
 
-    // TÃ­nh summary
+    // TÃƒÂ­nh summary
     const summary = {
       present: attendances.filter(a => a.status === 'present').length,
       absent: attendances.filter(a => a.status === 'absent').length,
@@ -8387,7 +10022,7 @@ app.post('/api/attendance/mark', requireAuth, async (req, res, next) => {
       total: attendances.length
     };
 
-    console.log(`âœ… Äiá»ƒm danh thÃ nh cÃ´ng: ${summary.present} cÃ³ máº·t, ${summary.absent} váº¯ng, ${summary.late} trá»…`);
+    console.log(`Ã¢Å“â€¦ Ã„ÂiÃ¡Â»Æ’m danh thÃƒÂ nh cÃƒÂ´ng: ${summary.present} cÃƒÂ³ mÃ¡ÂºÂ·t, ${summary.absent} vÃ¡ÂºÂ¯ng, ${summary.late} trÃ¡Â»â€¦`);
 
     AuditLogService.log({
       ...getAuditContext(req),
@@ -8400,7 +10035,7 @@ app.post('/api/attendance/mark', requireAuth, async (req, res, next) => {
 
     res.json({
       success: true,
-      message: `ÄÃ£ lÆ°u Ä‘iá»ƒm danh ${summary.total} há»c viÃªn`,
+      message: `Ã„ÂÃƒÂ£ lÃ†Â°u Ã„â€˜iÃ¡Â»Æ’m danh ${summary.total} hÃ¡Â»Âc viÃƒÂªn`,
       data: {
         date,
         session_number: sessionNumber,
@@ -8423,14 +10058,14 @@ app.post('/api/attendance/mark', requireAuth, async (req, res, next) => {
 // GRADING SYSTEM APIs
 // ============================================================
 
-// GET /api/classes/:id/grades - Láº¥y báº£ng Ä‘iá»ƒm tá»•ng há»£p cho cáº£ lá»›p
+// GET /api/classes/:id/grades - LÃ¡ÂºÂ¥y bÃ¡ÂºÂ£ng Ã„â€˜iÃ¡Â»Æ’m tÃ¡Â»â€¢ng hÃ¡Â»Â£p cho cÃ¡ÂºÂ£ lÃ¡Â»â€ºp
 app.get('/api/classes/:id/grades', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    console.log(`ðŸ“Š Láº¥y báº£ng Ä‘iá»ƒm lá»›p ${id}`);
+    console.log(`Ã°Å¸â€œÅ  LÃ¡ÂºÂ¥y bÃ¡ÂºÂ£ng Ã„â€˜iÃ¡Â»Æ’m lÃ¡Â»â€ºp ${id}`);
 
-    // 1. Láº¥y thÃ´ng tin lá»›p vÃ  course_id
+    // 1. LÃ¡ÂºÂ¥y thÃƒÂ´ng tin lÃ¡Â»â€ºp vÃƒÂ  course_id
     const { data: classData, error: classError } = await supabase
       .from('classes')
       .select('id, code, course_id, courses(id, title)')
@@ -8438,10 +10073,10 @@ app.get('/api/classes/:id/grades', requireAuth, async (req, res, next) => {
       .single();
 
     if (classError || !classData) {
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c' });
+      return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y lÃ¡Â»â€ºp hÃ¡Â»Âc' });
     }
 
-    // 2. Láº¥y cáº¥u trÃºc Ä‘iá»ƒm cá»§a khÃ³a há»c (grade_structures)
+    // 2. LÃ¡ÂºÂ¥y cÃ¡ÂºÂ¥u trÃƒÂºc Ã„â€˜iÃ¡Â»Æ’m cÃ¡Â»Â§a khÃƒÂ³a hÃ¡Â»Âc (grade_structures)
     const { data: gradeStructures, error: structureError } = await supabase
       .from('grade_structures')
       .select('*')
@@ -8450,7 +10085,7 @@ app.get('/api/classes/:id/grades', requireAuth, async (req, res, next) => {
 
     if (structureError) throw structureError;
 
-    // 3. Láº¥y danh sÃ¡ch há»c viÃªn cá»§a lá»›p (enrollments)
+    // 3. LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch hÃ¡Â»Âc viÃƒÂªn cÃ¡Â»Â§a lÃ¡Â»â€ºp (enrollments)
     const { data: enrollments, error: enrollmentError } = await supabase
       .from('enrollments')
       .select(`
@@ -8467,7 +10102,7 @@ app.get('/api/classes/:id/grades', requireAuth, async (req, res, next) => {
 
     if (enrollmentError) throw enrollmentError;
 
-    // 4. Láº¥y táº¥t cáº£ Ä‘iá»ƒm Ä‘Ã£ nháº­p cho lá»›p nÃ y
+    // 4. LÃ¡ÂºÂ¥y tÃ¡ÂºÂ¥t cÃ¡ÂºÂ£ Ã„â€˜iÃ¡Â»Æ’m Ã„â€˜ÃƒÂ£ nhÃ¡ÂºÂ­p cho lÃ¡Â»â€ºp nÃƒÂ y
     const enrollmentIds = enrollments.map(e => e.id);
 
     let grades = [];
@@ -8481,7 +10116,7 @@ app.get('/api/classes/:id/grades', requireAuth, async (req, res, next) => {
       grades = gradesData || [];
     }
 
-    // 5. GhÃ©p data thÃ nh ma tráº­n Ä‘á»ƒ Frontend dá»… render
+    // 5. GhÃƒÂ©p data thÃƒÂ nh ma trÃ¡ÂºÂ­n Ã„â€˜Ã¡Â»Æ’ Frontend dÃ¡Â»â€¦ render
     const gradeMatrix = enrollments.map(enrollment => {
       const studentGrades = {};
       let totalWeightedScore = 0;
@@ -8497,7 +10132,7 @@ app.get('/api/classes/:id/grades', requireAuth, async (req, res, next) => {
           graded_at: grade?.graded_at || null
         };
 
-        // TÃ­nh Ä‘iá»ƒm tá»•ng káº¿t cÃ³ trá»ng sá»‘
+        // TÃƒÂ­nh Ã„â€˜iÃ¡Â»Æ’m tÃ¡Â»â€¢ng kÃ¡ÂºÂ¿t cÃƒÂ³ trÃ¡Â»Âng sÃ¡Â»â€˜
         if (grade?.score !== null && grade?.score !== undefined) {
           totalWeightedScore += grade.score * structure.weight;
           totalWeight += structure.weight;
@@ -8512,7 +10147,7 @@ app.get('/api/classes/:id/grades', requireAuth, async (req, res, next) => {
         avatar_url: enrollment.users?.avatar_url || null,
         status: enrollment.status,
         grades: studentGrades,
-        // Äiá»ƒm tá»•ng káº¿t (weighted average)
+        // Ã„ÂiÃ¡Â»Æ’m tÃ¡Â»â€¢ng kÃ¡ÂºÂ¿t (weighted average)
         weighted_average: totalWeight > 0
           ? Math.round((totalWeightedScore / totalWeight) * 100) / 100
           : null
@@ -8542,7 +10177,7 @@ app.get('/api/classes/:id/grades', requireAuth, async (req, res, next) => {
   }
 });
 
-// POST /api/grades/bulk-update - LÆ°u Ä‘iá»ƒm hÃ ng loáº¡t
+// POST /api/grades/bulk-update - LÃ†Â°u Ã„â€˜iÃ¡Â»Æ’m hÃƒÂ ng loÃ¡ÂºÂ¡t
 app.post('/api/grades/bulk-update', requireAuth, async (req, res, next) => {
   try {
     const { grades } = req.body;
@@ -8551,13 +10186,13 @@ app.post('/api/grades/bulk-update', requireAuth, async (req, res, next) => {
     if (!grades || !Array.isArray(grades) || grades.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Thiáº¿u thÃ´ng tin: grades array'
+        message: 'ThiÃ¡ÂºÂ¿u thÃƒÂ´ng tin: grades array'
       });
     }
 
-    console.log(`ðŸ“ Cáº­p nháº­t ${grades.length} Ä‘iá»ƒm bá»Ÿi user ${req.user.email}`);
+    console.log(`Ã°Å¸â€œÂ CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t ${grades.length} Ã„â€˜iÃ¡Â»Æ’m bÃ¡Â»Å¸i user ${req.user.email}`);
 
-    // Validate vÃ  chuáº©n bá»‹ data
+    // Validate vÃƒÂ  chuÃ¡ÂºÂ©n bÃ¡Â»â€¹ data
     const upsertData = [];
     const errors = [];
 
@@ -8569,7 +10204,7 @@ app.post('/api/grades/bulk-update', requireAuth, async (req, res, next) => {
           errors.push({
             enrollment_id: g.enrollment_id,
             grade_structure_id: g.grade_structure_id,
-            error: `Äiá»ƒm khÃ´ng há»£p lá»‡: ${g.score}. Äiá»ƒm pháº£i tá»« 0-10`
+            error: `Ã„ÂiÃ¡Â»Æ’m khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡: ${g.score}. Ã„ÂiÃ¡Â»Æ’m phÃ¡ÂºÂ£i tÃ¡Â»Â« 0-10`
           });
           continue;
         }
@@ -8588,12 +10223,12 @@ app.post('/api/grades/bulk-update', requireAuth, async (req, res, next) => {
     if (upsertData.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'KhÃ´ng cÃ³ Ä‘iá»ƒm há»£p lá»‡ Ä‘á»ƒ lÆ°u',
+        message: 'KhÃƒÂ´ng cÃƒÂ³ Ã„â€˜iÃ¡Â»Æ’m hÃ¡Â»Â£p lÃ¡Â»â€¡ Ã„â€˜Ã¡Â»Æ’ lÃ†Â°u',
         errors
       });
     }
 
-    // Upsert (cÃ³ rá»“i thÃ¬ update, chÆ°a cÃ³ thÃ¬ insert)
+    // Upsert (cÃƒÂ³ rÃ¡Â»â€œi thÃƒÂ¬ update, chÃ†Â°a cÃƒÂ³ thÃƒÂ¬ insert)
     const { data, error } = await supabase
       .from('grades')
       .upsert(upsertData, {
@@ -8604,7 +10239,7 @@ app.post('/api/grades/bulk-update', requireAuth, async (req, res, next) => {
 
     if (error) throw error;
 
-    console.log(`âœ… ÄÃ£ lÆ°u ${data?.length || 0} Ä‘iá»ƒm`);
+    console.log(`Ã¢Å“â€¦ Ã„ÂÃƒÂ£ lÃ†Â°u ${data?.length || 0} Ã„â€˜iÃ¡Â»Æ’m`);
 
     AuditLogService.log({
       ...getAuditContext(req),
@@ -8617,7 +10252,7 @@ app.post('/api/grades/bulk-update', requireAuth, async (req, res, next) => {
 
     res.json({
       success: true,
-      message: `ÄÃ£ lÆ°u ${data?.length || 0} Ä‘iá»ƒm`,
+      message: `Ã„ÂÃƒÂ£ lÃ†Â°u ${data?.length || 0} Ã„â€˜iÃ¡Â»Æ’m`,
       data,
       errors: errors.length > 0 ? errors : undefined
     });
@@ -8628,7 +10263,7 @@ app.post('/api/grades/bulk-update', requireAuth, async (req, res, next) => {
   }
 });
 
-// GET /api/courses/:id/grade-structures - Láº¥y cáº¥u trÃºc Ä‘iá»ƒm cá»§a khÃ³a há»c
+// GET /api/courses/:id/grade-structures - LÃ¡ÂºÂ¥y cÃ¡ÂºÂ¥u trÃƒÂºc Ã„â€˜iÃ¡Â»Æ’m cÃ¡Â»Â§a khÃƒÂ³a hÃ¡Â»Âc
 app.get('/api/courses/:id/grade-structures', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -8648,7 +10283,7 @@ app.get('/api/courses/:id/grade-structures', requireAuth, async (req, res, next)
   }
 });
 
-// POST /api/courses/:id/grade-structures - Táº¡o/Cáº­p nháº­t cáº¥u trÃºc Ä‘iá»ƒm cho khÃ³a há»c
+// POST /api/courses/:id/grade-structures - TÃ¡ÂºÂ¡o/CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t cÃ¡ÂºÂ¥u trÃƒÂºc Ã„â€˜iÃ¡Â»Æ’m cho khÃƒÂ³a hÃ¡Â»Âc
 app.post('/api/courses/:id/grade-structures', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -8657,25 +10292,25 @@ app.post('/api/courses/:id/grade-structures', requireAuth, async (req, res, next
     if (!structures || !Array.isArray(structures)) {
       return res.status(400).json({
         success: false,
-        message: 'Thiáº¿u thÃ´ng tin: structures array'
+        message: 'ThiÃ¡ÂºÂ¿u thÃƒÂ´ng tin: structures array'
       });
     }
 
-    console.log(`ðŸ“Š Cáº­p nháº­t cáº¥u trÃºc Ä‘iá»ƒm cho khÃ³a ${id}`);
+    console.log(`Ã°Å¸â€œÅ  CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t cÃ¡ÂºÂ¥u trÃƒÂºc Ã„â€˜iÃ¡Â»Æ’m cho khÃƒÂ³a ${id}`);
 
-    // Validate tá»•ng weight = 1 (100%)
+    // Validate tÃ¡Â»â€¢ng weight = 1 (100%)
     const totalWeight = structures.reduce((sum, s) => sum + (parseFloat(s.weight) || 0), 0);
     if (Math.abs(totalWeight - 1) > 0.01) {
       return res.status(400).json({
         success: false,
-        message: `Tá»•ng trá»ng sá»‘ pháº£i = 100% (hiá»‡n táº¡i: ${Math.round(totalWeight * 100)}%)`
+        message: `TÃ¡Â»â€¢ng trÃ¡Â»Âng sÃ¡Â»â€˜ phÃ¡ÂºÂ£i = 100% (hiÃ¡Â»â€¡n tÃ¡ÂºÂ¡i: ${Math.round(totalWeight * 100)}%)`
       });
     }
 
-    // XÃ³a cáº¥u trÃºc cÅ©
+    // XÃƒÂ³a cÃ¡ÂºÂ¥u trÃƒÂºc cÃ…Â©
     await supabase.from('grade_structures').delete().eq('course_id', id);
 
-    // Insert cáº¥u trÃºc má»›i
+    // Insert cÃ¡ÂºÂ¥u trÃƒÂºc mÃ¡Â»â€ºi
     const insertData = structures.map((s, index) => ({
       course_id: id,
       name: s.name,
@@ -8694,7 +10329,7 @@ app.post('/api/courses/:id/grade-structures', requireAuth, async (req, res, next
 
     res.json({
       success: true,
-      message: `ÄÃ£ lÆ°u ${data.length} cá»™t Ä‘iá»ƒm`,
+      message: `Ã„ÂÃƒÂ£ lÃ†Â°u ${data.length} cÃ¡Â»â„¢t Ã„â€˜iÃ¡Â»Æ’m`,
       data
     });
 
@@ -8712,13 +10347,13 @@ app.post('/api/courses/:id/grade-structures', requireAuth, async (req, res, next
 // DASHBOARD APIs - Command Center
 // ============================================================
 
-// GET /api/dashboard/stats - Láº¥y thá»‘ng kÃª tá»•ng quan
+// GET /api/dashboard/stats - LÃ¡ÂºÂ¥y thÃ¡Â»â€˜ng kÃƒÂª tÃ¡Â»â€¢ng quan
 app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
   try {
     const { centerId, startDate, endDate } = req.query;
     const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
 
-    console.log(`ðŸ“Š Dashboard stats requested by ${req.user.email} | Center: ${effectiveCenterId || 'ALL'}`);
+    console.log(`Ã°Å¸â€œÅ  Dashboard stats requested by ${req.user.email} | Center: ${effectiveCenterId || 'ALL'}`);
 
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
@@ -8753,8 +10388,8 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
       prevEnd = new Date(currentYear, currentMonth - 1, 0).toISOString().split('T')[0];
     }
 
-    // 1. Tá»•ng doanh thu = Tá»•ng paid_amount tá»« enrollments (thá»±c thu)
-    // CÃ¡ch 1: Tá»« báº£ng payments (náº¿u cÃ³)
+    // 1. TÃ¡Â»â€¢ng doanh thu = TÃ¡Â»â€¢ng paid_amount tÃ¡Â»Â« enrollments (thÃ¡Â»Â±c thu)
+    // CÃƒÂ¡ch 1: TÃ¡Â»Â« bÃ¡ÂºÂ£ng payments (nÃ¡ÂºÂ¿u cÃƒÂ³)
     let paymentsThisMonthQuery = supabase
       .from('payments')
       .select('amount, class:classes!inner(center_id)')
@@ -8770,7 +10405,7 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
 
     const revenueFromPayments = paymentsThisMonth?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
 
-    // CÃ¡ch 2: Tá»« báº£ng enrollments (paid_amount) - Tá»”NG DOANH THU THá»°C Táº¾
+    // CÃƒÂ¡ch 2: TÃ¡Â»Â« bÃ¡ÂºÂ£ng enrollments (paid_amount) - TÃ¡Â»â€NG DOANH THU THÃ¡Â»Â°C TÃ¡ÂºÂ¾
     let enrollmentsDataQuery = supabase
       .from('enrollments')
       .select('paid_amount, classes!inner(center_id)');
@@ -8783,10 +10418,10 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
 
     const revenueFromEnrollments = enrollmentsData?.reduce((sum, e) => sum + (e.paid_amount || 0), 0) || 0;
 
-    // Láº¥y sá»‘ lá»›n hÆ¡n (hoáº·c cá»™ng cáº£ 2 náº¿u payments lÃ  chi tiáº¿t tá»«ng láº§n Ä‘Ã³ng)
+    // LÃ¡ÂºÂ¥y sÃ¡Â»â€˜ lÃ¡Â»â€ºn hÃ†Â¡n (hoÃ¡ÂºÂ·c cÃ¡Â»â„¢ng cÃ¡ÂºÂ£ 2 nÃ¡ÂºÂ¿u payments lÃƒÂ  chi tiÃ¡ÂºÂ¿t tÃ¡Â»Â«ng lÃ¡ÂºÂ§n Ã„â€˜ÃƒÂ³ng)
     const totalRevenueThisMonth = Math.max(revenueFromPayments, revenueFromEnrollments);
 
-    // 2. Doanh thu ká»³ trÆ°á»›c (Ä‘á»ƒ tÃ­nh trend) - dÃ¹ng payments náº¿u cÃ³
+    // 2. Doanh thu kÃ¡Â»Â³ trÃ†Â°Ã¡Â»â€ºc (Ã„â€˜Ã¡Â»Æ’ tÃƒÂ­nh trend) - dÃƒÂ¹ng payments nÃ¡ÂºÂ¿u cÃƒÂ³
     let paymentsLastMonthQuery = supabase
       .from('payments')
       .select('amount, class:classes!inner(center_id)')
@@ -8802,12 +10437,12 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
 
     const totalRevenueLastMonth = paymentsLastMonth?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
 
-    // TÃ­nh % thay Ä‘á»•i doanh thu
+    // TÃƒÂ­nh % thay Ã„â€˜Ã¡Â»â€¢i doanh thu
     const revenueTrend = totalRevenueLastMonth > 0
       ? Math.round(((totalRevenueThisMonth - totalRevenueLastMonth) / totalRevenueLastMonth) * 100)
       : (totalRevenueThisMonth > 0 ? 100 : 0);
 
-    // 3. Sá»‘ há»c viÃªn má»›i trong ká»³ (enrollments má»›i)
+    // 3. SÃ¡Â»â€˜ hÃ¡Â»Âc viÃƒÂªn mÃ¡Â»â€ºi trong kÃ¡Â»Â³ (enrollments mÃ¡Â»â€ºi)
     let newStudentsThisMonthQuery = supabase
       .from('enrollments')
       .select('*, classes!inner(center_id)', { count: 'exact', head: true })
@@ -8836,7 +10471,7 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
       ? Math.round(((newStudentsThisMonth - newStudentsLastMonth) / newStudentsLastMonth) * 100)
       : (newStudentsThisMonth > 0 ? 100 : 0);
 
-    // 4. Sá»‘ lá»›p Ä‘ang hoáº¡t Ä‘á»™ng (ongoing HOáº¶C upcoming)
+    // 4. SÃ¡Â»â€˜ lÃ¡Â»â€ºp Ã„â€˜ang hoÃ¡ÂºÂ¡t Ã„â€˜Ã¡Â»â„¢ng (ongoing HOÃ¡ÂºÂ¶C upcoming)
     let ongoingClassesQuery = supabase
       .from('classes')
       .select('*', { count: 'exact', head: true })
@@ -8861,7 +10496,7 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
 
     const activeClasses = (ongoingClasses || 0) + (upcomingClasses || 0);
 
-    // 5. CÃ´ng ná»£ (Tá»•ng tiá»n cÃ²n ná»£ tá»« enrollments)
+    // 5. CÃƒÂ´ng nÃ¡Â»Â£ (TÃ¡Â»â€¢ng tiÃ¡Â»Ân cÃƒÂ²n nÃ¡Â»Â£ tÃ¡Â»Â« enrollments)
     let debtDataQuery = supabase
       .from('enrollments')
       .select('tuition_fee, paid_amount, classes!inner(center_id)')
@@ -8878,12 +10513,12 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
       return sum + (remaining > 0 ? remaining : 0);
     }, 0) || 0;
 
-    // 6. Tá»•ng sá»‘ khÃ³a há»c active
+    // 6. TÃ¡Â»â€¢ng sÃ¡Â»â€˜ khÃƒÂ³a hÃ¡Â»Âc active
     const { count: totalCourses } = await supabase
       .from('courses')
       .select('*', { count: 'exact', head: true });
 
-    // 7. Tá»•ng sá»‘ há»c viÃªn (unique students cÃ³ enrollment)
+    // 7. TÃ¡Â»â€¢ng sÃ¡Â»â€˜ hÃ¡Â»Âc viÃƒÂªn (unique students cÃƒÂ³ enrollment)
     let uniqueStudentsQuery = supabase
       .from('enrollments')
       .select('student_id, classes!inner(center_id)')
@@ -8911,16 +10546,16 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
           value: newStudentsThisMonth || 0,
           trend: studentsTrend,
           trendUp: studentsTrend >= 0,
-          description: 'Ghi danh trong ká»³'
+          description: 'Ghi danh trong kÃ¡Â»Â³'
         },
         activeClasses: {
           value: activeClasses || 0,
-          description: 'Lá»›p Ä‘ang diá»…n ra'
+          description: 'LÃ¡Â»â€ºp Ã„â€˜ang diÃ¡Â»â€¦n ra'
         },
         debt: {
           value: totalDebt,
           formatted: formatCurrency(totalDebt),
-          description: 'Cáº§n thu há»“i'
+          description: 'CÃ¡ÂºÂ§n thu hÃ¡Â»â€œi'
         },
         summary: {
           totalCourses: totalCourses || 0,
@@ -8945,18 +10580,18 @@ app.get('/api/dashboard/stats', requireAuth, async (req, res, next) => {
 // Helper: Format currency
 function formatCurrency(amount) {
   if (amount >= 1000000000) {
-    return `${(amount / 1000000000).toFixed(1)}B Ä‘`;
+    return `${(amount / 1000000000).toFixed(1)}B Ã„â€˜`;
   }
   if (amount >= 1000000) {
-    return `${(amount / 1000000).toFixed(1)}M Ä‘`;
+    return `${(amount / 1000000).toFixed(1)}M Ã„â€˜`;
   }
   if (amount >= 1000) {
-    return `${(amount / 1000).toFixed(0)}K Ä‘`;
+    return `${(amount / 1000).toFixed(0)}K Ã„â€˜`;
   }
-  return `${amount.toLocaleString('vi-VN')} Ä‘`;
+  return `${amount.toLocaleString('vi-VN')} Ã„â€˜`;
 }
 
-// GET /api/dashboard/revenue-chart - Biá»ƒu Ä‘á»“ doanh thu theo thÃ¡ng (OPTIMIZED - single query)
+// GET /api/dashboard/revenue-chart - BiÃ¡Â»Æ’u Ã„â€˜Ã¡Â»â€œ doanh thu theo thÃƒÂ¡ng (OPTIMIZED - single query)
 app.get('/api/dashboard/revenue-chart', requireAuth, async (req, res, next) => {
   try {
     const { centerId, startDate, endDate } = req.query;
@@ -9032,13 +10667,13 @@ app.get('/api/dashboard/revenue-chart', requireAuth, async (req, res, next) => {
         return a.monthNum - b.monthNum;
       })
       .map(m => ({
-        label: m.month,      // âœ… Add 'label' for chart compatibility
+        label: m.month,      // Ã¢Å“â€¦ Add 'label' for chart compatibility
         month: m.month,      // Keep 'month' for backward compatibility
         revenue: m.revenue,
         formatted: formatCurrency(m.revenue)
       }));
 
-    console.log(`ðŸ“Š Revenue chart: Found ${data?.length || 0} enrollments, Generated ${months.length} months of data`);
+    console.log(`Ã°Å¸â€œÅ  Revenue chart: Found ${data?.length || 0} enrollments, Generated ${months.length} months of data`);
 
     res.json({
       success: true,
@@ -9051,7 +10686,7 @@ app.get('/api/dashboard/revenue-chart', requireAuth, async (req, res, next) => {
   }
 });
 
-// GET /api/dashboard/recent-students - Há»c viÃªn ghi danh gáº§n Ä‘Ã¢y
+// GET /api/dashboard/recent-students - HÃ¡Â»Âc viÃƒÂªn ghi danh gÃ¡ÂºÂ§n Ã„â€˜ÃƒÂ¢y
 app.get('/api/dashboard/recent-students', requireAuth, async (req, res, next) => {
   try {
     const { limit = 5, centerId } = req.query;
@@ -9090,8 +10725,8 @@ app.get('/api/dashboard/recent-students', requireAuth, async (req, res, next) =>
       // Handle negative time diff (future dates or timezone issues)
       let timeAgo;
       if (timeDiff < 0) {
-        // Náº¿u thá»i gian Ã¢m (tÆ°Æ¡ng lai), hiá»ƒn thá»‹ "Vá»«a xong"
-        timeAgo = 'Vá»«a xong';
+        // NÃ¡ÂºÂ¿u thÃ¡Â»Âi gian ÃƒÂ¢m (tÃ†Â°Ã†Â¡ng lai), hiÃ¡Â»Æ’n thÃ¡Â»â€¹ "VÃ¡Â»Â«a xong"
+        timeAgo = 'VÃ¡Â»Â«a xong';
       } else {
         const minutes = Math.floor(timeDiff / (1000 * 60));
         const hours = Math.floor(minutes / 60);
@@ -9099,15 +10734,15 @@ app.get('/api/dashboard/recent-students', requireAuth, async (req, res, next) =>
         const months = Math.floor(days / 30);
 
         if (months > 0) {
-          timeAgo = `${months} thÃ¡ng trÆ°á»›c`;
+          timeAgo = `${months} thÃƒÂ¡ng trÃ†Â°Ã¡Â»â€ºc`;
         } else if (days > 0) {
-          timeAgo = `${days} ngÃ y trÆ°á»›c`;
+          timeAgo = `${days} ngÃƒÂ y trÃ†Â°Ã¡Â»â€ºc`;
         } else if (hours > 0) {
-          timeAgo = `${hours} giá» trÆ°á»›c`;
+          timeAgo = `${hours} giÃ¡Â»Â trÃ†Â°Ã¡Â»â€ºc`;
         } else if (minutes > 0) {
-          timeAgo = `${minutes} phÃºt trÆ°á»›c`;
+          timeAgo = `${minutes} phÃƒÂºt trÃ†Â°Ã¡Â»â€ºc`;
         } else {
-          timeAgo = 'Vá»«a xong';
+          timeAgo = 'VÃ¡Â»Â«a xong';
         }
       }
 
@@ -9134,7 +10769,7 @@ app.get('/api/dashboard/recent-students', requireAuth, async (req, res, next) =>
   }
 });
 
-// GET /api/dashboard/course-distribution - PhÃ¢n bá»‘ há»c viÃªn theo khÃ³a há»c
+// GET /api/dashboard/course-distribution - PhÃƒÂ¢n bÃ¡Â»â€˜ hÃ¡Â»Âc viÃƒÂªn theo khÃƒÂ³a hÃ¡Â»Âc
 app.get('/api/dashboard/course-distribution', requireAuth, async (req, res, next) => {
   try {
     const { centerId, startDate, endDate } = req.query;
@@ -9171,7 +10806,7 @@ app.get('/api/dashboard/course-distribution', requireAuth, async (req, res, next
     // Count by course
     const courseCount = {};
     data?.forEach(e => {
-      const courseTitle = e.classes?.courses?.title || 'KhÃ¡c';
+      const courseTitle = e.classes?.courses?.title || 'KhÃƒÂ¡c';
       courseCount[courseTitle] = (courseCount[courseTitle] || 0) + 1;
     });
 
@@ -9192,7 +10827,7 @@ app.get('/api/dashboard/course-distribution', requireAuth, async (req, res, next
   }
 });
 
-// GET /api/dashboard/payment-overview - Tá»•ng quan thanh toÃ¡n & hÃ³a Ä‘Æ¡n
+// GET /api/dashboard/payment-overview - TÃ¡Â»â€¢ng quan thanh toÃƒÂ¡n & hÃƒÂ³a Ã„â€˜Ã†Â¡n
 app.get('/api/dashboard/payment-overview', requireAuth, async (req, res, next) => {
   try {
     const { centerId } = req.query;
@@ -9270,7 +10905,7 @@ app.get('/api/dashboard/payment-overview', requireAuth, async (req, res, next) =
   }
 });
 
-// GET /api/dashboard/attendance-overview - Tá»•ng quan Ä‘iá»ƒm danh
+// GET /api/dashboard/attendance-overview - TÃ¡Â»â€¢ng quan Ã„â€˜iÃ¡Â»Æ’m danh
 app.get('/api/dashboard/attendance-overview', requireAuth, async (req, res, next) => {
   try {
     const { centerId, days = 7 } = req.query;
@@ -9362,7 +10997,7 @@ app.get('/api/dashboard/teacher-performance', requireAuth, async (req, res, next
     const { centerId, limit = 5 } = req.query;
     const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
 
-    console.log(`ðŸ“Š Teacher performance requested | Center: ${effectiveCenterId || 'ALL'}`);
+    console.log(`Ã°Å¸â€œÅ  Teacher performance requested | Center: ${effectiveCenterId || 'ALL'}`);
 
     // Get teacher role
     const { data: teacherRole } = await supabase
@@ -9467,7 +11102,7 @@ app.get('/api/dashboard/teacher-performance', requireAuth, async (req, res, next
         name: teacher.full_name,
         email: teacher.email,
         avatar_url: teacher.avatar_url,
-        subject: topCourse ? topCourse[0] : (teacher.centers?.name || 'GiÃ¡o viÃªn'),
+        subject: topCourse ? topCourse[0] : (teacher.centers?.name || 'GiÃƒÂ¡o viÃƒÂªn'),
         student_count: stats.studentIds.size,
         class_count: stats.classCount,
         center_name: teacher.centers?.name
@@ -9490,7 +11125,7 @@ app.get('/api/dashboard/teacher-performance', requireAuth, async (req, res, next
   }
 });
 
-// GET /api/dashboard/today-schedule - Lá»‹ch dáº¡y hÃ´m nay
+// GET /api/dashboard/today-schedule - LÃ¡Â»â€¹ch dÃ¡ÂºÂ¡y hÃƒÂ´m nay
 app.get('/api/dashboard/today-schedule', requireAuth, async (req, res, next) => {
   try {
     const { centerId } = req.query;
@@ -9559,13 +11194,13 @@ app.get('/api/dashboard/today-schedule', requireAuth, async (req, res, next) => 
   }
 });
 
-// GET /api/dashboard/all - Unified API cho táº¥t cáº£ dashboard data (reduce API calls)
+// GET /api/dashboard/all - Unified API cho tÃ¡ÂºÂ¥t cÃ¡ÂºÂ£ dashboard data (reduce API calls)
 app.get('/api/dashboard/all', requireAuth, async (req, res, next) => {
   try {
     const { centerId, startDate, endDate } = req.query;
     const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
 
-    console.log(`ðŸ“Š Dashboard ALL requested by ${req.user.email} | Center: ${effectiveCenterId || 'ALL'} | Period: ${startDate || 'default'} to ${endDate || 'default'}`);
+    console.log(`Ã°Å¸â€œÅ  Dashboard ALL requested by ${req.user.email} | Center: ${effectiveCenterId || 'ALL'} | Period: ${startDate || 'default'} to ${endDate || 'default'}`);
 
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
@@ -9726,10 +11361,10 @@ app.get('/api/dashboard/all', requireAuth, async (req, res, next) => {
       const hours = Math.floor(minutes / 60);
       const days = Math.floor(hours / 24);
 
-      let timeAgo = 'Vá»«a xong';
-      if (days > 0) timeAgo = `${days} ngÃ y trÆ°á»›c`;
-      else if (hours > 0) timeAgo = `${hours} giá» trÆ°á»›c`;
-      else if (minutes > 0) timeAgo = `${minutes} phÃºt trÆ°á»›c`;
+      let timeAgo = 'VÃ¡Â»Â«a xong';
+      if (days > 0) timeAgo = `${days} ngÃƒÂ y trÃ†Â°Ã¡Â»â€ºc`;
+      else if (hours > 0) timeAgo = `${hours} giÃ¡Â»Â trÃ†Â°Ã¡Â»â€ºc`;
+      else if (minutes > 0) timeAgo = `${minutes} phÃƒÂºt trÃ†Â°Ã¡Â»â€ºc`;
 
       // Calculate payment status from enrollment data
       const tuitionFee = e.tuition_fee || 0;
@@ -9785,16 +11420,16 @@ app.get('/api/dashboard/all', requireAuth, async (req, res, next) => {
             value: enrollmentsThisMonth,
             trend: studentsTrend,
             trendUp: studentsTrend >= 0,
-            description: 'Ghi danh trong ká»³'
+            description: 'Ghi danh trong kÃ¡Â»Â³'
           },
           activeClasses: {
             value: activeClasses,
-            description: 'Lá»›p Ä‘ang diá»…n ra'
+            description: 'LÃ¡Â»â€ºp Ã„â€˜ang diÃ¡Â»â€¦n ra'
           },
           debt: {
             value: totalDebt,
             formatted: formatCurrency(totalDebt),
-            description: 'Cáº§n thu há»“i'
+            description: 'CÃ¡ÂºÂ§n thu hÃ¡Â»â€œi'
           },
           summary: {
             totalCourses: coursesResult.count || 0,
@@ -9844,13 +11479,13 @@ app.get('/api/dashboard/all', requireAuth, async (req, res, next) => {
   }
 });
 
-// ðŸ”¥ NEW: Dashboard alerts endpoint
+// Ã°Å¸â€Â¥ NEW: Dashboard alerts endpoint
 app.get('/api/dashboard/alerts', requireAuth, async (req, res, next) => {
   try {
     const { centerId } = req.query;
     const { effectiveCenterId } = getEffectiveCenterId(req.user, centerId);
 
-    console.log(`ðŸ“Š Dashboard alerts requested by ${req.user.email} | Center: ${effectiveCenterId || 'ALL'}`);
+    console.log(`Ã°Å¸â€œÅ  Dashboard alerts requested by ${req.user.email} | Center: ${effectiveCenterId || 'ALL'}`);
 
     const today = new Date().toISOString().split('T')[0];
     const alerts = {};
@@ -9994,7 +11629,7 @@ app.get('/api/dashboard/alerts', requireAuth, async (req, res, next) => {
       alerts.certificates_pending = {
         data: [],
         degraded: true,
-        warning: 'KhÃ´ng thá»ƒ táº£i danh sÃ¡ch chá»©ng chá»‰ chá» duyá»‡t',
+        warning: 'KhÃƒÂ´ng thÃ¡Â»Æ’ tÃ¡ÂºÂ£i danh sÃƒÂ¡ch chÃ¡Â»Â©ng chÃ¡Â»â€° chÃ¡Â»Â duyÃ¡Â»â€¡t',
       };
     } else {
       alerts.certificates_pending = {
@@ -10006,7 +11641,7 @@ app.get('/api/dashboard/alerts', requireAuth, async (req, res, next) => {
           class_id: item.class?.id || null,
           class_name: item.class?.name || item.course?.title || 'N/A',
           course_name: item.course?.title || null,
-          certificate_type_name: item.certificate_type_ref?.name || item.certificate_type_ref?.code || 'Chá»©ng chá»‰',
+          certificate_type_name: item.certificate_type_ref?.name || item.certificate_type_ref?.code || 'ChÃ¡Â»Â©ng chÃ¡Â»â€°',
           requested_at: item.created_at,
         })),
       };
@@ -10035,9 +11670,9 @@ app.get('/api/dashboard/alerts', requireAuth, async (req, res, next) => {
   }
 });
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 // MANAGER DASHBOARD APIs
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 // GET /api/dashboard/teacher-status-today
 app.get('/api/dashboard/teacher-status-today', requireAuth, async (req, res, next) => {
@@ -10289,10 +11924,10 @@ app.get('/api/dashboard/pending-actions', requireAuth, async (req, res, next) =>
     const { count: enrollCount } = await enrollQuery;
 
     const categories = [
-      { key: 'overdue_invoices', label: 'HÃ³a Ä‘Æ¡n quÃ¡ háº¡n', count: overdueCount || 0, path: '/admin/invoices' },
-      { key: 'pending_enrollments', label: 'Ghi danh má»›i (7 ngÃ y)', count: enrollCount || 0, path: '/admin/enrollments' },
-      { key: 'pending_leave_requests', label: 'ÄÆ¡n xin nghá»‰ chá» duyá»‡t', count: leaveCount || 0, path: '/admin/leave' },
-      { key: 'pending_disputes', label: 'Khiáº¿u náº¡i lÆ°Æ¡ng', count: disputeCount || 0, path: '/admin/payroll-disputes' },
+      { key: 'overdue_invoices', label: 'HÃƒÂ³a Ã„â€˜Ã†Â¡n quÃƒÂ¡ hÃ¡ÂºÂ¡n', count: overdueCount || 0, path: '/admin/invoices' },
+      { key: 'pending_enrollments', label: 'Ghi danh mÃ¡Â»â€ºi (7 ngÃƒÂ y)', count: enrollCount || 0, path: '/admin/enrollments' },
+      { key: 'pending_leave_requests', label: 'Ã„ÂÃ†Â¡n xin nghÃ¡Â»â€° chÃ¡Â»Â duyÃ¡Â»â€¡t', count: leaveCount || 0, path: '/admin/leave' },
+      { key: 'pending_disputes', label: 'KhiÃ¡ÂºÂ¿u nÃ¡ÂºÂ¡i lÃ†Â°Ã†Â¡ng', count: disputeCount || 0, path: '/admin/payroll-disputes' },
     ];
 
     const total = categories.reduce((sum, c) => sum + c.count, 0);
@@ -10436,23 +12071,23 @@ app.get('/api/admin/system-dashboard', requireAuth, requireRole(['SUPER_ADMIN'])
       .eq('status', 'active')
       .lte('created_at', prevEnd);
 
-    // Active classes
+    // Active classes (status = 'ongoing' in DB) - fixed 2026-03-18
     const { count: totalClasses } = await supabase
       .from('classes')
       .select('id', { count: 'exact', head: true })
-      .eq('status', 'active');
+      .eq('status', 'ongoing');
 
     // Outstanding debt
     const { data: debtData } = await supabase
       .from('invoices')
       .select('final_amount, paid_amount')
-      .in('status', ['pending', 'overdue']);
+      .in('status', ['unpaid', 'partial']);
     const totalDebt = (debtData || []).reduce((sum, inv) => sum + ((inv.final_amount || 0) - (inv.paid_amount || 0)), 0);
 
     const { data: prevDebtData } = await supabase
       .from('invoices')
       .select('final_amount, paid_amount')
-      .in('status', ['pending', 'overdue'])
+      .in('status', ['unpaid', 'partial'])
       .lte('created_at', prevEnd);
     const prevTotalDebt = (prevDebtData || []).reduce((sum, inv) => sum + ((inv.final_amount || 0) - (inv.paid_amount || 0)), 0);
 
@@ -10469,7 +12104,7 @@ app.get('/api/admin/system-dashboard', requireAuth, requireRole(['SUPER_ADMIN'])
 
     if (auditCoverageError) {
       warnings.push(
-        createDataWarning('AUDIT_COVERAGE_UNAVAILABLE', 'KhÃ´ng thá»ƒ Ä‘á»c dá»¯ liá»‡u bao phá»§ audit cho giai Ä‘oáº¡n hiá»‡n táº¡i', {
+        createDataWarning('AUDIT_COVERAGE_UNAVAILABLE', 'KhÃƒÂ´ng thÃ¡Â»Æ’ Ã„â€˜Ã¡Â»Âc dÃ¡Â»Â¯ liÃ¡Â»â€¡u bao phÃ¡Â»Â§ audit cho giai Ã„â€˜oÃ¡ÂºÂ¡n hiÃ¡Â»â€¡n tÃ¡ÂºÂ¡i', {
           source: 'audit_logs',
           error: auditCoverageError.message,
         })
@@ -10669,7 +12304,7 @@ app.get('/api/admin/center-health', requireAuth, requireRole(['SUPER_ADMIN']), a
       // Enrollment growth
       const enrollmentGrowth = (prevEnrollments || 0) > 0 ? (((curEnrollments || 0) - (prevEnrollments || 0)) / (prevEnrollments || 1)) * 100 : 0;
 
-      // Fill rate â€” bulk count all active enrollments for this center's classes (eliminates inner N+1 loop)
+      // Fill rate Ã¢â‚¬â€ bulk count all active enrollments for this center's classes (eliminates inner N+1 loop)
       const classIds = (classData || []).map(c => c.id);
       let totalFilled = 0;
       if (classIds.length > 0) {
@@ -10836,7 +12471,7 @@ app.get('/api/admin/anomalies', requireAuth, requireRole(['SUPER_ADMIN']), async
         anomalies.push(buildAnomaly({
           center,
           type: 'revenue_drop',
-          message: `Doanh thu giáº£m ${dropPct}% so vá»›i thÃ¡ng trÆ°á»›c`,
+          message: `Doanh thu giÃ¡ÂºÂ£m ${dropPct}% so vÃ¡Â»â€ºi thÃƒÂ¡ng trÃ†Â°Ã¡Â»â€ºc`,
           severity: 'warning',
           sourceMetricId: STRATEGIC_METRIC_IDS.REVENUE_GROWTH_MOM,
           breachedValue: -dropPct,
@@ -10857,7 +12492,7 @@ app.get('/api/admin/anomalies', requireAuth, requireRole(['SUPER_ADMIN']), async
         anomalies.push(buildAnomaly({
           center,
           type: 'low_attendance',
-          message: `Tá»· lá»‡ chuyÃªn cáº§n chá»‰ ${roundedRate}%`,
+          message: `TÃ¡Â»Â· lÃ¡Â»â€¡ chuyÃƒÂªn cÃ¡ÂºÂ§n chÃ¡Â»â€° ${roundedRate}%`,
           severity: 'critical',
           sourceMetricId: STRATEGIC_METRIC_IDS.ATTENDANCE_RATE,
           breachedValue: roundedRate,
@@ -10878,7 +12513,7 @@ app.get('/api/admin/anomalies', requireAuth, requireRole(['SUPER_ADMIN']), async
         anomalies.push(buildAnomaly({
           center,
           type: 'low_collection',
-          message: `Tá»· lá»‡ thu chá»‰ ${roundedRate}%`,
+          message: `TÃ¡Â»Â· lÃ¡Â»â€¡ thu chÃ¡Â»â€° ${roundedRate}%`,
           severity: 'warning',
           sourceMetricId: STRATEGIC_METRIC_IDS.COLLECTION_RATE,
           breachedValue: roundedRate,
@@ -10900,7 +12535,7 @@ app.get('/api/admin/anomalies', requireAuth, requireRole(['SUPER_ADMIN']), async
         anomalies.push(buildAnomaly({
           center,
           type: 'enrollment_drop',
-          message: `Ghi danh giáº£m ${dropPct}% so vá»›i thÃ¡ng trÆ°á»›c`,
+          message: `Ghi danh giÃ¡ÂºÂ£m ${dropPct}% so vÃ¡Â»â€ºi thÃƒÂ¡ng trÃ†Â°Ã¡Â»â€ºc`,
           severity: 'warning',
           sourceMetricId: STRATEGIC_METRIC_IDS.ENROLLMENT_GROWTH_MOM,
           breachedValue: -dropPct,
@@ -11300,7 +12935,7 @@ app.get('/api/admin/audit-logs', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
         auditPipelineHealthy = false;
         dataFreshness = 'degraded';
         warnings.push(
-          createDataWarning('AUDIT_USER_SEARCH_DEGRADED', 'KhÃ´ng thá»ƒ má»Ÿ rá»™ng tÃ¬m kiáº¿m audit theo ngÆ°á»i dÃ¹ng', {
+          createDataWarning('AUDIT_USER_SEARCH_DEGRADED', 'KhÃƒÂ´ng thÃ¡Â»Æ’ mÃ¡Â»Å¸ rÃ¡Â»â„¢ng tÃƒÂ¬m kiÃ¡ÂºÂ¿m audit theo ngÃ†Â°Ã¡Â»Âi dÃƒÂ¹ng', {
             error: userSearchError.message,
           })
         );
@@ -11322,7 +12957,7 @@ app.get('/api/admin/audit-logs', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
       auditPipelineHealthy = false;
       dataFreshness = 'degraded';
       warnings.push(
-        createDataWarning('AUDIT_QUERY_FALLBACK', 'Nháº­t kÃ½ há»‡ thá»‘ng Ä‘ang dÃ¹ng cháº¿ Ä‘á»™ truy váº¥n fallback', {
+        createDataWarning('AUDIT_QUERY_FALLBACK', 'NhÃ¡ÂºÂ­t kÃƒÂ½ hÃ¡Â»â€¡ thÃ¡Â»â€˜ng Ã„â€˜ang dÃƒÂ¹ng chÃ¡ÂºÂ¿ Ã„â€˜Ã¡Â»â„¢ truy vÃ¡ÂºÂ¥n fallback', {
           error: primaryQueryError.message,
         })
       );
@@ -11340,7 +12975,7 @@ app.get('/api/admin/audit-logs', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
 
       if (result.error && sanitizedSearch && matchingUserIds.length > 0) {
         warnings.push(
-          createDataWarning('AUDIT_SEARCH_DEGRADED', 'TÃ¬m kiáº¿m audit Ä‘ang dÃ¹ng cháº¿ Ä‘á»™ rÃºt gá»n', {
+          createDataWarning('AUDIT_SEARCH_DEGRADED', 'TÃƒÂ¬m kiÃ¡ÂºÂ¿m audit Ã„â€˜ang dÃƒÂ¹ng chÃ¡ÂºÂ¿ Ã„â€˜Ã¡Â»â„¢ rÃƒÂºt gÃ¡Â»Ân', {
             error: result.error.message,
           })
         );
@@ -11382,7 +13017,7 @@ app.get('/api/admin/audit-logs', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
       auditPipelineHealthy = false;
       dataFreshness = 'degraded';
       warnings.push(
-        createDataWarning('AUDIT_ENRICHMENT_DEGRADED', 'Nháº­t kÃ½ há»‡ thá»‘ng Ä‘ang dÃ¹ng dá»¯ liá»‡u rÃºt gá»n', {
+        createDataWarning('AUDIT_ENRICHMENT_DEGRADED', 'NhÃ¡ÂºÂ­t kÃƒÂ½ hÃ¡Â»â€¡ thÃ¡Â»â€˜ng Ã„â€˜ang dÃƒÂ¹ng dÃ¡Â»Â¯ liÃ¡Â»â€¡u rÃƒÂºt gÃ¡Â»Ân', {
           error: enrichmentError.message,
         })
       );
@@ -11515,7 +13150,7 @@ app.patch('/api/admin/users/:id/lock', requireAuth, requireRole(['SUPER_ADMIN'])
 
     AuditLogService.log({ ...getAuditContext(req), action: 'LOCK_USER', tableName: 'users', recordId: id, newValues: { status: 'suspended' } });
 
-    res.json({ success: true, message: 'TÃ i khoáº£n Ä‘Ã£ bá»‹ khÃ³a' });
+    res.json({ success: true, message: 'TÃƒÂ i khoÃ¡ÂºÂ£n Ã„â€˜ÃƒÂ£ bÃ¡Â»â€¹ khÃƒÂ³a' });
   } catch (error) {
     console.error('Error locking user:', error);
     next(error);
@@ -11538,7 +13173,7 @@ app.patch('/api/admin/users/:id/unlock', requireAuth, requireRole(['SUPER_ADMIN'
 
     AuditLogService.log({ ...getAuditContext(req), action: 'UNLOCK_USER', tableName: 'users', recordId: id, newValues: { status: 'active' } });
 
-    res.json({ success: true, message: 'TÃ i khoáº£n Ä‘Ã£ Ä‘Æ°á»£c má»Ÿ khÃ³a' });
+    res.json({ success: true, message: 'TÃƒÂ i khoÃ¡ÂºÂ£n Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c mÃ¡Â»Å¸ khÃƒÂ³a' });
   } catch (error) {
     console.error('Error unlocking user:', error);
     next(error);
@@ -11551,7 +13186,7 @@ app.post('/api/admin/users/:id/reset-password', requireAuth, requireRole(['SUPER
     const { id } = req.params;
     const { data: user } = await supabase.from('users').select('email').eq('id', id).single();
     if (!user?.email) {
-      return res.status(404).json({ success: false, error: 'KhÃ´ng tÃ¬m tháº¥y ngÆ°á»i dÃ¹ng' });
+      return res.status(404).json({ success: false, error: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y ngÃ†Â°Ã¡Â»Âi dÃƒÂ¹ng' });
     }
 
     const { error } = await supabase.auth.admin.generateLink({ type: 'recovery', email: user.email });
@@ -11559,7 +13194,7 @@ app.post('/api/admin/users/:id/reset-password', requireAuth, requireRole(['SUPER
 
     AuditLogService.log({ ...getAuditContext(req), action: 'RESET_PASSWORD', tableName: 'users', recordId: id });
 
-    res.json({ success: true, message: 'Email Ä‘áº·t láº¡i máº­t kháº©u Ä‘Ã£ Ä‘Æ°á»£c gá»­i' });
+    res.json({ success: true, message: 'Email Ã„â€˜Ã¡ÂºÂ·t lÃ¡ÂºÂ¡i mÃ¡ÂºÂ­t khÃ¡ÂºÂ©u Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c gÃ¡Â»Â­i' });
   } catch (error) {
     console.error('Error resetting password:', error);
     next(error);
@@ -11607,17 +13242,17 @@ app.post('/api/admin/users/create', requireAuth, requireRole(['SUPER_ADMIN']), a
   try {
     const { email, fullName, role, centerId } = req.body;
     if (!email || !fullName || !role || !centerId) {
-      return res.status(400).json({ success: false, error: 'Thiáº¿u thÃ´ng tin báº¯t buá»™c' });
+      return res.status(400).json({ success: false, error: 'ThiÃ¡ÂºÂ¿u thÃƒÂ´ng tin bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c' });
     }
     const validRoles = ['CENTER_MANAGER', 'TEACHER', 'STUDENT'];
     if (!validRoles.includes(role)) {
-      return res.status(400).json({ success: false, error: 'Vai trÃ² khÃ´ng há»£p lá»‡' });
+      return res.status(400).json({ success: false, error: 'Vai trÃƒÂ² khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡' });
     }
 
     // Check duplicate email
     const { data: existCheck } = await supabase.from('users').select('id').eq('email', email).maybeSingle();
     if (existCheck) {
-      return res.status(409).json({ success: false, error: 'Email Ä‘Ã£ tá»“n táº¡i trong há»‡ thá»‘ng' });
+      return res.status(409).json({ success: false, error: 'Email Ã„â€˜ÃƒÂ£ tÃ¡Â»â€œn tÃ¡ÂºÂ¡i trong hÃ¡Â»â€¡ thÃ¡Â»â€˜ng' });
     }
 
     // Create auth user
@@ -11646,7 +13281,7 @@ app.post('/api/admin/users/create', requireAuth, requireRole(['SUPER_ADMIN']), a
     });
     if (profileError) throw profileError;
 
-    // No separate students table needed â€” students are users with STUDENT role
+    // No separate students table needed Ã¢â‚¬â€ students are users with STUDENT role
 
     // Send password reset so user can set own password
     await supabase.auth.admin.generateLink({ type: 'recovery', email });
@@ -11803,7 +13438,7 @@ app.get('/api/admin/reports/staff', requireAuth, requireRole(['SUPER_ADMIN']), a
         .lte('created_at', monthEnd);
       const payrollCost = (payrollData || []).reduce((s, p) => s + (p.net_salary || 0), 0);
 
-      // class_sessions table does not exist â€” use v_teacher_performance view or skip
+      // class_sessions table does not exist Ã¢â‚¬â€ use v_teacher_performance view or skip
       const { data: perfData } = await supabase.from('v_teacher_performance').select('total_hours_taught').eq('center_name', center.name);
       const totalHours = Math.round((perfData || []).reduce((s, t) => s + (t.total_hours_taught || 0), 0));
 
@@ -11824,10 +13459,10 @@ app.get('/api/admin/reports/staff', requireAuth, requireRole(['SUPER_ADMIN']), a
   }
 });
 // ============================================================
-// INVOICES APIs - Quáº£n lÃ½ hÃ³a Ä‘Æ¡n
+// INVOICES APIs - QuÃ¡ÂºÂ£n lÃƒÂ½ hÃƒÂ³a Ã„â€˜Ã†Â¡n
 // ============================================================
 
-// GET /api/invoices - Danh sÃ¡ch hÃ³a Ä‘Æ¡n (vá»›i filters, pagination)
+// GET /api/invoices - Danh sÃƒÂ¡ch hÃƒÂ³a Ã„â€˜Ã†Â¡n (vÃ¡Â»â€ºi filters, pagination)
 app.get('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const {
@@ -11839,7 +13474,7 @@ app.get('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGE
       endDate,
       centerId,
       invoiceType,  // tuition | book | uniform | exam | other
-      overdue,  // 'true' Ä‘á»ƒ lá»c HD quÃ¡ háº¡n
+      overdue,  // 'true' Ã„â€˜Ã¡Â»Æ’ lÃ¡Â»Âc HD quÃƒÂ¡ hÃ¡ÂºÂ¡n
       sortBy = 'created_at',
       sortOrder = 'desc'
     } = req.query;
@@ -11854,13 +13489,13 @@ app.get('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGE
       if (!userCenterId) {
         return res.status(403).json({
           success: false,
-          message: 'Báº¡n chÆ°a Ä‘Æ°á»£c gÃ¡n vÃ o trung tÃ¢m nÃ o.'
+          message: 'BÃ¡ÂºÂ¡n chÃ†Â°a Ã„â€˜Ã†Â°Ã¡Â»Â£c gÃƒÂ¡n vÃƒÂ o trung tÃƒÂ¢m nÃƒÂ o.'
         });
       }
       if (centerId && centerId !== userCenterId) {
         return res.status(403).json({
           success: false,
-          message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem hÃ³a Ä‘Æ¡n cá»§a trung tÃ¢m khÃ¡c.'
+          message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xem hÃƒÂ³a Ã„â€˜Ã†Â¡n cÃ¡Â»Â§a trung tÃƒÂ¢m khÃƒÂ¡c.'
         });
       }
       effectiveCenterId = userCenterId;
@@ -11870,7 +13505,7 @@ app.get('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGE
     const limitNum = parseInt(limit);
     const offset = (pageNum - 1) * limitNum;
 
-    // Build query - thÃªm center_id tá»« class
+    // Build query - thÃƒÂªm center_id tÃ¡Â»Â« class
     let query = supabase
       .from('invoices')
       .select(`
@@ -11926,7 +13561,7 @@ app.get('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGE
       query = query.lte('created_at', `${endDate}T23:59:59`);
     }
 
-    // Search by invoice_code hoáº·c student name
+    // Search by invoice_code hoÃ¡ÂºÂ·c student name
     if (search && search.trim()) {
       const searchTerm = `%${search.trim()}%`;
       query = query.or(`invoice_code.ilike.${searchTerm}`);
@@ -11938,32 +13573,32 @@ app.get('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGE
     const ascending = sortOrder === 'asc';
     query = query.order(sortField, { ascending });
 
-    // âš ï¸ IMPORTANT: Khi cáº§n filter theo center_id (nested field),
-    // pháº£i load ALL rá»“i filter/paginate trÃªn JS
-    // vÃ¬ Supabase khÃ´ng support filter trÃªn nested relation
+    // Ã¢Å¡Â Ã¯Â¸Â IMPORTANT: Khi cÃ¡ÂºÂ§n filter theo center_id (nested field),
+    // phÃ¡ÂºÂ£i load ALL rÃ¡Â»â€œi filter/paginate trÃƒÂªn JS
+    // vÃƒÂ¬ Supabase khÃƒÂ´ng support filter trÃƒÂªn nested relation
     const needsJSFilter = effectiveCenterId || overdue === 'true' || (search && search.trim());
 
     if (!needsJSFilter) {
-      // Case 1: KhÃ´ng cáº§n JS filter â†’ paginate trÃªn DB (hiá»‡u nÄƒng tá»‘t)
+      // Case 1: KhÃƒÂ´ng cÃ¡ÂºÂ§n JS filter Ã¢â€ â€™ paginate trÃƒÂªn DB (hiÃ¡Â»â€¡u nÃ„Æ’ng tÃ¡Â»â€˜t)
       query = query.range(offset, offset + limitNum - 1);
     }
-    // Case 2: Cáº§n JS filter â†’ load ALL, paginate sau
+    // Case 2: CÃ¡ÂºÂ§n JS filter Ã¢â€ â€™ load ALL, paginate sau
 
     const { data, error, count } = await query;
 
     if (error) throw error;
 
-    // Post-filter theo center (vÃ¬ nested filter khÃ´ng support)
+    // Post-filter theo center (vÃƒÂ¬ nested filter khÃƒÂ´ng support)
     let filteredData = data || [];
 
     if (effectiveCenterId) {
       filteredData = filteredData.filter(inv =>
         inv.class?.center_id === effectiveCenterId ||
-        !inv.class_id // HÃ³a Ä‘Æ¡n khÃ´ng gáº¯n class (phÃ­ khÃ¡c) váº«n hiá»ƒn thá»‹
+        !inv.class_id // HÃƒÂ³a Ã„â€˜Ã†Â¡n khÃƒÂ´ng gÃ¡ÂºÂ¯n class (phÃƒÂ­ khÃƒÂ¡c) vÃ¡ÂºÂ«n hiÃ¡Â»Æ’n thÃ¡Â»â€¹
       );
     }
 
-    // Filter overdue (quÃ¡ háº¡n)
+    // Filter overdue (quÃƒÂ¡ hÃ¡ÂºÂ¡n)
     if (overdue === 'true') {
       const today = new Date().toISOString().split('T')[0];
       filteredData = filteredData.filter(inv =>
@@ -11985,7 +13620,7 @@ app.get('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGE
       );
     }
 
-    // JS Pagination (khi Ä‘Ã£ filter trÃªn JS)
+    // JS Pagination (khi Ã„â€˜ÃƒÂ£ filter trÃƒÂªn JS)
     const totalFiltered = filteredData.length;
     if (needsJSFilter) {
       filteredData = filteredData.slice(offset, offset + limitNum);
@@ -12008,7 +13643,7 @@ app.get('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGE
   }
 });
 
-// GET /api/invoices/statistics - Thá»‘ng kÃª hÃ³a Ä‘Æ¡n
+// GET /api/invoices/statistics - ThÃ¡Â»â€˜ng kÃƒÂª hÃƒÂ³a Ã„â€˜Ã†Â¡n
 app.get('/api/invoices/statistics', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { centerId } = req.query;
@@ -12023,13 +13658,13 @@ app.get('/api/invoices/statistics', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       if (!userCenterId) {
         return res.status(403).json({
           success: false,
-          message: 'Báº¡n chÆ°a Ä‘Æ°á»£c gÃ¡n vÃ o trung tÃ¢m nÃ o.'
+          message: 'BÃ¡ÂºÂ¡n chÃ†Â°a Ã„â€˜Ã†Â°Ã¡Â»Â£c gÃƒÂ¡n vÃƒÂ o trung tÃƒÂ¢m nÃƒÂ o.'
         });
       }
       effectiveCenterId = userCenterId;
     }
 
-    // Láº¥y invoices vá»›i class info Ä‘á»ƒ filter theo center
+    // LÃ¡ÂºÂ¥y invoices vÃ¡Â»â€ºi class info Ã„â€˜Ã¡Â»Æ’ filter theo center
     const { data: rawInvoices, error } = await supabase
       .from('invoices')
       .select(`
@@ -12053,20 +13688,20 @@ app.get('/api/invoices/statistics', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       );
     }
 
-    // Láº¥y ngÃ y Ä‘áº§u thÃ¡ng vÃ  cuá»‘i thÃ¡ng hiá»‡n táº¡i
+    // LÃ¡ÂºÂ¥y ngÃƒÂ y Ã„â€˜Ã¡ÂºÂ§u thÃƒÂ¡ng vÃƒÂ  cuÃ¡Â»â€˜i thÃƒÂ¡ng hiÃ¡Â»â€¡n tÃ¡ÂºÂ¡i
     const now = new Date();
     const today = now.toISOString().split('T')[0];
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-    // TÃ­nh toÃ¡n thá»‘ng kÃª
+    // TÃƒÂ­nh toÃƒÂ¡n thÃ¡Â»â€˜ng kÃƒÂª
     let totalRevenue = 0;
     let monthlyRevenue = 0;
     let totalDebt = 0;
     let countUnpaid = 0;
     let countPartial = 0;
     let countPaid = 0;
-    let countOverdue = 0;  // ThÃªm Ä‘áº¿m HD quÃ¡ háº¡n
+    let countOverdue = 0;  // ThÃƒÂªm Ã„â€˜Ã¡ÂºÂ¿m HD quÃƒÂ¡ hÃ¡ÂºÂ¡n
 
     invoices.forEach(inv => {
       const paidAmount = parseFloat(inv.paid_amount) || 0;
@@ -12083,12 +13718,12 @@ app.get('/api/invoices/statistics', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       else if (inv.status === 'partial') countPartial++;
       else if (inv.status === 'paid') countPaid++;
 
-      // Äáº¿m quÃ¡ háº¡n
+      // Ã„ÂÃ¡ÂºÂ¿m quÃƒÂ¡ hÃ¡ÂºÂ¡n
       if (inv.due_date && inv.due_date < today && inv.status !== 'paid') {
         countOverdue++;
       }
 
-      // Monthly revenue: CHá»ˆ tÃ­nh invoices cÃ³ paid_at trong thÃ¡ng hiá»‡n táº¡i
+      // Monthly revenue: CHÃ¡Â»Ë† tÃƒÂ­nh invoices cÃƒÂ³ paid_at trong thÃƒÂ¡ng hiÃ¡Â»â€¡n tÃ¡ÂºÂ¡i
       if (inv.paid_at) {
         const paidDate = new Date(inv.paid_at);
         if (paidDate >= firstDayOfMonth && paidDate <= lastDayOfMonth) {
@@ -12119,7 +13754,7 @@ app.get('/api/invoices/statistics', requireAuth, requireRole(['SUPER_ADMIN', 'CE
   }
 });
 
-// GET /api/finance/summary - Tá»•ng quan tÃ i chÃ­nh
+// GET /api/finance/summary - TÃ¡Â»â€¢ng quan tÃƒÂ i chÃƒÂ­nh
 app.get('/api/finance/summary', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const {
@@ -12260,7 +13895,7 @@ app.get('/api/finance/summary', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
 
     const topCourseMap = {};
     periodInvoices.forEach((invoice) => {
-      const courseName = invoice.class?.course?.title || 'KhÃ³a há»c khÃ¡c';
+      const courseName = invoice.class?.course?.title || 'KhÃƒÂ³a hÃ¡Â»Âc khÃƒÂ¡c';
       const revenue = parseFloat(invoice.final_amount) || 0;
 
       if (!topCourseMap[courseName]) {
@@ -12351,12 +13986,12 @@ app.get('/api/finance/summary', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
   }
 });
 
-// GET /api/invoices/:id - Chi tiáº¿t hÃ³a Ä‘Æ¡n
+// GET /api/invoices/:id - Chi tiÃ¡ÂºÂ¿t hÃƒÂ³a Ã„â€˜Ã†Â¡n
 app.get('/api/invoices/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // Láº¥y invoice vá»›i thÃ´ng tin liÃªn quan
+    // LÃ¡ÂºÂ¥y invoice vÃ¡Â»â€ºi thÃƒÂ´ng tin liÃƒÂªn quan
     const { data: invoice, error: invoiceError } = await supabase
       .from('invoices')
       .select(`
@@ -12387,7 +14022,7 @@ app.get('/api/invoices/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MA
       return res.status(404).json({ success: false, message: 'Invoice not found' });
     }
 
-    // Láº¥y lá»‹ch sá»­ thanh toÃ¡n
+    // LÃ¡ÂºÂ¥y lÃ¡Â»â€¹ch sÃ¡Â»Â­ thanh toÃƒÂ¡n
     const { data: payments, error: paymentsError } = await supabase
       .from('payments')
       .select(`
@@ -12423,12 +14058,12 @@ app.get('/api/invoices/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MA
   }
 });
 
-// POST /api/invoices - Táº¡o hÃ³a Ä‘Æ¡n thá»§ cÃ´ng (phÃ­ ngoÃ i há»c phÃ­)
+// POST /api/invoices - TÃ¡ÂºÂ¡o hÃƒÂ³a Ã„â€˜Ã†Â¡n thÃ¡Â»Â§ cÃƒÂ´ng (phÃƒÂ­ ngoÃƒÂ i hÃ¡Â»Âc phÃƒÂ­)
 app.post('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const {
       student_id,
-      class_id,         // Optional - náº¿u liÃªn quan Ä‘áº¿n lá»›p
+      class_id,         // Optional - nÃ¡ÂºÂ¿u liÃƒÂªn quan Ã„â€˜Ã¡ÂºÂ¿n lÃ¡Â»â€ºp
       invoice_type,     // tuition | book | uniform | exam | other
       amount,
       discount_amount = 0,
@@ -12439,16 +14074,16 @@ app.post('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAG
 
     // Validation
     if (!student_id) {
-      return res.status(400).json({ success: false, message: 'Vui lÃ²ng chá»n há»c viÃªn' });
+      return res.status(400).json({ success: false, message: 'Vui lÃƒÂ²ng chÃ¡Â»Ân hÃ¡Â»Âc viÃƒÂªn' });
     }
     if (!amount || amount <= 0) {
-      return res.status(400).json({ success: false, message: 'Sá»‘ tiá»n pháº£i lá»›n hÆ¡n 0' });
+      return res.status(400).json({ success: false, message: 'SÃ¡Â»â€˜ tiÃ¡Â»Ân phÃ¡ÂºÂ£i lÃ¡Â»â€ºn hÃ†Â¡n 0' });
     }
     if (!invoice_type) {
-      return res.status(400).json({ success: false, message: 'Vui lÃ²ng chá»n loáº¡i hÃ³a Ä‘Æ¡n' });
+      return res.status(400).json({ success: false, message: 'Vui lÃƒÂ²ng chÃ¡Â»Ân loÃ¡ÂºÂ¡i hÃƒÂ³a Ã„â€˜Ã†Â¡n' });
     }
 
-    // Kiá»ƒm tra há»c viÃªn tá»“n táº¡i
+    // KiÃ¡Â»Æ’m tra hÃ¡Â»Âc viÃƒÂªn tÃ¡Â»â€œn tÃ¡ÂºÂ¡i
     const { data: student, error: studentError } = await supabase
       .from('users')
       .select('id, full_name')
@@ -12456,25 +14091,25 @@ app.post('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAG
       .single();
 
     if (studentError || !student) {
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y há»c viÃªn' });
+      return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y hÃ¡Â»Âc viÃƒÂªn' });
     }
 
     const finalAmount = parseFloat(amount) - parseFloat(discount_amount || 0);
 
-    // Táº¡o description máº·c Ä‘á»‹nh náº¿u khÃ´ng cÃ³
+    // TÃ¡ÂºÂ¡o description mÃ¡ÂºÂ·c Ã„â€˜Ã¡Â»â€¹nh nÃ¡ÂºÂ¿u khÃƒÂ´ng cÃƒÂ³
     const typeLabels = {
-      tuition: 'Há»c phÃ­',
-      book: 'GiÃ¡o trÃ¬nh/SÃ¡ch',
-      uniform: 'Äá»“ng phá»¥c',
-      exam: 'PhÃ­ thi',
-      other: 'PhÃ­ khÃ¡c'
+      tuition: 'HÃ¡Â»Âc phÃƒÂ­',
+      book: 'GiÃƒÂ¡o trÃƒÂ¬nh/SÃƒÂ¡ch',
+      uniform: 'Ã„ÂÃ¡Â»â€œng phÃ¡Â»Â¥c',
+      exam: 'PhÃƒÂ­ thi',
+      other: 'PhÃƒÂ­ khÃƒÂ¡c'
     };
-    const defaultDesc = description || `${typeLabels[invoice_type] || 'PhÃ­ khÃ¡c'} - ${student.full_name}`;
+    const defaultDesc = description || `${typeLabels[invoice_type] || 'PhÃƒÂ­ khÃƒÂ¡c'} - ${student.full_name}`;
 
-    // Insert invoice - thá»­ vá»›i invoice_type trÆ°á»›c, náº¿u lá»—i thÃ¬ bá» qua
+    // Insert invoice - thÃ¡Â»Â­ vÃ¡Â»â€ºi invoice_type trÃ†Â°Ã¡Â»â€ºc, nÃ¡ÂºÂ¿u lÃ¡Â»â€”i thÃƒÂ¬ bÃ¡Â»Â qua
     let invoice, error;
 
-    // Thá»­ insert vá»›i invoice_type
+    // ThÃ¡Â»Â­ insert vÃ¡Â»â€ºi invoice_type
     const insertData = {
       student_id,
       class_id: class_id || null,
@@ -12488,7 +14123,7 @@ app.post('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAG
       created_by: req.user?.id
     };
 
-    // Thá»­ insert vá»›i invoice_type (náº¿u column tá»“n táº¡i)
+    // ThÃ¡Â»Â­ insert vÃ¡Â»â€ºi invoice_type (nÃ¡ÂºÂ¿u column tÃ¡Â»â€œn tÃ¡ÂºÂ¡i)
     const result1 = await supabase
       .from('invoices')
       .insert({ ...insertData, invoice_type: invoice_type || 'other' })
@@ -12499,8 +14134,8 @@ app.post('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAG
       .single();
 
     if (result1.error && result1.error.message?.includes('invoice_type')) {
-      // Column khÃ´ng tá»“n táº¡i, thá»­ insert khÃ´ng cÃ³ invoice_type
-      console.warn('âš ï¸ invoice_type column not found, inserting without it');
+      // Column khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i, thÃ¡Â»Â­ insert khÃƒÂ´ng cÃƒÂ³ invoice_type
+      console.warn('Ã¢Å¡Â Ã¯Â¸Â invoice_type column not found, inserting without it');
       const result2 = await supabase
         .from('invoices')
         .insert(insertData)
@@ -12519,11 +14154,11 @@ app.post('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAG
 
     if (error) throw error;
 
-    console.log(`ðŸ“„ Táº¡o hÃ³a Ä‘Æ¡n ${invoice.invoice_code} - ${invoice_type || 'other'} cho ${student.full_name}`);
+    console.log(`Ã°Å¸â€œâ€ž TÃ¡ÂºÂ¡o hÃƒÂ³a Ã„â€˜Ã†Â¡n ${invoice.invoice_code} - ${invoice_type || 'other'} cho ${student.full_name}`);
 
     res.status(201).json({
       success: true,
-      message: `ÄÃ£ táº¡o hÃ³a Ä‘Æ¡n ${invoice.invoice_code}`,
+      message: `Ã„ÂÃƒÂ£ tÃ¡ÂºÂ¡o hÃƒÂ³a Ã„â€˜Ã†Â¡n ${invoice.invoice_code}`,
       data: invoice
     });
 
@@ -12533,7 +14168,7 @@ app.post('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAG
   }
 });
 
-// POST /api/invoices/:id/payments - ThÃªm thanh toÃ¡n cho hÃ³a Ä‘Æ¡n
+// POST /api/invoices/:id/payments - ThÃƒÂªm thanh toÃƒÂ¡n cho hÃƒÂ³a Ã„â€˜Ã†Â¡n
 app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'STUDENT']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -12545,11 +14180,11 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
     if (!amount || amount <= 0) {
       return res.status(400).json({
         success: false,
-        message: 'Sá»‘ tiá»n thanh toÃ¡n pháº£i lá»›n hÆ¡n 0'
+        message: 'SÃ¡Â»â€˜ tiÃ¡Â»Ân thanh toÃƒÂ¡n phÃ¡ÂºÂ£i lÃ¡Â»â€ºn hÃ†Â¡n 0'
       });
     }
 
-    // Kiá»ƒm tra invoice tá»“n táº¡i - bao gá»“m invoice_code Ä‘á»ƒ auto-verify
+    // KiÃ¡Â»Æ’m tra invoice tÃ¡Â»â€œn tÃ¡ÂºÂ¡i - bao gÃ¡Â»â€œm invoice_code Ã„â€˜Ã¡Â»Æ’ auto-verify
     const { data: invoice, error: invoiceError } = await supabase
       .from('invoices')
       .select(`
@@ -12568,21 +14203,21 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
     if (invoiceError || !invoice) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y hÃ³a Ä‘Æ¡n'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y hÃƒÂ³a Ã„â€˜Ã†Â¡n'
       });
     }
 
     if (invoice.status === 'paid') {
       return res.status(400).json({
         success: false,
-        message: 'HÃ³a Ä‘Æ¡n Ä‘Ã£ thanh toÃ¡n Ä‘á»§'
+        message: 'HÃƒÂ³a Ã„â€˜Ã†Â¡n Ã„â€˜ÃƒÂ£ thanh toÃƒÂ¡n Ã„â€˜Ã¡Â»Â§'
       });
     }
 
     if (invoice.status === 'cancelled') {
       return res.status(400).json({
         success: false,
-        message: 'HÃ³a Ä‘Æ¡n Ä‘Ã£ bá»‹ há»§y'
+        message: 'HÃƒÂ³a Ã„â€˜Ã†Â¡n Ã„â€˜ÃƒÂ£ bÃ¡Â»â€¹ hÃ¡Â»Â§y'
       });
     }
 
@@ -12591,7 +14226,7 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
     if (remaining <= 0) {
       return res.status(400).json({
         success: false,
-        message: 'HÃ³a Ä‘Æ¡n Ä‘Ã£ thanh toÃ¡n Ä‘á»§, khÃ´ng thá»ƒ thÃªm thanh toÃ¡n'
+        message: 'HÃƒÂ³a Ã„â€˜Ã†Â¡n Ã„â€˜ÃƒÂ£ thanh toÃƒÂ¡n Ã„â€˜Ã¡Â»Â§, khÃƒÂ´ng thÃ¡Â»Æ’ thÃƒÂªm thanh toÃƒÂ¡n'
       });
     }
 
@@ -12599,7 +14234,7 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
     if (paymentAmount > remaining) {
       return res.status(400).json({
         success: false,
-        message: `Sá»‘ tiá»n thanh toÃ¡n (${paymentAmount.toLocaleString('vi-VN')}Ä‘) vÆ°á»£t quÃ¡ sá»‘ cÃ²n ná»£ (${remaining.toLocaleString('vi-VN')}Ä‘)`
+        message: `SÃ¡Â»â€˜ tiÃ¡Â»Ân thanh toÃƒÂ¡n (${paymentAmount.toLocaleString('vi-VN')}Ã„â€˜) vÃ†Â°Ã¡Â»Â£t quÃƒÂ¡ sÃ¡Â»â€˜ cÃƒÂ²n nÃ¡Â»Â£ (${remaining.toLocaleString('vi-VN')}Ã„â€˜)`
       });
     }
 
@@ -12610,21 +14245,21 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
       if (invoice.student_id !== userId) {
         return res.status(403).json({
           success: false,
-          message: 'Báº¡n khÃ´ng cÃ³ quyá»n thanh toÃ¡n hÃ³a Ä‘Æ¡n nÃ y'
+          message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân thanh toÃƒÂ¡n hÃƒÂ³a Ã„â€˜Ã†Â¡n nÃƒÂ y'
         });
       }
 
       if (payment_method !== 'bank_transfer') {
         return res.status(400).json({
           success: false,
-          message: 'Há»c viÃªn chá»‰ cÃ³ thá»ƒ thanh toÃ¡n báº±ng chuyá»ƒn khoáº£n'
+          message: 'HÃ¡Â»Âc viÃƒÂªn chÃ¡Â»â€° cÃƒÂ³ thÃ¡Â»Æ’ thanh toÃƒÂ¡n bÃ¡ÂºÂ±ng chuyÃ¡Â»Æ’n khoÃ¡ÂºÂ£n'
         });
       }
 
       if (!req.body.bank_proof_url) {
         return res.status(400).json({
           success: false,
-          message: 'Vui lÃ²ng táº£i lÃªn áº£nh minh chá»©ng chuyá»ƒn khoáº£n'
+          message: 'Vui lÃƒÂ²ng tÃ¡ÂºÂ£i lÃƒÂªn Ã¡ÂºÂ£nh minh chÃ¡Â»Â©ng chuyÃ¡Â»Æ’n khoÃ¡ÂºÂ£n'
         });
       }
     } else {
@@ -12632,7 +14267,7 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
         if (!userCenterId) {
           return res.status(403).json({
             success: false,
-            message: 'Báº¡n chÆ°a Ä‘Æ°á»£c gÃ¡n vÃ o trung tÃ¢m nÃ o.'
+            message: 'BÃ¡ÂºÂ¡n chÃ†Â°a Ã„â€˜Ã†Â°Ã¡Â»Â£c gÃƒÂ¡n vÃƒÂ o trung tÃƒÂ¢m nÃƒÂ o.'
           });
         }
 
@@ -12640,7 +14275,7 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
         if (invoiceCenterId && invoiceCenterId !== userCenterId) {
           return res.status(403).json({
             success: false,
-            message: 'Báº¡n khÃ´ng cÃ³ quyá»n thao tÃ¡c hÃ³a Ä‘Æ¡n cá»§a trung tÃ¢m khÃ¡c.'
+            message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân thao tÃƒÂ¡c hÃƒÂ³a Ã„â€˜Ã†Â¡n cÃ¡Â»Â§a trung tÃƒÂ¢m khÃƒÂ¡c.'
           });
         }
       }
@@ -12648,7 +14283,7 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
       if (payment_method !== 'cash' && !reference_code && !req.body.bank_proof_url) {
         return res.status(400).json({
           success: false,
-          message: 'Thanh toÃ¡n khÃ´ng dÃ¹ng tiá»n máº·t cáº§n mÃ£ tham chiáº¿u hoáº·c minh chá»©ng giao dá»‹ch'
+          message: 'Thanh toÃƒÂ¡n khÃƒÂ´ng dÃƒÂ¹ng tiÃ¡Â»Ân mÃ¡ÂºÂ·t cÃ¡ÂºÂ§n mÃƒÂ£ tham chiÃ¡ÂºÂ¿u hoÃ¡ÂºÂ·c minh chÃ¡Â»Â©ng giao dÃ¡Â»â€¹ch'
         });
       }
     }
@@ -12691,13 +14326,13 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
           // AUTO-VERIFY: Content matches invoice code + amount is correct
           verificationStatus = 'verified';
           autoVerified = true;
-          verificationNote = `Tá»± Ä‘á»™ng xÃ¡c nháº­n: MÃ£ ${invoiceCode} khá»›p, sá»‘ tiá»n Ä‘Ãºng`;
+          verificationNote = `TÃ¡Â»Â± Ã„â€˜Ã¡Â»â„¢ng xÃƒÂ¡c nhÃ¡ÂºÂ­n: MÃƒÂ£ ${invoiceCode} khÃ¡Â»â€ºp, sÃ¡Â»â€˜ tiÃ¡Â»Ân Ã„â€˜ÃƒÂºng`;
           console.log(`[AUTO-VERIFY] Invoice ${invoiceCode} - Amount matched`);
         } else if (hasInvoiceCode) {
           // Has invoice code but amount mismatch - still auto-verify but note it
           verificationStatus = 'verified';
           autoVerified = true;
-          verificationNote = `Tá»± Ä‘á»™ng xÃ¡c nháº­n: MÃ£ ${invoiceCode} khá»›p, thanh toÃ¡n 1 pháº§n`;
+          verificationNote = `TÃ¡Â»Â± Ã„â€˜Ã¡Â»â„¢ng xÃƒÂ¡c nhÃ¡ÂºÂ­n: MÃƒÂ£ ${invoiceCode} khÃ¡Â»â€ºp, thanh toÃƒÂ¡n 1 phÃ¡ÂºÂ§n`;
           console.log(`[AUTO-VERIFY] Invoice ${invoiceCode} - Partial payment`);
         } else {
           // No match - pending manual review
@@ -12726,7 +14361,7 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
       paymentData.payment_date = new Date(transfer_date).toISOString();
     }
 
-    console.log('ðŸ“ Payment data to insert:', JSON.stringify(paymentData, null, 2));
+    console.log('Ã°Å¸â€œÂ Payment data to insert:', JSON.stringify(paymentData, null, 2));
 
     const { data: payment, error: paymentError } = await supabase
       .from('payments')
@@ -12735,7 +14370,7 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
       .single();
 
     if (paymentError) {
-      console.error('âŒ Payment insert error:', paymentError);
+      console.error('Ã¢ÂÅ’ Payment insert error:', paymentError);
       throw paymentError;
     }
 
@@ -12748,7 +14383,7 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
         const adminSupabase = supabaseAdmin;
 
         const centerId = invoice.class?.center_id || invoice.student?.center_id;
-        console.log(`ðŸ”” Creating payment notification, centerId: ${centerId}, userId: ${userId}`);
+        console.log(`Ã°Å¸â€â€ Creating payment notification, centerId: ${centerId}, userId: ${userId}`);
 
         // Get student name
         const { data: studentProfile } = await adminSupabase
@@ -12756,8 +14391,8 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
           .select('full_name')
           .eq('id', userId)
           .single();
-        const studentName = studentProfile?.full_name || 'Há»c viÃªn';
-        const amountText = parseFloat(amount).toLocaleString('vi-VN') + ' Ä‘';
+        const studentName = studentProfile?.full_name || 'HÃ¡Â»Âc viÃƒÂªn';
+        const amountText = parseFloat(amount).toLocaleString('vi-VN') + ' Ã„â€˜';
 
         if (centerId) {
           // Get role IDs for admin roles
@@ -12767,7 +14402,7 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
             .in('code', ['SUPER_ADMIN', 'CENTER_MANAGER']);
 
           const adminRoleIds = (adminRoles || []).map(r => r.id);
-          console.log(`ðŸ”” Found ${adminRoleIds.length} admin role(s)`);
+          console.log(`Ã°Å¸â€â€ Found ${adminRoleIds.length} admin role(s)`);
 
           if (adminRoleIds.length > 0) {
             // Find all users with admin roles (center-scoped + super admins)
@@ -12782,15 +14417,15 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
               u.center_id === centerId || u.role_id === superAdminRoleId
             );
 
-            console.log(`ðŸ”” Found ${relevantAdmins.length} admin(s) to notify`);
+            console.log(`Ã°Å¸â€â€ Found ${relevantAdmins.length} admin(s) to notify`);
 
             if (relevantAdmins.length > 0) {
               const notifRecords = relevantAdmins.map(admin => ({
                 user_id: admin.id,
                 center_id: centerId,
                 type: 'payment_submitted',
-                title: `Há»c viÃªn gá»­i minh chá»©ng thanh toÃ¡n`,
-                message: `${studentName} Ä‘Ã£ gá»­i minh chá»©ng chuyá»ƒn khoáº£n ${amountText} cho hÃ³a Ä‘Æ¡n ${invoice.invoice_code || id.slice(0, 8)}. Vui lÃ²ng xÃ¡c nháº­n.`,
+                title: `HÃ¡Â»Âc viÃƒÂªn gÃ¡Â»Â­i minh chÃ¡Â»Â©ng thanh toÃƒÂ¡n`,
+                message: `${studentName} Ã„â€˜ÃƒÂ£ gÃ¡Â»Â­i minh chÃ¡Â»Â©ng chuyÃ¡Â»Æ’n khoÃ¡ÂºÂ£n ${amountText} cho hÃƒÂ³a Ã„â€˜Ã†Â¡n ${invoice.invoice_code || id.slice(0, 8)}. Vui lÃƒÂ²ng xÃƒÂ¡c nhÃ¡ÂºÂ­n.`,
                 reference_id: payment.id,
                 reference_type: 'payment'
               }));
@@ -12800,22 +14435,22 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
                 .insert(notifRecords);
 
               if (notifError) {
-                console.error('âŒ Failed to create payment notification:', notifError);
+                console.error('Ã¢ÂÅ’ Failed to create payment notification:', notifError);
               } else {
-                console.log(`âœ… Sent payment notification to ${relevantAdmins.length} admin(s)`);
+                console.log(`Ã¢Å“â€¦ Sent payment notification to ${relevantAdmins.length} admin(s)`);
               }
             }
           }
         } else {
-          console.warn('âš ï¸ No centerId found for notification');
+          console.warn('Ã¢Å¡Â Ã¯Â¸Â No centerId found for notification');
         }
       } catch (notifErr) {
         // Don't fail the payment if notification fails
-        console.error('âš ï¸ Notification error (non-fatal):', notifErr);
+        console.error('Ã¢Å¡Â Ã¯Â¸Â Notification error (non-fatal):', notifErr);
       }
     }
 
-    // Láº¥y láº¡i invoice Ä‘Ã£ cáº­p nháº­t
+    // LÃ¡ÂºÂ¥y lÃ¡ÂºÂ¡i invoice Ã„â€˜ÃƒÂ£ cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t
     const { data: updatedInvoice } = await supabase
       .from('invoices')
       .select('*')
@@ -12825,11 +14460,11 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
     // Response message based on verification status
     let responseMessage;
     if (payment_method === 'cash') {
-      responseMessage = 'Thanh toÃ¡n tiá»n máº·t thÃ nh cÃ´ng';
+      responseMessage = 'Thanh toÃƒÂ¡n tiÃ¡Â»Ân mÃ¡ÂºÂ·t thÃƒÂ nh cÃƒÂ´ng';
     } else if (autoVerified) {
-      responseMessage = 'Chuyá»ƒn khoáº£n Ä‘Ã£ Ä‘Æ°á»£c tá»± Ä‘á»™ng xÃ¡c nháº­n';
+      responseMessage = 'ChuyÃ¡Â»Æ’n khoÃ¡ÂºÂ£n Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c tÃ¡Â»Â± Ã„â€˜Ã¡Â»â„¢ng xÃƒÂ¡c nhÃ¡ÂºÂ­n';
     } else {
-      responseMessage = 'ÄÃ£ ghi nháº­n chuyá»ƒn khoáº£n. Chá» xÃ¡c nháº­n thá»§ cÃ´ng.';
+      responseMessage = 'Ã„ÂÃƒÂ£ ghi nhÃ¡ÂºÂ­n chuyÃ¡Â»Æ’n khoÃ¡ÂºÂ£n. ChÃ¡Â»Â xÃƒÂ¡c nhÃ¡ÂºÂ­n thÃ¡Â»Â§ cÃƒÂ´ng.';
     }
 
     res.json({
@@ -12849,7 +14484,7 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
   }
 });
 
-// GET /api/invoices/:id/payments - Láº¥y danh sÃ¡ch thanh toÃ¡n cá»§a hÃ³a Ä‘Æ¡n
+// GET /api/invoices/:id/payments - LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch thanh toÃƒÂ¡n cÃ¡Â»Â§a hÃƒÂ³a Ã„â€˜Ã†Â¡n
 app.get('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -12876,7 +14511,7 @@ app.get('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', '
   }
 });
 
-// PATCH /api/payments/:id/verify - Admin xÃ¡c nháº­n chuyá»ƒn khoáº£n
+// PATCH /api/payments/:id/verify - Admin xÃƒÂ¡c nhÃ¡ÂºÂ­n chuyÃ¡Â»Æ’n khoÃ¡ÂºÂ£n
 app.patch('/api/payments/:id/verify', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -12901,13 +14536,13 @@ app.patch('/api/payments/:id/verify', requireAuth, requireRole(['SUPER_ADMIN', '
       .single();
 
     if (fetchError || !payment) {
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y thanh toÃ¡n' });
+      return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y thanh toÃƒÂ¡n' });
     }
 
     if (payment.verification_status !== 'pending') {
       return res.status(400).json({
         success: false,
-        message: `Thanh toÃ¡n nÃ y Ä‘Ã£ ${payment.verification_status === 'verified' ? 'Ä‘Æ°á»£c xÃ¡c nháº­n' : 'bá»‹ tá»« chá»‘i'}`
+        message: `Thanh toÃƒÂ¡n nÃƒÂ y Ã„â€˜ÃƒÂ£ ${payment.verification_status === 'verified' ? 'Ã„â€˜Ã†Â°Ã¡Â»Â£c xÃƒÂ¡c nhÃ¡ÂºÂ­n' : 'bÃ¡Â»â€¹ tÃ¡Â»Â« chÃ¡Â»â€˜i'}`
       });
     }
 
@@ -12916,7 +14551,7 @@ app.patch('/api/payments/:id/verify', requireAuth, requireRole(['SUPER_ADMIN', '
     if (verifyPermError || (req.user.roleCode === 'CENTER_MANAGER' && !paymentCenterId)) {
       return res.status(403).json({
         success: false,
-        message: 'Báº¡n khÃ´ng cÃ³ quyá»n xÃ¡c minh giao dá»‹ch nÃ y'
+        message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xÃƒÂ¡c minh giao dÃ¡Â»â€¹ch nÃƒÂ y'
       });
     }
 
@@ -12934,14 +14569,14 @@ app.patch('/api/payments/:id/verify', requireAuth, requireRole(['SUPER_ADMIN', '
       // Auto-reject this duplicate payment
       await supabaseAdmin.from('payments').update({
         verification_status: 'rejected',
-        rejection_reason: 'HÃ³a Ä‘Æ¡n Ä‘Ã£ Ä‘Æ°á»£c thanh toÃ¡n Ä‘áº§y Ä‘á»§. Giao dá»‹ch trÃ¹ng láº·p.',
+        rejection_reason: 'HÃƒÂ³a Ã„â€˜Ã†Â¡n Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c thanh toÃƒÂ¡n Ã„â€˜Ã¡ÂºÂ§y Ã„â€˜Ã¡Â»Â§. Giao dÃ¡Â»â€¹ch trÃƒÂ¹ng lÃ¡ÂºÂ·p.',
         verified_by: userId,
         verified_at: new Date().toISOString()
       }).eq('id', id);
 
       return res.status(400).json({
         success: false,
-        message: 'HÃ³a Ä‘Æ¡n Ä‘Ã£ Ä‘Æ°á»£c thanh toÃ¡n Ä‘áº§y Ä‘á»§. Giao dá»‹ch nÃ y lÃ  trÃ¹ng láº·p vÃ  Ä‘Ã£ bá»‹ tá»« chá»‘i tá»± Ä‘á»™ng.'
+        message: 'HÃƒÂ³a Ã„â€˜Ã†Â¡n Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c thanh toÃƒÂ¡n Ã„â€˜Ã¡ÂºÂ§y Ã„â€˜Ã¡Â»Â§. Giao dÃ¡Â»â€¹ch nÃƒÂ y lÃƒÂ  trÃƒÂ¹ng lÃ¡ÂºÂ·p vÃƒÂ  Ã„â€˜ÃƒÂ£ bÃ¡Â»â€¹ tÃ¡Â»Â« chÃ¡Â»â€˜i tÃ¡Â»Â± Ã„â€˜Ã¡Â»â„¢ng.'
       });
     }
 
@@ -12971,26 +14606,26 @@ app.patch('/api/payments/:id/verify', requireAuth, requireRole(['SUPER_ADMIN', '
       const adminSupabase = supabaseAdmin;
       const studentId = payment.invoice?.student_id;
       const centerId = payment.invoice?.class?.center_id || payment.invoice?.student?.center_id;
-      const amountText = parseFloat(payment.amount).toLocaleString('vi-VN') + ' Ä‘';
+      const amountText = parseFloat(payment.amount).toLocaleString('vi-VN') + ' Ã„â€˜';
       if (studentId && centerId) {
         await adminSupabase.from('notifications').insert({
           user_id: studentId,
           center_id: centerId,
           type: 'payment_verified',
-          title: 'Thanh toÃ¡n Ä‘Ã£ Ä‘Æ°á»£c xÃ¡c nháº­n',
-          message: `Thanh toÃ¡n ${amountText} cho hÃ³a Ä‘Æ¡n ${payment.invoice?.invoice_code || ''} Ä‘Ã£ Ä‘Æ°á»£c xÃ¡c nháº­n.`,
+          title: 'Thanh toÃƒÂ¡n Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c xÃƒÂ¡c nhÃ¡ÂºÂ­n',
+          message: `Thanh toÃƒÂ¡n ${amountText} cho hÃƒÂ³a Ã„â€˜Ã†Â¡n ${payment.invoice?.invoice_code || ''} Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c xÃƒÂ¡c nhÃ¡ÂºÂ­n.`,
           reference_id: payment.id,
           reference_type: 'payment'
         });
-        console.log(`âœ… Notified student ${studentId} of payment verification`);
+        console.log(`Ã¢Å“â€¦ Notified student ${studentId} of payment verification`);
       }
     } catch (notifErr) {
-      console.warn('âš ï¸ Verify notification error (non-fatal):', notifErr.message);
+      console.warn('Ã¢Å¡Â Ã¯Â¸Â Verify notification error (non-fatal):', notifErr.message);
     }
 
     res.json({
       success: true,
-      message: 'ÄÃ£ xÃ¡c nháº­n thanh toÃ¡n chuyá»ƒn khoáº£n',
+      message: 'Ã„ÂÃƒÂ£ xÃƒÂ¡c nhÃ¡ÂºÂ­n thanh toÃƒÂ¡n chuyÃ¡Â»Æ’n khoÃ¡ÂºÂ£n',
       data: { payment: updated, invoice }
     });
   } catch (error) {
@@ -12999,7 +14634,7 @@ app.patch('/api/payments/:id/verify', requireAuth, requireRole(['SUPER_ADMIN', '
   }
 });
 
-// PATCH /api/payments/:id/reject - Admin tá»« chá»‘i chuyá»ƒn khoáº£n
+// PATCH /api/payments/:id/reject - Admin tÃ¡Â»Â« chÃ¡Â»â€˜i chuyÃ¡Â»Æ’n khoÃ¡ÂºÂ£n
 app.patch('/api/payments/:id/reject', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -13007,7 +14642,7 @@ app.patch('/api/payments/:id/reject', requireAuth, requireRole(['SUPER_ADMIN', '
     const userId = req.user?.id;
 
     if (!reason || !String(reason).trim()) {
-      return res.status(400).json({ success: false, message: 'Vui lÃ²ng nháº­p lÃ½ do tá»« chá»‘i' });
+      return res.status(400).json({ success: false, message: 'Vui lÃƒÂ²ng nhÃ¡ÂºÂ­p lÃƒÂ½ do tÃ¡Â»Â« chÃ¡Â»â€˜i' });
     }
 
     // Get payment with student info for notification
@@ -13027,13 +14662,13 @@ app.patch('/api/payments/:id/reject', requireAuth, requireRole(['SUPER_ADMIN', '
       .single();
 
     if (fetchError || !payment) {
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y thanh toÃ¡n' });
+      return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y thanh toÃƒÂ¡n' });
     }
 
     if (payment.verification_status !== 'pending') {
       return res.status(400).json({
         success: false,
-        message: `Thanh toÃ¡n nÃ y Ä‘Ã£ ${payment.verification_status === 'verified' ? 'Ä‘Æ°á»£c xÃ¡c nháº­n' : 'bá»‹ tá»« chá»‘i'}`
+        message: `Thanh toÃƒÂ¡n nÃƒÂ y Ã„â€˜ÃƒÂ£ ${payment.verification_status === 'verified' ? 'Ã„â€˜Ã†Â°Ã¡Â»Â£c xÃƒÂ¡c nhÃ¡ÂºÂ­n' : 'bÃ¡Â»â€¹ tÃ¡Â»Â« chÃ¡Â»â€˜i'}`
       });
     }
 
@@ -13042,7 +14677,7 @@ app.patch('/api/payments/:id/reject', requireAuth, requireRole(['SUPER_ADMIN', '
     if (rejectPermError || (req.user.roleCode === 'CENTER_MANAGER' && !paymentCenterId)) {
       return res.status(403).json({
         success: false,
-        message: 'Báº¡n khÃ´ng cÃ³ quyá»n tá»« chá»‘i giao dá»‹ch nÃ y'
+        message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân tÃ¡Â»Â« chÃ¡Â»â€˜i giao dÃ¡Â»â€¹ch nÃƒÂ y'
       });
     }
 
@@ -13066,26 +14701,26 @@ app.patch('/api/payments/:id/reject', requireAuth, requireRole(['SUPER_ADMIN', '
       const adminSupabase = supabaseAdmin;
       const studentId = payment.invoice?.student_id;
       const centerId = payment.invoice?.class?.center_id || payment.invoice?.student?.center_id;
-      const amountText = parseFloat(payment.amount).toLocaleString('vi-VN') + ' Ä‘';
+      const amountText = parseFloat(payment.amount).toLocaleString('vi-VN') + ' Ã„â€˜';
       if (studentId && centerId) {
         await adminSupabase.from('notifications').insert({
           user_id: studentId,
           center_id: centerId,
           type: 'payment_rejected',
-          title: 'Thanh toÃ¡n bá»‹ tá»« chá»‘i',
-          message: `Thanh toÃ¡n ${amountText} cho hÃ³a Ä‘Æ¡n ${payment.invoice?.invoice_code || ''} bá»‹ tá»« chá»‘i. LÃ½ do: ${String(reason).trim()}`,
+          title: 'Thanh toÃƒÂ¡n bÃ¡Â»â€¹ tÃ¡Â»Â« chÃ¡Â»â€˜i',
+          message: `Thanh toÃƒÂ¡n ${amountText} cho hÃƒÂ³a Ã„â€˜Ã†Â¡n ${payment.invoice?.invoice_code || ''} bÃ¡Â»â€¹ tÃ¡Â»Â« chÃ¡Â»â€˜i. LÃƒÂ½ do: ${String(reason).trim()}`,
           reference_id: payment.id,
           reference_type: 'payment'
         });
-        console.log(`âœ… Notified student ${studentId} of payment rejection`);
+        console.log(`Ã¢Å“â€¦ Notified student ${studentId} of payment rejection`);
       }
     } catch (notifErr) {
-      console.warn('âš ï¸ Reject notification error (non-fatal):', notifErr.message);
+      console.warn('Ã¢Å¡Â Ã¯Â¸Â Reject notification error (non-fatal):', notifErr.message);
     }
 
     res.json({
       success: true,
-      message: 'ÄÃ£ tá»« chá»‘i thanh toÃ¡n',
+      message: 'Ã„ÂÃƒÂ£ tÃ¡Â»Â« chÃ¡Â»â€˜i thanh toÃƒÂ¡n',
       data: updated
     });
   } catch (error) {
@@ -13094,7 +14729,7 @@ app.patch('/api/payments/:id/reject', requireAuth, requireRole(['SUPER_ADMIN', '
   }
 });
 
-// GET /api/payments/pending - Láº¥y danh sÃ¡ch chuyá»ƒn khoáº£n chá» xÃ¡c nháº­n
+// GET /api/payments/pending - LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch chuyÃ¡Â»Æ’n khoÃ¡ÂºÂ£n chÃ¡Â»Â xÃƒÂ¡c nhÃ¡ÂºÂ­n
 app.get('/api/payments/pending', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { center_id } = req.query;
@@ -13137,7 +14772,7 @@ app.get('/api/payments/pending', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
 });
 
 // ============================================
-// GET /api/transactions - Full transactions list (Tab Giao dá»‹ch)
+// GET /api/transactions - Full transactions list (Tab Giao dÃ¡Â»â€¹ch)
 // ============================================
 app.get('/api/transactions', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -13264,7 +14899,7 @@ app.patch('/api/transactions/bulk-verify', requireAuth, requireRole(['SUPER_ADMI
     if (!paymentIds || !Array.isArray(paymentIds) || paymentIds.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lÃ²ng chá»n Ã­t nháº¥t má»™t giao dá»‹ch'
+        message: 'Vui lÃƒÂ²ng chÃ¡Â»Ân ÃƒÂ­t nhÃ¡ÂºÂ¥t mÃ¡Â»â„¢t giao dÃ¡Â»â€¹ch'
       });
     }
 
@@ -13288,7 +14923,7 @@ app.patch('/api/transactions/bulk-verify', requireAuth, requireRole(['SUPER_ADMI
     if (missingIds.length > 0) {
       return res.status(404).json({
         success: false,
-        message: 'Má»™t sá»‘ giao dá»‹ch khÃ´ng tá»“n táº¡i',
+        message: 'MÃ¡Â»â„¢t sÃ¡Â»â€˜ giao dÃ¡Â»â€¹ch khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i',
         data: { missingIds }
       });
     }
@@ -13312,7 +14947,7 @@ app.patch('/api/transactions/bulk-verify', requireAuth, requireRole(['SUPER_ADMI
     if (unauthorizedIds.length > 0) {
       return res.status(403).json({
         success: false,
-        message: 'CÃ³ giao dá»‹ch thuá»™c trung tÃ¢m khÃ¡c, thao tÃ¡c bá»‹ tá»« chá»‘i',
+        message: 'CÃƒÂ³ giao dÃ¡Â»â€¹ch thuÃ¡Â»â„¢c trung tÃƒÂ¢m khÃƒÂ¡c, thao tÃƒÂ¡c bÃ¡Â»â€¹ tÃ¡Â»Â« chÃ¡Â»â€˜i',
         data: { unauthorizedIds }
       });
     }
@@ -13320,7 +14955,7 @@ app.patch('/api/transactions/bulk-verify', requireAuth, requireRole(['SUPER_ADMI
     if (invalidStatusIds.length > 0) {
       return res.status(400).json({
         success: false,
-        message: 'Chá»‰ cÃ³ thá»ƒ xÃ¡c nháº­n cÃ¡c giao dá»‹ch á»Ÿ tráº¡ng thÃ¡i chá» xÃ¡c minh',
+        message: 'ChÃ¡Â»â€° cÃƒÂ³ thÃ¡Â»Æ’ xÃƒÂ¡c nhÃ¡ÂºÂ­n cÃƒÂ¡c giao dÃ¡Â»â€¹ch Ã¡Â»Å¸ trÃ¡ÂºÂ¡ng thÃƒÂ¡i chÃ¡Â»Â xÃƒÂ¡c minh',
         data: { invalidStatusIds }
       });
     }
@@ -13357,7 +14992,7 @@ app.patch('/api/transactions/bulk-verify', requireAuth, requireRole(['SUPER_ADMI
     if (duplicatePaymentIds.length > 0) {
       await supabaseAdmin.from('payments').update({
         verification_status: 'rejected',
-        rejection_reason: 'HÃ³a Ä‘Æ¡n Ä‘Ã£ Ä‘Æ°á»£c thanh toÃ¡n Ä‘áº§y Ä‘á»§. Giao dá»‹ch trÃ¹ng láº·p.',
+        rejection_reason: 'HÃƒÂ³a Ã„â€˜Ã†Â¡n Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c thanh toÃƒÂ¡n Ã„â€˜Ã¡ÂºÂ§y Ã„â€˜Ã¡Â»Â§. Giao dÃ¡Â»â€¹ch trÃƒÂ¹ng lÃ¡ÂºÂ·p.',
         verified_by: userId,
         verified_at: new Date().toISOString()
       }).in('id', duplicatePaymentIds);
@@ -13382,9 +15017,9 @@ app.patch('/api/transactions/bulk-verify', requireAuth, requireRole(['SUPER_ADMI
 
     const rejectedCount = duplicatePaymentIds.length;
     const verifiedCount = updated?.length || 0;
-    let message = `ÄÃ£ xÃ¡c nháº­n ${verifiedCount} giao dá»‹ch`;
+    let message = `Ã„ÂÃƒÂ£ xÃƒÂ¡c nhÃ¡ÂºÂ­n ${verifiedCount} giao dÃ¡Â»â€¹ch`;
     if (rejectedCount > 0) {
-      message += `. ${rejectedCount} giao dá»‹ch trÃ¹ng láº·p Ä‘Ã£ bá»‹ tá»« chá»‘i tá»± Ä‘á»™ng.`;
+      message += `. ${rejectedCount} giao dÃ¡Â»â€¹ch trÃƒÂ¹ng lÃ¡ÂºÂ·p Ã„â€˜ÃƒÂ£ bÃ¡Â»â€¹ tÃ¡Â»Â« chÃ¡Â»â€˜i tÃ¡Â»Â± Ã„â€˜Ã¡Â»â„¢ng.`;
     }
 
     res.json({
@@ -13400,13 +15035,13 @@ app.patch('/api/transactions/bulk-verify', requireAuth, requireRole(['SUPER_ADMI
   }
 });
 
-// PUT /api/invoices/:id - Cáº­p nháº­t hÃ³a Ä‘Æ¡n
+// PUT /api/invoices/:id - CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t hÃƒÂ³a Ã„â€˜Ã†Â¡n
 app.put('/api/invoices/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { amount, discount_amount, due_date, description, invoice_type } = req.body;
 
-    // Láº¥y invoice hiá»‡n táº¡i
+    // LÃ¡ÂºÂ¥y invoice hiÃ¡Â»â€¡n tÃ¡ÂºÂ¡i
     const { data: currentInvoice, error: fetchError } = await supabase
       .from('invoices')
       .select('*')
@@ -13414,20 +15049,20 @@ app.put('/api/invoices/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MA
       .single();
 
     if (fetchError || !currentInvoice) {
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y hÃ³a Ä‘Æ¡n' });
+      return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y hÃƒÂ³a Ã„â€˜Ã†Â¡n' });
     }
 
-    // KhÃ´ng cho sá»­a náº¿u Ä‘Ã£ paid hoáº·c cancelled
+    // KhÃƒÂ´ng cho sÃ¡Â»Â­a nÃ¡ÂºÂ¿u Ã„â€˜ÃƒÂ£ paid hoÃ¡ÂºÂ·c cancelled
     if (currentInvoice.status === 'paid') {
-      return res.status(400).json({ success: false, message: 'KhÃ´ng thá»ƒ sá»­a hÃ³a Ä‘Æ¡n Ä‘Ã£ thanh toÃ¡n Ä‘á»§' });
+      return res.status(400).json({ success: false, message: 'KhÃƒÂ´ng thÃ¡Â»Æ’ sÃ¡Â»Â­a hÃƒÂ³a Ã„â€˜Ã†Â¡n Ã„â€˜ÃƒÂ£ thanh toÃƒÂ¡n Ã„â€˜Ã¡Â»Â§' });
     }
     if (currentInvoice.status === 'cancelled') {
-      return res.status(400).json({ success: false, message: 'KhÃ´ng thá»ƒ sá»­a hÃ³a Ä‘Æ¡n Ä‘Ã£ há»§y' });
+      return res.status(400).json({ success: false, message: 'KhÃƒÂ´ng thÃ¡Â»Æ’ sÃ¡Â»Â­a hÃƒÂ³a Ã„â€˜Ã†Â¡n Ã„â€˜ÃƒÂ£ hÃ¡Â»Â§y' });
     }
 
     const updateData = { updated_at: new Date().toISOString() };
 
-    // Cáº­p nháº­t sá»‘ tiá»n
+    // CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t sÃ¡Â»â€˜ tiÃ¡Â»Ân
     let newAmount = currentInvoice.amount;
     let newDiscount = currentInvoice.discount_amount;
 
@@ -13440,12 +15075,12 @@ app.put('/api/invoices/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MA
       updateData.discount_amount = newDiscount;
     }
 
-    // TÃ­nh láº¡i final_amount
+    // TÃƒÂ­nh lÃ¡ÂºÂ¡i final_amount
     if (amount !== undefined || discount_amount !== undefined) {
       const newFinal = newAmount - newDiscount;
       updateData.final_amount = newFinal;
 
-      // Cáº­p nháº­t status náº¿u cáº§n
+      // CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t status nÃ¡ÂºÂ¿u cÃ¡ÂºÂ§n
       const paidAmount = currentInvoice.paid_amount || 0;
       if (paidAmount >= newFinal) {
         updateData.status = 'paid';
@@ -13472,7 +15107,7 @@ app.put('/api/invoices/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MA
 
     res.json({
       success: true,
-      message: 'Cáº­p nháº­t hÃ³a Ä‘Æ¡n thÃ nh cÃ´ng',
+      message: 'CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t hÃƒÂ³a Ã„â€˜Ã†Â¡n thÃƒÂ nh cÃƒÂ´ng',
       data
     });
 
@@ -13482,13 +15117,13 @@ app.put('/api/invoices/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MA
   }
 });
 
-// PUT /api/invoices/:id/cancel - Há»§y hÃ³a Ä‘Æ¡n
+// PUT /api/invoices/:id/cancel - HÃ¡Â»Â§y hÃƒÂ³a Ã„â€˜Ã†Â¡n
 app.put('/api/invoices/:id/cancel', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;
 
-    // Láº¥y invoice hiá»‡n táº¡i
+    // LÃ¡ÂºÂ¥y invoice hiÃ¡Â»â€¡n tÃ¡ÂºÂ¡i
     const { data: invoice, error: fetchError } = await supabase
       .from('invoices')
       .select('*')
@@ -13496,23 +15131,23 @@ app.put('/api/invoices/:id/cancel', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       .single();
 
     if (fetchError || !invoice) {
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y hÃ³a Ä‘Æ¡n' });
+      return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y hÃƒÂ³a Ã„â€˜Ã†Â¡n' });
     }
 
     if (invoice.status === 'cancelled') {
-      return res.status(400).json({ success: false, message: 'HÃ³a Ä‘Æ¡n Ä‘Ã£ Ä‘Æ°á»£c há»§y trÆ°á»›c Ä‘Ã³' });
+      return res.status(400).json({ success: false, message: 'HÃƒÂ³a Ã„â€˜Ã†Â¡n Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c hÃ¡Â»Â§y trÃ†Â°Ã¡Â»â€ºc Ã„â€˜ÃƒÂ³' });
     }
 
     if (invoice.status === 'paid') {
       return res.status(400).json({
         success: false,
-        message: 'KhÃ´ng thá»ƒ há»§y hÃ³a Ä‘Æ¡n Ä‘Ã£ thanh toÃ¡n Ä‘á»§. HÃ£y sá»­ dá»¥ng chá»©c nÄƒng hoÃ n tiá»n.'
+        message: 'KhÃƒÂ´ng thÃ¡Â»Æ’ hÃ¡Â»Â§y hÃƒÂ³a Ã„â€˜Ã†Â¡n Ã„â€˜ÃƒÂ£ thanh toÃƒÂ¡n Ã„â€˜Ã¡Â»Â§. HÃƒÂ£y sÃ¡Â»Â­ dÃ¡Â»Â¥ng chÃ¡Â»Â©c nÃ„Æ’ng hoÃƒÂ n tiÃ¡Â»Ân.'
       });
     }
 
-    // Náº¿u Ä‘Ã£ cÃ³ thanh toÃ¡n má»™t pháº§n, cáº£nh bÃ¡o
+    // NÃ¡ÂºÂ¿u Ã„â€˜ÃƒÂ£ cÃƒÂ³ thanh toÃƒÂ¡n mÃ¡Â»â„¢t phÃ¡ÂºÂ§n, cÃ¡ÂºÂ£nh bÃƒÂ¡o
     if (invoice.paid_amount > 0) {
-      console.warn(`âš ï¸ Há»§y hÃ³a Ä‘Æ¡n ${invoice.invoice_code} cÃ³ ${invoice.paid_amount.toLocaleString()}Ä‘ Ä‘Ã£ thanh toÃ¡n`);
+      console.warn(`Ã¢Å¡Â Ã¯Â¸Â HÃ¡Â»Â§y hÃƒÂ³a Ã„â€˜Ã†Â¡n ${invoice.invoice_code} cÃƒÂ³ ${invoice.paid_amount.toLocaleString()}Ã„â€˜ Ã„â€˜ÃƒÂ£ thanh toÃƒÂ¡n`);
     }
 
     const { data, error } = await supabase
@@ -13520,7 +15155,7 @@ app.put('/api/invoices/:id/cancel', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       .update({
         status: 'cancelled',
         description: reason
-          ? `${invoice.description || ''} [Há»¦Y: ${reason}]`
+          ? `${invoice.description || ''} [HÃ¡Â»Â¦Y: ${reason}]`
           : invoice.description,
         updated_at: new Date().toISOString()
       })
@@ -13530,11 +15165,11 @@ app.put('/api/invoices/:id/cancel', requireAuth, requireRole(['SUPER_ADMIN', 'CE
 
     if (error) throw error;
 
-    console.log(`ðŸš« Há»§y hÃ³a Ä‘Æ¡n ${invoice.invoice_code} bá»Ÿi ${req.user.email}`);
+    console.log(`Ã°Å¸Å¡Â« HÃ¡Â»Â§y hÃƒÂ³a Ã„â€˜Ã†Â¡n ${invoice.invoice_code} bÃ¡Â»Å¸i ${req.user.email}`);
 
     res.json({
       success: true,
-      message: `ÄÃ£ há»§y hÃ³a Ä‘Æ¡n ${invoice.invoice_code}`,
+      message: `Ã„ÂÃƒÂ£ hÃ¡Â»Â§y hÃƒÂ³a Ã„â€˜Ã†Â¡n ${invoice.invoice_code}`,
       data
     });
 
@@ -13544,13 +15179,13 @@ app.put('/api/invoices/:id/cancel', requireAuth, requireRole(['SUPER_ADMIN', 'CE
   }
 });
 
-// POST /api/invoices/:id/refund - HoÃ n tiá»n
+// POST /api/invoices/:id/refund - HoÃƒÂ n tiÃ¡Â»Ân
 app.post('/api/invoices/:id/refund', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { refund_amount, reason, refund_method = 'cash' } = req.body;
 
-    // Láº¥y invoice hiá»‡n táº¡i
+    // LÃ¡ÂºÂ¥y invoice hiÃ¡Â»â€¡n tÃ¡ÂºÂ¡i
     const { data: invoice, error: fetchError } = await supabase
       .from('invoices')
       .select('*')
@@ -13558,38 +15193,38 @@ app.post('/api/invoices/:id/refund', requireAuth, requireRole(['SUPER_ADMIN', 'C
       .single();
 
     if (fetchError || !invoice) {
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y hÃ³a Ä‘Æ¡n' });
+      return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y hÃƒÂ³a Ã„â€˜Ã†Â¡n' });
     }
 
     if (invoice.status === 'cancelled') {
-      return res.status(400).json({ success: false, message: 'KhÃ´ng thá»ƒ hoÃ n tiá»n hÃ³a Ä‘Æ¡n Ä‘Ã£ há»§y' });
+      return res.status(400).json({ success: false, message: 'KhÃƒÂ´ng thÃ¡Â»Æ’ hoÃƒÂ n tiÃ¡Â»Ân hÃƒÂ³a Ã„â€˜Ã†Â¡n Ã„â€˜ÃƒÂ£ hÃ¡Â»Â§y' });
     }
 
     if (invoice.status === 'refunded') {
-      return res.status(400).json({ success: false, message: 'HÃ³a Ä‘Æ¡n Ä‘Ã£ Ä‘Æ°á»£c hoÃ n tiá»n trÆ°á»›c Ä‘Ã³' });
+      return res.status(400).json({ success: false, message: 'HÃƒÂ³a Ã„â€˜Ã†Â¡n Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c hoÃƒÂ n tiÃ¡Â»Ân trÃ†Â°Ã¡Â»â€ºc Ã„â€˜ÃƒÂ³' });
     }
 
     const paidAmount = invoice.paid_amount || 0;
     if (paidAmount <= 0) {
-      return res.status(400).json({ success: false, message: 'HÃ³a Ä‘Æ¡n chÆ°a cÃ³ thanh toÃ¡n Ä‘á»ƒ hoÃ n tiá»n' });
+      return res.status(400).json({ success: false, message: 'HÃƒÂ³a Ã„â€˜Ã†Â¡n chÃ†Â°a cÃƒÂ³ thanh toÃƒÂ¡n Ã„â€˜Ã¡Â»Æ’ hoÃƒÂ n tiÃ¡Â»Ân' });
     }
 
     const refundValue = refund_amount ? parseFloat(refund_amount) : paidAmount;
     if (refundValue > paidAmount) {
       return res.status(400).json({
         success: false,
-        message: `Sá»‘ tiá»n hoÃ n khÃ´ng thá»ƒ lá»›n hÆ¡n Ä‘Ã£ thanh toÃ¡n (${paidAmount.toLocaleString()}Ä‘)`
+        message: `SÃ¡Â»â€˜ tiÃ¡Â»Ân hoÃƒÂ n khÃƒÂ´ng thÃ¡Â»Æ’ lÃ¡Â»â€ºn hÃ†Â¡n Ã„â€˜ÃƒÂ£ thanh toÃƒÂ¡n (${paidAmount.toLocaleString()}Ã„â€˜)`
       });
     }
 
-    // Táº¡o payment record Ã¢m Ä‘á»ƒ ghi nháº­n hoÃ n tiá»n
+    // TÃ¡ÂºÂ¡o payment record ÃƒÂ¢m Ã„â€˜Ã¡Â»Æ’ ghi nhÃ¡ÂºÂ­n hoÃƒÂ n tiÃ¡Â»Ân
     const { error: paymentError } = await supabase
       .from('payments')
       .insert({
         invoice_id: id,
-        amount: -refundValue,  // Sá»‘ Ã¢m = hoÃ n tiá»n
+        amount: -refundValue,  // SÃ¡Â»â€˜ ÃƒÂ¢m = hoÃƒÂ n tiÃ¡Â»Ân
         payment_method: refund_method,
-        notes: `HOÃ€N TIá»€N: ${reason || 'Theo yÃªu cáº§u'}`,
+        notes: `HOÃƒâ‚¬N TIÃ¡Â»â‚¬N: ${reason || 'Theo yÃƒÂªu cÃ¡ÂºÂ§u'}`,
         received_by: req.user?.id
       });
 
@@ -13597,7 +15232,7 @@ app.post('/api/invoices/:id/refund', requireAuth, requireRole(['SUPER_ADMIN', 'C
       console.warn('Error creating refund payment record:', paymentError.message);
     }
 
-    // Cáº­p nháº­t invoice
+    // CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t invoice
     const newPaidAmount = paidAmount - refundValue;
     let newStatus = 'refunded';
     if (newPaidAmount > 0 && newPaidAmount < invoice.final_amount) {
@@ -13611,7 +15246,7 @@ app.post('/api/invoices/:id/refund', requireAuth, requireRole(['SUPER_ADMIN', 'C
       .update({
         paid_amount: newPaidAmount,
         status: newStatus,
-        description: `${invoice.description || ''} [HOÃ€N TIá»€N: ${refundValue.toLocaleString()}Ä‘ - ${reason || ''}]`,
+        description: `${invoice.description || ''} [HOÃƒâ‚¬N TIÃ¡Â»â‚¬N: ${refundValue.toLocaleString()}Ã„â€˜ - ${reason || ''}]`,
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
@@ -13620,11 +15255,11 @@ app.post('/api/invoices/:id/refund', requireAuth, requireRole(['SUPER_ADMIN', 'C
 
     if (error) throw error;
 
-    console.log(`ðŸ’¸ HoÃ n tiá»n ${refundValue.toLocaleString()}Ä‘ cho ${invoice.invoice_code} bá»Ÿi ${req.user.email}`);
+    console.log(`Ã°Å¸â€™Â¸ HoÃƒÂ n tiÃ¡Â»Ân ${refundValue.toLocaleString()}Ã„â€˜ cho ${invoice.invoice_code} bÃ¡Â»Å¸i ${req.user.email}`);
 
     res.json({
       success: true,
-      message: `ÄÃ£ hoÃ n ${refundValue.toLocaleString()}Ä‘ cho hÃ³a Ä‘Æ¡n ${invoice.invoice_code}`,
+      message: `Ã„ÂÃƒÂ£ hoÃƒÂ n ${refundValue.toLocaleString()}Ã„â€˜ cho hÃƒÂ³a Ã„â€˜Ã†Â¡n ${invoice.invoice_code}`,
       data,
       refund: {
         amount: refundValue,
@@ -13640,7 +15275,7 @@ app.post('/api/invoices/:id/refund', requireAuth, requireRole(['SUPER_ADMIN', 'C
 });
 
 // ============================================================
-// ðŸ”¥ NEW INVOICE WORKFLOW APIs - Draft Invoice Confirmation
+// Ã°Å¸â€Â¥ NEW INVOICE WORKFLOW APIs - Draft Invoice Confirmation
 // ============================================================
 
 // POST /api/invoices/:id/confirm - Confirm draft invoice
@@ -13659,7 +15294,7 @@ app.post('/api/invoices/:id/confirm', requireAuth, requireRole(['SUPER_ADMIN', '
 
     res.json({
       success: true,
-      message: 'ÄÃ£ xÃ¡c nháº­n hÃ³a Ä‘Æ¡n thÃ nh cÃ´ng',
+      message: 'Ã„ÂÃƒÂ£ xÃƒÂ¡c nhÃ¡ÂºÂ­n hÃƒÂ³a Ã„â€˜Ã†Â¡n thÃƒÂ nh cÃƒÂ´ng',
       data: result.data
     });
   } catch (error) {
@@ -13684,7 +15319,7 @@ app.post('/api/invoices/:id/void', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
 
     res.json({
       success: true,
-      message: 'ÄÃ£ há»§y hÃ³a Ä‘Æ¡n draft',
+      message: 'Ã„ÂÃƒÂ£ hÃ¡Â»Â§y hÃƒÂ³a Ã„â€˜Ã†Â¡n draft',
       data: result.data
     });
   } catch (error) {
@@ -13702,20 +15337,20 @@ app.post('/api/invoices/:id/void', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
  *   reference_code: string (optional, for bank transfers),
  *   notes: string (optional)
  * }
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/invoices/bulk-payment', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { invoice_ids, payment_method, reference_code, notes } = req.body;
     const userId = req.user?.id;
 
-    console.log('ðŸ’³ Bulk payment request:', { invoice_ids, payment_method, userId });
+    console.log('Ã°Å¸â€™Â³ Bulk payment request:', { invoice_ids, payment_method, userId });
 
     // Validate invoice_ids
     if (!invoice_ids || !Array.isArray(invoice_ids) || invoice_ids.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lÃ²ng chá»n Ã­t nháº¥t má»™t hÃ³a Ä‘Æ¡n Ä‘á»ƒ thanh toÃ¡n'
+        message: 'Vui lÃƒÂ²ng chÃ¡Â»Ân ÃƒÂ­t nhÃ¡ÂºÂ¥t mÃ¡Â»â„¢t hÃƒÂ³a Ã„â€˜Ã†Â¡n Ã„â€˜Ã¡Â»Æ’ thanh toÃƒÂ¡n'
       });
     }
 
@@ -13724,14 +15359,14 @@ app.post('/api/admin/invoices/bulk-payment', requireAuth, requireRole(['SUPER_AD
     if (!payment_method || !validMethods.includes(payment_method)) {
       return res.status(400).json({
         success: false,
-        message: 'PhÆ°Æ¡ng thá»©c thanh toÃ¡n khÃ´ng há»£p lá»‡'
+        message: 'PhÃ†Â°Ã†Â¡ng thÃ¡Â»Â©c thanh toÃƒÂ¡n khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡'
       });
     }
 
     if (payment_method !== 'cash' && !reference_code) {
       return res.status(400).json({
         success: false,
-        message: 'Thanh toÃ¡n khÃ´ng dÃ¹ng tiá»n máº·t cáº§n mÃ£ tham chiáº¿u giao dá»‹ch'
+        message: 'Thanh toÃƒÂ¡n khÃƒÂ´ng dÃƒÂ¹ng tiÃ¡Â»Ân mÃ¡ÂºÂ·t cÃ¡ÂºÂ§n mÃƒÂ£ tham chiÃ¡ÂºÂ¿u giao dÃ¡Â»â€¹ch'
       });
     }
 
@@ -13757,9 +15392,9 @@ app.post('/api/admin/invoices/bulk-payment', requireAuth, requireRole(['SUPER_AD
           results.details.push({
             invoice_id: invoiceId,
             status: 'failed',
-            reason: 'KhÃ´ng tÃ¬m tháº¥y hÃ³a Ä‘Æ¡n'
+            reason: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y hÃƒÂ³a Ã„â€˜Ã†Â¡n'
           });
-          console.log(`âŒ Invoice ${invoiceId}: Not found`);
+          console.log(`Ã¢ÂÅ’ Invoice ${invoiceId}: Not found`);
           continue;
         }
 
@@ -13770,9 +15405,9 @@ app.post('/api/admin/invoices/bulk-payment', requireAuth, requireRole(['SUPER_AD
             invoice_id: invoiceId,
             invoice_code: invoice.invoice_code,
             status: 'skipped',
-            reason: 'HÃ³a Ä‘Æ¡n Ä‘Ã£ thanh toÃ¡n Ä‘á»§'
+            reason: 'HÃƒÂ³a Ã„â€˜Ã†Â¡n Ã„â€˜ÃƒÂ£ thanh toÃƒÂ¡n Ã„â€˜Ã¡Â»Â§'
           });
-          console.log(`â­ï¸ Invoice ${invoice.invoice_code}: Already paid, skipping`);
+          console.log(`Ã¢ÂÂ­Ã¯Â¸Â Invoice ${invoice.invoice_code}: Already paid, skipping`);
           continue;
         }
 
@@ -13783,9 +15418,9 @@ app.post('/api/admin/invoices/bulk-payment', requireAuth, requireRole(['SUPER_AD
             invoice_id: invoiceId,
             invoice_code: invoice.invoice_code,
             status: 'skipped',
-            reason: `HÃ³a Ä‘Æ¡n Ä‘Ã£ ${invoice.status === 'cancelled' ? 'há»§y' : 'hoÃ n tiá»n'}`
+            reason: `HÃƒÂ³a Ã„â€˜Ã†Â¡n Ã„â€˜ÃƒÂ£ ${invoice.status === 'cancelled' ? 'hÃ¡Â»Â§y' : 'hoÃƒÂ n tiÃ¡Â»Ân'}`
           });
-          console.log(`â­ï¸ Invoice ${invoice.invoice_code}: ${invoice.status}, skipping`);
+          console.log(`Ã¢ÂÂ­Ã¯Â¸Â Invoice ${invoice.invoice_code}: ${invoice.status}, skipping`);
           continue;
         }
 
@@ -13798,7 +15433,7 @@ app.post('/api/admin/invoices/bulk-payment', requireAuth, requireRole(['SUPER_AD
             invoice_id: invoiceId,
             invoice_code: invoice.invoice_code,
             status: 'skipped',
-            reason: 'KhÃ´ng cÃ²n sá»‘ tiá»n cáº§n thanh toÃ¡n'
+            reason: 'KhÃƒÂ´ng cÃƒÂ²n sÃ¡Â»â€˜ tiÃ¡Â»Ân cÃ¡ÂºÂ§n thanh toÃƒÂ¡n'
           });
           continue;
         }
@@ -13832,7 +15467,7 @@ app.post('/api/admin/invoices/bulk-payment', requireAuth, requireRole(['SUPER_AD
             status: 'failed',
             reason: paymentError.message
           });
-          console.log(`âŒ Invoice ${invoice.invoice_code}: Payment error - ${paymentError.message}`);
+          console.log(`Ã¢ÂÅ’ Invoice ${invoice.invoice_code}: Payment error - ${paymentError.message}`);
           continue;
         }
 
@@ -13853,7 +15488,7 @@ app.post('/api/admin/invoices/bulk-payment', requireAuth, requireRole(['SUPER_AD
           new_status: updatedInvoice?.status || 'paid',
           requires_verification: !autoVerified
         });
-        console.log(`âœ… Invoice ${invoice.invoice_code}: Paid ${remainingAmount.toLocaleString()}Ä‘`);
+        console.log(`Ã¢Å“â€¦ Invoice ${invoice.invoice_code}: Paid ${remainingAmount.toLocaleString()}Ã„â€˜`);
 
       } catch (err) {
         results.failed++;
@@ -13862,20 +15497,20 @@ app.post('/api/admin/invoices/bulk-payment', requireAuth, requireRole(['SUPER_AD
           status: 'failed',
           reason: err.message
         });
-        console.error(`âŒ Invoice ${invoiceId}: Error - ${err.message}`);
+        console.error(`Ã¢ÂÅ’ Invoice ${invoiceId}: Error - ${err.message}`);
       }
     }
 
-    console.log(`ðŸ’³ Bulk payment complete: ${results.processed} processed, ${results.skipped} skipped, ${results.failed} failed`);
+    console.log(`Ã°Å¸â€™Â³ Bulk payment complete: ${results.processed} processed, ${results.skipped} skipped, ${results.failed} failed`);
 
     res.json({
       success: true,
-      message: `ÄÃ£ xá»­ lÃ½ ${results.processed} hÃ³a Ä‘Æ¡n${results.skipped > 0 ? `, bá» qua ${results.skipped}` : ''}${results.failed > 0 ? `, lá»—i ${results.failed}` : ''}`,
+      message: `Ã„ÂÃƒÂ£ xÃ¡Â»Â­ lÃƒÂ½ ${results.processed} hÃƒÂ³a Ã„â€˜Ã†Â¡n${results.skipped > 0 ? `, bÃ¡Â»Â qua ${results.skipped}` : ''}${results.failed > 0 ? `, lÃ¡Â»â€”i ${results.failed}` : ''}`,
       data: results
     });
 
   } catch (error) {
-    console.error('âŒ Error processing bulk payment:', error);
+    console.error('Ã¢ÂÅ’ Error processing bulk payment:', error);
     next(error);
   }
 });
@@ -13884,7 +15519,7 @@ app.post('/api/admin/invoices/bulk-payment', requireAuth, requireRole(['SUPER_AD
  * GET /api/admin/invoices/overdue
  * Get list of overdue invoices with student contact info
  * Query: ?center_id=xxx&daysOverdueMin=1&daysOverdueMax=7&page=1&limit=20&sortBy=days_overdue&sortOrder=desc
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/invoices/overdue', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -13913,7 +15548,7 @@ app.get('/api/admin/invoices/overdue', requireAuth, requireRole(['SUPER_ADMIN', 
     today.setHours(0, 0, 0, 0);
     const todayStr = today.toISOString().split('T')[0];
 
-    // daysOverdueMin=8 â†’ invoice must be at least 8 days overdue â†’ due_date <= today - 8
+    // daysOverdueMin=8 Ã¢â€ â€™ invoice must be at least 8 days overdue Ã¢â€ â€™ due_date <= today - 8
     let maxDueDate = todayStr; // Default: all overdue (due_date < today)
     if (daysOverdueMin && parseInt(daysOverdueMin) > 0) {
       const d = new Date(today);
@@ -13921,7 +15556,7 @@ app.get('/api/admin/invoices/overdue', requireAuth, requireRole(['SUPER_ADMIN', 
       maxDueDate = d.toISOString().split('T')[0];
     }
 
-    // daysOverdueMax=14 â†’ invoice is at most 14 days overdue â†’ due_date >= today - 14
+    // daysOverdueMax=14 Ã¢â€ â€™ invoice is at most 14 days overdue Ã¢â€ â€™ due_date >= today - 14
     let minDueDate = null;
     if (daysOverdueMax && parseInt(daysOverdueMax) > 0) {
       const d = new Date(today);
@@ -13929,7 +15564,7 @@ app.get('/api/admin/invoices/overdue', requireAuth, requireRole(['SUPER_ADMIN', 
       minDueDate = d.toISOString().split('T')[0];
     }
 
-    console.log('ðŸ“‹ Fetching overdue invoices:', { effectiveCenterId, daysOverdueMin, daysOverdueMax, maxDueDate, minDueDate, pageNum, limitNum });
+    console.log('Ã°Å¸â€œâ€¹ Fetching overdue invoices:', { effectiveCenterId, daysOverdueMin, daysOverdueMax, maxDueDate, minDueDate, pageNum, limitNum });
 
     // ---------- STATS QUERY (all overdue, no pagination, no day filter) ----------
     const statsSelect = effectiveCenterId
@@ -13997,7 +15632,7 @@ app.get('/api/admin/invoices/overdue', requireAuth, requireRole(['SUPER_ADMIN', 
     if (sortBy === 'amount') {
       query = query.order('final_amount', { ascending: sortOrder === 'asc' });
     } else {
-      // days_overdue â†’ sort by due_date (ascending = most overdue first when sortOrder=desc)
+      // days_overdue Ã¢â€ â€™ sort by due_date (ascending = most overdue first when sortOrder=desc)
       query = query.order('due_date', { ascending: sortOrder !== 'desc' });
     }
 
@@ -14043,7 +15678,7 @@ app.get('/api/admin/invoices/overdue', requireAuth, requireRole(['SUPER_ADMIN', 
     }));
 
     const total = count || 0;
-    console.log(`ðŸ“‹ Found ${total} overdue invoices (page ${pageNum})`);
+    console.log(`Ã°Å¸â€œâ€¹ Found ${total} overdue invoices (page ${pageNum})`);
 
     // Response format matches frontend expectations
     res.json({
@@ -14064,7 +15699,7 @@ app.get('/api/admin/invoices/overdue', requireAuth, requireRole(['SUPER_ADMIN', 
     });
 
   } catch (error) {
-    console.error('âŒ Error fetching overdue invoices:', error);
+    console.error('Ã¢ÂÅ’ Error fetching overdue invoices:', error);
     next(error);
   }
 });
@@ -14077,7 +15712,7 @@ app.get('/api/admin/invoices/overdue', requireAuth, requireRole(['SUPER_ADMIN', 
  * GET /api/admin/payroll
  * Get list of payrolls with optional filters
  * Query: ?month=2&year=2026&status=draft&teacher_id=uuid
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/payroll',
   requireAuth,
@@ -14092,7 +15727,7 @@ app.get('/api/admin/payroll',
         return res.status(403).json({ success: false, message: permError });
       }
 
-      console.log(`ðŸ’° Admin ${req.user.email} fetching payrolls - month: ${month}, year: ${year}`);
+      console.log(`Ã°Å¸â€™Â° Admin ${req.user.email} fetching payrolls - month: ${month}, year: ${year}`);
 
       let query = supabase
         .from('payroll')
@@ -14126,7 +15761,7 @@ app.get('/api/admin/payroll',
         data: data || []
       });
     } catch (error) {
-      console.error('âŒ Error fetching payrolls:', error);
+      console.error('Ã¢ÂÅ’ Error fetching payrolls:', error);
       next(error);
     }
   }
@@ -14136,7 +15771,7 @@ app.get('/api/admin/payroll',
  * GET /api/admin/payroll/stats
  * Get payroll statistics for a period
  * Query: ?month=2&year=2026
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/payroll/stats',
   requireAuth,
@@ -14153,7 +15788,7 @@ app.get('/api/admin/payroll/stats',
         return res.status(403).json({ success: false, message: permError });
       }
 
-      console.log(`ðŸ’° Admin ${req.user.email} fetching payroll stats - ${month}/${year}`);
+      console.log(`Ã°Å¸â€™Â° Admin ${req.user.email} fetching payroll stats - ${month}/${year}`);
 
       const { data: payrolls, error } = await supabase
         .from('payroll')
@@ -14195,7 +15830,7 @@ app.get('/api/admin/payroll/stats',
         data: stats
       });
     } catch (error) {
-      console.error('âŒ Error fetching payroll stats:', error);
+      console.error('Ã¢ÂÅ’ Error fetching payroll stats:', error);
       next(error);
     }
   }
@@ -14205,7 +15840,7 @@ app.get('/api/admin/payroll/stats',
  * GET /api/admin/payroll/teachers
  * Get teachers with monthly stats (sessions, hours, base salary)
  * Query: ?month=2&year=2026
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/payroll/teachers',
   requireAuth,
@@ -14222,7 +15857,7 @@ app.get('/api/admin/payroll/teachers',
         return res.status(403).json({ success: false, message: permError });
       }
 
-      console.log(`ðŸ’° Admin ${req.user.email} fetching teachers for payroll - ${month}/${year}`);
+      console.log(`Ã°Å¸â€™Â° Admin ${req.user.email} fetching teachers for payroll - ${month}/${year}`);
 
       // Get all teachers
       let teachersQuery = supabase
@@ -14311,7 +15946,7 @@ app.get('/api/admin/payroll/teachers',
         data: result
       });
     } catch (error) {
-      console.error('âŒ Error fetching teachers for payroll:', error);
+      console.error('Ã¢ÂÅ’ Error fetching teachers for payroll:', error);
       next(error);
     }
   }
@@ -14321,7 +15956,7 @@ app.get('/api/admin/payroll/teachers',
  * POST /api/admin/payroll/generate
  * Generate payroll for a single teacher
  * Body: { teacher_id, month, year, bonus, deduction, notes }
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/payroll/generate',
   requireAuth,
@@ -14333,11 +15968,11 @@ app.post('/api/admin/payroll/generate',
       if (!teacher_id || !month || !year) {
         return res.status(400).json({
           success: false,
-          message: 'teacher_id, month vÃ  year lÃ  báº¯t buá»™c'
+          message: 'teacher_id, month vÃƒÂ  year lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
         });
       }
 
-      console.log(`ðŸ’° Admin ${req.user.email} generating payroll for teacher ${teacher_id} - ${month}/${year}`);
+      console.log(`Ã°Å¸â€™Â° Admin ${req.user.email} generating payroll for teacher ${teacher_id} - ${month}/${year}`);
 
       // Check if payroll already exists
       const { data: existing } = await supabase
@@ -14351,7 +15986,7 @@ app.post('/api/admin/payroll/generate',
       if (existing) {
         return res.status(400).json({
           success: false,
-          message: 'Báº£ng lÆ°Æ¡ng cho giÃ¡o viÃªn nÃ y trong ká»³ nÃ y Ä‘Ã£ tá»“n táº¡i'
+          message: 'BÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng cho giÃƒÂ¡o viÃƒÂªn nÃƒÂ y trong kÃ¡Â»Â³ nÃƒÂ y Ã„â€˜ÃƒÂ£ tÃ¡Â»â€œn tÃ¡ÂºÂ¡i'
         });
       }
 
@@ -14365,7 +16000,7 @@ app.post('/api/admin/payroll/generate',
       if (teacherError || !teacher) {
         return res.status(404).json({
           success: false,
-          message: 'KhÃ´ng tÃ¬m tháº¥y giÃ¡o viÃªn'
+          message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y giÃƒÂ¡o viÃƒÂªn'
         });
       }
 
@@ -14374,7 +16009,7 @@ app.post('/api/admin/payroll/generate',
       if (effectiveCenterId && teacher.center_id !== effectiveCenterId) {
         return res.status(403).json({
           success: false,
-          message: 'Báº¡n khÃ´ng cÃ³ quyá»n táº¡o báº£ng lÆ°Æ¡ng cho giÃ¡o viÃªn nÃ y'
+          message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân tÃ¡ÂºÂ¡o bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng cho giÃƒÂ¡o viÃƒÂªn nÃƒÂ y'
         });
       }
 
@@ -14435,15 +16070,15 @@ app.post('/api/admin/payroll/generate',
 
       if (createError) throw createError;
 
-      console.log(`ðŸ’° Created payroll ${payroll.id} for ${teacher.full_name}`);
+      console.log(`Ã°Å¸â€™Â° Created payroll ${payroll.id} for ${teacher.full_name}`);
 
       res.json({
         success: true,
         data: payroll,
-        message: 'Táº¡o báº£ng lÆ°Æ¡ng thÃ nh cÃ´ng'
+        message: 'TÃ¡ÂºÂ¡o bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng thÃƒÂ nh cÃƒÂ´ng'
       });
     } catch (error) {
-      console.error('âŒ Error generating payroll:', error);
+      console.error('Ã¢ÂÅ’ Error generating payroll:', error);
       next(error);
     }
   }
@@ -14453,7 +16088,7 @@ app.post('/api/admin/payroll/generate',
  * POST /api/admin/payroll/bulk-generate
  * Generate payrolls for multiple teachers
  * Body: { teacher_ids: [], month, year, bonus, deduction, notes }
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/payroll/bulk-generate',
   requireAuth,
@@ -14465,18 +16100,18 @@ app.post('/api/admin/payroll/bulk-generate',
       if (!teacher_ids || !Array.isArray(teacher_ids) || teacher_ids.length === 0) {
         return res.status(400).json({
           success: false,
-          message: 'teacher_ids array lÃ  báº¯t buá»™c'
+          message: 'teacher_ids array lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
         });
       }
 
       if (!month || !year) {
         return res.status(400).json({
           success: false,
-          message: 'month vÃ  year lÃ  báº¯t buá»™c'
+          message: 'month vÃƒÂ  year lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
         });
       }
 
-      console.log(`ðŸ’° Admin ${req.user.email} bulk generating ${teacher_ids.length} payrolls - ${month}/${year}`);
+      console.log(`Ã°Å¸â€™Â° Admin ${req.user.email} bulk generating ${teacher_ids.length} payrolls - ${month}/${year}`);
 
       const success = [];
       const failed = [];
@@ -14493,7 +16128,7 @@ app.post('/api/admin/payroll/bulk-generate',
             .single();
 
           if (existing) {
-            failed.push({ teacher_id, reason: 'ÄÃ£ tá»“n táº¡i báº£ng lÆ°Æ¡ng' });
+            failed.push({ teacher_id, reason: 'Ã„ÂÃƒÂ£ tÃ¡Â»â€œn tÃ¡ÂºÂ¡i bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng' });
             continue;
           }
 
@@ -14505,7 +16140,7 @@ app.post('/api/admin/payroll/bulk-generate',
             .single();
 
           if (!teacher) {
-            failed.push({ teacher_id, reason: 'KhÃ´ng tÃ¬m tháº¥y giÃ¡o viÃªn' });
+            failed.push({ teacher_id, reason: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y giÃƒÂ¡o viÃƒÂªn' });
             continue;
           }
 
@@ -14574,15 +16209,15 @@ app.post('/api/admin/payroll/bulk-generate',
         }
       }
 
-      console.log(`ðŸ’° Bulk generate complete: ${success.length} success, ${failed.length} failed`);
+      console.log(`Ã°Å¸â€™Â° Bulk generate complete: ${success.length} success, ${failed.length} failed`);
 
       res.json({
         success: true,
         data: { success, failed },
-        message: `ÄÃ£ táº¡o ${success.length} báº£ng lÆ°Æ¡ng thÃ nh cÃ´ng`
+        message: `Ã„ÂÃƒÂ£ tÃ¡ÂºÂ¡o ${success.length} bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng thÃƒÂ nh cÃƒÂ´ng`
       });
     } catch (error) {
-      console.error('âŒ Error bulk generating payrolls:', error);
+      console.error('Ã¢ÂÅ’ Error bulk generating payrolls:', error);
       next(error);
     }
   }
@@ -14592,7 +16227,7 @@ app.post('/api/admin/payroll/bulk-generate',
  * GET /api/admin/payroll/export
  * Export payrolls to professional Excel (.xlsx)
  * Query: ?month=2&year=2026
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/payroll/export',
   requireAuth,
@@ -14604,7 +16239,7 @@ app.get('/api/admin/payroll/export',
       if (!month || !year) {
         return res.status(400).json({
           success: false,
-          message: 'month vÃ  year lÃ  báº¯t buá»™c'
+          message: 'month vÃƒÂ  year lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
         });
       }
 
@@ -14613,7 +16248,7 @@ app.get('/api/admin/payroll/export',
         return res.status(403).json({ success: false, message: permError });
       }
 
-      console.log(`ðŸ’° Admin ${req.user.email} exporting payrolls (Excel) - ${month}/${year}`);
+      console.log(`Ã°Å¸â€™Â° Admin ${req.user.email} exporting payrolls (Excel) - ${month}/${year}`);
 
       const { data: payrolls, error } = await supabase
         .from('payroll')
@@ -14635,14 +16270,14 @@ app.get('/api/admin/payroll/export',
         filtered = filtered.filter(p => p.teacher?.center_id === effectiveCenterId);
       }
 
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
       // BUILD PROFESSIONAL EXCEL WITH ExcelJS
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
       const workbook = new ExcelJS.Workbook();
       workbook.creator = 'Skill Master';
       workbook.created = new Date();
 
-      const ws = workbook.addWorksheet(`Báº£ng lÆ°Æ¡ng T${month}-${year}`, {
+      const ws = workbook.addWorksheet(`BÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng T${month}-${year}`, {
         properties: { defaultRowHeight: 22 },
         pageSetup: {
           paperSize: 9, // A4
@@ -14654,7 +16289,7 @@ app.get('/api/admin/payroll/export',
         }
       });
 
-      // â”€â”€ Color palette â”€â”€
+      // Ã¢â€â‚¬Ã¢â€â‚¬ Color palette Ã¢â€â‚¬Ã¢â€â‚¬
       const COLORS = {
         primaryDark: '1B5E20',    // Dark green
         primary: '2E7D32',        // Green
@@ -14677,73 +16312,73 @@ app.get('/api/admin/payroll/export',
       const thinBorder = { style: 'thin', color: { argb: COLORS.borderColor } };
       const allBorders = { top: thinBorder, bottom: thinBorder, left: thinBorder, right: thinBorder };
 
-      // â”€â”€ Column widths â”€â”€
+      // Ã¢â€â‚¬Ã¢â€â‚¬ Column widths Ã¢â€â‚¬Ã¢â€â‚¬
       ws.columns = [
         { width: 6 },   // A: STT
-        { width: 24 },  // B: Há» tÃªn
+        { width: 24 },  // B: HÃ¡Â»Â tÃƒÂªn
         { width: 28 },  // C: Email
-        { width: 16 },  // D: SÄT
-        { width: 10 },  // E: Sá»‘ buá»•i
-        { width: 10 },  // F: Sá»‘ giá»
-        { width: 18 },  // G: LÆ°Æ¡ng cÆ¡ báº£n
-        { width: 18 },  // H: LÆ°Æ¡ng cá»‘ Ä‘á»‹nh
-        { width: 15 },  // I: ThÆ°á»Ÿng
-        { width: 15 },  // J: Kháº¥u trá»«
-        { width: 20 },  // K: Thá»±c nháº­n
-        { width: 16 },  // L: Tráº¡ng thÃ¡i
+        { width: 16 },  // D: SÃ„ÂT
+        { width: 10 },  // E: SÃ¡Â»â€˜ buÃ¡Â»â€¢i
+        { width: 10 },  // F: SÃ¡Â»â€˜ giÃ¡Â»Â
+        { width: 18 },  // G: LÃ†Â°Ã†Â¡ng cÃ†Â¡ bÃ¡ÂºÂ£n
+        { width: 18 },  // H: LÃ†Â°Ã†Â¡ng cÃ¡Â»â€˜ Ã„â€˜Ã¡Â»â€¹nh
+        { width: 15 },  // I: ThÃ†Â°Ã¡Â»Å¸ng
+        { width: 15 },  // J: KhÃ¡ÂºÂ¥u trÃ¡Â»Â«
+        { width: 20 },  // K: ThÃ¡Â»Â±c nhÃ¡ÂºÂ­n
+        { width: 16 },  // L: TrÃ¡ÂºÂ¡ng thÃƒÂ¡i
       ];
 
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
       // ROW 1: Company Header
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
       ws.mergeCells('A1:L1');
       const titleCell = ws.getCell('A1');
-      titleCell.value = 'SKILL MASTER - TRUNG TÃ‚M ÄÃ€O Táº O';
+      titleCell.value = 'SKILL MASTER - TRUNG TÃƒâ€šM Ã„ÂÃƒâ‚¬O TÃ¡ÂºÂ O';
       titleCell.font = { name: 'Arial', size: 14, bold: true, color: { argb: COLORS.primaryDark } };
       titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
       titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.primaryLight } };
       ws.getRow(1).height = 32;
 
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
       // ROW 2: Report Title
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
       ws.mergeCells('A2:L2');
       const subTitleCell = ws.getCell('A2');
-      subTitleCell.value = `Báº¢NG LÆ¯Æ NG GIÃO VIÃŠN â€” THÃNG ${month}/${year}`;
+      subTitleCell.value = `BÃ¡ÂºÂ¢NG LÃ†Â¯Ã†Â NG GIÃƒÂO VIÃƒÅ N Ã¢â‚¬â€ THÃƒÂNG ${month}/${year}`;
       subTitleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: COLORS.white } };
       subTitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
       subTitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.primary } };
       ws.getRow(2).height = 38;
 
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
       // ROW 3: Meta info
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
       ws.mergeCells('A3:F3');
       const metaLeft = ws.getCell('A3');
-      metaLeft.value = `Ká»³ lÆ°Æ¡ng: ThÃ¡ng ${month}/${year}  â€¢  Tá»•ng sá»‘: ${filtered.length} báº£ng lÆ°Æ¡ng`;
+      metaLeft.value = `KÃ¡Â»Â³ lÃ†Â°Ã†Â¡ng: ThÃƒÂ¡ng ${month}/${year}  Ã¢â‚¬Â¢  TÃ¡Â»â€¢ng sÃ¡Â»â€˜: ${filtered.length} bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng`;
       metaLeft.font = { name: 'Arial', size: 10, italic: true, color: { argb: COLORS.grayText } };
       metaLeft.alignment = { horizontal: 'left', vertical: 'middle' };
 
       ws.mergeCells('G3:L3');
       const metaRight = ws.getCell('G3');
       const exportDate = new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-      metaRight.value = `NgÃ y xuáº¥t: ${exportDate}  â€¢  NgÆ°á»i xuáº¥t: ${req.user.full_name || req.user.email}`;
+      metaRight.value = `NgÃƒÂ y xuÃ¡ÂºÂ¥t: ${exportDate}  Ã¢â‚¬Â¢  NgÃ†Â°Ã¡Â»Âi xuÃ¡ÂºÂ¥t: ${req.user.full_name || req.user.email}`;
       metaRight.font = { name: 'Arial', size: 10, italic: true, color: { argb: COLORS.grayText } };
       metaRight.alignment = { horizontal: 'right', vertical: 'middle' };
       ws.getRow(3).height = 22;
 
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
       // ROW 4: Spacer
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
       ws.getRow(4).height = 8;
 
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
       // ROW 5: Column Headers
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
       const headerLabels = [
-        'STT', 'Há» tÃªn giÃ¡o viÃªn', 'Email', 'Sá»‘ Ä‘iá»‡n thoáº¡i',
-        'Sá»‘ buá»•i', 'Sá»‘ giá»', 'LÆ°Æ¡ng giáº£ng dáº¡y',
-        'LÆ°Æ¡ng cá»‘ Ä‘á»‹nh', 'ThÆ°á»Ÿng', 'Kháº¥u trá»«', 'THá»°C NHáº¬N', 'Tráº¡ng thÃ¡i'
+        'STT', 'HÃ¡Â»Â tÃƒÂªn giÃƒÂ¡o viÃƒÂªn', 'Email', 'SÃ¡Â»â€˜ Ã„â€˜iÃ¡Â»â€¡n thoÃ¡ÂºÂ¡i',
+        'SÃ¡Â»â€˜ buÃ¡Â»â€¢i', 'SÃ¡Â»â€˜ giÃ¡Â»Â', 'LÃ†Â°Ã†Â¡ng giÃ¡ÂºÂ£ng dÃ¡ÂºÂ¡y',
+        'LÃ†Â°Ã†Â¡ng cÃ¡Â»â€˜ Ã„â€˜Ã¡Â»â€¹nh', 'ThÃ†Â°Ã¡Â»Å¸ng', 'KhÃ¡ÂºÂ¥u trÃ¡Â»Â«', 'THÃ¡Â»Â°C NHÃ¡ÂºÂ¬N', 'TrÃ¡ÂºÂ¡ng thÃƒÂ¡i'
       ];
 
       const headerRow = ws.getRow(5);
@@ -14762,14 +16397,14 @@ app.get('/api/admin/payroll/export',
         };
       });
 
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
       // DATA ROWS
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
       const statusLabels = {
-        draft: 'NhÃ¡p',
-        pending: 'Chá» duyá»‡t',
-        approved: 'ÄÃ£ duyá»‡t',
-        paid: 'ÄÃ£ thanh toÃ¡n'
+        draft: 'NhÃƒÂ¡p',
+        pending: 'ChÃ¡Â»Â duyÃ¡Â»â€¡t',
+        approved: 'Ã„ÂÃƒÂ£ duyÃ¡Â»â€¡t',
+        paid: 'Ã„ÂÃƒÂ£ thanh toÃƒÂ¡n'
       };
       const statusColors = {
         draft: COLORS.statusDraft,
@@ -14778,7 +16413,7 @@ app.get('/api/admin/payroll/export',
         paid: COLORS.statusPaid,
       };
 
-      const VND_FORMAT = '#,##0 "Ä‘"';
+      const VND_FORMAT = '#,##0 "Ã„â€˜"';
       let totalSessions = 0, totalHours = 0, totalBase = 0, totalFixed = 0, totalBonus = 0, totalDeduction = 0, totalNet = 0;
 
       filtered.forEach((p, idx) => {
@@ -14855,18 +16490,18 @@ app.get('/api/admin/payroll/export',
         });
       });
 
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
       // SUMMARY ROW
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
       if (filtered.length > 0) {
         const summaryRowNum = 6 + filtered.length;
         const summaryRow = ws.getRow(summaryRowNum);
         summaryRow.height = 30;
 
-        // Merge A-D for "Tá»”NG Cá»˜NG"
+        // Merge A-D for "TÃ¡Â»â€NG CÃ¡Â»ËœNG"
         ws.mergeCells(`A${summaryRowNum}:D${summaryRowNum}`);
         const totalLabelCell = summaryRow.getCell(1);
-        totalLabelCell.value = 'Tá»”NG Cá»˜NG';
+        totalLabelCell.value = 'TÃ¡Â»â€NG CÃ¡Â»ËœNG';
         totalLabelCell.font = { name: 'Arial', size: 11, bold: true, color: { argb: COLORS.darkText } };
         totalLabelCell.alignment = { horizontal: 'center', vertical: 'middle' };
         totalLabelCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLORS.accentLight } };
@@ -14881,7 +16516,7 @@ app.get('/api/admin/payroll/export',
           totalBonus,       // I
           totalDeduction,   // J
           totalNet,         // K
-          `${filtered.length} báº£ng lÆ°Æ¡ng` // L
+          `${filtered.length} bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng` // L
         ];
 
         summaryValues.forEach((val, colIdx) => {
@@ -14906,27 +16541,27 @@ app.get('/api/admin/payroll/export',
           }
         });
 
-        // â”€â”€ Footer note â”€â”€
+        // Ã¢â€â‚¬Ã¢â€â‚¬ Footer note Ã¢â€â‚¬Ã¢â€â‚¬
         const footerRowNum = summaryRowNum + 2;
         ws.mergeCells(`A${footerRowNum}:L${footerRowNum}`);
         const footerCell = ws.getCell(`A${footerRowNum}`);
-        footerCell.value = 'â€» BÃ¡o cÃ¡o Ä‘Æ°á»£c táº¡o tá»± Ä‘á»™ng bá»Ÿi há»‡ thá»‘ng Skill Master. Má»i tháº¯c máº¯c xin liÃªn há»‡ bá»™ pháº­n quáº£n lÃ½.';
+        footerCell.value = 'Ã¢â‚¬Â» BÃƒÂ¡o cÃƒÂ¡o Ã„â€˜Ã†Â°Ã¡Â»Â£c tÃ¡ÂºÂ¡o tÃ¡Â»Â± Ã„â€˜Ã¡Â»â„¢ng bÃ¡Â»Å¸i hÃ¡Â»â€¡ thÃ¡Â»â€˜ng Skill Master. MÃ¡Â»Âi thÃ¡ÂºÂ¯c mÃ¡ÂºÂ¯c xin liÃƒÂªn hÃ¡Â»â€¡ bÃ¡Â»â„¢ phÃ¡ÂºÂ­n quÃ¡ÂºÂ£n lÃƒÂ½.';
         footerCell.font = { name: 'Arial', size: 9, italic: true, color: { argb: COLORS.grayText } };
         footerCell.alignment = { horizontal: 'center', vertical: 'middle' };
       }
 
-      // â”€â”€ Freeze header â”€â”€
+      // Ã¢â€â‚¬Ã¢â€â‚¬ Freeze header Ã¢â€â‚¬Ã¢â€â‚¬
       ws.views = [{ state: 'frozen', ySplit: 5, activeCell: 'A6' }];
 
-      // â”€â”€ Auto-filter â”€â”€
+      // Ã¢â€â‚¬Ã¢â€â‚¬ Auto-filter Ã¢â€â‚¬Ã¢â€â‚¬
       ws.autoFilter = { from: 'A5', to: `L${5 + filtered.length}` };
 
-      // â”€â”€ Print area â”€â”€
+      // Ã¢â€â‚¬Ã¢â€â‚¬ Print area Ã¢â€â‚¬Ã¢â€â‚¬
       ws.pageSetup.printArea = `A1:L${6 + filtered.length + 2}`;
 
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
       // SEND RESPONSE
-      // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
       const buffer = await workbook.xlsx.writeBuffer();
 
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -14935,7 +16570,7 @@ app.get('/api/admin/payroll/export',
       res.send(Buffer.from(buffer));
 
     } catch (error) {
-      console.error('âŒ Error exporting payrolls:', error);
+      console.error('Ã¢ÂÅ’ Error exporting payrolls:', error);
       next(error);
     }
   }
@@ -14944,7 +16579,7 @@ app.get('/api/admin/payroll/export',
 /**
  * GET /api/admin/payroll/:id
  * Get payroll detail with sessions
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/payroll/:id',
   requireAuth,
@@ -14953,7 +16588,7 @@ app.get('/api/admin/payroll/:id',
     try {
       const { id } = req.params;
 
-      console.log(`ðŸ’° Admin ${req.user.email} fetching payroll detail: ${id}`);
+      console.log(`Ã°Å¸â€™Â° Admin ${req.user.email} fetching payroll detail: ${id}`);
 
       const { data: payroll, error } = await supabase
         .from('payroll')
@@ -14972,7 +16607,7 @@ app.get('/api/admin/payroll/:id',
       if (error || !payroll) {
         return res.status(404).json({
           success: false,
-          message: 'KhÃ´ng tÃ¬m tháº¥y báº£ng lÆ°Æ¡ng'
+          message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng'
         });
       }
 
@@ -14981,7 +16616,7 @@ app.get('/api/admin/payroll/:id',
       if (effectiveCenterId && payroll.teacher?.center_id !== effectiveCenterId) {
         return res.status(403).json({
           success: false,
-          message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem báº£ng lÆ°Æ¡ng nÃ y'
+          message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xem bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng nÃƒÂ y'
         });
       }
 
@@ -15011,7 +16646,7 @@ app.get('/api/admin/payroll/:id',
         }
       });
     } catch (error) {
-      console.error('âŒ Error fetching payroll detail:', error);
+      console.error('Ã¢ÂÅ’ Error fetching payroll detail:', error);
       next(error);
     }
   }
@@ -15021,7 +16656,7 @@ app.get('/api/admin/payroll/:id',
  * PUT /api/admin/payroll/:id
  * Update payroll (bonus, deduction, notes)
  * Body: { bonus, deduction, notes }
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.put('/api/admin/payroll/:id',
   requireAuth,
@@ -15031,7 +16666,7 @@ app.put('/api/admin/payroll/:id',
       const { id } = req.params;
       const { bonus, deduction, notes } = req.body;
 
-      console.log(`ðŸ’° Admin ${req.user.email} updating payroll: ${id}`);
+      console.log(`Ã°Å¸â€™Â° Admin ${req.user.email} updating payroll: ${id}`);
 
       // Get existing payroll
       const { data: existing, error: fetchError } = await supabase
@@ -15043,7 +16678,7 @@ app.put('/api/admin/payroll/:id',
       if (fetchError || !existing) {
         return res.status(404).json({
           success: false,
-          message: 'KhÃ´ng tÃ¬m tháº¥y báº£ng lÆ°Æ¡ng'
+          message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng'
         });
       }
 
@@ -15051,7 +16686,7 @@ app.put('/api/admin/payroll/:id',
       if (!['draft', 'pending'].includes(existing.status)) {
         return res.status(400).json({
           success: false,
-          message: 'Chá»‰ cÃ³ thá»ƒ sá»­a báº£ng lÆ°Æ¡ng á»Ÿ tráº¡ng thÃ¡i NhÃ¡p hoáº·c Chá» duyá»‡t'
+          message: 'ChÃ¡Â»â€° cÃƒÂ³ thÃ¡Â»Æ’ sÃ¡Â»Â­a bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng Ã¡Â»Å¸ trÃ¡ÂºÂ¡ng thÃƒÂ¡i NhÃƒÂ¡p hoÃ¡ÂºÂ·c ChÃ¡Â»Â duyÃ¡Â»â€¡t'
         });
       }
 
@@ -15060,7 +16695,7 @@ app.put('/api/admin/payroll/:id',
       if (effectiveCenterId && existing.teacher?.center_id !== effectiveCenterId) {
         return res.status(403).json({
           success: false,
-          message: 'Báº¡n khÃ´ng cÃ³ quyá»n sá»­a báº£ng lÆ°Æ¡ng nÃ y'
+          message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân sÃ¡Â»Â­a bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng nÃƒÂ y'
         });
       }
 
@@ -15091,10 +16726,10 @@ app.put('/api/admin/payroll/:id',
       res.json({
         success: true,
         data: updated,
-        message: 'Cáº­p nháº­t báº£ng lÆ°Æ¡ng thÃ nh cÃ´ng'
+        message: 'CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng thÃƒÂ nh cÃƒÂ´ng'
       });
     } catch (error) {
-      console.error('âŒ Error updating payroll:', error);
+      console.error('Ã¢ÂÅ’ Error updating payroll:', error);
       next(error);
     }
   }
@@ -15104,7 +16739,7 @@ app.put('/api/admin/payroll/:id',
  * PATCH /api/admin/payroll/:id/status
  * Update payroll status
  * Body: { status: 'pending'|'approved'|'paid'|'draft' }
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.patch('/api/admin/payroll/:id/status',
   requireAuth,
@@ -15118,11 +16753,11 @@ app.patch('/api/admin/payroll/:id/status',
       if (!status || !validStatuses.includes(status)) {
         return res.status(400).json({
           success: false,
-          message: `Status pháº£i lÃ  má»™t trong: ${validStatuses.join(', ')}`
+          message: `Status phÃ¡ÂºÂ£i lÃƒÂ  mÃ¡Â»â„¢t trong: ${validStatuses.join(', ')}`
         });
       }
 
-      console.log(`ðŸ’° Admin ${req.user.email} updating payroll ${id} status to: ${status}`);
+      console.log(`Ã°Å¸â€™Â° Admin ${req.user.email} updating payroll ${id} status to: ${status}`);
 
       // Get existing payroll
       const { data: existing, error: fetchError } = await supabase
@@ -15134,7 +16769,7 @@ app.patch('/api/admin/payroll/:id/status',
       if (fetchError || !existing) {
         return res.status(404).json({
           success: false,
-          message: 'KhÃ´ng tÃ¬m tháº¥y báº£ng lÆ°Æ¡ng'
+          message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng'
         });
       }
 
@@ -15149,7 +16784,7 @@ app.patch('/api/admin/payroll/:id/status',
       if (!allowedNext.includes(status)) {
         return res.status(400).json({
           success: false,
-          message: `KhÃ´ng thá»ƒ chuyá»ƒn tá»« "${existing.status}" sang "${status}". Tráº¡ng thÃ¡i tiáº¿p theo há»£p lá»‡: ${allowedNext.join(', ') || 'khÃ´ng cÃ³ (tráº¡ng thÃ¡i cuá»‘i)'}`
+          message: `KhÃƒÂ´ng thÃ¡Â»Æ’ chuyÃ¡Â»Æ’n tÃ¡Â»Â« "${existing.status}" sang "${status}". TrÃ¡ÂºÂ¡ng thÃƒÂ¡i tiÃ¡ÂºÂ¿p theo hÃ¡Â»Â£p lÃ¡Â»â€¡: ${allowedNext.join(', ') || 'khÃƒÂ´ng cÃƒÂ³ (trÃ¡ÂºÂ¡ng thÃƒÂ¡i cuÃ¡Â»â€˜i)'}`
         });
       }
 
@@ -15158,7 +16793,7 @@ app.patch('/api/admin/payroll/:id/status',
       if (effectiveCenterId && existing.teacher?.center_id !== effectiveCenterId) {
         return res.status(403).json({
           success: false,
-          message: 'Báº¡n khÃ´ng cÃ³ quyá»n thay Ä‘á»•i tráº¡ng thÃ¡i báº£ng lÆ°Æ¡ng nÃ y'
+          message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân thay Ã„â€˜Ã¡Â»â€¢i trÃ¡ÂºÂ¡ng thÃƒÂ¡i bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng nÃƒÂ y'
         });
       }
 
@@ -15186,9 +16821,9 @@ app.patch('/api/admin/payroll/:id/status',
           .lte('session_date', endDate);
 
         if (lockError) {
-          console.error('âš ï¸ Error locking sessions:', lockError);
+          console.error('Ã¢Å¡Â Ã¯Â¸Â Error locking sessions:', lockError);
         } else {
-          console.log(`ðŸ”’ Locked sessions for payroll ${id}`);
+          console.log(`Ã°Å¸â€â€™ Locked sessions for payroll ${id}`);
         }
       }
 
@@ -15206,9 +16841,9 @@ app.patch('/api/admin/payroll/:id/status',
           .lte('session_date', endDate);
 
         if (unlockError) {
-          console.error('âš ï¸ Error unlocking sessions:', unlockError);
+          console.error('Ã¢Å¡Â Ã¯Â¸Â Error unlocking sessions:', unlockError);
         } else {
-          console.log(`ðŸ”“ Unlocked sessions for payroll ${id}`);
+          console.log(`Ã°Å¸â€â€œ Unlocked sessions for payroll ${id}`);
         }
       }
 
@@ -15226,10 +16861,10 @@ app.patch('/api/admin/payroll/:id/status',
       if (updateError) throw updateError;
 
       const statusLabels = {
-        draft: 'NhÃ¡p',
-        pending: 'Chá» duyá»‡t',
-        approved: 'ÄÃ£ duyá»‡t',
-        paid: 'ÄÃ£ thanh toÃ¡n'
+        draft: 'NhÃƒÂ¡p',
+        pending: 'ChÃ¡Â»Â duyÃ¡Â»â€¡t',
+        approved: 'Ã„ÂÃƒÂ£ duyÃ¡Â»â€¡t',
+        paid: 'Ã„ÂÃƒÂ£ thanh toÃƒÂ¡n'
       };
 
       // Send email notification to teacher based on new status
@@ -15251,7 +16886,7 @@ app.patch('/api/admin/payroll/:id/status',
               // Payroll submitted/created - notify teacher
               await queueEmail(
                 updated.teacher.email,
-                `[Skill Master] Báº£ng lÆ°Æ¡ng thÃ¡ng ${updated.period_month}/${updated.period_year} Ä‘Ã£ Ä‘Æ°á»£c táº¡o`,
+                `[Skill Master] BÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng thÃƒÂ¡ng ${updated.period_month}/${updated.period_year} Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c tÃ¡ÂºÂ¡o`,
                 'payroll_created',
                 {
                   teacherName: updated.teacher.full_name,
@@ -15264,12 +16899,12 @@ app.patch('/api/admin/payroll/:id/status',
                   portalUrl
                 }
               );
-              console.log(`ðŸ“§ Payroll created email queued for ${updated.teacher.email}`);
+              console.log(`Ã°Å¸â€œÂ§ Payroll created email queued for ${updated.teacher.email}`);
             } else if (status === 'approved') {
               // Payroll approved - notify teacher
               await queueEmail(
                 updated.teacher.email,
-                `[Skill Master] Báº£ng lÆ°Æ¡ng thÃ¡ng ${updated.period_month}/${updated.period_year} Ä‘Ã£ Ä‘Æ°á»£c duyá»‡t`,
+                `[Skill Master] BÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng thÃƒÂ¡ng ${updated.period_month}/${updated.period_year} Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c duyÃ¡Â»â€¡t`,
                 'payroll_approved',
                 {
                   teacherName: updated.teacher.full_name,
@@ -15282,12 +16917,12 @@ app.patch('/api/admin/payroll/:id/status',
                   portalUrl
                 }
               );
-              console.log(`ðŸ“§ Payroll approved email queued for ${updated.teacher.email}`);
+              console.log(`Ã°Å¸â€œÂ§ Payroll approved email queued for ${updated.teacher.email}`);
             } else if (status === 'paid') {
               // Payroll paid - notify teacher
               await queueEmail(
                 updated.teacher.email,
-                `[Skill Master] Báº£ng lÆ°Æ¡ng thÃ¡ng ${updated.period_month}/${updated.period_year} Ä‘Ã£ Ä‘Æ°á»£c thanh toÃ¡n`,
+                `[Skill Master] BÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng thÃƒÂ¡ng ${updated.period_month}/${updated.period_year} Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c thanh toÃƒÂ¡n`,
                 'payroll_paid',
                 {
                   teacherName: updated.teacher.full_name,
@@ -15297,16 +16932,16 @@ app.patch('/api/admin/payroll/:id/status',
                   totalHours: updated.total_hours,
                   netSalary: formatCurrency(updated.net_salary),
                   paymentDate: new Date().toLocaleDateString('vi-VN'),
-                  paymentMethod: updated.payment_method || 'Chuyá»ƒn khoáº£n ngÃ¢n hÃ ng',
+                  paymentMethod: updated.payment_method || 'ChuyÃ¡Â»Æ’n khoÃ¡ÂºÂ£n ngÃƒÂ¢n hÃƒÂ ng',
                   centerName,
                   portalUrl
                 }
               );
-              console.log(`ðŸ“§ Payroll paid email queued for ${updated.teacher.email}`);
+              console.log(`Ã°Å¸â€œÂ§ Payroll paid email queued for ${updated.teacher.email}`);
             }
           } catch (emailError) {
             // Don't fail the request if email fails
-            console.error('âš ï¸ Failed to queue payroll email:', emailError.message);
+            console.error('Ã¢Å¡Â Ã¯Â¸Â Failed to queue payroll email:', emailError.message);
           }
         }
       }
@@ -15314,10 +16949,10 @@ app.patch('/api/admin/payroll/:id/status',
       res.json({
         success: true,
         data: updated,
-        message: `ÄÃ£ cáº­p nháº­t tráº¡ng thÃ¡i thÃ nh "${statusLabels[status]}"`
+        message: `Ã„ÂÃƒÂ£ cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t trÃ¡ÂºÂ¡ng thÃƒÂ¡i thÃƒÂ nh "${statusLabels[status]}"`
       });
     } catch (error) {
-      console.error('âŒ Error updating payroll status:', error);
+      console.error('Ã¢ÂÅ’ Error updating payroll status:', error);
       next(error);
     }
   }
@@ -15326,7 +16961,7 @@ app.patch('/api/admin/payroll/:id/status',
 /**
  * DELETE /api/admin/payroll/:id
  * Delete draft payroll
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.delete('/api/admin/payroll/:id',
   requireAuth,
@@ -15335,7 +16970,7 @@ app.delete('/api/admin/payroll/:id',
     try {
       const { id } = req.params;
 
-      console.log(`ðŸ’° Admin ${req.user.email} deleting payroll: ${id}`);
+      console.log(`Ã°Å¸â€™Â° Admin ${req.user.email} deleting payroll: ${id}`);
 
       // Get existing payroll
       const { data: existing, error: fetchError } = await supabase
@@ -15347,7 +16982,7 @@ app.delete('/api/admin/payroll/:id',
       if (fetchError || !existing) {
         return res.status(404).json({
           success: false,
-          message: 'KhÃ´ng tÃ¬m tháº¥y báº£ng lÆ°Æ¡ng'
+          message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng'
         });
       }
 
@@ -15355,7 +16990,7 @@ app.delete('/api/admin/payroll/:id',
       if (existing.status !== 'draft') {
         return res.status(400).json({
           success: false,
-          message: 'Chá»‰ cÃ³ thá»ƒ xÃ³a báº£ng lÆ°Æ¡ng á»Ÿ tráº¡ng thÃ¡i NhÃ¡p'
+          message: 'ChÃ¡Â»â€° cÃƒÂ³ thÃ¡Â»Æ’ xÃƒÂ³a bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng Ã¡Â»Å¸ trÃ¡ÂºÂ¡ng thÃƒÂ¡i NhÃƒÂ¡p'
         });
       }
 
@@ -15364,7 +16999,7 @@ app.delete('/api/admin/payroll/:id',
       if (effectiveCenterId && existing.teacher?.center_id !== effectiveCenterId) {
         return res.status(403).json({
           success: false,
-          message: 'Báº¡n khÃ´ng cÃ³ quyá»n xÃ³a báº£ng lÆ°Æ¡ng nÃ y'
+          message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xÃƒÂ³a bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng nÃƒÂ y'
         });
       }
 
@@ -15376,14 +17011,14 @@ app.delete('/api/admin/payroll/:id',
 
       if (deleteError) throw deleteError;
 
-      console.log(`ðŸ’° Deleted payroll ${id} for ${existing.teacher?.full_name}`);
+      console.log(`Ã°Å¸â€™Â° Deleted payroll ${id} for ${existing.teacher?.full_name}`);
 
       res.json({
         success: true,
-        message: 'ÄÃ£ xÃ³a báº£ng lÆ°Æ¡ng'
+        message: 'Ã„ÂÃƒÂ£ xÃƒÂ³a bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng'
       });
     } catch (error) {
-      console.error('âŒ Error deleting payroll:', error);
+      console.error('Ã¢ÂÅ’ Error deleting payroll:', error);
       next(error);
     }
   }
@@ -15393,7 +17028,7 @@ app.delete('/api/admin/payroll/:id',
 /**
  * GET /api/admin/payroll/:id/audit
  * Get audit trail for a payroll
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/payroll/:id/audit',
   requireAuth,
@@ -15402,7 +17037,7 @@ app.get('/api/admin/payroll/:id/audit',
     try {
       const { id } = req.params;
 
-      console.log(`ðŸ’° Admin ${req.user.email} fetching audit trail for payroll: ${id}`);
+      console.log(`Ã°Å¸â€™Â° Admin ${req.user.email} fetching audit trail for payroll: ${id}`);
 
       // Verify payroll exists and check permission
       const { data: payroll, error: payrollError } = await supabase
@@ -15414,7 +17049,7 @@ app.get('/api/admin/payroll/:id/audit',
       if (payrollError || !payroll) {
         return res.status(404).json({
           success: false,
-          message: 'KhÃ´ng tÃ¬m tháº¥y báº£ng lÆ°Æ¡ng'
+          message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng'
         });
       }
 
@@ -15422,7 +17057,7 @@ app.get('/api/admin/payroll/:id/audit',
       if (effectiveCenterId && payroll.teacher?.center_id !== effectiveCenterId) {
         return res.status(403).json({
           success: false,
-          message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem lá»‹ch sá»­ báº£ng lÆ°Æ¡ng nÃ y'
+          message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xem lÃ¡Â»â€¹ch sÃ¡Â»Â­ bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng nÃƒÂ y'
         });
       }
 
@@ -15440,11 +17075,11 @@ app.get('/api/admin/payroll/:id/audit',
 
       if (auditError) {
         // Table might not exist yet
-        console.warn('âš ï¸ Audit log table not available:', auditError.message);
+        console.warn('Ã¢Å¡Â Ã¯Â¸Â Audit log table not available:', auditError.message);
         return res.json({
           success: true,
           data: [],
-          message: 'ChÆ°a cÃ³ lá»‹ch sá»­ thay Ä‘á»•i'
+          message: 'ChÃ†Â°a cÃƒÂ³ lÃ¡Â»â€¹ch sÃ¡Â»Â­ thay Ã„â€˜Ã¡Â»â€¢i'
         });
       }
 
@@ -15453,7 +17088,7 @@ app.get('/api/admin/payroll/:id/audit',
         data: auditLogs || []
       });
     } catch (error) {
-      console.error('âŒ Error fetching payroll audit:', error);
+      console.error('Ã¢ÂÅ’ Error fetching payroll audit:', error);
       next(error);
     }
   }
@@ -15469,7 +17104,7 @@ app.get('/api/admin/payroll/:id/audit',
  * GET /api/teacher/payroll
  * Get list of payrolls for the logged-in teacher
  * Query: ?year=2026
- * ðŸ”’ TEACHER only
+ * Ã°Å¸â€â€™ TEACHER only
  */
 app.get('/api/teacher/payroll',
   requireAuth,
@@ -15479,7 +17114,7 @@ app.get('/api/teacher/payroll',
       const teacherId = req.user.id;
       const { year } = req.query;
 
-      console.log(`ðŸ’° Teacher ${req.user.email} fetching own payrolls - year: ${year || 'all'}`);
+      console.log(`Ã°Å¸â€™Â° Teacher ${req.user.email} fetching own payrolls - year: ${year || 'all'}`);
 
       let query = supabase
         .from('payroll')
@@ -15518,7 +17153,7 @@ app.get('/api/teacher/payroll',
         compensation: compensation || null
       });
     } catch (error) {
-      console.error('âŒ Error fetching teacher payrolls:', error);
+      console.error('Ã¢ÂÅ’ Error fetching teacher payrolls:', error);
       next(error);
     }
   }
@@ -15527,7 +17162,7 @@ app.get('/api/teacher/payroll',
 /**
  * GET /api/teacher/payroll/:id
  * Get payroll detail with sessions for the logged-in teacher
- * ðŸ”’ TEACHER only (can only view own payroll)
+ * Ã°Å¸â€â€™ TEACHER only (can only view own payroll)
  */
 app.get('/api/teacher/payroll/:id',
   requireAuth,
@@ -15537,7 +17172,7 @@ app.get('/api/teacher/payroll/:id',
       const { id } = req.params;
       const teacherId = req.user.id;
 
-      console.log(`ðŸ’° Teacher ${req.user.email} fetching payroll detail: ${id}`);
+      console.log(`Ã°Å¸â€™Â° Teacher ${req.user.email} fetching payroll detail: ${id}`);
 
       // Fetch payroll and verify ownership
       const { data: payroll, error } = await supabase
@@ -15559,7 +17194,7 @@ app.get('/api/teacher/payroll/:id',
       if (error || !payroll) {
         return res.status(404).json({
           success: false,
-          message: 'KhÃ´ng tÃ¬m tháº¥y báº£ng lÆ°Æ¡ng hoáº·c báº¡n khÃ´ng cÃ³ quyá»n xem'
+          message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng hoÃ¡ÂºÂ·c bÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xem'
         });
       }
 
@@ -15609,7 +17244,7 @@ app.get('/api/teacher/payroll/:id',
         }
       });
     } catch (error) {
-      console.error('âŒ Error fetching teacher payroll detail:', error);
+      console.error('Ã¢ÂÅ’ Error fetching teacher payroll detail:', error);
       next(error);
     }
   }
@@ -15622,7 +17257,7 @@ app.get('/api/teacher/payroll/:id',
 /**
  * GET /api/teacher/bank-info
  * Get current teacher's bank information
- * ðŸ”’ TEACHER only
+ * Ã°Å¸â€â€™ TEACHER only
  */
 app.get('/api/teacher/bank-info',
   requireAuth,
@@ -15630,7 +17265,7 @@ app.get('/api/teacher/bank-info',
   async (req, res, next) => {
     try {
       const teacherId = req.user.id;
-      console.log(`ðŸ¦ Teacher ${req.user.email} fetching bank info`);
+      console.log(`Ã°Å¸ÂÂ¦ Teacher ${req.user.email} fetching bank info`);
 
       const { data, error } = await supabase
         .from('users')
@@ -15645,7 +17280,7 @@ app.get('/api/teacher/bank-info',
         data: data || { bank_name: null, bank_account_number: null, bank_account_holder: null }
       });
     } catch (error) {
-      console.error('âŒ Error fetching teacher bank info:', error);
+      console.error('Ã¢ÂÅ’ Error fetching teacher bank info:', error);
       next(error);
     }
   }
@@ -15655,7 +17290,7 @@ app.get('/api/teacher/bank-info',
  * PUT /api/teacher/bank-info
  * Update current teacher's bank information
  * Body: { bank_name, bank_account_number, bank_account_holder }
- * ðŸ”’ TEACHER only
+ * Ã°Å¸â€â€™ TEACHER only
  */
 app.put('/api/teacher/bank-info',
   requireAuth,
@@ -15665,13 +17300,13 @@ app.put('/api/teacher/bank-info',
       const teacherId = req.user.id;
       const { bank_name, bank_account_number, bank_account_holder } = req.body;
 
-      console.log(`ðŸ¦ Teacher ${req.user.email} updating bank info`);
+      console.log(`Ã°Å¸ÂÂ¦ Teacher ${req.user.email} updating bank info`);
 
       // Validate required fields
       if (!bank_name || !bank_account_number || !bank_account_holder) {
         return res.status(400).json({
           success: false,
-          message: 'Vui lÃ²ng Ä‘iá»n Ä‘áº§y Ä‘á»§ thÃ´ng tin ngÃ¢n hÃ ng'
+          message: 'Vui lÃƒÂ²ng Ã„â€˜iÃ¡Â»Ân Ã„â€˜Ã¡ÂºÂ§y Ã„â€˜Ã¡Â»Â§ thÃƒÂ´ng tin ngÃƒÂ¢n hÃƒÂ ng'
         });
       }
 
@@ -15689,15 +17324,15 @@ app.put('/api/teacher/bank-info',
 
       if (error) throw error;
 
-      console.log(`ðŸ¦ Teacher ${req.user.email} bank info updated successfully`);
+      console.log(`Ã°Å¸ÂÂ¦ Teacher ${req.user.email} bank info updated successfully`);
 
       res.json({
         success: true,
         data,
-        message: 'Cáº­p nháº­t thÃ´ng tin ngÃ¢n hÃ ng thÃ nh cÃ´ng'
+        message: 'CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t thÃƒÂ´ng tin ngÃƒÂ¢n hÃƒÂ ng thÃƒÂ nh cÃƒÂ´ng'
       });
     } catch (error) {
-      console.error('âŒ Error updating teacher bank info:', error);
+      console.error('Ã¢ÂÅ’ Error updating teacher bank info:', error);
       next(error);
     }
   }
@@ -15710,7 +17345,7 @@ app.put('/api/teacher/bank-info',
 /**
  * GET /api/teacher/payroll/:id/disputes
  * Get disputes for a specific payroll
- * ðŸ”’ TEACHER only (own payroll)
+ * Ã°Å¸â€â€™ TEACHER only (own payroll)
  */
 app.get('/api/teacher/payroll/:id/disputes',
   requireAuth,
@@ -15720,7 +17355,7 @@ app.get('/api/teacher/payroll/:id/disputes',
       const { id } = req.params;
       const teacherId = req.user.id;
 
-      console.log(`ðŸ“ Teacher ${req.user.email} fetching disputes for payroll ${id}`);
+      console.log(`Ã°Å¸â€œÂ Teacher ${req.user.email} fetching disputes for payroll ${id}`);
 
       // Verify payroll ownership
       const { data: payroll, error: payrollError } = await supabase
@@ -15733,7 +17368,7 @@ app.get('/api/teacher/payroll/:id/disputes',
       if (payrollError || !payroll) {
         return res.status(404).json({
           success: false,
-          message: 'KhÃ´ng tÃ¬m tháº¥y báº£ng lÆ°Æ¡ng'
+          message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng'
         });
       }
 
@@ -15754,7 +17389,7 @@ app.get('/api/teacher/payroll/:id/disputes',
         data: disputes || []
       });
     } catch (error) {
-      console.error('âŒ Error fetching payroll disputes:', error);
+      console.error('Ã¢ÂÅ’ Error fetching payroll disputes:', error);
       next(error);
     }
   }
@@ -15764,7 +17399,7 @@ app.get('/api/teacher/payroll/:id/disputes',
  * POST /api/teacher/payroll/:id/dispute
  * Submit a dispute for a payroll
  * Body: { reason, dispute_type }
- * ðŸ”’ TEACHER only (own payroll)
+ * Ã°Å¸â€â€™ TEACHER only (own payroll)
  */
 app.post('/api/teacher/payroll/:id/dispute',
   requireAuth,
@@ -15775,15 +17410,15 @@ app.post('/api/teacher/payroll/:id/dispute',
       const teacherId = req.user.id;
       const { reason, dispute_type = 'other' } = req.body;
 
-      console.log(`ðŸ“ Teacher ${req.user.email} submitting dispute for payroll ${id}`);
-      console.log(`ðŸ“ Request body:`, req.body);
+      console.log(`Ã°Å¸â€œÂ Teacher ${req.user.email} submitting dispute for payroll ${id}`);
+      console.log(`Ã°Å¸â€œÂ Request body:`, req.body);
 
       // Validate
       if (!reason || reason.trim().length < 10) {
-        console.log(`âŒ Validation failed: reason length = ${reason?.length || 0}`);
+        console.log(`Ã¢ÂÅ’ Validation failed: reason length = ${reason?.length || 0}`);
         return res.status(400).json({
           success: false,
-          message: `Vui lÃ²ng mÃ´ táº£ chi tiáº¿t lÃ½ do khiáº¿u náº¡i (Ã­t nháº¥t 10 kÃ½ tá»±). Hiá»‡n táº¡i: ${reason?.trim()?.length || 0} kÃ½ tá»±`
+          message: `Vui lÃƒÂ²ng mÃƒÂ´ tÃ¡ÂºÂ£ chi tiÃ¡ÂºÂ¿t lÃƒÂ½ do khiÃ¡ÂºÂ¿u nÃ¡ÂºÂ¡i (ÃƒÂ­t nhÃ¡ÂºÂ¥t 10 kÃƒÂ½ tÃ¡Â»Â±). HiÃ¡Â»â€¡n tÃ¡ÂºÂ¡i: ${reason?.trim()?.length || 0} kÃƒÂ½ tÃ¡Â»Â±`
         });
       }
 
@@ -15798,7 +17433,7 @@ app.post('/api/teacher/payroll/:id/dispute',
       if (payrollError || !payroll) {
         return res.status(404).json({
           success: false,
-          message: 'KhÃ´ng tÃ¬m tháº¥y báº£ng lÆ°Æ¡ng'
+          message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng'
         });
       }
 
@@ -15813,7 +17448,7 @@ app.post('/api/teacher/payroll/:id/dispute',
       if (existingDispute) {
         return res.status(400).json({
           success: false,
-          message: 'ÄÃ£ cÃ³ khiáº¿u náº¡i Ä‘ang chá» xá»­ lÃ½ cho báº£ng lÆ°Æ¡ng nÃ y'
+          message: 'Ã„ÂÃƒÂ£ cÃƒÂ³ khiÃ¡ÂºÂ¿u nÃ¡ÂºÂ¡i Ã„â€˜ang chÃ¡Â»Â xÃ¡Â»Â­ lÃƒÂ½ cho bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng nÃƒÂ y'
         });
       }
 
@@ -15832,15 +17467,15 @@ app.post('/api/teacher/payroll/:id/dispute',
 
       if (error) throw error;
 
-      console.log(`ðŸ“ Dispute ${dispute.id} created for payroll ${id}`);
+      console.log(`Ã°Å¸â€œÂ Dispute ${dispute.id} created for payroll ${id}`);
 
       res.status(201).json({
         success: true,
         data: dispute,
-        message: 'Gá»­i khiáº¿u náº¡i thÃ nh cÃ´ng. ChÃºng tÃ´i sáº½ xem xÃ©t trong thá»i gian sá»›m nháº¥t.'
+        message: 'GÃ¡Â»Â­i khiÃ¡ÂºÂ¿u nÃ¡ÂºÂ¡i thÃƒÂ nh cÃƒÂ´ng. ChÃƒÂºng tÃƒÂ´i sÃ¡ÂºÂ½ xem xÃƒÂ©t trong thÃ¡Â»Âi gian sÃ¡Â»â€ºm nhÃ¡ÂºÂ¥t.'
       });
     } catch (error) {
-      console.error('âŒ Error creating payroll dispute:', error);
+      console.error('Ã¢ÂÅ’ Error creating payroll dispute:', error);
       next(error);
     }
   }
@@ -15854,7 +17489,7 @@ app.post('/api/teacher/payroll/:id/dispute',
  * GET /api/admin/payroll-disputes
  * Get all disputes with optional filters
  * Query: ?status=pending&teacher_id=xxx
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/payroll-disputes',
   requireAuth,
@@ -15863,7 +17498,7 @@ app.get('/api/admin/payroll-disputes',
     try {
       const { status, teacher_id } = req.query;
 
-      console.log(`ðŸ“ Admin ${req.user.email} fetching payroll disputes`);
+      console.log(`Ã°Å¸â€œÂ Admin ${req.user.email} fetching payroll disputes`);
 
       let query = supabase
         .from('payroll_disputes')
@@ -15900,7 +17535,7 @@ app.get('/api/admin/payroll-disputes',
         data: filteredData
       });
     } catch (error) {
-      console.error('âŒ Error fetching payroll disputes:', error);
+      console.error('Ã¢ÂÅ’ Error fetching payroll disputes:', error);
       next(error);
     }
   }
@@ -15910,7 +17545,7 @@ app.get('/api/admin/payroll-disputes',
  * PATCH /api/admin/payroll-disputes/:id
  * Update dispute status and response
  * Body: { status, admin_response }
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.patch('/api/admin/payroll-disputes/:id',
   requireAuth,
@@ -15920,14 +17555,14 @@ app.patch('/api/admin/payroll-disputes/:id',
       const { id } = req.params;
       const { status, admin_response } = req.body;
 
-      console.log(`ðŸ“ Admin ${req.user.email} updating dispute ${id}`);
+      console.log(`Ã°Å¸â€œÂ Admin ${req.user.email} updating dispute ${id}`);
 
       // Validate status
       const validStatuses = ['pending', 'reviewing', 'resolved', 'rejected'];
       if (status && !validStatuses.includes(status)) {
         return res.status(400).json({
           success: false,
-          message: 'Tráº¡ng thÃ¡i khÃ´ng há»£p lá»‡'
+          message: 'TrÃ¡ÂºÂ¡ng thÃƒÂ¡i khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡'
         });
       }
 
@@ -15941,7 +17576,7 @@ app.patch('/api/admin/payroll-disputes/:id',
       if (fetchError || !existing) {
         return res.status(404).json({
           success: false,
-          message: 'KhÃ´ng tÃ¬m tháº¥y khiáº¿u náº¡i'
+          message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y khiÃ¡ÂºÂ¿u nÃ¡ÂºÂ¡i'
         });
       }
 
@@ -15950,7 +17585,7 @@ app.patch('/api/admin/payroll-disputes/:id',
       if (effectiveCenterId && existing.teacher?.center_id !== effectiveCenterId) {
         return res.status(403).json({
           success: false,
-          message: 'KhÃ´ng cÃ³ quyá»n xá»­ lÃ½ khiáº¿u náº¡i nÃ y'
+          message: 'KhÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xÃ¡Â»Â­ lÃƒÂ½ khiÃ¡ÂºÂ¿u nÃ¡ÂºÂ¡i nÃƒÂ y'
         });
       }
 
@@ -15973,15 +17608,15 @@ app.patch('/api/admin/payroll-disputes/:id',
 
       if (error) throw error;
 
-      console.log(`ðŸ“ Dispute ${id} updated to status: ${status}`);
+      console.log(`Ã°Å¸â€œÂ Dispute ${id} updated to status: ${status}`);
 
       res.json({
         success: true,
         data: updated,
-        message: 'Cáº­p nháº­t khiáº¿u náº¡i thÃ nh cÃ´ng'
+        message: 'CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t khiÃ¡ÂºÂ¿u nÃ¡ÂºÂ¡i thÃƒÂ nh cÃƒÂ´ng'
       });
     } catch (error) {
-      console.error('âŒ Error updating payroll dispute:', error);
+      console.error('Ã¢ÂÅ’ Error updating payroll dispute:', error);
       next(error);
     }
   }
@@ -15995,7 +17630,7 @@ app.patch('/api/admin/payroll-disputes/:id',
  * POST /api/admin/payroll/:id/payment-proof
  * Upload payment proof and mark as paid
  * Body: { payment_proof_url, payment_method, payment_reference }
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/payroll/:id/payment-proof',
   requireAuth,
@@ -16005,7 +17640,7 @@ app.post('/api/admin/payroll/:id/payment-proof',
       const { id } = req.params;
       const { payment_proof_url, payment_method = 'bank_transfer', payment_reference } = req.body;
 
-      console.log(`ðŸ’³ Admin ${req.user.email} uploading payment proof for payroll ${id}`);
+      console.log(`Ã°Å¸â€™Â³ Admin ${req.user.email} uploading payment proof for payroll ${id}`);
 
       // Get payroll
       const { data: payroll, error: fetchError } = await supabase
@@ -16017,7 +17652,7 @@ app.post('/api/admin/payroll/:id/payment-proof',
       if (fetchError || !payroll) {
         return res.status(404).json({
           success: false,
-          message: 'KhÃ´ng tÃ¬m tháº¥y báº£ng lÆ°Æ¡ng'
+          message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng'
         });
       }
 
@@ -16026,7 +17661,7 @@ app.post('/api/admin/payroll/:id/payment-proof',
       if (effectiveCenterId && payroll.teacher?.center_id !== effectiveCenterId) {
         return res.status(403).json({
           success: false,
-          message: 'KhÃ´ng cÃ³ quyá»n cáº­p nháº­t báº£ng lÆ°Æ¡ng nÃ y'
+          message: 'KhÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng nÃƒÂ y'
         });
       }
 
@@ -16034,7 +17669,7 @@ app.post('/api/admin/payroll/:id/payment-proof',
       if (payroll.status !== 'approved') {
         return res.status(400).json({
           success: false,
-          message: 'Chá»‰ cÃ³ thá»ƒ thanh toÃ¡n báº£ng lÆ°Æ¡ng Ä‘Ã£ Ä‘Æ°á»£c duyá»‡t'
+          message: 'ChÃ¡Â»â€° cÃƒÂ³ thÃ¡Â»Æ’ thanh toÃƒÂ¡n bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c duyÃ¡Â»â€¡t'
         });
       }
 
@@ -16060,15 +17695,15 @@ app.post('/api/admin/payroll/:id/payment-proof',
 
       if (error) throw error;
 
-      console.log(`ðŸ’³ Payroll ${id} marked as paid with proof`);
+      console.log(`Ã°Å¸â€™Â³ Payroll ${id} marked as paid with proof`);
 
       res.json({
         success: true,
         data: updated,
-        message: 'Thanh toÃ¡n thÃ nh cÃ´ng'
+        message: 'Thanh toÃƒÂ¡n thÃƒÂ nh cÃƒÂ´ng'
       });
     } catch (error) {
-      console.error('âŒ Error uploading payment proof:', error);
+      console.error('Ã¢ÂÅ’ Error uploading payment proof:', error);
       next(error);
     }
   }
@@ -16082,7 +17717,7 @@ app.post('/api/admin/payroll/:id/payment-proof',
  * GET /api/admin/holidays
  * Get list of holidays with optional date range filter
  * Query: ?year=2026&month=2&from=2026-01-01&to=2026-12-31
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/holidays',
   requireAuth,
@@ -16090,7 +17725,7 @@ app.get('/api/admin/holidays',
   async (req, res, next) => {
     try {
       const { year, month, from, to } = req.query;
-      console.log(`ðŸŽ„ Admin ${req.user.email} fetching holidays`);
+      console.log(`Ã°Å¸Å½â€ž Admin ${req.user.email} fetching holidays`);
 
       let query = supabase
         .from('holidays')
@@ -16120,7 +17755,7 @@ app.get('/api/admin/holidays',
         data: data || []
       });
     } catch (error) {
-      console.error('âŒ Error fetching holidays:', error);
+      console.error('Ã¢ÂÅ’ Error fetching holidays:', error);
       next(error);
     }
   }
@@ -16129,7 +17764,7 @@ app.get('/api/admin/holidays',
 /**
  * GET /api/admin/holidays/:id
  * Get single holiday by ID
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/holidays/:id',
   requireAuth,
@@ -16137,7 +17772,7 @@ app.get('/api/admin/holidays/:id',
   async (req, res, next) => {
     try {
       const { id } = req.params;
-      console.log(`ðŸŽ„ Admin ${req.user.email} fetching holiday ${id}`);
+      console.log(`Ã°Å¸Å½â€ž Admin ${req.user.email} fetching holiday ${id}`);
 
       const { data, error } = await supabase
         .from('holidays')
@@ -16152,7 +17787,7 @@ app.get('/api/admin/holidays/:id',
         if (error.code === 'PGRST116') {
           return res.status(404).json({
             success: false,
-            message: 'KhÃ´ng tÃ¬m tháº¥y ngÃ y lá»…'
+            message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y ngÃƒÂ y lÃ¡Â»â€¦'
           });
         }
         throw error;
@@ -16163,7 +17798,7 @@ app.get('/api/admin/holidays/:id',
         data
       });
     } catch (error) {
-      console.error('âŒ Error fetching holiday:', error);
+      console.error('Ã¢ÂÅ’ Error fetching holiday:', error);
       next(error);
     }
   }
@@ -16173,7 +17808,7 @@ app.get('/api/admin/holidays/:id',
  * POST /api/admin/holidays
  * Create a new holiday
  * Body: { name, date, description?, is_recurring? }
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/holidays',
   requireAuth,
@@ -16181,13 +17816,13 @@ app.post('/api/admin/holidays',
   async (req, res, next) => {
     try {
       const { name, date, description, is_recurring } = req.body;
-      console.log(`ðŸŽ„ Admin ${req.user.email} creating holiday: ${name} (${date})`);
+      console.log(`Ã°Å¸Å½â€ž Admin ${req.user.email} creating holiday: ${name} (${date})`);
 
       // Validation
       if (!name || !date) {
         return res.status(400).json({
           success: false,
-          message: 'TÃªn vÃ  ngÃ y lÃ  báº¯t buá»™c'
+          message: 'TÃƒÂªn vÃƒÂ  ngÃƒÂ y lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
         });
       }
 
@@ -16203,7 +17838,7 @@ app.post('/api/admin/holidays',
       if (existing) {
         return res.status(409).json({
           success: false,
-          message: `ÄÃ£ cÃ³ ngÃ y lá»… vÃ o ngÃ y ${date}`
+          message: `Ã„ÂÃƒÂ£ cÃƒÂ³ ngÃƒÂ y lÃ¡Â»â€¦ vÃƒÂ o ngÃƒÂ y ${date}`
         });
       }
 
@@ -16225,10 +17860,10 @@ app.post('/api/admin/holidays',
       res.status(201).json({
         success: true,
         data,
-        message: 'ÄÃ£ táº¡o ngÃ y lá»… thÃ nh cÃ´ng'
+        message: 'Ã„ÂÃƒÂ£ tÃ¡ÂºÂ¡o ngÃƒÂ y lÃ¡Â»â€¦ thÃƒÂ nh cÃƒÂ´ng'
       });
     } catch (error) {
-      console.error('âŒ Error creating holiday:', error);
+      console.error('Ã¢ÂÅ’ Error creating holiday:', error);
       next(error);
     }
   }
@@ -16238,7 +17873,7 @@ app.post('/api/admin/holidays',
  * PUT /api/admin/holidays/:id
  * Update an existing holiday
  * Body: { name?, date?, description?, is_recurring? }
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.put('/api/admin/holidays/:id',
   requireAuth,
@@ -16247,7 +17882,7 @@ app.put('/api/admin/holidays/:id',
     try {
       const { id } = req.params;
       const { name, date, description, is_recurring } = req.body;
-      console.log(`ðŸŽ„ Admin ${req.user.email} updating holiday ${id}`);
+      console.log(`Ã°Å¸Å½â€ž Admin ${req.user.email} updating holiday ${id}`);
 
       // Check if holiday exists
       const { data: existing, error: checkError } = await supabase
@@ -16261,7 +17896,7 @@ app.put('/api/admin/holidays/:id',
       if (!existing) {
         return res.status(404).json({
           success: false,
-          message: 'KhÃ´ng tÃ¬m tháº¥y ngÃ y lá»…'
+          message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y ngÃƒÂ y lÃ¡Â»â€¦'
         });
       }
 
@@ -16279,7 +17914,7 @@ app.put('/api/admin/holidays/:id',
         if (conflict) {
           return res.status(409).json({
             success: false,
-            message: `ÄÃ£ cÃ³ ngÃ y lá»… khÃ¡c vÃ o ngÃ y ${date}`
+            message: `Ã„ÂÃƒÂ£ cÃƒÂ³ ngÃƒÂ y lÃ¡Â»â€¦ khÃƒÂ¡c vÃƒÂ o ngÃƒÂ y ${date}`
           });
         }
       }
@@ -16306,10 +17941,10 @@ app.put('/api/admin/holidays/:id',
       res.json({
         success: true,
         data,
-        message: 'ÄÃ£ cáº­p nháº­t ngÃ y lá»… thÃ nh cÃ´ng'
+        message: 'Ã„ÂÃƒÂ£ cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t ngÃƒÂ y lÃ¡Â»â€¦ thÃƒÂ nh cÃƒÂ´ng'
       });
     } catch (error) {
-      console.error('âŒ Error updating holiday:', error);
+      console.error('Ã¢ÂÅ’ Error updating holiday:', error);
       next(error);
     }
   }
@@ -16318,7 +17953,7 @@ app.put('/api/admin/holidays/:id',
 /**
  * DELETE /api/admin/holidays/:id
  * Delete a holiday
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.delete('/api/admin/holidays/:id',
   requireAuth,
@@ -16326,7 +17961,7 @@ app.delete('/api/admin/holidays/:id',
   async (req, res, next) => {
     try {
       const { id } = req.params;
-      console.log(`ðŸŽ„ Admin ${req.user.email} deleting holiday ${id}`);
+      console.log(`Ã°Å¸Å½â€ž Admin ${req.user.email} deleting holiday ${id}`);
 
       // Check if holiday exists
       const { data: existing, error: checkError } = await supabase
@@ -16340,7 +17975,7 @@ app.delete('/api/admin/holidays/:id',
       if (!existing) {
         return res.status(404).json({
           success: false,
-          message: 'KhÃ´ng tÃ¬m tháº¥y ngÃ y lá»…'
+          message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y ngÃƒÂ y lÃ¡Â»â€¦'
         });
       }
 
@@ -16354,10 +17989,10 @@ app.delete('/api/admin/holidays/:id',
 
       res.json({
         success: true,
-        message: `ÄÃ£ xÃ³a ngÃ y lá»… "${existing.name}" thÃ nh cÃ´ng`
+        message: `Ã„ÂÃƒÂ£ xÃƒÂ³a ngÃƒÂ y lÃ¡Â»â€¦ "${existing.name}" thÃƒÂ nh cÃƒÂ´ng`
       });
     } catch (error) {
-      console.error('âŒ Error deleting holiday:', error);
+      console.error('Ã¢ÂÅ’ Error deleting holiday:', error);
       next(error);
     }
   }
@@ -16367,7 +18002,7 @@ app.delete('/api/admin/holidays/:id',
  * GET /api/holidays
  * Public endpoint to check holidays (for scheduling)
  * Query: ?date=2026-02-01 or ?from=2026-02-01&to=2026-02-28
- * ðŸ”“ Authenticated users
+ * Ã°Å¸â€â€œ Authenticated users
  */
 app.get('/api/holidays',
   requireAuth,
@@ -16394,7 +18029,7 @@ app.get('/api/holidays',
         data: data || []
       });
     } catch (error) {
-      console.error('âŒ Error fetching holidays:', error);
+      console.error('Ã¢ÂÅ’ Error fetching holidays:', error);
       next(error);
     }
   }
@@ -16404,7 +18039,7 @@ app.get('/api/holidays',
  * GET /api/holidays/check
  * Check if a specific date is a holiday
  * Query: ?date=2026-02-01
- * ðŸ”“ Authenticated users
+ * Ã°Å¸â€â€œ Authenticated users
  */
 app.get('/api/holidays/check',
   requireAuth,
@@ -16415,7 +18050,7 @@ app.get('/api/holidays/check',
       if (!date) {
         return res.status(400).json({
           success: false,
-          message: 'NgÃ y lÃ  báº¯t buá»™c'
+          message: 'NgÃƒÂ y lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
         });
       }
 
@@ -16467,7 +18102,7 @@ app.get('/api/holidays/check',
         isHoliday: false
       });
     } catch (error) {
-      console.error('âŒ Error checking holiday:', error);
+      console.error('Ã¢ÂÅ’ Error checking holiday:', error);
       next(error);
     }
   }
@@ -16482,7 +18117,7 @@ app.get('/api/holidays/check',
  * Parse uploaded bank statement file
  * Body: { fileData: base64, fileType: 'csv'|'xlsx', bankFormat: 'vcb'|'tcb'|'bidv'|'generic' }
  * Response: { success, data: { transactions: Array, count: number, bankFormat: string } }
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/payments/import/parse',
   requireAuth,
@@ -16494,7 +18129,7 @@ app.post('/api/admin/payments/import/parse',
       if (!fileData || !fileType) {
         return res.status(400).json({
           success: false,
-          message: 'File data vÃ  file type lÃ  báº¯t buá»™c'
+          message: 'File data vÃƒÂ  file type lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
         });
       }
 
@@ -16510,13 +18145,13 @@ app.post('/api/admin/payments/import/parse',
       if (!parseResult.success) {
         return res.status(400).json({
           success: false,
-          message: parseResult.message || 'KhÃ´ng thá»ƒ parse file sao kÃª'
+          message: parseResult.message || 'KhÃƒÂ´ng thÃ¡Â»Æ’ parse file sao kÃƒÂª'
         });
       }
 
       const transactions = parseResult.data || [];
 
-      console.log(`ðŸ“„ Parsed ${transactions.length} transactions from bank statement`);
+      console.log(`Ã°Å¸â€œâ€ž Parsed ${transactions.length} transactions from bank statement`);
 
       res.json({
         success: true,
@@ -16527,7 +18162,7 @@ app.post('/api/admin/payments/import/parse',
         }
       });
     } catch (error) {
-      console.error('âŒ Error parsing bank statement:', error);
+      console.error('Ã¢ÂÅ’ Error parsing bank statement:', error);
       next(error);
     }
   }
@@ -16538,7 +18173,7 @@ app.post('/api/admin/payments/import/parse',
  * Match parsed transactions with invoices
  * Body: { transactions: Array }
  * Response: { success, data: { matches: Array, summary: Object } }
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/payments/import/match',
   requireAuth,
@@ -16555,7 +18190,7 @@ app.post('/api/admin/payments/import/match',
       if (!transactions || !Array.isArray(transactions)) {
         return res.status(400).json({
           success: false,
-          message: 'Transactions array lÃ  báº¯t buá»™c'
+          message: 'Transactions array lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
         });
       }
 
@@ -16566,7 +18201,7 @@ app.post('/api/admin/payments/import/match',
       if (!result.success) {
         return res.status(400).json({
           success: false,
-          message: result.message || 'KhÃ´ng thá»ƒ khá»›p giao dá»‹ch vá»›i hÃ³a Ä‘Æ¡n'
+          message: result.message || 'KhÃƒÂ´ng thÃ¡Â»Æ’ khÃ¡Â»â€ºp giao dÃ¡Â»â€¹ch vÃ¡Â»â€ºi hÃƒÂ³a Ã„â€˜Ã†Â¡n'
         });
       }
 
@@ -16576,7 +18211,7 @@ app.post('/api/admin/payments/import/match',
         matched: matches.filter((item) => item.matchedInvoice && ['high', 'medium', 'manual'].includes(item.confidence)).length
       };
 
-      console.log(`ðŸ” Matched ${summary.matched} of ${summary.total || matches.length} transactions`);
+      console.log(`Ã°Å¸â€Â Matched ${summary.matched} of ${summary.total || matches.length} transactions`);
 
       res.json({
         success: true,
@@ -16586,7 +18221,7 @@ app.post('/api/admin/payments/import/match',
         }
       });
     } catch (error) {
-      console.error('âŒ Error matching transactions:', error);
+      console.error('Ã¢ÂÅ’ Error matching transactions:', error);
       next(error);
     }
   }
@@ -16597,7 +18232,7 @@ app.post('/api/admin/payments/import/match',
  * Apply matched payments to invoices
  * Body: { matches: Array }
  * Response: { success, data: { applied, failed, skipped, skippedLowConfidence, total, details, errors } }
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/payments/import/apply',
   requireAuth,
@@ -16614,7 +18249,7 @@ app.post('/api/admin/payments/import/apply',
       if (!matches || !Array.isArray(matches)) {
         return res.status(400).json({
           success: false,
-          message: 'Matches array lÃ  báº¯t buá»™c'
+          message: 'Matches array lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
         });
       }
 
@@ -16626,7 +18261,7 @@ app.post('/api/admin/payments/import/apply',
         .filter((item) => !item.success)
         .map((item) => item.error);
 
-      console.log(`ðŸ’³ Applied ${result.applied} payments, ${result.failed} failed, ${result.skipped} skipped`);
+      console.log(`Ã°Å¸â€™Â³ Applied ${result.applied} payments, ${result.failed} failed, ${result.skipped} skipped`);
 
       res.json({
         success: true,
@@ -16639,10 +18274,10 @@ app.post('/api/admin/payments/import/apply',
           details: result.details,
           errors
         },
-        message: `ÄÃ£ Ã¡p dá»¥ng ${result.applied} thanh toÃ¡n thÃ nh cÃ´ng`
+        message: `Ã„ÂÃƒÂ£ ÃƒÂ¡p dÃ¡Â»Â¥ng ${result.applied} thanh toÃƒÂ¡n thÃƒÂ nh cÃƒÂ´ng`
       });
     } catch (error) {
-      console.error('âŒ Error applying payments:', error);
+      console.error('Ã¢ÂÅ’ Error applying payments:', error);
       next(error);
     }
   }
@@ -16656,7 +18291,7 @@ app.post('/api/admin/payments/import/apply',
  * GET /api/admin/call-list
  * Get payment call list
  * Query: ?status=pending&priority=high&page=1&limit=20
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/call-list',
   requireAuth,
@@ -16700,7 +18335,7 @@ app.get('/api/admin/call-list',
         }
       });
     } catch (error) {
-      console.error('âŒ Error fetching call list:', error);
+      console.error('Ã¢ÂÅ’ Error fetching call list:', error);
       next(error);
     }
   }
@@ -16710,7 +18345,7 @@ app.get('/api/admin/call-list',
  * POST /api/admin/call-list
  * Add invoice to call list
  * Body: { invoiceId, priority, notes }
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/call-list',
   requireAuth,
@@ -16722,7 +18357,7 @@ app.post('/api/admin/call-list',
       if (!invoiceId) {
         return res.status(400).json({
           success: false,
-          message: 'Invoice ID lÃ  báº¯t buá»™c'
+          message: 'Invoice ID lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
         });
       }
 
@@ -16736,7 +18371,7 @@ app.post('/api/admin/call-list',
       if (invoiceError || !invoice) {
         return res.status(404).json({
           success: false,
-          message: 'KhÃ´ng tÃ¬m tháº¥y hÃ³a Ä‘Æ¡n'
+          message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y hÃƒÂ³a Ã„â€˜Ã†Â¡n'
         });
       }
 
@@ -16759,15 +18394,15 @@ app.post('/api/admin/call-list',
 
       if (error) throw error;
 
-      console.log(`ðŸ“ž Added invoice ${invoiceId} to call list`);
+      console.log(`Ã°Å¸â€œÅ¾ Added invoice ${invoiceId} to call list`);
 
       res.json({
         success: true,
         data,
-        message: 'ÄÃ£ thÃªm vÃ o danh sÃ¡ch gá»i Ä‘iá»‡n'
+        message: 'Ã„ÂÃƒÂ£ thÃƒÂªm vÃƒÂ o danh sÃƒÂ¡ch gÃ¡Â»Âi Ã„â€˜iÃ¡Â»â€¡n'
       });
     } catch (error) {
-      console.error('âŒ Error adding to call list:', error);
+      console.error('Ã¢ÂÅ’ Error adding to call list:', error);
       next(error);
     }
   }
@@ -16777,7 +18412,7 @@ app.post('/api/admin/call-list',
  * PATCH /api/admin/call-list/:id
  * Update call list item
  * Body: { status, priority, callNotes, nextCallDate, assignedTo }
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.patch('/api/admin/call-list/:id',
   requireAuth,
@@ -16797,7 +18432,7 @@ app.patch('/api/admin/call-list/:id',
       if (fetchError || !existing) {
         return res.status(404).json({
           success: false,
-          message: 'KhÃ´ng tÃ¬m tháº¥y má»¥c trong danh sÃ¡ch gá»i'
+          message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y mÃ¡Â»Â¥c trong danh sÃƒÂ¡ch gÃ¡Â»Âi'
         });
       }
 
@@ -16806,7 +18441,7 @@ app.patch('/api/admin/call-list/:id',
       if (status) {
         updates.status = status;
 
-        // Handle call_count increment â€” single atomic operation, no double-increment
+        // Handle call_count increment Ã¢â‚¬â€ single atomic operation, no double-increment
         if (status === 'called') {
           updates.call_count = (existing.call_count || 0) + 1;
           updates.last_call_at = new Date().toISOString();
@@ -16831,15 +18466,15 @@ app.patch('/api/admin/call-list/:id',
 
       if (error) throw error;
 
-      console.log(`ðŸ“ž Updated call list item ${id}: status=${status}`);
+      console.log(`Ã°Å¸â€œÅ¾ Updated call list item ${id}: status=${status}`);
 
       res.json({
         success: true,
         data,
-        message: 'ÄÃ£ cáº­p nháº­t'
+        message: 'Ã„ÂÃƒÂ£ cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t'
       });
     } catch (error) {
-      console.error('âŒ Error updating call list:', error);
+      console.error('Ã¢ÂÅ’ Error updating call list:', error);
       next(error);
     }
   }
@@ -16848,7 +18483,7 @@ app.patch('/api/admin/call-list/:id',
 /**
  * DELETE /api/admin/call-list/:id
  * Remove from call list
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.delete('/api/admin/call-list/:id',
   requireAuth,
@@ -16864,14 +18499,14 @@ app.delete('/api/admin/call-list/:id',
 
       if (error) throw error;
 
-      console.log(`ðŸ—‘ï¸ Removed call list item ${id}`);
+      console.log(`Ã°Å¸â€”â€˜Ã¯Â¸Â Removed call list item ${id}`);
 
       res.json({
         success: true,
-        message: 'ÄÃ£ xÃ³a khá»i danh sÃ¡ch'
+        message: 'Ã„ÂÃƒÂ£ xÃƒÂ³a khÃ¡Â»Âi danh sÃƒÂ¡ch'
       });
     } catch (error) {
-      console.error('âŒ Error removing from call list:', error);
+      console.error('Ã¢ÂÅ’ Error removing from call list:', error);
       next(error);
     }
   }
@@ -16882,11 +18517,11 @@ app.delete('/api/admin/call-list/:id',
 // ============================================================
 
 // ============================================================
-// HOLIDAYS APIs - Quáº£n lÃ½ ngÃ y lá»…/nghá»‰
+// HOLIDAYS APIs - QuÃ¡ÂºÂ£n lÃƒÂ½ ngÃƒÂ y lÃ¡Â»â€¦/nghÃ¡Â»â€°
 // ============================================================
 
 /**
- * GET /api/admin/holidays - Láº¥y danh sÃ¡ch ngÃ y lá»…
+ * GET /api/admin/holidays - LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch ngÃƒÂ y lÃ¡Â»â€¦
  */
 app.get('/api/admin/holidays', requireAuth, async (req, res, next) => {
   try {
@@ -16918,7 +18553,7 @@ app.get('/api/admin/holidays', requireAuth, async (req, res, next) => {
 });
 
 /**
- * POST /api/admin/holidays - ThÃªm ngÃ y lá»… má»›i
+ * POST /api/admin/holidays - ThÃƒÂªm ngÃƒÂ y lÃ¡Â»â€¦ mÃ¡Â»â€ºi
  */
 app.post('/api/admin/holidays', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -16927,7 +18562,7 @@ app.post('/api/admin/holidays', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
     if (!name || !date) {
       return res.status(400).json({
         success: false,
-        message: 'TÃªn vÃ  ngÃ y lÃ  báº¯t buá»™c'
+        message: 'TÃƒÂªn vÃƒÂ  ngÃƒÂ y lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
       });
     }
 
@@ -16947,7 +18582,7 @@ app.post('/api/admin/holidays', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
 
     res.status(201).json({
       success: true,
-      message: 'ThÃªm ngÃ y lá»… thÃ nh cÃ´ng',
+      message: 'ThÃƒÂªm ngÃƒÂ y lÃ¡Â»â€¦ thÃƒÂ nh cÃƒÂ´ng',
       data
     });
   } catch (error) {
@@ -16957,7 +18592,7 @@ app.post('/api/admin/holidays', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
 });
 
 /**
- * PUT /api/admin/holidays/:id - Cáº­p nháº­t ngÃ y lá»…
+ * PUT /api/admin/holidays/:id - CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t ngÃƒÂ y lÃ¡Â»â€¦
  */
 app.put('/api/admin/holidays/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -16981,7 +18616,7 @@ app.put('/api/admin/holidays/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
 
     res.json({
       success: true,
-      message: 'Cáº­p nháº­t ngÃ y lá»… thÃ nh cÃ´ng',
+      message: 'CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t ngÃƒÂ y lÃ¡Â»â€¦ thÃƒÂ nh cÃƒÂ´ng',
       data
     });
   } catch (error) {
@@ -16991,7 +18626,7 @@ app.put('/api/admin/holidays/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
 });
 
 /**
- * DELETE /api/admin/holidays/:id - XÃ³a ngÃ y lá»…
+ * DELETE /api/admin/holidays/:id - XÃƒÂ³a ngÃƒÂ y lÃ¡Â»â€¦
  */
 app.delete('/api/admin/holidays/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -17006,7 +18641,7 @@ app.delete('/api/admin/holidays/:id', requireAuth, requireRole(['SUPER_ADMIN', '
 
     res.json({
       success: true,
-      message: 'XÃ³a ngÃ y lá»… thÃ nh cÃ´ng'
+      message: 'XÃƒÂ³a ngÃƒÂ y lÃ¡Â»â€¦ thÃƒÂ nh cÃƒÂ´ng'
     });
   } catch (error) {
     console.error('Error deleting holiday:', error);
@@ -17015,11 +18650,98 @@ app.delete('/api/admin/holidays/:id', requireAuth, requireRole(['SUPER_ADMIN', '
 });
 
 // ============================================================
-// TEACHER AVAILABILITY APIs - Quáº£n lÃ½ lá»‹ch trá»‘ng cá»§a GV
+// TEACHER AVAILABILITY APIs - QuÃ¡ÂºÂ£n lÃƒÂ½ lÃ¡Â»â€¹ch trÃ¡Â»â€˜ng cÃ¡Â»Â§a GV
 // ============================================================
 
+const notifyAdminsTeacherAvailabilityUpdated = async ({ centerId, teacherId, teacherName }) => {
+  if (!centerId || !teacherId) return;
+
+  const adminSupabase = supabaseAdmin || supabase;
+
+  const { data: adminRoles, error: roleError } = await adminSupabase
+    .from('roles')
+    .select('id, code')
+    .in('code', ['SUPER_ADMIN', 'CENTER_MANAGER']);
+
+  if (roleError || !adminRoles?.length) {
+    if (roleError) {
+      console.warn('Availability notify: cannot resolve admin roles:', roleError.message);
+    }
+    return;
+  }
+
+  const superAdminRoleId = adminRoles.find((role) => role.code === 'SUPER_ADMIN')?.id;
+  const adminRoleIds = adminRoles.map((role) => role.id);
+
+  const { data: adminUsers, error: adminUsersError } = await adminSupabase
+    .from('users')
+    .select('id, center_id, role_id')
+    .in('role_id', adminRoleIds);
+
+  if (adminUsersError || !adminUsers?.length) {
+    if (adminUsersError) {
+      console.warn('Availability notify: cannot resolve admin users:', adminUsersError.message);
+    }
+    return;
+  }
+
+  const recipients = adminUsers.filter((user) => (
+    user.center_id === centerId || user.role_id === superAdminRoleId
+  ));
+
+  if (!recipients.length) return;
+
+  await Promise.all(recipients.map((recipient) => (
+    createNotification(adminSupabase, {
+      userId: recipient.id,
+      centerId,
+      type: 'schedule',
+      title: 'GiÃ¡o viÃªn cáº­p nháº­t lá»‹ch trá»‘ng',
+      message: `${teacherName || 'Má»™t giÃ¡o viÃªn'} vá»«a cáº­p nháº­t lá»‹ch trá»‘ng. Vui lÃ²ng kiá»ƒm tra á»Ÿ Quáº£n lÃ½ lá»‹ch dáº¡y > Lá»‹ch GV.`,
+      referenceId: teacherId,
+      referenceType: 'teacher_availability'
+    }).catch((notifyError) => {
+      console.warn('Availability notify insert error:', notifyError?.message || notifyError);
+    })
+  )));
+};
+
+const buildTeacherAvailabilitySlot = (slot, teacherId, includeOptionalFields = true) => {
+  const baseSlot = {
+    teacher_id: teacherId,
+    day_of_week: slot.day_of_week,
+    start_time: slot.start_time,
+    end_time: slot.end_time,
+    type: slot.type === 'preferred' ? 'preferred' : 'available'
+  };
+
+  if (!includeOptionalFields) {
+    return baseSlot;
+  }
+
+  const optionalColumns = ['reason', 'start_date', 'end_date'];
+  optionalColumns.forEach((column) => {
+    if (Object.prototype.hasOwnProperty.call(slot, column)) {
+      baseSlot[column] = slot[column];
+    }
+  });
+
+  return baseSlot;
+};
+
+const isTeacherAvailabilityOptionalColumnError = (error) => {
+  const message = `${error?.message || ''} ${error?.details || ''}`.toLowerCase();
+  if (!message.includes('teacher_availability') || !message.includes('schema cache')) {
+    return false;
+  }
+
+  return ['reason', 'start_date', 'end_date'].some((column) => (
+    message.includes(`'${column}'`) || message.includes(`"${column}"`)
+  ));
+};
+
 /**
- * GET /api/admin/teacher-availability/:teacherId - Láº¥y lá»‹ch trá»‘ng cá»§a GV
+ * GET /api/admin/teacher-availability/:teacherId - LÃ¡ÂºÂ¥y lÃ¡Â»â€¹ch trÃ¡Â»â€˜ng cÃ¡Â»Â§a GV
  */
 app.get('/api/admin/teacher-availability/:teacherId', requireAuth, async (req, res, next) => {
   try {
@@ -17044,36 +18766,41 @@ app.get('/api/admin/teacher-availability/:teacherId', requireAuth, async (req, r
 });
 
 /**
- * PUT /api/admin/teacher-availability/:teacherId - Cáº­p nháº­t lá»‹ch trá»‘ng cá»§a GV
+ * PUT /api/admin/teacher-availability/:teacherId - CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t lÃ¡Â»â€¹ch trÃ¡Â»â€˜ng cÃ¡Â»Â§a GV
  */
 app.put('/api/admin/teacher-availability/:teacherId', requireAuth, async (req, res, next) => {
   try {
     const { teacherId } = req.params;
     const { slots } = req.body; // Array of { day_of_week, start_time, end_time }
 
-    // XÃ³a slots cÅ©
+    // XÃƒÂ³a slots cÃ…Â©
     await supabase
       .from('teacher_availability')
       .delete()
       .eq('teacher_id', teacherId);
 
-    // ThÃªm slots má»›i
-    if (slots && slots.length > 0) {
-      const slotsWithTeacher = slots.map(slot => ({
-        ...slot,
-        teacher_id: teacherId
-      }));
+    // ThÃƒÂªm slots mÃ¡Â»â€ºi
+    if (Array.isArray(slots) && slots.length > 0) {
+      const slotsWithOptionalFields = slots.map((slot) => buildTeacherAvailabilitySlot(slot, teacherId, true));
 
-      const { error: insertError } = await supabase
+      let { error: insertError } = await supabase
         .from('teacher_availability')
-        .insert(slotsWithTeacher);
+        .insert(slotsWithOptionalFields);
+
+      if (insertError && isTeacherAvailabilityOptionalColumnError(insertError)) {
+        const fallbackSlots = slots.map((slot) => buildTeacherAvailabilitySlot(slot, teacherId, false));
+        const { error: retryError } = await supabase
+          .from('teacher_availability')
+          .insert(fallbackSlots);
+        insertError = retryError;
+      }
 
       if (insertError) throw insertError;
     }
 
     res.json({
       success: true,
-      message: 'Cáº­p nháº­t lá»‹ch trá»‘ng thÃ nh cÃ´ng'
+      message: 'CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t lÃ¡Â»â€¹ch trÃ¡Â»â€˜ng thÃƒÂ nh cÃƒÂ´ng'
     });
   } catch (error) {
     console.error('Error updating teacher availability:', error);
@@ -17082,11 +18809,11 @@ app.put('/api/admin/teacher-availability/:teacherId', requireAuth, async (req, r
 });
 
 // ============================================================
-// MAKEUP SESSIONS APIs - Táº¡o buá»•i há»c bÃ¹
+// MAKEUP SESSIONS APIs - TÃ¡ÂºÂ¡o buÃ¡Â»â€¢i hÃ¡Â»Âc bÃƒÂ¹
 // ============================================================
 
 /**
- * POST /api/admin/sessions/makeup - Táº¡o buá»•i há»c bÃ¹
+ * POST /api/admin/sessions/makeup - TÃ¡ÂºÂ¡o buÃ¡Â»â€¢i hÃ¡Â»Âc bÃƒÂ¹
  */
 app.post('/api/admin/sessions/makeup', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
@@ -17105,16 +18832,16 @@ app.post('/api/admin/sessions/makeup', requireAuth, requireRole(['SUPER_ADMIN', 
     if (!class_id || !date || !start_time || !end_time) {
       return res.status(400).json({
         success: false,
-        message: 'Thiáº¿u thÃ´ng tin báº¯t buá»™c'
+        message: 'ThiÃ¡ÂºÂ¿u thÃƒÂ´ng tin bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
       });
     }
 
-    // Táº¡o session bÃ¹
+    // TÃ¡ÂºÂ¡o session bÃƒÂ¹
     const { data: sessionData, error: sessionError } = await supabase
       .from('sessions')
       .insert({
         class_id,
-        session_number: 0, // Buá»•i bÃ¹ Ä‘Ã¡nh sá»‘ 0
+        session_number: 0, // BuÃ¡Â»â€¢i bÃƒÂ¹ Ã„â€˜ÃƒÂ¡nh sÃ¡Â»â€˜ 0
         session_date: date,
         start_time,
         end_time,
@@ -17130,7 +18857,7 @@ app.post('/api/admin/sessions/makeup', requireAuth, requireRole(['SUPER_ADMIN', 
 
     if (sessionError) throw sessionError;
 
-    // Náº¿u cÃ³ danh sÃ¡ch há»c viÃªn cáº§n há»c bÃ¹, lÆ°u vÃ o báº£ng makeup_students
+    // NÃ¡ÂºÂ¿u cÃƒÂ³ danh sÃƒÂ¡ch hÃ¡Â»Âc viÃƒÂªn cÃ¡ÂºÂ§n hÃ¡Â»Âc bÃƒÂ¹, lÃ†Â°u vÃƒÂ o bÃ¡ÂºÂ£ng makeup_students
     if (student_ids && student_ids.length > 0) {
       const makeupRecords = student_ids.map(userId => ({
         session_id: sessionData.id,
@@ -17149,7 +18876,7 @@ app.post('/api/admin/sessions/makeup', requireAuth, requireRole(['SUPER_ADMIN', 
 
     res.status(201).json({
       success: true,
-      message: 'Táº¡o buá»•i há»c bÃ¹ thÃ nh cÃ´ng',
+      message: 'TÃ¡ÂºÂ¡o buÃ¡Â»â€¢i hÃ¡Â»Âc bÃƒÂ¹ thÃƒÂ nh cÃƒÂ´ng',
       data: sessionData
     });
   } catch (error) {
@@ -17159,11 +18886,11 @@ app.post('/api/admin/sessions/makeup', requireAuth, requireRole(['SUPER_ADMIN', 
 });
 
 // ============================================================
-// SCHEDULE EXCEPTIONS APIs - Quáº£n lÃ½ ngoáº¡i lá»‡ lá»‹ch há»c
+// SCHEDULE EXCEPTIONS APIs - QuÃ¡ÂºÂ£n lÃƒÂ½ ngoÃ¡ÂºÂ¡i lÃ¡Â»â€¡ lÃ¡Â»â€¹ch hÃ¡Â»Âc
 // ============================================================
 
 /**
- * POST /api/admin/sessions/:id/exception - Táº¡o ngoáº¡i lá»‡ cho buá»•i há»c
+ * POST /api/admin/sessions/:id/exception - TÃ¡ÂºÂ¡o ngoÃ¡ÂºÂ¡i lÃ¡Â»â€¡ cho buÃ¡Â»â€¢i hÃ¡Â»Âc
  */
 app.post('/api/admin/sessions/:id/exception', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -17172,26 +18899,26 @@ app.post('/api/admin/sessions/:id/exception', requireAuth, requireRole(['SUPER_A
 
     // type: 'skip' | 'reschedule'
     if (type === 'skip') {
-      // Há»§y buá»•i há»c
+      // HÃ¡Â»Â§y buÃ¡Â»â€¢i hÃ¡Â»Âc
       const { error } = await supabase
         .from('sessions')
         .update({
           status: 'cancelled',
-          notes: `Bá» qua: ${reason}`,
+          notes: `BÃ¡Â»Â qua: ${reason}`,
           updated_at: new Date().toISOString()
         })
         .eq('id', id);
 
       if (error) throw error;
     } else if (type === 'reschedule') {
-      // Dá»i lá»‹ch há»c
+      // DÃ¡Â»Âi lÃ¡Â»â€¹ch hÃ¡Â»Âc
       const { error } = await supabase
         .from('sessions')
         .update({
           session_date: new_date,
           start_time: new_start_time,
           end_time: new_end_time,
-          notes: `Dá»i lá»‹ch: ${reason}`,
+          notes: `DÃ¡Â»Âi lÃ¡Â»â€¹ch: ${reason}`,
           updated_at: new Date().toISOString()
         })
         .eq('id', id);
@@ -17201,7 +18928,7 @@ app.post('/api/admin/sessions/:id/exception', requireAuth, requireRole(['SUPER_A
 
     res.json({
       success: true,
-      message: type === 'skip' ? 'ÄÃ£ bá» qua buá»•i há»c' : 'ÄÃ£ dá»i lá»‹ch thÃ nh cÃ´ng'
+      message: type === 'skip' ? 'Ã„ÂÃƒÂ£ bÃ¡Â»Â qua buÃ¡Â»â€¢i hÃ¡Â»Âc' : 'Ã„ÂÃƒÂ£ dÃ¡Â»Âi lÃ¡Â»â€¹ch thÃƒÂ nh cÃƒÂ´ng'
     });
   } catch (error) {
     console.error('Error creating schedule exception:', error);
@@ -17216,7 +18943,7 @@ app.post('/api/admin/sessions/:id/exception', requireAuth, requireRole(['SUPER_A
 // NOTE: Duplicate payroll routes removed (were shadowed by earlier definitions at L13813-16000)
 
 /**
- * GET /api/teacher/sessions/:id/attendance - Láº¥y danh sÃ¡ch Ä‘iá»ƒm danh cho má»™t buá»•i há»c
+ * GET /api/teacher/sessions/:id/attendance - LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch Ã„â€˜iÃ¡Â»Æ’m danh cho mÃ¡Â»â„¢t buÃ¡Â»â€¢i hÃ¡Â»Âc
  */
 app.get('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, next) => {
   try {
@@ -17231,7 +18958,7 @@ app.get('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, ne
       .single();
 
     if (sessionError || !session || session.teacher_id !== teacherId) {
-      return res.status(403).json({ success: false, message: 'Không có quyền truy cập buổi học này' });
+      return res.status(403).json({ success: false, message: 'KhÃ´ng cÃ³ quyá»n truy cáº­p buá»•i há»c nÃ y' });
     }
 
     // Get attendance records - join through enrollments to get student info
@@ -17261,7 +18988,7 @@ app.get('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, ne
       status: a.status,
       check_in_time: a.check_in_time,
       notes: a.notes,
-      student_name: a.enrollment?.student?.full_name || 'Học viên',
+      student_name: a.enrollment?.student?.full_name || 'Há»c viÃªn',
       student_email: a.enrollment?.student?.email || '',
       student_avatar: a.enrollment?.student?.avatar_url || null,
       student: a.enrollment?.student || null
@@ -17278,11 +19005,11 @@ app.get('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, ne
 });
 
 // ============================================================
-// TEACHER DASHBOARD APIs - Dashboard cho giÃ¡o viÃªn
+// TEACHER DASHBOARD APIs - Dashboard cho giÃƒÂ¡o viÃƒÂªn
 // ============================================================
 
 /**
- * GET /api/teacher/dashboard/overview - Tá»•ng quan dashboard giÃ¡o viÃªn
+ * GET /api/teacher/dashboard/overview - TÃ¡Â»â€¢ng quan dashboard giÃƒÂ¡o viÃƒÂªn
  * Returns: stats (today sessions, monthly hours, income, pending attendance)
  */
 app.get('/api/teacher/dashboard/overview', requireAuth, async (req, res, next) => {
@@ -17388,7 +19115,7 @@ app.get('/api/teacher/dashboard/overview', requireAuth, async (req, res, next) =
 });
 
 /**
- * GET /api/teacher/dashboard/today-sessions - Lá»‹ch dáº¡y hÃ´m nay cá»§a giÃ¡o viÃªn
+ * GET /api/teacher/dashboard/today-sessions - LÃ¡Â»â€¹ch dÃ¡ÂºÂ¡y hÃƒÂ´m nay cÃ¡Â»Â§a giÃƒÂ¡o viÃƒÂªn
  */
 app.get('/api/teacher/dashboard/today-sessions', requireAuth, async (req, res, next) => {
   try {
@@ -17451,7 +19178,7 @@ app.get('/api/teacher/dashboard/today-sessions', requireAuth, async (req, res, n
         ...session,
         studentCount: studentCounts[session.classes?.id] || 0,
         attendanceMarked: (attendanceCount || 0) > 0,
-        roomName: session.classes?.rooms?.name || 'ChÆ°a xáº¿p phÃ²ng'
+        roomName: session.classes?.rooms?.name || 'ChÃ†Â°a xÃ¡ÂºÂ¿p phÃƒÂ²ng'
       };
     }));
 
@@ -17467,7 +19194,7 @@ app.get('/api/teacher/dashboard/today-sessions', requireAuth, async (req, res, n
 });
 
 /**
- * GET /api/teacher/dashboard/upcoming-sessions - Buá»•i há»c sáº¯p tá»›i (7 ngÃ y)
+ * GET /api/teacher/dashboard/upcoming-sessions - BuÃ¡Â»â€¢i hÃ¡Â»Âc sÃ¡ÂºÂ¯p tÃ¡Â»â€ºi (7 ngÃƒÂ y)
  */
 app.get('/api/teacher/dashboard/upcoming-sessions', requireAuth, async (req, res, next) => {
   try {
@@ -17518,7 +19245,7 @@ app.get('/api/teacher/dashboard/upcoming-sessions', requireAuth, async (req, res
 });
 
 /**
- * GET /api/teacher/dashboard/classes-summary - Tá»•ng quan cÃ¡c lá»›p Ä‘ang dáº¡y
+ * GET /api/teacher/dashboard/classes-summary - TÃ¡Â»â€¢ng quan cÃƒÂ¡c lÃ¡Â»â€ºp Ã„â€˜ang dÃ¡ÂºÂ¡y
  */
 app.get('/api/teacher/dashboard/classes-summary', requireAuth, async (req, res, next) => {
   try {
@@ -17584,7 +19311,7 @@ app.get('/api/teacher/dashboard/classes-summary', requireAuth, async (req, res, 
 });
 
 /**
- * GET /api/teacher/dashboard/attendance-stats - Thá»‘ng kÃª Ä‘iá»ƒm danh cá»§a GV
+ * GET /api/teacher/dashboard/attendance-stats - ThÃ¡Â»â€˜ng kÃƒÂª Ã„â€˜iÃ¡Â»Æ’m danh cÃ¡Â»Â§a GV
  */
 app.get('/api/teacher/dashboard/attendance-stats', requireAuth, async (req, res, next) => {
   try {
@@ -17710,7 +19437,7 @@ app.get('/api/teacher/dashboard/attendance-stats', requireAuth, async (req, res,
 });
 
 /**
- * GET /api/teacher/availability - GiÃ¡o viÃªn xem lá»‹ch ráº£nh/báº­n cá»§a mÃ¬nh
+ * GET /api/teacher/availability - GiÃƒÂ¡o viÃƒÂªn xem lÃ¡Â»â€¹ch rÃ¡ÂºÂ£nh/bÃ¡ÂºÂ­n cÃ¡Â»Â§a mÃƒÂ¬nh
  */
 app.get('/api/teacher/availability', requireAuth, async (req, res, next) => {
   try {
@@ -17735,34 +19462,41 @@ app.get('/api/teacher/availability', requireAuth, async (req, res, next) => {
 });
 
 /**
- * PUT /api/teacher/availability - GiÃ¡o viÃªn cáº­p nháº­t lá»‹ch ráº£nh/báº­n cá»§a mÃ¬nh
+ * PUT /api/teacher/availability - GiÃƒÂ¡o viÃƒÂªn cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t lÃ¡Â»â€¹ch rÃ¡ÂºÂ£nh/bÃ¡ÂºÂ­n cÃ¡Â»Â§a mÃƒÂ¬nh
  */
 app.put('/api/teacher/availability', requireAuth, async (req, res, next) => {
   try {
     const teacherId = req.user.id;
+    const teacherCenterId = req.user.centerId || req.user.center_id || null;
+    const teacherName = req.user.full_name || req.user.email || 'GiÃ¡o viÃªn';
     const { slots } = req.body; // Array of { day_of_week, start_time, end_time, type, reason }
 
-    // XÃ³a slots cÅ©
+    // XÃƒÂ³a slots cÃ…Â©
     await supabase
       .from('teacher_availability')
       .delete()
       .eq('teacher_id', teacherId);
 
-    // ThÃªm slots má»›i
-    if (slots && slots.length > 0) {
-      const slotsWithTeacher = slots.map(slot => ({
-        ...slot,
-        teacher_id: teacherId
-      }));
+    // ThÃƒÂªm slots mÃ¡Â»â€ºi
+    if (Array.isArray(slots) && slots.length > 0) {
+      const slotsWithOptionalFields = slots.map((slot) => buildTeacherAvailabilitySlot(slot, teacherId, true));
 
-      const { error: insertError } = await supabase
+      let { error: insertError } = await supabase
         .from('teacher_availability')
-        .insert(slotsWithTeacher);
+        .insert(slotsWithOptionalFields);
+
+      if (insertError && isTeacherAvailabilityOptionalColumnError(insertError)) {
+        const fallbackSlots = slots.map((slot) => buildTeacherAvailabilitySlot(slot, teacherId, false));
+        const { error: retryError } = await supabase
+          .from('teacher_availability')
+          .insert(fallbackSlots);
+        insertError = retryError;
+      }
 
       if (insertError) throw insertError;
     }
 
-    // Fetch vÃ  return updated data
+    // Fetch vÃƒÂ  return updated data
     const { data: updatedSlots } = await supabase
       .from('teacher_availability')
       .select('*')
@@ -17771,9 +19505,23 @@ app.put('/api/teacher/availability', requireAuth, async (req, res, next) => {
 
     res.json({
       success: true,
-      message: 'Cáº­p nháº­t lá»‹ch ráº£nh/báº­n thÃ nh cÃ´ng',
+      message: 'CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t lÃ¡Â»â€¹ch rÃ¡ÂºÂ£nh/bÃ¡ÂºÂ­n thÃƒÂ nh cÃƒÂ´ng',
       data: updatedSlots || []
     });
+
+    try {
+      (async () => {
+        await notifyAdminsTeacherAvailabilityUpdated({
+          centerId: teacherCenterId,
+          teacherId,
+          teacherName
+        });
+      })().catch((notifyTaskError) => {
+        console.warn('Availability notify task error:', notifyTaskError?.message || notifyTaskError);
+      });
+    } catch (notifyError) {
+      console.warn('Availability notify enqueue error:', notifyError?.message || notifyError);
+    }
   } catch (error) {
     console.error('Error updating teacher availability:', error);
     next(error);
@@ -17781,7 +19529,7 @@ app.put('/api/teacher/availability', requireAuth, async (req, res, next) => {
 });
 
 /**
- * GET /api/teacher/classes - Danh sÃ¡ch lá»›p cá»§a giÃ¡o viÃªn
+ * GET /api/teacher/classes - Danh sÃƒÂ¡ch lÃ¡Â»â€ºp cÃ¡Â»Â§a giÃƒÂ¡o viÃƒÂªn
  */
 app.get('/api/teacher/classes', requireAuth, async (req, res, next) => {
   try {
@@ -18031,7 +19779,7 @@ app.get('/api/teacher/classes', requireAuth, async (req, res, next) => {
 });
 
 /**
- * GET /api/teacher/classes/:id - Chi tiáº¿t má»™t lá»›p (vá»›i students, sessions)
+ * GET /api/teacher/classes/:id - Chi tiÃ¡ÂºÂ¿t mÃ¡Â»â„¢t lÃ¡Â»â€ºp (vÃ¡Â»â€ºi students, sessions)
  */
 app.get('/api/teacher/classes/:id', requireAuth, async (req, res, next) => {
   try {
@@ -18052,7 +19800,7 @@ app.get('/api/teacher/classes/:id', requireAuth, async (req, res, next) => {
       .single();
 
     if (classError || !classData) {
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c hoáº·c báº¡n khÃ´ng cÃ³ quyá»n' });
+      return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y lÃ¡Â»â€ºp hÃ¡Â»Âc hoÃ¡ÂºÂ·c bÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân' });
     }
 
     // Get enrolled students (include enrollment_id for attendance lookup)
@@ -18132,7 +19880,7 @@ app.get('/api/teacher/classes/:id', requireAuth, async (req, res, next) => {
 });
 
 /**
- * GET /api/teacher/classes/:id/students - Danh sÃ¡ch há»c viÃªn trong lá»›p
+ * GET /api/teacher/classes/:id/students - Danh sÃƒÂ¡ch hÃ¡Â»Âc viÃƒÂªn trong lÃ¡Â»â€ºp
  */
 app.get('/api/teacher/classes/:id/students', requireAuth, async (req, res, next) => {
   try {
@@ -18147,7 +19895,7 @@ app.get('/api/teacher/classes/:id/students', requireAuth, async (req, res, next)
       .single();
 
     if (classError || !classData || classData.teacher_id !== teacherId) {
-      return res.status(403).json({ success: false, message: 'KhÃ´ng cÃ³ quyá»n truy cáº­p lá»›p nÃ y' });
+      return res.status(403).json({ success: false, message: 'KhÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân truy cÃ¡ÂºÂ­p lÃ¡Â»â€ºp nÃƒÂ y' });
     }
 
     const { data: enrollments, error } = await supabase
@@ -18185,7 +19933,7 @@ app.get('/api/teacher/classes/:id/students', requireAuth, async (req, res, next)
 });
 
 /**
- * GET /api/teacher/sessions/:id/attendance - Láº¥y Ä‘iá»ƒm danh cá»§a má»™t session
+ * GET /api/teacher/sessions/:id/attendance - LÃ¡ÂºÂ¥y Ã„â€˜iÃ¡Â»Æ’m danh cÃ¡Â»Â§a mÃ¡Â»â„¢t session
  */
 app.get('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, next) => {
   try {
@@ -18200,7 +19948,7 @@ app.get('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, ne
       .single();
 
     if (sessionError || !session || session.teacher_id !== teacherId) {
-      return res.status(403).json({ success: false, message: 'KhÃ´ng cÃ³ quyá»n truy cáº­p buá»•i há»c nÃ y' });
+      return res.status(403).json({ success: false, message: 'KhÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân truy cÃ¡ÂºÂ­p buÃ¡Â»â€¢i hÃ¡Â»Âc nÃƒÂ y' });
     }
 
     // Get attendance records
@@ -18229,7 +19977,7 @@ app.get('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, ne
 });
 
 /**
- * POST /api/teacher/sessions/:id/attendance - GiÃ¡o viÃªn Ä‘iá»ƒm danh
+ * POST /api/teacher/sessions/:id/attendance - GiÃƒÂ¡o viÃƒÂªn Ã„â€˜iÃ¡Â»Æ’m danh
  */
 app.post('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, next) => {
   try {
@@ -18245,17 +19993,17 @@ app.post('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, n
       .single();
 
     if (sessionError || !session) {
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y buá»•i há»c' });
+      return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y buÃ¡Â»â€¢i hÃ¡Â»Âc' });
     }
 
     if (session.teacher_id !== teacherId) {
-      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n Ä‘iá»ƒm danh buá»•i há»c nÃ y' });
+      return res.status(403).json({ success: false, message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân Ã„â€˜iÃ¡Â»Æ’m danh buÃ¡Â»â€¢i hÃ¡Â»Âc nÃƒÂ y' });
     }
 
-    // ðŸ• Check 24-hour edit window
+    // Ã°Å¸â€¢Â Check 24-hour edit window
     const editWindow = isWithinEditWindow(session.session_date, session.end_time);
     if (!editWindow.canEdit) {
-      console.log(`â° Teacher ${req.user.email} bá»‹ cháº·n Ä‘iá»ƒm danh session ${sessionId}: ${editWindow.message}`);
+      console.log(`Ã¢ÂÂ° Teacher ${req.user.email} bÃ¡Â»â€¹ chÃ¡ÂºÂ·n Ã„â€˜iÃ¡Â»Æ’m danh session ${sessionId}: ${editWindow.message}`);
       return res.status(403).json({
         success: false,
         message: editWindow.message,
@@ -18267,10 +20015,10 @@ app.post('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, n
     }
 
     if (session.is_locked) {
-      return res.status(400).json({ success: false, message: 'Buá»•i há»c Ä‘Ã£ khÃ³a sá»•, khÃ´ng thá»ƒ Ä‘iá»ƒm danh' });
+      return res.status(400).json({ success: false, message: 'BuÃ¡Â»â€¢i hÃ¡Â»Âc Ã„â€˜ÃƒÂ£ khÃƒÂ³a sÃ¡Â»â€¢, khÃƒÂ´ng thÃ¡Â»Æ’ Ã„â€˜iÃ¡Â»Æ’m danh' });
     }
 
-    console.log(`ðŸ“‹ Teacher ${req.user.email} Ä‘iá»ƒm danh ${attendances.length} há»c viÃªn cho session ${sessionId} (cÃ²n ${editWindow.hoursRemaining}h Ä‘á»ƒ chá»‰nh sá»­a)`);
+    console.log(`Ã°Å¸â€œâ€¹ Teacher ${req.user.email} Ã„â€˜iÃ¡Â»Æ’m danh ${attendances.length} hÃ¡Â»Âc viÃƒÂªn cho session ${sessionId} (cÃƒÂ²n ${editWindow.hoursRemaining}h Ã„â€˜Ã¡Â»Æ’ chÃ¡Â»â€°nh sÃ¡Â»Â­a)`);
 
     // Upsert attendance records
     const results = [];
@@ -18303,7 +20051,7 @@ app.post('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, n
 
     res.json({
       success: true,
-      message: `ÄÃ£ Ä‘iá»ƒm danh ${results.length} há»c viÃªn`,
+      message: `Ã„ÂÃƒÂ£ Ã„â€˜iÃ¡Â»Æ’m danh ${results.length} hÃ¡Â»Âc viÃƒÂªn`,
       data: results
     });
 
@@ -18311,7 +20059,7 @@ app.post('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, n
     try {
       (async () => {
         const absentStudentIds = (attendances || [])
-          .filter(att => ['absent', 'váº¯ng'].includes((att?.status || '').toLowerCase()))
+          .filter(att => ['absent', 'vÃ¡ÂºÂ¯ng'].includes((att?.status || '').toLowerCase()))
           .map(att => att.student_id)
           .filter(Boolean);
 
@@ -18334,8 +20082,8 @@ app.post('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, n
             userId: link.parent_id,
             centerId: classInfo?.center_id,
             type: 'attendance',
-            title: 'ThÃ´ng bÃ¡o Ä‘iá»ƒm danh',
-            message: 'Há»c viÃªn cá»§a báº¡n váº¯ng máº·t trong buá»•i há»c gáº§n nháº¥t',
+            title: 'ThÃƒÂ´ng bÃƒÂ¡o Ã„â€˜iÃ¡Â»Æ’m danh',
+            message: 'HÃ¡Â»Âc viÃƒÂªn cÃ¡Â»Â§a bÃ¡ÂºÂ¡n vÃ¡ÂºÂ¯ng mÃ¡ÂºÂ·t trong buÃ¡Â»â€¢i hÃ¡Â»Âc gÃ¡ÂºÂ§n nhÃ¡ÂºÂ¥t',
             referenceId: sessionId,
             referenceType: 'attendance'
           }).catch(err => console.warn('Notification error:', err.message));
@@ -18365,13 +20113,13 @@ app.get('/api/teacher/sessions/:id/edit-status', requireAuth, async (req, res, n
       .single();
 
     if (sessionError || !session) {
-      console.log(`âŒ Session ${sessionId} khÃ´ng tá»“n táº¡i`);
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y buá»•i há»c' });
+      console.log(`Ã¢ÂÅ’ Session ${sessionId} khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i`);
+      return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y buÃ¡Â»â€¢i hÃ¡Â»Âc' });
     }
 
     if (session.teacher_id !== teacherId) {
-      console.log(`â›” Teacher ${req.user.email} khÃ´ng cÃ³ quyá»n xem edit-status cá»§a session ${sessionId}`);
-      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem thÃ´ng tin buá»•i há»c nÃ y' });
+      console.log(`Ã¢â€ºâ€ Teacher ${req.user.email} khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xem edit-status cÃ¡Â»Â§a session ${sessionId}`);
+      return res.status(403).json({ success: false, message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xem thÃƒÂ´ng tin buÃ¡Â»â€¢i hÃ¡Â»Âc nÃƒÂ y' });
     }
 
     // Check edit window
@@ -18382,10 +20130,10 @@ app.get('/api/teacher/sessions/:id/edit-status', requireAuth, async (req, res, n
 
     let finalMessage = editWindow.message;
     if (session.is_locked) {
-      finalMessage = 'Buá»•i há»c Ä‘Ã£ khÃ³a sá»•, khÃ´ng thá»ƒ chá»‰nh sá»­a';
+      finalMessage = 'BuÃ¡Â»â€¢i hÃ¡Â»Âc Ã„â€˜ÃƒÂ£ khÃƒÂ³a sÃ¡Â»â€¢, khÃƒÂ´ng thÃ¡Â»Æ’ chÃ¡Â»â€°nh sÃ¡Â»Â­a';
     }
 
-    console.log(`ðŸ” Edit status check: session ${sessionId} - canEdit: ${canEdit}, isLocked: ${session.is_locked}, editWindow: ${editWindow.canEdit}`);
+    console.log(`Ã°Å¸â€Â Edit status check: session ${sessionId} - canEdit: ${canEdit}, isLocked: ${session.is_locked}, editWindow: ${editWindow.canEdit}`);
 
     res.json({
       success: true,
@@ -18400,7 +20148,7 @@ app.get('/api/teacher/sessions/:id/edit-status', requireAuth, async (req, res, n
       }
     });
   } catch (error) {
-    console.error('âŒ Error checking edit status:', error);
+    console.error('Ã¢ÂÅ’ Error checking edit status:', error);
     next(error);
   }
 });
@@ -18413,7 +20161,7 @@ app.get('/api/teacher/sessions/:id/edit-status', requireAuth, async (req, res, n
  * GET /api/teacher/classes/:id/grades
  * Get all grades for a class (teacher's class only)
  * Query params: ?gradeStructureId=xxx&studentId=xxx
- * ðŸ”’ TEACHER (own class), SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ TEACHER (own class), SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) => {
   try {
@@ -18422,7 +20170,7 @@ app.get('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) =
     const { id: classId } = req.params;
     const { gradeStructureId, studentId } = req.query;
 
-    console.log(`ðŸ“ GET grades for class ${classId} by ${req.user.email}`);
+    console.log(`Ã°Å¸â€œÂ GET grades for class ${classId} by ${req.user.email}`);
 
     // Get class info with course
     const { data: classData, error: classError } = await supabase
@@ -18432,13 +20180,13 @@ app.get('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) =
       .single();
 
     if (classError || !classData) {
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c' });
+      return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y lÃ¡Â»â€ºp hÃ¡Â»Âc' });
     }
 
     // Check permission: teacher owns class OR admin
     const isAdmin = ['SUPER_ADMIN', 'CENTER_MANAGER'].includes(userRole);
     if (!isAdmin && classData.teacher_id !== userId) {
-      return res.status(403).json({ success: false, message: 'KhÃ´ng cÃ³ quyá»n truy cáº­p lá»›p nÃ y' });
+      return res.status(403).json({ success: false, message: 'KhÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân truy cÃ¡ÂºÂ­p lÃ¡Â»â€ºp nÃƒÂ y' });
     }
 
     // Get grade structures for this course
@@ -18548,7 +20296,7 @@ app.get('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) =
       }
     });
   } catch (error) {
-    console.error('âŒ Error fetching grades:', error);
+    console.error('Ã¢ÂÅ’ Error fetching grades:', error);
     next(error);
   }
 });
@@ -18557,7 +20305,7 @@ app.get('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) =
  * POST /api/teacher/classes/:id/grades
  * Save/update grades for students (teacher's class only)
  * Body: { gradeStructureId, grades: [{ enrollment_id, score, notes }] }
- * ðŸ”’ TEACHER (own class only)
+ * Ã°Å¸â€â€™ TEACHER (own class only)
  */
 app.post('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) => {
   try {
@@ -18565,14 +20313,14 @@ app.post('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) 
     const { id: classId } = req.params;
     const { gradeStructureId, grades } = req.body;
 
-    console.log(`ðŸ“ POST grades for class ${classId} by ${req.user.email}`);
+    console.log(`Ã°Å¸â€œÂ POST grades for class ${classId} by ${req.user.email}`);
 
     // Validate input
     if (!gradeStructureId) {
-      return res.status(400).json({ success: false, message: 'Thiáº¿u gradeStructureId' });
+      return res.status(400).json({ success: false, message: 'ThiÃ¡ÂºÂ¿u gradeStructureId' });
     }
     if (!grades || !Array.isArray(grades) || grades.length === 0) {
-      return res.status(400).json({ success: false, message: 'Thiáº¿u danh sÃ¡ch Ä‘iá»ƒm' });
+      return res.status(400).json({ success: false, message: 'ThiÃ¡ÂºÂ¿u danh sÃƒÂ¡ch Ã„â€˜iÃ¡Â»Æ’m' });
     }
 
     // Verify teacher owns this class
@@ -18583,12 +20331,12 @@ app.post('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) 
       .single();
 
     if (classError || !classData) {
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c' });
+      return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y lÃ¡Â»â€ºp hÃ¡Â»Âc' });
     }
 
     if (classData.teacher_id !== teacherId) {
-      console.log(`â›” Teacher ${req.user.email} khÃ´ng cÃ³ quyá»n cháº¥m Ä‘iá»ƒm lá»›p ${classId}`);
-      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n cháº¥m Ä‘iá»ƒm lá»›p nÃ y' });
+      console.log(`Ã¢â€ºâ€ Teacher ${req.user.email} khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân chÃ¡ÂºÂ¥m Ã„â€˜iÃ¡Â»Æ’m lÃ¡Â»â€ºp ${classId}`);
+      return res.status(403).json({ success: false, message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân chÃ¡ÂºÂ¥m Ã„â€˜iÃ¡Â»Æ’m lÃ¡Â»â€ºp nÃƒÂ y' });
     }
 
     // Verify grade structure belongs to this course
@@ -18599,7 +20347,7 @@ app.post('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) 
       .single();
 
     if (structError || !gradeStructure || gradeStructure.course_id !== classData.course_id) {
-      return res.status(400).json({ success: false, message: 'Cáº¥u trÃºc Ä‘iá»ƒm khÃ´ng há»£p lá»‡ cho khÃ³a há»c nÃ y' });
+      return res.status(400).json({ success: false, message: 'CÃ¡ÂºÂ¥u trÃƒÂºc Ã„â€˜iÃ¡Â»Æ’m khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡ cho khÃƒÂ³a hÃ¡Â»Âc nÃƒÂ y' });
     }
 
     // Check if grades are locked for this structure
@@ -18611,10 +20359,10 @@ app.post('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) 
 
     const lockedGrade = existingGrades?.find(g => g.is_locked);
     if (lockedGrade) {
-      console.log(`ðŸ”’ Grades locked for structure ${gradeStructureId}`);
+      console.log(`Ã°Å¸â€â€™ Grades locked for structure ${gradeStructureId}`);
       return res.status(403).json({
         success: false,
-        message: 'Äiá»ƒm Ä‘Ã£ bá»‹ khÃ³a, khÃ´ng thá»ƒ chá»‰nh sá»­a. LiÃªn há»‡ Admin Ä‘á»ƒ má»Ÿ khÃ³a.'
+        message: 'Ã„ÂiÃ¡Â»Æ’m Ã„â€˜ÃƒÂ£ bÃ¡Â»â€¹ khÃƒÂ³a, khÃƒÂ´ng thÃ¡Â»Æ’ chÃ¡Â»â€°nh sÃ¡Â»Â­a. LiÃƒÂªn hÃ¡Â»â€¡ Admin Ã„â€˜Ã¡Â»Æ’ mÃ¡Â»Å¸ khÃƒÂ³a.'
       });
     }
 
@@ -18638,7 +20386,7 @@ app.post('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) 
 
     if (saveError) throw saveError;
 
-    console.log(`âœ… Saved ${savedGrades?.length || 0} grades for class ${classId}, structure ${gradeStructure.name}`);
+    console.log(`Ã¢Å“â€¦ Saved ${savedGrades?.length || 0} grades for class ${classId}, structure ${gradeStructure.name}`);
 
     AuditLogService.log({
       ...getAuditContext(req),
@@ -18651,7 +20399,7 @@ app.post('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) 
 
     res.json({
       success: true,
-      message: `ÄÃ£ lÆ°u ${savedGrades?.length || 0} Ä‘iá»ƒm thÃ nh cÃ´ng`,
+      message: `Ã„ÂÃƒÂ£ lÃ†Â°u ${savedGrades?.length || 0} Ã„â€˜iÃ¡Â»Æ’m thÃƒÂ nh cÃƒÂ´ng`,
       data: savedGrades
     });
 
@@ -18671,8 +20419,8 @@ app.post('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) 
             userId: row.student_id,
             centerId: classData?.center_id,
             type: 'grade',
-            title: 'Äiá»ƒm sá»‘ Ä‘Ã£ Ä‘Æ°á»£c cáº­p nháº­t',
-            message: 'GiÃ¡o viÃªn Ä‘Ã£ cáº­p nháº­t Ä‘iá»ƒm sá»‘ cá»§a báº¡n',
+            title: 'Ã„ÂiÃ¡Â»Æ’m sÃ¡Â»â€˜ Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t',
+            message: 'GiÃƒÂ¡o viÃƒÂªn Ã„â€˜ÃƒÂ£ cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t Ã„â€˜iÃ¡Â»Æ’m sÃ¡Â»â€˜ cÃ¡Â»Â§a bÃ¡ÂºÂ¡n',
             referenceId: classId,
             referenceType: 'grade_published'
           }).catch(err => console.warn('Notification error:', err.message));
@@ -18689,8 +20437,8 @@ app.post('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) 
               userId: link.parent_id,
               centerId: classData?.center_id,
               type: 'grade',
-              title: 'Äiá»ƒm sá»‘ con em Ä‘Ã£ Ä‘Æ°á»£c cáº­p nháº­t',
-              message: 'GiÃ¡o viÃªn Ä‘Ã£ cáº­p nháº­t Ä‘iá»ƒm sá»‘ cá»§a con em báº¡n',
+              title: 'Ã„ÂiÃ¡Â»Æ’m sÃ¡Â»â€˜ con em Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t',
+              message: 'GiÃƒÂ¡o viÃƒÂªn Ã„â€˜ÃƒÂ£ cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t Ã„â€˜iÃ¡Â»Æ’m sÃ¡Â»â€˜ cÃ¡Â»Â§a con em bÃ¡ÂºÂ¡n',
               referenceId: classId,
               referenceType: 'grade_published'
             }).catch(err => console.warn('Notification error:', err.message));
@@ -18699,7 +20447,7 @@ app.post('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) 
       })().catch(err => console.warn('Notification task error:', err.message));
     } catch (e) { }
   } catch (error) {
-    console.error('âŒ Error saving grades:', error);
+    console.error('Ã¢ÂÅ’ Error saving grades:', error);
     next(error);
   }
 });
@@ -18707,7 +20455,7 @@ app.post('/api/teacher/classes/:id/grades', requireAuth, async (req, res, next) 
 /**
  * GET /api/teacher/classes/:id/grades/summary
  * Get grade summary for a class
- * ðŸ”’ TEACHER (own class), SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ TEACHER (own class), SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/teacher/classes/:id/grades/summary', requireAuth, async (req, res, next) => {
   try {
@@ -18723,13 +20471,13 @@ app.get('/api/teacher/classes/:id/grades/summary', requireAuth, async (req, res,
       .single();
 
     if (classError || !classData) {
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c' });
+      return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y lÃ¡Â»â€ºp hÃ¡Â»Âc' });
     }
 
     // Check permission
     const isAdmin = ['SUPER_ADMIN', 'CENTER_MANAGER'].includes(userRole);
     if (!isAdmin && classData.teacher_id !== userId) {
-      return res.status(403).json({ success: false, message: 'KhÃ´ng cÃ³ quyá»n truy cáº­p lá»›p nÃ y' });
+      return res.status(403).json({ success: false, message: 'KhÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân truy cÃ¡ÂºÂ­p lÃ¡Â»â€ºp nÃƒÂ y' });
     }
 
     // Get grade structures
@@ -18813,7 +20561,7 @@ app.get('/api/teacher/classes/:id/grades/summary', requireAuth, async (req, res,
       }
     });
   } catch (error) {
-    console.error('âŒ Error fetching grade summary:', error);
+    console.error('Ã¢ÂÅ’ Error fetching grade summary:', error);
     next(error);
   }
 });
@@ -18822,7 +20570,7 @@ app.get('/api/teacher/classes/:id/grades/summary', requireAuth, async (req, res,
  * POST /api/teacher/classes/:id/grades/lock
  * Lock grades for a class (prevents further editing)
  * Body: { gradeStructureId, reason }
- * ðŸ”’ TEACHER (own class), SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ TEACHER (own class), SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/teacher/classes/:id/grades/lock', requireAuth, async (req, res, next) => {
   try {
@@ -18831,10 +20579,10 @@ app.post('/api/teacher/classes/:id/grades/lock', requireAuth, async (req, res, n
     const { id: classId } = req.params;
     const { gradeStructureId, reason } = req.body;
 
-    console.log(`ðŸ”’ Lock grades request for class ${classId}, structure ${gradeStructureId}`);
+    console.log(`Ã°Å¸â€â€™ Lock grades request for class ${classId}, structure ${gradeStructureId}`);
 
     if (!gradeStructureId) {
-      return res.status(400).json({ success: false, message: 'Thiáº¿u gradeStructureId' });
+      return res.status(400).json({ success: false, message: 'ThiÃ¡ÂºÂ¿u gradeStructureId' });
     }
 
     // Get class info
@@ -18845,13 +20593,13 @@ app.post('/api/teacher/classes/:id/grades/lock', requireAuth, async (req, res, n
       .single();
 
     if (classError || !classData) {
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c' });
+      return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y lÃ¡Â»â€ºp hÃ¡Â»Âc' });
     }
 
     // Check permission
     const isAdmin = ['SUPER_ADMIN', 'CENTER_MANAGER'].includes(userRole);
     if (!isAdmin && classData.teacher_id !== userId) {
-      return res.status(403).json({ success: false, message: 'KhÃ´ng cÃ³ quyá»n khÃ³a Ä‘iá»ƒm lá»›p nÃ y' });
+      return res.status(403).json({ success: false, message: 'KhÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân khÃƒÂ³a Ã„â€˜iÃ¡Â»Æ’m lÃ¡Â»â€ºp nÃƒÂ y' });
     }
 
     // Get enrollments for this class
@@ -18868,7 +20616,7 @@ app.post('/api/teacher/classes/:id/grades/lock', requireAuth, async (req, res, n
         is_locked: true,
         locked_at: new Date().toISOString(),
         locked_by: userId,
-        lock_reason: reason || 'KhÃ³a Ä‘iá»ƒm bá»Ÿi giÃ¡o viÃªn'
+        lock_reason: reason || 'KhÃƒÂ³a Ã„â€˜iÃ¡Â»Æ’m bÃ¡Â»Å¸i giÃƒÂ¡o viÃƒÂªn'
       })
       .eq('grade_structure_id', gradeStructureId)
       .in('enrollment_id', enrollments?.map(e => e.id) || [])
@@ -18876,7 +20624,7 @@ app.post('/api/teacher/classes/:id/grades/lock', requireAuth, async (req, res, n
 
     if (lockError) throw lockError;
 
-    console.log(`âœ… Locked ${lockedGrades?.length || 0} grades for class ${classId}`);
+    console.log(`Ã¢Å“â€¦ Locked ${lockedGrades?.length || 0} grades for class ${classId}`);
 
     AuditLogService.log({
       ...getAuditContext(req),
@@ -18889,11 +20637,11 @@ app.post('/api/teacher/classes/:id/grades/lock', requireAuth, async (req, res, n
 
     res.json({
       success: true,
-      message: `ÄÃ£ khÃ³a ${lockedGrades?.length || 0} Ä‘iá»ƒm thÃ nh cÃ´ng`,
+      message: `Ã„ÂÃƒÂ£ khÃƒÂ³a ${lockedGrades?.length || 0} Ã„â€˜iÃ¡Â»Æ’m thÃƒÂ nh cÃƒÂ´ng`,
       data: { lockedCount: lockedGrades?.length || 0 }
     });
   } catch (error) {
-    console.error('âŒ Error locking grades:', error);
+    console.error('Ã¢ÂÅ’ Error locking grades:', error);
     next(error);
   }
 });
@@ -18902,20 +20650,20 @@ app.post('/api/teacher/classes/:id/grades/lock', requireAuth, async (req, res, n
  * POST /api/admin/grades/unlock
  * Admin unlock grades (requires reason)
  * Body: { classId, gradeStructureId, reason }
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER only
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER only
  */
 app.post('/api/admin/grades/unlock', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { classId, gradeStructureId, reason } = req.body;
 
-    console.log(`ðŸ”“ Admin unlock grades: class ${classId}, structure ${gradeStructureId}`);
+    console.log(`Ã°Å¸â€â€œ Admin unlock grades: class ${classId}, structure ${gradeStructureId}`);
 
     if (!classId || !gradeStructureId) {
-      return res.status(400).json({ success: false, message: 'Thiáº¿u classId hoáº·c gradeStructureId' });
+      return res.status(400).json({ success: false, message: 'ThiÃ¡ÂºÂ¿u classId hoÃ¡ÂºÂ·c gradeStructureId' });
     }
     if (!reason || reason.length < 10) {
-      return res.status(400).json({ success: false, message: 'LÃ½ do má»Ÿ khÃ³a pháº£i cÃ³ Ã­t nháº¥t 10 kÃ½ tá»±' });
+      return res.status(400).json({ success: false, message: 'LÃƒÂ½ do mÃ¡Â»Å¸ khÃƒÂ³a phÃ¡ÂºÂ£i cÃƒÂ³ ÃƒÂ­t nhÃ¡ÂºÂ¥t 10 kÃƒÂ½ tÃ¡Â»Â±' });
     }
 
     // Get enrollments for this class
@@ -18950,15 +20698,15 @@ app.post('/api/admin/grades/unlock', requireAuth, requireRole(['SUPER_ADMIN', 'C
       new_values: { is_locked: false, unlocked_count: unlockedGrades?.length || 0 }
     });
 
-    console.log(`âœ… Admin unlocked ${unlockedGrades?.length || 0} grades`);
+    console.log(`Ã¢Å“â€¦ Admin unlocked ${unlockedGrades?.length || 0} grades`);
 
     res.json({
       success: true,
-      message: `ÄÃ£ má»Ÿ khÃ³a ${unlockedGrades?.length || 0} Ä‘iá»ƒm thÃ nh cÃ´ng`,
+      message: `Ã„ÂÃƒÂ£ mÃ¡Â»Å¸ khÃƒÂ³a ${unlockedGrades?.length || 0} Ã„â€˜iÃ¡Â»Æ’m thÃƒÂ nh cÃƒÂ´ng`,
       data: { unlockedCount: unlockedGrades?.length || 0 }
     });
   } catch (error) {
-    console.error('âŒ Error unlocking grades:', error);
+    console.error('Ã¢ÂÅ’ Error unlocking grades:', error);
     next(error);
   }
 });
@@ -18967,24 +20715,24 @@ app.post('/api/admin/grades/unlock', requireAuth, requireRole(['SUPER_ADMIN', 'C
  * POST /api/admin/grades/override
  * Admin override grades (bypasses lock)
  * Body: { classId, gradeStructureId, grades: [...], override_reason }
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER only
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER only
  */
 app.post('/api/admin/grades/override', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { classId, gradeStructureId, grades, override_reason } = req.body;
 
-    console.log(`âš ï¸ Admin override grades: class ${classId}, structure ${gradeStructureId}`);
+    console.log(`Ã¢Å¡Â Ã¯Â¸Â Admin override grades: class ${classId}, structure ${gradeStructureId}`);
 
     // Validate
     if (!classId || !gradeStructureId) {
-      return res.status(400).json({ success: false, message: 'Thiáº¿u classId hoáº·c gradeStructureId' });
+      return res.status(400).json({ success: false, message: 'ThiÃ¡ÂºÂ¿u classId hoÃ¡ÂºÂ·c gradeStructureId' });
     }
     if (!override_reason || override_reason.length < 10) {
-      return res.status(400).json({ success: false, message: 'LÃ½ do override pháº£i cÃ³ Ã­t nháº¥t 10 kÃ½ tá»±' });
+      return res.status(400).json({ success: false, message: 'LÃƒÂ½ do override phÃ¡ÂºÂ£i cÃƒÂ³ ÃƒÂ­t nhÃ¡ÂºÂ¥t 10 kÃƒÂ½ tÃ¡Â»Â±' });
     }
     if (!grades || !Array.isArray(grades) || grades.length === 0) {
-      return res.status(400).json({ success: false, message: 'Thiáº¿u danh sÃ¡ch Ä‘iá»ƒm' });
+      return res.status(400).json({ success: false, message: 'ThiÃ¡ÂºÂ¿u danh sÃƒÂ¡ch Ã„â€˜iÃ¡Â»Æ’m' });
     }
 
     // Get old values for audit
@@ -19028,21 +20776,21 @@ app.post('/api/admin/grades/override', requireAuth, requireRole(['SUPER_ADMIN', 
       new_values: { grades: savedGrades }
     });
 
-    console.log(`âœ… Admin overrode ${savedGrades?.length || 0} grades`);
+    console.log(`Ã¢Å“â€¦ Admin overrode ${savedGrades?.length || 0} grades`);
 
     res.json({
       success: true,
-      message: `ÄÃ£ override ${savedGrades?.length || 0} Ä‘iá»ƒm thÃ nh cÃ´ng`,
+      message: `Ã„ÂÃƒÂ£ override ${savedGrades?.length || 0} Ã„â€˜iÃ¡Â»Æ’m thÃƒÂ nh cÃƒÂ´ng`,
       data: savedGrades
     });
   } catch (error) {
-    console.error('âŒ Error overriding grades:', error);
+    console.error('Ã¢ÂÅ’ Error overriding grades:', error);
     next(error);
   }
 });
 
 /**
- * GET /api/teacher/profile - ThÃ´ng tin profile cá»§a giÃ¡o viÃªn
+ * GET /api/teacher/profile - ThÃƒÂ´ng tin profile cÃ¡Â»Â§a giÃƒÂ¡o viÃƒÂªn
  */
 app.get('/api/teacher/profile', requireAuth, async (req, res, next) => {
   try {
@@ -19057,7 +20805,7 @@ app.get('/api/teacher/profile', requireAuth, async (req, res, next) => {
 
     if (error) throw error;
     if (!profile) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y há»“ sÆ¡' });
     }
 
     // Fetch center info separately
@@ -19114,15 +20862,15 @@ app.get('/api/teacher/profile', requireAuth, async (req, res, next) => {
 });
 
 /**
- * PUT /api/teacher/profile - Cập nhật thông tin cá nhân (phone, avatar_url)
- * 🔒 Authenticated teacher only — whitelist fields
+ * PUT /api/teacher/profile - Cáº­p nháº­t thÃ´ng tin cÃ¡ nhÃ¢n (phone, avatar_url)
+ * ðŸ”’ Authenticated teacher only â€” whitelist fields
  */
 app.put('/api/teacher/profile', requireAuth, async (req, res, next) => {
   try {
     const teacherId = req.user.id;
     const { phone, avatar_url } = req.body;
 
-    console.log(`✏️ Teacher ${req.user.email} updating profile`);
+    console.log(`âœï¸ Teacher ${req.user.email} updating profile`);
 
     // Whitelist: only allow these fields
     const updates = {};
@@ -19131,7 +20879,7 @@ app.put('/api/teacher/profile', requireAuth, async (req, res, next) => {
       if (phoneClean && !/^0\d{9}$/.test(phoneClean)) {
         return res.status(400).json({
           success: false,
-          message: 'Số điện thoại không hợp lệ (10 số, bắt đầu bằng 0)'
+          message: 'Sá»‘ Ä‘iá»‡n thoáº¡i khÃ´ng há»£p lá»‡ (10 sá»‘, báº¯t Ä‘áº§u báº±ng 0)'
         });
       }
       updates.phone = phoneClean || null;
@@ -19143,7 +20891,7 @@ app.put('/api/teacher/profile', requireAuth, async (req, res, next) => {
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Không có thông tin nào để cập nhật'
+        message: 'KhÃ´ng cÃ³ thÃ´ng tin nÃ o Ä‘á»ƒ cáº­p nháº­t'
       });
     }
 
@@ -19161,7 +20909,7 @@ app.put('/api/teacher/profile', requireAuth, async (req, res, next) => {
     res.json({
       success: true,
       data,
-      message: 'Cập nhật hồ sơ thành công'
+      message: 'Cáº­p nháº­t há»“ sÆ¡ thÃ nh cÃ´ng'
     });
   } catch (error) {
     console.error('Error updating teacher profile:', error);
@@ -19170,7 +20918,7 @@ app.put('/api/teacher/profile', requireAuth, async (req, res, next) => {
 });
 
 /**
- * GET /api/teacher/schedule - Láº¥y lá»‹ch dáº¡y cá»§a giÃ¡o viÃªn theo khoáº£ng thá»i gian
+ * GET /api/teacher/schedule - LÃ¡ÂºÂ¥y lÃ¡Â»â€¹ch dÃ¡ÂºÂ¡y cÃ¡Â»Â§a giÃƒÂ¡o viÃƒÂªn theo khoÃ¡ÂºÂ£ng thÃ¡Â»Âi gian
  * Query params: start_date, end_date (default: this week)
  */
 app.get('/api/teacher/schedule', requireAuth, async (req, res, next) => {
@@ -19194,14 +20942,14 @@ app.get('/api/teacher/schedule', requireAuth, async (req, res, next) => {
     if (!startDateObj || !endDateObj) {
       return res.status(400).json({
         success: false,
-        message: 'start_date hoặc end_date không đúng định dạng YYYY-MM-DD'
+        message: 'start_date hoáº·c end_date khÃ´ng Ä‘Ãºng Ä‘á»‹nh dáº¡ng YYYY-MM-DD'
       });
     }
 
     if (startDateObj > endDateObj) {
       return res.status(400).json({
         success: false,
-        message: 'start_date phải nhỏ hơn hoặc bằng end_date'
+        message: 'start_date pháº£i nhá» hÆ¡n hoáº·c báº±ng end_date'
       });
     }
 
@@ -19419,7 +21167,7 @@ app.get('/api/teacher/schedule', requireAuth, async (req, res, next) => {
 });
 
 /**
- * GET /api/teacher/schedule/month - Láº¥y lá»‹ch dáº¡y theo thÃ¡ng (cho calendar view)
+ * GET /api/teacher/schedule/month - LÃ¡ÂºÂ¥y lÃ¡Â»â€¹ch dÃ¡ÂºÂ¡y theo thÃƒÂ¡ng (cho calendar view)
  * Query params: month, year
  */
 app.get('/api/teacher/schedule/month', requireAuth, async (req, res, next) => {
@@ -19495,19 +21243,19 @@ app.get('/api/teacher/schedule/month', requireAuth, async (req, res, next) => {
 // ============================================================
 
 // ============================================================
-// STUDENT TRANSCRIPT API - Báº£ng Ä‘iá»ƒm tá»•ng há»£p cá»§a há»c viÃªn
+// STUDENT TRANSCRIPT API - BÃ¡ÂºÂ£ng Ã„â€˜iÃ¡Â»Æ’m tÃ¡Â»â€¢ng hÃ¡Â»Â£p cÃ¡Â»Â§a hÃ¡Â»Âc viÃƒÂªn
 // ============================================================
 
 /**
- * GET /api/students/:id/transcript - Láº¥y báº£ng Ä‘iá»ƒm táº¥t cáº£ cÃ¡c lá»›p cá»§a há»c viÃªn
+ * GET /api/students/:id/transcript - LÃ¡ÂºÂ¥y bÃ¡ÂºÂ£ng Ã„â€˜iÃ¡Â»Æ’m tÃ¡ÂºÂ¥t cÃ¡ÂºÂ£ cÃƒÂ¡c lÃ¡Â»â€ºp cÃ¡Â»Â§a hÃ¡Â»Âc viÃƒÂªn
  */
 app.get('/api/students/:id/transcript', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    console.log(`ðŸ“œ Láº¥y transcript cho há»c viÃªn: ${id}`);
+    console.log(`Ã°Å¸â€œÅ“ LÃ¡ÂºÂ¥y transcript cho hÃ¡Â»Âc viÃƒÂªn: ${id}`);
 
-    // 1. Láº¥y thÃ´ng tin há»c viÃªn
+    // 1. LÃ¡ÂºÂ¥y thÃƒÂ´ng tin hÃ¡Â»Âc viÃƒÂªn
     const { data: student, error: studentError } = await supabase
       .from('users')
       .select('id, full_name, email, phone, avatar_url, created_at, roles(code)')
@@ -19515,10 +21263,10 @@ app.get('/api/students/:id/transcript', requireAuth, async (req, res, next) => {
       .single();
 
     if (studentError || !student) {
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y há»c viÃªn' });
+      return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y hÃ¡Â»Âc viÃƒÂªn' });
     }
 
-    // 2. Láº¥y táº¥t cáº£ enrollments cá»§a há»c viÃªn
+    // 2. LÃ¡ÂºÂ¥y tÃ¡ÂºÂ¥t cÃ¡ÂºÂ£ enrollments cÃ¡Â»Â§a hÃ¡Â»Âc viÃƒÂªn
     const { data: enrollments, error: enrollmentError } = await supabase
       .from('enrollments')
       .select(`
@@ -19548,7 +21296,7 @@ app.get('/api/students/:id/transcript', requireAuth, async (req, res, next) => {
 
     if (enrollmentError) throw enrollmentError;
 
-    // 3. Láº¥y Ä‘iá»ƒm cho tá»«ng enrollment
+    // 3. LÃ¡ÂºÂ¥y Ã„â€˜iÃ¡Â»Æ’m cho tÃ¡Â»Â«ng enrollment
     const enrollmentIds = (enrollments || []).map(e => e.id);
 
     const { data: grades, error: gradesError } = await supabase
@@ -19572,7 +21320,7 @@ app.get('/api/students/:id/transcript', requireAuth, async (req, res, next) => {
 
     if (gradesError) throw gradesError;
 
-    // 4. Láº¥y cáº¥u trÃºc Ä‘iá»ƒm cá»§a cÃ¡c khÃ³a há»c
+    // 4. LÃ¡ÂºÂ¥y cÃ¡ÂºÂ¥u trÃƒÂºc Ã„â€˜iÃ¡Â»Æ’m cÃ¡Â»Â§a cÃƒÂ¡c khÃƒÂ³a hÃ¡Â»Âc
     const courseIds = [...new Set((enrollments || []).map(e => e.classes?.courses?.id).filter(Boolean))];
 
     const { data: gradeStructures } = await supabase
@@ -19586,10 +21334,10 @@ app.get('/api/students/:id/transcript', requireAuth, async (req, res, next) => {
       const cls = enrollment.classes;
       const course = cls?.courses;
 
-      // Láº¥y Ä‘iá»ƒm cá»§a enrollment nÃ y
+      // LÃ¡ÂºÂ¥y Ã„â€˜iÃ¡Â»Æ’m cÃ¡Â»Â§a enrollment nÃƒÂ y
       const enrollmentGrades = (grades || []).filter(g => g.enrollment_id === enrollment.id);
 
-      // Láº¥y cáº¥u trÃºc Ä‘iá»ƒm cá»§a khÃ³a há»c nÃ y
+      // LÃ¡ÂºÂ¥y cÃ¡ÂºÂ¥u trÃƒÂºc Ã„â€˜iÃ¡Â»Æ’m cÃ¡Â»Â§a khÃƒÂ³a hÃ¡Â»Âc nÃƒÂ y
       const courseStructures = (gradeStructures || []).filter(s => s.course_id === course?.id);
 
       // Build grade map
@@ -19694,10 +21442,10 @@ app.get('/api/students/:id/transcript', requireAuth, async (req, res, next) => {
 // ============================================================
 
 // ============================================================
-// REPORTS APIs - BÃ¡o cÃ¡o & Thá»‘ng kÃª chi tiáº¿t
+// REPORTS APIs - BÃƒÂ¡o cÃƒÂ¡o & ThÃ¡Â»â€˜ng kÃƒÂª chi tiÃ¡ÂºÂ¿t
 // ============================================================
 
-// GET /api/reports/revenue - BÃ¡o cÃ¡o doanh thu chi tiáº¿t
+// GET /api/reports/revenue - BÃƒÂ¡o cÃƒÂ¡o doanh thu chi tiÃ¡ÂºÂ¿t
 app.get('/api/reports/revenue', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const {
@@ -19709,20 +21457,20 @@ app.get('/api/reports/revenue', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
       system_wide
     } = req.query;
 
-    console.log(`ðŸ“Š Revenue report requested by ${req.user.email}, system_wide=${system_wide}`);
+    console.log(`Ã°Å¸â€œÅ  Revenue report requested by ${req.user.email}, system_wide=${system_wide}`);
 
-    // system_wide=true => SUPER_ADMIN xem toÃ n há»‡ thá»‘ng (khÃ´ng filter center)
+    // system_wide=true => SUPER_ADMIN xem toÃƒÂ n hÃ¡Â»â€¡ thÃ¡Â»â€˜ng (khÃƒÂ´ng filter center)
     const skipCenterFilter = system_wide === 'true' && req.user.roleCode === 'SUPER_ADMIN';
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, skipCenterFilter ? null : centerId);
     if (permError) {
       return res.status(403).json({ success: false, message: permError });
     }
 
-    // Default: 30 ngÃ y gáº§n nháº¥t, end-of-day Ä‘á»ƒ bao gá»“m cáº£ ngÃ y cuá»‘i
+    // Default: 30 ngÃƒÂ y gÃ¡ÂºÂ§n nhÃ¡ÂºÂ¥t, end-of-day Ã„â€˜Ã¡Â»Æ’ bao gÃ¡Â»â€œm cÃ¡ÂºÂ£ ngÃƒÂ y cuÃ¡Â»â€˜i
     const end = endDate ? new Date(endDate + 'T23:59:59.999Z') : new Date();
     const start = startDate ? new Date(startDate + 'T00:00:00.000Z') : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    // Query payments trong khoáº£ng thá»i gian
+    // Query payments trong khoÃ¡ÂºÂ£ng thÃ¡Â»Âi gian
     let paymentsQuery = supabase
       .from('payments')
       .select(`
@@ -19746,7 +21494,7 @@ app.get('/api/reports/revenue', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
       .lte('payment_date', end.toISOString())
       .order('payment_date', { ascending: false });
 
-    // ðŸ”¥ FIX: Query-level center filter (khÃ´ng post-filter)
+    // Ã°Å¸â€Â¥ FIX: Query-level center filter (khÃƒÂ´ng post-filter)
     if (effectiveCenterId) {
       paymentsQuery = paymentsQuery.eq('invoices.classes.center_id', effectiveCenterId);
     }
@@ -19757,7 +21505,7 @@ app.get('/api/reports/revenue', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
     const { data: payments, error } = await paymentsQuery;
     if (error) throw error;
 
-    // ðŸ”¥ REMOVED: Post-filter logic (khÃ´ng cáº§n ná»¯a vÃ¬ Ä‘Ã£ filter á»Ÿ query)
+    // Ã°Å¸â€Â¥ REMOVED: Post-filter logic (khÃƒÂ´ng cÃ¡ÂºÂ§n nÃ¡Â»Â¯a vÃƒÂ¬ Ã„â€˜ÃƒÂ£ filter Ã¡Â»Å¸ query)
     const filteredPayments = payments || [];
 
     // Calculate totals
@@ -19802,7 +21550,7 @@ app.get('/api/reports/revenue', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
     // Revenue by course
     const byCourse = {};
     filteredPayments.forEach(p => {
-      const courseName = p.invoices?.classes?.courses?.title || 'KhÃ¡c';
+      const courseName = p.invoices?.classes?.courses?.title || 'KhÃƒÂ¡c';
       if (!byCourse[courseName]) byCourse[courseName] = 0;
       byCourse[courseName] += parseFloat(p.amount) || 0;
     });
@@ -19870,12 +21618,12 @@ app.get('/api/reports/revenue', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
   }
 });
 
-// GET /api/reports/enrollment - BÃ¡o cÃ¡o tuyá»ƒn sinh
+// GET /api/reports/enrollment - BÃƒÂ¡o cÃƒÂ¡o tuyÃ¡Â»Æ’n sinh
 app.get('/api/reports/enrollment', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { startDate, endDate, centerId, courseId, system_wide } = req.query;
 
-    console.log(`ðŸ“Š Enrollment report requested by ${req.user.email}, system_wide=${system_wide}`);
+    console.log(`Ã°Å¸â€œÅ  Enrollment report requested by ${req.user.email}, system_wide=${system_wide}`);
 
     const skipCenterFilter = system_wide === 'true' && req.user.roleCode === 'SUPER_ADMIN';
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, skipCenterFilter ? null : centerId);
@@ -19905,7 +21653,7 @@ app.get('/api/reports/enrollment', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
       .lte('created_at', end.toISOString())
       .order('created_at', { ascending: false });
 
-    // ðŸ”¥ FIX: Query-level filters (khÃ´ng post-filter)
+    // Ã°Å¸â€Â¥ FIX: Query-level filters (khÃƒÂ´ng post-filter)
     if (effectiveCenterId) {
       query = query.eq('classes.center_id', effectiveCenterId);
     }
@@ -19916,7 +21664,7 @@ app.get('/api/reports/enrollment', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
     const { data: enrollments, error } = await query;
     if (error) throw error;
 
-    // ðŸ”¥ REMOVED: Post-filter logic
+    // Ã°Å¸â€Â¥ REMOVED: Post-filter logic
     const filtered = enrollments || [];
 
     // Stats
@@ -19935,7 +21683,7 @@ app.get('/api/reports/enrollment', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
     // By course
     const byCourse = {};
     filtered.forEach(e => {
-      const course = e.classes?.courses?.title || 'KhÃ¡c';
+      const course = e.classes?.courses?.title || 'KhÃƒÂ¡c';
       if (!byCourse[course]) byCourse[course] = 0;
       byCourse[course]++;
     });
@@ -20010,12 +21758,12 @@ app.get('/api/reports/enrollment', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
   }
 });
 
-// GET /api/reports/attendance - BÃ¡o cÃ¡o chuyÃªn cáº§n
+// GET /api/reports/attendance - BÃƒÂ¡o cÃƒÂ¡o chuyÃƒÂªn cÃ¡ÂºÂ§n
 app.get('/api/reports/attendance', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
     const { startDate, endDate, classId, courseId, centerId, system_wide } = req.query;
 
-    console.log(`ðŸ“Š Attendance report requested by ${req.user.email}, system_wide=${system_wide}`);
+    console.log(`Ã°Å¸â€œÅ  Attendance report requested by ${req.user.email}, system_wide=${system_wide}`);
 
     const skipCenterFilter = system_wide === 'true' && req.user.roleCode === 'SUPER_ADMIN';
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, skipCenterFilter ? null : centerId);
@@ -20046,7 +21794,7 @@ app.get('/api/reports/attendance', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
       .gte('session_date', start.toISOString().split('T')[0])
       .lte('session_date', end.toISOString().split('T')[0]);
 
-    // ðŸ”¥ FIX: Query-level center filter
+    // Ã°Å¸â€Â¥ FIX: Query-level center filter
     if (effectiveCenterId) {
       query = query.eq('enrollments.classes.center_id', effectiveCenterId);
     }
@@ -20076,10 +21824,10 @@ app.get('/api/reports/attendance', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
 
     // By status
     const byStatus = [
-      { name: 'CÃ³ máº·t', value: presentCount, color: '#22c55e' },
-      { name: 'Váº¯ng', value: absentCount, color: '#ef4444' },
-      { name: 'Trá»…', value: lateCount, color: '#f59e0b' },
-      { name: 'CÃ³ phÃ©p', value: excusedCount, color: '#3b82f6' }
+      { name: 'CÃƒÂ³ mÃ¡ÂºÂ·t', value: presentCount, color: '#22c55e' },
+      { name: 'VÃ¡ÂºÂ¯ng', value: absentCount, color: '#ef4444' },
+      { name: 'TrÃ¡Â»â€¦', value: lateCount, color: '#f59e0b' },
+      { name: 'CÃƒÂ³ phÃƒÂ©p', value: excusedCount, color: '#3b82f6' }
     ];
 
     // By date
@@ -20151,12 +21899,12 @@ app.get('/api/reports/attendance', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
   }
 });
 
-// GET /api/reports/grades - BÃ¡o cÃ¡o Ä‘iá»ƒm sá»‘
+// GET /api/reports/grades - BÃƒÂ¡o cÃƒÂ¡o Ã„â€˜iÃ¡Â»Æ’m sÃ¡Â»â€˜
 app.get('/api/reports/grades', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
     const { classId, courseId, centerId, system_wide } = req.query;
 
-    console.log(`ðŸ“Š Grades report requested by ${req.user.email}, system_wide=${system_wide}`);
+    console.log(`Ã°Å¸â€œÅ  Grades report requested by ${req.user.email}, system_wide=${system_wide}`);
 
     const skipCenterFilter = system_wide === 'true' && req.user.roleCode === 'SUPER_ADMIN';
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, skipCenterFilter ? null : centerId);
@@ -20164,7 +21912,7 @@ app.get('/api/reports/grades', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
       return res.status(403).json({ success: false, message: permError });
     }
 
-    // Query grades (Ä‘Ãºng table name)
+    // Query grades (Ã„â€˜ÃƒÂºng table name)
     let query = supabase
       .from('grades')
       .select(`
@@ -20182,7 +21930,7 @@ app.get('/api/reports/grades', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
         grade_structures (id, name, weight, max_score)
       `);
 
-    // ðŸ”¥ FIX: Query-level center filter
+    // Ã°Å¸â€Â¥ FIX: Query-level center filter
     if (effectiveCenterId) {
       query = query.eq('enrollments.classes.center_id', effectiveCenterId);
     }
@@ -20316,8 +22064,8 @@ app.get('/api/reports/grades', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
         topStudents,
         lowScoreStudents,
         passRateChart: [
-          { name: 'Äáº¡t', value: passedStudents, color: '#22c55e' },
-          { name: 'KhÃ´ng Ä‘áº¡t', value: failedStudents, color: '#ef4444' }
+          { name: 'Ã„ÂÃ¡ÂºÂ¡t', value: passedStudents, color: '#22c55e' },
+          { name: 'KhÃƒÂ´ng Ã„â€˜Ã¡ÂºÂ¡t', value: failedStudents, color: '#ef4444' }
         ]
       }
     });
@@ -20328,12 +22076,12 @@ app.get('/api/reports/grades', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
   }
 });
 
-// GET /api/reports/staff - BÃ¡o cÃ¡o nhÃ¢n sá»±
+// GET /api/reports/staff - BÃƒÂ¡o cÃƒÂ¡o nhÃƒÂ¢n sÃ¡Â»Â±
 app.get('/api/reports/staff', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { startDate, endDate, centerId, system_wide } = req.query;
 
-    console.log(`ðŸ“Š Staff report requested by ${req.user.email}, system_wide=${system_wide}`);
+    console.log(`Ã°Å¸â€œÅ  Staff report requested by ${req.user.email}, system_wide=${system_wide}`);
 
     const skipCenterFilter = system_wide === 'true' && req.user.roleCode === 'SUPER_ADMIN';
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, skipCenterFilter ? null : centerId);
@@ -20358,7 +22106,7 @@ app.get('/api/reports/staff', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_M
       `)
       .in('roles.code', ['TEACHER', 'CENTER_MANAGER']);
 
-    // ðŸ”¥ FIX: Query-level center filter
+    // Ã°Å¸â€Â¥ FIX: Query-level center filter
     if (effectiveCenterId) {
       staffQuery = staffQuery.eq('center_id', effectiveCenterId);
     }
@@ -20464,12 +22212,12 @@ app.get('/api/reports/staff', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_M
   }
 });
 
-// GET /api/reports/courses - BÃ¡o cÃ¡o hiá»‡u suáº¥t khÃ³a há»c
+// GET /api/reports/courses - BÃƒÂ¡o cÃƒÂ¡o hiÃ¡Â»â€¡u suÃ¡ÂºÂ¥t khÃƒÂ³a hÃ¡Â»Âc
 app.get('/api/reports/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { centerId, system_wide } = req.query;
 
-    console.log(`ðŸ“Š Courses report requested by ${req.user.email}, system_wide=${system_wide}`);
+    console.log(`Ã°Å¸â€œÅ  Courses report requested by ${req.user.email}, system_wide=${system_wide}`);
 
     const skipCenterFilter = system_wide === 'true' && req.user.roleCode === 'SUPER_ADMIN';
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, skipCenterFilter ? null : centerId);
@@ -20503,7 +22251,7 @@ app.get('/api/reports/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
     const courseStats = courses?.map(course => {
       let classes = course.classes || [];
 
-      // ðŸ”¥ FIX: Filter by effectiveCenterId (validated)
+      // Ã°Å¸â€Â¥ FIX: Filter by effectiveCenterId (validated)
       if (effectiveCenterId) {
         classes = classes.filter(c => c.center_id === effectiveCenterId);
       }
@@ -20592,7 +22340,7 @@ app.get('/api/reports/courses', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
   }
 });
 
-// POST /api/reports/saved - LÆ°u bÃ¡o cÃ¡o
+// POST /api/reports/saved - LÃ†Â°u bÃƒÂ¡o cÃƒÂ¡o
 app.post('/api/reports/saved', requireAuth, async (req, res, next) => {
   try {
     const { name, description, reportType, filters, schedule, emailRecipients, isPublic } = req.body;
@@ -20617,7 +22365,7 @@ app.post('/api/reports/saved', requireAuth, async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: 'ÄÃ£ lÆ°u bÃ¡o cÃ¡o',
+      message: 'Ã„ÂÃƒÂ£ lÃ†Â°u bÃƒÂ¡o cÃƒÂ¡o',
       data
     });
 
@@ -20627,10 +22375,10 @@ app.post('/api/reports/saved', requireAuth, async (req, res, next) => {
   }
 });
 
-// GET /api/reports/saved - Láº¥y danh sÃ¡ch bÃ¡o cÃ¡o Ä‘Ã£ lÆ°u
+// GET /api/reports/saved - LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch bÃƒÂ¡o cÃƒÂ¡o Ã„â€˜ÃƒÂ£ lÃ†Â°u
 app.get('/api/reports/saved', requireAuth, async (req, res, next) => {
   try {
-    // Build query vá»›i xá»­ lÃ½ null centerId
+    // Build query vÃ¡Â»â€ºi xÃ¡Â»Â­ lÃƒÂ½ null centerId
     let query = supabase
       .from('saved_reports')
       .select('*');
@@ -20639,7 +22387,7 @@ app.get('/api/reports/saved', requireAuth, async (req, res, next) => {
     if (req.user.centerId) {
       query = query.or(`created_by.eq.${req.user.id},and(is_public.eq.true,center_id.eq.${req.user.centerId})`);
     } else {
-      // Náº¿u khÃ´ng cÃ³ center, chá»‰ láº¥y bÃ¡o cÃ¡o cá»§a chÃ­nh mÃ¬nh
+      // NÃ¡ÂºÂ¿u khÃƒÂ´ng cÃƒÂ³ center, chÃ¡Â»â€° lÃ¡ÂºÂ¥y bÃƒÂ¡o cÃƒÂ¡o cÃ¡Â»Â§a chÃƒÂ­nh mÃƒÂ¬nh
       query = query.eq('created_by', req.user.id);
     }
 
@@ -20658,7 +22406,7 @@ app.get('/api/reports/saved', requireAuth, async (req, res, next) => {
   }
 });
 
-// DELETE /api/reports/saved/:id - XÃ³a bÃ¡o cÃ¡o Ä‘Ã£ lÆ°u
+// DELETE /api/reports/saved/:id - XÃƒÂ³a bÃƒÂ¡o cÃƒÂ¡o Ã„â€˜ÃƒÂ£ lÃ†Â°u
 app.delete('/api/reports/saved/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -20673,7 +22421,7 @@ app.delete('/api/reports/saved/:id', requireAuth, async (req, res, next) => {
 
     res.json({
       success: true,
-      message: 'ÄÃ£ xÃ³a bÃ¡o cÃ¡o'
+      message: 'Ã„ÂÃƒÂ£ xÃƒÂ³a bÃƒÂ¡o cÃƒÂ¡o'
     });
 
   } catch (error) {
@@ -20708,7 +22456,7 @@ app.get('/api/admin/scheduled-reports', requireAuth, requireRole(['SUPER_ADMIN',
     res.json({ success: true, data: formattedData });
   } catch (error) {
     console.error('Error fetching scheduled reports:', error);
-    res.status(500).json({ success: false, message: error.message || 'Lá»—i khi táº£i danh sÃ¡ch bÃ¡o cÃ¡o' });
+    res.status(500).json({ success: false, message: error.message || 'LÃ¡Â»â€”i khi tÃ¡ÂºÂ£i danh sÃƒÂ¡ch bÃƒÂ¡o cÃƒÂ¡o' });
   }
 });
 
@@ -20718,7 +22466,7 @@ app.post('/api/admin/scheduled-reports', requireAuth, requireRole(['SUPER_ADMIN'
     const { name, description, report_type, schedule, center_id, email_recipients, filters, is_active } = req.body;
 
     if (!name || !report_type || !schedule || !email_recipients?.length) {
-      return res.status(400).json({ success: false, message: 'Vui lÃ²ng Ä‘iá»n Ä‘áº§y Ä‘á»§ thÃ´ng tin báº¯t buá»™c' });
+      return res.status(400).json({ success: false, message: 'Vui lÃƒÂ²ng Ã„â€˜iÃ¡Â»Ân Ã„â€˜Ã¡ÂºÂ§y Ã„â€˜Ã¡Â»Â§ thÃƒÂ´ng tin bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c' });
     }
 
     // Calculate next_run_at
@@ -20752,7 +22500,7 @@ app.post('/api/admin/scheduled-reports', requireAuth, requireRole(['SUPER_ADMIN'
     res.json({ success: true, data });
   } catch (error) {
     console.error('Error creating scheduled report:', error);
-    res.status(500).json({ success: false, message: error.message || 'Lá»—i khi táº¡o bÃ¡o cÃ¡o' });
+    res.status(500).json({ success: false, message: error.message || 'LÃ¡Â»â€”i khi tÃ¡ÂºÂ¡o bÃƒÂ¡o cÃƒÂ¡o' });
   }
 });
 
@@ -20765,10 +22513,10 @@ app.delete('/api/admin/scheduled-reports/:id', requireAuth, requireRole(['SUPER_
       .eq('id', req.params.id);
 
     if (error) throw error;
-    res.json({ success: true, message: 'ÄÃ£ xÃ³a cáº¥u hÃ¬nh bÃ¡o cÃ¡o' });
+    res.json({ success: true, message: 'Ã„ÂÃƒÂ£ xÃƒÂ³a cÃ¡ÂºÂ¥u hÃƒÂ¬nh bÃƒÂ¡o cÃƒÂ¡o' });
   } catch (error) {
     console.error('Error deleting scheduled report:', error);
-    res.status(500).json({ success: false, message: error.message || 'Lá»—i khi xÃ³a bÃ¡o cÃ¡o' });
+    res.status(500).json({ success: false, message: error.message || 'LÃ¡Â»â€”i khi xÃƒÂ³a bÃƒÂ¡o cÃƒÂ¡o' });
   }
 });
 
@@ -20786,11 +22534,11 @@ app.post('/api/admin/scheduled-reports/:id/run-now', requireAuth, requireRole(['
       .single();
 
     if (error) throw error;
-    if (!data) return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y cáº¥u hÃ¬nh bÃ¡o cÃ¡o' });
-    res.json({ success: true, data, message: 'ÄÃ£ xáº¿p hÃ ng Ä‘á»£i gá»­i bÃ¡o cÃ¡o' });
+    if (!data) return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y cÃ¡ÂºÂ¥u hÃƒÂ¬nh bÃƒÂ¡o cÃƒÂ¡o' });
+    res.json({ success: true, data, message: 'Ã„ÂÃƒÂ£ xÃ¡ÂºÂ¿p hÃƒÂ ng Ã„â€˜Ã¡Â»Â£i gÃ¡Â»Â­i bÃƒÂ¡o cÃƒÂ¡o' });
   } catch (error) {
     console.error('Error running scheduled report:', error);
-    res.status(500).json({ success: false, message: error.message || 'Lá»—i khi cháº¡y bÃ¡o cÃ¡o' });
+    res.status(500).json({ success: false, message: error.message || 'LÃ¡Â»â€”i khi chÃ¡ÂºÂ¡y bÃƒÂ¡o cÃƒÂ¡o' });
   }
 });
 
@@ -20799,10 +22547,10 @@ app.post('/api/admin/scheduled-reports/:id/run-now', requireAuth, requireRole(['
 // ============================================================
 
 // ============================================================
-// DOCUMENTS APIs - Quáº£n lÃ½ tÃ i liá»‡u
+// DOCUMENTS APIs - QuÃ¡ÂºÂ£n lÃƒÂ½ tÃƒÂ i liÃ¡Â»â€¡u
 // ============================================================
 
-// Láº¥y danh sÃ¡ch tÃ i liá»‡u
+// LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch tÃƒÂ i liÃ¡Â»â€¡u
 app.get('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
     const { centerId, courseId, classId, type, search, page = 1, limit = 20 } = req.query;
@@ -20865,7 +22613,7 @@ app.get('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
   }
 });
 
-// Táº¡o tÃ i liá»‡u má»›i
+// TÃ¡ÂºÂ¡o tÃƒÂ i liÃ¡Â»â€¡u mÃ¡Â»â€ºi
 app.post('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
     const { title, description, file_url, file_name, file_size, file_type, course_id, class_id, type, is_public } = req.body;
@@ -20873,7 +22621,7 @@ app.post('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
     if (!title || !file_url || !file_name) {
       return res.status(400).json({
         success: false,
-        message: 'TiÃªu Ä‘á», URL file vÃ  tÃªn file lÃ  báº¯t buá»™c'
+        message: 'TiÃƒÂªu Ã„â€˜Ã¡Â»Â, URL file vÃƒÂ  tÃƒÂªn file lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
       });
     }
 
@@ -20902,7 +22650,7 @@ app.post('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
     if (!centerIdToUse) {
       return res.status(400).json({
         success: false,
-        message: 'KhÃ´ng xÃ¡c Ä‘á»‹nh Ä‘Æ°á»£c trung tÃ¢m cho tÃ i liá»‡u nÃ y'
+        message: 'KhÃƒÂ´ng xÃƒÂ¡c Ã„â€˜Ã¡Â»â€¹nh Ã„â€˜Ã†Â°Ã¡Â»Â£c trung tÃƒÂ¢m cho tÃƒÂ i liÃ¡Â»â€¡u nÃƒÂ y'
       });
     }
 
@@ -20930,7 +22678,7 @@ app.post('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
     res.status(201).json({
       success: true,
       data,
-      message: 'ÄÃ£ táº£i lÃªn tÃ i liá»‡u thÃ nh cÃ´ng'
+      message: 'Ã„ÂÃƒÂ£ tÃ¡ÂºÂ£i lÃƒÂªn tÃƒÂ i liÃ¡Â»â€¡u thÃƒÂ nh cÃƒÂ´ng'
     });
   } catch (error) {
     console.error('Error creating document:', error);
@@ -20938,7 +22686,7 @@ app.post('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
   }
 });
 
-// Cáº­p nháº­t tÃ i liá»‡u
+// CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t tÃƒÂ i liÃ¡Â»â€¡u
 app.put('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -20964,7 +22712,7 @@ app.put('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     res.json({
       success: true,
       data,
-      message: 'ÄÃ£ cáº­p nháº­t tÃ i liá»‡u'
+      message: 'Ã„ÂÃƒÂ£ cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t tÃƒÂ i liÃ¡Â»â€¡u'
     });
   } catch (error) {
     console.error('Error updating document:', error);
@@ -21103,7 +22851,7 @@ app.get('/api/admin/documents/:id/analytics', requireAuth, requireRole(['SUPER_A
   }
 });
 
-// XÃ³a tÃ i liá»‡u
+// XÃƒÂ³a tÃƒÂ i liÃ¡Â»â€¡u
 app.delete('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -21117,7 +22865,7 @@ app.delete('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 
 
     res.json({
       success: true,
-      message: 'ÄÃ£ xÃ³a tÃ i liá»‡u'
+      message: 'Ã„ÂÃƒÂ£ xÃƒÂ³a tÃƒÂ i liÃ¡Â»â€¡u'
     });
   } catch (error) {
     console.error('Error deleting document:', error);
@@ -21126,10 +22874,10 @@ app.delete('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 
 });
 
 // ============================================================
-// CERTIFICATE TYPES APIs - Quáº£n lÃ½ loáº¡i chá»©ng chá»‰
+// CERTIFICATE TYPES APIs - QuÃ¡ÂºÂ£n lÃƒÂ½ loÃ¡ÂºÂ¡i chÃ¡Â»Â©ng chÃ¡Â»â€°
 // ============================================================
 
-// Láº¥y danh sÃ¡ch loáº¡i chá»©ng chá»‰ vá»›i thá»‘ng kÃª
+// LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch loÃ¡ÂºÂ¡i chÃ¡Â»Â©ng chÃ¡Â»â€° vÃ¡Â»â€ºi thÃ¡Â»â€˜ng kÃƒÂª
 app.get('/api/admin/certificate-types', requireAuth, async (req, res, next) => {
   try {
     const { category, is_external, is_internal, include_stats } = req.query;
@@ -21154,7 +22902,7 @@ app.get('/api/admin/certificate-types', requireAuth, async (req, res, next) => {
     const { data: types, error } = await query;
     if (error) throw error;
 
-    // Náº¿u cáº§n thá»‘ng kÃª, fetch thÃªm
+    // NÃ¡ÂºÂ¿u cÃ¡ÂºÂ§n thÃ¡Â»â€˜ng kÃƒÂª, fetch thÃƒÂªm
     let result = types;
     if (include_stats === 'true') {
       const typeIds = types.map(t => t.id);
@@ -21190,7 +22938,7 @@ app.get('/api/admin/certificate-types', requireAuth, async (req, res, next) => {
   }
 });
 
-// Láº¥y chi tiáº¿t loáº¡i chá»©ng chá»‰ vá»›i danh sÃ¡ch há»c viÃªn Ä‘áº¡t
+// LÃ¡ÂºÂ¥y chi tiÃ¡ÂºÂ¿t loÃ¡ÂºÂ¡i chÃ¡Â»Â©ng chÃ¡Â»â€° vÃ¡Â»â€ºi danh sÃƒÂ¡ch hÃ¡Â»Âc viÃƒÂªn Ã„â€˜Ã¡ÂºÂ¡t
 app.get('/api/admin/certificate-types/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -21207,7 +22955,7 @@ app.get('/api/admin/certificate-types/:id', requireAuth, async (req, res, next) 
     if (typeError || !certType) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y loáº¡i chá»©ng chá»‰'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y loÃ¡ÂºÂ¡i chÃ¡Â»Â©ng chÃ¡Â»â€°'
       });
     }
 
@@ -21295,7 +23043,7 @@ app.get('/api/admin/certificate-types/:id', requireAuth, async (req, res, next) 
   }
 });
 
-// Táº¡o loáº¡i chá»©ng chá»‰ má»›i
+// TÃ¡ÂºÂ¡o loÃ¡ÂºÂ¡i chÃ¡Â»Â©ng chÃ¡Â»â€° mÃ¡Â»â€ºi
 app.post('/api/admin/certificate-types', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const {
@@ -21316,7 +23064,7 @@ app.post('/api/admin/certificate-types', requireAuth, requireRole(['SUPER_ADMIN'
     if (!code || !name) {
       return res.status(400).json({
         success: false,
-        message: 'MÃ£ vÃ  tÃªn loáº¡i chá»©ng chá»‰ lÃ  báº¯t buá»™c'
+        message: 'MÃƒÂ£ vÃƒÂ  tÃƒÂªn loÃ¡ÂºÂ¡i chÃ¡Â»Â©ng chÃ¡Â»â€° lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
       });
     }
 
@@ -21344,7 +23092,7 @@ app.post('/api/admin/certificate-types', requireAuth, requireRole(['SUPER_ADMIN'
       if (error.code === '23505') {
         return res.status(400).json({
           success: false,
-          message: 'MÃ£ loáº¡i chá»©ng chá»‰ Ä‘Ã£ tá»“n táº¡i'
+          message: 'MÃƒÂ£ loÃ¡ÂºÂ¡i chÃ¡Â»Â©ng chÃ¡Â»â€° Ã„â€˜ÃƒÂ£ tÃ¡Â»â€œn tÃ¡ÂºÂ¡i'
         });
       }
       throw error;
@@ -21353,7 +23101,7 @@ app.post('/api/admin/certificate-types', requireAuth, requireRole(['SUPER_ADMIN'
     res.status(201).json({
       success: true,
       data,
-      message: 'ÄÃ£ táº¡o loáº¡i chá»©ng chá»‰ má»›i'
+      message: 'Ã„ÂÃƒÂ£ tÃ¡ÂºÂ¡o loÃ¡ÂºÂ¡i chÃ¡Â»Â©ng chÃ¡Â»â€° mÃ¡Â»â€ºi'
     });
   } catch (error) {
     console.error('Error creating certificate type:', error);
@@ -21361,7 +23109,7 @@ app.post('/api/admin/certificate-types', requireAuth, requireRole(['SUPER_ADMIN'
   }
 });
 
-// Cáº­p nháº­t loáº¡i chá»©ng chá»‰
+// CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t loÃ¡ÂºÂ¡i chÃ¡Â»Â©ng chÃ¡Â»â€°
 app.put('/api/admin/certificate-types/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -21382,7 +23130,7 @@ app.put('/api/admin/certificate-types/:id', requireAuth, requireRole(['SUPER_ADM
     res.json({
       success: true,
       data,
-      message: 'ÄÃ£ cáº­p nháº­t loáº¡i chá»©ng chá»‰'
+      message: 'Ã„ÂÃƒÂ£ cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t loÃ¡ÂºÂ¡i chÃ¡Â»Â©ng chÃ¡Â»â€°'
     });
   } catch (error) {
     console.error('Error updating certificate type:', error);
@@ -21390,7 +23138,7 @@ app.put('/api/admin/certificate-types/:id', requireAuth, requireRole(['SUPER_ADM
   }
 });
 
-// XÃ³a (soft delete) loáº¡i chá»©ng chá»‰
+// XÃƒÂ³a (soft delete) loÃ¡ÂºÂ¡i chÃ¡Â»Â©ng chÃ¡Â»â€°
 app.delete('/api/admin/certificate-types/:id', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -21412,7 +23160,7 @@ app.delete('/api/admin/certificate-types/:id', requireAuth, requireRole(['SUPER_
 
       return res.json({
         success: true,
-        message: `ÄÃ£ vÃ´ hiá»‡u hÃ³a loáº¡i chá»©ng chá»‰ (cÃ³ ${count} chá»©ng chá»‰ Ä‘Ã£ cáº¥p)`
+        message: `Ã„ÂÃƒÂ£ vÃƒÂ´ hiÃ¡Â»â€¡u hÃƒÂ³a loÃ¡ÂºÂ¡i chÃ¡Â»Â©ng chÃ¡Â»â€° (cÃƒÂ³ ${count} chÃ¡Â»Â©ng chÃ¡Â»â€° Ã„â€˜ÃƒÂ£ cÃ¡ÂºÂ¥p)`
       });
     }
 
@@ -21426,7 +23174,7 @@ app.delete('/api/admin/certificate-types/:id', requireAuth, requireRole(['SUPER_
 
     res.json({
       success: true,
-      message: 'ÄÃ£ xÃ³a loáº¡i chá»©ng chá»‰'
+      message: 'Ã„ÂÃƒÂ£ xÃƒÂ³a loÃ¡ÂºÂ¡i chÃ¡Â»Â©ng chÃ¡Â»â€°'
     });
   } catch (error) {
     console.error('Error deleting certificate type:', error);
@@ -21435,10 +23183,10 @@ app.delete('/api/admin/certificate-types/:id', requireAuth, requireRole(['SUPER_
 });
 
 // ============================================================
-// CERTIFICATES APIs - Quáº£n lÃ½ chá»©ng chá»‰
+// CERTIFICATES APIs - QuÃ¡ÂºÂ£n lÃƒÂ½ chÃ¡Â»Â©ng chÃ¡Â»â€°
 // ============================================================
 
-// Láº¥y danh sÃ¡ch chá»©ng chá»‰
+// LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch chÃ¡Â»Â©ng chÃ¡Â»â€°
 app.get('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { centerId, studentId, courseId, status, search, certificate_type_id, page = 1, limit = 20 } = req.query;
@@ -21504,7 +23252,7 @@ app.get('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
   }
 });
 
-// Thá»‘ng kÃª chá»©ng chá»‰
+// ThÃ¡Â»â€˜ng kÃƒÂª chÃ¡Â»Â©ng chÃ¡Â»â€°
 app.get('/api/admin/certificates/stats', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
     const { centerId } = req.query;
@@ -21620,7 +23368,7 @@ app.get('/api/admin/certificates/stats', requireAuth, requireRole(['SUPER_ADMIN'
         const meta = typeMetaMap.get(typeId);
         return {
           id: typeId,
-          name: meta?.name || 'KhÃ´ng xÃ¡c Ä‘á»‹nh',
+          name: meta?.name || 'KhÃƒÂ´ng xÃƒÂ¡c Ã„â€˜Ã¡Â»â€¹nh',
           code: meta?.code || null,
           category: meta?.category || 'other',
           count,
@@ -21647,7 +23395,7 @@ app.get('/api/admin/certificates/stats', requireAuth, requireRole(['SUPER_ADMIN'
   }
 });
 
-// Láº¥y danh sÃ¡ch máº«u chá»©ng chá»‰
+// LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch mÃ¡ÂºÂ«u chÃ¡Â»Â©ng chÃ¡Â»â€°
 app.get('/api/admin/certificate-templates', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { data, error } = await supabase
@@ -21668,7 +23416,7 @@ app.get('/api/admin/certificate-templates', requireAuth, requireRole(['SUPER_ADM
   }
 });
 
-// Táº¡o chá»©ng chá»‰ má»›i (Issue certificate)
+// TÃ¡ÂºÂ¡o chÃ¡Â»Â©ng chÃ¡Â»â€° mÃ¡Â»â€ºi (Issue certificate)
 app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const {
@@ -21676,7 +23424,7 @@ app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       class_id,
       certificate_type_id,
       issue_date,
-      override_reason // ðŸ”¥ NEW: lÃ½ do override náº¿u khÃ´ng Ä‘á»§ Ä‘iá»u kiá»‡n
+      override_reason // Ã°Å¸â€Â¥ NEW: lÃƒÂ½ do override nÃ¡ÂºÂ¿u khÃƒÂ´ng Ã„â€˜Ã¡Â»Â§ Ã„â€˜iÃ¡Â»Âu kiÃ¡Â»â€¡n
     } = req.body;
 
     if (req.body.is_external) {
@@ -21685,7 +23433,7 @@ app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       if (!student_id || !certificate_type_id) {
         return res.status(400).json({
           success: false,
-          message: 'Há»c viÃªn vÃ  loáº¡i chá»©ng chá»‰ lÃ  báº¯t buá»™c'
+          message: 'HÃ¡Â»Âc viÃƒÂªn vÃƒÂ  loÃ¡ÂºÂ¡i chÃ¡Â»Â©ng chÃ¡Â»â€° lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
         });
       }
 
@@ -21706,7 +23454,7 @@ app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       if (studentError || !studentProfile?.full_name) {
         return res.status(400).json({
           success: false,
-          message: 'KhÃ´ng tÃ¬m tháº¥y thÃ´ng tin há»c viÃªn'
+          message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y thÃƒÂ´ng tin hÃ¡Â»Âc viÃƒÂªn'
         });
       }
 
@@ -21719,7 +23467,7 @@ app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       if (certTypeError || !certificateType?.name) {
         return res.status(400).json({
           success: false,
-          message: 'KhÃ´ng tÃ¬m tháº¥y loáº¡i chá»©ng chá»‰'
+          message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y loÃ¡ÂºÂ¡i chÃ¡Â»Â©ng chÃ¡Â»â€°'
         });
       }
 
@@ -21727,7 +23475,7 @@ app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CE
         .rpc('generate_certificate_number_v2', { p_center_id: centerId });
 
       if (certificateNumberError || !certificateNumber) {
-        throw certificateNumberError || new Error('KhÃ´ng thá»ƒ táº¡o sá»‘ chá»©ng chá»‰');
+        throw certificateNumberError || new Error('KhÃƒÂ´ng thÃ¡Â»Æ’ tÃ¡ÂºÂ¡o sÃ¡Â»â€˜ chÃ¡Â»Â©ng chÃ¡Â»â€°');
       }
 
       const completionDate = exam_date || new Date().toISOString().slice(0, 10);
@@ -21759,7 +23507,7 @@ app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       res.status(201).json({
         success: true,
         data: certificate,
-        message: 'ÄÃ£ ghi nháº­n chá»©ng chá»‰ quá»‘c táº¿ thÃ nh cÃ´ng'
+        message: 'Ã„ÂÃƒÂ£ ghi nhÃ¡ÂºÂ­n chÃ¡Â»Â©ng chÃ¡Â»â€° quÃ¡Â»â€˜c tÃ¡ÂºÂ¿ thÃƒÂ nh cÃƒÂ´ng'
       });
 
       // Notification: Certificate issued (external)
@@ -21768,8 +23516,8 @@ app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CE
           userId: student_id,
           centerId: centerId,
           type: 'certificate',
-          title: 'Chá»©ng chá»‰ Ä‘Ã£ Ä‘Æ°á»£c cáº¥p',
-          message: 'Báº¡n Ä‘Ã£ Ä‘Æ°á»£c cáº¥p chá»©ng chá»‰ má»›i',
+          title: 'ChÃ¡Â»Â©ng chÃ¡Â»â€° Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c cÃ¡ÂºÂ¥p',
+          message: 'BÃ¡ÂºÂ¡n Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c cÃ¡ÂºÂ¥p chÃ¡Â»Â©ng chÃ¡Â»â€° mÃ¡Â»â€ºi',
           referenceId: certificate?.id,
           referenceType: 'certificate'
         }).catch(err => console.warn('Notification error:', err.message));
@@ -21781,11 +23529,11 @@ app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     if (!student_id || !class_id || !certificate_type_id) {
       return res.status(400).json({
         success: false,
-        message: 'Há»c viÃªn, lá»›p há»c vÃ  loáº¡i chá»©ng chá»‰ lÃ  báº¯t buá»™c'
+        message: 'HÃ¡Â»Âc viÃƒÂªn, lÃ¡Â»â€ºp hÃ¡Â»Âc vÃƒÂ  loÃ¡ÂºÂ¡i chÃ¡Â»Â©ng chÃ¡Â»â€° lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
       });
     }
 
-    // ðŸ”¥ Use certificate service with eligibility check
+    // Ã°Å¸â€Â¥ Use certificate service with eligibility check
     const result = await issueCertificate(supabase, {
       student_id,
       class_id,
@@ -21816,7 +23564,7 @@ app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       success: true,
       data: result.data,
       eligibility: result.eligibility,
-      message: 'ÄÃ£ cáº¥p chá»©ng chá»‰ thÃ nh cÃ´ng'
+      message: 'Ã„ÂÃƒÂ£ cÃ¡ÂºÂ¥p chÃ¡Â»Â©ng chÃ¡Â»â€° thÃƒÂ nh cÃƒÂ´ng'
     });
 
     // Notification: Certificate issued
@@ -21825,8 +23573,8 @@ app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CE
         userId: student_id,
         centerId: result?.data?.center_id,
         type: 'certificate',
-        title: 'Chá»©ng chá»‰ Ä‘Ã£ Ä‘Æ°á»£c cáº¥p',
-        message: 'Báº¡n Ä‘Ã£ Ä‘Æ°á»£c cáº¥p chá»©ng chá»‰ má»›i',
+        title: 'ChÃ¡Â»Â©ng chÃ¡Â»â€° Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c cÃ¡ÂºÂ¥p',
+        message: 'BÃ¡ÂºÂ¡n Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c cÃ¡ÂºÂ¥p chÃ¡Â»Â©ng chÃ¡Â»â€° mÃ¡Â»â€ºi',
         referenceId: result?.data?.id,
         referenceType: 'certificate'
       }).catch(err => console.warn('Notification error:', err.message));
@@ -21837,7 +23585,7 @@ app.post('/api/admin/certificates', requireAuth, requireRole(['SUPER_ADMIN', 'CE
   }
 });
 
-// ðŸ”¥ NEW: Kiá»ƒm tra Ä‘iá»u kiá»‡n cáº¥p chá»©ng chá»‰ cho há»c viÃªn
+// Ã°Å¸â€Â¥ NEW: KiÃ¡Â»Æ’m tra Ã„â€˜iÃ¡Â»Âu kiÃ¡Â»â€¡n cÃ¡ÂºÂ¥p chÃ¡Â»Â©ng chÃ¡Â»â€° cho hÃ¡Â»Âc viÃƒÂªn
 app.get('/api/students/:studentId/certificate-eligibility/:certificateTypeId', requireAuth, async (req, res, next) => {
   try {
     const { studentId, certificateTypeId } = req.params;
@@ -21846,7 +23594,7 @@ app.get('/api/students/:studentId/certificate-eligibility/:certificateTypeId', r
     if (!classId) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lÃ²ng cung cáº¥p classId'
+        message: 'Vui lÃƒÂ²ng cung cÃ¡ÂºÂ¥p classId'
       });
     }
 
@@ -21862,7 +23610,7 @@ app.get('/api/students/:studentId/certificate-eligibility/:certificateTypeId', r
   }
 });
 
-// ðŸ”¥ NEW: Láº¥y danh sÃ¡ch há»c viÃªn Ä‘á»§ Ä‘iá»u kiá»‡n cáº¥p chá»©ng chá»‰ trong lá»›p
+// Ã°Å¸â€Â¥ NEW: LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch hÃ¡Â»Âc viÃƒÂªn Ã„â€˜Ã¡Â»Â§ Ã„â€˜iÃ¡Â»Âu kiÃ¡Â»â€¡n cÃ¡ÂºÂ¥p chÃ¡Â»Â©ng chÃ¡Â»â€° trong lÃ¡Â»â€ºp
 app.get('/api/classes/:classId/eligible-students', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { classId } = req.params;
@@ -21880,7 +23628,7 @@ app.get('/api/classes/:classId/eligible-students', requireAuth, requireRole(['SU
     res.json({
       success: true,
       data: result.data,
-      message: `TÃ¬m tháº¥y ${result.data.length} há»c viÃªn Ä‘á»§ Ä‘iá»u kiá»‡n`
+      message: `TÃƒÂ¬m thÃ¡ÂºÂ¥y ${result.data.length} hÃ¡Â»Âc viÃƒÂªn Ã„â€˜Ã¡Â»Â§ Ã„â€˜iÃ¡Â»Âu kiÃ¡Â»â€¡n`
     });
   } catch (error) {
     console.error('Error getting eligible students:', error);
@@ -21888,7 +23636,7 @@ app.get('/api/classes/:classId/eligible-students', requireAuth, requireRole(['SU
   }
 });
 
-// Láº¥y danh sÃ¡ch há»c viÃªn Ä‘á»§ Ä‘iá»u kiá»‡n cáº¥p chá»©ng chá»‰
+// LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch hÃ¡Â»Âc viÃƒÂªn Ã„â€˜Ã¡Â»Â§ Ã„â€˜iÃ¡Â»Âu kiÃ¡Â»â€¡n cÃ¡ÂºÂ¥p chÃ¡Â»Â©ng chÃ¡Â»â€°
 app.get('/api/admin/certificates/eligible-students', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { centerId, classId, certificateTypeId: certTypeIdParam, type_id } = req.query;
@@ -21898,7 +23646,7 @@ app.get('/api/admin/certificates/eligible-students', requireAuth, requireRole(['
       return res.status(403).json({ success: false, message: permError });
     }
 
-    // Láº¥y cÃ¡c enrollment Ä‘ang há»c hoáº·c Ä‘Ã£ hoÃ n thÃ nh
+    // LÃ¡ÂºÂ¥y cÃƒÂ¡c enrollment Ã„â€˜ang hÃ¡Â»Âc hoÃ¡ÂºÂ·c Ã„â€˜ÃƒÂ£ hoÃƒÂ n thÃƒÂ nh
     let query = supabase
       .from('enrollments')
       .select(`
@@ -21943,7 +23691,7 @@ app.get('/api/admin/certificates/eligible-students', requireAuth, requireRole(['
       }
     }
 
-    // Láº¥y danh sÃ¡ch Ä‘Ã£ cÃ³ chá»©ng chá»‰
+    // LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch Ã„â€˜ÃƒÂ£ cÃƒÂ³ chÃ¡Â»Â©ng chÃ¡Â»â€°
     const { data: existingCerts } = await supabase
       .from('certificates')
       .select('student_id, class_id, certificate_type_id')
@@ -21987,7 +23735,7 @@ app.get('/api/admin/certificates/eligible-students', requireAuth, requireRole(['
           reasons: eligibility.reasons || []
         });
       } else {
-        // No cert type specified â€” return all without eligibility details
+        // No cert type specified Ã¢â‚¬â€ return all without eligibility details
         const key = `${enrollment.student_id}_${enrollment.class?.id}`;
         const hasAnyCert = (existingCerts || []).some(c =>
           `${c.student_id}_${c.class_id}` === key
@@ -22013,7 +23761,7 @@ app.get('/api/admin/certificates/eligible-students', requireAuth, requireRole(['
         }
       }
     }
-    // Dedup by student_id â€” keep best enrollment per student (eligible first, then first found)
+    // Dedup by student_id Ã¢â‚¬â€ keep best enrollment per student (eligible first, then first found)
     const seenStudents = new Map();
     for (const student of eligibleStudents) {
       const existing = seenStudents.get(student.student_id);
@@ -22033,7 +23781,7 @@ app.get('/api/admin/certificates/eligible-students', requireAuth, requireRole(['
   }
 });
 
-// Cáº¥p chá»©ng chá»‰ ná»™i bá»™ (issued ngay láº­p tá»©c khi admin xÃ¡c nháº­n qua wizard)
+// CÃ¡ÂºÂ¥p chÃ¡Â»Â©ng chÃ¡Â»â€° nÃ¡Â»â„¢i bÃ¡Â»â„¢ (issued ngay lÃ¡ÂºÂ­p tÃ¡Â»Â©c khi admin xÃƒÂ¡c nhÃ¡ÂºÂ­n qua wizard)
 app.post('/api/admin/certificates/request-approval', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { certificate_type_id, students, options = {} } = req.body;
@@ -22047,10 +23795,10 @@ app.post('/api/admin/certificates/request-approval', requireAuth, requireRole(['
     }
 
     if (!certificate_type_id || !students || !Array.isArray(students) || students.length === 0) {
-      return res.status(400).json({ success: false, message: 'Thiáº¿u thÃ´ng tin báº¯t buá»™c' });
+      return res.status(400).json({ success: false, message: 'ThiÃ¡ÂºÂ¿u thÃƒÂ´ng tin bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c' });
     }
 
-    // Láº¥y thÃ´ng tin certificate type
+    // LÃ¡ÂºÂ¥y thÃƒÂ´ng tin certificate type
     const { data: certType, error: typeError } = await supabase
       .from('certificate_types')
       .select('*')
@@ -22058,7 +23806,7 @@ app.post('/api/admin/certificates/request-approval', requireAuth, requireRole(['
       .single();
 
     if (typeError || !certType) {
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y loáº¡i chá»©ng chá»‰' });
+      return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y loÃ¡ÂºÂ¡i chÃ¡Â»Â©ng chÃ¡Â»â€°' });
     }
 
     const results = { success: [], failed: [] };
@@ -22067,7 +23815,7 @@ app.post('/api/admin/certificates/request-approval', requireAuth, requireRole(['
       try {
         const { student_id, scores, override_reason, class_id, course_name } = student;
 
-        // Láº¥y thÃ´ng tin há»c viÃªn
+        // LÃ¡ÂºÂ¥y thÃƒÂ´ng tin hÃ¡Â»Âc viÃƒÂªn
         const { data: profile } = await supabase
           .from('users')
           .select('full_name')
@@ -22076,13 +23824,13 @@ app.post('/api/admin/certificates/request-approval', requireAuth, requireRole(['
 
         const studentName = profile?.full_name || 'Unknown';
 
-        // Táº¡o certificate number
+        // TÃ¡ÂºÂ¡o certificate number
         const { data: certNumber } = await supabase.rpc('generate_certificate_number_v2', {
           p_type_code: certType.code || 'INT',
           p_center_code: 'SM'
         });
 
-        // TÃ­nh ngÃ y háº¿t háº¡n náº¿u cÃ³ validity_months
+        // TÃƒÂ­nh ngÃƒÂ y hÃ¡ÂºÂ¿t hÃ¡ÂºÂ¡n nÃ¡ÂºÂ¿u cÃƒÂ³ validity_months
         let expiresAt = null;
         if (certType.validity_months) {
           const expiry = new Date();
@@ -22090,7 +23838,7 @@ app.post('/api/admin/certificates/request-approval', requireAuth, requireRole(['
           expiresAt = expiry.toISOString().split('T')[0];
         }
 
-        // XÃ¡c Ä‘á»‹nh grade tá»« scores
+        // XÃƒÂ¡c Ã„â€˜Ã¡Â»â€¹nh grade tÃ¡Â»Â« scores
         const grade = scores?.grade || scores?.overall || null;
 
         const insertData = {
@@ -22130,7 +23878,7 @@ app.post('/api/admin/certificates/request-approval', requireAuth, requireRole(['
 
     res.json({
       success: true,
-      message: `ÄÃ£ cáº¥p ${results.success.length} chá»©ng chá»‰ thÃ nh cÃ´ng`,
+      message: `Ã„ÂÃƒÂ£ cÃ¡ÂºÂ¥p ${results.success.length} chÃ¡Â»Â©ng chÃ¡Â»â€° thÃƒÂ nh cÃƒÂ´ng`,
       data: results
     });
   } catch (error) {
@@ -22139,7 +23887,7 @@ app.post('/api/admin/certificates/request-approval', requireAuth, requireRole(['
   }
 });
 
-// Cáº¥p chá»©ng chá»‰ hÃ ng loáº¡t cho má»™t lá»›p
+// CÃ¡ÂºÂ¥p chÃ¡Â»Â©ng chÃ¡Â»â€° hÃƒÂ ng loÃ¡ÂºÂ¡t cho mÃ¡Â»â„¢t lÃ¡Â»â€ºp
 app.post('/api/admin/certificates/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { certificates, class_id, student_ids, grade, completion_date } = req.body;
@@ -22152,13 +23900,13 @@ app.post('/api/admin/certificates/bulk', requireAuth, requireRole(['SUPER_ADMIN'
     if (!req.user?.centerId) {
       return res.status(400).json({
         success: false,
-        message: 'User khÃ´ng cÃ³ center_id, khÃ´ng thá»ƒ cáº¥p chá»©ng chá»‰'
+        message: 'User khÃƒÂ´ng cÃƒÂ³ center_id, khÃƒÂ´ng thÃ¡Â»Æ’ cÃ¡ÂºÂ¥p chÃ¡Â»Â©ng chÃ¡Â»â€°'
       });
     }
 
-    // Há»— trá»£ cáº£ format má»›i (certificates array) vÃ  format cÅ© (class_id + student_ids)
+    // HÃ¡Â»â€” trÃ¡Â»Â£ cÃ¡ÂºÂ£ format mÃ¡Â»â€ºi (certificates array) vÃƒÂ  format cÃ…Â© (class_id + student_ids)
     if (certificates && Array.isArray(certificates) && certificates.length > 0) {
-      // NEW FORMAT: Cáº¥p nhiá»u chá»©ng chá»‰ vá»›i thÃ´ng tin chi tiáº¿t tá»«ng ngÆ°á»i
+      // NEW FORMAT: CÃ¡ÂºÂ¥p nhiÃ¡Â»Âu chÃ¡Â»Â©ng chÃ¡Â»â€° vÃ¡Â»â€ºi thÃƒÂ´ng tin chi tiÃ¡ÂºÂ¿t tÃ¡Â»Â«ng ngÃ†Â°Ã¡Â»Âi
       const results = { success: [], failed: [] };
 
       for (const cert of certificates) {
@@ -22167,7 +23915,7 @@ app.post('/api/admin/certificates/bulk', requireAuth, requireRole(['SUPER_ADMIN'
           if (!cert.certificate_type_id || !cert.student_id) {
             results.failed.push({
               student_id: cert.student_id,
-              reason: 'Thiáº¿u certificate_type_id hoáº·c student_id'
+              reason: 'ThiÃ¡ÂºÂ¿u certificate_type_id hoÃ¡ÂºÂ·c student_id'
             });
             continue;
           }
@@ -22247,20 +23995,20 @@ app.post('/api/admin/certificates/bulk', requireAuth, requireRole(['SUPER_ADMIN'
 
       return res.status(201).json({
         success: true,
-        message: `ÄÃ£ cáº¥p ${results.success.length}/${certificates.length} chá»©ng chá»‰`,
+        message: `Ã„ÂÃƒÂ£ cÃ¡ÂºÂ¥p ${results.success.length}/${certificates.length} chÃ¡Â»Â©ng chÃ¡Â»â€°`,
         data: results
       });
     }
 
-    // OLD FORMAT: Cáº¥p chá»©ng chá»‰ tá»« class
+    // OLD FORMAT: CÃ¡ÂºÂ¥p chÃ¡Â»Â©ng chÃ¡Â»â€° tÃ¡Â»Â« class
     if (!class_id || !student_ids || !student_ids.length) {
       return res.status(400).json({
         success: false,
-        message: 'Cáº§n cÃ³ certificates array hoáº·c class_id + student_ids'
+        message: 'CÃ¡ÂºÂ§n cÃƒÂ³ certificates array hoÃ¡ÂºÂ·c class_id + student_ids'
       });
     }
 
-    // Láº¥y thÃ´ng tin lá»›p vÃ  khÃ³a há»c
+    // LÃ¡ÂºÂ¥y thÃƒÂ´ng tin lÃ¡Â»â€ºp vÃƒÂ  khÃƒÂ³a hÃ¡Â»Âc
     const { data: classData, error: classError } = await supabase
       .from('classes')
       .select('id, name, end_date, course:courses(id, title), center:centers(id)')
@@ -22270,11 +24018,11 @@ app.post('/api/admin/certificates/bulk', requireAuth, requireRole(['SUPER_ADMIN'
     if (classError || !classData) {
       return res.status(400).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y lÃ¡Â»â€ºp hÃ¡Â»Âc'
       });
     }
 
-    // Láº¥y thÃ´ng tin há»c viÃªn
+    // LÃ¡ÂºÂ¥y thÃƒÂ´ng tin hÃ¡Â»Âc viÃƒÂªn
     const { data: students } = await supabase
       .from('users')
       .select('id, full_name')
@@ -22286,7 +24034,7 @@ app.post('/api/admin/certificates/bulk', requireAuth, requireRole(['SUPER_ADMIN'
       try {
         const student = students?.find(s => s.id === studentId);
         if (!student) {
-          results.failed.push({ student_id: studentId, reason: 'KhÃ´ng tÃ¬m tháº¥y há»c viÃªn' });
+          results.failed.push({ student_id: studentId, reason: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y hÃ¡Â»Âc viÃƒÂªn' });
           continue;
         }
 
@@ -22324,7 +24072,7 @@ app.post('/api/admin/certificates/bulk', requireAuth, requireRole(['SUPER_ADMIN'
 
     res.status(201).json({
       success: true,
-      message: `ÄÃ£ cáº¥p ${results.success.length}/${student_ids.length} chá»©ng chá»‰`,
+      message: `Ã„ÂÃƒÂ£ cÃ¡ÂºÂ¥p ${results.success.length}/${student_ids.length} chÃ¡Â»Â©ng chÃ¡Â»â€°`,
       data: results
     });
   } catch (error) {
@@ -22333,7 +24081,7 @@ app.post('/api/admin/certificates/bulk', requireAuth, requireRole(['SUPER_ADMIN'
   }
 });
 
-// Thu há»“i chá»©ng chá»‰
+// Thu hÃ¡Â»â€œi chÃ¡Â»Â©ng chÃ¡Â»â€°
 app.put('/api/admin/certificates/:id/revoke', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -22344,7 +24092,7 @@ app.put('/api/admin/certificates/:id/revoke', requireAuth, requireRole(['SUPER_A
       .update({
         status: 'revoked',
         revoked_at: new Date().toISOString(),
-        revoked_reason: reason || 'KhÃ´ng cÃ³ lÃ½ do',
+        revoked_reason: reason || 'KhÃƒÂ´ng cÃƒÂ³ lÃƒÂ½ do',
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
@@ -22356,7 +24104,7 @@ app.put('/api/admin/certificates/:id/revoke', requireAuth, requireRole(['SUPER_A
     res.json({
       success: true,
       data,
-      message: 'ÄÃ£ thu há»“i chá»©ng chá»‰'
+      message: 'Ã„ÂÃƒÂ£ thu hÃ¡Â»â€œi chÃ¡Â»Â©ng chÃ¡Â»â€°'
     });
   } catch (error) {
     console.error('Error revoking certificate:', error);
@@ -22364,7 +24112,7 @@ app.put('/api/admin/certificates/:id/revoke', requireAuth, requireRole(['SUPER_A
   }
 });
 
-// Láº¥y chi tiáº¿t má»™t chá»©ng chá»‰
+// LÃ¡ÂºÂ¥y chi tiÃ¡ÂºÂ¿t mÃ¡Â»â„¢t chÃ¡Â»Â©ng chÃ¡Â»â€°
 app.get('/api/admin/certificates/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -22398,7 +24146,7 @@ app.get('/api/admin/certificates/:id', requireAuth, async (req, res, next) => {
     if (error || !data) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y chá»©ng chá»‰'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y chÃ¡Â»Â©ng chÃ¡Â»â€°'
       });
     }
 
@@ -22412,7 +24160,7 @@ app.get('/api/admin/certificates/:id', requireAuth, async (req, res, next) => {
   }
 });
 
-// Cáº­p nháº­t chá»©ng chá»‰
+// CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t chÃ¡Â»Â©ng chÃ¡Â»â€°
 app.put('/api/admin/certificates/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -22456,7 +24204,7 @@ app.put('/api/admin/certificates/:id', requireAuth, requireRole(['SUPER_ADMIN', 
     res.json({
       success: true,
       data,
-      message: 'ÄÃ£ cáº­p nháº­t chá»©ng chá»‰'
+      message: 'Ã„ÂÃƒÂ£ cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t chÃ¡Â»Â©ng chÃ¡Â»â€°'
     });
   } catch (error) {
     console.error('Error updating certificate:', error);
@@ -22680,12 +24428,12 @@ app.get('/api/admin/pending-approvals', requireAuth, requireRole(['SUPER_ADMIN',
 });
 
 // ============================================================
-// PUBLIC CERTIFICATE VERIFICATION API - XÃ¡c thá»±c chá»©ng chá»‰ cÃ´ng khai
+// PUBLIC CERTIFICATE VERIFICATION API - XÃƒÂ¡c thÃ¡Â»Â±c chÃ¡Â»Â©ng chÃ¡Â»â€° cÃƒÂ´ng khai
 // ============================================================
 
 /**
  * @api {GET} /api/public/verify-certificate/:certificateNumber
- * @description XÃ¡c thá»±c chá»©ng chá»‰ theo mÃ£ sá»‘ - KHÃ”NG Cáº¦N ÄÄ‚NG NHáº¬P
+ * @description XÃƒÂ¡c thÃ¡Â»Â±c chÃ¡Â»Â©ng chÃ¡Â»â€° theo mÃƒÂ£ sÃ¡Â»â€˜ - KHÃƒâ€NG CÃ¡ÂºÂ¦N Ã„ÂÃ„â€šNG NHÃ¡ÂºÂ¬P
  */
 app.get('/api/public/verify-certificate/:certificateNumber', async (req, res, next) => {
   try {
@@ -22698,12 +24446,12 @@ app.get('/api/public/verify-certificate/:certificateNumber', async (req, res, ne
     if (!certificateNumber || certificateNumber.length < 3) {
       return res.status(400).json({
         success: false,
-        message: 'MÃ£ chá»©ng chá»‰ khÃ´ng há»£p lá»‡',
+        message: 'MÃƒÂ£ chÃ¡Â»Â©ng chÃ¡Â»â€° khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡',
         code: 'INVALID_FORMAT'
       });
     }
 
-    // TÃ¬m chá»©ng chá»‰ vá»›i mÃ£ sá»‘ (case-insensitive)
+    // TÃƒÂ¬m chÃ¡Â»Â©ng chÃ¡Â»â€° vÃ¡Â»â€ºi mÃƒÂ£ sÃ¡Â»â€˜ (case-insensitive)
     const { data: certificate, error } = await supabase
       .from('certificates')
       .select(`
@@ -22738,13 +24486,13 @@ app.get('/api/public/verify-certificate/:certificateNumber', async (req, res, ne
       console.log('Certificate not found:', certificateNumber, error);
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y chá»©ng chá»‰ vá»›i mÃ£ sá»‘ nÃ y',
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y chÃ¡Â»Â©ng chÃ¡Â»â€° vÃ¡Â»â€ºi mÃƒÂ£ sÃ¡Â»â€˜ nÃƒÂ y',
         code: 'CERTIFICATE_NOT_FOUND',
         searched_code: certificateNumber
       });
     }
 
-    // KhÃ´ng tráº£ vá» student_id hoáº·c thÃ´ng tin nháº¡y cáº£m
+    // KhÃƒÂ´ng trÃ¡ÂºÂ£ vÃ¡Â»Â student_id hoÃ¡ÂºÂ·c thÃƒÂ´ng tin nhÃ¡ÂºÂ¡y cÃ¡ÂºÂ£m
     const publicData = {
       certificate_number: certificate.certificate_number,
       student_name: certificate.student_name,
@@ -22762,7 +24510,7 @@ app.get('/api/public/verify-certificate/:certificateNumber', async (req, res, ne
       } : null
     };
 
-    // Kiá»ƒm tra tráº¡ng thÃ¡i
+    // KiÃ¡Â»Æ’m tra trÃ¡ÂºÂ¡ng thÃƒÂ¡i
     let verificationStatus = 'valid';
     if (certificate.status === 'revoked') {
       verificationStatus = 'revoked';
@@ -22784,20 +24532,20 @@ app.get('/api/public/verify-certificate/:certificateNumber', async (req, res, ne
     console.error('Error verifying certificate:', error);
     res.status(500).json({
       success: false,
-      message: 'Lá»—i há»‡ thá»‘ng khi xÃ¡c thá»±c chá»©ng chá»‰. Vui lÃ²ng thá»­ láº¡i sau.',
+      message: 'LÃ¡Â»â€”i hÃ¡Â»â€¡ thÃ¡Â»â€˜ng khi xÃƒÂ¡c thÃ¡Â»Â±c chÃ¡Â»Â©ng chÃ¡Â»â€°. Vui lÃƒÂ²ng thÃ¡Â»Â­ lÃ¡ÂºÂ¡i sau.',
       code: 'SERVER_ERROR'
     });
   }
 });
 
 // ============================================================
-// SUPPORT TICKETS APIs - Há»‡ thá»‘ng há»— trá»£ (LEGACY)
+// SUPPORT TICKETS APIs - HÃ¡Â»â€¡ thÃ¡Â»â€˜ng hÃ¡Â»â€” trÃ¡Â»Â£ (LEGACY)
 // Deprecated route group kept for backward compatibility only.
 // Authoritative support ticket APIs are defined later in
 // SUPPORT TICKETS MANAGEMENT APIs section.
 // ============================================================
 
-// Láº¥y danh sÃ¡ch tickets
+// LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch tickets
 app.get('/api/legacy/admin/support-tickets', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
     const { centerId, status, priority, category, assignedTo, search, page = 1, limit = 20 } = req.query;
@@ -22861,7 +24609,7 @@ app.get('/api/legacy/admin/support-tickets', requireAuth, requireRole(['SUPER_AD
   }
 });
 
-// Láº¥y chi tiáº¿t ticket kÃ¨m messages
+// LÃ¡ÂºÂ¥y chi tiÃ¡ÂºÂ¿t ticket kÃƒÂ¨m messages
 app.get('/api/legacy/admin/support-tickets/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -22892,7 +24640,7 @@ app.get('/api/legacy/admin/support-tickets/:id', requireAuth, async (req, res, n
     if (ticketResult.error || !ticketResult.data) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y ticket'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y ticket'
       });
     }
 
@@ -22909,7 +24657,7 @@ app.get('/api/legacy/admin/support-tickets/:id', requireAuth, async (req, res, n
   }
 });
 
-// Táº¡o ticket má»›i (tá»« admin hoáº·c student)
+// TÃ¡ÂºÂ¡o ticket mÃ¡Â»â€ºi (tÃ¡Â»Â« admin hoÃ¡ÂºÂ·c student)
 app.post('/api/legacy/support-tickets', requireAuth, async (req, res, next) => {
   try {
     const { subject, message, category, priority, class_id } = req.body;
@@ -22917,7 +24665,7 @@ app.post('/api/legacy/support-tickets', requireAuth, async (req, res, next) => {
     if (!subject || !message) {
       return res.status(400).json({
         success: false,
-        message: 'TiÃªu Ä‘á» vÃ  ná»™i dung lÃ  báº¯t buá»™c'
+        message: 'TiÃƒÂªu Ã„â€˜Ã¡Â»Â vÃƒÂ  nÃ¡Â»â„¢i dung lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
       });
     }
 
@@ -22941,7 +24689,7 @@ app.post('/api/legacy/support-tickets', requireAuth, async (req, res, next) => {
 
     if (ticketError) throw ticketError;
 
-    // ThÃªm message Ä‘áº§u tiÃªn
+    // ThÃƒÂªm message Ã„â€˜Ã¡ÂºÂ§u tiÃƒÂªn
     await supabase
       .from('ticket_messages')
       .insert({
@@ -22954,7 +24702,7 @@ app.post('/api/legacy/support-tickets', requireAuth, async (req, res, next) => {
     res.status(201).json({
       success: true,
       data: ticket,
-      message: 'ÄÃ£ táº¡o yÃªu cáº§u há»— trá»£'
+      message: 'Ã„ÂÃƒÂ£ tÃ¡ÂºÂ¡o yÃƒÂªu cÃ¡ÂºÂ§u hÃ¡Â»â€” trÃ¡Â»Â£'
     });
   } catch (error) {
     console.error('Error creating support ticket:', error);
@@ -22962,7 +24710,7 @@ app.post('/api/legacy/support-tickets', requireAuth, async (req, res, next) => {
   }
 });
 
-// Cáº­p nháº­t ticket (gÃ¡n ngÆ°á»i xá»­ lÃ½, Ä‘á»•i tráº¡ng thÃ¡i, priority)
+// CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t ticket (gÃƒÂ¡n ngÃ†Â°Ã¡Â»Âi xÃ¡Â»Â­ lÃƒÂ½, Ã„â€˜Ã¡Â»â€¢i trÃ¡ÂºÂ¡ng thÃƒÂ¡i, priority)
 app.put('/api/legacy/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -22976,7 +24724,7 @@ app.put('/api/legacy/admin/support-tickets/:id', requireAuth, requireRole(['SUPE
     if (priority) updateData.priority = priority;
     if (assigned_to !== undefined) updateData.assigned_to = assigned_to || null;
 
-    // Náº¿u Ä‘Ã¡nh dáº¥u resolved
+    // NÃ¡ÂºÂ¿u Ã„â€˜ÃƒÂ¡nh dÃ¡ÂºÂ¥u resolved
     if (status === 'resolved' || status === 'closed') {
       updateData.resolved_at = new Date().toISOString();
       updateData.resolved_by = req.user.id;
@@ -22995,7 +24743,7 @@ app.put('/api/legacy/admin/support-tickets/:id', requireAuth, requireRole(['SUPE
     res.json({
       success: true,
       data,
-      message: 'ÄÃ£ cáº­p nháº­t ticket'
+      message: 'Ã„ÂÃƒÂ£ cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t ticket'
     });
   } catch (error) {
     console.error('Error updating support ticket:', error);
@@ -23003,7 +24751,7 @@ app.put('/api/legacy/admin/support-tickets/:id', requireAuth, requireRole(['SUPE
   }
 });
 
-// Gá»­i reply vÃ o ticket
+// GÃ¡Â»Â­i reply vÃƒÂ o ticket
 app.post('/api/legacy/support-tickets/:id/messages', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -23012,11 +24760,11 @@ app.post('/api/legacy/support-tickets/:id/messages', requireAuth, async (req, re
     if (!message) {
       return res.status(400).json({
         success: false,
-        message: 'Ná»™i dung tin nháº¯n lÃ  báº¯t buá»™c'
+        message: 'NÃ¡Â»â„¢i dung tin nhÃ¡ÂºÂ¯n lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
       });
     }
 
-    // Kiá»ƒm tra ticket tá»“n táº¡i
+    // KiÃ¡Â»Æ’m tra ticket tÃ¡Â»â€œn tÃ¡ÂºÂ¡i
     const { data: ticket, error: ticketError } = await supabase
       .from('support_tickets')
       .select('id, status')
@@ -23026,7 +24774,7 @@ app.post('/api/legacy/support-tickets/:id/messages', requireAuth, async (req, re
     if (ticketError || !ticket) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y ticket'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y ticket'
       });
     }
 
@@ -23048,7 +24796,7 @@ app.post('/api/legacy/support-tickets/:id/messages', requireAuth, async (req, re
 
     if (error) throw error;
 
-    // Cáº­p nháº­t status thÃ nh in_progress náº¿u Ä‘ang open
+    // CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t status thÃƒÂ nh in_progress nÃ¡ÂºÂ¿u Ã„â€˜ang open
     if (ticket.status === 'open') {
       await supabase
         .from('support_tickets')
@@ -23059,7 +24807,7 @@ app.post('/api/legacy/support-tickets/:id/messages', requireAuth, async (req, re
     res.status(201).json({
       success: true,
       data,
-      message: 'ÄÃ£ gá»­i tin nháº¯n'
+      message: 'Ã„ÂÃƒÂ£ gÃ¡Â»Â­i tin nhÃ¡ÂºÂ¯n'
     });
   } catch (error) {
     console.error('Error sending ticket message:', error);
@@ -23068,10 +24816,10 @@ app.post('/api/legacy/support-tickets/:id/messages', requireAuth, async (req, re
 });
 
 // ============================================================
-// ENROLLMENTS APIs - Quáº£n lÃ½ ghi danh
+// ENROLLMENTS APIs - QuÃ¡ÂºÂ£n lÃƒÂ½ ghi danh
 // ============================================================
 
-// Láº¥y danh sÃ¡ch ghi danh
+// LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch ghi danh
 app.get('/api/admin/enrollments', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { centerId, classId, studentId, status, search, page = 1, limit = 20 } = req.query;
@@ -23161,7 +24909,7 @@ app.get('/api/admin/enrollments', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
   }
 });
 
-// Táº¡o enrollment má»›i (ghi danh há»c viÃªn vÃ o lá»›p)
+// TÃ¡ÂºÂ¡o enrollment mÃ¡Â»â€ºi (ghi danh hÃ¡Â»Âc viÃƒÂªn vÃƒÂ o lÃ¡Â»â€ºp)
 app.post('/api/admin/enrollments', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { student_id, class_id, tuition_fee, discount_amount, paid_amount, notes } = req.body;
@@ -23169,11 +24917,11 @@ app.post('/api/admin/enrollments', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
     if (!student_id || !class_id) {
       return res.status(400).json({
         success: false,
-        message: 'Há»c viÃªn vÃ  lá»›p há»c lÃ  báº¯t buá»™c'
+        message: 'HÃ¡Â»Âc viÃƒÂªn vÃƒÂ  lÃ¡Â»â€ºp hÃ¡Â»Âc lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
       });
     }
 
-    // ðŸ”¥ Use unified enrollment service
+    // Ã°Å¸â€Â¥ Use unified enrollment service
     const result = await createEnrollmentWithDraftInvoice(supabase, {
       student_id,
       class_id,
@@ -23209,12 +24957,12 @@ app.post('/api/admin/enrollments', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
           const notifModule = await getEnrollmentNotifications();
           if (notifModule) {
             notifModule.sendEnrollmentWelcome(enrollmentData).catch(err => {
-              console.warn('âš ï¸ Failed to queue enrollment welcome notification:', err.message);
+              console.warn('Ã¢Å¡Â Ã¯Â¸Â Failed to queue enrollment welcome notification:', err.message);
             });
           }
         }
       } catch (notifError) {
-        console.warn('âš ï¸ Error sending enrollment welcome notification:', notifError.message);
+        console.warn('Ã¢Å¡Â Ã¯Â¸Â Error sending enrollment welcome notification:', notifError.message);
       }
     }
 
@@ -23222,7 +24970,7 @@ app.post('/api/admin/enrollments', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
       success: true,
       data: result.enrollment,
       invoice: result.invoice,
-      message: result.message || 'ÄÃ£ ghi danh há»c viÃªn thÃ nh cÃ´ng'
+      message: result.message || 'Ã„ÂÃƒÂ£ ghi danh hÃ¡Â»Âc viÃƒÂªn thÃƒÂ nh cÃƒÂ´ng'
     });
   } catch (error) {
     console.error('Error creating enrollment:', error);
@@ -23231,7 +24979,7 @@ app.post('/api/admin/enrollments', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
 });
 
 // ========================================
-// ðŸ”¥ BATCH ENROLLMENT - Ghi danh nhiá»u há»c viÃªn cÃ¹ng lÃºc
+// Ã°Å¸â€Â¥ BATCH ENROLLMENT - Ghi danh nhiÃ¡Â»Âu hÃ¡Â»Âc viÃƒÂªn cÃƒÂ¹ng lÃƒÂºc
 // ========================================
 app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -23241,7 +24989,7 @@ app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN'
     if (!class_id || !student_ids || !Array.isArray(student_ids) || student_ids.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Há»c viÃªn vÃ  lá»›p há»c lÃ  báº¯t buá»™c'
+        message: 'HÃ¡Â»Âc viÃƒÂªn vÃƒÂ  lÃ¡Â»â€ºp hÃ¡Â»Âc lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
       });
     }
 
@@ -23249,7 +24997,7 @@ app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN'
     if (student_ids.length > 50) {
       return res.status(400).json({
         success: false,
-        message: 'Tá»‘i Ä‘a 50 há»c viÃªn má»—i láº§n ghi danh'
+        message: 'TÃ¡Â»â€˜i Ã„â€˜a 50 hÃ¡Â»Âc viÃƒÂªn mÃ¡Â»â€”i lÃ¡ÂºÂ§n ghi danh'
       });
     }
 
@@ -23263,7 +25011,7 @@ app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN'
     if (classError || !classData) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y lÃ¡Â»â€ºp hÃ¡Â»Âc'
       });
     }
 
@@ -23277,7 +25025,7 @@ app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN'
     if (student_ids.length > availableSlots) {
       return res.status(400).json({
         success: false,
-        message: `Lá»›p há»c chá»‰ cÃ²n ${availableSlots} chá»— trá»‘ng`
+        message: `LÃ¡Â»â€ºp hÃ¡Â»Âc chÃ¡Â»â€° cÃƒÂ²n ${availableSlots} chÃ¡Â»â€” trÃ¡Â»â€˜ng`
       });
     }
 
@@ -23301,7 +25049,7 @@ app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN'
     if (newStudentIds.length === 0 && reactivateIds.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Táº¥t cáº£ há»c viÃªn Ä‘Ã£ Ä‘Æ°á»£c ghi danh vÃ o lá»›p nÃ y'
+        message: 'TÃ¡ÂºÂ¥t cÃ¡ÂºÂ£ hÃ¡Â»Âc viÃƒÂªn Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c ghi danh vÃƒÂ o lÃ¡Â»â€ºp nÃƒÂ y'
       });
     }
 
@@ -23359,7 +25107,7 @@ app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN'
           tuition_fee: enrollment.tuition_fee || classData.courses?.price || 0,
           discount_amount: 0,
           paid_amount: 0,
-          description: `Há»c phÃ­ lá»›p ${classData.name}`,
+          description: `HÃ¡Â»Âc phÃƒÂ­ lÃ¡Â»â€ºp ${classData.name}`,
           created_by: req.user?.id
         });
 
@@ -23374,7 +25122,7 @@ app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN'
       }
     }
 
-    console.log(`âœ… Batch enrollment: ${insertedData.length} new, ${reactivatedData.length} reactivated, ${invoiceResults.length} invoices`);
+    console.log(`Ã¢Å“â€¦ Batch enrollment: ${insertedData.length} new, ${reactivatedData.length} reactivated, ${invoiceResults.length} invoices`);
 
     res.status(201).json({
       success: true,
@@ -23387,7 +25135,7 @@ app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN'
         invoices_created: invoiceResults.length,
         invoice_errors: invoiceErrors.length > 0 ? invoiceErrors : undefined
       },
-      message: `ÄÃ£ ghi danh ${allEnrolled.length} há»c viÃªn vÃ  táº¡o ${invoiceResults.length} hÃ³a Ä‘Æ¡n draft`
+      message: `Ã„ÂÃƒÂ£ ghi danh ${allEnrolled.length} hÃ¡Â»Âc viÃƒÂªn vÃƒÂ  tÃ¡ÂºÂ¡o ${invoiceResults.length} hÃƒÂ³a Ã„â€˜Ã†Â¡n draft`
     });
   } catch (error) {
     console.error('Error batch enrollment:', error);
@@ -23395,7 +25143,7 @@ app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN'
   }
 });
 
-// Cáº­p nháº­t enrollment
+// CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t enrollment
 app.put('/api/admin/enrollments/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -23420,7 +25168,7 @@ app.put('/api/admin/enrollments/:id', requireAuth, requireRole(['SUPER_ADMIN', '
     res.json({
       success: true,
       data,
-      message: 'ÄÃ£ cáº­p nháº­t ghi danh'
+      message: 'Ã„ÂÃƒÂ£ cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t ghi danh'
     });
   } catch (error) {
     console.error('Error updating enrollment:', error);
@@ -23428,7 +25176,7 @@ app.put('/api/admin/enrollments/:id', requireAuth, requireRole(['SUPER_ADMIN', '
   }
 });
 
-// Há»§y enrollment (soft delete - set status = dropped)
+// HÃ¡Â»Â§y enrollment (soft delete - set status = dropped)
 app.delete('/api/admin/enrollments/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -23448,7 +25196,7 @@ app.delete('/api/admin/enrollments/:id', requireAuth, requireRole(['SUPER_ADMIN'
     res.json({
       success: true,
       data,
-      message: 'ÄÃ£ há»§y ghi danh'
+      message: 'Ã„ÂÃƒÂ£ hÃ¡Â»Â§y ghi danh'
     });
   } catch (error) {
     console.error('Error deleting enrollment:', error);
@@ -23467,7 +25215,7 @@ app.post('/api/admin/enrollments/bulk-delete', requireAuth, requireRole(['SUPER_
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Danh sÃ¡ch ghi danh khÃ´ng há»£p lá»‡'
+        message: 'Danh sÃƒÂ¡ch ghi danh khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡'
       });
     }
 
@@ -23485,7 +25233,7 @@ app.post('/api/admin/enrollments/bulk-delete', requireAuth, requireRole(['SUPER_
 
     res.json({
       success: true,
-      message: `ÄÃ£ há»§y ${data.length} ghi danh`,
+      message: `Ã„ÂÃƒÂ£ hÃ¡Â»Â§y ${data.length} ghi danh`,
       data
     });
   } catch (error) {
@@ -23565,7 +25313,7 @@ app.post('/api/admin/enrollments/trial', requireAuth, requireRole(['SUPER_ADMIN'
     if (!student_id || !class_id) {
       return res.status(400).json({
         success: false,
-        message: 'Há»c viÃªn vÃ  lá»›p há»c lÃ  báº¯t buá»™c'
+        message: 'HÃ¡Â»Âc viÃƒÂªn vÃƒÂ  lÃ¡Â»â€ºp hÃ¡Â»Âc lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
       });
     }
 
@@ -23579,7 +25327,7 @@ app.post('/api/admin/enrollments/trial', requireAuth, requireRole(['SUPER_ADMIN'
     if (studentError || !student) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y há»c viÃªn'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y hÃ¡Â»Âc viÃƒÂªn'
       });
     }
 
@@ -23593,7 +25341,7 @@ app.post('/api/admin/enrollments/trial', requireAuth, requireRole(['SUPER_ADMIN'
     if (classError || !classData) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y lÃ¡Â»â€ºp hÃ¡Â»Âc'
       });
     }
 
@@ -23607,7 +25355,7 @@ app.post('/api/admin/enrollments/trial', requireAuth, requireRole(['SUPER_ADMIN'
     if (currentCount >= classData.max_students) {
       return res.status(400).json({
         success: false,
-        message: `Lá»›p ${classData.name} Ä‘Ã£ Ä‘áº§y (${currentCount}/${classData.max_students}). Vui lÃ²ng thÃªm vÃ o danh sÃ¡ch chá».`
+        message: `LÃ¡Â»â€ºp ${classData.name} Ã„â€˜ÃƒÂ£ Ã„â€˜Ã¡ÂºÂ§y (${currentCount}/${classData.max_students}). Vui lÃƒÂ²ng thÃƒÂªm vÃƒÂ o danh sÃƒÂ¡ch chÃ¡Â»Â.`
       });
     }
 
@@ -23621,10 +25369,10 @@ app.post('/api/admin/enrollments/trial', requireAuth, requireRole(['SUPER_ADMIN'
       .single();
 
     if (existingEnrollment) {
-      const typeText = existingEnrollment.enrollment_type === 'trial' ? 'há»c thá»­' : 'chÃ­nh thá»©c';
+      const typeText = existingEnrollment.enrollment_type === 'trial' ? 'hÃ¡Â»Âc thÃ¡Â»Â­' : 'chÃƒÂ­nh thÃ¡Â»Â©c';
       return res.status(400).json({
         success: false,
-        message: `Há»c viÃªn Ä‘Ã£ Ä‘Äƒng kÃ½ ${typeText} lá»›p nÃ y rá»“i`
+        message: `HÃ¡Â»Âc viÃƒÂªn Ã„â€˜ÃƒÂ£ Ã„â€˜Ã„Æ’ng kÃƒÂ½ ${typeText} lÃ¡Â»â€ºp nÃƒÂ y rÃ¡Â»â€œi`
       });
     }
 
@@ -23639,7 +25387,7 @@ app.post('/api/admin/enrollments/trial', requireAuth, requireRole(['SUPER_ADMIN'
         tuition_fee: 0,
         discount_amount: 0,
         paid_amount: 0,
-        notes: notes || 'ÄÄƒng kÃ½ há»c thá»­',
+        notes: notes || 'Ã„ÂÃ„Æ’ng kÃƒÂ½ hÃ¡Â»Âc thÃ¡Â»Â­',
         enrolled_at: new Date().toISOString()
       })
       .select(`
@@ -23656,11 +25404,11 @@ app.post('/api/admin/enrollments/trial', requireAuth, requireRole(['SUPER_ADMIN'
 
     if (insertError) throw insertError;
 
-    console.log(`âœ… Trial enrollment created: ${student.full_name} -> ${classData.name}`);
+    console.log(`Ã¢Å“â€¦ Trial enrollment created: ${student.full_name} -> ${classData.name}`);
 
     res.status(201).json({
       success: true,
-      message: `ÄÃ£ Ä‘Äƒng kÃ½ há»c thá»­ cho ${student.full_name} vÃ o lá»›p ${classData.name}`,
+      message: `Ã„ÂÃƒÂ£ Ã„â€˜Ã„Æ’ng kÃƒÂ½ hÃ¡Â»Âc thÃ¡Â»Â­ cho ${student.full_name} vÃƒÂ o lÃ¡Â»â€ºp ${classData.name}`,
       data: {
         ...enrollment,
         student_name: student.full_name,
@@ -23678,7 +25426,7 @@ app.post('/api/admin/enrollments/trial', requireAuth, requireRole(['SUPER_ADMIN'
 /**
  * PUT /api/admin/enrollments/:id/convert-trial
  * Convert trial enrollment to regular (paid) enrollment
- * âœ… Auto-creates Invoice after conversion
+ * Ã¢Å“â€¦ Auto-creates Invoice after conversion
  */
 app.put('/api/admin/enrollments/:id/convert-trial', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -23689,7 +25437,7 @@ app.put('/api/admin/enrollments/:id/convert-trial', requireAuth, requireRole(['S
     if (!tuition_fee || tuition_fee <= 0) {
       return res.status(400).json({
         success: false,
-        message: 'Há»c phÃ­ lÃ  báº¯t buá»™c vÃ  pháº£i > 0'
+        message: 'HÃ¡Â»Âc phÃƒÂ­ lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c vÃƒÂ  phÃ¡ÂºÂ£i > 0'
       });
     }
 
@@ -23707,21 +25455,21 @@ app.put('/api/admin/enrollments/:id/convert-trial', requireAuth, requireRole(['S
     if (checkError || !enrollment) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y Ä‘Äƒng kÃ½'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y Ã„â€˜Ã„Æ’ng kÃƒÂ½'
       });
     }
 
     if (enrollment.enrollment_type !== 'trial') {
       return res.status(400).json({
         success: false,
-        message: 'ÄÄƒng kÃ½ nÃ y khÃ´ng pháº£i há»c thá»­'
+        message: 'Ã„ÂÃ„Æ’ng kÃƒÂ½ nÃƒÂ y khÃƒÂ´ng phÃ¡ÂºÂ£i hÃ¡Â»Âc thÃ¡Â»Â­'
       });
     }
 
     if (enrollment.is_trial_converted) {
       return res.status(400).json({
         success: false,
-        message: 'ÄÄƒng kÃ½ há»c thá»­ nÃ y Ä‘Ã£ Ä‘Æ°á»£c chuyá»ƒn Ä‘á»•i rá»“i'
+        message: 'Ã„ÂÃ„Æ’ng kÃƒÂ½ hÃ¡Â»Âc thÃ¡Â»Â­ nÃƒÂ y Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c chuyÃ¡Â»Æ’n Ã„â€˜Ã¡Â»â€¢i rÃ¡Â»â€œi'
       });
     }
 
@@ -23737,11 +25485,11 @@ app.put('/api/admin/enrollments/:id/convert-trial', requireAuth, requireRole(['S
       console.error('RPC Error:', rpcError);
       return res.status(400).json({
         success: false,
-        message: rpcError.message || 'Lá»—i khi chuyá»ƒn Ä‘á»•i Ä‘Äƒng kÃ½'
+        message: rpcError.message || 'LÃ¡Â»â€”i khi chuyÃ¡Â»Æ’n Ã„â€˜Ã¡Â»â€¢i Ã„â€˜Ã„Æ’ng kÃƒÂ½'
       });
     }
 
-    console.log(`âœ… Trial converted: ${enrollment.student?.full_name} -> ${enrollment.class?.name}`);
+    console.log(`Ã¢Å“â€¦ Trial converted: ${enrollment.student?.full_name} -> ${enrollment.class?.name}`);
 
     // Auto-create Invoice if requested
     let invoice = null;
@@ -23763,7 +25511,7 @@ app.put('/api/admin/enrollments/:id/convert-trial', requireAuth, requireRole(['S
           final_amount: finalAmount,
           paid_amount: 0,
           status: 'unpaid',
-          description: `Há»c phÃ­ - ${enrollment.class?.name || 'N/A'} - Chuyá»ƒn Ä‘á»•i tá»« há»c thá»­`,
+          description: `HÃ¡Â»Âc phÃƒÂ­ - ${enrollment.class?.name || 'N/A'} - ChuyÃ¡Â»Æ’n Ã„â€˜Ã¡Â»â€¢i tÃ¡Â»Â« hÃ¡Â»Âc thÃ¡Â»Â­`,
           due_date: defaultDueDate,
           created_by: userId
         })
@@ -23771,11 +25519,11 @@ app.put('/api/admin/enrollments/:id/convert-trial', requireAuth, requireRole(['S
         .single();
 
       if (invoiceError) {
-        console.error('âŒ Error creating invoice after trial conversion:', invoiceError);
+        console.error('Ã¢ÂÅ’ Error creating invoice after trial conversion:', invoiceError);
         // Don't fail the whole operation, just log the error
       } else {
         invoice = newInvoice;
-        console.log(`âœ… Invoice created: ${invoiceCode} - ${finalAmount.toLocaleString('vi-VN')}Ä‘`);
+        console.log(`Ã¢Å“â€¦ Invoice created: ${invoiceCode} - ${finalAmount.toLocaleString('vi-VN')}Ã„â€˜`);
       }
     }
 
@@ -23784,18 +25532,18 @@ app.put('/api/admin/enrollments/:id/convert-trial', requireAuth, requireRole(['S
       const notifModule = await getEnrollmentNotifications();
       if (notifModule) {
         notifModule.sendTrialConvertedNotification(enrollment, invoice).catch(err => {
-          console.warn('âš ï¸ Failed to queue trial converted notification:', err.message);
+          console.warn('Ã¢Å¡Â Ã¯Â¸Â Failed to queue trial converted notification:', err.message);
         });
       }
     } catch (notifError) {
-      console.warn('âš ï¸ Error sending trial converted notification:', notifError.message);
+      console.warn('Ã¢Å¡Â Ã¯Â¸Â Error sending trial converted notification:', notifError.message);
     }
 
     res.json({
       success: true,
       message: invoice
-        ? `ÄÃ£ chuyá»ƒn Ä‘á»•i há»c thá»­ vÃ  táº¡o hÃ³a Ä‘Æ¡n ${invoice.invoice_code}`
-        : `ÄÃ£ chuyá»ƒn Ä‘á»•i há»c thá»­ thÃ nh Ä‘Äƒng kÃ½ chÃ­nh thá»©c`,
+        ? `Ã„ÂÃƒÂ£ chuyÃ¡Â»Æ’n Ã„â€˜Ã¡Â»â€¢i hÃ¡Â»Âc thÃ¡Â»Â­ vÃƒÂ  tÃ¡ÂºÂ¡o hÃƒÂ³a Ã„â€˜Ã†Â¡n ${invoice.invoice_code}`
+        : `Ã„ÂÃƒÂ£ chuyÃ¡Â»Æ’n Ã„â€˜Ã¡Â»â€¢i hÃ¡Â»Âc thÃ¡Â»Â­ thÃƒÂ nh Ã„â€˜Ã„Æ’ng kÃƒÂ½ chÃƒÂ­nh thÃ¡Â»Â©c`,
       data: {
         ...result,
         invoice: invoice
@@ -23940,7 +25688,7 @@ app.post('/api/admin/waiting-list', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     if (!student_id || !class_id) {
       return res.status(400).json({
         success: false,
-        message: 'Há»c viÃªn vÃ  lá»›p há»c lÃ  báº¯t buá»™c'
+        message: 'HÃ¡Â»Âc viÃƒÂªn vÃƒÂ  lÃ¡Â»â€ºp hÃ¡Â»Âc lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
       });
     }
 
@@ -23955,24 +25703,24 @@ app.post('/api/admin/waiting-list', requireAuth, requireRole(['SUPER_ADMIN', 'CE
 
     if (rpcError) {
       // Parse error message for user-friendly display
-      const errorMsg = rpcError.message || 'Lá»—i khi thÃªm vÃ o danh sÃ¡ch chá»';
+      const errorMsg = rpcError.message || 'LÃ¡Â»â€”i khi thÃƒÂªm vÃƒÂ o danh sÃƒÂ¡ch chÃ¡Â»Â';
 
       if (errorMsg.includes('not full')) {
         return res.status(400).json({
           success: false,
-          message: 'Lá»›p há»c chÆ°a Ä‘áº§y. Há»c viÃªn cÃ³ thá»ƒ Ä‘Äƒng kÃ½ trá»±c tiáº¿p.'
+          message: 'LÃ¡Â»â€ºp hÃ¡Â»Âc chÃ†Â°a Ã„â€˜Ã¡ÂºÂ§y. HÃ¡Â»Âc viÃƒÂªn cÃƒÂ³ thÃ¡Â»Æ’ Ã„â€˜Ã„Æ’ng kÃƒÂ½ trÃ¡Â»Â±c tiÃ¡ÂºÂ¿p.'
         });
       }
       if (errorMsg.includes('already enrolled')) {
         return res.status(400).json({
           success: false,
-          message: 'Há»c viÃªn Ä‘Ã£ Ä‘Äƒng kÃ½ lá»›p nÃ y rá»“i'
+          message: 'HÃ¡Â»Âc viÃƒÂªn Ã„â€˜ÃƒÂ£ Ã„â€˜Ã„Æ’ng kÃƒÂ½ lÃ¡Â»â€ºp nÃƒÂ y rÃ¡Â»â€œi'
         });
       }
       if (errorMsg.includes('already on the waiting list')) {
         return res.status(400).json({
           success: false,
-          message: 'Há»c viÃªn Ä‘Ã£ cÃ³ trong danh sÃ¡ch chá»'
+          message: 'HÃ¡Â»Âc viÃƒÂªn Ã„â€˜ÃƒÂ£ cÃƒÂ³ trong danh sÃƒÂ¡ch chÃ¡Â»Â'
         });
       }
 
@@ -23982,11 +25730,11 @@ app.post('/api/admin/waiting-list', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       });
     }
 
-    console.log(`âœ… Added to waiting list: ${result.student_name} -> ${result.class_name}`);
+    console.log(`Ã¢Å“â€¦ Added to waiting list: ${result.student_name} -> ${result.class_name}`);
 
     res.status(201).json({
       success: true,
-      message: result.message || 'ÄÃ£ thÃªm vÃ o danh sÃ¡ch chá»',
+      message: result.message || 'Ã„ÂÃƒÂ£ thÃƒÂªm vÃƒÂ o danh sÃƒÂ¡ch chÃ¡Â»Â',
       data: result
     });
   } catch (error) {
@@ -24014,15 +25762,15 @@ app.put('/api/admin/waiting-list/:classId/notify', requireAuth, requireRole(['SU
     if (rpcError) {
       return res.status(400).json({
         success: false,
-        message: rpcError.message || 'Lá»—i khi thÃ´ng bÃ¡o'
+        message: rpcError.message || 'LÃ¡Â»â€”i khi thÃƒÂ´ng bÃƒÂ¡o'
       });
     }
 
-    console.log(`âœ… Notified ${result.notified_count} students for class ${classId}`);
+    console.log(`Ã¢Å“â€¦ Notified ${result.notified_count} students for class ${classId}`);
 
     res.json({
       success: true,
-      message: result.message || `ÄÃ£ thÃ´ng bÃ¡o ${result.notified_count} há»c viÃªn`,
+      message: result.message || `Ã„ÂÃƒÂ£ thÃƒÂ´ng bÃƒÂ¡o ${result.notified_count} hÃ¡Â»Âc viÃƒÂªn`,
       data: result
     });
   } catch (error) {
@@ -24043,7 +25791,7 @@ app.put('/api/admin/waiting-list/:id/complete', requireAuth, requireRole(['SUPER
     if (!status || !['enrolled', 'cancelled'].includes(status)) {
       return res.status(400).json({
         success: false,
-        message: 'Tráº¡ng thÃ¡i pháº£i lÃ  "enrolled" hoáº·c "cancelled"'
+        message: 'TrÃ¡ÂºÂ¡ng thÃƒÂ¡i phÃ¡ÂºÂ£i lÃƒÂ  "enrolled" hoÃ¡ÂºÂ·c "cancelled"'
       });
     }
 
@@ -24058,16 +25806,16 @@ app.put('/api/admin/waiting-list/:id/complete', requireAuth, requireRole(['SUPER
     if (rpcError) {
       return res.status(400).json({
         success: false,
-        message: rpcError.message || 'Lá»—i khi cáº­p nháº­t tráº¡ng thÃ¡i'
+        message: rpcError.message || 'LÃ¡Â»â€”i khi cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t trÃ¡ÂºÂ¡ng thÃƒÂ¡i'
       });
     }
 
-    const statusText = status === 'enrolled' ? 'Ä‘Ã£ ghi danh' : 'Ä‘Ã£ há»§y';
-    console.log(`âœ… Waiting list entry ${id} marked as ${status}`);
+    const statusText = status === 'enrolled' ? 'Ã„â€˜ÃƒÂ£ ghi danh' : 'Ã„â€˜ÃƒÂ£ hÃ¡Â»Â§y';
+    console.log(`Ã¢Å“â€¦ Waiting list entry ${id} marked as ${status}`);
 
     res.json({
       success: true,
-      message: `ÄÃ£ cáº­p nháº­t tráº¡ng thÃ¡i: ${statusText}`,
+      message: `Ã„ÂÃƒÂ£ cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t trÃ¡ÂºÂ¡ng thÃƒÂ¡i: ${statusText}`,
       data: result
     });
   } catch (error) {
@@ -24239,17 +25987,17 @@ app.patch('/api/admin/enrollment-requests/:id/approve', requireAuth, requireRole
 
     if (requestError) {
       if (requestError.code === 'PGRST116') {
-        return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y yÃªu cáº§u Ä‘Äƒng kÃ½' });
+        return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y yÃƒÂªu cÃ¡ÂºÂ§u Ã„â€˜Ã„Æ’ng kÃƒÂ½' });
       }
       throw requestError;
     }
 
     if (requestData.center_id !== effectiveCenterId) {
-      return res.status(403).json({ success: false, message: 'KhÃ´ng cÃ³ quyá»n xá»­ lÃ½ yÃªu cáº§u nÃ y' });
+      return res.status(403).json({ success: false, message: 'KhÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xÃ¡Â»Â­ lÃƒÂ½ yÃƒÂªu cÃ¡ÂºÂ§u nÃƒÂ y' });
     }
 
     if (requestData.status !== 'pending') {
-      return res.status(400).json({ success: false, message: 'Chá»‰ cÃ³ thá»ƒ duyá»‡t yÃªu cáº§u Ä‘ang chá» xá»­ lÃ½' });
+      return res.status(400).json({ success: false, message: 'ChÃ¡Â»â€° cÃƒÂ³ thÃ¡Â»Æ’ duyÃ¡Â»â€¡t yÃƒÂªu cÃ¡ÂºÂ§u Ã„â€˜ang chÃ¡Â»Â xÃ¡Â»Â­ lÃƒÂ½' });
     }
 
     const maxStudents = requestData.class?.max_students || 20;
@@ -24262,7 +26010,7 @@ app.patch('/api/admin/enrollment-requests/:id/approve', requireAuth, requireRole
     if (enrolledCountError) throw enrolledCountError;
 
     if ((enrolledCount || 0) >= maxStudents) {
-      return res.status(409).json({ success: false, message: 'Lá»›p há»c Ä‘Ã£ Ä‘áº§y, khÃ´ng thá»ƒ duyá»‡t yÃªu cáº§u' });
+      return res.status(409).json({ success: false, message: 'LÃ¡Â»â€ºp hÃ¡Â»Âc Ã„â€˜ÃƒÂ£ Ã„â€˜Ã¡ÂºÂ§y, khÃƒÂ´ng thÃ¡Â»Æ’ duyÃ¡Â»â€¡t yÃƒÂªu cÃ¡ÂºÂ§u' });
     }
 
     const result = await createEnrollmentWithDraftInvoice(supabaseClient, {
@@ -24271,7 +26019,7 @@ app.patch('/api/admin/enrollment-requests/:id/approve', requireAuth, requireRole
       tuition_fee: requestData.class?.default_tuition || 0,
       discount_amount: 0,
       paid_amount: 0,
-      notes: 'ÄÄƒng kÃ½ qua yÃªu cáº§u',
+      notes: 'Ã„ÂÃ„Æ’ng kÃƒÂ½ qua yÃƒÂªu cÃ¡ÂºÂ§u',
       created_by: req.user.id
     });
 
@@ -24297,8 +26045,8 @@ app.patch('/api/admin/enrollment-requests/:id/approve', requireAuth, requireRole
       userId: requestData.student_id,
       centerId: effectiveCenterId,
       type: 'enrollment_approved',
-      title: 'YÃªu cáº§u Ä‘Äƒng kÃ½ Ä‘Æ°á»£c duyá»‡t',
-      message: `Báº¡n Ä‘Ã£ Ä‘Æ°á»£c Ä‘Äƒng kÃ½ vÃ o lá»›p ${requestData.class?.name || ''}`,
+      title: 'YÃƒÂªu cÃ¡ÂºÂ§u Ã„â€˜Ã„Æ’ng kÃƒÂ½ Ã„â€˜Ã†Â°Ã¡Â»Â£c duyÃ¡Â»â€¡t',
+      message: `BÃ¡ÂºÂ¡n Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c Ã„â€˜Ã„Æ’ng kÃƒÂ½ vÃƒÂ o lÃ¡Â»â€ºp ${requestData.class?.name || ''}`,
       referenceId: requestData.id,
       referenceType: 'enrollment_request'
     }).catch(err => console.warn('Approval notification failed:', err.message));
@@ -24328,7 +26076,7 @@ app.patch('/api/admin/enrollment-requests/:id/reject', requireAuth, requireRole(
     const { admin_note } = req.body;
 
     if (!admin_note || !String(admin_note).trim()) {
-      return res.status(400).json({ success: false, message: 'Vui lÃ²ng nháº­p lÃ½ do tá»« chá»‘i (admin_note)' });
+      return res.status(400).json({ success: false, message: 'Vui lÃƒÂ²ng nhÃ¡ÂºÂ­p lÃƒÂ½ do tÃ¡Â»Â« chÃ¡Â»â€˜i (admin_note)' });
     }
 
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, req.query.center_id || req.body?.center_id);
@@ -24342,17 +26090,17 @@ app.patch('/api/admin/enrollment-requests/:id/reject', requireAuth, requireRole(
 
     if (requestError) {
       if (requestError.code === 'PGRST116') {
-        return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y yÃªu cáº§u Ä‘Äƒng kÃ½' });
+        return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y yÃƒÂªu cÃ¡ÂºÂ§u Ã„â€˜Ã„Æ’ng kÃƒÂ½' });
       }
       throw requestError;
     }
 
     if (requestData.center_id !== effectiveCenterId) {
-      return res.status(403).json({ success: false, message: 'KhÃ´ng cÃ³ quyá»n xá»­ lÃ½ yÃªu cáº§u nÃ y' });
+      return res.status(403).json({ success: false, message: 'KhÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xÃ¡Â»Â­ lÃƒÂ½ yÃƒÂªu cÃ¡ÂºÂ§u nÃƒÂ y' });
     }
 
     if (!['pending', 'waitlisted'].includes(requestData.status)) {
-      return res.status(400).json({ success: false, message: 'Chá»‰ cÃ³ thá»ƒ tá»« chá»‘i yÃªu cáº§u Ä‘ang chá» hoáº·c trong danh sÃ¡ch chá»' });
+      return res.status(400).json({ success: false, message: 'ChÃ¡Â»â€° cÃƒÂ³ thÃ¡Â»Æ’ tÃ¡Â»Â« chÃ¡Â»â€˜i yÃƒÂªu cÃ¡ÂºÂ§u Ã„â€˜ang chÃ¡Â»Â hoÃ¡ÂºÂ·c trong danh sÃƒÂ¡ch chÃ¡Â»Â' });
     }
 
     const { data: updatedRequest, error: updateError } = await supabaseClient
@@ -24374,8 +26122,8 @@ app.patch('/api/admin/enrollment-requests/:id/reject', requireAuth, requireRole(
       userId: requestData.student_id,
       centerId: effectiveCenterId,
       type: 'enrollment_rejected',
-      title: 'YÃªu cáº§u Ä‘Äƒng kÃ½ bá»‹ tá»« chá»‘i',
-      message: `YÃªu cáº§u Ä‘Äƒng kÃ½ lá»›p ${requestData.class?.name || ''} Ä‘Ã£ bá»‹ tá»« chá»‘i. LÃ½ do: ${String(admin_note).trim()}`,
+      title: 'YÃƒÂªu cÃ¡ÂºÂ§u Ã„â€˜Ã„Æ’ng kÃƒÂ½ bÃ¡Â»â€¹ tÃ¡Â»Â« chÃ¡Â»â€˜i',
+      message: `YÃƒÂªu cÃ¡ÂºÂ§u Ã„â€˜Ã„Æ’ng kÃƒÂ½ lÃ¡Â»â€ºp ${requestData.class?.name || ''} Ã„â€˜ÃƒÂ£ bÃ¡Â»â€¹ tÃ¡Â»Â« chÃ¡Â»â€˜i. LÃƒÂ½ do: ${String(admin_note).trim()}`,
       referenceId: requestData.id,
       referenceType: 'enrollment_request'
     }).catch(err => console.warn('Rejection notification failed:', err.message));
@@ -24407,17 +26155,17 @@ app.patch('/api/admin/enrollment-requests/:id/waitlist', requireAuth, requireRol
 
     if (requestError) {
       if (requestError.code === 'PGRST116') {
-        return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y yÃªu cáº§u Ä‘Äƒng kÃ½' });
+        return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y yÃƒÂªu cÃ¡ÂºÂ§u Ã„â€˜Ã„Æ’ng kÃƒÂ½' });
       }
       throw requestError;
     }
 
     if (requestData.center_id !== effectiveCenterId) {
-      return res.status(403).json({ success: false, message: 'KhÃ´ng cÃ³ quyá»n xá»­ lÃ½ yÃªu cáº§u nÃ y' });
+      return res.status(403).json({ success: false, message: 'KhÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xÃ¡Â»Â­ lÃƒÂ½ yÃƒÂªu cÃ¡ÂºÂ§u nÃƒÂ y' });
     }
 
     if (requestData.status !== 'pending') {
-      return res.status(400).json({ success: false, message: 'Chá»‰ cÃ³ thá»ƒ chuyá»ƒn yÃªu cáº§u Ä‘ang chá» sang danh sÃ¡ch chá»' });
+      return res.status(400).json({ success: false, message: 'ChÃ¡Â»â€° cÃƒÂ³ thÃ¡Â»Æ’ chuyÃ¡Â»Æ’n yÃƒÂªu cÃ¡ÂºÂ§u Ã„â€˜ang chÃ¡Â»Â sang danh sÃƒÂ¡ch chÃ¡Â»Â' });
     }
 
     const { data: updatedRequest, error: updateError } = await supabaseClient
@@ -24438,8 +26186,8 @@ app.patch('/api/admin/enrollment-requests/:id/waitlist', requireAuth, requireRol
       userId: requestData.student_id,
       centerId: effectiveCenterId,
       type: 'enrollment_waitlisted',
-      title: 'YÃªu cáº§u chuyá»ƒn sang danh sÃ¡ch chá»',
-      message: `Lá»›p ${requestData.class?.name || ''} hiá»‡n Ä‘Ã£ Ä‘áº§y. YÃªu cáº§u cá»§a báº¡n Ä‘Ã£ Ä‘Æ°á»£c chuyá»ƒn vÃ o danh sÃ¡ch chá».`,
+      title: 'YÃƒÂªu cÃ¡ÂºÂ§u chuyÃ¡Â»Æ’n sang danh sÃƒÂ¡ch chÃ¡Â»Â',
+      message: `LÃ¡Â»â€ºp ${requestData.class?.name || ''} hiÃ¡Â»â€¡n Ã„â€˜ÃƒÂ£ Ã„â€˜Ã¡ÂºÂ§y. YÃƒÂªu cÃ¡ÂºÂ§u cÃ¡Â»Â§a bÃ¡ÂºÂ¡n Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c chuyÃ¡Â»Æ’n vÃƒÂ o danh sÃƒÂ¡ch chÃ¡Â»Â.`,
       referenceId: requestData.id,
       referenceType: 'enrollment_request'
     }).catch(err => console.warn('Waitlist notification failed:', err.message));
@@ -24619,7 +26367,7 @@ app.put('/api/notifications/preferences', requireAuth, async (req, res, next) =>
     if (!notification_type || typeof in_app_enabled !== 'boolean') {
       return res.status(400).json({
         success: false,
-        message: 'notification_type vÃ  in_app_enabled (boolean) lÃ  báº¯t buá»™c'
+        message: 'notification_type vÃƒÂ  in_app_enabled (boolean) lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
       });
     }
 
@@ -24627,7 +26375,7 @@ app.put('/api/notifications/preferences', requireAuth, async (req, res, next) =>
     if (!validTypes.includes(notification_type)) {
       return res.status(400).json({
         success: false,
-        message: `notification_type khÃ´ng há»£p lá»‡. CÃ¡c giÃ¡ trá»‹ cho phÃ©p: ${validTypes.join(', ')}`
+        message: `notification_type khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡. CÃƒÂ¡c giÃƒÂ¡ trÃ¡Â»â€¹ cho phÃƒÂ©p: ${validTypes.join(', ')}`
       });
     }
 
@@ -24670,18 +26418,18 @@ app.post('/api/admin/notifications/send', requireAuth, requireRole(['SUPER_ADMIN
     if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Danh sÃ¡ch ngÆ°á»i nháº­n khÃ´ng há»£p lá»‡'
+        message: 'Danh sÃƒÂ¡ch ngÃ†Â°Ã¡Â»Âi nhÃ¡ÂºÂ­n khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡'
       });
     }
 
     if (!content?.trim()) {
       return res.status(400).json({
         success: false,
-        message: 'Ná»™i dung thÃ´ng bÃ¡o khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng'
+        message: 'NÃ¡Â»â„¢i dung thÃƒÂ´ng bÃƒÂ¡o khÃƒÂ´ng Ã„â€˜Ã†Â°Ã¡Â»Â£c Ã„â€˜Ã¡Â»Æ’ trÃ¡Â»â€˜ng'
       });
     }
 
-    console.log(`ðŸ“§ Admin ${req.user.email} gá»­i thÃ´ng bÃ¡o ${type} Ä‘áº¿n ${recipients.length} ngÆ°á»i`);
+    console.log(`Ã°Å¸â€œÂ§ Admin ${req.user.email} gÃ¡Â»Â­i thÃƒÂ´ng bÃƒÂ¡o ${type} Ã„â€˜Ã¡ÂºÂ¿n ${recipients.length} ngÃ†Â°Ã¡Â»Âi`);
 
     // Fetch recipient details
     const { data: recipientProfiles, error: recipientError } = await supabase
@@ -24713,11 +26461,11 @@ app.post('/api/admin/notifications/send', requireAuth, requireRole(['SUPER_ADMIN
     // For now, we'll just simulate success
     // In production, insert notification logs to a notifications table
 
-    console.log(`âœ… ÄÃ£ "gá»­i" ${notificationLogs.length} thÃ´ng bÃ¡o (giáº£ láº­p)`);
+    console.log(`Ã¢Å“â€¦ Ã„ÂÃƒÂ£ "gÃ¡Â»Â­i" ${notificationLogs.length} thÃƒÂ´ng bÃƒÂ¡o (giÃ¡ÂºÂ£ lÃ¡ÂºÂ­p)`);
 
     res.json({
       success: true,
-      message: `ÄÃ£ gá»­i thÃ´ng bÃ¡o Ä‘áº¿n ${recipientProfiles.length} ngÆ°á»i`,
+      message: `Ã„ÂÃƒÂ£ gÃ¡Â»Â­i thÃƒÂ´ng bÃƒÂ¡o Ã„â€˜Ã¡ÂºÂ¿n ${recipientProfiles.length} ngÃ†Â°Ã¡Â»Âi`,
       sent: recipientProfiles.length,
       failed: 0,
       recipients: recipientProfiles.map(p => ({
@@ -24743,7 +26491,7 @@ app.get('/api/admin/classes/:classId/report', requireAuth, requireRole(['SUPER_A
     const { classId } = req.params;
     const { reportType = 'summary', startDate, endDate } = req.query;
 
-    console.log(`ðŸ“Š Generating ${reportType} report for class ${classId}`);
+    console.log(`Ã°Å¸â€œÅ  Generating ${reportType} report for class ${classId}`);
 
     // Fetch class details
     const { data: classData, error: classError } = await supabase
@@ -24760,7 +26508,7 @@ app.get('/api/admin/classes/:classId/report', requireAuth, requireRole(['SUPER_A
     if (classError || !classData) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y lÃ¡Â»â€ºp hÃ¡Â»Âc'
       });
     }
 
@@ -25010,7 +26758,7 @@ app.get('/api/admin/classes/:classId/report', requireAuth, requireRole(['SUPER_A
         break;
     }
 
-    console.log(`âœ… Generated ${reportType} report for class ${classData.name}`);
+    console.log(`Ã¢Å“â€¦ Generated ${reportType} report for class ${classData.name}`);
 
     res.json({
       success: true,
@@ -25029,7 +26777,7 @@ app.get('/api/admin/classes/:classId/report', requireAuth, requireRole(['SUPER_A
 
 /**
  * GET /api/notifications/students
- * Láº¥y danh sÃ¡ch há»c viÃªn theo bá»™ lá»c Ä‘á»ƒ gá»­i thÃ´ng bÃ¡o
+ * LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch hÃ¡Â»Âc viÃƒÂªn theo bÃ¡Â»â„¢ lÃ¡Â»Âc Ã„â€˜Ã¡Â»Æ’ gÃ¡Â»Â­i thÃƒÂ´ng bÃƒÂ¡o
  * Query params:
  * - course_ids: comma-separated course IDs
  * - class_ids: comma-separated class IDs  
@@ -25225,7 +26973,7 @@ app.get('/api/notifications/students', requireAuth, requireRole(['SUPER_ADMIN', 
 
 /**
  * POST /api/notifications/send-bulk
- * Gá»­i thÃ´ng bÃ¡o hÃ ng loáº¡t Ä‘áº¿n danh sÃ¡ch há»c viÃªn (theo enrollment_id)
+ * GÃ¡Â»Â­i thÃƒÂ´ng bÃƒÂ¡o hÃƒÂ ng loÃ¡ÂºÂ¡t Ã„â€˜Ã¡ÂºÂ¿n danh sÃƒÂ¡ch hÃ¡Â»Âc viÃƒÂªn (theo enrollment_id)
  */
 app.post('/api/notifications/send-bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -25233,11 +26981,11 @@ app.post('/api/notifications/send-bulk', requireAuth, requireRole(['SUPER_ADMIN'
     const { student_ids: enrollment_ids, template_id, template_fields, notification_type } = req.body;
 
     if (!enrollment_ids || enrollment_ids.length === 0) {
-      return res.status(400).json({ success: false, message: 'Vui lÃ²ng chá»n Ã­t nháº¥t má»™t há»c viÃªn' });
+      return res.status(400).json({ success: false, message: 'Vui lÃƒÂ²ng chÃ¡Â»Ân ÃƒÂ­t nhÃ¡ÂºÂ¥t mÃ¡Â»â„¢t hÃ¡Â»Âc viÃƒÂªn' });
     }
 
     if (!template_id) {
-      return res.status(400).json({ success: false, message: 'Vui lÃ²ng chá»n máº«u thÃ´ng bÃ¡o' });
+      return res.status(400).json({ success: false, message: 'Vui lÃƒÂ²ng chÃ¡Â»Ân mÃ¡ÂºÂ«u thÃƒÂ´ng bÃƒÂ¡o' });
     }
 
     // Get enrollments by IDs
@@ -25256,7 +27004,7 @@ app.post('/api/notifications/send-bulk', requireAuth, requireRole(['SUPER_ADMIN'
     if (error) throw error;
 
     if (!enrollments || enrollments.length === 0) {
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y há»c viÃªn' });
+      return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y hÃ¡Â»Âc viÃƒÂªn' });
     }
 
     // Get related data separately
@@ -25304,10 +27052,10 @@ app.post('/api/notifications/send-bulk', requireAuth, requireRole(['SUPER_ADMIN'
 
     // Template name map for readable titles
     const TEMPLATE_NAMES = {
-      payment_reminder: 'Nháº¯c nhá»Ÿ há»c phÃ­',
-      class_reminder: 'Nháº¯c nhá»Ÿ buá»•i há»c',
-      general_announcement: 'ThÃ´ng bÃ¡o chung',
-      course_completion: 'ChÃºc má»«ng hoÃ n thÃ nh khÃ³a há»c'
+      payment_reminder: 'NhÃ¡ÂºÂ¯c nhÃ¡Â»Å¸ hÃ¡Â»Âc phÃƒÂ­',
+      class_reminder: 'NhÃ¡ÂºÂ¯c nhÃ¡Â»Å¸ buÃ¡Â»â€¢i hÃ¡Â»Âc',
+      general_announcement: 'ThÃƒÂ´ng bÃƒÂ¡o chung',
+      course_completion: 'ChÃƒÂºc mÃ¡Â»Â«ng hoÃƒÂ n thÃƒÂ nh khÃƒÂ³a hÃ¡Â»Âc'
     };
 
     // Process each enrollment
@@ -25327,17 +27075,17 @@ app.post('/api/notifications/send-bulk', requireAuth, requireRole(['SUPER_ADMIN'
         const fmtCurrency = (v) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v);
 
         // Build readable notification message
-        const templateTitle = TEMPLATE_NAMES[template_id] || 'ThÃ´ng bÃ¡o';
+        const templateTitle = TEMPLATE_NAMES[template_id] || 'ThÃƒÂ´ng bÃƒÂ¡o';
         const readableTitle = `${templateTitle} - ${courseInfo.title || classInfo.name || ''}`;
         const readableMessage = [
-          `KÃ­nh gá»­i ${studentInfo.full_name || 'Há»c viÃªn'},`,
+          `KÃƒÂ­nh gÃ¡Â»Â­i ${studentInfo.full_name || 'HÃ¡Â»Âc viÃƒÂªn'},`,
           '',
-          courseInfo.title ? `KhÃ³a há»c: ${courseInfo.title}` : null,
-          classInfo.name ? `Lá»›p: ${classInfo.name}` : null,
-          template_id === 'payment_reminder' ? `Há»c phÃ­: ${fmtCurrency(totalFee)} | ÄÃ£ thanh toÃ¡n: ${fmtCurrency(paidAmount)} | CÃ²n láº¡i: ${fmtCurrency(remainingAmount)}` : null,
-          teacherInfo.full_name ? `GiÃ¡o viÃªn: ${teacherInfo.full_name}` : null,
+          courseInfo.title ? `KhÃƒÂ³a hÃ¡Â»Âc: ${courseInfo.title}` : null,
+          classInfo.name ? `LÃ¡Â»â€ºp: ${classInfo.name}` : null,
+          template_id === 'payment_reminder' ? `HÃ¡Â»Âc phÃƒÂ­: ${fmtCurrency(totalFee)} | Ã„ÂÃƒÂ£ thanh toÃƒÂ¡n: ${fmtCurrency(paidAmount)} | CÃƒÂ²n lÃ¡ÂºÂ¡i: ${fmtCurrency(remainingAmount)}` : null,
+          teacherInfo.full_name ? `GiÃƒÂ¡o viÃƒÂªn: ${teacherInfo.full_name}` : null,
           '',
-          `TrÃ¢n trá»ng, ${centerInfo.name || 'Trung tÃ¢m'}`
+          `TrÃƒÂ¢n trÃ¡Â»Âng, ${centerInfo.name || 'Trung tÃƒÂ¢m'}`
         ].filter(Boolean).join('\n');
 
         // Save notification record
@@ -25355,7 +27103,7 @@ app.post('/api/notifications/send-bulk', requireAuth, requireRole(['SUPER_ADMIN'
           });
 
         if (insertErr) {
-          console.error(`âŒ Notification insert failed for ${studentInfo.email}:`, insertErr.message);
+          console.error(`Ã¢ÂÅ’ Notification insert failed for ${studentInfo.email}:`, insertErr.message);
           failed++;
         } else {
           sent++;
@@ -25368,7 +27116,7 @@ app.post('/api/notifications/send-bulk', requireAuth, requireRole(['SUPER_ADMIN'
 
     res.json({
       success: true,
-      message: `ÄÃ£ gá»­i ${sent} thÃ´ng bÃ¡o thÃ nh cÃ´ng${failed > 0 ? `, ${failed} tháº¥t báº¡i` : ''}`,
+      message: `Ã„ÂÃƒÂ£ gÃ¡Â»Â­i ${sent} thÃƒÂ´ng bÃƒÂ¡o thÃƒÂ nh cÃƒÂ´ng${failed > 0 ? `, ${failed} thÃ¡ÂºÂ¥t bÃ¡ÂºÂ¡i` : ''}`,
       sent,
       failed
     });
@@ -25388,7 +27136,7 @@ app.post('/api/notifications/send-bulk', requireAuth, requireRole(['SUPER_ADMIN'
 
 /**
  * GET /api/admin/documents
- * Láº¥y danh sÃ¡ch tÃ i liá»‡u vá»›i filters
+ * LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch tÃƒÂ i liÃ¡Â»â€¡u vÃ¡Â»â€ºi filters
  * Query params: type, course_id, class_id, center_id, search
  */
 app.get('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
@@ -25454,7 +27202,7 @@ app.get('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
       uploaded_by: doc.uploaded_by_user || null
     }));
 
-    console.log(`ðŸ“„ Documents fetched: ${transformedData.length} items by ${req.user.email}`);
+    console.log(`Ã°Å¸â€œâ€ž Documents fetched: ${transformedData.length} items by ${req.user.email}`);
 
     res.json({
       success: true,
@@ -25466,14 +27214,14 @@ app.get('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER
       }
     });
   } catch (error) {
-    console.error('âŒ Error fetching documents:', error);
+    console.error('Ã¢ÂÅ’ Error fetching documents:', error);
     next(error);
   }
 });
 
 /**
  * GET /api/admin/documents/:id
- * Láº¥y chi tiáº¿t má»™t tÃ i liá»‡u
+ * LÃ¡ÂºÂ¥y chi tiÃ¡ÂºÂ¿t mÃ¡Â»â„¢t tÃƒÂ i liÃ¡Â»â€¡u
  */
 app.get('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
@@ -25493,14 +27241,14 @@ app.get('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CE
 
     if (error) {
       if (error.code === 'PGRST116') {
-        return res.status(404).json({ success: false, message: 'TÃ i liá»‡u khÃ´ng tá»“n táº¡i' });
+        return res.status(404).json({ success: false, message: 'TÃƒÂ i liÃ¡Â»â€¡u khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i' });
       }
       throw error;
     }
 
     // Permission check: only allow access to documents in user's center (except SUPER_ADMIN)
     if (req.user.roleCode !== 'SUPER_ADMIN' && data.center_id && data.center_id !== req.user.centerId) {
-      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem tÃ i liá»‡u nÃ y' });
+      return res.status(403).json({ success: false, message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xem tÃƒÂ i liÃ¡Â»â€¡u nÃƒÂ y' });
     }
 
     res.json({
@@ -25513,14 +27261,14 @@ app.get('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       }
     });
   } catch (error) {
-    console.error('âŒ Error fetching document:', error);
+    console.error('Ã¢ÂÅ’ Error fetching document:', error);
     next(error);
   }
 });
 
 /**
  * POST /api/admin/documents
- * Táº¡o tÃ i liá»‡u má»›i
+ * TÃ¡ÂºÂ¡o tÃƒÂ i liÃ¡Â»â€¡u mÃ¡Â»â€ºi
  * Body: title, file_url, file_name, description?, type?, course_id?, class_id?, file_size?, file_type?, is_public?
  */
 app.post('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
@@ -25543,7 +27291,7 @@ app.post('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
     if (!title || !file_url || !file_name) {
       return res.status(400).json({
         success: false,
-        message: 'TiÃªu Ä‘á», URL file vÃ  tÃªn file lÃ  báº¯t buá»™c'
+        message: 'TiÃƒÂªu Ã„â€˜Ã¡Â»Â, URL file vÃƒÂ  tÃƒÂªn file lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
       });
     }
 
@@ -25552,7 +27300,7 @@ app.post('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
     if (!validTypes.includes(type)) {
       return res.status(400).json({
         success: false,
-        message: `Loáº¡i tÃ i liá»‡u khÃ´ng há»£p lá»‡. Cho phÃ©p: ${validTypes.join(', ')}`
+        message: `LoÃ¡ÂºÂ¡i tÃƒÂ i liÃ¡Â»â€¡u khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡. Cho phÃƒÂ©p: ${validTypes.join(', ')}`
       });
     }
 
@@ -25571,7 +27319,7 @@ app.post('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
         .single();
 
       if (classError || !classData) {
-        return res.status(400).json({ success: false, message: 'Lá»›p há»c khÃ´ng tá»“n táº¡i' });
+        return res.status(400).json({ success: false, message: 'LÃ¡Â»â€ºp hÃ¡Â»Âc khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i' });
       }
 
       // Use class's center_id if not SUPER_ADMIN
@@ -25613,11 +27361,11 @@ app.post('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
 
     if (error) throw error;
 
-    console.log(`ðŸ“„ Document created: "${title}" by ${req.user.email}`);
+    console.log(`Ã°Å¸â€œâ€ž Document created: "${title}" by ${req.user.email}`);
 
     res.status(201).json({
       success: true,
-      message: 'Táº¡o tÃ i liá»‡u thÃ nh cÃ´ng',
+      message: 'TÃ¡ÂºÂ¡o tÃƒÂ i liÃ¡Â»â€¡u thÃƒÂ nh cÃƒÂ´ng',
       data: {
         ...data,
         courses: data.courses || null,
@@ -25626,14 +27374,14 @@ app.post('/api/admin/documents', requireAuth, requireRole(['SUPER_ADMIN', 'CENTE
       }
     });
   } catch (error) {
-    console.error('âŒ Error creating document:', error);
+    console.error('Ã¢ÂÅ’ Error creating document:', error);
     next(error);
   }
 });
 
 /**
  * PUT /api/admin/documents/:id
- * Cáº­p nháº­t tÃ i liá»‡u
+ * CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t tÃƒÂ i liÃ¡Â»â€¡u
  */
 app.put('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
@@ -25661,7 +27409,7 @@ app.put('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       .single();
 
     if (fetchError || !existingDoc) {
-      return res.status(404).json({ success: false, message: 'TÃ i liá»‡u khÃ´ng tá»“n táº¡i' });
+      return res.status(404).json({ success: false, message: 'TÃƒÂ i liÃ¡Â»â€¡u khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i' });
     }
 
     // Permission check: only owner, center_manager of same center, or super_admin can update
@@ -25671,7 +27419,7 @@ app.put('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     const isCenterManager = req.user.roleCode === 'CENTER_MANAGER' && isSameCenter;
 
     if (!isOwner && !isSuperAdmin && !isCenterManager) {
-      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n sá»­a tÃ i liá»‡u nÃ y' });
+      return res.status(403).json({ success: false, message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân sÃ¡Â»Â­a tÃƒÂ i liÃ¡Â»â€¡u nÃƒÂ y' });
     }
 
     // Validate type if provided
@@ -25680,7 +27428,7 @@ app.put('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       if (!validTypes.includes(type)) {
         return res.status(400).json({
           success: false,
-          message: `Loáº¡i tÃ i liá»‡u khÃ´ng há»£p lá»‡. Cho phÃ©p: ${validTypes.join(', ')}`
+          message: `LoÃ¡ÂºÂ¡i tÃƒÂ i liÃ¡Â»â€¡u khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡. Cho phÃƒÂ©p: ${validTypes.join(', ')}`
         });
       }
     }
@@ -25719,11 +27467,11 @@ app.put('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CE
 
     if (error) throw error;
 
-    console.log(`âœï¸ Document updated: "${data.title}" by ${req.user.email}`);
+    console.log(`Ã¢Å“ÂÃ¯Â¸Â Document updated: "${data.title}" by ${req.user.email}`);
 
     res.json({
       success: true,
-      message: 'Cáº­p nháº­t tÃ i liá»‡u thÃ nh cÃ´ng',
+      message: 'CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t tÃƒÂ i liÃ¡Â»â€¡u thÃƒÂ nh cÃƒÂ´ng',
       data: {
         ...data,
         courses: data.courses || null,
@@ -25732,14 +27480,14 @@ app.put('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       }
     });
   } catch (error) {
-    console.error('âŒ Error updating document:', error);
+    console.error('Ã¢ÂÅ’ Error updating document:', error);
     next(error);
   }
 });
 
 /**
  * DELETE /api/admin/documents/:id
- * XÃ³a tÃ i liá»‡u (soft delete)
+ * XÃƒÂ³a tÃƒÂ i liÃ¡Â»â€¡u (soft delete)
  */
 app.delete('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
@@ -25754,7 +27502,7 @@ app.delete('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 
       .single();
 
     if (fetchError || !existingDoc) {
-      return res.status(404).json({ success: false, message: 'TÃ i liá»‡u khÃ´ng tá»“n táº¡i' });
+      return res.status(404).json({ success: false, message: 'TÃƒÂ i liÃ¡Â»â€¡u khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i' });
     }
 
     // Permission check
@@ -25764,7 +27512,7 @@ app.delete('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 
     const isCenterManager = req.user.roleCode === 'CENTER_MANAGER' && isSameCenter;
 
     if (!isOwner && !isSuperAdmin && !isCenterManager) {
-      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n xÃ³a tÃ i liá»‡u nÃ y' });
+      return res.status(403).json({ success: false, message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xÃƒÂ³a tÃƒÂ i liÃ¡Â»â€¡u nÃƒÂ y' });
     }
 
     // Soft delete
@@ -25775,21 +27523,21 @@ app.delete('/api/admin/documents/:id', requireAuth, requireRole(['SUPER_ADMIN', 
 
     if (error) throw error;
 
-    console.log(`ðŸ—‘ï¸ Document deleted: "${existingDoc.title}" by ${req.user.email}`);
+    console.log(`Ã°Å¸â€”â€˜Ã¯Â¸Â Document deleted: "${existingDoc.title}" by ${req.user.email}`);
 
     res.json({
       success: true,
-      message: 'XÃ³a tÃ i liá»‡u thÃ nh cÃ´ng'
+      message: 'XÃƒÂ³a tÃƒÂ i liÃ¡Â»â€¡u thÃƒÂ nh cÃƒÂ´ng'
     });
   } catch (error) {
-    console.error('âŒ Error deleting document:', error);
+    console.error('Ã¢ÂÅ’ Error deleting document:', error);
     next(error);
   }
 });
 
 /**
  * POST /api/admin/documents/:id/download
- * Ghi nháº­n download event
+ * Ghi nhÃ¡ÂºÂ­n download event
  */
 app.post('/api/admin/documents/:id/download', requireAuth, async (req, res, next) => {
   try {
@@ -25804,7 +27552,7 @@ app.post('/api/admin/documents/:id/download', requireAuth, async (req, res, next
       .single();
 
     if (docError || !doc) {
-      return res.status(404).json({ success: false, message: 'TÃ i liá»‡u khÃ´ng tá»“n táº¡i' });
+      return res.status(404).json({ success: false, message: 'TÃƒÂ i liÃ¡Â»â€¡u khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i' });
     }
 
     // Record download (trigger will auto-increment download_count)
@@ -25823,21 +27571,21 @@ app.post('/api/admin/documents/:id/download', requireAuth, async (req, res, next
       // Don't fail the request, just log
     }
 
-    console.log(`ðŸ“¥ Document downloaded: "${doc.title}" by ${req.user.email}`);
+    console.log(`Ã°Å¸â€œÂ¥ Document downloaded: "${doc.title}" by ${req.user.email}`);
 
     res.json({
       success: true,
       message: 'Download tracked'
     });
   } catch (error) {
-    console.error('âŒ Error tracking download:', error);
+    console.error('Ã¢ÂÅ’ Error tracking download:', error);
     next(error);
   }
 });
 
 /**
  * GET /api/admin/documents/:id/stats
- * Láº¥y thá»‘ng kÃª download cá»§a tÃ i liá»‡u
+ * LÃ¡ÂºÂ¥y thÃ¡Â»â€˜ng kÃƒÂª download cÃ¡Â»Â§a tÃƒÂ i liÃ¡Â»â€¡u
  */
 app.get('/api/admin/documents/:id/stats', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -25859,7 +27607,7 @@ app.get('/api/admin/documents/:id/stats', requireAuth, requireRole(['SUPER_ADMIN
       }
     });
   } catch (error) {
-    console.error('âŒ Error fetching document stats:', error);
+    console.error('Ã¢ÂÅ’ Error fetching document stats:', error);
     next(error);
   }
 });
@@ -25896,14 +27644,14 @@ app.get('/api/students/:studentId/documents', requireAuth, async (req, res, next
     if (studentError || !student) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y há»c viÃªn'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y hÃ¡Â»Âc viÃƒÂªn'
       });
     }
 
     if (!canAccessCenter(req.user, student.center_id)) {
       return res.status(403).json({
         success: false,
-        message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem tÃ i liá»‡u cá»§a há»c viÃªn nÃ y'
+        message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xem tÃƒÂ i liÃ¡Â»â€¡u cÃ¡Â»Â§a hÃ¡Â»Âc viÃƒÂªn nÃƒÂ y'
       });
     }
 
@@ -25926,7 +27674,7 @@ app.get('/api/students/:studentId/documents', requireAuth, async (req, res, next
       data: data || []
     });
   } catch (error) {
-    console.error('âŒ Error fetching student documents:', error);
+    console.error('Ã¢ÂÅ’ Error fetching student documents:', error);
     next(error);
   }
 });
@@ -25939,14 +27687,14 @@ app.post('/api/students/:studentId/documents', requireAuth, async (req, res, nex
     if (!title || !file_url) {
       return res.status(400).json({
         success: false,
-        message: 'TiÃªu Ä‘á» vÃ  Ä‘Æ°á»ng dáº«n file lÃ  báº¯t buá»™c'
+        message: 'TiÃƒÂªu Ã„â€˜Ã¡Â»Â vÃƒÂ  Ã„â€˜Ã†Â°Ã¡Â»Âng dÃ¡ÂºÂ«n file lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
       });
     }
 
     if (!STUDENT_DOC_TYPES.includes(type)) {
       return res.status(400).json({
         success: false,
-        message: `Loáº¡i tÃ i liá»‡u khÃ´ng há»£p lá»‡. Cho phÃ©p: ${STUDENT_DOC_TYPES.join(', ')}`
+        message: `LoÃ¡ÂºÂ¡i tÃƒÂ i liÃ¡Â»â€¡u khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡. Cho phÃƒÂ©p: ${STUDENT_DOC_TYPES.join(', ')}`
       });
     }
 
@@ -25959,14 +27707,14 @@ app.post('/api/students/:studentId/documents', requireAuth, async (req, res, nex
     if (studentError || !student) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y há»c viÃªn'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y hÃ¡Â»Âc viÃƒÂªn'
       });
     }
 
     if (!canAccessCenter(req.user, student.center_id)) {
       return res.status(403).json({
         success: false,
-        message: 'Báº¡n khÃ´ng cÃ³ quyá»n táº£i tÃ i liá»‡u cho há»c viÃªn nÃ y'
+        message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân tÃ¡ÂºÂ£i tÃƒÂ i liÃ¡Â»â€¡u cho hÃ¡Â»Âc viÃƒÂªn nÃƒÂ y'
       });
     }
 
@@ -25992,11 +27740,11 @@ app.post('/api/students/:studentId/documents', requireAuth, async (req, res, nex
 
     res.status(201).json({
       success: true,
-      message: 'Táº£i tÃ i liá»‡u há»c viÃªn thÃ nh cÃ´ng',
+      message: 'TÃ¡ÂºÂ£i tÃƒÂ i liÃ¡Â»â€¡u hÃ¡Â»Âc viÃƒÂªn thÃƒÂ nh cÃƒÂ´ng',
       data
     });
   } catch (error) {
-    console.error('âŒ Error creating student document:', error);
+    console.error('Ã¢ÂÅ’ Error creating student document:', error);
     next(error);
   }
 });
@@ -26014,14 +27762,14 @@ const deleteStudentDocumentHandler = async (req, res, next) => {
     if (fetchError || !existingDoc) {
       return res.status(404).json({
         success: false,
-        message: 'TÃ i liá»‡u há»c viÃªn khÃ´ng tá»“n táº¡i'
+        message: 'TÃƒÂ i liÃ¡Â»â€¡u hÃ¡Â»Âc viÃƒÂªn khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i'
       });
     }
 
     if (!canAccessCenter(req.user, existingDoc.center_id)) {
       return res.status(403).json({
         success: false,
-        message: 'Báº¡n khÃ´ng cÃ³ quyá»n xÃ³a tÃ i liá»‡u nÃ y'
+        message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xÃƒÂ³a tÃƒÂ i liÃ¡Â»â€¡u nÃƒÂ y'
       });
     }
 
@@ -26034,10 +27782,10 @@ const deleteStudentDocumentHandler = async (req, res, next) => {
 
     res.json({
       success: true,
-      message: 'ÄÃ£ xÃ³a tÃ i liá»‡u há»c viÃªn'
+      message: 'Ã„ÂÃƒÂ£ xÃƒÂ³a tÃƒÂ i liÃ¡Â»â€¡u hÃ¡Â»Âc viÃƒÂªn'
     });
   } catch (error) {
-    console.error('âŒ Error deleting student document:', error);
+    console.error('Ã¢ÂÅ’ Error deleting student document:', error);
     next(error);
   }
 };
@@ -26055,7 +27803,7 @@ app.delete('/api/documents/:id', requireAuth, deleteStudentDocumentHandler);
 
 /**
  * GET /api/admin/support-tickets
- * Láº¥y danh sÃ¡ch support tickets vá»›i filters
+ * LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch support tickets vÃ¡Â»â€ºi filters
  */
 app.get('/api/admin/support-tickets', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
@@ -26137,7 +27885,7 @@ app.get('/api/admin/support-tickets', requireAuth, requireRole(['SUPER_ADMIN', '
       message_count: messageCounts[ticket.id] || 0
     }));
 
-    console.log(`ðŸŽ« Support tickets fetched: ${transformedData.length} items by ${req.user.email}`);
+    console.log(`Ã°Å¸Å½Â« Support tickets fetched: ${transformedData.length} items by ${req.user.email}`);
 
     res.json({
       success: true,
@@ -26149,14 +27897,14 @@ app.get('/api/admin/support-tickets', requireAuth, requireRole(['SUPER_ADMIN', '
       }
     });
   } catch (error) {
-    console.error('âŒ Error fetching support tickets:', error);
+    console.error('Ã¢ÂÅ’ Error fetching support tickets:', error);
     next(error);
   }
 });
 
 /**
  * GET /api/admin/support-tickets/:id
- * Láº¥y chi tiáº¿t ticket kÃ¨m messages
+ * LÃ¡ÂºÂ¥y chi tiÃ¡ÂºÂ¿t ticket kÃƒÂ¨m messages
  */
 app.get('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
@@ -26177,14 +27925,14 @@ app.get('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN
 
     if (ticketError) {
       if (ticketError.code === 'PGRST116') {
-        return res.status(404).json({ success: false, message: 'Ticket khÃ´ng tá»“n táº¡i' });
+        return res.status(404).json({ success: false, message: 'Ticket khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i' });
       }
       throw ticketError;
     }
 
     // Permission check
     if (req.user.roleCode !== 'SUPER_ADMIN' && ticket.center_id && ticket.center_id !== req.user.centerId) {
-      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem ticket nÃ y' });
+      return res.status(403).json({ success: false, message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xem ticket nÃƒÂ y' });
     }
 
     // Get messages
@@ -26252,7 +28000,7 @@ app.get('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN
           };
         }
       } catch (ctxErr) {
-        console.warn('âš ï¸ Could not load consultation context:', ctxErr.message);
+        console.warn('Ã¢Å¡Â Ã¯Â¸Â Could not load consultation context:', ctxErr.message);
       }
     }
 
@@ -26268,7 +28016,7 @@ app.get('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN
       }
     });
   } catch (error) {
-    console.error('âŒ Error fetching support ticket:', error);
+    console.error('Ã¢ÂÅ’ Error fetching support ticket:', error);
     next(error);
   }
 });
@@ -26290,7 +28038,7 @@ app.post('/api/support-tickets', requireAuth, async (req, res, next) => {
     } = req.body;
 
     if (!subject || !String(subject).trim()) {
-      return res.status(400).json({ success: false, message: 'TiÃªu Ä‘á» lÃ  báº¯t buá»™c' });
+      return res.status(400).json({ success: false, message: 'TiÃƒÂªu Ã„â€˜Ã¡Â»Â lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c' });
     }
 
     const normalizedCategory = {
@@ -26313,12 +28061,12 @@ app.post('/api/support-tickets', requireAuth, async (req, res, next) => {
 
     const validCategories = ['general', 'technical', 'billing', 'course', 'other'];
     if (!validCategories.includes(normalizedCategory)) {
-      return res.status(400).json({ success: false, message: 'Danh má»¥c khÃ´ng há»£p lá»‡' });
+      return res.status(400).json({ success: false, message: 'Danh mÃ¡Â»Â¥c khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡' });
     }
 
     const validPriorities = ['low', 'normal', 'high', 'urgent'];
     if (!validPriorities.includes(normalizedPriority)) {
-      return res.status(400).json({ success: false, message: 'Äá»™ Æ°u tiÃªn khÃ´ng há»£p lá»‡' });
+      return res.status(400).json({ success: false, message: 'Ã„ÂÃ¡Â»â„¢ Ã†Â°u tiÃƒÂªn khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡' });
     }
 
     const { effectiveCenterId } = getEffectiveCenterId(req.user, req.body.center_id);
@@ -26361,21 +28109,21 @@ app.post('/api/support-tickets', requireAuth, async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      message: 'ÄÃ£ táº¡o yÃªu cáº§u há»— trá»£',
+      message: 'Ã„ÂÃƒÂ£ tÃ¡ÂºÂ¡o yÃƒÂªu cÃ¡ÂºÂ§u hÃ¡Â»â€” trÃ¡Â»Â£',
       data: {
         ...createdTicket,
         message_count: initialMessage ? 1 : 0
       }
     });
   } catch (error) {
-    console.error('âŒ Error creating support ticket for self-service route:', error);
+    console.error('Ã¢ÂÅ’ Error creating support ticket for self-service route:', error);
     next(error);
   }
 });
 
 /**
  * POST /api/admin/support-tickets
- * Táº¡o ticket má»›i (admin táº¡o thay cho student)
+ * TÃ¡ÂºÂ¡o ticket mÃ¡Â»â€ºi (admin tÃ¡ÂºÂ¡o thay cho student)
  */
 app.post('/api/admin/support-tickets', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
@@ -26391,7 +28139,7 @@ app.post('/api/admin/support-tickets', requireAuth, requireRole(['SUPER_ADMIN', 
 
     // Validate required fields
     if (!subject) {
-      return res.status(400).json({ success: false, message: 'TiÃªu Ä‘á» lÃ  báº¯t buá»™c' });
+      return res.status(400).json({ success: false, message: 'TiÃƒÂªu Ã„â€˜Ã¡Â»Â lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c' });
     }
 
     // Validate category
@@ -26399,7 +28147,7 @@ app.post('/api/admin/support-tickets', requireAuth, requireRole(['SUPER_ADMIN', 
     if (!validCategories.includes(category)) {
       return res.status(400).json({
         success: false,
-        message: `Danh má»¥c khÃ´ng há»£p lá»‡. Cho phÃ©p: ${validCategories.join(', ')}`
+        message: `Danh mÃ¡Â»Â¥c khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡. Cho phÃƒÂ©p: ${validCategories.join(', ')}`
       });
     }
 
@@ -26408,7 +28156,7 @@ app.post('/api/admin/support-tickets', requireAuth, requireRole(['SUPER_ADMIN', 
     if (!validPriorities.includes(priority)) {
       return res.status(400).json({
         success: false,
-        message: `Äá»™ Æ°u tiÃªn khÃ´ng há»£p lá»‡. Cho phÃ©p: ${validPriorities.join(', ')}`
+        message: `Ã„ÂÃ¡Â»â„¢ Ã†Â°u tiÃƒÂªn khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡. Cho phÃƒÂ©p: ${validPriorities.join(', ')}`
       });
     }
 
@@ -26462,11 +28210,11 @@ app.post('/api/admin/support-tickets', requireAuth, requireRole(['SUPER_ADMIN', 
         });
     }
 
-    console.log(`ðŸŽ« Support ticket created: ${ticketNumber} by ${req.user.email}`);
+    console.log(`Ã°Å¸Å½Â« Support ticket created: ${ticketNumber} by ${req.user.email}`);
 
     res.status(201).json({
       success: true,
-      message: 'Táº¡o ticket thÃ nh cÃ´ng',
+      message: 'TÃ¡ÂºÂ¡o ticket thÃƒÂ nh cÃƒÂ´ng',
       data: {
         ...data,
         students: data.created_by_user || null,
@@ -26475,14 +28223,14 @@ app.post('/api/admin/support-tickets', requireAuth, requireRole(['SUPER_ADMIN', 
       }
     });
   } catch (error) {
-    console.error('âŒ Error creating support ticket:', error);
+    console.error('Ã¢ÂÅ’ Error creating support ticket:', error);
     next(error);
   }
 });
 
 /**
  * PUT /api/admin/support-tickets/:id
- * Cáº­p nháº­t ticket (status, assignment, resolution)
+ * CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t ticket (status, assignment, resolution)
  */
 app.put('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
@@ -26503,7 +28251,7 @@ app.put('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN
       .single();
 
     if (fetchError || !existingTicket) {
-      return res.status(404).json({ success: false, message: 'Ticket khÃ´ng tá»“n táº¡i' });
+      return res.status(404).json({ success: false, message: 'Ticket khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i' });
     }
 
     // Permission check
@@ -26512,7 +28260,7 @@ app.put('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN
     const isAssigned = existingTicket.assigned_to === req.user.id;
 
     if (!isSuperAdmin && !isSameCenter && !isAssigned) {
-      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n sá»­a ticket nÃ y' });
+      return res.status(403).json({ success: false, message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân sÃ¡Â»Â­a ticket nÃƒÂ y' });
     }
 
     // Build update object
@@ -26523,7 +28271,7 @@ app.put('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN
       if (!validStatuses.includes(status)) {
         return res.status(400).json({
           success: false,
-          message: `Tráº¡ng thÃ¡i khÃ´ng há»£p lá»‡. Cho phÃ©p: ${validStatuses.join(', ')}`
+          message: `TrÃ¡ÂºÂ¡ng thÃƒÂ¡i khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡. Cho phÃƒÂ©p: ${validStatuses.join(', ')}`
         });
       }
       updateData.status = status;
@@ -26540,7 +28288,7 @@ app.put('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN
       if (!validPriorities.includes(priority)) {
         return res.status(400).json({
           success: false,
-          message: `Äá»™ Æ°u tiÃªn khÃ´ng há»£p lá»‡. Cho phÃ©p: ${validPriorities.join(', ')}`
+          message: `Ã„ÂÃ¡Â»â„¢ Ã†Â°u tiÃƒÂªn khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡. Cho phÃƒÂ©p: ${validPriorities.join(', ')}`
         });
       }
       updateData.priority = priority;
@@ -26551,7 +28299,7 @@ app.put('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN
       if (!validCategories.includes(category)) {
         return res.status(400).json({
           success: false,
-          message: `Danh má»¥c khÃ´ng há»£p lá»‡. Cho phÃ©p: ${validCategories.join(', ')}`
+          message: `Danh mÃ¡Â»Â¥c khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡. Cho phÃƒÂ©p: ${validCategories.join(', ')}`
         });
       }
       updateData.category = category;
@@ -26582,11 +28330,11 @@ app.put('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN
 
     if (error) throw error;
 
-    console.log(`âœï¸ Support ticket updated: ${data.ticket_number} by ${req.user.email}`);
+    console.log(`Ã¢Å“ÂÃ¯Â¸Â Support ticket updated: ${data.ticket_number} by ${req.user.email}`);
 
     res.json({
       success: true,
-      message: 'Cáº­p nháº­t ticket thÃ nh cÃ´ng',
+      message: 'CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t ticket thÃƒÂ nh cÃƒÂ´ng',
       data: {
         ...data,
         students: data.created_by_user || null,
@@ -26594,7 +28342,7 @@ app.put('/api/admin/support-tickets/:id', requireAuth, requireRole(['SUPER_ADMIN
       }
     });
   } catch (error) {
-    console.error('âŒ Error updating support ticket:', error);
+    console.error('Ã¢ÂÅ’ Error updating support ticket:', error);
     next(error);
   }
 });
@@ -26619,17 +28367,17 @@ app.get('/api/support-tickets/:id/smart-replies', requireAuth, async (req, res, 
       .single();
 
     if (!ticket) {
-      return res.status(404).json({ success: false, error: 'Ticket khÃ´ng tá»“n táº¡i' });
+      return res.status(404).json({ success: false, error: 'Ticket khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i' });
     }
 
     const centerId = ticket.center_id || getEffectiveCenterId(req);
     const msgLower = message.toLowerCase().normalize('NFC');
 
     // Keyword detection
-    const PRICING_KW = ['giÃ¡', 'há»c phÃ­', 'chi phÃ­', 'bao nhiÃªu tiá»n', 'phÃ­', 'bao nhiÃªu', 'tiá»n'];
-    const SCHEDULE_KW = ['lá»‹ch', 'buá»•i', 'thá»i gian', 'máº¥y giá»', 'ngÃ y nÃ o', 'khi nÃ o', 'báº¯t Ä‘áº§u', 'khai giáº£ng'];
-    const CURRICULUM_KW = ['lá»™ trÃ¬nh', 'ná»™i dung', 'há»c gÃ¬', 'chÆ°Æ¡ng trÃ¬nh', 'giÃ¡o trÃ¬nh'];
-    const GENERAL_KW = ['khÃ³a há»c', 'khÃ³a', 'lá»›p', 'Ä‘Äƒng kÃ½', 'tham kháº£o', 'tÆ° váº¥n', 'thÃ´ng tin'];
+    const PRICING_KW = ['giÃƒÂ¡', 'hÃ¡Â»Âc phÃƒÂ­', 'chi phÃƒÂ­', 'bao nhiÃƒÂªu tiÃ¡Â»Ân', 'phÃƒÂ­', 'bao nhiÃƒÂªu', 'tiÃ¡Â»Ân'];
+    const SCHEDULE_KW = ['lÃ¡Â»â€¹ch', 'buÃ¡Â»â€¢i', 'thÃ¡Â»Âi gian', 'mÃ¡ÂºÂ¥y giÃ¡Â»Â', 'ngÃƒÂ y nÃƒÂ o', 'khi nÃƒÂ o', 'bÃ¡ÂºÂ¯t Ã„â€˜Ã¡ÂºÂ§u', 'khai giÃ¡ÂºÂ£ng'];
+    const CURRICULUM_KW = ['lÃ¡Â»â„¢ trÃƒÂ¬nh', 'nÃ¡Â»â„¢i dung', 'hÃ¡Â»Âc gÃƒÂ¬', 'chÃ†Â°Ã†Â¡ng trÃƒÂ¬nh', 'giÃƒÂ¡o trÃƒÂ¬nh'];
+    const GENERAL_KW = ['khÃƒÂ³a hÃ¡Â»Âc', 'khÃƒÂ³a', 'lÃ¡Â»â€ºp', 'Ã„â€˜Ã„Æ’ng kÃƒÂ½', 'tham khÃ¡ÂºÂ£o', 'tÃ†Â° vÃ¡ÂºÂ¥n', 'thÃƒÂ´ng tin'];
 
     const cats = new Set();
     if (PRICING_KW.some(k => msgLower.includes(k))) cats.add('pricing');
@@ -26642,7 +28390,7 @@ app.get('/api/support-tickets/:id/smart-replies', requireAuth, async (req, res, 
     }
 
     // Extract course name hints
-    const STOP = new Set(['báº¡n', 'muá»‘n', 'mÃ¬nh', 'khÃ³a', 'há»c', 'Ä‘Æ°á»£c', 'khÃ´ng', 'cho', 'má»™t', 'cÃ¡c', 'cá»§a', 'nÃ y', 'nhá»¯ng', 'nhÆ°', 'tháº¿', 'nÃ o', 'bao', 'nhiÃªu', 'tÃ´i', 'anh', 'chá»‹', 'em', 'giÃ¡', 'lá»‹ch', 'phÃ­', 'tham', 'kháº£o', 'cáº§n', 'vá»', 'lá»™', 'trÃ¬nh', 'ná»™i', 'dung', 'thá»i', 'gian', 'buá»•i', 'Ä‘Äƒng', 'hiá»‡n', 'táº¡i', 'bÃªn', 'váº¥n', 'thÃ´ng', 'tin', 'há»i', 'xin', 'vá»›i', 'cÃ²n', 'láº¡i', 'thÃ¬', 'sao', 'cá»¥', 'thá»ƒ', 'luÃ´n', 'kÃ¨m', 'cho']);
+    const STOP = new Set(['bÃ¡ÂºÂ¡n', 'muÃ¡Â»â€˜n', 'mÃƒÂ¬nh', 'khÃƒÂ³a', 'hÃ¡Â»Âc', 'Ã„â€˜Ã†Â°Ã¡Â»Â£c', 'khÃƒÂ´ng', 'cho', 'mÃ¡Â»â„¢t', 'cÃƒÂ¡c', 'cÃ¡Â»Â§a', 'nÃƒÂ y', 'nhÃ¡Â»Â¯ng', 'nhÃ†Â°', 'thÃ¡ÂºÂ¿', 'nÃƒÂ o', 'bao', 'nhiÃƒÂªu', 'tÃƒÂ´i', 'anh', 'chÃ¡Â»â€¹', 'em', 'giÃƒÂ¡', 'lÃ¡Â»â€¹ch', 'phÃƒÂ­', 'tham', 'khÃ¡ÂºÂ£o', 'cÃ¡ÂºÂ§n', 'vÃ¡Â»Â', 'lÃ¡Â»â„¢', 'trÃƒÂ¬nh', 'nÃ¡Â»â„¢i', 'dung', 'thÃ¡Â»Âi', 'gian', 'buÃ¡Â»â€¢i', 'Ã„â€˜Ã„Æ’ng', 'hiÃ¡Â»â€¡n', 'tÃ¡ÂºÂ¡i', 'bÃƒÂªn', 'vÃ¡ÂºÂ¥n', 'thÃƒÂ´ng', 'tin', 'hÃ¡Â»Âi', 'xin', 'vÃ¡Â»â€ºi', 'cÃƒÂ²n', 'lÃ¡ÂºÂ¡i', 'thÃƒÂ¬', 'sao', 'cÃ¡Â»Â¥', 'thÃ¡Â»Æ’', 'luÃƒÂ´n', 'kÃƒÂ¨m', 'cho']);
     const words = msgLower.split(/[\s,!?.]+/).filter(w => w.length >= 3 && !STOP.has(w));
 
     // Query courses
@@ -26672,26 +28420,26 @@ app.get('/api/support-tickets/:id/smart-replies', requireAuth, async (req, res, 
 
     // Format helpers
     const fmtPrice = (p) => {
-      if (!p) return 'LiÃªn há»‡';
+      if (!p) return 'LiÃƒÂªn hÃ¡Â»â€¡';
       const n = parseFloat(p);
-      return n >= 1000000 ? `${(n / 1000000).toFixed(n % 1000000 === 0 ? 0 : 1)}tr` : n.toLocaleString('vi-VN') + 'Ä‘';
+      return n >= 1000000 ? `${(n / 1000000).toFixed(n % 1000000 === 0 ? 0 : 1)}tr` : n.toLocaleString('vi-VN') + 'Ã„â€˜';
     };
-    const levelLabel = { beginner: 'CÆ¡ báº£n', intermediate: 'Trung cáº¥p', advanced: 'NÃ¢ng cao', Beginner: 'CÆ¡ báº£n', Intermediate: 'Trung cáº¥p', Advanced: 'NÃ¢ng cao' };
+    const levelLabel = { beginner: 'CÃ†Â¡ bÃ¡ÂºÂ£n', intermediate: 'Trung cÃ¡ÂºÂ¥p', advanced: 'NÃƒÂ¢ng cao', Beginner: 'CÃ†Â¡ bÃ¡ÂºÂ£n', Intermediate: 'Trung cÃ¡ÂºÂ¥p', Advanced: 'NÃƒÂ¢ng cao' };
 
     const suggestions = [];
 
     for (const c of courses) {
       // Course info chip
-      const infoLines = [`ðŸ“š KhÃ³a ${c.title}`];
+      const infoLines = [`Ã°Å¸â€œÅ¡ KhÃƒÂ³a ${c.title}`];
       if (cats.has('pricing') || cats.has('general')) {
-        infoLines.push(`ðŸ’° Há»c phÃ­: ${parseFloat(c.price).toLocaleString('vi-VN')}Ä‘`);
+        infoLines.push(`Ã°Å¸â€™Â° HÃ¡Â»Âc phÃƒÂ­: ${parseFloat(c.price).toLocaleString('vi-VN')}Ã„â€˜`);
       }
-      infoLines.push(`â± Thá»i lÆ°á»£ng: ${c.duration_weeks} tuáº§n (${c.total_sessions} buá»•i)`);
-      if (c.level) infoLines.push(`ðŸ“Š TrÃ¬nh Ä‘á»™: ${levelLabel[c.level] || c.level}`);
+      infoLines.push(`Ã¢ÂÂ± ThÃ¡Â»Âi lÃ†Â°Ã¡Â»Â£ng: ${c.duration_weeks} tuÃ¡ÂºÂ§n (${c.total_sessions} buÃ¡Â»â€¢i)`);
+      if (c.level) infoLines.push(`Ã°Å¸â€œÅ  TrÃƒÂ¬nh Ã„â€˜Ã¡Â»â„¢: ${levelLabel[c.level] || c.level}`);
 
       suggestions.push({
         type: 'course_info',
-        label: `ðŸ“š ${c.title} - ${fmtPrice(c.price)}/${c.duration_weeks} tuáº§n`,
+        label: `Ã°Å¸â€œÅ¡ ${c.title} - ${fmtPrice(c.price)}/${c.duration_weeks} tuÃ¡ÂºÂ§n`,
         pasteText: infoLines.join('\n'),
         courseId: c.id
       });
@@ -26713,15 +28461,15 @@ app.get('/api/support-tickets/:id/smart-replies', requireAuth, async (req, res, 
             .in('status', ['active', 'enrolled']);
 
           const spots = cls.max_students - (enrolled || 0);
-          const sLines = [`ðŸ“… Lá»›p ${cls.name || c.title}`];
-          if (cls.schedule) sLines.push(`ðŸ• Lá»‹ch: ${cls.schedule}`);
-          if (cls.start_date) sLines.push(`ðŸ—“ Khai giáº£ng: ${new Date(cls.start_date).toLocaleDateString('vi-VN')}`);
-          if (cls.teacher?.full_name) sLines.push(`ðŸ‘¨â€ðŸ« GV: ${cls.teacher.full_name}`);
-          if (cls.max_students) sLines.push(`ðŸ‘¥ CÃ²n ${Math.max(0, spots)}/${cls.max_students} chá»—`);
+          const sLines = [`Ã°Å¸â€œâ€¦ LÃ¡Â»â€ºp ${cls.name || c.title}`];
+          if (cls.schedule) sLines.push(`Ã°Å¸â€¢Â LÃ¡Â»â€¹ch: ${cls.schedule}`);
+          if (cls.start_date) sLines.push(`Ã°Å¸â€”â€œ Khai giÃ¡ÂºÂ£ng: ${new Date(cls.start_date).toLocaleDateString('vi-VN')}`);
+          if (cls.teacher?.full_name) sLines.push(`Ã°Å¸â€˜Â¨Ã¢â‚¬ÂÃ°Å¸ÂÂ« GV: ${cls.teacher.full_name}`);
+          if (cls.max_students) sLines.push(`Ã°Å¸â€˜Â¥ CÃƒÂ²n ${Math.max(0, spots)}/${cls.max_students} chÃ¡Â»â€”`);
 
           suggestions.push({
             type: 'schedule_info',
-            label: `ðŸ“… ${cls.name || c.title} - ${cls.schedule || 'ChÆ°a xáº¿p'}`,
+            label: `Ã°Å¸â€œâ€¦ ${cls.name || c.title} - ${cls.schedule || 'ChÃ†Â°a xÃ¡ÂºÂ¿p'}`,
             pasteText: sLines.join('\n'),
             classId: cls.id
           });
@@ -26730,22 +28478,22 @@ app.get('/api/support-tickets/:id/smart-replies', requireAuth, async (req, res, 
 
       // Curriculum chip
       if (cats.has('curriculum') && (c.syllabus || c.outcomes)) {
-        const cLines = [`ðŸ“‹ Lá»™ trÃ¬nh ${c.title}`];
+        const cLines = [`Ã°Å¸â€œâ€¹ LÃ¡Â»â„¢ trÃƒÂ¬nh ${c.title}`];
         if (Array.isArray(c.syllabus)) {
           c.syllabus.slice(0, 5).forEach((item, i) => {
-            const t = typeof item === 'string' ? item : (item.title || item.name || `Pháº§n ${i + 1}`);
+            const t = typeof item === 'string' ? item : (item.title || item.name || `PhÃ¡ÂºÂ§n ${i + 1}`);
             cLines.push(`${i + 1}. ${t}`);
           });
-          if (c.syllabus.length > 5) cLines.push(`... vÃ  ${c.syllabus.length - 5} pháº§n ná»¯a`);
+          if (c.syllabus.length > 5) cLines.push(`... vÃƒÂ  ${c.syllabus.length - 5} phÃ¡ÂºÂ§n nÃ¡Â»Â¯a`);
         }
         if (Array.isArray(c.outcomes)) {
-          cLines.push('', 'ðŸŽ¯ Sau khÃ³a há»c báº¡n sáº½:');
+          cLines.push('', 'Ã°Å¸Å½Â¯ Sau khÃƒÂ³a hÃ¡Â»Âc bÃ¡ÂºÂ¡n sÃ¡ÂºÂ½:');
           c.outcomes.slice(0, 3).forEach(o => {
             const t = typeof o === 'string' ? o : (o.text || o.title || '');
-            if (t) cLines.push(`âœ… ${t}`);
+            if (t) cLines.push(`Ã¢Å“â€¦ ${t}`);
           });
         }
-        suggestions.push({ type: 'curriculum_info', label: `ðŸ“‹ Lá»™ trÃ¬nh ${c.title}`, pasteText: cLines.join('\n'), courseId: c.id });
+        suggestions.push({ type: 'curriculum_info', label: `Ã°Å¸â€œâ€¹ LÃ¡Â»â„¢ trÃƒÂ¬nh ${c.title}`, pasteText: cLines.join('\n'), courseId: c.id });
       }
     }
 
@@ -26758,7 +28506,7 @@ app.get('/api/support-tickets/:id/smart-replies', requireAuth, async (req, res, 
 
 /**
  * POST /api/support-tickets/:id/messages
- * Gá»­i tin nháº¯n reply vÃ o ticket
+ * GÃ¡Â»Â­i tin nhÃ¡ÂºÂ¯n reply vÃƒÂ o ticket
  */
 app.post('/api/support-tickets/:id/messages', requireAuth, async (req, res, next) => {
   try {
@@ -26767,7 +28515,7 @@ app.post('/api/support-tickets/:id/messages', requireAuth, async (req, res, next
 
     // Validate message
     if (!message || !message.trim()) {
-      return res.status(400).json({ success: false, message: 'Ná»™i dung tin nháº¯n lÃ  báº¯t buá»™c' });
+      return res.status(400).json({ success: false, message: 'NÃ¡Â»â„¢i dung tin nhÃ¡ÂºÂ¯n lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c' });
     }
 
     // Get ticket
@@ -26778,7 +28526,7 @@ app.post('/api/support-tickets/:id/messages', requireAuth, async (req, res, next
       .single();
 
     if (ticketError || !ticket) {
-      return res.status(404).json({ success: false, message: 'Ticket khÃ´ng tá»“n táº¡i' });
+      return res.status(404).json({ success: false, message: 'Ticket khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i' });
     }
 
     // Permission check: Must be ticket creator, assignee, or admin
@@ -26787,7 +28535,7 @@ app.post('/api/support-tickets/:id/messages', requireAuth, async (req, res, next
     const isAdmin = ['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER'].includes(req.user.roleCode);
 
     if (!isCreator && !isAssignee && !isAdmin) {
-      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n gá»­i tin nháº¯n trong ticket nÃ y' });
+      return res.status(403).json({ success: false, message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân gÃ¡Â»Â­i tin nhÃ¡ÂºÂ¯n trong ticket nÃƒÂ y' });
     }
 
     // Only staff can send internal notes
@@ -26841,22 +28589,22 @@ app.post('/api/support-tickets/:id/messages', requireAuth, async (req, res, next
       await createNotification(supabase, event);
     }
 
-    console.log(`ðŸ’¬ Message sent to ticket ${ticket.ticket_number} by ${req.user.email}${actualIsInternal ? ' (internal)' : ''}`);
+    console.log(`Ã°Å¸â€™Â¬ Message sent to ticket ${ticket.ticket_number} by ${req.user.email}${actualIsInternal ? ' (internal)' : ''}`);
 
     res.status(201).json({
       success: true,
-      message: 'Gá»­i tin nháº¯n thÃ nh cÃ´ng',
+      message: 'GÃ¡Â»Â­i tin nhÃ¡ÂºÂ¯n thÃƒÂ nh cÃƒÂ´ng',
       data
     });
   } catch (error) {
-    console.error('âŒ Error sending ticket message:', error);
+    console.error('Ã¢ÂÅ’ Error sending ticket message:', error);
     next(error);
   }
 });
 
 /**
  * GET /api/admin/support-tickets/stats
- * Thá»‘ng kÃª tickets (dashboard)
+ * ThÃ¡Â»â€˜ng kÃƒÂª tickets (dashboard)
  */
 app.get('/api/admin/support-tickets/stats', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -26889,7 +28637,7 @@ app.get('/api/admin/support-tickets/stats', requireAuth, requireRole(['SUPER_ADM
 
     res.json({ success: true, data: stats });
   } catch (error) {
-    console.error('âŒ Error fetching ticket stats:', error);
+    console.error('Ã¢ÂÅ’ Error fetching ticket stats:', error);
     next(error);
   }
 });
@@ -26919,7 +28667,7 @@ function withConsultationFollowUp(request) {
 
 /**
  * GET /api/admin/consultation-requests
- * Danh sÃ¡ch yÃªu cáº§u tÆ° váº¥n cho advisor inbox
+ * Danh sÃƒÂ¡ch yÃƒÂªu cÃ¡ÂºÂ§u tÃ†Â° vÃ¡ÂºÂ¥n cho advisor inbox
  */
 app.get('/api/admin/consultation-requests', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
@@ -26982,14 +28730,14 @@ app.get('/api/admin/consultation-requests', requireAuth, requireRole(['SUPER_ADM
       }
     });
   } catch (error) {
-    console.error('âŒ Error fetching consultation requests:', error);
+    console.error('Ã¢ÂÅ’ Error fetching consultation requests:', error);
     next(error);
   }
 });
 
 /**
  * GET /api/admin/consultation-requests/:id
- * Chi tiáº¿t má»™t yÃªu cáº§u tÆ° váº¥n
+ * Chi tiÃ¡ÂºÂ¿t mÃ¡Â»â„¢t yÃƒÂªu cÃ¡ÂºÂ§u tÃ†Â° vÃ¡ÂºÂ¥n
  */
 app.get('/api/admin/consultation-requests/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
@@ -27008,13 +28756,13 @@ app.get('/api/admin/consultation-requests/:id', requireAuth, requireRole(['SUPER
 
     if (error) {
       if (error.code === 'PGRST116') {
-        return res.status(404).json({ success: false, message: 'YÃªu cáº§u tÆ° váº¥n khÃ´ng tá»“n táº¡i' });
+        return res.status(404).json({ success: false, message: 'YÃƒÂªu cÃ¡ÂºÂ§u tÃ†Â° vÃ¡ÂºÂ¥n khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i' });
       }
       throw error;
     }
 
     if (req.user.roleCode !== 'SUPER_ADMIN' && request.center_id && request.center_id !== req.user.centerId) {
-      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem yÃªu cáº§u tÆ° váº¥n nÃ y' });
+      return res.status(403).json({ success: false, message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xem yÃƒÂªu cÃ¡ÂºÂ§u tÃ†Â° vÃ¡ÂºÂ¥n nÃƒÂ y' });
     }
 
     res.json({
@@ -27027,14 +28775,14 @@ app.get('/api/admin/consultation-requests/:id', requireAuth, requireRole(['SUPER
       })
     });
   } catch (error) {
-    console.error('âŒ Error fetching consultation request:', error);
+    console.error('Ã¢ÂÅ’ Error fetching consultation request:', error);
     next(error);
   }
 });
 
 /**
  * PUT /api/admin/consultation-requests/:id
- * Cáº­p nháº­t advisor assignment, tráº¡ng thÃ¡i, notes
+ * CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t advisor assignment, trÃ¡ÂºÂ¡ng thÃƒÂ¡i, notes
  */
 app.put('/api/admin/consultation-requests/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
@@ -27056,7 +28804,7 @@ app.put('/api/admin/consultation-requests/:id', requireAuth, requireRole(['SUPER
       .single();
 
     if (fetchError || !existingRequest) {
-      return res.status(404).json({ success: false, message: 'YÃªu cáº§u tÆ° váº¥n khÃ´ng tá»“n táº¡i' });
+      return res.status(404).json({ success: false, message: 'YÃƒÂªu cÃ¡ÂºÂ§u tÃ†Â° vÃ¡ÂºÂ¥n khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i' });
     }
 
     const isSuperAdmin = req.user.roleCode === 'SUPER_ADMIN';
@@ -27064,7 +28812,7 @@ app.put('/api/admin/consultation-requests/:id', requireAuth, requireRole(['SUPER
     const isAssigned = existingRequest.assigned_to === req.user.id;
 
     if (!isSuperAdmin && !isSameCenter && !isAssigned) {
-      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n cáº­p nháº­t yÃªu cáº§u tÆ° váº¥n nÃ y' });
+      return res.status(403).json({ success: false, message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t yÃƒÂªu cÃ¡ÂºÂ§u tÃ†Â° vÃ¡ÂºÂ¥n nÃƒÂ y' });
     }
 
     const validStatuses = ['new', 'assigned', 'contacted', 'scheduled', 'closed', 'lost'];
@@ -27075,7 +28823,7 @@ app.put('/api/admin/consultation-requests/:id', requireAuth, requireRole(['SUPER
       if (!validStatuses.includes(status)) {
         return res.status(400).json({
           success: false,
-          message: `Tráº¡ng thÃ¡i khÃ´ng há»£p lá»‡. Cho phÃ©p: ${validStatuses.join(', ')}`
+          message: `TrÃ¡ÂºÂ¡ng thÃƒÂ¡i khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡. Cho phÃƒÂ©p: ${validStatuses.join(', ')}`
         });
       }
 
@@ -27119,7 +28867,7 @@ app.put('/api/admin/consultation-requests/:id', requireAuth, requireRole(['SUPER
     if (conversion_outcome !== undefined) {
       const validOutcomes = ['enrolled', 'resolved', 'not_interested', 'unreachable', null];
       if (!validOutcomes.includes(conversion_outcome)) {
-        return res.status(400).json({ success: false, message: 'Káº¿t quáº£ chuyá»ƒn Ä‘á»•i khÃ´ng há»£p lá»‡' });
+        return res.status(400).json({ success: false, message: 'KÃ¡ÂºÂ¿t quÃ¡ÂºÂ£ chuyÃ¡Â»Æ’n Ã„â€˜Ã¡Â»â€¢i khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡' });
       }
       updateData.conversion_outcome = conversion_outcome;
     }
@@ -27191,12 +28939,12 @@ app.put('/api/admin/consultation-requests/:id', requireAuth, requireRole(['SUPER
         await supabase.from('consultation_activities').insert(activities);
       }
     } catch (activityErr) {
-      console.warn('âš ï¸ Activity log insert failed:', activityErr.message);
+      console.warn('Ã¢Å¡Â Ã¯Â¸Â Activity log insert failed:', activityErr.message);
     }
 
     res.json({
       success: true,
-      message: 'Cáº­p nháº­t yÃªu cáº§u tÆ° váº¥n thÃ nh cÃ´ng',
+      message: 'CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t yÃƒÂªu cÃ¡ÂºÂ§u tÃ†Â° vÃ¡ÂºÂ¥n thÃƒÂ nh cÃƒÂ´ng',
       data: withConsultationFollowUp({
         ...data,
         assigned_to: data.assigned_to_user || null,
@@ -27205,14 +28953,14 @@ app.put('/api/admin/consultation-requests/:id', requireAuth, requireRole(['SUPER
       })
     });
   } catch (error) {
-    console.error('âŒ Error updating consultation request:', error);
+    console.error('Ã¢ÂÅ’ Error updating consultation request:', error);
     next(error);
   }
 });
 
 /**
  * GET /api/admin/consultation-requests/:id/activities
- * Lá»‹ch sá»­ hoáº¡t Ä‘á»™ng (activity timeline) cho yÃªu cáº§u tÆ° váº¥n
+ * LÃ¡Â»â€¹ch sÃ¡Â»Â­ hoÃ¡ÂºÂ¡t Ã„â€˜Ã¡Â»â„¢ng (activity timeline) cho yÃƒÂªu cÃ¡ÂºÂ§u tÃ†Â° vÃ¡ÂºÂ¥n
  */
 app.get('/api/admin/consultation-requests/:id/activities', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
@@ -27232,14 +28980,14 @@ app.get('/api/admin/consultation-requests/:id/activities', requireAuth, requireR
 
     res.json({ success: true, data: data || [] });
   } catch (error) {
-    console.error('âŒ Error fetching consultation activities:', error);
+    console.error('Ã¢ÂÅ’ Error fetching consultation activities:', error);
     next(error);
   }
 });
 
 /**
  * GET /api/admin/consultation-requests/:id/chat-history
- * Lá»‹ch sá»­ chat Ä‘áº§y Ä‘á»§ cá»§a phiÃªn Molly liÃªn káº¿t vá»›i yÃªu cáº§u tÆ° váº¥n
+ * LÃ¡Â»â€¹ch sÃ¡Â»Â­ chat Ã„â€˜Ã¡ÂºÂ§y Ã„â€˜Ã¡Â»Â§ cÃ¡Â»Â§a phiÃƒÂªn Molly liÃƒÂªn kÃ¡ÂºÂ¿t vÃ¡Â»â€ºi yÃƒÂªu cÃ¡ÂºÂ§u tÃ†Â° vÃ¡ÂºÂ¥n
  */
 app.get('/api/admin/consultation-requests/:id/chat-history', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
@@ -27253,11 +29001,11 @@ app.get('/api/admin/consultation-requests/:id/chat-history', requireAuth, requir
       .single();
 
     if (reqError || !request) {
-      return res.status(404).json({ success: false, message: 'YÃªu cáº§u tÆ° váº¥n khÃ´ng tá»“n táº¡i' });
+      return res.status(404).json({ success: false, message: 'YÃƒÂªu cÃ¡ÂºÂ§u tÃ†Â° vÃ¡ÂºÂ¥n khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i' });
     }
 
     if (!request.session_id) {
-      return res.json({ success: true, data: [], message: 'YÃªu cáº§u nÃ y khÃ´ng cÃ³ phiÃªn chat Molly liÃªn káº¿t' });
+      return res.json({ success: true, data: [], message: 'YÃƒÂªu cÃ¡ÂºÂ§u nÃƒÂ y khÃƒÂ´ng cÃƒÂ³ phiÃƒÂªn chat Molly liÃƒÂªn kÃ¡ÂºÂ¿t' });
     }
 
     // Load session info
@@ -27283,14 +29031,14 @@ app.get('/api/admin/consultation-requests/:id/chat-history', requireAuth, requir
       session: session || null
     });
   } catch (error) {
-    console.error('âŒ Error fetching chat history:', error);
+    console.error('Ã¢ÂÅ’ Error fetching chat history:', error);
     next(error);
   }
 });
 
 /**
  * POST /api/admin/consultation-requests/:id/follow-up-thread
- * Táº¡o hoáº·c gáº¯n thread follow-up cho yÃªu cáº§u tÆ° váº¥n (idempotent)
+ * TÃ¡ÂºÂ¡o hoÃ¡ÂºÂ·c gÃ¡ÂºÂ¯n thread follow-up cho yÃƒÂªu cÃ¡ÂºÂ§u tÃ†Â° vÃ¡ÂºÂ¥n (idempotent)
  */
 app.post('/api/admin/consultation-requests/:id/follow-up-thread', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
@@ -27304,7 +29052,7 @@ app.post('/api/admin/consultation-requests/:id/follow-up-thread', requireAuth, r
       .single();
 
     if (fetchError || !existingRequest) {
-      return res.status(404).json({ success: false, message: 'YÃªu cáº§u tÆ° váº¥n khÃ´ng tá»“n táº¡i' });
+      return res.status(404).json({ success: false, message: 'YÃƒÂªu cÃ¡ÂºÂ§u tÃ†Â° vÃ¡ÂºÂ¥n khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i' });
     }
 
     const isSuperAdmin = req.user.roleCode === 'SUPER_ADMIN';
@@ -27312,7 +29060,7 @@ app.post('/api/admin/consultation-requests/:id/follow-up-thread', requireAuth, r
     const isAssigned = existingRequest.assigned_to === req.user.id;
 
     if (!isSuperAdmin && !isSameCenter && !isAssigned) {
-      return res.status(403).json({ success: false, message: 'Báº¡n khÃ´ng cÃ³ quyá»n xá»­ lÃ½ follow-up cho yÃªu cáº§u nÃ y' });
+      return res.status(403).json({ success: false, message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xÃ¡Â»Â­ lÃƒÂ½ follow-up cho yÃƒÂªu cÃ¡ÂºÂ§u nÃƒÂ y' });
     }
 
     const existingFollowUp = extractConsultationFollowUp(existingRequest.metadata);
@@ -27328,7 +29076,7 @@ app.post('/api/admin/consultation-requests/:id/follow-up-thread', requireAuth, r
       if (linkedTicket && (!existingRequest.center_id || linkedTicket.center_id === existingRequest.center_id)) {
         return res.json({
           success: true,
-          message: 'YÃªu cáº§u tÆ° váº¥n Ä‘Ã£ cÃ³ thread follow-up',
+          message: 'YÃƒÂªu cÃ¡ÂºÂ§u tÃ†Â° vÃ¡ÂºÂ¥n Ã„â€˜ÃƒÂ£ cÃƒÂ³ thread follow-up',
           data: {
             request: withConsultationFollowUp(existingRequest),
             follow_up_ticket: {
@@ -27380,7 +29128,7 @@ app.post('/api/admin/consultation-requests/:id/follow-up-thread', requireAuth, r
 
       return res.json({
         success: true,
-        message: 'YÃªu cáº§u tÆ° váº¥n Ä‘Ã£ cÃ³ thread follow-up',
+        message: 'YÃƒÂªu cÃ¡ÂºÂ§u tÃ†Â° vÃ¡ÂºÂ¥n Ã„â€˜ÃƒÂ£ cÃƒÂ³ thread follow-up',
         data: {
           request: withConsultationFollowUp({
             ...updatedRequest,
@@ -27399,9 +29147,9 @@ app.post('/api/admin/consultation-requests/:id/follow-up-thread', requireAuth, r
 
     const urgencyLevel = existingRequest.metadata?.urgency_level;
     const mappedPriority = normalizeFollowUpPriority(urgencyLevel);
-    const summaryLine = existingRequest.metadata?.summary_line || existingRequest.metadata?.primary_need || existingRequest.transcript_summary || existingRequest.notes || 'Theo dÃµi nhu cáº§u tÆ° váº¥n';
+    const summaryLine = existingRequest.metadata?.summary_line || existingRequest.metadata?.primary_need || existingRequest.transcript_summary || existingRequest.notes || 'Theo dÃƒÂµi nhu cÃ¡ÂºÂ§u tÃ†Â° vÃ¡ÂºÂ¥n';
     const cleanSummary = String(summaryLine).replace(/\s+/g, ' ').trim();
-    const subject = `Follow-up tÆ° váº¥n: ${cleanSummary}`.slice(0, 180);
+    const subject = `Follow-up tÃ†Â° vÃ¡ÂºÂ¥n: ${cleanSummary}`.slice(0, 180);
 
     const { data: ticketNumber, error: ticketNumberError } = await supabase.rpc('generate_ticket_number');
     if (ticketNumberError) throw ticketNumberError;
@@ -27448,10 +29196,10 @@ app.post('/api/admin/consultation-requests/:id/follow-up-thread', requireAuth, r
     if (createTicketError) throw createTicketError;
 
     const kickoffLines = [
-      'Khá»Ÿi táº¡o follow-up tá»« yÃªu cáº§u tÆ° váº¥n Molly.',
-      existingRequest.full_name ? `Há»c viÃªn: ${existingRequest.full_name}` : null,
-      existingRequest.phone ? `Sá»‘ Ä‘iá»‡n thoáº¡i: ${existingRequest.phone}` : null,
-      cleanSummary ? `Nhu cáº§u chÃ­nh: ${cleanSummary}` : null,
+      'KhÃ¡Â»Å¸i tÃ¡ÂºÂ¡o follow-up tÃ¡Â»Â« yÃƒÂªu cÃ¡ÂºÂ§u tÃ†Â° vÃ¡ÂºÂ¥n Molly.',
+      existingRequest.full_name ? `HÃ¡Â»Âc viÃƒÂªn: ${existingRequest.full_name}` : null,
+      existingRequest.phone ? `SÃ¡Â»â€˜ Ã„â€˜iÃ¡Â»â€¡n thoÃ¡ÂºÂ¡i: ${existingRequest.phone}` : null,
+      cleanSummary ? `Nhu cÃ¡ÂºÂ§u chÃƒÂ­nh: ${cleanSummary}` : null,
       existingRequest.handoff_reason ? `Handoff reason: ${existingRequest.handoff_reason}` : null
     ].filter(Boolean);
 
@@ -27493,7 +29241,7 @@ app.post('/api/admin/consultation-requests/:id/follow-up-thread', requireAuth, r
 
     return res.status(201).json({
       success: true,
-      message: 'ÄÃ£ táº¡o thread follow-up cho yÃªu cáº§u tÆ° váº¥n',
+      message: 'Ã„ÂÃƒÂ£ tÃ¡ÂºÂ¡o thread follow-up cho yÃƒÂªu cÃ¡ÂºÂ§u tÃ†Â° vÃ¡ÂºÂ¥n',
       data: {
         request: withConsultationFollowUp({
           ...updatedRequest,
@@ -27509,7 +29257,7 @@ app.post('/api/admin/consultation-requests/:id/follow-up-thread', requireAuth, r
       }
     });
   } catch (error) {
-    console.error('âŒ Error creating follow-up thread for consultation request:', error);
+    console.error('Ã¢ÂÅ’ Error creating follow-up thread for consultation request:', error);
     next(error);
   }
 });
@@ -27519,15 +29267,15 @@ app.post('/api/admin/consultation-requests/:id/follow-up-thread', requireAuth, r
 // ============================================================
 
 // ============================================================
-// STUDENT TRANSFER APIs - Chuyá»ƒn há»c viÃªn giá»¯a chi nhÃ¡nh
+// STUDENT TRANSFER APIs - ChuyÃ¡Â»Æ’n hÃ¡Â»Âc viÃƒÂªn giÃ¡Â»Â¯a chi nhÃƒÂ¡nh
 // ============================================================
 
 /**
  * PUT /api/admin/students/:id/transfer
- * Chuyá»ƒn há»c viÃªn sang chi nhÃ¡nh khÃ¡c
- * - Giá»¯ nguyÃªn lá»‹ch sá»­ há»c táº­p (grades, attendance)
- * - Cáº­p nháº­t center_id cá»§a student
- * - TÃ¹y chá»n: chuyá»ƒn enrollments Ä‘ang active hoáº·c close
+ * ChuyÃ¡Â»Æ’n hÃ¡Â»Âc viÃƒÂªn sang chi nhÃƒÂ¡nh khÃƒÂ¡c
+ * - GiÃ¡Â»Â¯ nguyÃƒÂªn lÃ¡Â»â€¹ch sÃ¡Â»Â­ hÃ¡Â»Âc tÃ¡ÂºÂ­p (grades, attendance)
+ * - CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t center_id cÃ¡Â»Â§a student
+ * - TÃƒÂ¹y chÃ¡Â»Ân: chuyÃ¡Â»Æ’n enrollments Ã„â€˜ang active hoÃ¡ÂºÂ·c close
  * - Ghi log audit trail
  */
 app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
@@ -27535,17 +29283,17 @@ app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADM
     const { id } = req.params;
     const {
       target_center_id,
-      transfer_enrollments = false, // true = chuyá»ƒn cáº£ enrollment, false = close enrollment cÅ©
+      transfer_enrollments = false, // true = chuyÃ¡Â»Æ’n cÃ¡ÂºÂ£ enrollment, false = close enrollment cÃ…Â©
       notes = ''
     } = req.body;
 
-    console.log(`ðŸ”„ Student transfer initiated by ${req.user.email}: ${id} -> ${target_center_id}`);
+    console.log(`Ã°Å¸â€â€ž Student transfer initiated by ${req.user.email}: ${id} -> ${target_center_id}`);
 
     // Validate required fields
     if (!target_center_id) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lÃ²ng chá»n chi nhÃ¡nh Ä‘Ã­ch'
+        message: 'Vui lÃƒÂ²ng chÃ¡Â»Ân chi nhÃƒÂ¡nh Ã„â€˜ÃƒÂ­ch'
       });
     }
 
@@ -27562,7 +29310,7 @@ app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADM
     if (studentError || !student) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y há»c viÃªn'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y hÃ¡Â»Âc viÃƒÂªn'
       });
     }
 
@@ -27570,7 +29318,7 @@ app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADM
     if (student.roles?.code !== 'STUDENT') {
       return res.status(400).json({
         success: false,
-        message: 'Chá»‰ cÃ³ thá»ƒ chuyá»ƒn há»c viÃªn (STUDENT role)'
+        message: 'ChÃ¡Â»â€° cÃƒÂ³ thÃ¡Â»Æ’ chuyÃ¡Â»Æ’n hÃ¡Â»Âc viÃƒÂªn (STUDENT role)'
       });
     }
 
@@ -27580,7 +29328,7 @@ app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADM
     if (sourceCenterId === target_center_id) {
       return res.status(400).json({
         success: false,
-        message: 'Há»c viÃªn Ä‘Ã£ thuá»™c chi nhÃ¡nh nÃ y'
+        message: 'HÃ¡Â»Âc viÃƒÂªn Ã„â€˜ÃƒÂ£ thuÃ¡Â»â„¢c chi nhÃƒÂ¡nh nÃƒÂ y'
       });
     }
 
@@ -27594,12 +29342,12 @@ app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADM
     if (centerError || !targetCenter) {
       return res.status(400).json({
         success: false,
-        message: 'Chi nhÃ¡nh Ä‘Ã­ch khÃ´ng tá»“n táº¡i'
+        message: 'Chi nhÃƒÂ¡nh Ã„â€˜ÃƒÂ­ch khÃƒÂ´ng tÃ¡Â»â€œn tÃ¡ÂºÂ¡i'
       });
     }
 
     // Get source center name for logging
-    let sourceCenterName = 'ChÆ°a cÃ³';
+    let sourceCenterName = 'ChÃ†Â°a cÃƒÂ³';
     if (sourceCenterId) {
       const { data: sourceCenter } = await supabase
         .from('centers')
@@ -27652,7 +29400,7 @@ app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADM
             await supabase
               .from('enrollments')
               .update({
-                notes: `[TRANSFERRED] ${new Date().toISOString()} - Chuyá»ƒn tá»« ${sourceCenterName} sang ${targetCenter.name}. ${notes}`,
+                notes: `[TRANSFERRED] ${new Date().toISOString()} - ChuyÃ¡Â»Æ’n tÃ¡Â»Â« ${sourceCenterName} sang ${targetCenter.name}. ${notes}`,
                 updated_at: new Date().toISOString()
               })
               .eq('id', enrollment.id);
@@ -27663,7 +29411,7 @@ app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADM
               .from('enrollments')
               .update({
                 status: 'cancelled',
-                notes: `[TRANSFERRED OUT] ${new Date().toISOString()} - Há»c viÃªn chuyá»ƒn sang ${targetCenter.name}. ${notes}`,
+                notes: `[TRANSFERRED OUT] ${new Date().toISOString()} - HÃ¡Â»Âc viÃƒÂªn chuyÃ¡Â»Æ’n sang ${targetCenter.name}. ${notes}`,
                 updated_at: new Date().toISOString()
               })
               .eq('id', enrollment.id);
@@ -27695,7 +29443,7 @@ app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADM
             center_id: target_center_id,
             center_name: targetCenter.name
           },
-          notes: notes || `Chuyá»ƒn há»c viÃªn ${student.full_name} tá»« ${sourceCenterName} sang ${targetCenter.name}`
+          notes: notes || `ChuyÃ¡Â»Æ’n hÃ¡Â»Âc viÃƒÂªn ${student.full_name} tÃ¡Â»Â« ${sourceCenterName} sang ${targetCenter.name}`
         });
     } catch (auditError) {
       console.log('Audit log skipped (table may not exist):', auditError.message);
@@ -27707,8 +29455,8 @@ app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADM
         .from('notifications')
         .insert({
           user_id: id,
-          title: 'ThÃ´ng bÃ¡o chuyá»ƒn chi nhÃ¡nh',
-          message: `Báº¡n Ä‘Ã£ Ä‘Æ°á»£c chuyá»ƒn tá»« ${sourceCenterName} sang ${targetCenter.name}.`,
+          title: 'ThÃƒÂ´ng bÃƒÂ¡o chuyÃ¡Â»Æ’n chi nhÃƒÂ¡nh',
+          message: `BÃ¡ÂºÂ¡n Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c chuyÃ¡Â»Æ’n tÃ¡Â»Â« ${sourceCenterName} sang ${targetCenter.name}.`,
           type: 'system',
           is_read: false
         });
@@ -27716,11 +29464,11 @@ app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADM
       console.log('Notification skipped:', notifError.message);
     }
 
-    console.log(`âœ… Student ${student.full_name} transferred from ${sourceCenterName} to ${targetCenter.name}`);
+    console.log(`Ã¢Å“â€¦ Student ${student.full_name} transferred from ${sourceCenterName} to ${targetCenter.name}`);
 
     res.json({
       success: true,
-      message: `ÄÃ£ chuyá»ƒn há»c viÃªn ${student.full_name} sang ${targetCenter.name}`,
+      message: `Ã„ÂÃƒÂ£ chuyÃ¡Â»Æ’n hÃ¡Â»Âc viÃƒÂªn ${student.full_name} sang ${targetCenter.name}`,
       data: {
         student_id: id,
         student_name: student.full_name,
@@ -27730,14 +29478,14 @@ app.put('/api/admin/students/:id/transfer', requireAuth, requireRole(['SUPER_ADM
       }
     });
   } catch (error) {
-    console.error('âŒ Error transferring student:', error);
+    console.error('Ã¢ÂÅ’ Error transferring student:', error);
     next(error);
   }
 });
 
 /**
  * GET /api/admin/students/:id/transfer-history
- * Láº¥y lá»‹ch sá»­ chuyá»ƒn chi nhÃ¡nh cá»§a há»c viÃªn
+ * LÃ¡ÂºÂ¥y lÃ¡Â»â€¹ch sÃ¡Â»Â­ chuyÃ¡Â»Æ’n chi nhÃƒÂ¡nh cÃ¡Â»Â§a hÃ¡Â»Âc viÃƒÂªn
  */
 app.get('/api/admin/students/:id/transfer-history', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
@@ -27762,14 +29510,14 @@ app.get('/api/admin/students/:id/transfer-history', requireAuth, requireRole(['S
 
     res.json({ success: true, data: data || [] });
   } catch (error) {
-    console.error('âŒ Error fetching transfer history:', error);
+    console.error('Ã¢ÂÅ’ Error fetching transfer history:', error);
     next(error);
   }
 });
 
 /**
  * GET /api/admin/transfers/stats
- * Thá»‘ng kÃª chuyá»ƒn chi nhÃ¡nh (dashboard)
+ * ThÃ¡Â»â€˜ng kÃƒÂª chuyÃ¡Â»Æ’n chi nhÃƒÂ¡nh (dashboard)
  */
 app.get('/api/admin/transfers/stats', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
   try {
@@ -27824,7 +29572,7 @@ app.get('/api/admin/transfers/stats', requireAuth, requireRole(['SUPER_ADMIN']),
 
     res.json({ success: true, data: stats });
   } catch (error) {
-    console.error('âŒ Error fetching transfer stats:', error);
+    console.error('Ã¢ÂÅ’ Error fetching transfer stats:', error);
     next(error);
   }
 });
@@ -27845,7 +29593,7 @@ app.get('/api/admin/transfers/stats', requireAuth, requireRole(['SUPER_ADMIN']),
  * GET /api/student/dashboard
  * Get student dashboard overview
  * Returns: today's classes, recent grades, upcoming payments, notifications
- * ðŸ”’ STUDENT only (uses req.user.id)
+ * Ã°Å¸â€â€™ STUDENT only (uses req.user.id)
  */
 app.get('/api/student/dashboard',
   requireAuth,
@@ -28066,7 +29814,7 @@ app.get('/api/student/dashboard',
         ? (allGrades.reduce((sum, g) => sum + (g.score || 0), 0) / allGrades.length).toFixed(1)
         : null;
 
-      console.log(`ðŸ“Š Student dashboard loaded for ${studentId}`);
+      console.log(`Ã°Å¸â€œÅ  Student dashboard loaded for ${studentId}`);
 
       res.json({
         success: true,
@@ -28085,7 +29833,7 @@ app.get('/api/student/dashboard',
         }
       });
     } catch (error) {
-      console.error('âŒ Error fetching student dashboard:', error);
+      console.error('Ã¢ÂÅ’ Error fetching student dashboard:', error);
       next(error);
     }
   }
@@ -28095,7 +29843,7 @@ app.get('/api/student/dashboard',
  * GET /api/student/schedule
  * Get student's class schedule
  * Query: ?view=week|month&date=2026-01-10&classId=xxx
- * ðŸ”’ STUDENT only
+ * Ã°Å¸â€â€™ STUDENT only
  */
 app.get('/api/student/schedule',
   requireAuth,
@@ -28226,7 +29974,7 @@ app.get('/api/student/schedule',
         ).values()
       );
 
-      console.log(`ðŸ“… Fetched ${sessions.length} sessions for student ${studentId}`);
+      console.log(`Ã°Å¸â€œâ€¦ Fetched ${sessions.length} sessions for student ${studentId}`);
 
       res.json({
         success: true,
@@ -28237,7 +29985,7 @@ app.get('/api/student/schedule',
         }
       });
     } catch (error) {
-      console.error('âŒ Error fetching student schedule:', error);
+      console.error('Ã¢ÂÅ’ Error fetching student schedule:', error);
       next(error);
     }
   }
@@ -28247,7 +29995,7 @@ app.get('/api/student/schedule',
  * GET /api/student/grades
  * Get all student grades with statistics
  * Query: ?classId=xxx
- * ðŸ”’ STUDENT only
+ * Ã°Å¸â€â€™ STUDENT only
  */
 app.get('/api/student/grades',
   requireAuth,
@@ -28325,7 +30073,7 @@ app.get('/api/student/grades',
         ? (allScores.reduce((a, b) => a + b, 0) / allScores.length).toFixed(2)
         : null;
 
-      console.log(`ðŸ“ Student grades loaded: ${grades.length} grades`);
+      console.log(`Ã°Å¸â€œÂ Student grades loaded: ${grades.length} grades`);
 
       res.json({
         success: true,
@@ -28341,7 +30089,7 @@ app.get('/api/student/grades',
         }
       });
     } catch (error) {
-      console.error('âŒ Error fetching student grades:', error);
+      console.error('Ã¢ÂÅ’ Error fetching student grades:', error);
       next(error);
     }
   }
@@ -28351,7 +30099,7 @@ app.get('/api/student/grades',
  * GET /api/student/attendance
  * Get student attendance history
  * Query: ?classId=xxx&startDate=xxx&endDate=xxx
- * ðŸ”’ STUDENT only
+ * Ã°Å¸â€â€™ STUDENT only
  */
 app.get('/api/student/attendance',
   requireAuth,
@@ -28454,7 +30202,7 @@ app.get('/api/student/attendance',
         session: r.session
       }));
 
-      console.log(`ðŸ“‹ Student attendance loaded: ${filtered.length} records`);
+      console.log(`Ã°Å¸â€œâ€¹ Student attendance loaded: ${filtered.length} records`);
 
       res.json({
         success: true,
@@ -28472,7 +30220,7 @@ app.get('/api/student/attendance',
         }
       });
     } catch (error) {
-      console.error('âŒ Error fetching student attendance:', error);
+      console.error('Ã¢ÂÅ’ Error fetching student attendance:', error);
       next(error);
     }
   }
@@ -28481,7 +30229,7 @@ app.get('/api/student/attendance',
 /**
  * GET /api/student/payment-config
  * Get bank config for student payments (VietQR)
- * ðŸ”’ STUDENT only
+ * Ã°Å¸â€â€™ STUDENT only
  */
 app.get('/api/student/payment-config',
   requireAuth,
@@ -28517,7 +30265,7 @@ app.get('/api/student/payment-config',
       }
 
       // Debug log
-      console.log('ðŸ“¦ Payment config lookup:', {
+      console.log('Ã°Å¸â€œÂ¦ Payment config lookup:', {
         effectiveCenterId,
         centerSetting: centerSetting?.value ? 'found' : 'not found',
         globalSetting: globalSetting?.value ? 'found' : 'not found'
@@ -28528,7 +30276,7 @@ app.get('/api/student/payment-config',
       if (!config) {
         return res.status(404).json({
           success: false,
-          message: 'ChÆ°a cáº¥u hÃ¬nh thÃ´ng tin ngÃ¢n hÃ ng thanh toÃ¡n'
+          message: 'ChÃ†Â°a cÃ¡ÂºÂ¥u hÃƒÂ¬nh thÃƒÂ´ng tin ngÃƒÂ¢n hÃƒÂ ng thanh toÃƒÂ¡n'
         });
       }
 
@@ -28550,7 +30298,7 @@ app.get('/api/student/payment-config',
  * GET /api/student/invoices
  * Get student invoices and payment history
  * Query: ?status=pending|paid|all
- * ðŸ”’ STUDENT only
+ * Ã°Å¸â€â€™ STUDENT only
  */
 app.get('/api/student/invoices',
   requireAuth,
@@ -28603,7 +30351,7 @@ app.get('/api/student/invoices',
       ).length;
       const unpaidCount = (invoices || []).filter(i => ['unpaid', 'partial'].includes(i.status)).length;
 
-      console.log(`ðŸ’° Student invoices loaded: ${invoices?.length || 0} invoices`);
+      console.log(`Ã°Å¸â€™Â° Student invoices loaded: ${invoices?.length || 0} invoices`);
 
       res.json({
         success: true,
@@ -28623,7 +30371,7 @@ app.get('/api/student/invoices',
         }
       });
     } catch (error) {
-      console.error('âŒ Error fetching student invoices:', error);
+      console.error('Ã¢ÂÅ’ Error fetching student invoices:', error);
       next(error);
     }
   }
@@ -28632,7 +30380,7 @@ app.get('/api/student/invoices',
 /**
  * GET /api/student/certificates
  * Get student's issued certificates
- * ðŸ”’ STUDENT only
+ * Ã°Å¸â€â€™ STUDENT only
  */
 app.get('/api/student/certificates',
   requireAuth,
@@ -28654,11 +30402,11 @@ app.get('/api/student/certificates',
         .order('issued_at', { ascending: false });
 
       if (error) {
-        console.error('âŒ Supabase certificates query error:', JSON.stringify(error));
+        console.error('Ã¢ÂÅ’ Supabase certificates query error:', JSON.stringify(error));
         throw error;
       }
 
-      console.log(`ðŸ” Student ID: ${studentId}, Raw result count: ${certificates?.length || 0}`);
+      console.log(`Ã°Å¸â€Â Student ID: ${studentId}, Raw result count: ${certificates?.length || 0}`);
 
       // Transform to match frontend expectations
       const transformedCertificates = (certificates || []).map(cert => ({
@@ -28682,7 +30430,7 @@ app.get('/api/student/certificates',
         metadata: null
       }));
 
-      console.log(`ðŸŽ“ Student certificates loaded: ${transformedCertificates.length} certificates`);
+      console.log(`Ã°Å¸Å½â€œ Student certificates loaded: ${transformedCertificates.length} certificates`);
 
       res.json({
         success: true,
@@ -28692,7 +30440,7 @@ app.get('/api/student/certificates',
         }
       });
     } catch (error) {
-      console.error('âŒ Error fetching student certificates:', error);
+      console.error('Ã¢ÂÅ’ Error fetching student certificates:', error);
       next(error);
     }
   }
@@ -28873,7 +30621,7 @@ app.get('/api/student/available-courses/:courseId',
 
       if (courseError) {
         if (courseError.code === 'PGRST116') {
-          return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y khÃ³a há»c' });
+          return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y khÃƒÂ³a hÃ¡Â»Âc' });
         }
         throw courseError;
       }
@@ -29129,7 +30877,7 @@ app.post('/api/student/enrollment-requests',
       const { class_id, message } = req.body;
 
       if (!class_id) {
-        return res.status(400).json({ success: false, message: 'Thiáº¿u class_id' });
+        return res.status(400).json({ success: false, message: 'ThiÃ¡ÂºÂ¿u class_id' });
       }
 
       const { data: classData, error: classError } = await supabaseClient
@@ -29141,13 +30889,13 @@ app.post('/api/student/enrollment-requests',
 
       if (classError) {
         if (classError.code === 'PGRST116') {
-          return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lá»›p há»c' });
+          return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y lÃ¡Â»â€ºp hÃ¡Â»Âc' });
         }
         throw classError;
       }
 
       if (!['upcoming', 'ongoing'].includes(classData.status)) {
-        return res.status(400).json({ success: false, message: 'Chá»‰ cÃ³ thá»ƒ gá»­i yÃªu cáº§u cho lá»›p sáº¯p khai giáº£ng hoáº·c Ä‘ang má»Ÿ' });
+        return res.status(400).json({ success: false, message: 'ChÃ¡Â»â€° cÃƒÂ³ thÃ¡Â»Æ’ gÃ¡Â»Â­i yÃƒÂªu cÃ¡ÂºÂ§u cho lÃ¡Â»â€ºp sÃ¡ÂºÂ¯p khai giÃ¡ÂºÂ£ng hoÃ¡ÂºÂ·c Ã„â€˜ang mÃ¡Â»Å¸' });
       }
 
       const { data: activeEnrollment, error: activeEnrollError } = await supabaseClient
@@ -29160,7 +30908,7 @@ app.post('/api/student/enrollment-requests',
       if (activeEnrollError) throw activeEnrollError;
 
       if (activeEnrollment) {
-        return res.status(400).json({ success: false, message: 'Báº¡n Ä‘Ã£ ghi danh vÃ o lá»›p nÃ y' });
+        return res.status(400).json({ success: false, message: 'BÃ¡ÂºÂ¡n Ã„â€˜ÃƒÂ£ ghi danh vÃƒÂ o lÃ¡Â»â€ºp nÃƒÂ y' });
       }
 
       const { data: existingRequest, error: existingRequestError } = await supabaseClient
@@ -29173,7 +30921,7 @@ app.post('/api/student/enrollment-requests',
       if (existingRequestError) throw existingRequestError;
 
       if (existingRequest) {
-        return res.status(400).json({ success: false, message: 'Báº¡n Ä‘Ã£ cÃ³ yÃªu cáº§u chá» xá»­ lÃ½ cho lá»›p nÃ y' });
+        return res.status(400).json({ success: false, message: 'BÃ¡ÂºÂ¡n Ã„â€˜ÃƒÂ£ cÃƒÂ³ yÃƒÂªu cÃ¡ÂºÂ§u chÃ¡Â»Â xÃ¡Â»Â­ lÃƒÂ½ cho lÃ¡Â»â€ºp nÃƒÂ y' });
       }
 
       const { count: enrolledCount, error: enrolledCountError } = await supabaseClient
@@ -29211,15 +30959,15 @@ app.post('/api/student/enrollment-requests',
         .eq('center_id', centerId)
         .eq('roles.code', 'CENTER_MANAGER');
 
-      const studentName = studentData?.full_name || 'Há»c viÃªn';
-      const className = classData?.name || 'lá»›p há»c';
+      const studentName = studentData?.full_name || 'HÃ¡Â»Âc viÃƒÂªn';
+      const className = classData?.name || 'lÃ¡Â»â€ºp hÃ¡Â»Âc';
       for (const mgr of (managers || [])) {
         createNotification(supabaseClient, {
           userId: mgr.id,
           centerId,
           type: 'enrollment_request',
-          title: 'YÃªu cáº§u Ä‘Äƒng kÃ½ má»›i',
-          message: `${studentName} yÃªu cáº§u Ä‘Äƒng kÃ½ lá»›p ${className}`,
+          title: 'YÃƒÂªu cÃ¡ÂºÂ§u Ã„â€˜Ã„Æ’ng kÃƒÂ½ mÃ¡Â»â€ºi',
+          message: `${studentName} yÃƒÂªu cÃ¡ÂºÂ§u Ã„â€˜Ã„Æ’ng kÃƒÂ½ lÃ¡Â»â€ºp ${className}`,
           referenceId: createdRequest.id,
           referenceType: 'enrollment_request'
         }).catch(err => console.warn('Manager notification failed:', err.message));
@@ -29305,17 +31053,17 @@ app.delete('/api/student/enrollment-requests/:id',
 
       if (requestError) {
         if (requestError.code === 'PGRST116') {
-          return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y yÃªu cáº§u Ä‘Äƒng kÃ½' });
+          return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y yÃƒÂªu cÃ¡ÂºÂ§u Ã„â€˜Ã„Æ’ng kÃƒÂ½' });
         }
         throw requestError;
       }
 
       if (requestData.student_id !== studentId || requestData.center_id !== centerId) {
-        return res.status(403).json({ success: false, message: 'KhÃ´ng cÃ³ quyá»n há»§y yÃªu cáº§u nÃ y' });
+        return res.status(403).json({ success: false, message: 'KhÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân hÃ¡Â»Â§y yÃƒÂªu cÃ¡ÂºÂ§u nÃƒÂ y' });
       }
 
       if (!['pending', 'waitlisted'].includes(requestData.status)) {
-        return res.status(400).json({ success: false, message: 'Chá»‰ cÃ³ thá»ƒ há»§y yÃªu cáº§u Ä‘ang chá» hoáº·c trong danh sÃ¡ch chá»' });
+        return res.status(400).json({ success: false, message: 'ChÃ¡Â»â€° cÃƒÂ³ thÃ¡Â»Æ’ hÃ¡Â»Â§y yÃƒÂªu cÃ¡ÂºÂ§u Ã„â€˜ang chÃ¡Â»Â hoÃ¡ÂºÂ·c trong danh sÃƒÂ¡ch chÃ¡Â»Â' });
       }
 
       const { error: updateError } = await supabaseClient
@@ -29328,7 +31076,7 @@ app.delete('/api/student/enrollment-requests/:id',
 
       if (updateError) throw updateError;
 
-      res.json({ success: true, message: 'ÄÃ£ há»§y yÃªu cáº§u Ä‘Äƒng kÃ½' });
+      res.json({ success: true, message: 'Ã„ÂÃƒÂ£ hÃ¡Â»Â§y yÃƒÂªu cÃ¡ÂºÂ§u Ã„â€˜Ã„Æ’ng kÃƒÂ½' });
     } catch (error) {
       console.error('Error cancelling student enrollment request:', error);
       next(error);
@@ -29341,13 +31089,13 @@ app.delete('/api/student/enrollment-requests/:id',
 // ============================================================
 
 app.use((err, _req, res, _next) => {
-  console.error('ðŸ”¥ Lá»—i há»‡ thá»‘ng:', err); // Log ra terminal Ä‘á»ƒ em xem
+  console.error('Ã°Å¸â€Â¥ LÃ¡Â»â€”i hÃ¡Â»â€¡ thÃ¡Â»â€˜ng:', err); // Log ra terminal Ã„â€˜Ã¡Â»Æ’ em xem
 
-  // Tráº£ vá» lá»—i chi tiáº¿t cho Frontend tháº¥y (chá»‰ nÃªn lÃ m váº­y á»Ÿ mÃ´i trÆ°á»ng Dev)
+  // TrÃ¡ÂºÂ£ vÃ¡Â»Â lÃ¡Â»â€”i chi tiÃ¡ÂºÂ¿t cho Frontend thÃ¡ÂºÂ¥y (chÃ¡Â»â€° nÃƒÂªn lÃƒÂ m vÃ¡ÂºÂ­y Ã¡Â»Å¸ mÃƒÂ´i trÃ†Â°Ã¡Â»Âng Dev)
   res.status(500).json({
     success: false,
     message: 'Internal server error',
-    error: err.message // ThÃªm dÃ²ng nÃ y Ä‘á»ƒ FE biáº¿t lá»—i gÃ¬
+    error: err.message // ThÃƒÂªm dÃƒÂ²ng nÃƒÂ y Ã„â€˜Ã¡Â»Æ’ FE biÃ¡ÂºÂ¿t lÃ¡Â»â€”i gÃƒÂ¬
   });
 });
 
@@ -29359,7 +31107,7 @@ app.use((err, _req, res, _next) => {
  * GET /api/settings/bank-config
  * Get bank configuration for payment (Admin view)
  * Query: ?centerId=xxx (optional for SUPER_ADMIN)
- * ðŸ”’ ADMIN/MANAGER only
+ * Ã°Å¸â€â€™ ADMIN/MANAGER only
  */
 app.get('/api/settings/bank-config',
   requireAuth,
@@ -29398,7 +31146,7 @@ app.get('/api/settings/bank-config',
         return res.json({
           success: true,
           data: null,
-          message: 'ChÆ°a cáº¥u hÃ¬nh ngÃ¢n hÃ ng thanh toÃ¡n'
+          message: 'ChÃ†Â°a cÃ¡ÂºÂ¥u hÃƒÂ¬nh ngÃƒÂ¢n hÃƒÂ ng thanh toÃƒÂ¡n'
         });
       }
 
@@ -29412,7 +31160,7 @@ app.get('/api/settings/bank-config',
         }
       });
     } catch (error) {
-      console.error('âŒ Error fetching bank config:', error);
+      console.error('Ã¢ÂÅ’ Error fetching bank config:', error);
       next(error);
     }
   }
@@ -29422,7 +31170,7 @@ app.get('/api/settings/bank-config',
  * PUT /api/settings/bank-config
  * Update bank configuration
  * Body: { bankId, accountNo, accountName, template?, centerId? }
- * ðŸ”’ ADMIN/MANAGER only
+ * Ã°Å¸â€â€™ ADMIN/MANAGER only
  */
 app.put('/api/settings/bank-config',
   requireAuth,
@@ -29435,7 +31183,7 @@ app.put('/api/settings/bank-config',
       if (!bankId || !accountNo || !accountName) {
         return res.status(400).json({
           success: false,
-          message: 'Vui lÃ²ng Ä‘iá»n Ä‘áº§y Ä‘á»§ thÃ´ng tin ngÃ¢n hÃ ng (bankId, accountNo, accountName)'
+          message: 'Vui lÃƒÂ²ng Ã„â€˜iÃ¡Â»Ân Ã„â€˜Ã¡ÂºÂ§y Ã„â€˜Ã¡Â»Â§ thÃƒÂ´ng tin ngÃƒÂ¢n hÃƒÂ ng (bankId, accountNo, accountName)'
         });
       }
 
@@ -29448,7 +31196,7 @@ app.put('/api/settings/bank-config',
         if (centerId && centerId !== userCenterId) {
           return res.status(403).json({
             success: false,
-            message: 'Báº¡n chá»‰ cÃ³ thá»ƒ cáº­p nháº­t cáº¥u hÃ¬nh cá»§a trung tÃ¢m mÃ¬nh'
+            message: 'BÃ¡ÂºÂ¡n chÃ¡Â»â€° cÃƒÂ³ thÃ¡Â»Æ’ cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t cÃ¡ÂºÂ¥u hÃƒÂ¬nh cÃ¡Â»Â§a trung tÃƒÂ¢m mÃƒÂ¬nh'
           });
         }
         // Force centerId to be the manager's center (no global update allowed)
@@ -29490,7 +31238,7 @@ app.put('/api/settings/bank-config',
             key: 'bank_config',
             center_id: targetCenterId,
             value: configValue,
-            description: 'Cáº¥u hÃ¬nh ngÃ¢n hÃ ng nháº­n thanh toÃ¡n VietQR',
+            description: 'CÃ¡ÂºÂ¥u hÃƒÂ¬nh ngÃƒÂ¢n hÃƒÂ ng nhÃ¡ÂºÂ­n thanh toÃƒÂ¡n VietQR',
             updated_by: req.user.id
           })
           .select()
@@ -29500,11 +31248,11 @@ app.put('/api/settings/bank-config',
         result = data;
       }
 
-      console.log(`âœ… Bank config updated by ${req.user.email} - scope: ${targetCenterId ? 'center' : 'global'}`);
+      console.log(`Ã¢Å“â€¦ Bank config updated by ${req.user.email} - scope: ${targetCenterId ? 'center' : 'global'}`);
 
       res.json({
         success: true,
-        message: 'ÄÃ£ cáº­p nháº­t cáº¥u hÃ¬nh ngÃ¢n hÃ ng',
+        message: 'Ã„ÂÃƒÂ£ cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t cÃ¡ÂºÂ¥u hÃƒÂ¬nh ngÃƒÂ¢n hÃƒÂ ng',
         data: {
           ...result.value,
           scope: targetCenterId ? 'center' : 'global',
@@ -29512,7 +31260,7 @@ app.put('/api/settings/bank-config',
         }
       });
     } catch (error) {
-      console.error('âŒ Error updating bank config:', error);
+      console.error('Ã¢ÂÅ’ Error updating bank config:', error);
       next(error);
     }
   }
@@ -29522,7 +31270,7 @@ app.put('/api/settings/bank-config',
  * GET /api/payment-config
  * Public endpoint to get bank config for any authenticated user
  * Used by BulkPaymentModal and other admin components
- * ðŸ”’ Any authenticated user
+ * Ã°Å¸â€â€™ Any authenticated user
  */
 app.get('/api/payment-config',
   requireAuth,
@@ -29555,7 +31303,7 @@ app.get('/api/payment-config',
       if (!config) {
         return res.status(404).json({
           success: false,
-          message: 'ChÆ°a cáº¥u hÃ¬nh ngÃ¢n hÃ ng thanh toÃ¡n'
+          message: 'ChÃ†Â°a cÃ¡ÂºÂ¥u hÃƒÂ¬nh ngÃƒÂ¢n hÃƒÂ ng thanh toÃƒÂ¡n'
         });
       }
 
@@ -29564,7 +31312,7 @@ app.get('/api/payment-config',
         data: config
       });
     } catch (error) {
-      console.error('âŒ Error fetching payment config:', error);
+      console.error('Ã¢ÂÅ’ Error fetching payment config:', error);
       next(error);
     }
   }
@@ -29581,7 +31329,7 @@ app.get('/api/payment-config',
 /**
  * GET /api/parent/dashboard
  * Get parent dashboard with children overview
- * ðŸ”’ PARENT only
+ * Ã°Å¸â€â€™ PARENT only
  */
 app.get('/api/parent/dashboard',
   requireAuth,
@@ -29659,7 +31407,7 @@ app.get('/api/parent/dashboard',
         };
       }));
 
-      console.log(`ðŸ‘¨â€ðŸ‘©â€ðŸ‘§ Parent dashboard loaded: ${childrenSummary.length} children`);
+      console.log(`Ã°Å¸â€˜Â¨Ã¢â‚¬ÂÃ°Å¸â€˜Â©Ã¢â‚¬ÂÃ°Å¸â€˜Â§ Parent dashboard loaded: ${childrenSummary.length} children`);
 
       res.json({
         success: true,
@@ -29669,7 +31417,7 @@ app.get('/api/parent/dashboard',
         }
       });
     } catch (error) {
-      console.error('âŒ Error fetching parent dashboard:', error);
+      console.error('Ã¢ÂÅ’ Error fetching parent dashboard:', error);
       next(error);
     }
   }
@@ -29678,7 +31426,7 @@ app.get('/api/parent/dashboard',
 /**
  * GET /api/parent/children
  * Get list of linked children
- * ðŸ”’ PARENT only
+ * Ã°Å¸â€â€™ PARENT only
  */
 app.get('/api/parent/children',
   requireAuth,
@@ -29727,7 +31475,7 @@ app.get('/api/parent/children',
         data: { children }
       });
     } catch (error) {
-      console.error('âŒ Error fetching parent children:', error);
+      console.error('Ã¢ÂÅ’ Error fetching parent children:', error);
       next(error);
     }
   }
@@ -29736,7 +31484,7 @@ app.get('/api/parent/children',
 /**
  * GET /api/parent/child/:studentId/schedule
  * Get schedule for a linked child
- * ðŸ”’ PARENT only (must have link to student)
+ * Ã°Å¸â€â€™ PARENT only (must have link to student)
  */
 app.get('/api/parent/child/:studentId/schedule',
   requireAuth,
@@ -29758,7 +31506,7 @@ app.get('/api/parent/child/:studentId/schedule',
       if (linkError || !link) {
         return res.status(403).json({
           success: false,
-          message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem thÃ´ng tin há»c viÃªn nÃ y'
+          message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xem thÃƒÂ´ng tin hÃ¡Â»Âc viÃƒÂªn nÃƒÂ y'
         });
       }
 
@@ -29809,7 +31557,7 @@ app.get('/api/parent/child/:studentId/schedule',
         return a.startTime.localeCompare(b.startTime);
       });
 
-      console.log(`ðŸ“… Parent viewing child schedule: ${events.length} events`);
+      console.log(`Ã°Å¸â€œâ€¦ Parent viewing child schedule: ${events.length} events`);
 
       res.json({
         success: true,
@@ -29824,7 +31572,7 @@ app.get('/api/parent/child/:studentId/schedule',
         }
       });
     } catch (error) {
-      console.error('âŒ Error fetching child schedule:', error);
+      console.error('Ã¢ÂÅ’ Error fetching child schedule:', error);
       next(error);
     }
   }
@@ -29833,7 +31581,7 @@ app.get('/api/parent/child/:studentId/schedule',
 /**
  * GET /api/parent/child/:studentId/grades
  * Get grades for a linked child
- * ðŸ”’ PARENT only (must have link with can_view_academics=true)
+ * Ã°Å¸â€â€™ PARENT only (must have link with can_view_academics=true)
  */
 app.get('/api/parent/child/:studentId/grades',
   requireAuth,
@@ -29855,14 +31603,14 @@ app.get('/api/parent/child/:studentId/grades',
       if (linkError || !link) {
         return res.status(403).json({
           success: false,
-          message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem thÃ´ng tin há»c viÃªn nÃ y'
+          message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xem thÃƒÂ´ng tin hÃ¡Â»Âc viÃƒÂªn nÃƒÂ y'
         });
       }
 
       if (!link.can_view_academics) {
         return res.status(403).json({
           success: false,
-          message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem Ä‘iá»ƒm cá»§a há»c viÃªn nÃ y'
+          message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xem Ã„â€˜iÃ¡Â»Æ’m cÃ¡Â»Â§a hÃ¡Â»Âc viÃƒÂªn nÃƒÂ y'
         });
       }
 
@@ -29902,7 +31650,7 @@ app.get('/api/parent/child/:studentId/grades',
         });
       }
 
-      console.log(`ðŸ“Š Parent viewing child grades: ${grades?.length || 0} grades`);
+      console.log(`Ã°Å¸â€œÅ  Parent viewing child grades: ${grades?.length || 0} grades`);
 
       res.json({
         success: true,
@@ -29912,7 +31660,7 @@ app.get('/api/parent/child/:studentId/grades',
         }
       });
     } catch (error) {
-      console.error('âŒ Error fetching child grades:', error);
+      console.error('Ã¢ÂÅ’ Error fetching child grades:', error);
       next(error);
     }
   }
@@ -29921,7 +31669,7 @@ app.get('/api/parent/child/:studentId/grades',
 /**
  * GET /api/parent/child/:studentId/attendance
  * Get attendance for a linked child
- * ðŸ”’ PARENT only (must have link with can_view_academics=true)
+ * Ã°Å¸â€â€™ PARENT only (must have link with can_view_academics=true)
  */
 app.get('/api/parent/child/:studentId/attendance',
   requireAuth,
@@ -29944,14 +31692,14 @@ app.get('/api/parent/child/:studentId/attendance',
       if (linkError || !link) {
         return res.status(403).json({
           success: false,
-          message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem thÃ´ng tin há»c viÃªn nÃ y'
+          message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xem thÃƒÂ´ng tin hÃ¡Â»Âc viÃƒÂªn nÃƒÂ y'
         });
       }
 
       if (!link.can_view_academics) {
         return res.status(403).json({
           success: false,
-          message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem Ä‘iá»ƒm danh cá»§a há»c viÃªn nÃ y'
+          message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xem Ã„â€˜iÃ¡Â»Æ’m danh cÃ¡Â»Â§a hÃ¡Â»Âc viÃƒÂªn nÃƒÂ y'
         });
       }
 
@@ -29994,7 +31742,7 @@ app.get('/api/parent/child/:studentId/attendance',
       const excused = (attendance || []).filter(a => a.status === 'excused').length;
       const attendanceRate = total > 0 ? Math.round((present + late) / total * 100) : 0;
 
-      console.log(`ðŸ“‹ Parent viewing child attendance: ${total} records`);
+      console.log(`Ã°Å¸â€œâ€¹ Parent viewing child attendance: ${total} records`);
 
       res.json({
         success: true,
@@ -30024,7 +31772,7 @@ app.get('/api/parent/child/:studentId/attendance',
         }
       });
     } catch (error) {
-      console.error('âŒ Error fetching child attendance:', error);
+      console.error('Ã¢ÂÅ’ Error fetching child attendance:', error);
       next(error);
     }
   }
@@ -30033,7 +31781,7 @@ app.get('/api/parent/child/:studentId/attendance',
 /**
  * GET /api/parent/child/:studentId/invoices
  * Get invoices for a linked child
- * ðŸ”’ PARENT only (must have link with can_pay=true)
+ * Ã°Å¸â€â€™ PARENT only (must have link with can_pay=true)
  */
 app.get('/api/parent/child/:studentId/invoices',
   requireAuth,
@@ -30056,14 +31804,14 @@ app.get('/api/parent/child/:studentId/invoices',
       if (linkError || !link) {
         return res.status(403).json({
           success: false,
-          message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem thÃ´ng tin há»c viÃªn nÃ y'
+          message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xem thÃƒÂ´ng tin hÃ¡Â»Âc viÃƒÂªn nÃƒÂ y'
         });
       }
 
       if (!link.can_pay) {
         return res.status(403).json({
           success: false,
-          message: 'Báº¡n khÃ´ng cÃ³ quyá»n xem hÃ³a Ä‘Æ¡n cá»§a há»c viÃªn nÃ y'
+          message: 'BÃ¡ÂºÂ¡n khÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xem hÃƒÂ³a Ã„â€˜Ã†Â¡n cÃ¡Â»Â§a hÃ¡Â»Âc viÃƒÂªn nÃƒÂ y'
         });
       }
 
@@ -30091,7 +31839,7 @@ app.get('/api/parent/child/:studentId/invoices',
       const totalPaid = (invoices || []).reduce((sum, inv) => sum + (inv.paid_amount || 0), 0);
       const unpaidCount = (invoices || []).filter(i => ['unpaid', 'partial'].includes(i.status)).length;
 
-      console.log(`ðŸ’° Parent viewing child invoices: ${invoices?.length || 0} invoices`);
+      console.log(`Ã°Å¸â€™Â° Parent viewing child invoices: ${invoices?.length || 0} invoices`);
 
       res.json({
         success: true,
@@ -30107,7 +31855,7 @@ app.get('/api/parent/child/:studentId/invoices',
         }
       });
     } catch (error) {
-      console.error('âŒ Error fetching child invoices:', error);
+      console.error('Ã¢ÂÅ’ Error fetching child invoices:', error);
       next(error);
     }
   }
@@ -30116,7 +31864,7 @@ app.get('/api/parent/child/:studentId/invoices',
 /**
  * GET /api/parent/payment-config
  * Get bank config for parent payment
- * ðŸ”’ PARENT only
+ * Ã°Å¸â€â€™ PARENT only
  */
 app.get('/api/parent/payment-config',
   requireAuth,
@@ -30150,7 +31898,7 @@ app.get('/api/parent/payment-config',
       if (!config) {
         return res.status(404).json({
           success: false,
-          message: 'ChÆ°a cáº¥u hÃ¬nh ngÃ¢n hÃ ng thanh toÃ¡n'
+          message: 'ChÃ†Â°a cÃ¡ÂºÂ¥u hÃƒÂ¬nh ngÃƒÂ¢n hÃƒÂ ng thanh toÃƒÂ¡n'
         });
       }
 
@@ -30159,7 +31907,7 @@ app.get('/api/parent/payment-config',
         data: config
       });
     } catch (error) {
-      console.error('âŒ Error fetching parent payment config:', error);
+      console.error('Ã¢ÂÅ’ Error fetching parent payment config:', error);
       next(error);
     }
   }
@@ -30173,7 +31921,7 @@ app.get('/api/parent/payment-config',
  * POST /api/admin/parent-student-links
  * Create a parent-student link
  * Body: { parent_id, student_id, relationship, is_primary?, can_pay?, can_view_academics?, notes? }
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/parent-student-links',
   requireAuth,
@@ -30200,7 +31948,7 @@ app.post('/api/admin/parent-student-links',
         message: result.message,
       });
     } catch (error) {
-      console.error('âŒ Error creating parent-student link:', error);
+      console.error('Ã¢ÂÅ’ Error creating parent-student link:', error);
       next(error);
     }
   }
@@ -30210,7 +31958,7 @@ app.post('/api/admin/parent-student-links',
  * PATCH /api/admin/parent-student-links/:linkId
  * Update link permissions/metadata
  * Body: { can_pay?, can_view_academics?, is_primary?, relationship?, notes? }
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.patch('/api/admin/parent-student-links/:linkId',
   requireAuth,
@@ -30240,7 +31988,7 @@ app.patch('/api/admin/parent-student-links/:linkId',
         message: result.message,
       });
     } catch (error) {
-      console.error('âŒ Error updating parent-student link:', error);
+      console.error('Ã¢ÂÅ’ Error updating parent-student link:', error);
       next(error);
     }
   }
@@ -30249,7 +31997,7 @@ app.patch('/api/admin/parent-student-links/:linkId',
 /**
  * POST /api/admin/parent-student-links/:linkId/deactivate
  * Deactivate (soft disable) a link
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/parent-student-links/:linkId/deactivate',
   requireAuth,
@@ -30278,7 +32026,7 @@ app.post('/api/admin/parent-student-links/:linkId/deactivate',
         message: result.message,
       });
     } catch (error) {
-      console.error('âŒ Error deactivating parent-student link:', error);
+      console.error('Ã¢ÂÅ’ Error deactivating parent-student link:', error);
       next(error);
     }
   }
@@ -30312,7 +32060,7 @@ async function getActiveTeacherCompensation(teacherId, asOfDate = null) {
     .maybeSingle();
 
   if (error) {
-    console.error(`âŒ Error fetching compensation for teacher ${teacherId}:`, error);
+    console.error(`Ã¢ÂÅ’ Error fetching compensation for teacher ${teacherId}:`, error);
     return null;
   }
 
@@ -30386,7 +32134,7 @@ function calculatePayrollFromCompensation(compensation, sessions, defaultHourlyR
  * GET /api/admin/teacher-compensation
  * Get all teacher compensation configs with filters
  * Query: ?center_id=xxx&pay_scheme=HOURLY_ONLY&active_only=true
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/teacher-compensation',
   requireAuth,
@@ -30396,7 +32144,7 @@ app.get('/api/admin/teacher-compensation',
       const { center_id, pay_scheme, active_only = 'true', search } = req.query;
       const user = req.user;
 
-      console.log(`ðŸ’° ${user.email} fetching teacher compensations`);
+      console.log(`Ã°Å¸â€™Â° ${user.email} fetching teacher compensations`);
 
       let query = supabase
         .from('teacher_compensation')
@@ -30446,7 +32194,7 @@ app.get('/api/admin/teacher-compensation',
         data: filteredData
       });
     } catch (error) {
-      console.error('âŒ Error fetching teacher compensations:', error);
+      console.error('Ã¢ÂÅ’ Error fetching teacher compensations:', error);
       next(error);
     }
   }
@@ -30455,7 +32203,7 @@ app.get('/api/admin/teacher-compensation',
 /**
  * GET /api/admin/teacher-compensation/:teacherId
  * Get compensation config for a specific teacher (current + history)
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/teacher-compensation/:teacherId',
   requireAuth,
@@ -30497,7 +32245,7 @@ app.get('/api/admin/teacher-compensation/:teacherId',
         }
       });
     } catch (error) {
-      console.error('âŒ Error fetching teacher compensation:', error);
+      console.error('Ã¢ÂÅ’ Error fetching teacher compensation:', error);
       next(error);
     }
   }
@@ -30507,7 +32255,7 @@ app.get('/api/admin/teacher-compensation/:teacherId',
  * POST /api/admin/teacher-compensation
  * Create new compensation config for a teacher
  * Body: { teacher_id, pay_scheme, hourly_rate, fixed_monthly_salary, extra_hourly_rate, effective_from, notes }
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.post('/api/admin/teacher-compensation',
   requireAuth,
@@ -30524,13 +32272,13 @@ app.post('/api/admin/teacher-compensation',
         notes
       } = req.body;
 
-      console.log(`ðŸ’° ${req.user.email} creating compensation for teacher ${teacher_id}`);
+      console.log(`Ã°Å¸â€™Â° ${req.user.email} creating compensation for teacher ${teacher_id}`);
 
       // Validate
       if (!teacher_id) {
         return res.status(400).json({
           success: false,
-          message: 'teacher_id lÃ  báº¯t buá»™c'
+          message: 'teacher_id lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c'
         });
       }
 
@@ -30544,7 +32292,7 @@ app.post('/api/admin/teacher-compensation',
       if (teacherError || !teacher) {
         return res.status(404).json({
           success: false,
-          message: 'KhÃ´ng tÃ¬m tháº¥y giÃ¡o viÃªn'
+          message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y giÃƒÂ¡o viÃƒÂªn'
         });
       }
 
@@ -30591,15 +32339,15 @@ app.post('/api/admin/teacher-compensation',
         .update({ hourly_rate })
         .eq('id', teacher_id);
 
-      console.log(`ðŸ’° Created compensation ${newConfig.id} for ${teacher.full_name}`);
+      console.log(`Ã°Å¸â€™Â° Created compensation ${newConfig.id} for ${teacher.full_name}`);
 
       res.status(201).json({
         success: true,
         data: newConfig,
-        message: 'Táº¡o cáº¥u hÃ¬nh lÆ°Æ¡ng thÃ nh cÃ´ng'
+        message: 'TÃ¡ÂºÂ¡o cÃ¡ÂºÂ¥u hÃƒÂ¬nh lÃ†Â°Ã†Â¡ng thÃƒÂ nh cÃƒÂ´ng'
       });
     } catch (error) {
-      console.error('âŒ Error creating teacher compensation:', error);
+      console.error('Ã¢ÂÅ’ Error creating teacher compensation:', error);
       next(error);
     }
   }
@@ -30609,7 +32357,7 @@ app.post('/api/admin/teacher-compensation',
  * PUT /api/admin/teacher-compensation/:id
  * Update compensation config
  * Body: { pay_scheme, hourly_rate, fixed_monthly_salary, extra_hourly_rate, notes }
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.put('/api/admin/teacher-compensation/:id',
   requireAuth,
@@ -30625,7 +32373,7 @@ app.put('/api/admin/teacher-compensation/:id',
         notes
       } = req.body;
 
-      console.log(`ðŸ’° ${req.user.email} updating compensation ${id}`);
+      console.log(`Ã°Å¸â€™Â° ${req.user.email} updating compensation ${id}`);
 
       // Get existing config
       const { data: existing, error: fetchError } = await supabase
@@ -30637,7 +32385,7 @@ app.put('/api/admin/teacher-compensation/:id',
       if (fetchError || !existing) {
         return res.status(404).json({
           success: false,
-          message: 'KhÃ´ng tÃ¬m tháº¥y cáº¥u hÃ¬nh lÆ°Æ¡ng'
+          message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y cÃ¡ÂºÂ¥u hÃƒÂ¬nh lÃ†Â°Ã†Â¡ng'
         });
       }
 
@@ -30674,10 +32422,10 @@ app.put('/api/admin/teacher-compensation/:id',
       res.json({
         success: true,
         data: updated,
-        message: 'Cáº­p nháº­t cáº¥u hÃ¬nh lÆ°Æ¡ng thÃ nh cÃ´ng'
+        message: 'CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t cÃ¡ÂºÂ¥u hÃƒÂ¬nh lÃ†Â°Ã†Â¡ng thÃƒÂ nh cÃƒÂ´ng'
       });
     } catch (error) {
-      console.error('âŒ Error updating teacher compensation:', error);
+      console.error('Ã¢ÂÅ’ Error updating teacher compensation:', error);
       next(error);
     }
   }
@@ -30686,7 +32434,7 @@ app.put('/api/admin/teacher-compensation/:id',
 /**
  * DELETE /api/admin/teacher-compensation/:id
  * Delete compensation config (only if not the only active one)
- * ðŸ”’ SUPER_ADMIN only
+ * Ã°Å¸â€â€™ SUPER_ADMIN only
  */
 app.delete('/api/admin/teacher-compensation/:id',
   requireAuth,
@@ -30695,7 +32443,7 @@ app.delete('/api/admin/teacher-compensation/:id',
     try {
       const { id } = req.params;
 
-      console.log(`ðŸ’° ${req.user.email} deleting compensation ${id}`);
+      console.log(`Ã°Å¸â€™Â° ${req.user.email} deleting compensation ${id}`);
 
       // Check if this is the only config for this teacher
       const { data: existing, error: fetchError } = await supabase
@@ -30707,7 +32455,7 @@ app.delete('/api/admin/teacher-compensation/:id',
       if (fetchError || !existing) {
         return res.status(404).json({
           success: false,
-          message: 'KhÃ´ng tÃ¬m tháº¥y cáº¥u hÃ¬nh lÆ°Æ¡ng'
+          message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y cÃ¡ÂºÂ¥u hÃƒÂ¬nh lÃ†Â°Ã†Â¡ng'
         });
       }
 
@@ -30720,7 +32468,7 @@ app.delete('/api/admin/teacher-compensation/:id',
       if (count <= 1) {
         return res.status(400).json({
           success: false,
-          message: 'KhÃ´ng thá»ƒ xÃ³a cáº¥u hÃ¬nh lÆ°Æ¡ng duy nháº¥t. HÃ£y táº¡o cáº¥u hÃ¬nh má»›i trÆ°á»›c.'
+          message: 'KhÃƒÂ´ng thÃ¡Â»Æ’ xÃƒÂ³a cÃ¡ÂºÂ¥u hÃƒÂ¬nh lÃ†Â°Ã†Â¡ng duy nhÃ¡ÂºÂ¥t. HÃƒÂ£y tÃ¡ÂºÂ¡o cÃ¡ÂºÂ¥u hÃƒÂ¬nh mÃ¡Â»â€ºi trÃ†Â°Ã¡Â»â€ºc.'
         });
       }
 
@@ -30733,10 +32481,10 @@ app.delete('/api/admin/teacher-compensation/:id',
 
       res.json({
         success: true,
-        message: 'XÃ³a cáº¥u hÃ¬nh lÆ°Æ¡ng thÃ nh cÃ´ng'
+        message: 'XÃƒÂ³a cÃ¡ÂºÂ¥u hÃƒÂ¬nh lÃ†Â°Ã†Â¡ng thÃƒÂ nh cÃƒÂ´ng'
       });
     } catch (error) {
-      console.error('âŒ Error deleting teacher compensation:', error);
+      console.error('Ã¢ÂÅ’ Error deleting teacher compensation:', error);
       next(error);
     }
   }
@@ -30745,7 +32493,7 @@ app.delete('/api/admin/teacher-compensation/:id',
 /**
  * GET /api/admin/teacher-compensation/stats
  * Get compensation statistics
- * ðŸ”’ SUPER_ADMIN, CENTER_MANAGER
+ * Ã°Å¸â€â€™ SUPER_ADMIN, CENTER_MANAGER
  */
 app.get('/api/admin/teacher-compensation-stats',
   requireAuth,
@@ -30790,7 +32538,7 @@ app.get('/api/admin/teacher-compensation-stats',
         data: stats
       });
     } catch (error) {
-      console.error('âŒ Error fetching compensation stats:', error);
+      console.error('Ã¢ÂÅ’ Error fetching compensation stats:', error);
       next(error);
     }
   }
@@ -30799,7 +32547,7 @@ app.get('/api/admin/teacher-compensation-stats',
 /**
  * GET /api/teacher/my-compensation
  * Teacher view their own compensation config
- * ðŸ”’ TEACHER
+ * Ã°Å¸â€â€™ TEACHER
  */
 app.get('/api/teacher/my-compensation',
   requireAuth,
@@ -30822,7 +32570,7 @@ app.get('/api/teacher/my-compensation',
         data: data || null
       });
     } catch (error) {
-      console.error('âŒ Error fetching my compensation:', error);
+      console.error('Ã¢ÂÅ’ Error fetching my compensation:', error);
       next(error);
     }
   }
@@ -30839,7 +32587,7 @@ app.get('/api/teacher/my-compensation',
 /**
  * GET /api/teacher/classes/:classId/students/:studentId/notes
  * Get notes for a student in a class
- * 🔒 Teacher must own the class
+ * ðŸ”’ Teacher must own the class
  */
 app.get('/api/teacher/classes/:classId/students/:studentId/notes', requireAuth, async (req, res, next) => {
   try {
@@ -30856,7 +32604,7 @@ app.get('/api/teacher/classes/:classId/students/:studentId/notes', requireAuth, 
       .single();
 
     if (!classData) {
-      return res.status(403).json({ success: false, message: 'Không có quyền truy cập lớp này' });
+      return res.status(403).json({ success: false, message: 'KhÃ´ng cÃ³ quyá»n truy cáº­p lá»›p nÃ y' });
     }
 
     const { data: notes, error } = await supabase
@@ -30880,7 +32628,7 @@ app.get('/api/teacher/classes/:classId/students/:studentId/notes', requireAuth, 
 /**
  * POST /api/teacher/students/notes
  * Create a note for a student
- * 🔒 Teacher must own the class
+ * ðŸ”’ Teacher must own the class
  */
 app.post('/api/teacher/students/notes', requireAuth, async (req, res, next) => {
   try {
@@ -30888,13 +32636,13 @@ app.post('/api/teacher/students/notes', requireAuth, async (req, res, next) => {
     const { student_id, class_id, session_id, content, note_type, is_shared_with_parent } = req.body;
 
     if (!content || !content.trim()) {
-      return res.status(400).json({ success: false, message: 'Nội dung nhận xét không được để trống' });
+      return res.status(400).json({ success: false, message: 'Ná»™i dung nháº­n xÃ©t khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng' });
     }
     if (content.length > 1000) {
-      return res.status(400).json({ success: false, message: 'Nội dung tối đa 1000 ký tự' });
+      return res.status(400).json({ success: false, message: 'Ná»™i dung tá»‘i Ä‘a 1000 kÃ½ tá»±' });
     }
     if (!student_id || !class_id) {
-      return res.status(400).json({ success: false, message: 'Thiếu thông tin học viên hoặc lớp học' });
+      return res.status(400).json({ success: false, message: 'Thiáº¿u thÃ´ng tin há»c viÃªn hoáº·c lá»›p há»c' });
     }
 
     // Verify teacher owns class
@@ -30906,7 +32654,7 @@ app.post('/api/teacher/students/notes', requireAuth, async (req, res, next) => {
       .single();
 
     if (!classData) {
-      return res.status(403).json({ success: false, message: 'Không có quyền ghi nhận xét cho lớp này' });
+      return res.status(403).json({ success: false, message: 'KhÃ´ng cÃ³ quyá»n ghi nháº­n xÃ©t cho lá»›p nÃ y' });
     }
 
     const { data: note, error } = await supabase
@@ -30925,7 +32673,7 @@ app.post('/api/teacher/students/notes', requireAuth, async (req, res, next) => {
 
     if (error) throw error;
 
-    console.log(`📝 Teacher ${req.user.email} added note for student ${student_id}`);
+    console.log(`ðŸ“ Teacher ${req.user.email} added note for student ${student_id}`);
     res.status(201).json({ success: true, data: note });
   } catch (error) {
     console.error('Error creating student note:', error);
@@ -30951,10 +32699,10 @@ app.delete('/api/teacher/students/notes/:id', requireAuth, async (req, res, next
       .single();
 
     if (error || !data) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy nhận xét' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y nháº­n xÃ©t' });
     }
 
-    res.json({ success: true, message: 'Đã xóa nhận xét' });
+    res.json({ success: true, message: 'ÄÃ£ xÃ³a nháº­n xÃ©t' });
   } catch (error) {
     console.error('Error deleting student note:', error);
     next(error);
@@ -30968,7 +32716,7 @@ app.delete('/api/teacher/students/notes/:id', requireAuth, async (req, res, next
 /**
  * GET /api/teacher/classes/:classId/students/:studentId/progress
  * Aggregated progress view for a student in a class
- * 🔒 Teacher must own the class
+ * ðŸ”’ Teacher must own the class
  */
 app.get('/api/teacher/classes/:classId/students/:studentId/progress', requireAuth, async (req, res, next) => {
   try {
@@ -30984,7 +32732,7 @@ app.get('/api/teacher/classes/:classId/students/:studentId/progress', requireAut
       .single();
 
     if (!classData) {
-      return res.status(403).json({ success: false, message: 'Không có quyền truy cập lớp này' });
+      return res.status(403).json({ success: false, message: 'KhÃ´ng cÃ³ quyá»n truy cáº­p lá»›p nÃ y' });
     }
 
     // Get student info
@@ -30995,7 +32743,7 @@ app.get('/api/teacher/classes/:classId/students/:studentId/progress', requireAut
       .single();
 
     if (!student) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy học viên' });
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y há»c viÃªn' });
     }
 
     // Get completed class sessions
@@ -31117,7 +32865,7 @@ app.get('/api/teacher/classes/:classId/students/:studentId/progress', requireAut
 /**
  * PUT /api/teacher/sessions/:id/notes
  * Add/update teaching notes and homework for a session
- * 🔒 Teacher must own the session's class
+ * ðŸ”’ Teacher must own the session's class
  */
 app.put('/api/teacher/sessions/:id/notes', requireAuth, async (req, res, next) => {
   try {
@@ -31133,7 +32881,7 @@ app.put('/api/teacher/sessions/:id/notes', requireAuth, async (req, res, next) =
       .single();
 
     if (!session || session.classes?.teacher_id !== teacherId) {
-      return res.status(403).json({ success: false, message: 'Không có quyền chỉnh sửa buổi học này' });
+      return res.status(403).json({ success: false, message: 'KhÃ´ng cÃ³ quyá»n chá»‰nh sá»­a buá»•i há»c nÃ y' });
     }
 
     const updates = {};
@@ -31145,7 +32893,7 @@ app.put('/api/teacher/sessions/:id/notes', requireAuth, async (req, res, next) =
     }
 
     if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ success: false, message: 'Không có thông tin nào để cập nhật' });
+      return res.status(400).json({ success: false, message: 'KhÃ´ng cÃ³ thÃ´ng tin nÃ o Ä‘á»ƒ cáº­p nháº­t' });
     }
 
     const { data, error } = await supabase
@@ -31157,8 +32905,8 @@ app.put('/api/teacher/sessions/:id/notes', requireAuth, async (req, res, next) =
 
     if (error) throw error;
 
-    console.log(`📖 Teacher ${req.user.email} updated teaching notes for session ${id}`);
-    res.json({ success: true, data, message: 'Đã lưu ghi chú giảng dạy' });
+    console.log(`ðŸ“– Teacher ${req.user.email} updated teaching notes for session ${id}`);
+    res.json({ success: true, data, message: 'ÄÃ£ lÆ°u ghi chÃº giáº£ng dáº¡y' });
   } catch (error) {
     console.error('Error updating teaching notes:', error);
     next(error);
@@ -31230,18 +32978,18 @@ function mapLeaveMutationError(error) {
   const combined = `${message} ${details} ${hint}`;
 
   if (code === '23514' || combined.includes('check constraint')) {
-    return { status: 400, message: 'Dữ liệu đơn nghỉ không hợp lệ. Vui lòng kiểm tra lại thông tin.' };
+    return { status: 400, message: 'Dá»¯ liá»‡u Ä‘Æ¡n nghá»‰ khÃ´ng há»£p lá»‡. Vui lÃ²ng kiá»ƒm tra láº¡i thÃ´ng tin.' };
   }
 
   if (code === '23503' || combined.includes('foreign key')) {
-    return { status: 400, message: 'Thông tin giáo viên hoặc trung tâm không hợp lệ.' };
+    return { status: 400, message: 'ThÃ´ng tin giÃ¡o viÃªn hoáº·c trung tÃ¢m khÃ´ng há»£p lá»‡.' };
   }
 
   if (code === '22P02') {
-    return { status: 400, message: 'Định dạng dữ liệu không hợp lệ.' };
+    return { status: 400, message: 'Äá»‹nh dáº¡ng dá»¯ liá»‡u khÃ´ng há»£p lá»‡.' };
   }
 
-  return { status: 500, message: 'Không thể xử lý đơn xin nghỉ. Vui lòng thử lại sau.' };
+  return { status: 500, message: 'KhÃ´ng thá»ƒ xá»­ lÃ½ Ä‘Æ¡n xin nghá»‰. Vui lÃ²ng thá»­ láº¡i sau.' };
 }
 
 function isMissingRequiredTotalDaysError(error) {
@@ -31256,7 +33004,7 @@ function isMissingRequiredTotalDaysError(error) {
 
 /**
  * GET /api/teacher/leave-requests
- * Láº¥y danh sÃ¡ch Ä‘Æ¡n xin nghá»‰ cá»§a giÃ¡o viÃªn hiá»‡n táº¡i
+ * LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch Ã„â€˜Ã†Â¡n xin nghÃ¡Â»â€° cÃ¡Â»Â§a giÃƒÂ¡o viÃƒÂªn hiÃ¡Â»â€¡n tÃ¡ÂºÂ¡i
  */
 app.get('/api/teacher/leave-requests', requireAuth, async (req, res, next) => {
   try {
@@ -31283,14 +33031,14 @@ app.get('/api/teacher/leave-requests', requireAuth, async (req, res, next) => {
       data: data || []
     });
   } catch (error) {
-    console.error('âŒ Error fetching teacher leave requests:', error);
+    console.error('Ã¢ÂÅ’ Error fetching teacher leave requests:', error);
     next(error);
   }
 });
 
 /**
  * POST /api/teacher/leave-requests
- * Táº¡o Ä‘Æ¡n xin nghá»‰ má»›i cho giÃ¡o viÃªn
+ * TÃ¡ÂºÂ¡o Ã„â€˜Ã†Â¡n xin nghÃ¡Â»â€° mÃ¡Â»â€ºi cho giÃƒÂ¡o viÃƒÂªn
  */
 app.post('/api/teacher/leave-requests', requireAuth, async (req, res, next) => {
   try {
@@ -31310,14 +33058,14 @@ app.post('/api/teacher/leave-requests', requireAuth, async (req, res, next) => {
     if (!leaveType || !startDateStr || !endDateStr || !reasonText) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng nhập đầy đủ loại nghỉ, ngày bắt đầu, ngày kết thúc và lý do'
+        message: 'Vui lÃ²ng nháº­p Ä‘áº§y Ä‘á»§ loáº¡i nghá»‰, ngÃ y báº¯t Ä‘áº§u, ngÃ y káº¿t thÃºc vÃ  lÃ½ do'
       });
     }
 
     if (!LEAVE_TYPE_OPTIONS.includes(leaveType)) {
       return res.status(400).json({
         success: false,
-        message: 'Loại nghỉ không hợp lệ'
+        message: 'Loáº¡i nghá»‰ khÃ´ng há»£p lá»‡'
       });
     }
 
@@ -31326,14 +33074,14 @@ app.post('/api/teacher/leave-requests', requireAuth, async (req, res, next) => {
     if (!startDate || !endDate) {
       return res.status(400).json({
         success: false,
-        message: 'Ngày bắt đầu hoặc ngày kết thúc không đúng định dạng YYYY-MM-DD'
+        message: 'NgÃ y báº¯t Ä‘áº§u hoáº·c ngÃ y káº¿t thÃºc khÃ´ng Ä‘Ãºng Ä‘á»‹nh dáº¡ng YYYY-MM-DD'
       });
     }
 
     if (endDate < startDate) {
       return res.status(400).json({
         success: false,
-        message: 'Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu'
+        message: 'NgÃ y káº¿t thÃºc pháº£i lá»›n hÆ¡n hoáº·c báº±ng ngÃ y báº¯t Ä‘áº§u'
       });
     }
 
@@ -31406,8 +33154,8 @@ app.post('/api/teacher/leave-requests', requireAuth, async (req, res, next) => {
             userId: manager.user_id,
             centerId: effectiveCenterId,
             type: 'leave_request',
-            title: 'YÃªu cáº§u nghá»‰ phÃ©p má»›i',
-            message: 'CÃ³ giÃ¡o viÃªn vá»«a gá»­i yÃªu cáº§u nghá»‰ phÃ©p má»›i',
+            title: 'YÃƒÂªu cÃ¡ÂºÂ§u nghÃ¡Â»â€° phÃƒÂ©p mÃ¡Â»â€ºi',
+            message: 'CÃƒÂ³ giÃƒÂ¡o viÃƒÂªn vÃ¡Â»Â«a gÃ¡Â»Â­i yÃƒÂªu cÃ¡ÂºÂ§u nghÃ¡Â»â€° phÃƒÂ©p mÃ¡Â»â€ºi',
             referenceId: data?.id,
             referenceType: 'leave_request'
           }).catch(err => console.warn('Notification error:', err.message));
@@ -31415,14 +33163,14 @@ app.post('/api/teacher/leave-requests', requireAuth, async (req, res, next) => {
       })().catch(err => console.warn('Notification task error:', err.message));
     } catch (e) { }
   } catch (error) {
-    console.error('âŒ Error creating teacher leave request:', error);
+    console.error('Ã¢ÂÅ’ Error creating teacher leave request:', error);
     next(error);
   }
 });
 
 /**
  * DELETE /api/teacher/leave-requests/:id
- * GiÃ¡o viÃªn chá»‰ Ä‘Æ°á»£c xoÃ¡ Ä‘Æ¡n Ä‘ang chá» duyá»‡t cá»§a chÃ­nh mÃ¬nh
+ * GiÃƒÂ¡o viÃƒÂªn chÃ¡Â»â€° Ã„â€˜Ã†Â°Ã¡Â»Â£c xoÃƒÂ¡ Ã„â€˜Ã†Â¡n Ã„â€˜ang chÃ¡Â»Â duyÃ¡Â»â€¡t cÃ¡Â»Â§a chÃƒÂ­nh mÃƒÂ¬nh
  */
 app.delete('/api/teacher/leave-requests/:id', requireAuth, async (req, res, next) => {
   try {
@@ -31451,7 +33199,7 @@ app.delete('/api/teacher/leave-requests/:id', requireAuth, async (req, res, next
     if (!data) {
       return res.status(404).json({
         success: false,
-        message: 'KhÃ´ng tÃ¬m tháº¥y Ä‘Æ¡n xin nghá»‰ hoáº·c Ä‘Æ¡n Ä‘Ã£ Ä‘Æ°á»£c xá»­ lÃ½'
+        message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y Ã„â€˜Ã†Â¡n xin nghÃ¡Â»â€° hoÃ¡ÂºÂ·c Ã„â€˜Ã†Â¡n Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c xÃ¡Â»Â­ lÃƒÂ½'
       });
     }
 
@@ -31460,7 +33208,88 @@ app.delete('/api/teacher/leave-requests/:id', requireAuth, async (req, res, next
       data
     });
   } catch (error) {
-    console.error('âŒ Error deleting teacher leave request:', error);
+    console.error('Ã¢ÂÅ’ Error deleting teacher leave request:', error);
+    next(error);
+  }
+});
+
+/**
+ * PATCH /api/teacher/leave-requests/:id
+ * GiÃ¡o viÃªn chá»‰ Ä‘Æ°á»£c sá»­a Ä‘Æ¡n Ä‘ang chá» duyá»‡t cá»§a chÃ­nh mÃ¬nh
+ */
+app.patch('/api/teacher/leave-requests/:id', requireAuth, async (req, res, next) => {
+  try {
+    const teacherId = req.user.id;
+    const { id } = req.params;
+    const { leave_type, start_date, end_date, reason } = req.body || {};
+    const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, null);
+
+    if (permError) {
+      return res.status(403).json({ success: false, message: permError });
+    }
+
+    // Build update payload â€” only allow editable fields
+    const updateFields = {};
+    if (typeof leave_type === 'string') {
+      const lt = leave_type.trim().toLowerCase();
+      if (!LEAVE_TYPE_OPTIONS.includes(lt)) {
+        return res.status(400).json({ success: false, message: 'Loáº¡i nghá»‰ khÃ´ng há»£p lá»‡' });
+      }
+      updateFields.leave_type = lt;
+    }
+    if (typeof start_date === 'string' && start_date.trim()) {
+      const parsed = parseISODateToUTC(start_date.trim());
+      if (!parsed) return res.status(400).json({ success: false, message: 'NgÃ y báº¯t Ä‘áº§u khÃ´ng Ä‘Ãºng Ä‘á»‹nh dáº¡ng' });
+      updateFields.start_date = start_date.trim();
+    }
+    if (typeof end_date === 'string' && end_date.trim()) {
+      const parsed = parseISODateToUTC(end_date.trim());
+      if (!parsed) return res.status(400).json({ success: false, message: 'NgÃ y káº¿t thÃºc khÃ´ng Ä‘Ãºng Ä‘á»‹nh dáº¡ng' });
+      updateFields.end_date = end_date.trim();
+    }
+    if (typeof reason === 'string' && reason.trim()) {
+      updateFields.reason = reason.trim();
+    }
+
+    if (Object.keys(updateFields).length === 0) {
+      return res.status(400).json({ success: false, message: 'KhÃ´ng cÃ³ dá»¯ liá»‡u cáº§n cáº­p nháº­t' });
+    }
+
+    // Validate date range if both provided
+    if (updateFields.start_date && updateFields.end_date) {
+      if (new Date(updateFields.end_date) < new Date(updateFields.start_date)) {
+        return res.status(400).json({ success: false, message: 'NgÃ y káº¿t thÃºc pháº£i lá»›n hÆ¡n hoáº·c báº±ng ngÃ y báº¯t Ä‘áº§u' });
+      }
+      // Recalculate total_days
+      const startMs = new Date(`${updateFields.start_date}T00:00:00`).getTime();
+      const endMs = new Date(`${updateFields.end_date}T00:00:00`).getTime();
+      updateFields.total_days = Math.max(1, Math.floor((endMs - startMs) / (1000 * 60 * 60 * 24)) + 1);
+    }
+
+    const { data, error } = await runLeaveQueryWithTeacherColumn((teacherColumn) => (
+      supabase
+        .from('leave_requests')
+        .update(updateFields)
+        .eq('id', id)
+        .eq(teacherColumn, teacherId)
+        .eq('center_id', effectiveCenterId)
+        .eq('status', 'pending')
+        .select('*')
+        .single()
+    ));
+
+    if (error && error.code !== 'PGRST116') throw error;
+
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        message: 'KhÃ´ng tÃ¬m tháº¥y Ä‘Æ¡n xin nghá»‰ hoáº·c Ä‘Æ¡n Ä‘Ã£ Ä‘Æ°á»£c xá»­ lÃ½'
+      });
+    }
+
+    return res.json({ success: true, data });
+  } catch (error) {
+    console.error('âŒ Error updating teacher leave request:', error);
     next(error);
   }
 });
@@ -31584,10 +33413,10 @@ app.patch('/api/admin/leave-requests/:id', requireAuth, requireRole(['SUPER_ADMI
         userId: data?.staff_id || data?.teacher_id,
         centerId: data?.center_id,
         type: 'leave_request',
-        title: status === 'approved' ? 'Đơn nghỉ đã được duyệt' : 'Đơn nghỉ đã bị từ chối',
+        title: status === 'approved' ? 'ÄÆ¡n nghá»‰ Ä‘Ã£ Ä‘Æ°á»£c duyá»‡t' : 'ÄÆ¡n nghá»‰ Ä‘Ã£ bá»‹ tá»« chá»‘i',
         message: status === 'approved'
-          ? 'Đơn xin nghỉ của bạn đã được quản lý phê duyệt.'
-          : `Đơn xin nghỉ của bạn đã bị từ chối${admin_note ? `: ${admin_note}` : '.'}`,
+          ? 'ÄÆ¡n xin nghá»‰ cá»§a báº¡n Ä‘Ã£ Ä‘Æ°á»£c quáº£n lÃ½ phÃª duyá»‡t.'
+          : `ÄÆ¡n xin nghá»‰ cá»§a báº¡n Ä‘Ã£ bá»‹ tá»« chá»‘i${admin_note ? `: ${admin_note}` : '.'}`,
         referenceId: data?.id,
         referenceType: 'leave_request'
       }).catch((notifyError) => {
@@ -31612,7 +33441,7 @@ app.patch('/api/admin/leave-requests/:id', requireAuth, requireRole(['SUPER_ADMI
 // CUSTOM ALERT RULES & HISTORY APIs
 // ============================================================
 
-// GET /api/admin/custom-alerts â€” list alert rules
+// GET /api/admin/custom-alerts Ã¢â‚¬â€ list alert rules
 app.get('/api/admin/custom-alerts', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const supabaseClient = req.supabase || supabase;
@@ -31637,14 +33466,14 @@ app.get('/api/admin/custom-alerts', requireAuth, requireRole(['SUPER_ADMIN', 'CE
   }
 });
 
-// POST /api/admin/custom-alerts â€” create alert rule
+// POST /api/admin/custom-alerts Ã¢â‚¬â€ create alert rule
 app.post('/api/admin/custom-alerts', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const supabaseClient = req.supabase || supabase;
     const { name, metric_type, condition_operator, threshold_value, severity, notification_channels, is_active, cooldown_minutes, center_id } = req.body;
 
     if (!name || !metric_type || !condition_operator || threshold_value === undefined) {
-      return res.status(400).json({ success: false, message: 'Vui lÃ²ng Ä‘iá»n Ä‘áº§y Ä‘á»§ thÃ´ng tin báº¯t buá»™c' });
+      return res.status(400).json({ success: false, message: 'Vui lÃƒÂ²ng Ã„â€˜iÃ¡Â»Ân Ã„â€˜Ã¡ÂºÂ§y Ã„â€˜Ã¡Â»Â§ thÃƒÂ´ng tin bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c' });
     }
 
     const { data, error } = await supabaseClient
@@ -31673,7 +33502,7 @@ app.post('/api/admin/custom-alerts', requireAuth, requireRole(['SUPER_ADMIN', 'C
   }
 });
 
-// PUT /api/admin/custom-alerts/:id â€” update alert rule
+// PUT /api/admin/custom-alerts/:id Ã¢â‚¬â€ update alert rule
 app.put('/api/admin/custom-alerts/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const supabaseClient = req.supabase || supabase;
@@ -31698,7 +33527,7 @@ app.put('/api/admin/custom-alerts/:id', requireAuth, requireRole(['SUPER_ADMIN',
       .single();
 
     if (error) throw error;
-    if (!data) return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y quy táº¯c' });
+    if (!data) return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y quy tÃ¡ÂºÂ¯c' });
 
     res.json({ success: true, data });
   } catch (error) {
@@ -31707,7 +33536,7 @@ app.put('/api/admin/custom-alerts/:id', requireAuth, requireRole(['SUPER_ADMIN',
   }
 });
 
-// DELETE /api/admin/custom-alerts/:id â€” delete alert rule
+// DELETE /api/admin/custom-alerts/:id Ã¢â‚¬â€ delete alert rule
 app.delete('/api/admin/custom-alerts/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const supabaseClient = req.supabase || supabase;
@@ -31720,14 +33549,14 @@ app.delete('/api/admin/custom-alerts/:id', requireAuth, requireRole(['SUPER_ADMI
 
     if (error) throw error;
 
-    res.json({ success: true, message: 'ÄÃ£ xÃ³a quy táº¯c cáº£nh bÃ¡o' });
+    res.json({ success: true, message: 'Ã„ÂÃƒÂ£ xÃƒÂ³a quy tÃ¡ÂºÂ¯c cÃ¡ÂºÂ£nh bÃƒÂ¡o' });
   } catch (error) {
     console.error('Error deleting custom alert rule:', error);
     next(error);
   }
 });
 
-// GET /api/admin/alert-history â€” list alert history
+// GET /api/admin/alert-history Ã¢â‚¬â€ list alert history
 app.get('/api/admin/alert-history', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const supabaseClient = req.supabase || supabase;
@@ -31752,7 +33581,7 @@ app.get('/api/admin/alert-history', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     // Flatten rule_name for frontend
     const formatted = (data || []).map(item => ({
       ...item,
-      rule_name: item.custom_alert_rules?.name || 'Quy táº¯c khÃ´ng xÃ¡c Ä‘á»‹nh',
+      rule_name: item.custom_alert_rules?.name || 'Quy tÃ¡ÂºÂ¯c khÃƒÂ´ng xÃƒÂ¡c Ã„â€˜Ã¡Â»â€¹nh',
       custom_alert_rules: undefined
     }));
 
@@ -31763,7 +33592,7 @@ app.get('/api/admin/alert-history', requireAuth, requireRole(['SUPER_ADMIN', 'CE
   }
 });
 
-// PATCH /api/admin/alert-history/:id/acknowledge â€” acknowledge an alert
+// PATCH /api/admin/alert-history/:id/acknowledge Ã¢â‚¬â€ acknowledge an alert
 app.patch('/api/admin/alert-history/:id/acknowledge', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const supabaseClient = req.supabase || supabase;
@@ -31781,7 +33610,7 @@ app.patch('/api/admin/alert-history/:id/acknowledge', requireAuth, requireRole([
       .single();
 
     if (error) throw error;
-    if (!data) return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y cáº£nh bÃ¡o' });
+    if (!data) return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y cÃ¡ÂºÂ£nh bÃƒÂ¡o' });
 
     res.json({ success: true, data });
   } catch (error) {
@@ -31887,7 +33716,7 @@ app.get('/api/my-support-tickets/:id', requireAuth, requireRole(['STUDENT']), as
     const { data: ticket, error: ticketError } = await ticketQuery.single();
 
     if (ticketError || !ticket) {
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y yÃªu cáº§u há»— trá»£' });
+      return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y yÃƒÂªu cÃ¡ÂºÂ§u hÃ¡Â»â€” trÃ¡Â»Â£' });
     }
 
     const { data: messages, error: messageError } = await supabase
@@ -31920,35 +33749,35 @@ app.get('/api/my-support-tickets/:id', requireAuth, requireRole(['STUDENT']), as
 // ============================================================
 
 function buildCoursePrompt(title, category, level) {
-  return `Táº¡o ná»™i dung chi tiáº¿t cho khÃ³a há»c cÃ³ tÃªn: "${title}"
-${category ? `Danh má»¥c: ${category}` : 'HÃ£y Ä‘á» xuáº¥t danh má»¥c phÃ¹ há»£p nháº¥t'}
-${level ? `TrÃ¬nh Ä‘á»™: ${level}` : 'HÃ£y Ä‘á» xuáº¥t trÃ¬nh Ä‘á»™ phÃ¹ há»£p nháº¥t'}
+  return `TÃ¡ÂºÂ¡o nÃ¡Â»â„¢i dung chi tiÃ¡ÂºÂ¿t cho khÃƒÂ³a hÃ¡Â»Âc cÃƒÂ³ tÃƒÂªn: "${title}"
+${category ? `Danh mÃ¡Â»Â¥c: ${category}` : 'HÃƒÂ£y Ã„â€˜Ã¡Â»Â xuÃ¡ÂºÂ¥t danh mÃ¡Â»Â¥c phÃƒÂ¹ hÃ¡Â»Â£p nhÃ¡ÂºÂ¥t'}
+${level ? `TrÃƒÂ¬nh Ã„â€˜Ã¡Â»â„¢: ${level}` : 'HÃƒÂ£y Ã„â€˜Ã¡Â»Â xuÃ¡ÂºÂ¥t trÃƒÂ¬nh Ã„â€˜Ã¡Â»â„¢ phÃƒÂ¹ hÃ¡Â»Â£p nhÃ¡ÂºÂ¥t'}
 
-Tráº£ vá» JSON vá»›i cáº¥u trÃºc:
+TrÃ¡ÂºÂ£ vÃ¡Â»Â JSON vÃ¡Â»â€ºi cÃ¡ÂºÂ¥u trÃƒÂºc:
 {
-  "description": "MÃ´ táº£ khÃ³a há»c 2-3 cÃ¢u báº±ng tiáº¿ng Viá»‡t, nÃªu má»¥c tiÃªu vÃ  Ä‘á»‘i tÆ°á»£ng phÃ¹ há»£p",
-  "total_sessions": <sá»‘ buá»•i há»c há»£p lÃ½, tá»« 8-48>,
-  "duration_weeks": <thá»i lÆ°á»£ng tuáº§n há»£p lÃ½, tá»« 4-24>,
-  "category": "<má»™t trong: ielts, toeic, english, communication, programming, it, office>",
-  "level": "<má»™t trong: Beginner, Intermediate, Advanced>",
+  "description": "MÃƒÂ´ tÃ¡ÂºÂ£ khÃƒÂ³a hÃ¡Â»Âc 2-3 cÃƒÂ¢u bÃ¡ÂºÂ±ng tiÃ¡ÂºÂ¿ng ViÃ¡Â»â€¡t, nÃƒÂªu mÃ¡Â»Â¥c tiÃƒÂªu vÃƒÂ  Ã„â€˜Ã¡Â»â€˜i tÃ†Â°Ã¡Â»Â£ng phÃƒÂ¹ hÃ¡Â»Â£p",
+  "total_sessions": <sÃ¡Â»â€˜ buÃ¡Â»â€¢i hÃ¡Â»Âc hÃ¡Â»Â£p lÃƒÂ½, tÃ¡Â»Â« 8-48>,
+  "duration_weeks": <thÃ¡Â»Âi lÃ†Â°Ã¡Â»Â£ng tuÃ¡ÂºÂ§n hÃ¡Â»Â£p lÃƒÂ½, tÃ¡Â»Â« 4-24>,
+  "category": "<mÃ¡Â»â„¢t trong: ielts, toeic, english, communication, programming, it, office>",
+  "level": "<mÃ¡Â»â„¢t trong: Beginner, Intermediate, Advanced>",
   "syllabus": [
-    { "title": "TÃªn module", "topics": ["topic 1", "topic 2", "topic 3"] }
+    { "title": "TÃƒÂªn module", "topics": ["topic 1", "topic 2", "topic 3"] }
   ],
-  "outcomes": ["káº¿t quáº£ Ä‘áº¡t Ä‘Æ°á»£c 1", "káº¿t quáº£ 2", ...],
-  "features": ["Ä‘áº·c Ä‘iá»ƒm/tÃ­nh nÄƒng khÃ³a há»c 1", ...],
+  "outcomes": ["kÃ¡ÂºÂ¿t quÃ¡ÂºÂ£ Ã„â€˜Ã¡ÂºÂ¡t Ã„â€˜Ã†Â°Ã¡Â»Â£c 1", "kÃ¡ÂºÂ¿t quÃ¡ÂºÂ£ 2", ...],
+  "features": ["Ã„â€˜Ã¡ÂºÂ·c Ã„â€˜iÃ¡Â»Æ’m/tÃƒÂ­nh nÃ„Æ’ng khÃƒÂ³a hÃ¡Â»Âc 1", ...],
   "faq": [
-    { "question": "CÃ¢u há»i thÆ°á»ng gáº·p", "answer": "Tráº£ lá»i chi tiáº¿t" }
+    { "question": "CÃƒÂ¢u hÃ¡Â»Âi thÃ†Â°Ã¡Â»Âng gÃ¡ÂºÂ·p", "answer": "TrÃ¡ÂºÂ£ lÃ¡Â»Âi chi tiÃ¡ÂºÂ¿t" }
   ]
 }
 
-YÃªu cáº§u:
-- Ná»™i dung chuyÃªn nghiá»‡p, phÃ¹ há»£p trung tÃ¢m Ä‘Ã o táº¡o táº¡i Viá»‡t Nam
-- Syllabus: 4-8 modules, má»—i module 3-5 topics cá»¥ thá»ƒ
-- Outcomes: 5-7 má»¥c rÃµ rÃ ng, Ä‘o lÆ°á»ng Ä‘Æ°á»£c
-- Features: 4-6 Ä‘áº·c Ä‘iá»ƒm ná»•i báº­t cá»§a khÃ³a há»c
-- FAQ: 4-5 cÃ¢u há»i phá»• biáº¿n nháº¥t
-- total_sessions vÃ  duration_weeks pháº£i há»£p lÃ½ vá»›i khá»‘i lÆ°á»£ng ná»™i dung
-- Táº¥t cáº£ ná»™i dung báº±ng tiáº¿ng Viá»‡t`;
+YÃƒÂªu cÃ¡ÂºÂ§u:
+- NÃ¡Â»â„¢i dung chuyÃƒÂªn nghiÃ¡Â»â€¡p, phÃƒÂ¹ hÃ¡Â»Â£p trung tÃƒÂ¢m Ã„â€˜ÃƒÂ o tÃ¡ÂºÂ¡o tÃ¡ÂºÂ¡i ViÃ¡Â»â€¡t Nam
+- Syllabus: 4-8 modules, mÃ¡Â»â€”i module 3-5 topics cÃ¡Â»Â¥ thÃ¡Â»Æ’
+- Outcomes: 5-7 mÃ¡Â»Â¥c rÃƒÂµ rÃƒÂ ng, Ã„â€˜o lÃ†Â°Ã¡Â»Âng Ã„â€˜Ã†Â°Ã¡Â»Â£c
+- Features: 4-6 Ã„â€˜Ã¡ÂºÂ·c Ã„â€˜iÃ¡Â»Æ’m nÃ¡Â»â€¢i bÃ¡ÂºÂ­t cÃ¡Â»Â§a khÃƒÂ³a hÃ¡Â»Âc
+- FAQ: 4-5 cÃƒÂ¢u hÃ¡Â»Âi phÃ¡Â»â€¢ biÃ¡ÂºÂ¿n nhÃ¡ÂºÂ¥t
+- total_sessions vÃƒÂ  duration_weeks phÃ¡ÂºÂ£i hÃ¡Â»Â£p lÃƒÂ½ vÃ¡Â»â€ºi khÃ¡Â»â€˜i lÃ†Â°Ã¡Â»Â£ng nÃ¡Â»â„¢i dung
+- TÃ¡ÂºÂ¥t cÃ¡ÂºÂ£ nÃ¡Â»â„¢i dung bÃ¡ÂºÂ±ng tiÃ¡ÂºÂ¿ng ViÃ¡Â»â€¡t`;
 }
 
 function validateCategory(aiCategory, userCategory) {
@@ -31969,16 +33798,16 @@ app.post('/api/courses/ai-generate', requireAuth, async (req, res) => {
   try {
     const { title, category, level } = req.body;
     if (!title || title.trim().length < 2) {
-      return res.status(400).json({ success: false, error: 'TÃªn khÃ³a há»c lÃ  báº¯t buá»™c' });
+      return res.status(400).json({ success: false, error: 'TÃƒÂªn khÃƒÂ³a hÃ¡Â»Âc lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c' });
     }
 
     if (!isGroqAvailable()) {
-      return res.status(503).json({ success: false, error: 'AI service khÃ´ng kháº£ dá»¥ng' });
+      return res.status(503).json({ success: false, error: 'AI service khÃƒÂ´ng khÃ¡ÂºÂ£ dÃ¡Â»Â¥ng' });
     }
 
     const groq = getGroqClient();
     if (!groq) {
-      return res.status(503).json({ success: false, error: 'AI service khÃ´ng kháº£ dá»¥ng' });
+      return res.status(503).json({ success: false, error: 'AI service khÃƒÂ´ng khÃ¡ÂºÂ£ dÃ¡Â»Â¥ng' });
     }
 
     const prompt = buildCoursePrompt(title.trim(), category, level);
@@ -31988,7 +33817,7 @@ app.post('/api/courses/ai-generate', requireAuth, async (req, res) => {
       messages: [
         {
           role: 'system',
-          content: 'Báº¡n lÃ  chuyÃªn gia thiáº¿t káº¿ khÃ³a há»c táº¡i trung tÃ¢m Ä‘Ã o táº¡o Viá»‡t Nam. LuÃ´n tráº£ vá» JSON há»£p lá»‡, KHÃ”NG markdown, KHÃ”NG giáº£i thÃ­ch thÃªm.'
+          content: 'BÃ¡ÂºÂ¡n lÃƒÂ  chuyÃƒÂªn gia thiÃ¡ÂºÂ¿t kÃ¡ÂºÂ¿ khÃƒÂ³a hÃ¡Â»Âc tÃ¡ÂºÂ¡i trung tÃƒÂ¢m Ã„â€˜ÃƒÂ o tÃ¡ÂºÂ¡o ViÃ¡Â»â€¡t Nam. LuÃƒÂ´n trÃ¡ÂºÂ£ vÃ¡Â»Â JSON hÃ¡Â»Â£p lÃ¡Â»â€¡, KHÃƒâ€NG markdown, KHÃƒâ€NG giÃ¡ÂºÂ£i thÃƒÂ­ch thÃƒÂªm.'
         },
         { role: 'user', content: prompt }
       ],
@@ -32018,7 +33847,7 @@ app.post('/api/courses/ai-generate', requireAuth, async (req, res) => {
     res.json({ success: true, data: result });
   } catch (error) {
     console.error('AI generate error:', error);
-    res.status(500).json({ success: false, error: 'KhÃ´ng thá»ƒ táº¡o ná»™i dung AI' });
+    res.status(500).json({ success: false, error: 'KhÃƒÂ´ng thÃ¡Â»Æ’ tÃ¡ÂºÂ¡o nÃ¡Â»â„¢i dung AI' });
   }
 });
 
@@ -32063,13 +33892,13 @@ app.post('/api/chatbot/message', async (req, res, next) => {
 
     // Input validation
     if (!message || typeof message !== 'string' || message.trim().length === 0) {
-      return res.status(400).json({ success: false, error: 'Tin nháº¯n khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng' });
+      return res.status(400).json({ success: false, error: 'Tin nhÃ¡ÂºÂ¯n khÃƒÂ´ng Ã„â€˜Ã†Â°Ã¡Â»Â£c Ã„â€˜Ã¡Â»Æ’ trÃ¡Â»â€˜ng' });
     }
     if (message.length > 500) {
-      return res.status(400).json({ success: false, error: 'Tin nháº¯n tá»‘i Ä‘a 500 kÃ½ tá»±' });
+      return res.status(400).json({ success: false, error: 'Tin nhÃ¡ÂºÂ¯n tÃ¡Â»â€˜i Ã„â€˜a 500 kÃƒÂ½ tÃ¡Â»Â±' });
     }
     if (!centerId) {
-      return res.status(400).json({ success: false, error: 'centerId lÃ  báº¯t buá»™c' });
+      return res.status(400).json({ success: false, error: 'centerId lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c' });
     }
 
     // Rate limiting
@@ -32078,7 +33907,7 @@ app.post('/api/chatbot/message', async (req, res, next) => {
     if (!rateCheck.allowed) {
       return res.status(429).json({
         success: false,
-        error: 'Báº¡n gá»­i tin nháº¯n quÃ¡ nhanh. Thá»­ láº¡i sau vÃ i giÃ¢y nhÃ©!',
+        error: 'BÃ¡ÂºÂ¡n gÃ¡Â»Â­i tin nhÃ¡ÂºÂ¯n quÃƒÂ¡ nhanh. ThÃ¡Â»Â­ lÃ¡ÂºÂ¡i sau vÃƒÂ i giÃƒÂ¢y nhÃƒÂ©!',
         retryAfter: rateCheck.retryAfter
       });
     }
@@ -32087,7 +33916,7 @@ app.post('/api/chatbot/message', async (req, res, next) => {
     if (!isGroqAvailable()) {
       return res.status(503).json({
         success: false,
-        error: 'Molly Ä‘ang nghá»‰ ngÆ¡i. Vui lÃ²ng liÃªn há»‡ tÆ° váº¥n viÃªn trá»±c tiáº¿p!',
+        error: 'Molly Ã„â€˜ang nghÃ¡Â»â€° ngÃ†Â¡i. Vui lÃƒÂ²ng liÃƒÂªn hÃ¡Â»â€¡ tÃ†Â° vÃ¡ÂºÂ¥n viÃƒÂªn trÃ¡Â»Â±c tiÃ¡ÂºÂ¿p!',
         code: 'service_unavailable'
       });
     }
@@ -32112,7 +33941,7 @@ app.post('/api/chatbot/message', async (req, res, next) => {
     // Get or create session
     const session = await getOrCreateSession(sessionId, visitorId, userId, centerId);
 
-    // Visitor â†’ Student claim: if user logged in but session has no user_id
+    // Visitor Ã¢â€ â€™ Student claim: if user logged in but session has no user_id
     if (userId && session.id) {
       const { data: sessionRow } = await supabase
         .from('chat_sessions')
@@ -32127,7 +33956,7 @@ app.post('/api/chatbot/message', async (req, res, next) => {
       }
     }
 
-    // Check session message cap â€” auto-create new session if capped
+    // Check session message cap Ã¢â‚¬â€ auto-create new session if capped
     let activeSession = session;
     if (session.messageCount >= MAX_SESSION_MESSAGES) {
       activeSession = await getOrCreateSession(null, visitorId, userId, centerId);
@@ -32197,11 +34026,11 @@ app.post('/api/chatbot/message', async (req, res, next) => {
 
     res.end();
   } catch (error) {
-    console.error('âŒ Chatbot message error:', error);
+    console.error('Ã¢ÂÅ’ Chatbot message error:', error);
     // If headers already sent (SSE started), send error event
     if (res.headersSent) {
       try {
-        res.write(`data: ${JSON.stringify({ type: 'error', error: 'ÄÃ£ xáº£y ra lá»—i. Vui lÃ²ng thá»­ láº¡i!' })}
+        res.write(`data: ${JSON.stringify({ type: 'error', error: 'Ã„ÂÃƒÂ£ xÃ¡ÂºÂ£y ra lÃ¡Â»â€”i. Vui lÃƒÂ²ng thÃ¡Â»Â­ lÃ¡ÂºÂ¡i!' })}
 
 `);
         res.end();
@@ -32239,7 +34068,7 @@ app.get('/api/chatbot/messages/:sessionId', async (req, res, next) => {
       const { data: authData, error: authError } = await supabase.auth.getUser(token);
 
       if (authError) {
-        return res.status(401).json({ success: false, error: 'PhiÃªn Ä‘Äƒng nháº­p khÃ´ng há»£p lá»‡' });
+        return res.status(401).json({ success: false, error: 'PhiÃƒÂªn Ã„â€˜Ã„Æ’ng nhÃ¡ÂºÂ­p khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡' });
       }
 
       userId = authData?.user?.id || null;
@@ -32252,24 +34081,24 @@ app.get('/api/chatbot/messages/:sessionId', async (req, res, next) => {
       .maybeSingle();
 
     if (sessionError) {
-      return res.status(500).json({ success: false, error: 'KhÃ´ng thá»ƒ kiá»ƒm tra cuá»™c trÃ² chuyá»‡n' });
+      return res.status(500).json({ success: false, error: 'KhÃƒÂ´ng thÃ¡Â»Æ’ kiÃ¡Â»Æ’m tra cuÃ¡Â»â„¢c trÃƒÂ² chuyÃ¡Â»â€¡n' });
     }
 
     if (!session || session.deleted_at) {
-      return res.status(404).json({ success: false, error: 'KhÃ´ng tÃ¬m tháº¥y cuá»™c trÃ² chuyá»‡n' });
+      return res.status(404).json({ success: false, error: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y cuÃ¡Â»â„¢c trÃƒÂ² chuyÃ¡Â»â€¡n' });
     }
 
     if (userId) {
       if (session.user_id !== userId) {
-        return res.status(403).json({ success: false, error: 'KhÃ´ng cÃ³ quyá»n xem lá»‹ch sá»­ cuá»™c trÃ² chuyá»‡n nÃ y' });
+        return res.status(403).json({ success: false, error: 'KhÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xem lÃ¡Â»â€¹ch sÃ¡Â»Â­ cuÃ¡Â»â„¢c trÃƒÂ² chuyÃ¡Â»â€¡n nÃƒÂ y' });
       }
     } else {
       if (!visitorId || typeof visitorId !== 'string') {
-        return res.status(401).json({ success: false, error: 'visitorId lÃ  báº¯t buá»™c cho khÃ¡ch vÃ£ng lai' });
+        return res.status(401).json({ success: false, error: 'visitorId lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c cho khÃƒÂ¡ch vÃƒÂ£ng lai' });
       }
 
       if (!session.visitor_id || session.visitor_id !== visitorId) {
-        return res.status(403).json({ success: false, error: 'KhÃ´ng cÃ³ quyá»n xem lá»‹ch sá»­ cuá»™c trÃ² chuyá»‡n nÃ y' });
+        return res.status(403).json({ success: false, error: 'KhÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xem lÃ¡Â»â€¹ch sÃ¡Â»Â­ cuÃ¡Â»â„¢c trÃƒÂ² chuyÃ¡Â»â€¡n nÃƒÂ y' });
       }
     }
 
@@ -32287,7 +34116,7 @@ app.get('/api/chatbot/messages/:sessionId', async (req, res, next) => {
 
     res.json({ success: true, data: { messages: messages || [] } });
   } catch (error) {
-    console.error('âŒ Chat history error:', error);
+    console.error('Ã¢ÂÅ’ Chat history error:', error);
     next(error);
   }
 });
@@ -32309,7 +34138,7 @@ app.get('/api/chatbot/default-center', async (req, res, next) => {
 
     res.json({ success: true, data: { centerId: center.id } });
   } catch (error) {
-    console.error('âŒ Default center error:', error);
+    console.error('Ã¢ÂÅ’ Default center error:', error);
     next(error);
   }
 });
@@ -32328,19 +34157,19 @@ function compactLeadText(text, maxLength = 200) {
     return normalized;
   }
 
-  return `${normalized.slice(0, maxLength - 1).trim()}â€¦`;
+  return `${normalized.slice(0, maxLength - 1).trim()}Ã¢â‚¬Â¦`;
 }
 
 function inferLeadUrgency(primaryNeed, userMessages = []) {
   const corpus = [primaryNeed, ...userMessages].filter(Boolean).join(' ').toLowerCase();
 
   const hotSignals = [
-    'Ä‘Äƒng kÃ½', 'liÃªn há»‡', 'gá»i láº¡i', 'gá»i cho', 'ngay', 'hÃ´m nay', 'sá»›m nháº¥t',
-    'Ä‘áº·t lá»‹ch', 'cá»c', 'chá»‘t', 'há»c thá»­', 'khai giáº£ng', 'Ä‘Ã³ng há»c phÃ­'
+    'Ã„â€˜Ã„Æ’ng kÃƒÂ½', 'liÃƒÂªn hÃ¡Â»â€¡', 'gÃ¡Â»Âi lÃ¡ÂºÂ¡i', 'gÃ¡Â»Âi cho', 'ngay', 'hÃƒÂ´m nay', 'sÃ¡Â»â€ºm nhÃ¡ÂºÂ¥t',
+    'Ã„â€˜Ã¡ÂºÂ·t lÃ¡Â»â€¹ch', 'cÃ¡Â»Âc', 'chÃ¡Â»â€˜t', 'hÃ¡Â»Âc thÃ¡Â»Â­', 'khai giÃ¡ÂºÂ£ng', 'Ã„â€˜ÃƒÂ³ng hÃ¡Â»Âc phÃƒÂ­'
   ];
   const warmSignals = [
-    'há»c phÃ­', 'Æ°u Ä‘Ã£i', 'lá»™ trÃ¬nh', 'khÃ³a nÃ o', 'thá»i khÃ³a biá»ƒu', 'nÃªn há»c',
-    'tÆ° váº¥n', 'so sÃ¡nh', 'Ä‘áº§u ra', 'trÃ¬nh Ä‘á»™'
+    'hÃ¡Â»Âc phÃƒÂ­', 'Ã†Â°u Ã„â€˜ÃƒÂ£i', 'lÃ¡Â»â„¢ trÃƒÂ¬nh', 'khÃƒÂ³a nÃƒÂ o', 'thÃ¡Â»Âi khÃƒÂ³a biÃ¡Â»Æ’u', 'nÃƒÂªn hÃ¡Â»Âc',
+    'tÃ†Â° vÃ¡ÂºÂ¥n', 'so sÃƒÂ¡nh', 'Ã„â€˜Ã¡ÂºÂ§u ra', 'trÃƒÂ¬nh Ã„â€˜Ã¡Â»â„¢'
   ];
 
   if (hotSignals.some(keyword => corpus.includes(keyword))) {
@@ -32354,8 +34183,8 @@ function inferLeadUrgency(primaryNeed, userMessages = []) {
 
 function urgencyLabel(urgencyLevel) {
   if (urgencyLevel === 'hot') return 'Cao';
-  if (urgencyLevel === 'warm') return 'Trung bÃ¬nh';
-  return 'Tháº¥p';
+  if (urgencyLevel === 'warm') return 'Trung bÃƒÂ¬nh';
+  return 'ThÃ¡ÂºÂ¥p';
 }
 
 function buildChatbotHandoffContext(recentMessages, { preferredTimeLabel, pageContext }) {
@@ -32371,19 +34200,19 @@ function buildChatbotHandoffContext(recentMessages, { preferredTimeLabel, pageCo
     .map(message => compactLeadText(message.content, 180))
     .filter(Boolean);
 
-  const primaryNeed = userMessages.at(-1) || 'KhÃ¡ch cáº§n tÆ° váº¥n thÃªm vá» khÃ³a há»c phÃ¹ há»£p';
+  const primaryNeed = userMessages.at(-1) || 'KhÃƒÂ¡ch cÃ¡ÂºÂ§n tÃ†Â° vÃ¡ÂºÂ¥n thÃƒÂªm vÃ¡Â»Â khÃƒÂ³a hÃ¡Â»Âc phÃƒÂ¹ hÃ¡Â»Â£p';
   const urgencyLevel = inferLeadUrgency(primaryNeed, userMessages);
   const summaryLine = compactLeadText(primaryNeed, 120);
   const advisorBriefLines = [
-    `Nhu cáº§u chÃ­nh: ${primaryNeed}`,
-    `Má»©c Ä‘á»™ Æ°u tiÃªn: ${urgencyLabel(urgencyLevel)}`,
-    preferredTimeLabel ? `Khung giá» mong muá»‘n: ${preferredTimeLabel}` : null,
-    pageContext ? `Nguá»“n vÃ o: ${pageContext}` : null,
-    assistantMessages.at(-1) ? `Molly Ä‘Ã£ tÆ° váº¥n: ${assistantMessages.at(-1)}` : null
+    `Nhu cÃ¡ÂºÂ§u chÃƒÂ­nh: ${primaryNeed}`,
+    `MÃ¡Â»Â©c Ã„â€˜Ã¡Â»â„¢ Ã†Â°u tiÃƒÂªn: ${urgencyLabel(urgencyLevel)}`,
+    preferredTimeLabel ? `Khung giÃ¡Â»Â mong muÃ¡Â»â€˜n: ${preferredTimeLabel}` : null,
+    pageContext ? `NguÃ¡Â»â€œn vÃƒÂ o: ${pageContext}` : null,
+    assistantMessages.at(-1) ? `Molly Ã„â€˜ÃƒÂ£ tÃ†Â° vÃ¡ÂºÂ¥n: ${assistantMessages.at(-1)}` : null
   ].filter(Boolean);
 
   const transcriptExcerpt = chronological
-    .map(message => `${message.role === 'assistant' ? 'Molly' : 'KhÃ¡ch'}: ${compactLeadText(message.content, 240) || ''}`)
+    .map(message => `${message.role === 'assistant' ? 'Molly' : 'KhÃƒÂ¡ch'}: ${compactLeadText(message.content, 240) || ''}`)
     .filter(Boolean)
     .join('\n')
     .slice(0, 1200);
@@ -32401,7 +34230,7 @@ function buildChatbotHandoffContext(recentMessages, { preferredTimeLabel, pageCo
 app.post('/api/chatbot/lead', async (req, res, next) => {
   try {
     const { name, phone, preferredTime, sessionId, centerId, pageContext } = req.body;
-    const timeSlotMap = { morning: 'SÃ¡ng', afternoon: 'Chiá»u', evening: 'Tá»‘i' };
+    const timeSlotMap = { morning: 'SÃƒÂ¡ng', afternoon: 'ChiÃ¡Â»Âu', evening: 'TÃ¡Â»â€˜i' };
     let userId = null;
 
     const authHeader = req.headers.authorization;
@@ -32413,27 +34242,27 @@ app.post('/api/chatbot/lead', async (req, res, next) => {
 
     // Validate required fields
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      return res.status(400).json({ success: false, error: 'Vui lÃ²ng nháº­p há» tÃªn' });
+      return res.status(400).json({ success: false, error: 'Vui lÃƒÂ²ng nhÃ¡ÂºÂ­p hÃ¡Â»Â tÃƒÂªn' });
     }
     if (!phone || typeof phone !== 'string') {
-      return res.status(400).json({ success: false, error: 'Vui lÃ²ng nháº­p sá»‘ Ä‘iá»‡n thoáº¡i' });
+      return res.status(400).json({ success: false, error: 'Vui lÃƒÂ²ng nhÃ¡ÂºÂ­p sÃ¡Â»â€˜ Ã„â€˜iÃ¡Â»â€¡n thoÃ¡ÂºÂ¡i' });
     }
 
     // Validate Vietnamese phone number (10 digits, starts with 0)
     const phoneClean = phone.replace(/[\s.-]/g, '');
     const phoneRegex = /^(0[3-9]\d{8}|\+84[3-9]\d{8})$/;
     if (!phoneRegex.test(phoneClean)) {
-      return res.status(400).json({ success: false, error: 'Sá»‘ Ä‘iá»‡n thoáº¡i khÃ´ng há»£p lá»‡ (10 sá»‘, báº¯t Ä‘áº§u báº±ng 0)' });
+      return res.status(400).json({ success: false, error: 'SÃ¡Â»â€˜ Ã„â€˜iÃ¡Â»â€¡n thoÃ¡ÂºÂ¡i khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡ (10 sÃ¡Â»â€˜, bÃ¡ÂºÂ¯t Ã„â€˜Ã¡ÂºÂ§u bÃ¡ÂºÂ±ng 0)' });
     }
 
     if (!centerId) {
-      return res.status(400).json({ success: false, error: 'centerId lÃ  báº¯t buá»™c' });
+      return res.status(400).json({ success: false, error: 'centerId lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c' });
     }
 
     // Validate preferredTime
     const validTimes = ['morning', 'afternoon', 'evening'];
     if (preferredTime && !validTimes.includes(preferredTime)) {
-      return res.status(400).json({ success: false, error: 'Thá»i gian liÃªn há»‡ khÃ´ng há»£p lá»‡' });
+      return res.status(400).json({ success: false, error: 'ThÃ¡Â»Âi gian liÃƒÂªn hÃ¡Â»â€¡ khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡' });
     }
 
     let transcriptSummary = null;
@@ -32473,15 +34302,15 @@ app.post('/api/chatbot/lead', async (req, res, next) => {
       raw_transcript_excerpt: transcriptExcerpt
     };
     const baseNotes = [
-      pageContext ? `Nguá»“n: ${pageContext}` : null,
+      pageContext ? `NguÃ¡Â»â€œn: ${pageContext}` : null,
       sessionId ? `Chat session: ${sessionId}` : null,
-      transcriptSummary ? `TÃ³m táº¯t nhanh:\n${transcriptSummary}` : null
+      transcriptSummary ? `TÃƒÂ³m tÃ¡ÂºÂ¯t nhanh:\n${transcriptSummary}` : null
     ].filter(Boolean).join('\n\n');
 
     // Always create a new consultation for chatbot leads
     // Each chatbot session is a separate inquiry, even if same phone number
     const shouldInsertNew = true;
-    if (false) {  // Duplicate check disabled for chatbot â€” kept for reference
+    if (false) {  // Duplicate check disabled for chatbot Ã¢â‚¬â€ kept for reference
       const { data: existing } = await supabase
         .from('consultation_requests')
         .select('id, notes, metadata')
@@ -32495,7 +34324,7 @@ app.post('/api/chatbot/lead', async (req, res, next) => {
         shouldInsertNew = false;
         const updatedNotes = [
           existing.notes || '',
-          `[Chatbot ${new Date().toLocaleDateString('vi-VN')}] YÃªu cáº§u tÆ° váº¥n láº¡i. TÃªn: ${name.trim()}${preferredTime ? `, Thá»i gian: ${timeSlotMap[preferredTime]}` : ''}`,
+          `[Chatbot ${new Date().toLocaleDateString('vi-VN')}] YÃƒÂªu cÃ¡ÂºÂ§u tÃ†Â° vÃ¡ÂºÂ¥n lÃ¡ÂºÂ¡i. TÃƒÂªn: ${name.trim()}${preferredTime ? `, ThÃ¡Â»Âi gian: ${timeSlotMap[preferredTime]}` : ''}`,
           baseNotes
         ].filter(Boolean).join('\n\n').trim();
 
@@ -32548,8 +34377,8 @@ app.post('/api/chatbot/lead', async (req, res, next) => {
 
       // Auto-ticket creation is now handled by Postgres trigger
       // `trg_consultation_to_ticket` (defined in 73_unified_inbox.sql)
-      // â€” fires on INSERT to consultation_requests and creates support_ticket automatically
-      console.log(`âœ… Consultation request ${newConsultation.id} created â€” trigger will auto-create support ticket`);
+      // Ã¢â‚¬â€ fires on INSERT to consultation_requests and creates support_ticket automatically
+      console.log(`Ã¢Å“â€¦ Consultation request ${newConsultation.id} created Ã¢â‚¬â€ trigger will auto-create support ticket`);
     }
 
     // Notify CENTER_MANAGERs about new consultation request
@@ -32561,7 +34390,7 @@ app.post('/api/chatbot/lead', async (req, res, next) => {
         .in('roles.code', ['CENTER_MANAGER']);
 
       const activeManagers = (managers || []).filter(m => m.roles?.code === 'CENTER_MANAGER');
-      const urgencyLabel = metadata.urgency_level === 'hot' ? ' ðŸ”¥' : '';
+      const urgencyLabel = metadata.urgency_level === 'hot' ? ' Ã°Å¸â€Â¥' : '';
       const notifMessage = `${name.trim()} - ${phoneClean}${summaryLine ? ` | ${summaryLine}` : ''}`;
 
       for (const manager of activeManagers) {
@@ -32569,21 +34398,21 @@ app.post('/api/chatbot/lead', async (req, res, next) => {
           userId: manager.id,
           centerId,
           type: 'consultation_request',
-          title: `YÃªu cáº§u tÆ° váº¥n má»›i tá»« Molly${urgencyLabel}`,
+          title: `YÃƒÂªu cÃ¡ÂºÂ§u tÃ†Â° vÃ¡ÂºÂ¥n mÃ¡Â»â€ºi tÃ¡Â»Â« Molly${urgencyLabel}`,
           message: notifMessage.slice(0, 200),
           referenceType: 'consultation_request'
         }).catch(err => console.warn('Consultation notification error:', err.message));
       }
     } catch (notifErr) {
-      console.warn('âš ï¸ KhÃ´ng thá»ƒ gá»­i notification cho yÃªu cáº§u tÆ° váº¥n:', notifErr.message);
+      console.warn('Ã¢Å¡Â Ã¯Â¸Â KhÃƒÂ´ng thÃ¡Â»Æ’ gÃ¡Â»Â­i notification cho yÃƒÂªu cÃ¡ÂºÂ§u tÃ†Â° vÃ¡ÂºÂ¥n:', notifErr.message);
     }
 
     res.json({
       success: true,
-      message: 'TÆ° váº¥n viÃªn sáº½ liÃªn há»‡ báº¡n sá»›m nháº¥t!'
+      message: 'TÃ†Â° vÃ¡ÂºÂ¥n viÃƒÂªn sÃ¡ÂºÂ½ liÃƒÂªn hÃ¡Â»â€¡ bÃ¡ÂºÂ¡n sÃ¡Â»â€ºm nhÃ¡ÂºÂ¥t!'
     });
   } catch (error) {
-    console.error('âŒ Chatbot lead error:', error);
+    console.error('Ã¢ÂÅ’ Chatbot lead error:', error);
     next(error);
   }
 });
@@ -32622,7 +34451,7 @@ app.get('/api/chatbot/conversations', requireAuth, chatbotConversationRateLimit,
 
     if (sessionsError) {
       console.error('Error loading conversations:', sessionsError);
-      return res.status(500).json({ success: false, error: 'KhÃ´ng thá»ƒ táº£i danh sÃ¡ch há»™i thoáº¡i' });
+      return res.status(500).json({ success: false, error: 'KhÃƒÂ´ng thÃ¡Â»Æ’ tÃ¡ÂºÂ£i danh sÃƒÂ¡ch hÃ¡Â»â„¢i thoÃ¡ÂºÂ¡i' });
     }
 
     // Get preview (last assistant message) for each session
@@ -32637,7 +34466,7 @@ app.get('/api/chatbot/conversations', requireAuth, chatbotConversationRateLimit,
 
       return {
         id: s.id,
-        title: s.title || 'Cuá»™c trÃ² chuyá»‡n má»›i',
+        title: s.title || 'CuÃ¡Â»â„¢c trÃƒÂ² chuyÃ¡Â»â€¡n mÃ¡Â»â€ºi',
         lastMessageAt: s.last_message_at,
         messageCount: s.message_count,
         startedAt: s.started_at,
@@ -32656,7 +34485,7 @@ app.get('/api/chatbot/conversations', requireAuth, chatbotConversationRateLimit,
       }
     });
   } catch (error) {
-    console.error('âŒ List conversations error:', error);
+    console.error('Ã¢ÂÅ’ List conversations error:', error);
     next(error);
   }
 });
@@ -32673,7 +34502,7 @@ app.post('/api/chatbot/conversations', requireAuth, chatbotConversationRateLimit
     }
 
     if (!effectiveCenterId) {
-      return res.status(400).json({ success: false, error: 'centerId lÃ  báº¯t buá»™c' });
+      return res.status(400).json({ success: false, error: 'centerId lÃƒÂ  bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c' });
     }
 
     const { data: newSession, error: insertError } = await supabase
@@ -32689,19 +34518,19 @@ app.post('/api/chatbot/conversations', requireAuth, chatbotConversationRateLimit
 
     if (insertError) {
       console.error('Error creating conversation:', insertError);
-      return res.status(500).json({ success: false, error: 'KhÃ´ng thá»ƒ táº¡o cuá»™c trÃ² chuyá»‡n' });
+      return res.status(500).json({ success: false, error: 'KhÃƒÂ´ng thÃ¡Â»Æ’ tÃ¡ÂºÂ¡o cuÃ¡Â»â„¢c trÃƒÂ² chuyÃ¡Â»â€¡n' });
     }
 
     res.json({
       success: true,
       data: {
         id: newSession.id,
-        title: 'Cuá»™c trÃ² chuyá»‡n má»›i',
+        title: 'CuÃ¡Â»â„¢c trÃƒÂ² chuyÃ¡Â»â€¡n mÃ¡Â»â€ºi',
         startedAt: newSession.started_at
       }
     });
   } catch (error) {
-    console.error('âŒ Create conversation error:', error);
+    console.error('Ã¢ÂÅ’ Create conversation error:', error);
     next(error);
   }
 });
@@ -32714,10 +34543,10 @@ app.patch('/api/chatbot/conversations/:id', requireAuth, chatbotConversationRate
     const { title } = req.body;
 
     if (!title || typeof title !== 'string' || title.trim().length === 0) {
-      return res.status(422).json({ success: false, error: 'TiÃªu Ä‘á» khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng' });
+      return res.status(422).json({ success: false, error: 'TiÃƒÂªu Ã„â€˜Ã¡Â»Â khÃƒÂ´ng Ã„â€˜Ã†Â°Ã¡Â»Â£c Ã„â€˜Ã¡Â»Æ’ trÃ¡Â»â€˜ng' });
     }
     if (title.trim().length > 100) {
-      return res.status(422).json({ success: false, error: 'TiÃªu Ä‘á» tá»‘i Ä‘a 100 kÃ½ tá»±' });
+      return res.status(422).json({ success: false, error: 'TiÃƒÂªu Ã„â€˜Ã¡Â»Â tÃ¡Â»â€˜i Ã„â€˜a 100 kÃƒÂ½ tÃ¡Â»Â±' });
     }
 
     const { data: session, error: findError } = await supabase
@@ -32728,13 +34557,13 @@ app.patch('/api/chatbot/conversations/:id', requireAuth, chatbotConversationRate
       .maybeSingle();
 
     if (findError) {
-      return res.status(500).json({ success: false, error: 'KhÃ´ng thá»ƒ kiá»ƒm tra cuá»™c trÃ² chuyá»‡n' });
+      return res.status(500).json({ success: false, error: 'KhÃƒÂ´ng thÃ¡Â»Æ’ kiÃ¡Â»Æ’m tra cuÃ¡Â»â„¢c trÃƒÂ² chuyÃ¡Â»â€¡n' });
     }
     if (!session) {
-      return res.status(404).json({ success: false, error: 'KhÃ´ng tÃ¬m tháº¥y cuá»™c trÃ² chuyá»‡n' });
+      return res.status(404).json({ success: false, error: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y cuÃ¡Â»â„¢c trÃƒÂ² chuyÃ¡Â»â€¡n' });
     }
     if (session.user_id !== userId) {
-      return res.status(403).json({ success: false, error: 'KhÃ´ng cÃ³ quyá»n chá»‰nh sá»­a cuá»™c trÃ² chuyá»‡n nÃ y' });
+      return res.status(403).json({ success: false, error: 'KhÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân chÃ¡Â»â€°nh sÃ¡Â»Â­a cuÃ¡Â»â„¢c trÃƒÂ² chuyÃ¡Â»â€¡n nÃƒÂ y' });
     }
 
     const { error: updateError } = await supabase
@@ -32743,12 +34572,12 @@ app.patch('/api/chatbot/conversations/:id', requireAuth, chatbotConversationRate
       .eq('id', id);
 
     if (updateError) {
-      return res.status(500).json({ success: false, error: 'KhÃ´ng thá»ƒ Ä‘á»•i tÃªn' });
+      return res.status(500).json({ success: false, error: 'KhÃƒÂ´ng thÃ¡Â»Æ’ Ã„â€˜Ã¡Â»â€¢i tÃƒÂªn' });
     }
 
     res.json({ success: true, data: { id, title: title.trim() } });
   } catch (error) {
-    console.error('âŒ Rename conversation error:', error);
+    console.error('Ã¢ÂÅ’ Rename conversation error:', error);
     next(error);
   }
 });
@@ -32767,13 +34596,13 @@ app.delete('/api/chatbot/conversations/:id', requireAuth, chatbotConversationRat
       .maybeSingle();
 
     if (findError) {
-      return res.status(500).json({ success: false, error: 'KhÃ´ng thá»ƒ kiá»ƒm tra cuá»™c trÃ² chuyá»‡n' });
+      return res.status(500).json({ success: false, error: 'KhÃƒÂ´ng thÃ¡Â»Æ’ kiÃ¡Â»Æ’m tra cuÃ¡Â»â„¢c trÃƒÂ² chuyÃ¡Â»â€¡n' });
     }
     if (!session) {
-      return res.status(404).json({ success: false, error: 'KhÃ´ng tÃ¬m tháº¥y cuá»™c trÃ² chuyá»‡n' });
+      return res.status(404).json({ success: false, error: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y cuÃ¡Â»â„¢c trÃƒÂ² chuyÃ¡Â»â€¡n' });
     }
     if (session.user_id !== userId) {
-      return res.status(403).json({ success: false, error: 'KhÃ´ng cÃ³ quyá»n xÃ³a cuá»™c trÃ² chuyá»‡n nÃ y' });
+      return res.status(403).json({ success: false, error: 'KhÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân xÃƒÂ³a cuÃ¡Â»â„¢c trÃƒÂ² chuyÃ¡Â»â€¡n nÃƒÂ y' });
     }
 
     const { error: deleteError } = await supabase
@@ -32782,12 +34611,12 @@ app.delete('/api/chatbot/conversations/:id', requireAuth, chatbotConversationRat
       .eq('id', id);
 
     if (deleteError) {
-      return res.status(500).json({ success: false, error: 'KhÃ´ng thá»ƒ xÃ³a cuá»™c trÃ² chuyá»‡n' });
+      return res.status(500).json({ success: false, error: 'KhÃƒÂ´ng thÃ¡Â»Æ’ xÃƒÂ³a cuÃ¡Â»â„¢c trÃƒÂ² chuyÃ¡Â»â€¡n' });
     }
 
-    res.json({ success: true, message: 'ÄÃ£ xÃ³a cuá»™c trÃ² chuyá»‡n' });
+    res.json({ success: true, message: 'Ã„ÂÃƒÂ£ xÃƒÂ³a cuÃ¡Â»â„¢c trÃƒÂ² chuyÃ¡Â»â€¡n' });
   } catch (error) {
-    console.error('âŒ Delete conversation error:', error);
+    console.error('Ã¢ÂÅ’ Delete conversation error:', error);
     next(error);
   }
 });
@@ -32806,7 +34635,7 @@ app.post('/api/chatbot/messages/:id/rate', requireAuth, chatbotConversationRateL
 
     // Validate rating
     if (normalizedRating !== null && normalizedRating !== 'up' && normalizedRating !== 'down') {
-      return res.status(400).json({ success: false, error: 'Rating pháº£i lÃ  "like", "dislike", "up", "down" hoáº·c null' });
+      return res.status(400).json({ success: false, error: 'Rating phÃ¡ÂºÂ£i lÃƒÂ  "like", "dislike", "up", "down" hoÃ¡ÂºÂ·c null' });
     }
 
     // Verify message belongs to user's session
@@ -32817,11 +34646,11 @@ app.post('/api/chatbot/messages/:id/rate', requireAuth, chatbotConversationRateL
       .single();
 
     if (findError || !message) {
-      return res.status(404).json({ success: false, error: 'KhÃ´ng tÃ¬m tháº¥y tin nháº¯n' });
+      return res.status(404).json({ success: false, error: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y tin nhÃ¡ÂºÂ¯n' });
     }
 
     if (message.role !== 'assistant') {
-      return res.status(400).json({ success: false, error: 'Chá»‰ cÃ³ thá»ƒ Ä‘Ã¡nh giÃ¡ tin nháº¯n cá»§a Molly' });
+      return res.status(400).json({ success: false, error: 'ChÃ¡Â»â€° cÃƒÂ³ thÃ¡Â»Æ’ Ã„â€˜ÃƒÂ¡nh giÃƒÂ¡ tin nhÃ¡ÂºÂ¯n cÃ¡Â»Â§a Molly' });
     }
 
     // Verify session ownership
@@ -32832,13 +34661,13 @@ app.post('/api/chatbot/messages/:id/rate', requireAuth, chatbotConversationRateL
       .maybeSingle();
 
     if (sessionError) {
-      return res.status(500).json({ success: false, error: 'KhÃ´ng thá»ƒ kiá»ƒm tra quyá»n Ä‘Ã¡nh giÃ¡' });
+      return res.status(500).json({ success: false, error: 'KhÃƒÂ´ng thÃ¡Â»Æ’ kiÃ¡Â»Æ’m tra quyÃ¡Â»Ân Ã„â€˜ÃƒÂ¡nh giÃƒÂ¡' });
     }
     if (!session) {
-      return res.status(404).json({ success: false, error: 'KhÃ´ng tÃ¬m tháº¥y cuá»™c trÃ² chuyá»‡n' });
+      return res.status(404).json({ success: false, error: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y cuÃ¡Â»â„¢c trÃƒÂ² chuyÃ¡Â»â€¡n' });
     }
     if (session.user_id !== userId) {
-      return res.status(403).json({ success: false, error: 'KhÃ´ng cÃ³ quyá»n Ä‘Ã¡nh giÃ¡ tin nháº¯n nÃ y' });
+      return res.status(403).json({ success: false, error: 'KhÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân Ã„â€˜ÃƒÂ¡nh giÃƒÂ¡ tin nhÃ¡ÂºÂ¯n nÃƒÂ y' });
     }
 
     // Update rating
@@ -32848,18 +34677,18 @@ app.post('/api/chatbot/messages/:id/rate', requireAuth, chatbotConversationRateL
       .eq('id', id);
 
     if (updateError) {
-      return res.status(500).json({ success: false, error: 'KhÃ´ng thá»ƒ Ä‘Ã¡nh giÃ¡' });
+      return res.status(500).json({ success: false, error: 'KhÃƒÂ´ng thÃ¡Â»Æ’ Ã„â€˜ÃƒÂ¡nh giÃƒÂ¡' });
     }
 
     res.json({ success: true, data: { id, rating: normalizedRating || null } });
   } catch (error) {
-    console.error('âŒ Rate message error:', error);
+    console.error('Ã¢ÂÅ’ Rate message error:', error);
     next(error);
   }
 });
 
 // ============================================================
-// CHATBOT â†” SUPPORT TICKET BRIDGE (Real-time admin â†” student)
+// CHATBOT Ã¢â€ â€ SUPPORT TICKET BRIDGE (Real-time admin Ã¢â€ â€ student)
 // ============================================================
 
 // GET /api/chatbot/ticket-link/:sessionId - Find linked support ticket for a chat session
@@ -32879,7 +34708,7 @@ app.get('/api/chatbot/ticket-link/:sessionId', requireAuth, async (req, res) => 
       return res.json({ success: true, data: { linked: false } });
     }
     if (session.user_id !== userId) {
-      return res.status(403).json({ success: false, error: 'KhÃ´ng cÃ³ quyá»n' });
+      return res.status(403).json({ success: false, error: 'KhÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân' });
     }
 
     // 2. Find consultation_request linked to this session
@@ -32933,7 +34762,7 @@ app.get('/api/chatbot/ticket-link/:sessionId', requireAuth, async (req, res) => 
           id: m.id,
           content: m.message,
           senderId: m.sender_id,
-          senderName: m.sender?.full_name || 'Há»‡ thá»‘ng',
+          senderName: m.sender?.full_name || 'HÃ¡Â»â€¡ thÃ¡Â»â€˜ng',
           senderRole: m.sender?.roles?.code || 'UNKNOWN',
           createdAt: m.created_at,
           isAdvisor: m.sender_id !== userId
@@ -32942,7 +34771,7 @@ app.get('/api/chatbot/ticket-link/:sessionId', requireAuth, async (req, res) => 
     });
   } catch (error) {
     console.error('Error fetching ticket link:', error);
-    res.status(500).json({ success: false, error: 'Lá»—i há»‡ thá»‘ng' });
+    res.status(500).json({ success: false, error: 'LÃ¡Â»â€”i hÃ¡Â»â€¡ thÃ¡Â»â€˜ng' });
   }
 });
 
@@ -32953,7 +34782,7 @@ app.post('/api/chatbot/ticket-reply', requireAuth, async (req, res) => {
     const userId = req.user.id;
 
     if (!ticketId || !message?.trim()) {
-      return res.status(400).json({ success: false, error: 'Thiáº¿u thÃ´ng tin (ticketId, message)' });
+      return res.status(400).json({ success: false, error: 'ThiÃ¡ÂºÂ¿u thÃƒÂ´ng tin (ticketId, message)' });
     }
 
     // Verify ticket exists and student has access
@@ -32964,7 +34793,7 @@ app.post('/api/chatbot/ticket-reply', requireAuth, async (req, res) => {
       .maybeSingle();
 
     if (ticketError || !ticket) {
-      return res.status(404).json({ success: false, error: 'KhÃ´ng tÃ¬m tháº¥y ticket' });
+      return res.status(404).json({ success: false, error: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y ticket' });
     }
 
     // Check access: direct creator OR via linked consultation_request (for trigger-created tickets)
@@ -32978,11 +34807,11 @@ app.post('/api/chatbot/ticket-reply', requireAuth, async (req, res) => {
       hasAccess = consultation?.user_id === userId;
     }
     if (!hasAccess) {
-      return res.status(403).json({ success: false, error: 'KhÃ´ng cÃ³ quyá»n pháº£n há»“i ticket nÃ y' });
+      return res.status(403).json({ success: false, error: 'KhÃƒÂ´ng cÃƒÂ³ quyÃ¡Â»Ân phÃ¡ÂºÂ£n hÃ¡Â»â€œi ticket nÃƒÂ y' });
     }
 
     if (ticket.status === 'closed') {
-      return res.status(400).json({ success: false, error: 'Ticket Ä‘Ã£ Ä‘Ã³ng' });
+      return res.status(400).json({ success: false, error: 'Ticket Ã„â€˜ÃƒÂ£ Ã„â€˜ÃƒÂ³ng' });
     }
 
     // Insert reply as ticket_message
@@ -33023,7 +34852,7 @@ app.post('/api/chatbot/ticket-reply', requireAuth, async (req, res) => {
     });
   } catch (error) {
     console.error('Error sending ticket reply from chatbot:', error);
-    res.status(500).json({ success: false, error: 'Lá»—i há»‡ thá»‘ng' });
+    res.status(500).json({ success: false, error: 'LÃ¡Â»â€”i hÃ¡Â»â€¡ thÃ¡Â»â€˜ng' });
   }
 });
 
@@ -33053,7 +34882,7 @@ app.post('/api/admin/custom-alerts', requireAuth, requireRole(['SUPER_ADMIN', 'C
     const supabaseClient = req.supabase || supabase;
     const { name, metric_type, condition_operator, threshold_value, severity, notification_channels, is_active, cooldown_minutes, center_id } = req.body;
     if (!name || !metric_type || !condition_operator || threshold_value === undefined) {
-      return res.status(400).json({ success: false, message: 'Vui lÃ²ng Ä‘iá»n Ä‘áº§y Ä‘á»§ thÃ´ng tin báº¯t buá»™c' });
+      return res.status(400).json({ success: false, message: 'Vui lÃƒÂ²ng Ã„â€˜iÃ¡Â»Ân Ã„â€˜Ã¡ÂºÂ§y Ã„â€˜Ã¡Â»Â§ thÃƒÂ´ng tin bÃ¡ÂºÂ¯t buÃ¡Â»â„¢c' });
     }
     const { data, error } = await supabaseClient.from('custom_alert_rules').insert({
       name, metric_type, condition_operator, threshold_value,
@@ -33083,7 +34912,7 @@ app.put('/api/admin/custom-alerts/:id', requireAuth, requireRole(['SUPER_ADMIN',
       updated_at: new Date().toISOString()
     }).eq('id', id).select().single();
     if (error) throw error;
-    if (!data) return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y quy táº¯c' });
+    if (!data) return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y quy tÃ¡ÂºÂ¯c' });
     res.json({ success: true, data });
   } catch (error) {
     console.error('Error updating custom alert rule:', error);
@@ -33097,7 +34926,7 @@ app.delete('/api/admin/custom-alerts/:id', requireAuth, requireRole(['SUPER_ADMI
     const supabaseClient = req.supabase || supabase;
     const { error } = await supabaseClient.from('custom_alert_rules').delete().eq('id', req.params.id);
     if (error) throw error;
-    res.json({ success: true, message: 'ÄÃ£ xÃ³a quy táº¯c cáº£nh bÃ¡o' });
+    res.json({ success: true, message: 'Ã„ÂÃƒÂ£ xÃƒÂ³a quy tÃ¡ÂºÂ¯c cÃ¡ÂºÂ£nh bÃƒÂ¡o' });
   } catch (error) {
     console.error('Error deleting custom alert rule:', error);
     next(error);
@@ -33115,7 +34944,7 @@ app.get('/api/admin/alert-history', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     if (error) throw error;
     const formatted = (data || []).map(item => ({
       ...item,
-      rule_name: item.custom_alert_rules?.name || 'Quy táº¯c khÃ´ng xÃ¡c Ä‘á»‹nh',
+      rule_name: item.custom_alert_rules?.name || 'Quy tÃ¡ÂºÂ¯c khÃƒÂ´ng xÃƒÂ¡c Ã„â€˜Ã¡Â»â€¹nh',
       custom_alert_rules: undefined
     }));
     res.json({ success: true, data: formatted });
@@ -33133,7 +34962,7 @@ app.patch('/api/admin/alert-history/:id/acknowledge', requireAuth, requireRole([
       acknowledged: true, acknowledged_by: req.user.id, acknowledged_at: new Date().toISOString()
     }).eq('id', req.params.id).select().single();
     if (error) throw error;
-    if (!data) return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y cáº£nh bÃ¡o' });
+    if (!data) return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y cÃ¡ÂºÂ£nh bÃƒÂ¡o' });
     res.json({ success: true, data });
   } catch (error) {
     console.error('Error acknowledging alert:', error);
@@ -33141,7 +34970,7 @@ app.patch('/api/admin/alert-history/:id/acknowledge', requireAuth, requireRole([
   }
 });
 
-// Test endpoint khÃ´ng cáº§n auth
+// Test endpoint khÃƒÂ´ng cÃ¡ÂºÂ§n auth
 app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'Backend is running', time: new Date().toISOString() });
 });
@@ -33164,9 +34993,9 @@ const server = app.listen(PORT, async () => {
   try {
     const { startJobScheduler } = await import('./jobs/index.js');
     await startJobScheduler();
-    console.log('âœ… Job scheduler started successfully');
+    console.log('Ã¢Å“â€¦ Job scheduler started successfully');
   } catch (err) {
-    console.warn('âš ï¸ Job scheduler not started (Redis may not be running):', err.message);
+    console.warn('Ã¢Å¡Â Ã¯Â¸Â Job scheduler not started (Redis may not be running):', err.message);
   }
 });
 
@@ -33190,7 +35019,7 @@ const gracefulShutdown = async (signal) => {
       const { stopJobScheduler } = await import('./jobs/index.js');
       await stopJobScheduler();
     } catch (err) {
-      console.warn('âš ï¸ Error stopping job scheduler:', err.message);
+      console.warn('Ã¢Å¡Â Ã¯Â¸Â Error stopping job scheduler:', err.message);
     }
 
     if (shutdownTimeout) {
