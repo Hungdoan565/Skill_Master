@@ -2,12 +2,12 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth-context';
 import { useStudentDashboard } from '../hooks';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { 
-  BookOpen, 
-  CheckCircle, 
-  Award, 
-  CreditCard, 
-  Clock, 
+import {
+  BookOpen,
+  CheckCircle,
+  Award,
+  CreditCard,
+  Clock,
   MapPin,
   AlertTriangle,
   RefreshCw,
@@ -87,7 +87,7 @@ function QuickAction({ icon: Icon, label, onClick, color = 'blue' }) {
   };
 
   return (
-    <button 
+    <button
       onClick={onClick}
       className={cn(
         "flex flex-col items-center gap-2 p-4 rounded-2xl transition-all duration-200 w-full",
@@ -116,8 +116,8 @@ function CourseProgressItem({ course }) {
         <span className="text-muted-foreground">{attended}/{total} buổi</span>
       </div>
       <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
-        <div 
-          className="h-full bg-primary transition-all duration-500" 
+        <div
+          className="h-full bg-primary transition-all duration-500"
           style={{ width: `${percentage}%` }}
         />
       </div>
@@ -154,10 +154,10 @@ function ClassItem({ classItem }) {
 }
 
 function GradeItem({ grade }) {
-  const gradeColor = grade.score >= 8 ? 'text-green-600 dark:text-green-400' : 
-                     grade.score >= 6.5 ? 'text-blue-600 dark:text-blue-400' : 
-                     grade.score >= 5 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400';
-  
+  const gradeColor = grade.score >= 8 ? 'text-green-600 dark:text-green-400' :
+    grade.score >= 6.5 ? 'text-blue-600 dark:text-blue-400' :
+      grade.score >= 5 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400';
+
   return (
     <div className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition-colors border-b last:border-0 border-border/50">
       <div className="flex-1 min-w-0">
@@ -241,7 +241,7 @@ export function StudentDashboard() {
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-500 via-amber-500 to-yellow-500 p-8 text-white shadow-xl">
         <div className="absolute top-0 right-0 -mt-10 -mr-10 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute bottom-0 left-0 -mb-10 -ml-10 h-64 w-64 rounded-full bg-black/5 blur-3xl" />
-        
+
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
           <div>
             <div className="flex items-center gap-2 text-orange-100 mb-2 bg-black/10 w-fit px-3 py-1 rounded-full text-sm backdrop-blur-sm">
@@ -253,7 +253,7 @@ export function StudentDashboard() {
               "Học, học nữa, học mãi" - V.I. Lenin
             </p>
           </div>
-          
+
           <button
             onClick={refresh}
             className="p-3 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md transition-all text-white shadow-sm border border-white/20"
@@ -266,29 +266,29 @@ export function StudentDashboard() {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <QuickAction 
-          icon={Calendar} 
-          label="Xem lịch học" 
-          color="blue" 
-          onClick={() => navigate('/student/schedule')} 
+        <QuickAction
+          icon={Calendar}
+          label="Xem lịch học"
+          color="blue"
+          onClick={() => navigate('/student/schedule')}
         />
-        <QuickAction 
-          icon={Award} 
-          label="Xem điểm số" 
-          color="green" 
-          onClick={() => navigate('/student/grades')} 
+        <QuickAction
+          icon={Award}
+          label="Xem điểm số"
+          color="green"
+          onClick={() => navigate('/student/grades')}
         />
-        <QuickAction 
-          icon={CreditCard} 
-          label="Thanh toán" 
-          color="orange" 
-          onClick={() => navigate('/student/tuition')} 
+        <QuickAction
+          icon={CreditCard}
+          label="Thanh toán"
+          color="orange"
+          onClick={() => navigate('/student/tuition')}
         />
-        <QuickAction 
-          icon={BookOpen} 
-          label="Chứng chỉ" 
-          color="purple" 
-          onClick={() => navigate('/student/certificates')} 
+        <QuickAction
+          icon={BookOpen}
+          label="Chứng chỉ"
+          color="purple"
+          onClick={() => navigate('/student/certificates')}
         />
       </div>
 
@@ -362,26 +362,26 @@ export function StudentDashboard() {
               <Calendar className="h-5 w-5 text-primary" />
               {scheduleTitle}
             </h2>
-            <button 
+            <button
               onClick={() => navigate('/student/schedule')}
               className="text-sm text-primary hover:underline flex items-center gap-1"
             >
               Xem tất cả <ArrowRight className="h-4 w-4" />
             </button>
           </div>
-          
+
           <div className="space-y-3">
             {displayClasses.length > 0 ? (
               displayClasses.map((cls) => (
                 <ClassItem key={cls.id} classItem={cls} />
               ))
             ) : (
-              <EmptyState 
-                icon={Calendar} 
+              <EmptyState
+                icon={Calendar}
                 message={isToday
                   ? (activeEnrollmentCount > 0
-                      ? 'Hôm nay bạn không có lớp.'
-                      : 'Không có lớp học nào hôm nay')
+                    ? 'Hôm nay bạn không có lớp.'
+                    : 'Không có lớp học nào hôm nay')
                   : "Không có lịch học sắp tới"}
                 description={isToday && activeEnrollmentCount > 0 && nextClass
                   ? `Buổi gần nhất: ${nextClass.class_name || nextClass.name} - ${formatSessionDate(nextClass.session_date)}, ${formatTime(nextClass.start_time)}-${formatTime(nextClass.end_time)}.`
@@ -408,14 +408,14 @@ export function StudentDashboard() {
                     <div>
                       <h3 className="font-semibold text-amber-900 dark:text-amber-100">Cần gửi minh chứng học phí</h3>
                       <p className="text-sm text-amber-700 dark:text-amber-300/80 mt-1">
-                        Bạn có {unpaidInvoices.length} hóa đơn cần gửi minh chứng để trung tâm xác minh.
+                        Bạn có {unpaidInvoices.length} hóa đơn đang chờ xử lý. Trung tâm sẽ xác minh sau khi bạn gửi minh chứng thanh toán.
                       </p>
                     </div>
                     <div className="flex items-center justify-between pt-2">
                       <span className="font-bold text-amber-700 dark:text-amber-300">
                         {formatCurrency(stats.unpaidAmount)}
                       </span>
-                      <button 
+                      <button
                         onClick={() => navigate('/student/tuition')}
                         className="text-xs font-medium bg-amber-200 hover:bg-amber-300 text-amber-900 px-3 py-1.5 rounded-full transition-colors"
                       >
@@ -435,7 +435,7 @@ export function StudentDashboard() {
                 <Award className="h-5 w-5 text-primary" />
                 Điểm mới nhất
               </CardTitle>
-              <button 
+              <button
                 onClick={() => navigate('/student/grades')}
                 className="text-muted-foreground hover:text-primary transition-colors"
               >
