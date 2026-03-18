@@ -98,3 +98,19 @@ This means role-boundary source contracts are verified, but browser-level E2E re
 1. finalize Task 7 by syncing tracker and commit the verification checkpoint
 2. complete Task 8 by documenting the `PARENT` readiness gate
 3. after that, use the finishing workflow for development-branch completion
+
+## Parent readiness gate
+`PARENT` must remain blocked until all of the following are true:
+
+1. `SUPER_ADMIN` and `CENTER_MANAGER` boundaries are enforced in backend-sensitive admin routes.
+2. `SUPER_ADMIN` default UI no longer doubles as a branch-operator surface.
+3. `CENTER_MANAGER` can operate one center through support, staff, finance follow-up, and reporting surfaces without hidden dependency on super-admin daily intervention.
+4. `TEACHER` alerts, leave semantics, and payroll semantics point to center-manager ownership instead of vague admin ownership.
+5. `STUDENT` surfaces use plain-language self-service copy and avoid internal staff jargon.
+6. Cross-role source-contract verification passes.
+7. Browser E2E environment is ready, or its blocker is explicitly acknowledged and resolved before parent rollout verification.
+
+## Deferred intentionally
+- No `PARENT` feature UI or API is built in this change.
+- No large visual redesign is attempted beyond role-ownership clarity.
+- No broad route modularization or database redesign is attempted.
