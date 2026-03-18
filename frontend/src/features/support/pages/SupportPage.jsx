@@ -165,13 +165,12 @@ const MessageBubble = ({ message, isStaff }) => {
                 </div>
             )}
             <div className={`max-w-[70%] ${message.is_internal ? 'border-2 border-dashed border-amber-300' : ''}`}>
-                <div className={`rounded-2xl px-4 py-2.5 ${
-                    message.is_internal
+                <div className={`rounded-2xl px-4 py-2.5 ${message.is_internal
                         ? 'bg-amber-50 text-amber-900'
                         : isStaff
                             ? 'bg-indigo-600 text-white'
                             : 'bg-slate-100 text-slate-900'
-                }`}>
+                    }`}>
                     {message.is_internal && (
                         <div className="flex items-center gap-1 mb-1">
                             <EyeOff className="h-3 w-3" />
@@ -260,11 +259,10 @@ const ConsultationContext = ({ ctx }) => {
                         <div className="mt-2 space-y-1.5 max-h-40 overflow-y-auto">
                             {ctx.chat_excerpt.map((msg) => (
                                 <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-[90%] rounded-lg px-2 py-1 text-[11px] ${
-                                        msg.role === 'user'
+                                    <div className={`max-w-[90%] rounded-lg px-2 py-1 text-[11px] ${msg.role === 'user'
                                             ? 'bg-blue-50 text-blue-800'
                                             : 'bg-violet-50 text-violet-800'
-                                    }`}>
+                                        }`}>
                                         <span className="line-clamp-2">{msg.content}</span>
                                     </div>
                                 </div>
@@ -280,6 +278,8 @@ const ConsultationContext = ({ ctx }) => {
 // ─── Main Page ──────────────────────────────────────────────
 export function SupportPage() {
     const { profile, isSuperAdmin, getCenterId } = useAuth();
+    const centerName = profile?.centers?.name || 'Trung tâm của bạn';
+    const supportTitle = isSuperAdmin() ? 'Hỗ trợ đa trung tâm' : `Hỗ trợ ${centerName}`;
 
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
@@ -451,7 +451,12 @@ export function SupportPage() {
             {/* Top Bar */}
             <div className="flex items-center justify-between px-6 py-3 bg-white border-b shrink-0">
                 <div className="flex items-center gap-4">
-                    <h1 className="text-lg font-bold text-slate-900">Hỗ trợ Học viên</h1>
+                    <div>
+                        <h1 className="text-lg font-bold text-slate-900">{supportTitle}</h1>
+                        <p className="hidden md:block text-xs text-slate-500 mt-0.5">
+                            {isSuperAdmin() ? 'Theo dõi và điều phối ticket toàn hệ thống' : 'Xử lý ticket trong phạm vi trung tâm đang phụ trách'}
+                        </p>
+                    </div>
                     <div className="hidden md:flex items-center gap-3 text-xs text-slate-500">
                         <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-blue-500" /> {stats.open} mới</span>
                         <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-yellow-500" /> {stats.inProgress} đang xử lý</span>
@@ -513,11 +518,10 @@ export function SupportPage() {
                                 <button
                                     key={tab.value}
                                     onClick={() => setSourceFilter(tab.value)}
-                                    className={`text-[11px] px-2.5 py-1 rounded-full transition-all font-medium ${
-                                        sourceFilter === tab.value
+                                    className={`text-[11px] px-2.5 py-1 rounded-full transition-all font-medium ${sourceFilter === tab.value
                                             ? 'bg-indigo-100 text-indigo-700 ring-1 ring-indigo-200'
                                             : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
-                                    }`}
+                                        }`}
                                 >
                                     {tab.label}
                                 </button>
@@ -614,11 +618,10 @@ export function SupportPage() {
                                 <div className="flex items-center gap-2 mb-2">
                                     <button
                                         onClick={() => setIsInternal(!isInternal)}
-                                        className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full transition-colors ${
-                                            isInternal
+                                        className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full transition-colors ${isInternal
                                                 ? 'bg-amber-100 text-amber-700 font-medium'
                                                 : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                                        }`}
+                                            }`}
                                     >
                                         {isInternal ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                                         {isInternal ? 'Ghi chú nội bộ' : 'Phản hồi'}
@@ -635,18 +638,16 @@ export function SupportPage() {
                                         onKeyDown={handleKeyDown}
                                         placeholder={isInternal ? 'Ghi chú nội bộ...' : 'Nhập phản hồi...'}
                                         rows={1}
-                                        className={`flex-1 resize-none text-sm px-4 py-2.5 rounded-xl border focus:outline-none focus:ring-2 ${
-                                            isInternal
+                                        className={`flex-1 resize-none text-sm px-4 py-2.5 rounded-xl border focus:outline-none focus:ring-2 ${isInternal
                                                 ? 'border-amber-300 focus:ring-amber-300 bg-amber-50'
                                                 : 'border-slate-200 focus:ring-indigo-300'
-                                        }`}
+                                            }`}
                                     />
                                     <Button
                                         onClick={handleSend}
                                         disabled={!replyText.trim() || sending}
-                                        className={`shrink-0 rounded-xl ${
-                                            isInternal ? 'bg-amber-500 hover:bg-amber-600' : ''
-                                        }`}
+                                        className={`shrink-0 rounded-xl ${isInternal ? 'bg-amber-500 hover:bg-amber-600' : ''
+                                            }`}
                                     >
                                         {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                                     </Button>
@@ -692,7 +693,7 @@ export function SupportPage() {
                                         <div className="flex items-center gap-2 text-xs">
                                             <Phone className="h-3.5 w-3.5 text-slate-400" />
                                             <a href={`tel:${activeTicket.students?.phone || activeTicket.guest_phone || activeTicket.consultation_context?.phone}`}
-                                               className="text-indigo-600 hover:underline font-medium">
+                                                className="text-indigo-600 hover:underline font-medium">
                                                 {activeTicket.students?.phone || activeTicket.guest_phone || activeTicket.consultation_context?.phone}
                                             </a>
                                         </div>

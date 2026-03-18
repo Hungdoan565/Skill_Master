@@ -38,6 +38,21 @@ const managerDashboardSource = fs.readFileSync(
   'utf8',
 );
 
+const supportPageSource = fs.readFileSync(
+  path.resolve(import.meta.dirname, '..', '..', 'frontend', 'src', 'features', 'support', 'pages', 'SupportPage.jsx'),
+  'utf8',
+);
+
+const reportsPageSource = fs.readFileSync(
+  path.resolve(import.meta.dirname, '..', '..', 'frontend', 'src', 'features', 'reports', 'pages', 'reports-page.jsx'),
+  'utf8',
+);
+
+const staffPageSource = fs.readFileSync(
+  path.resolve(import.meta.dirname, '..', '..', 'frontend', 'src', 'features', 'staff', 'pages', 'StaffPage.jsx'),
+  'utf8',
+);
+
 test('strategic and center admin routes use canonical roleCode field', () => {
   assert.match(
     backendSource,
@@ -174,4 +189,16 @@ test('manager sidebar keeps center-operations items that support daily execution
   assert.match(managerSection, /path: '\/admin\/support'/);
   assert.match(managerSection, /path: '\/admin\/overdue-invoices'/);
   assert.match(managerSection, /title: 'VẬN HÀNH TRUNG TÂM'/);
+});
+
+test('manager-owned operations surfaces present center-operator semantics', () => {
+  assert.match(supportPageSource, /const centerName = profile\?\.centers\?\.name \|\| 'Trung tâm của bạn';/);
+  assert.match(supportPageSource, /isSuperAdmin\(\) \? 'Hỗ trợ đa trung tâm' : `Hỗ trợ \$\{centerName\}`/);
+
+  assert.match(reportsPageSource, /const \{ session, isSuperAdmin, profile \} = useAuth\(\);/);
+  assert.match(reportsPageSource, /if \(!isSuperAdmin\?\.\(\)\) \{/);
+  assert.match(reportsPageSource, /Báo cáo vận hành trung tâm/);
+
+  assert.match(staffPageSource, /const \{ isSuperAdmin, isManager, profile \} = useAuth\(\);/);
+  assert.match(staffPageSource, /isManager\?\.\(\) \? 'Đội ngũ trung tâm' : 'Quản lý Nhân sự'/);
 });
