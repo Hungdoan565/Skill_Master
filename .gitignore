@@ -35,7 +35,7 @@ openspec/
 skills/
 .github/
 .agents/
-
+.gitnexus/
 # Temp files
 nul
 temp/
@@ -52,3 +52,4 @@ frontend/.env.local
 backend/.env.local
 .kilocode/
 .kilocodemodes
+.gitnexus
