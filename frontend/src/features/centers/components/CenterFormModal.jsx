@@ -2,7 +2,8 @@
  * CenterFormModal Component - Modal form thêm/sửa trung tâm
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { TimeSelect } from '@/components/ui/time-select';
 import { X, Building2, MapPin, Phone, Mail, Globe, Clock, FileText, Image } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -251,7 +252,7 @@ export function CenterFormModal({
                                 </h3>
                                 <div className="space-y-3">
                                     {Object.entries(DAY_LABELS).map(([key, label]) => {
-                                        const hours = formData.working_hours[key] || { open: '08:00', close: '21:00', closed: false };
+                                        const hours = formData.working_hours?.[key] || { open: '08:00', close: '21:00', closed: false };
                                         return (
                                             <div
                                                 key={key}
@@ -272,18 +273,14 @@ export function CenterFormModal({
                                                 {!hours.closed && (
                                                     <>
                                                         <div className="flex items-center gap-2">
-                                                            <input
-                                                                type="time"
+                                                            <TimeSelect
                                                                 value={hours.open}
-                                                                onChange={(e) => updateWorkingHours(key, 'open', e.target.value)}
-                                                                className="px-2 py-1 border rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                                onChange={(val) => updateWorkingHours(key, 'open', val)}
                                                             />
                                                             <span className="text-gray-500">-</span>
-                                                            <input
-                                                                type="time"
+                                                            <TimeSelect
                                                                 value={hours.close}
-                                                                onChange={(e) => updateWorkingHours(key, 'close', e.target.value)}
-                                                                className="px-2 py-1 border rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                                onChange={(val) => updateWorkingHours(key, 'close', val)}
                                                             />
                                                         </div>
                                                     </>
@@ -308,7 +305,7 @@ export function CenterFormModal({
                             <Button
                                 type="submit"
                                 disabled={loading}
-                                className="bg-indigo-600 hover:bg-indigo-700"
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white"
                             >
                                 {loading ? (
                                     <>

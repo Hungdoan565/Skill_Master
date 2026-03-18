@@ -79,6 +79,18 @@ export function formatPhone(phone) {
 }
 
 /**
+ * Format currency in VND
+ */
+export function formatCurrency(amount) {
+    if (amount === null || amount === undefined) return '';
+    return new Intl.NumberFormat('vi-VN', {
+        style: 'currency',
+        currency: 'VND',
+        maximumFractionDigits: 0
+    }).format(amount);
+}
+
+/**
  * Get gradient background class based on name
  */
 export function getGradient(name) {
@@ -92,14 +104,14 @@ export function getGradient(name) {
     }
 
     const gradients = [
-        'bg-gradient-to-br from-blue-400 to-blue-600',
-        'bg-gradient-to-br from-purple-400 to-purple-600',
-        'bg-gradient-to-br from-pink-400 to-pink-600',
-        'bg-gradient-to-br from-green-400 to-green-600',
-        'bg-gradient-to-br from-yellow-400 to-yellow-600',
-        'bg-gradient-to-br from-red-400 to-red-600',
-        'bg-gradient-to-br from-indigo-400 to-indigo-600',
-        'bg-gradient-to-br from-teal-400 to-teal-600',
+        'bg-gradient-to-br from-slate-700 to-slate-800',
+        'bg-gradient-to-br from-indigo-600 to-indigo-800',
+        'bg-gradient-to-br from-blue-600 to-blue-800',
+        'bg-gradient-to-br from-violet-600 to-violet-800',
+        'bg-gradient-to-br from-emerald-600 to-emerald-800',
+        'bg-gradient-to-br from-sky-600 to-sky-800',
+        'bg-gradient-to-br from-cyan-700 to-slate-800',
+        'bg-gradient-to-br from-slate-600 to-indigo-800',
     ];
 
     return gradients[Math.abs(hash) % gradients.length];

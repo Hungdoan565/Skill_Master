@@ -1,15 +1,14 @@
 /**
- * CenterStaffTab Component - Tab danh sách nhân sự
+ * CenterStudentsTab Component - Tab danh sách học viên
  */
 
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Search,
-    Users,
-    UserCheck,
-    Shield,
     GraduationCap,
+    UserCheck,
+    UserX,
     ExternalLink,
     Mail,
     Phone,
@@ -29,54 +28,45 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { getInitials } from '../utils';
 
-const ROLE_CONFIG = {
-    SUPER_ADMIN: { label: 'Super Admin', color: 'bg-red-50 text-red-700 hover:bg-red-100 border-red-200', icon: Shield },
-    CENTER_MANAGER: { label: 'Quản lý', color: 'bg-purple-50 text-purple-700 hover:bg-purple-100 border-purple-200', icon: UserCheck },
-    TEACHER: { label: 'Giáo viên', color: 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200', icon: GraduationCap }
-};
-
 const STATUS_CONFIG = {
-    active: { label: 'Hoạt động', color: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200' },
-    inactive: { label: 'Ngừng', color: 'bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200' }
+    active: { label: 'Đang học', color: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200' },
+    inactive: { label: 'Ngừng', color: 'bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200' },
+    suspended: { label: 'Tạm khóa', color: 'bg-red-50 text-red-700 hover:bg-red-100 border-red-200' }
 };
 
-export function CenterStaffTab({ staff, loading = false, centerId }) {
+export function CenterStudentsTab({ students, loading = false, centerId }) {
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
-    const [filterRole, setFilterRole] = useState('');
+    const [filterStatus, setFilterStatus] = useState('');
 
-    // Filter staff
-    const filteredStaff = useMemo(() => {
-        return staff.filter(s => {
+    // Filter students
+    const filteredStudents = useMemo(() => {
+        return students.filter(s => {
             const matchSearch = !searchTerm ||
                 s.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 s.email?.toLowerCase().includes(searchTerm.toLowerCase());
-            const roleCode = s.role_code || s.roles?.code;
-            const matchRole = !filterRole || roleCode === filterRole;
-            return matchSearch && matchRole;
+            const matchStatus = !filterStatus || s.status === filterStatus;
+            return matchSearch && matchStatus;
         });
-    }, [staff, searchTerm, filterRole]);
+    }, [students, searchTerm, filterStatus]);
 
     // Stats
     const stats = useMemo(() => {
-        const teachers = staff.filter(s => (s.role_code || s.roles?.code) === 'TEACHER');
-        const managers = staff.filter(s => (s.role_code || s.roles?.code) === 'CENTER_MANAGER');
         return {
-            total: staff.length,
-            teachers: teachers.length,
-            managers: managers.length,
-            active: staff.filter(s => s.status === 'active').length
+            total: students.length,
+            active: students.filter(s => s.status === 'active').length,
+            inactive: students.filter(s => s.status !== 'active').length
         };
-    }, [staff]);
+    }, [students]);
 
     const columns = [
         {
             key: 'full_name',
-            label: 'Nhân viên',
+            label: 'Học viên',
             sortable: true,
             render: (_, row) => (
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-fuchsia-50 border border-fuchsia-100 flex items-center justify-center overflow-hidden flex-shrink-0">
                         {row.avatar_url ? (
                             <img
                                 src={row.avatar_url}
@@ -84,13 +74,13 @@ export function CenterStaffTab({ staff, loading = false, centerId }) {
                                 className="w-full h-full object-cover"
                             />
                         ) : (
-                            <span className="text-xs font-semibold text-indigo-700">
+                            <span className="text-xs font-semibold text-fuchsia-700">
                                 {getInitials(row.full_name)}
                             </span>
                         )}
                     </div>
                     <div className="flex flex-col">
-                        <span className="font-medium text-gray-900 group-hover:text-indigo-600 transition-colors">
+                        <span className="font-medium text-gray-900 group-hover:text-fuchsia-600 transition-colors">
                             {row.full_name}
                         </span>
                         {row.email && (
@@ -102,22 +92,6 @@ export function CenterStaffTab({ staff, loading = false, centerId }) {
                     </div>
                 </div>
             )
-        },
-        {
-            key: 'role',
-            label: 'Vai trò',
-            render: (_, row) => {
-                const roleCode = row.role_code || row.roles?.code;
-                const config = ROLE_CONFIG[roleCode] || ROLE_CONFIG.TEACHER;
-                const Icon = config.icon;
-                
-                return (
-                    <Badge variant="outline" className={`font-normal ${config.color}`}>
-                        <Icon className="h-3 w-3 mr-1.5" />
-                        {config.label}
-                    </Badge>
-                );
-            }
         },
         {
             key: 'phone',
@@ -151,7 +125,24 @@ export function CenterStaffTab({ staff, loading = false, centerId }) {
         {
             key: 'actions',
             label: '',
-            render: () => null
+            render: (_, row) => (
+                <div className="flex justify-end">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Mở menu</span>
+                                <MoreHorizontal className="h-4 w-4 text-gray-500" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => navigate(`/admin/students/${row.id}`)}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                <span>Xem chi tiết</span>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+            )
         }
     ];
 
@@ -177,27 +168,27 @@ export function CenterStaffTab({ staff, loading = false, centerId }) {
                     <div className="relative w-full sm:w-64">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <Input
-                            placeholder="Tìm kiếm nhân sự..."
+                            placeholder="Tìm kiếm học viên..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-9 bg-white border-gray-200 focus-visible:ring-indigo-500 rounded-xl"
+                            className="pl-9 bg-white border-gray-200 focus-visible:ring-fuchsia-500 rounded-xl"
                         />
                     </div>
 
                     <select
-                        value={filterRole}
-                        onChange={(e) => setFilterRole(e.target.value)}
-                        className="h-10 px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value)}
+                        className="h-10 px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-fuchsia-500 text-gray-700"
                     >
-                        <option value="">Tất cả vai trò</option>
-                        <option value="TEACHER">Giáo viên</option>
-                        <option value="CENTER_MANAGER">Quản lý</option>
-                        <option value="SUPER_ADMIN">Super Admin</option>
+                        <option value="">Tất cả trạng thái</option>
+                        <option value="active">Đang học</option>
+                        <option value="inactive">Ngừng</option>
+                        <option value="suspended">Tạm khóa</option>
                     </select>
                 </div>
 
                 <Button
-                    onClick={() => navigate(`/admin/staff?centerId=${centerId}`)}
+                    onClick={() => navigate(`/admin/students?centerId=${centerId}`)}
                     variant="outline"
                     className="gap-2 border-gray-200 bg-white hover:bg-gray-50 text-gray-700 rounded-xl w-full sm:w-auto"
                 >
@@ -212,15 +203,12 @@ export function CenterStaffTab({ staff, loading = false, centerId }) {
                     Tổng: {stats.total}
                 </Badge>
                 <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border-0 whitespace-nowrap">
-                    Hoạt động: {stats.active}
-                </Badge>
-                <Badge variant="secondary" className="bg-purple-50 text-purple-700 hover:bg-purple-50 border-0 whitespace-nowrap">
                     <UserCheck className="h-3 w-3 mr-1" />
-                    Quản lý: {stats.managers}
+                    Đang học: {stats.active}
                 </Badge>
-                <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-50 border-0 whitespace-nowrap">
-                    <GraduationCap className="h-3 w-3 mr-1" />
-                    Giáo viên: {stats.teachers}
+                <Badge variant="secondary" className="bg-gray-100 text-gray-500 hover:bg-gray-100 border-0 whitespace-nowrap">
+                    <UserX className="h-3 w-3 mr-1" />
+                    Ngừng: {stats.inactive}
                 </Badge>
             </div>
 
@@ -228,14 +216,14 @@ export function CenterStaffTab({ staff, loading = false, centerId }) {
             <Card className="border-gray-200 shadow-sm overflow-hidden bg-white">
                 <DataTable 
                     columns={columns} 
-                    data={filteredStaff} 
+                    data={filteredStudents} 
                     searchKey="full_name"
-                    hideToolbar={true} // Hide our custom toolbar
-                    onRowClick={(row) => navigate(`/admin/staff/${row.id}`)}
+                    hideToolbar={true}
+                    onRowClick={(row) => navigate(`/admin/students/${row.id}`)}
                 />
             </Card>
         </div>
     );
 }
 
-export default CenterStaffTab;
+export default CenterStudentsTab;

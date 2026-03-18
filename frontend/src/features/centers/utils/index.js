@@ -17,6 +17,7 @@ export {
     formatDate,
     getInitials,
     formatPhone,
+    formatCurrency,
     getGradient
 } from './formatters';
 

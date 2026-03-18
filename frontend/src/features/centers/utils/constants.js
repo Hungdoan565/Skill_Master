@@ -27,13 +27,13 @@ export const STATUS_OPTIONS = [
 
 // Default working hours
 export const DEFAULT_WORKING_HOURS = {
-    monday: { open: '08:00', close: '21:00' },
-    tuesday: { open: '08:00', close: '21:00' },
-    wednesday: { open: '08:00', close: '21:00' },
-    thursday: { open: '08:00', close: '21:00' },
-    friday: { open: '08:00', close: '21:00' },
-    saturday: { open: '08:00', close: '17:00' },
-    sunday: { open: null, close: null }
+    monday: { open: '08:00', close: '21:00', closed: false },
+    tuesday: { open: '08:00', close: '21:00', closed: false },
+    wednesday: { open: '08:00', close: '21:00', closed: false },
+    thursday: { open: '08:00', close: '21:00', closed: false },
+    friday: { open: '08:00', close: '21:00', closed: false },
+    saturday: { open: '08:00', close: '17:00', closed: false },
+    sunday: { open: null, close: null, closed: true }
 };
 
 // Day labels (Vietnamese)

@@ -5,4 +5,5 @@ export { useCenterDetail } from './useCenterDetail';
 export { useCenterRooms } from './useCenterRooms';
 export { useCenterClasses } from './useCenterClasses';
 export { useCenterStaff } from './useCenterStaff';
+export { useCenterStudents } from './useCenterStudents';
 export { useCenterRevenue } from './useCenterRevenue';

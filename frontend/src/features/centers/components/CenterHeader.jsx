@@ -22,7 +22,7 @@ export function CenterHeader({
     center,
     onEdit,
     onAssignManager,
-    canManage = false
+    // canManage // Actions are now always visible based on PRD
 }) {
     const navigate = useNavigate();
 
@@ -32,126 +32,102 @@ export function CenterHeader({
     const gradient = getGradient(center.name);
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-            {/* Gradient banner */}
-            <div className={`h-24 ${gradient} relative`}>
-                {/* Back button */}
+        <div className="bg-[#FAFAFA] rounded-xl shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05),_0_1px_4px_-1px_rgba(0,0,0,0.02)] border border-gray-100 overflow-hidden">
+            {/* Very compact banner */}
+            <div className={`h-12 ${gradient} relative flex items-center justify-between px-4`}>
                 <button
                     onClick={() => navigate('/admin/centers')}
-                    className="absolute top-4 left-4 p-2 bg-white/80 hover:bg-white rounded-lg transition-colors flex items-center gap-2 text-sm font-medium text-gray-700"
+                    className="flex items-center gap-2 text-sm font-medium text-white/90 hover:text-white transition-colors"
                 >
                     <ArrowLeft className="h-4 w-4" />
                     Quay lại
                 </button>
 
-                {/* Actions */}
-                {canManage && (
-                    <div className="absolute top-4 right-4 flex items-center gap-2">
-                        <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={onAssignManager}
-                            className="bg-white/90 hover:bg-white"
-                        >
-                            <UserPlus className="h-4 w-4 mr-1" />
-                            Gán quản lý
-                        </Button>
-                        <Button
-                            size="sm"
-                            onClick={onEdit}
-                            className="bg-white/90 hover:bg-white text-gray-700"
-                        >
-                            <Edit className="h-4 w-4 mr-1" />
-                            Chỉnh sửa
-                        </Button>
-                    </div>
-                )}
-
-                {/* Logo */}
-                <div className="absolute -bottom-10 left-6">
-                    {center.logo_url ? (
-                        <img
-                            src={center.logo_url}
-                            alt={center.name}
-                            className="w-20 h-20 rounded-xl border-4 border-white shadow-lg object-cover bg-white"
-                        />
-                    ) : (
-                        <div className="w-20 h-20 rounded-xl border-4 border-white shadow-lg bg-white flex items-center justify-center">
-                            <span className="text-2xl font-bold text-gray-600">
-                                {getInitials(center.name)}
-                            </span>
-                        </div>
-                    )}
+                {/* Actions moved to banner for compactness */}
+                <div className="flex items-center gap-2">
+                    <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={onAssignManager}
+                        className="h-8 bg-white/10 hover:bg-white/20 text-white border-0 shadow-none"
+                    >
+                        <UserPlus className="h-3.5 w-3.5 mr-1.5" />
+                        Gán quản lý
+                    </Button>
+                    <Button
+                        size="sm"
+                        onClick={onEdit}
+                        className="h-8 bg-white text-gray-900 hover:bg-gray-50 border-0 shadow-sm"
+                    >
+                        <Edit className="h-3.5 w-3.5 mr-1.5" />
+                        Chỉnh sửa
+                    </Button>
                 </div>
             </div>
 
-            {/* Info */}
-            <div className="pt-14 pb-6 px-6">
-                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                    <div>
-                        <div className="flex items-center gap-3 mb-2">
-                            <h1 className="text-2xl font-bold text-gray-900">{center.name}</h1>
-                            <Badge className={`${statusConfig.bg || statusConfig.color} ${statusConfig.text} border-0`}>
-                                {statusConfig.label}
-                            </Badge>
-                        </div>
-                        {center.code && (
-                            <span className="text-sm text-gray-500 block mb-2">Mã: #{center.code}</span>
-                        )}
-                        {center.description && (
-                            <p className="text-gray-600 max-w-2xl">{center.description}</p>
-                        )}
-                    </div>
-
-                    {/* Contact info compact */}
-                    <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                        {center.address && (
-                            <div className="flex items-center gap-2">
-                                <MapPin className="h-4 w-4 text-gray-400" />
-                                <span className="max-w-xs truncate">{center.address}</span>
+            {/* Inline Info Area */}
+            <div className="px-6 py-5">
+                <div className="flex flex-col md:flex-row gap-5 items-start md:items-center">
+                    {/* Logo - Inline */}
+                    <div className="flex-shrink-0">
+                        {center.logo_url ? (
+                            <img
+                                src={center.logo_url}
+                                alt={center.name}
+                                className="w-16 h-16 rounded-xl border border-gray-100 shadow-sm object-cover bg-white"
+                            />
+                        ) : (
+                            <div className="w-16 h-16 rounded-xl border border-gray-100 shadow-sm bg-white flex items-center justify-center">
+                                <span className="text-xl font-bold text-gray-400 tracking-tight">
+                                    {getInitials(center.name)}
+                                </span>
                             </div>
                         )}
-                        {center.hotline && (
-                            <a href={`tel:${center.hotline}`} className="flex items-center gap-2 text-indigo-600 hover:underline">
-                                <Phone className="h-4 w-4" />
-                                {center.hotline}
-                            </a>
+                    </div>
+
+                    {/* Main Info */}
+                    <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-3 mb-1.5">
+                            <h1 className="text-2xl font-bold text-gray-900 tracking-tight truncate">
+                                {center.name}
+                            </h1>
+                            <Badge className={`${statusConfig.color} border-0 capitalize shadow-none`}>
+                                {statusConfig.label}
+                            </Badge>
+                            {center.code && (
+                                <Badge variant="outline" className="text-gray-500 border-gray-200 shadow-none font-medium">
+                                    #{center.code}
+                                </Badge>
+                            )}
+                        </div>
+
+                        {center.description && (
+                            <p className="text-sm text-gray-500 truncate mt-1 max-w-2xl">{center.description}</p>
                         )}
-                        {center.email && (
-                            <a href={`mailto:${center.email}`} className="flex items-center gap-2 text-indigo-600 hover:underline">
-                                <Mail className="h-4 w-4" />
-                                {center.email}
-                            </a>
-                        )}
+
+                        {/* Contact info compact pills row */}
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600 mt-3 pt-3 border-t border-gray-100">
+                            {center.address && (
+                                <div className="flex items-center gap-1.5">
+                                    <MapPin className="h-3.5 w-3.5 text-gray-400" />
+                                    <span className="truncate max-w-[200px] lg:max-w-xs">{center.address}</span>
+                                </div>
+                            )}
+                            {center.hotline && (
+                                <a href={`tel:${center.hotline}`} className="flex items-center gap-1.5 hover:text-indigo-600 transition-colors">
+                                    <Phone className="h-3.5 w-3.5 text-gray-400" />
+                                    {center.hotline}
+                                </a>
+                            )}
+                            {center.email && (
+                                <a href={`mailto:${center.email}`} className="flex items-center gap-1.5 hover:text-indigo-600 transition-colors">
+                                    <Mail className="h-3.5 w-3.5 text-gray-400" />
+                                    {center.email}
+                                </a>
+                            )}
+                        </div>
                     </div>
                 </div>
-
-                {/* Manager info */}
-                {center.manager && (
-                    <div className="mt-4 pt-4 border-t flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-                            {center.manager.avatar_url ? (
-                                <img
-                                    src={center.manager.avatar_url}
-                                    alt={center.manager.full_name}
-                                    className="w-full h-full object-cover"
-                                />
-                            ) : (
-                                <span className="text-sm font-medium text-gray-600">
-                                    {getInitials(center.manager.full_name)}
-                                </span>
-                            )}
-                        </div>
-                        <div>
-                            <p className="text-sm font-medium text-gray-900">
-                                Quản lý: {center.manager.full_name}
-                            </p>
-                            {center.manager.email && (
-                                <p className="text-xs text-gray-500">{center.manager.email}</p>
-                            )}
-                        </div>
-                    </div>
-                )}
             </div>
         </div>
     );

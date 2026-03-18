@@ -12,95 +12,63 @@ import {
     Calendar,
     TrendingUp,
     CheckCircle,
-    AlertCircle
+    AlertCircle,
+    MapPin,
+    Phone,
+    Mail
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { DAY_LABELS, formatDate, getInitials } from '../utils';
 
-export function CenterOverviewTab({ center, stats, loading = false }) {
+export function CenterOverviewTab({ center, stats, manager, loading = false }) {
     if (loading) {
         return (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-6">
                     {[1, 2].map(i => (
-                        <Card key={i} className="p-6 animate-pulse">
-                            <div className="h-6 w-32 bg-gray-200 rounded mb-4" />
+                        <Card key={i} className="p-6 animate-pulse border-gray-100 shadow-sm">
+                            <div className="h-5 w-32 bg-gray-100 rounded mb-4" />
                             <div className="space-y-3">
-                                <div className="h-4 bg-gray-200 rounded w-full" />
-                                <div className="h-4 bg-gray-200 rounded w-3/4" />
+                                <div className="h-16 bg-gray-100 rounded w-full" />
                             </div>
                         </Card>
                     ))}
                 </div>
-                <Card className="p-6 animate-pulse">
-                    <div className="h-6 w-32 bg-gray-200 rounded mb-4" />
-                    <div className="space-y-3">
-                        {[1, 2, 3].map(i => (
-                            <div key={i} className="h-12 bg-gray-200 rounded" />
-                        ))}
-                    </div>
-                </Card>
+                <div className="space-y-6">
+                    <Card className="p-6 animate-pulse border-gray-100 shadow-sm">
+                        <div className="h-5 w-32 bg-gray-100 rounded mb-4" />
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-full bg-gray-100" />
+                            <div className="space-y-2 flex-1">
+                                <div className="h-4 bg-gray-100 rounded w-3/4" />
+                                <div className="h-3 bg-gray-100 rounded w-1/2" />
+                            </div>
+                        </div>
+                    </Card>
+                </div>
             </div>
         );
     }
 
+    // Default to center.manager if manager prop is missing but exists on center
+    const activeManager = manager || center?.manager;
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Main content */}
+            {/* Main content - Lottie & Working Hours */}
             <div className="lg:col-span-2 space-y-6">
-                {/* Stats detail cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <StatDetailCard
-                        title="Phòng học"
-                        icon={Building2}
-                        color="blue"
-                        items={[
-                            { label: 'Hoạt động', value: stats?.rooms?.active || 0 },
-                            { label: 'Bảo trì', value: stats?.rooms?.maintenance || 0 },
-                            { label: 'Tổng sức chứa', value: stats?.rooms?.totalCapacity || 0 }
-                        ]}
-                    />
-                    <StatDetailCard
-                        title="Lớp học"
-                        icon={BookOpen}
-                        color="green"
-                        items={[
-                            { label: 'Đang học', value: stats?.classes?.ongoing || 0 },
-                            { label: 'Sắp khai giảng', value: stats?.classes?.upcoming || 0 },
-                            { label: 'Hoàn thành', value: stats?.classes?.completed || 0 }
-                        ]}
-                    />
-                    <StatDetailCard
-                        title="Nhân sự"
-                        icon={Users}
-                        color="purple"
-                        items={[
-                            { label: 'Giáo viên', value: stats?.staff?.teachers || 0 },
-                            { label: 'Quản lý', value: stats?.staff?.managers || 0 },
-                            { label: 'Tổng cộng', value: stats?.staff?.total || 0 }
-                        ]}
-                    />
-                    <StatDetailCard
-                        title="Buổi học"
-                        icon={Calendar}
-                        color="amber"
-                        items={[
-                            { label: 'Đã hoàn thành', value: stats?.sessions?.completed || 0 },
-                            { label: 'Đã lên lịch', value: stats?.sessions?.scheduled || 0 },
-                            { label: 'Tổng', value: stats?.sessions?.total || 0 }
-                        ]}
-                    />
-                </div>
-
                 {/* Working hours */}
                 {center?.working_hours && (
-                    <Card className="p-6">
-                        <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-gray-400" />
-                            Giờ làm việc
-                        </h3>
-                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+                    <Card className="p-5 sm:p-6 shadow-sm border-gray-200">
+                        <div className="flex items-center gap-2 mb-5">
+                            <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                                <Clock className="h-4 w-4" />
+                            </div>
+                            <h3 className="text-base font-semibold text-gray-900">Giờ làm việc</h3>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
                             {Object.entries(DAY_LABELS).map(([key, label]) => {
                                 const hours = center.working_hours[key];
                                 const isClosed = !hours || hours.closed;
@@ -109,19 +77,19 @@ export function CenterOverviewTab({ center, stats, loading = false }) {
                                 return (
                                     <div
                                         key={key}
-                                        className={`p-3 rounded-lg text-center transition-all
+                                        className={`p-3 rounded-xl text-center transition-all border
                                             ${isClosed
-                                                ? 'bg-gray-50 text-gray-400'
+                                                ? 'bg-gray-50 border-gray-100 text-gray-400 opacity-60'
                                                 : isToday
-                                                    ? 'bg-indigo-100 ring-2 ring-indigo-500'
-                                                    : 'bg-indigo-50'
+                                                    ? 'bg-indigo-50/50 border-indigo-200 ring-1 ring-indigo-500 shadow-sm'
+                                                    : 'bg-white border-gray-200 hover:border-gray-300'
                                             }
                                         `}
                                     >
-                                        <p className={`text-xs font-semibold ${isToday ? 'text-indigo-700' : ''}`}>
+                                        <p className={`text-xs font-semibold mb-1 ${isToday ? 'text-indigo-700' : 'text-gray-500'}`}>
                                             {label}
                                         </p>
-                                        <p className={`text-sm mt-1 ${isClosed ? '' : 'text-indigo-700 font-medium'}`}>
+                                        <p className={`text-sm font-medium ${isClosed ? 'text-gray-400' : isToday ? 'text-indigo-700' : 'text-gray-900'}`}>
                                             {isClosed ? 'Nghỉ' : `${hours.open} - ${hours.close}`}
                                         </p>
                                     </div>
@@ -131,92 +99,140 @@ export function CenterOverviewTab({ center, stats, loading = false }) {
                     </Card>
                 )}
 
-                {/* Revenue summary */}
+                {/* Revenue summary highlights - Mini version instead of full cards */}
                 {stats?.revenue && (
-                    <Card className="p-6">
-                        <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                            <TrendingUp className="h-4 w-4 text-gray-400" />
-                            Doanh thu tháng này
-                        </h3>
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-3xl font-bold text-gray-900">
-                                    {formatCurrency(stats.revenue.monthly || 0)}
-                                </p>
-                                <p className="text-sm text-gray-500 mt-1">
-                                    {stats.revenue.invoiceCount || 0} hóa đơn đã thu
-                                </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Card className="p-5 sm:p-6 shadow-sm border-gray-200 bg-gradient-to-br from-emerald-50 to-white">
+                            <div className="flex justify-between items-start mb-4">
+                                <div>
+                                    <p className="text-sm font-medium text-emerald-800 mb-1">Doanh thu tháng này</p>
+                                    <p className="text-3xl font-bold text-gray-900">
+                                        {formatCurrency(stats.revenue.monthly || 0)}
+                                    </p>
+                                </div>
+                                <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg">
+                                    <TrendingUp className="h-5 w-5" />
+                                </div>
                             </div>
-                            <div className="text-right">
-                                <Badge className="bg-emerald-100 text-emerald-700">
-                                    <TrendingUp className="h-3 w-3 mr-1" />
-                                    Đang tốt
+                            <div className="flex items-center gap-2 text-sm">
+                                <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-0">
+                                    {stats.revenue.invoiceCount || 0} hóa đơn
                                 </Badge>
+                                <span className="text-gray-500">Đã thanh toán</span>
                             </div>
-                        </div>
-                    </Card>
+                        </Card>
+
+                        <Card className="p-5 sm:p-6 shadow-sm border-gray-200">
+                            <div className="flex justify-between items-start mb-4">
+                                <div>
+                                    <p className="text-sm font-medium text-gray-500 mb-1">Tỷ lệ đăng ký</p>
+                                    <div className="flex items-baseline gap-2">
+                                        <p className="text-3xl font-bold text-gray-900">
+                                            {stats?.students?.active || 0}
+                                        </p>
+                                        <p className="text-sm text-gray-500">
+                                            / {stats?.students?.total || 0} học viên
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                                    <Users className="h-5 w-5" />
+                                </div>
+                            </div>
+                            <div className="w-full bg-gray-100 rounded-full h-2 rounded-full overflow-hidden">
+                                <div 
+                                    className="bg-blue-500 h-2 rounded-full" 
+                                    style={{ width: `${(stats?.students?.active / Math.max(stats?.students?.total, 1)) * 100}%` }}
+                                ></div>
+                            </div>
+                        </Card>
+                    </div>
                 )}
             </div>
 
             {/* Sidebar */}
             <div className="space-y-6">
                 {/* Manager card */}
-                <Card className="p-6">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                        <Users className="h-4 w-4 text-gray-400" />
-                        Quản lý trung tâm
-                    </h3>
-                    {center?.manager ? (
-                        <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-                                {center.manager.avatar_url ? (
-                                    <img
-                                        src={center.manager.avatar_url}
-                                        alt={center.manager.full_name}
-                                        className="w-full h-full object-cover"
-                                    />
-                                ) : (
-                                    <span className="text-lg font-medium text-gray-600">
-                                        {getInitials(center.manager.full_name)}
-                                    </span>
-                                )}
+                <Card className="p-5 shadow-sm border-gray-200">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                            <Users className="h-4 w-4 text-gray-400" />
+                            Quản lý trung tâm
+                        </h3>
+                    </div>
+
+                    {activeManager ? (
+                        <div>
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-12 h-12 rounded-full bg-indigo-50 border border-indigo-100 flex flex-shrink-0 items-center justify-center overflow-hidden">
+                                    {activeManager.avatar_url ? (
+                                        <img
+                                            src={activeManager.avatar_url}
+                                            alt={activeManager.full_name}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <span className="text-lg font-bold text-indigo-600">
+                                            {getInitials(activeManager.full_name)}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="font-semibold text-gray-900 truncate" title={activeManager.full_name}>
+                                        {activeManager.full_name}
+                                    </p>
+                                    <Badge variant="secondary" className="mt-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-50 border-0 font-normal">
+                                        Center Manager
+                                    </Badge>
+                                </div>
                             </div>
-                            <div>
-                                <p className="font-medium text-gray-900">{center.manager.full_name}</p>
-                                {center.manager.email && (
-                                    <p className="text-sm text-gray-500">{center.manager.email}</p>
+
+                            <div className="space-y-2 mt-4 pt-4 border-t border-gray-100">
+                                {activeManager.email && (
+                                    <a href={`mailto:${activeManager.email}`} className="flex items-center gap-2 text-sm text-gray-600 hover:text-indigo-600 transition-colors">
+                                        <Mail className="h-4 w-4 text-gray-400" />
+                                        <span className="truncate">{activeManager.email}</span>
+                                    </a>
                                 )}
-                                {center.manager.phone && (
-                                    <p className="text-sm text-gray-500">{center.manager.phone}</p>
+                                {activeManager.phone && (
+                                    <a href={`tel:${activeManager.phone}`} className="flex items-center gap-2 text-sm text-gray-600 hover:text-indigo-600 transition-colors">
+                                        <Phone className="h-4 w-4 text-gray-400" />
+                                        <span>{activeManager.phone}</span>
+                                    </a>
                                 )}
                             </div>
                         </div>
                     ) : (
-                        <div className="text-center py-4">
-                            <AlertCircle className="h-8 w-8 text-amber-400 mx-auto mb-2" />
-                            <p className="text-gray-500 text-sm">Chưa có quản lý</p>
+                        <div className="text-center py-6 px-4 border border-dashed border-gray-200 rounded-xl bg-gray-50/50">
+                            <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center mx-auto mb-3">
+                                <AlertCircle className="h-5 w-5 text-amber-500" />
+                            </div>
+                            <p className="text-sm font-medium text-gray-900 mb-1">Chưa có quản lý</p>
+                            <p className="text-xs text-gray-500 text-center max-w-[200px] mx-auto">
+                                Cơ sở này hiện chưa được gán quản lý nào.
+                            </p>
                         </div>
                     )}
                 </Card>
 
                 {/* Quick info */}
-                <Card className="p-6">
+                <Card className="p-5 shadow-sm border-gray-200">
                     <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
                         <Building2 className="h-4 w-4 text-gray-400" />
-                        Thông tin
+                        Thông tin hệ thống
                     </h3>
-                    <div className="space-y-3 text-sm">
-                        <InfoRow label="Mã" value={center?.code || '-'} />
+                    <div className="space-y-3.5 text-sm">
+                        <InfoRow label="Mã định danh" value={center?.code || '-'} />
                         <InfoRow label="Trạng thái" value={
                             <Badge className={center?.status === 'active'
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : 'bg-gray-100 text-gray-600'}>
+                                ? 'bg-emerald-50 text-emerald-700 border-0 shadow-none'
+                                : 'bg-gray-100 text-gray-600 border-0 shadow-none'}>
                                 {center?.status === 'active' ? 'Hoạt động' : 'Tạm đóng'}
                             </Badge>
                         } />
                         <InfoRow label="Ngày tạo" value={formatDate(center?.created_at)} />
                         {center?.updated_at && (
-                            <InfoRow label="Cập nhật" value={formatDate(center?.updated_at)} />
+                            <InfoRow label="Cập nhật gần nhất" value={formatDate(center?.updated_at)} />
                         )}
                     </div>
                 </Card>
@@ -225,39 +241,11 @@ export function CenterOverviewTab({ center, stats, loading = false }) {
     );
 }
 
-// Helper components
-function StatDetailCard({ title, icon: Icon, color, items }) {
-    const colorMap = {
-        blue: { bg: 'bg-blue-50', text: 'text-blue-600', light: 'text-blue-500' },
-        green: { bg: 'bg-green-50', text: 'text-green-600', light: 'text-green-500' },
-        purple: { bg: 'bg-purple-50', text: 'text-purple-600', light: 'text-purple-500' },
-        amber: { bg: 'bg-amber-50', text: 'text-amber-600', light: 'text-amber-500' }
-    };
-    const colors = colorMap[color] || colorMap.blue;
-
-    return (
-        <Card className="p-4">
-            <div className={`inline-flex p-2 rounded-lg ${colors.bg} mb-3`}>
-                <Icon className={`h-4 w-4 ${colors.text}`} />
-            </div>
-            <p className="font-medium text-gray-900 text-sm mb-2">{title}</p>
-            <div className="space-y-1">
-                {items.map((item, i) => (
-                    <div key={i} className="flex justify-between text-xs">
-                        <span className="text-gray-500">{item.label}</span>
-                        <span className="font-medium text-gray-700">{item.value}</span>
-                    </div>
-                ))}
-            </div>
-        </Card>
-    );
-}
-
 function InfoRow({ label, value }) {
     return (
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center py-1">
             <span className="text-gray-500">{label}</span>
-            <span className="font-medium text-gray-900">{value}</span>
+            <span className="font-medium text-gray-900 text-right">{value}</span>
         </div>
     );
 }

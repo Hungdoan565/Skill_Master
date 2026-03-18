@@ -28,11 +28,11 @@ export {
     // Detail page components
     CenterHeader,
     CenterQuickStats,
-    CenterTabs,
     CenterOverviewTab,
     CenterRoomsTab,
     CenterClassesTab,
     CenterStaffTab,
+    CenterStudentsTab,
     CenterRevenueTab,
 } from './components';
 
@@ -46,6 +46,7 @@ export {
     useCenterRooms,
     useCenterClasses,
     useCenterStaff,
+    useCenterStudents,
     useCenterRevenue,
 } from './hooks';
 

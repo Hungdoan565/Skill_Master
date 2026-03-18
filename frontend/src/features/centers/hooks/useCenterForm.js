@@ -10,6 +10,25 @@ export function useCenterForm(initialData = null) {
     const [errors, setErrors] = useState({});
     const [isDirty, setIsDirty] = useState(false);
 
+    // Normalize working_hours từ DB để luôn có field `closed`
+    const normalizeWorkingHours = (wh) => {
+        if (!wh || typeof wh !== 'object') return DEFAULT_WORKING_HOURS;
+        const normalized = {};
+        for (const [day, defaults] of Object.entries(DEFAULT_WORKING_HOURS)) {
+            const dayData = wh[day];
+            if (dayData && typeof dayData === 'object') {
+                normalized[day] = {
+                    open: dayData.open ?? defaults.open,
+                    close: dayData.close ?? defaults.close,
+                    closed: dayData.closed ?? (!dayData.open && !dayData.close)
+                };
+            } else {
+                normalized[day] = { ...defaults };
+            }
+        }
+        return normalized;
+    };
+
     // Reset form về trạng thái ban đầu hoặc data mới
     const resetForm = useCallback((data = null) => {
         if (data) {
@@ -21,7 +40,7 @@ export function useCenterForm(initialData = null) {
                 email: data.email || '',
                 logo_url: data.logo_url || '',
                 description: data.description || '',
-                working_hours: data.working_hours || DEFAULT_WORKING_HOURS,
+                working_hours: normalizeWorkingHours(data.working_hours),
                 status: data.status || 'active'
             });
         } else {
@@ -58,31 +77,37 @@ export function useCenterForm(initialData = null) {
 
     // Cập nhật working hours cho một ngày
     const updateWorkingHours = useCallback((day, field, value) => {
-        setFormData(prev => ({
-            ...prev,
-            working_hours: {
-                ...prev.working_hours,
-                [day]: {
-                    ...prev.working_hours[day],
-                    [field]: value
+        setFormData(prev => {
+            const currentDay = prev.working_hours?.[day] || { open: '08:00', close: '21:00', closed: false };
+            return {
+                ...prev,
+                working_hours: {
+                    ...prev.working_hours,
+                    [day]: {
+                        ...currentDay,
+                        [field]: value
+                    }
                 }
-            }
-        }));
+            };
+        });
         setIsDirty(true);
     }, []);
 
     // Toggle ngày nghỉ
     const toggleDayOff = useCallback((day) => {
-        setFormData(prev => ({
-            ...prev,
-            working_hours: {
-                ...prev.working_hours,
-                [day]: {
-                    ...prev.working_hours[day],
-                    closed: !prev.working_hours[day].closed
+        setFormData(prev => {
+            const currentDay = prev.working_hours?.[day] || { open: '08:00', close: '21:00', closed: false };
+            return {
+                ...prev,
+                working_hours: {
+                    ...prev.working_hours,
+                    [day]: {
+                        ...currentDay,
+                        closed: !currentDay.closed
+                    }
                 }
-            }
-        }));
+            };
+        });
         setIsDirty(true);
     }, []);
 

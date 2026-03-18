@@ -58,18 +58,40 @@ export function AssignManagerModal({
         }
     }, [search, staff]);
 
+    // Helper: lấy role code từ staff object
+    const getRoleCode = (person) => {
+        return person.role || person.roles?.code || person.role_code || '';
+    };
+
+    // Helper: hiển thị tên role tiếng Việt
+    const getRoleLabel = (person) => {
+        const code = getRoleCode(person);
+        switch (code) {
+            case 'SUPER_ADMIN': return 'Super Admin';
+            case 'CENTER_MANAGER': return 'Quản lý';
+            case 'TEACHER': return 'Giáo viên';
+            default: return 'Nhân viên';
+        }
+    };
+
     const fetchStaff = async () => {
         try {
             setLoadingStaff(true);
             const config = await getAuthHeaders();
-            // Lấy staff có role là CENTER_MANAGER hoặc SUPER_ADMIN
+            // Lấy tất cả staff — không filter theo center để SUPER_ADMIN thấy toàn bộ
             const response = await axios.get(
-                `${API_URL}/api/admin/staff?role=CENTER_MANAGER,SUPER_ADMIN`,
+                `${API_URL}/api/admin/staff?limit=200`,
                 config
             );
             if (response.data?.success) {
-                setStaff(response.data.data || []);
-                setFilteredStaff(response.data.data || []);
+                // Loại trừ STUDENT và PARENT — chỉ giữ nhân viên có thể làm quản lý
+                const allStaff = response.data.data || [];
+                const eligibleStaff = allStaff.filter(s => {
+                    const roleCode = getRoleCode(s);
+                    return roleCode !== 'STUDENT' && roleCode !== 'PARENT';
+                });
+                setStaff(eligibleStaff);
+                setFilteredStaff(eligibleStaff);
             }
         } catch (err) {
             console.error('Error fetching staff:', err);
@@ -189,8 +211,13 @@ export function AssignManagerModal({
                                         <div className="flex-1 text-left">
                                             <div className="flex items-center gap-2">
                                                 <p className="font-medium text-gray-900">{person.full_name}</p>
-                                                <Badge className="text-xs bg-gray-100 text-gray-600 border-0">
-                                                    {person.role === 'SUPER_ADMIN' ? 'Super Admin' : 'Quản lý'}
+                                                <Badge className={`text-xs border-0 ${
+                                                    getRoleCode(person) === 'SUPER_ADMIN' ? 'bg-red-100 text-red-700' :
+                                                    getRoleCode(person) === 'CENTER_MANAGER' ? 'bg-blue-100 text-blue-700' :
+                                                    getRoleCode(person) === 'TEACHER' ? 'bg-emerald-100 text-emerald-700' :
+                                                    'bg-gray-100 text-gray-600'
+                                                }`}>
+                                                    {getRoleLabel(person)}
                                                 </Badge>
                                                 {center?.manager_id === person.id && (
                                                     <Badge className="text-xs bg-green-100 text-green-700 border-0">
@@ -240,7 +267,7 @@ export function AssignManagerModal({
                         <Button
                             onClick={handleAssign}
                             disabled={loading}
-                            className="bg-purple-600 hover:bg-purple-700"
+                            className="bg-purple-600 hover:bg-purple-700 text-white"
                         >
                             {loading ? (
                                 <>

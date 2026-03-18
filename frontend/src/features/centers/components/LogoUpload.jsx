@@ -61,11 +61,11 @@ export function LogoUpload({
             // Generate unique filename
             const ext = file.name.split('.').pop();
             const fileName = `center-logo-${centerId || Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-            const filePath = `logos/${fileName}`;
+            const filePath = `center-logos/${fileName}`;
 
             // Upload to Supabase Storage
             const { data, error: uploadError } = await supabase.storage
-                .from('centers')
+                .from('upload')
                 .upload(filePath, file, {
                     cacheControl: '3600',
                     upsert: true
@@ -81,7 +81,7 @@ export function LogoUpload({
 
             // Get public URL
             const { data: { publicUrl } } = supabase.storage
-                .from('centers')
+                .from('upload')
                 .getPublicUrl(filePath);
 
             // Update parent

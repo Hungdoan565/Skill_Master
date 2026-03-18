@@ -1,14 +1,11 @@
 /**
- * CenterQuickStats Component - Quick stats cards cho Center Detail
- * 
- * Hybrid Navigation:
- * - Click card body → Chuyển tab nội bộ
- * - Click icon [↗] → Navigate ra admin page (filter sẵn center)
+ * CenterQuickStats Component - Quick stats cards acting as Tab Navigation for Center Detail
  */
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+    LayoutDashboard,
     Building2,
     BookOpen,
     Users,
@@ -17,24 +14,31 @@ import {
     ExternalLink
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 export function CenterQuickStats({
     stats,
     centerId,
     loading = false,
-    onTabChange  // Callback để chuyển tab nội bộ
+    activeTab,
+    onTabChange
 }) {
     const navigate = useNavigate();
 
     if (loading) {
         return (
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {[1, 2, 3, 4, 5].map(i => (
-                    <Card key={i} className="p-4">
-                        <div className="animate-pulse">
-                            <div className="h-10 w-10 bg-gray-200 rounded-lg mb-3" />
-                            <div className="h-6 w-12 bg-gray-200 rounded mb-2" />
-                            <div className="h-4 w-20 bg-gray-200 rounded" />
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                {[1, 2, 3, 4, 5, 6].map(i => (
+                    <Card key={i} className="p-3 shadow-sm border-gray-100 h-[104px]">
+                        <div className="animate-pulse flex flex-col h-full justify-between">
+                            <div className="flex justify-between items-start">
+                                <div className="h-8 w-8 bg-gray-100 rounded-lg" />
+                                <div className="h-4 w-4 bg-gray-100 rounded" />
+                            </div>
+                            <div>
+                                <div className="h-5 w-12 bg-gray-100 rounded mb-1" />
+                                <div className="h-3 w-20 bg-gray-100 rounded" />
+                            </div>
                         </div>
                     </Card>
                 ))}
@@ -44,35 +48,46 @@ export function CenterQuickStats({
 
     const cards = [
         {
-            title: 'Phòng học',
-            value: stats?.rooms?.total ?? stats?.rooms ?? 0,
-            sub: `${stats?.rooms?.active ?? 0} hoạt động`,
-            icon: Building2,
-            color: 'text-blue-600',
-            bgColor: 'bg-blue-50',
-            hoverBg: 'hover:bg-blue-50/50',
-            tabKey: 'rooms',
-            externalUrl: `/admin/rooms?center=${centerId}`
+            title: 'Tổng quan',
+            value: '',
+            sub: 'Thông tin chung',
+            icon: LayoutDashboard,
+            color: 'text-gray-700',
+            bgColor: 'bg-gray-100/80',
+            highlightRing: 'ring-gray-900',
+            tabKey: 'overview',
+            externalUrl: null
         },
         {
             title: 'Lớp học',
             value: stats?.classes?.total ?? stats?.classes ?? 0,
             sub: `${stats?.classes?.ongoing ?? stats?.classes?.active ?? 0} đang học`,
             icon: BookOpen,
-            color: 'text-green-600',
-            bgColor: 'bg-green-50',
-            hoverBg: 'hover:bg-green-50/50',
+            color: 'text-indigo-600',
+            bgColor: 'bg-indigo-50',
+            highlightRing: 'ring-indigo-600',
             tabKey: 'classes',
             externalUrl: `/admin/classes?centerId=${centerId}`
         },
         {
-            title: 'Giáo viên',
+            title: 'Phòng học',
+            value: stats?.rooms?.total ?? stats?.rooms ?? 0,
+            sub: `${stats?.rooms?.active ?? 0} hoạt động`,
+            icon: Building2,
+            color: 'text-blue-600',
+            bgColor: 'bg-blue-50',
+            highlightRing: 'ring-blue-600',
+            tabKey: 'rooms',
+            externalUrl: `/admin/rooms?center=${centerId}`
+        },
+        {
+            title: 'Nhân sự',
             value: stats?.staff?.teachers ?? stats?.teachers ?? 0,
-            sub: `Nhân sự: ${stats?.staff?.total ?? 0}`,
+            sub: `Tổng số: ${stats?.staff?.total ?? 0}`,
             icon: Users,
-            color: 'text-purple-600',
-            bgColor: 'bg-purple-50',
-            hoverBg: 'hover:bg-purple-50/50',
+            color: 'text-amber-600',
+            bgColor: 'bg-amber-50',
+            highlightRing: 'ring-amber-500',
             tabKey: 'staff',
             externalUrl: `/admin/staff?centerId=${centerId}`
         },
@@ -81,67 +96,97 @@ export function CenterQuickStats({
             value: stats?.students?.total ?? stats?.students ?? 0,
             sub: 'Đang theo học',
             icon: GraduationCap,
-            color: 'text-amber-600',
-            bgColor: 'bg-amber-50',
-            hoverBg: 'hover:bg-amber-50/50',
-            tabKey: null, // Không có tab riêng, luôn navigate
+            color: 'text-fuchsia-600',
+            bgColor: 'bg-fuchsia-50',
+            highlightRing: 'ring-fuchsia-500',
+            tabKey: 'students',
             externalUrl: `/admin/students?centerId=${centerId}`
         },
         {
-            title: 'Doanh thu tháng',
+            title: 'Doanh thu',
             value: formatCurrency(stats?.revenue?.monthly ?? 0),
-            sub: `${stats?.revenue?.invoiceCount ?? 0} hóa đơn`,
+            sub: 'Tháng này',
             icon: DollarSign,
             color: 'text-emerald-600',
             bgColor: 'bg-emerald-50',
-            hoverBg: 'hover:bg-emerald-50/50',
+            highlightRing: 'ring-emerald-500',
             tabKey: 'revenue',
             externalUrl: `/admin/invoices?centerId=${centerId}`
         }
     ];
 
-    // Handle click on card body - chuyển tab nội bộ
     const handleCardClick = (card) => {
         if (card.tabKey && onTabChange) {
             onTabChange(card.tabKey);
-        } else {
-            // Không có tab tương ứng → navigate ra ngoài
+        } else if (card.externalUrl) {
             navigate(card.externalUrl);
         }
     };
 
-    // Handle click on external icon - navigate ra admin page
     const handleExternalClick = (e, url) => {
-        e.stopPropagation(); // Ngăn trigger card click
-        navigate(url);
+        e.stopPropagation();
+        if (url) navigate(url);
     };
 
     return (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
             {cards.map((card, index) => {
                 const Icon = card.icon;
+                const isActive = activeTab === card.tabKey;
+                
                 return (
                     <Card
                         key={index}
-                        className={`p-4 transition-all cursor-pointer group border-2 border-transparent hover:border-gray-100 hover:shadow-md ${card.hoverBg}`}
+                        className={cn(
+                            "relative overflow-hidden transition-all duration-200 cursor-pointer group shadow-sm border",
+                            "hover:shadow-md hover:border-gray-200",
+                            isActive 
+                                ? `ring-1 ring-offset-0 ${card.highlightRing} border-transparent bg-white shadow-md` 
+                                : "border-gray-100 bg-[#FAFAFA]"
+                        )}
                         onClick={() => handleCardClick(card)}
                     >
-                        <div className="flex items-start justify-between mb-3">
-                            <div className={`p-2.5 rounded-xl ${card.bgColor} transition-transform group-hover:scale-110`}>
-                                <Icon className={`h-5 w-5 ${card.color}`} />
+                        {/* Active indicator bar */}
+                        {isActive && (
+                            <div className={cn("absolute left-0 top-0 bottom-0 w-1", card.bgColor.replace('bg-', 'bg-').replace('/80', '').replace('-50', '-500'))} />
+                        )}
+                        
+                        <div className={cn("p-3.5", isActive && "pl-4.5")}>
+                            <div className="flex items-start justify-between mb-2">
+                                <div className={cn(
+                                    "p-2 rounded-lg transition-transform duration-300",
+                                    card.bgColor,
+                                    isActive ? "scale-110" : "group-hover:scale-105"
+                                )}>
+                                    <Icon className={cn("h-4 w-4", card.color)} />
+                                </div>
+                                
+                                {card.externalUrl && (
+                                    <button
+                                        onClick={(e) => handleExternalClick(e, card.externalUrl)}
+                                        className={cn(
+                                            "p-1 rounded text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors",
+                                            !isActive && "opacity-0 group-hover:opacity-100"
+                                        )}
+                                        title={`Quản lý ${card.title.toLowerCase()}`}
+                                    >
+                                        <ExternalLink className="h-3.5 w-3.5" />
+                                    </button>
+                                )}
                             </div>
-                            {/* External link icon */}
-                            <button
-                                onClick={(e) => handleExternalClick(e, card.externalUrl)}
-                                className="p-1.5 rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-all opacity-0 group-hover:opacity-100"
-                                title={`Mở trang quản lý ${card.title}`}
-                            >
-                                <ExternalLink className="h-4 w-4" />
-                            </button>
+                            
+                            <div>
+                                {card.value !== '' ? (
+                                    <div className="flex items-baseline gap-1.5">
+                                        <h3 className="text-xl font-bold text-gray-900">{card.value}</h3>
+                                        <p className="text-xs font-medium text-gray-500 truncate">{card.title}</p>
+                                    </div>
+                                ) : (
+                                    <h3 className="text-sm font-bold text-gray-900 mt-1 mb-0.5">{card.title}</h3>
+                                )}
+                                <p className="text-xs text-gray-400 mt-0.5 truncate">{card.sub}</p>
+                            </div>
                         </div>
-                        <p className="text-2xl font-bold text-gray-900">{card.value}</p>
-                        <p className="text-sm font-medium text-gray-700">{card.title}</p>
-                        <p className="text-xs text-gray-400 mt-1">{card.sub}</p>
                     </Card>
                 );
             })}
@@ -149,15 +194,15 @@ export function CenterQuickStats({
     );
 }
 
-// Helper format currency
 function formatCurrency(amount) {
+    if (!amount) return '0';
     if (amount >= 1000000) {
         return `${(amount / 1000000).toFixed(1)}M`;
     }
     if (amount >= 1000) {
         return `${(amount / 1000).toFixed(0)}K`;
     }
-    return amount?.toLocaleString() || '0';
+    return amount.toLocaleString('vi-VN');
 }
 
 export default CenterQuickStats;

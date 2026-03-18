@@ -6,22 +6,24 @@ import {
     useCenterRooms,
     useCenterClasses,
     useCenterStaff,
+    useCenterStudents,
     useCenterRevenue
 } from '../hooks';
 import {
     CenterHeader,
     CenterQuickStats,
-    CenterTabs,
     CenterOverviewTab,
     CenterRoomsTab,
     CenterClassesTab,
     CenterStaffTab,
+    CenterStudentsTab,
     CenterRevenueTab,
     CenterFormModal,
     AssignManagerModal,
     DeleteConfirmModal
 } from '../components';
 import { Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export const CenterDetailPage = () => {
     const { id } = useParams();
@@ -59,6 +61,12 @@ export const CenterDetailPage = () => {
         stats: staffStats,
         loading: staffLoading
     } = useCenterStaff(id);
+
+    const {
+        students,
+        stats: studentStats,
+        loading: studentsLoading
+    } = useCenterStudents(id);
 
     const {
         revenue,
@@ -178,6 +186,14 @@ export const CenterDetailPage = () => {
                         centerId={id}
                     />
                 );
+            case 'students':
+                return (
+                    <CenterStudentsTab
+                        students={students}
+                        loading={studentsLoading}
+                        centerId={id}
+                    />
+                );
             case 'revenue':
                 return (
                     <CenterRevenueTab
@@ -193,7 +209,7 @@ export const CenterDetailPage = () => {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 pb-12">
             {/* Header with gradient */}
             <CenterHeader
                 center={center}
@@ -202,31 +218,58 @@ export const CenterDetailPage = () => {
                 onAssignManager={handleAssignManager}
             />
 
-            {/* Quick Stats - Hybrid Navigation */}
+            {/* Quick Stats behaves as Tab Navigation now */}
             <CenterQuickStats
-                stats={stats}
+                stats={{
+                    ...stats,
+                    students: {
+                        ...(stats?.students || {}),
+                        total: studentStats?.total ?? stats?.students?.total ?? stats?.students ?? 0
+                    }
+                }}
                 centerId={id}
                 loading={centerLoading}
-                onTabChange={setActiveTab}
-            />
-
-            {/* Tab Navigation */}
-            <CenterTabs
                 activeTab={activeTab}
                 onTabChange={setActiveTab}
             />
 
-            {/* Tab Content */}
-            <div className="min-h-[400px]">
-                {renderTabContent()}
+            {/* Tab Content with Animation */}
+            <div className="min-h-[400px] mt-2">
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={activeTab}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.2 }}
+                    >
+                        {renderTabContent()}
+                    </motion.div>
+                </AnimatePresence>
             </div>
 
             {/* Modals */}
             {showEditModal && (
                 <CenterFormModal
-                    center={center}
+                    isOpen={showEditModal}
+                    initialData={center}
                     onClose={() => setShowEditModal(false)}
-                    onSuccess={handleEditSuccess}
+                    onSubmit={async (data) => {
+                        try {
+                            const { supabase } = await import('@/lib/supabaseClient');
+                            const { data: { session } } = await supabase.auth.getSession();
+                            const { default: axios } = await import('axios');
+                            await axios.put(
+                                `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/admin/centers/${center.id}`,
+                                data,
+                                { headers: { Authorization: `Bearer ${session?.access_token}` } }
+                            );
+                            handleEditSuccess();
+                        } catch (err) {
+                            console.error('Error updating center:', err);
+                            gooeyToast.error(err.response?.data?.message || 'Cập nhật thất bại');
+                        }
+                    }}
                 />
             )}
 
@@ -240,10 +283,25 @@ export const CenterDetailPage = () => {
 
             {showAssignManagerModal && (
                 <AssignManagerModal
+                    isOpen={showAssignManagerModal}
                     center={center}
-                    currentManager={manager}
                     onClose={() => setShowAssignManagerModal(false)}
-                    onSuccess={handleAssignManagerSuccess}
+                    onAssign={async (userId) => {
+                        try {
+                            const { supabase } = await import('@/lib/supabaseClient');
+                            const { data: { session } } = await supabase.auth.getSession();
+                            const { default: axios } = await import('axios');
+                            await axios.patch(
+                                `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/admin/centers/${center.id}/manager`,
+                                { manager_id: userId },
+                                { headers: { Authorization: `Bearer ${session?.access_token}` } }
+                            );
+                            handleAssignManagerSuccess();
+                        } catch (err) {
+                            console.error('Error assigning manager:', err);
+                            gooeyToast.error(err.response?.data?.message || 'Gán quản lý thất bại');
+                        }
+                    }}
                 />
             )}
         </div>

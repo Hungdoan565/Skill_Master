@@ -19,11 +19,14 @@ export function FinancialOverviewCard({ data }) {
   const debtAmount = debt?.value || 0;
   const overdueInvoices = debt?.overdue_invoices || 0;
 
-  // Calculate collection rate
   const totalRevenue = revenue?.value || 0;
-  const collectionRate = totalRevenue > 0 
-    ? Math.round(((totalRevenue - debtAmount) / totalRevenue) * 100) 
-    : 0;
+  const collectionRate =
+    totalRevenue > 0
+      ? Math.round(((totalRevenue - debtAmount) / totalRevenue) * 100)
+      : 0;
+
+  const debtSeverity =
+    debtAmount > 50e6 ? 'high' : debtAmount > 10e6 ? 'medium' : 'low';
 
   const stats = [
     {
@@ -40,67 +43,124 @@ export function FinancialOverviewCard({ data }) {
       change: debt?.change_percent,
       inverseColors: true,
       icon: AlertTriangle,
-      iconBg: debtAmount > 50e6 ? 'bg-red-500/10' : debtAmount > 10e6 ? 'bg-amber-500/10' : 'bg-emerald-500/10',
-      iconColor: debtAmount > 50e6 ? 'text-red-500' : debtAmount > 10e6 ? 'text-amber-500' : 'text-emerald-500',
+      iconBg:
+        debtSeverity === 'high'
+          ? 'bg-rose-500/10'
+          : debtSeverity === 'medium'
+            ? 'bg-amber-500/10'
+            : 'bg-emerald-500/10',
+      iconColor:
+        debtSeverity === 'high'
+          ? 'text-rose-500'
+          : debtSeverity === 'medium'
+            ? 'text-amber-500'
+            : 'text-emerald-500',
       subtitle: overdueInvoices > 0 ? `${overdueInvoices} hóa đơn quá hạn` : null,
     },
     {
       label: 'Tỷ lệ thu',
       value: `${collectionRate}%`,
       icon: PieChart,
-      iconBg: collectionRate >= 80 ? 'bg-emerald-500/10' : collectionRate >= 60 ? 'bg-amber-500/10' : 'bg-red-500/10',
-      iconColor: collectionRate >= 80 ? 'text-emerald-500' : collectionRate >= 60 ? 'text-amber-500' : 'text-red-500',
+      iconBg:
+        collectionRate >= 80
+          ? 'bg-emerald-500/10'
+          : collectionRate >= 60
+            ? 'bg-amber-500/10'
+            : 'bg-rose-500/10',
+      iconColor:
+        collectionRate >= 80
+          ? 'text-emerald-500'
+          : collectionRate >= 60
+            ? 'text-amber-500'
+            : 'text-rose-500',
       progressValue: collectionRate,
     },
   ];
 
   return (
-    <Card className="bg-white border shadow-sm">
+    <Card className="admin-surface-card rounded-2xl">
       <CardHeader className="pb-3">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/10">
             <DollarSign className="h-4 w-4 text-emerald-500" />
           </div>
-          <CardTitle className="text-base font-semibold">Tổng quan tài chính</CardTitle>
+          <CardTitle className="text-base font-semibold tracking-tight">Tổng quan tài chính</CardTitle>
         </div>
       </CardHeader>
+
       <CardContent className="pt-0">
-        <div className="space-y-4">
+        <div className="space-y-5">
           {stats.map((stat, i) => {
-            const TrendIcon = stat.change > 0 ? TrendingUp : stat.change < 0 ? TrendingDown : Minus;
-            const isPositive = stat.inverseColors ? stat.change < 0 : stat.change > 0;
-            const isNegative = stat.inverseColors ? stat.change > 0 : stat.change < 0;
+            const normalized = Number(stat.change) || 0;
+            const TrendIcon =
+              normalized > 0
+                ? TrendingUp
+                : normalized < 0
+                  ? TrendingDown
+                  : Minus;
+            const isPositive = stat.inverseColors
+              ? normalized < 0
+              : normalized > 0;
+            const isNegative = stat.inverseColors
+              ? normalized > 0
+              : normalized < 0;
 
             return (
-              <div key={i} className="flex items-start gap-3">
-                <div className={cn("flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg", stat.iconBg)}>
-                  <stat.icon className={cn("h-4 w-4", stat.iconColor)} />
+              <div
+                key={i}
+                className={cn(
+                  'flex items-start gap-3',
+                  i < stats.length - 1 && 'pb-5 border-b border-border/50'
+                )}
+              >
+                {/* Icon */}
+                <div
+                  className={cn(
+                    'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl',
+                    stat.iconBg
+                  )}
+                >
+                  <stat.icon className={cn('h-4 w-4', stat.iconColor)} />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-muted-foreground">{stat.label}</p>
-                  <div className="flex items-baseline gap-2">
-                    <p className="text-lg font-bold tracking-tight">{stat.value}</p>
+
+                {/* Body */}
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-muted-foreground">{stat.label}</p>
+                  <div className="mt-0.5 flex items-baseline gap-2">
+                    <p className="admin-metric-value text-xl font-bold tracking-tight text-foreground">
+                      {stat.value}
+                    </p>
                     {stat.change != null && (
-                      <span className={cn(
-                        "flex items-center gap-0.5 text-xs font-medium",
-                        isPositive && "text-emerald-600",
-                        isNegative && "text-red-600",
-                        !isPositive && !isNegative && "text-muted-foreground"
-                      )}>
+                      <span
+                        className={cn(
+                          'flex items-center gap-0.5 text-xs font-medium tabular-nums',
+                          isPositive && 'text-emerald-600 dark:text-emerald-400',
+                          isNegative && 'text-rose-600 dark:text-rose-400',
+                          !isPositive && !isNegative && 'text-muted-foreground'
+                        )}
+                      >
                         <TrendIcon className="h-3 w-3" />
-                        {Math.abs(stat.change).toFixed(1)}%
+                        {Math.abs(normalized).toFixed(1)}%
                       </span>
                     )}
                   </div>
+
                   {stat.subtitle && (
-                    <p className="text-xs text-amber-600">{stat.subtitle}</p>
+                    <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">
+                      {stat.subtitle}
+                    </p>
                   )}
+
                   {stat.progressValue != null && (
-                    <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
                       <div
                         className={cn(
-                          "h-full rounded-full transition-all duration-500",
-                          stat.progressValue >= 80 ? "bg-emerald-500" : stat.progressValue >= 60 ? "bg-amber-500" : "bg-red-500"
+                          'h-full rounded-full transition-all duration-700',
+                          stat.progressValue >= 80
+                            ? 'bg-emerald-500'
+                            : stat.progressValue >= 60
+                              ? 'bg-amber-500'
+                              : 'bg-rose-500'
                         )}
                         style={{ width: `${Math.min(stat.progressValue, 100)}%` }}
                       />
