@@ -78,16 +78,6 @@ const superAdminMenuGroups = [
     ],
   },
   {
-    id: 'internal',
-    title: 'NỘI BỘ',
-    items: [
-      { label: 'Nhân sự', icon: UserCog, path: '/admin/staff' },
-      { label: 'Đơn nghỉ phép', icon: Calendar, path: '/admin/leave-requests' },
-      { label: 'Bảng lương', icon: Wallet, path: '/admin/payroll' },
-      { label: 'Khiếu nại lương', icon: AlertTriangle, path: '/admin/payroll-disputes' },
-    ],
-  },
-  {
     id: 'analytics',
     title: 'PHÂN TÍCH & BÁO CÁO',
     items: [
@@ -123,12 +113,13 @@ const managerMenuGroups = [
   },
   {
     id: 'students-finance',
-    title: 'HỌC VIÊN & TÀI CHÍNH',
+    title: 'VẬN HÀNH TRUNG TÂM',
     items: [
       { label: 'Học viên', icon: Users, path: '/admin/students' },
       { label: 'Ghi danh', icon: UserPlus, path: '/admin/enrollments' },
       { label: 'Hóa đơn', icon: Receipt, path: '/admin/invoices' },
       { label: 'Chứng chỉ', icon: Award, path: '/admin/certificates' },
+      { label: 'Hóa đơn quá hạn', icon: AlertTriangle, path: '/admin/overdue-invoices' },
     ],
   },
   {
