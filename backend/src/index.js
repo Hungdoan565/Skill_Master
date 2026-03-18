@@ -6974,10 +6974,15 @@ app.put('/api/admin/sessions/:id', requireAuth, async (req, res, next) => {
     const { id } = req.params;
     const updates = req.body;
 
+    // Let the dedicated bulk route handle /api/admin/sessions/bulk
+    if (id === 'bulk') {
+      return next();
+    }
+
     // KiÃ¡Â»Æ’m tra session cÃƒÂ³ bÃ¡Â»â€¹ lock khÃƒÂ´ng
     const { data: session, error: sessionError } = await supabase
       .from('sessions')
-      .select('is_locked, class_id')
+      .select('is_locked, class_id, session_date, start_time')
       .eq('id', id)
       .single();
 
@@ -6991,6 +6996,18 @@ app.put('/api/admin/sessions/:id', requireAuth, async (req, res, next) => {
         success: false,
         message: 'BuÃ¡Â»â€¢i hÃ¡Â»Âc Ã„â€˜ÃƒÂ£ Ã„â€˜Ã†Â°Ã¡Â»Â£c khÃƒÂ³a sÃ¡Â»â€¢, khÃƒÂ´ng thÃ¡Â»Æ’ sÃ¡Â»Â­a'
       });
+    }
+
+
+    // Block completing future sessions
+    if (updates.status === 'completed' && session.session_date && session.start_time) {
+      const sessionStart = new Date(`${session.session_date}T${session.start_time}`);
+      if (sessionStart > new Date()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Không thể hoàn thành buổi học chưa diễn ra'
+        });
+      }
     }
 
     // KhÃƒÂ´ng cho sÃ¡Â»Â­a cÃƒÂ¡c trÃ†Â°Ã¡Â»Âng quan trÃ¡Â»Âng
@@ -7040,25 +7057,116 @@ app.put('/api/admin/sessions/:id', requireAuth, async (req, res, next) => {
 // ========================================
 app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
-    const { sessionIds, updates } = req.body;
+    const { sessionIds, action, updates } = req.body;
 
     if (!sessionIds || !Array.isArray(sessionIds) || sessionIds.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'Danh sÃƒÂ¡ch buÃ¡Â»â€¢i hÃ¡Â»Âc khÃƒÂ´ng hÃ¡Â»Â£p lÃ¡Â»â€¡'
+        message: 'Danh sách buổi học không hợp lệ'
       });
     }
 
+    // Support both action-based and updates-based bulk operations
+    if (action && ['complete', 'cancel'].includes(action)) {
+      // Action-based: complete or cancel
+      console.log(`📦 Admin ${req.user.email} bulk ${action} ${sessionIds.length} sessions`);
+
+      const { data: sessions, error: fetchError } = await supabase
+        .from('sessions')
+        .select('id, status, is_locked, session_date, start_time, classes(id, center_id)')
+        .in('id', sessionIds);
+
+      if (fetchError) throw fetchError;
+      if (!sessions || sessions.length === 0) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy buổi học nào' });
+      }
+
+      // Permission check
+      const userRole = req.user.roleCode;
+      const userCenterId = req.user.centerId;
+      for (const session of sessions) {
+        const sessionCenterId = session.classes?.center_id;
+        if (userRole !== 'SUPER_ADMIN' && sessionCenterId !== userCenterId) {
+          return res.status(403).json({
+            success: false,
+            message: 'Bạn không có quyền thao tác buổi học thuộc trung tâm khác'
+          });
+        }
+      }
+
+      // Filter out locked sessions
+      const lockedSessions = sessions.filter(s => s.is_locked);
+      const editableSessions = sessions.filter(s => !s.is_locked);
+
+      if (editableSessions.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Tất cả buổi học đã bị khóa, không thể thay đổi',
+          lockedCount: lockedSessions.length
+        });
+      }
+
+      let toUpdate = editableSessions;
+      let skippedByStatus = [];
+
+      if (action === 'complete') {
+        const now = new Date();
+        toUpdate = editableSessions.filter(s => {
+          if (s.status !== 'scheduled' && s.status !== 'upcoming') return false;
+          // Block completing future sessions
+          if (s.session_date && s.start_time) {
+            const sessionStart = new Date(`${s.session_date}T${s.start_time}`);
+            if (sessionStart > now) return false;
+          }
+          return true;
+        });
+        skippedByStatus = editableSessions.filter(s => !toUpdate.find(t => t.id === s.id));
+      } else if (action === 'cancel') {
+        toUpdate = editableSessions.filter(s => ['scheduled', 'upcoming'].includes(s.status));
+        skippedByStatus = editableSessions.filter(s => !['scheduled', 'upcoming'].includes(s.status));
+      }
+
+      if (toUpdate.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Không có buổi học nào có thể ${action === 'complete' ? 'hoàn thành' : 'hủy'}`,
+          lockedCount: lockedSessions.length,
+          skippedByStatus: skippedByStatus.length
+        });
+      }
+
+      const newStatus = action === 'complete' ? 'completed' : 'cancelled';
+      const idsToUpdate = toUpdate.map(s => s.id);
+
+      const { error: updateError } = await supabase
+        .from('sessions')
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .in('id', idsToUpdate);
+
+      if (updateError) throw updateError;
+
+      console.log(`✅ Bulk ${action}: ${idsToUpdate.length} sessions updated`);
+
+      return res.json({
+        success: true,
+        updatedCount: idsToUpdate.length,
+        lockedCount: lockedSessions.length,
+        skippedByStatus: skippedByStatus.length,
+        updatedIds: idsToUpdate,
+        message: `Đã ${action === 'complete' ? 'hoàn thành' : 'hủy'} ${idsToUpdate.length} buổi học`
+      });
+    }
+
+    // Updates-based: generic bulk update
     if (!updates || Object.keys(updates).length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'KhÃƒÂ´ng cÃƒÂ³ thay Ã„â€˜Ã¡Â»â€¢i nÃƒÂ o Ã„â€˜Ã†Â°Ã¡Â»Â£c gÃ¡Â»Â­i'
+        message: 'Không có thay đổi nào được gửi'
       });
     }
 
-    console.log(`Ã°Å¸â€œÂ Admin ${req.user.email} bulk update ${sessionIds.length} sessions:`, updates);
+    console.log(`📝 Admin ${req.user.email} bulk update ${sessionIds.length} sessions:`, updates);
 
-    // Check for locked sessions
     const { data: sessions, error: fetchError } = await supabase
       .from('sessions')
       .select('id, is_locked')
@@ -7070,20 +7178,17 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     if (lockedSessions.length > 0) {
       return res.status(400).json({
         success: false,
-        message: `${lockedSessions.length} buÃ¡Â»â€¢i hÃ¡Â»Âc Ã„â€˜ÃƒÂ£ bÃ¡Â»â€¹ khÃƒÂ³a sÃ¡Â»â€¢, khÃƒÂ´ng thÃ¡Â»Æ’ sÃ¡Â»Â­a`
+        message: `${lockedSessions.length} buổi học đã bị khóa sổ, không thể sửa`
       });
     }
 
-    // Sanitize updates - remove protected fields
     const safeUpdates = { ...updates };
     delete safeUpdates.is_locked;
     delete safeUpdates.payroll_id;
     delete safeUpdates.class_id;
     delete safeUpdates.id;
-
     safeUpdates.updated_at = new Date().toISOString();
 
-    // Perform bulk update
     const { data, error: updateError } = await supabase
       .from('sessions')
       .update(safeUpdates)
@@ -7092,15 +7197,14 @@ app.put('/api/admin/sessions/bulk', requireAuth, requireRole(['SUPER_ADMIN', 'CE
 
     if (updateError) throw updateError;
 
-    console.log(`Ã¢Å“â€¦ Ã„ÂÃƒÂ£ cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t ${data?.length || 0} buÃ¡Â»â€¢i hÃ¡Â»Âc`);
+    console.log(`✅ Đã cập nhật ${data?.length || 0} buổi học`);
 
     res.json({
       success: true,
-      message: `Ã„ÂÃƒÂ£ cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t ${data?.length || 0} buÃ¡Â»â€¢i hÃ¡Â»Âc`,
+      message: `Đã cập nhật ${data?.length || 0} buổi học`,
       updated: data?.length || 0,
       data
     });
-
   } catch (error) {
     console.error('Error bulk updating sessions:', error);
     next(error);

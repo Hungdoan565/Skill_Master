@@ -76,7 +76,17 @@ const APPROVAL_TYPES = {
     approveBody: { status: 'resolved' },
     rejectBody: (reason) => ({ status: 'rejected', admin_response: reason }),
     getTitle: (item) => item.teacher?.full_name || item.teacher_name || 'Giáo viên',
-    getSubtitle: (item) => item.dispute_type || item.title || 'Khiếu nại lương',
+    getSubtitle: (item) => {
+      const types = {
+        incorrect_hours: 'Sai số giờ dạy',
+        incorrect_rate: 'Sai mức lương/giờ',
+        missing_sessions: 'Thiếu buổi dạy',
+        incorrect_bonus: 'Sai tiền thưởng',
+        incorrect_deduction: 'Sai tiền khấu trừ',
+        other: 'Lý do khác'
+      };
+      return types[item.dispute_type] || item.dispute_type || item.title || 'Khiếu nại lương';
+    },
   },
   leaves: {
     label: 'Nghỉ phép',

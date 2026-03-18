@@ -1,9 +1,12 @@
-import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  TrendingUp, TrendingDown, Minus,
+  DollarSign, Users, BookOpen, Receipt
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const formatCurrency = (value) =>
-  `${new Intl.NumberFormat('vi-VN').format(value || 0)}đ`;
+  new Intl.NumberFormat('vi-VN').format(value || 0) + 'đ';
 const formatNumber = (value) => new Intl.NumberFormat('vi-VN').format(value || 0);
 
 const KPI_ITEMS = [
@@ -12,27 +15,36 @@ const KPI_ITEMS = [
     label: 'Tổng doanh thu',
     helper: 'So với tháng trước',
     formatter: formatCurrency,
-    accentBar: 'bg-emerald-500',
-    accentBorder: 'border-emerald-200/60 dark:border-emerald-900/40',
+    icon: DollarSign,
+    gradient: 'from-emerald-500/8 to-emerald-500/2',
+    iconBg: 'bg-emerald-500/12',
+    iconColor: 'text-emerald-600 dark:text-emerald-400',
+    ringColor: 'ring-emerald-500/20',
   },
   {
     key: 'students',
     label: 'Tổng học viên',
     helper: 'Đang hoạt động',
     formatter: formatNumber,
-    accentBar: 'bg-blue-500',
-    accentBorder: 'border-blue-200/60 dark:border-blue-900/40',
+    icon: Users,
+    gradient: 'from-blue-500/8 to-blue-500/2',
+    iconBg: 'bg-blue-500/12',
+    iconColor: 'text-blue-600 dark:text-blue-400',
+    ringColor: 'ring-blue-500/20',
   },
   {
     key: 'classes',
     label: 'Lớp đang học',
     helperFromData: (data) =>
       data.classes?.total
-        ? `Trên tổng ${data.classes.total} lớp`
+        ? 'Lớp đang diễn ra'
         : 'Lớp đang diễn ra',
     formatter: formatNumber,
-    accentBar: 'bg-violet-500',
-    accentBorder: 'border-violet-200/60 dark:border-violet-900/40',
+    icon: BookOpen,
+    gradient: 'from-violet-500/8 to-violet-500/2',
+    iconBg: 'bg-violet-500/12',
+    iconColor: 'text-violet-600 dark:text-violet-400',
+    ringColor: 'ring-violet-500/20',
   },
   {
     key: 'debt',
@@ -43,8 +55,11 @@ const KPI_ITEMS = [
         : 'Cần thu hồi',
     formatter: formatCurrency,
     inverseColors: true,
-    accentBar: 'bg-rose-500',
-    accentBorder: 'border-rose-200/60 dark:border-rose-900/40',
+    icon: Receipt,
+    gradient: 'from-rose-500/8 to-rose-500/2',
+    iconBg: 'bg-rose-500/12',
+    iconColor: 'text-rose-600 dark:text-rose-400',
+    ringColor: 'ring-rose-500/20',
   },
 ];
 
@@ -55,39 +70,28 @@ function TrendBadge({ change, inverseColors = false }) {
   const isNegative = normalized < 0;
   const displayValue = `${Math.abs(normalized) % 1 === 0 ? Math.abs(normalized) : Math.abs(normalized).toFixed(1)}%`;
 
-  const positiveClass = inverseColors
-    ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/50 dark:bg-rose-900/20 dark:text-rose-300'
-    : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-900/20 dark:text-emerald-300';
-  const negativeClass = inverseColors
-    ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-900/20 dark:text-emerald-300'
-    : 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/50 dark:bg-rose-900/20 dark:text-rose-300';
-  const neutralClass =
-    'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400';
+  const effectivePositive = inverseColors ? isNegative : isPositive;
+  const effectiveNegative = inverseColors ? isPositive : isNegative;
 
-  const base =
-    'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold tabular-nums';
-
-  if (isPositive) {
-    return (
-      <Badge variant="outline" className={`${base} ${positiveClass}`}>
-        <TrendingUp className="h-2.5 w-2.5" />
-        {displayValue}
-      </Badge>
-    );
-  }
-  if (isNegative) {
-    return (
-      <Badge variant="outline" className={`${base} ${negativeClass}`}>
-        <TrendingDown className="h-2.5 w-2.5" />
-        {displayValue}
-      </Badge>
-    );
-  }
   return (
-    <Badge variant="outline" className={`${base} ${neutralClass}`}>
-      <Minus className="h-2.5 w-2.5" />
-      0%
-    </Badge>
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums',
+        'transition-colors duration-200',
+        effectivePositive && 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+        effectiveNegative && 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
+        !effectivePositive && !effectiveNegative && 'bg-slate-500/10 text-slate-600 dark:text-slate-400'
+      )}
+    >
+      {isPositive ? (
+        <TrendingUp className="h-3 w-3" />
+      ) : isNegative ? (
+        <TrendingDown className="h-3 w-3" />
+      ) : (
+        <Minus className="h-3 w-3" />
+      )}
+      {isNegative ? '' : '+'}{displayValue}
+    </span>
   );
 }
 
@@ -100,40 +104,45 @@ export function KPISummaryBar({ data }) {
         const metric = data[item.key] || {};
         const showTrend =
           item.key !== 'classes' || metric.change !== undefined;
+        const Icon = item.icon;
 
         return (
           <Card
             key={item.key}
-            className={`admin-surface-card admin-card-hover admin-kpi-card rounded-2xl border ${item.accentBorder}`}
+            className={cn(
+              'group relative overflow-hidden rounded-2xl border border-border/60',
+              'bg-gradient-to-br', item.gradient,
+              'transition-all duration-300',
+              'hover:shadow-[0_8px_30px_-12px_rgba(0,0,0,0.08)]',
+              'hover:border-border'
+            )}
           >
-            {/* Coloured accent stripe */}
-            <span className={`admin-kpi-accent ${item.accentBar}`} />
-
-            <CardHeader className="space-y-2 pb-1">
-              <div className="flex items-start justify-between gap-2">
-                <CardDescription className="text-sm font-medium text-muted-foreground leading-tight">
-                  {item.label}
-                </CardDescription>
-                {showTrend && (
-                  <TrendBadge
-                    change={metric.change}
-                    inverseColors={item.inverseColors}
-                  />
-                )}
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className={cn(
+                    'flex h-9 w-9 items-center justify-center rounded-xl',
+                    item.iconBg,
+                    'ring-1', item.ringColor,
+                    'transition-transform duration-300 group-hover:scale-105'
+                  )}>
+                    <Icon className={cn('h-4.5 w-4.5', item.iconColor)} />
+                  </div>
+                  <span className="text-[13px] font-medium text-muted-foreground">
+                    {item.label}
+                  </span>
+                </div>
+                {showTrend && <TrendBadge change={metric.change} inverseColors={item.inverseColors} />}
               </div>
 
-              <CardTitle className="admin-metric-value text-[1.75rem] font-bold leading-none tracking-tight text-foreground">
+              <p className="text-[1.75rem] font-bold leading-none tracking-tight text-foreground tabular-nums">
                 {item.formatter(metric.value)}
-              </CardTitle>
-            </CardHeader>
-
-            <CardFooter className="pt-2">
-              <p className="text-xs text-muted-foreground">
-                {item.helperFromData
-                  ? item.helperFromData(data)
-                  : item.helper}
               </p>
-            </CardFooter>
+
+              <p className="mt-2 text-[11px] text-muted-foreground/70">
+                {item.helperFromData ? item.helperFromData(data) : item.helper}
+              </p>
+            </CardContent>
           </Card>
         );
       })}

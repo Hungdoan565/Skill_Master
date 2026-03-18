@@ -1,4 +1,4 @@
-/**
+hoa/**
  * StudentProgressPage Component
  * Aggregated student progress view for teachers
  * Route: /teacher/classes/:classId/students/:studentId

@@ -179,7 +179,7 @@ export function SessionsTable({
   
   // Get selectable sessions (not locked, not completed/cancelled)
   const selectableSessions = useMemo(() => {
-    return sessions.filter(s => !s.is_locked && s.status === 'scheduled');
+    return sessions.filter(s => !s.is_locked && (s.status === 'scheduled' || s.status === 'upcoming'));
   }, [sessions]);
   
   // Check if all selectable sessions on current page are selected
@@ -189,7 +189,7 @@ export function SessionsTable({
   }, [sessions, currentPage]);
   
   const selectableOnPage = useMemo(() => {
-    return paginatedSessions.filter(s => !s.is_locked && s.status === 'scheduled');
+    return paginatedSessions.filter(s => !s.is_locked && (s.status === 'scheduled' || s.status === 'upcoming'));
   }, [paginatedSessions]);
   
   const allPageSelected = selectableOnPage.length > 0 && 
@@ -418,7 +418,7 @@ export function SessionsTable({
                   const timeInfo = getTimeInfo(session);
                   const StatusIcon = statusConfig.icon;
                   const isSelected = selectedIds.has(session.id);
-                  const isSelectable = !session.is_locked && session.status === 'scheduled';
+                  const isSelectable = !session.is_locked && (session.status === 'scheduled' || session.status === 'upcoming');
                   
                   return (
                     <div 
