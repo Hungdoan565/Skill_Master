@@ -58,6 +58,16 @@ const teacherClassesPageSource = fs.readFileSync(
     'utf8'
 );
 
+const smartAlertsSource = fs.readFileSync(
+    path.resolve(import.meta.dirname, '..', '..', 'frontend', 'src', 'features', 'teacher-dashboard', 'components', 'SmartAlerts.jsx'),
+    'utf8'
+);
+
+const quickActionsSource = fs.readFileSync(
+    path.resolve(import.meta.dirname, '..', '..', 'frontend', 'src', 'features', 'teacher-dashboard', 'components', 'QuickActions.jsx'),
+    'utf8'
+);
+
 const studentProgressPageSource = fs.readFileSync(
     path.resolve(import.meta.dirname, '..', '..', 'frontend', 'src', 'features', 'teacher-classes', 'pages', 'StudentProgressPage.jsx'),
     'utf8'
@@ -177,5 +187,21 @@ test('student progress surfaces hardened attendance denominator and safe local d
     assert.match(studentProgressPageSource, /attendance\.attendance_marked_sessions/);
     assert.match(studentProgressPageSource, /formatDateOnlyLocal/);
     assert.match(studentProgressPageSource, /formatDateTimeLocal/);
+});
+
+test('teacher alerts and quick actions use center-manager escalation semantics', () => {
+    assert.match(smartAlertsSource, /Quản lý trung tâm đang xem xét bảng lương của bạn\./);
+    assert.match(smartAlertsSource, /Quản lý trung tâm chưa xử lý đơn nghỉ của bạn\./);
+    assert.doesNotMatch(smartAlertsSource, /Admin đang xem xét bảng lương của bạn\./);
+    assert.doesNotMatch(smartAlertsSource, /Admin chưa xử lý đơn nghỉ của bạn\./);
+
+    assert.match(quickActionsSource, /badge: pendingLeaveCount > 0 \? pendingLeaveCount : null/);
+    assert.match(quickActionsSource, /label: 'Đơn xin nghỉ'/);
+});
+
+test('teacher leave request backend still escalates to center managers', () => {
+    assert.match(backendSource, /app\.post\('\/api\/teacher\/leave-requests'[^]*from\('user_roles'\)/);
+    assert.match(backendSource, /app\.post\('\/api\/teacher\/leave-requests'[^]*\.eq\('role', 'CENTER_MANAGER'\)/);
+    assert.match(backendSource, /app\.post\('\/api\/teacher\/leave-requests'[^]*type: 'leave_request'/);
 });
 

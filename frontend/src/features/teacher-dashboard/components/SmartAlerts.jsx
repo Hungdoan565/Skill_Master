@@ -62,7 +62,7 @@ export function SmartAlerts({ overview, todaySessions, pendingLeaveCount = 0 }) 
             type: 'info',
             icon: DollarSign,
             title: 'Bảng lương tháng này đang chờ duyệt',
-            message: 'Admin đang xem xét bảng lương của bạn.',
+            message: 'Quản lý trung tâm đang xem xét bảng lương của bạn.',
             action: { label: 'Xem bảng lương', href: '/teacher/payroll' }
         });
     }
@@ -74,7 +74,7 @@ export function SmartAlerts({ overview, todaySessions, pendingLeaveCount = 0 }) 
             type: 'info',
             icon: FileText,
             title: `${pendingLeaveCount} đơn xin nghỉ đang chờ phê duyệt`,
-            message: 'Admin chưa xử lý đơn nghỉ của bạn.',
+            message: 'Quản lý trung tâm chưa xử lý đơn nghỉ của bạn.',
             action: { label: 'Xem đơn nghỉ', href: '/teacher/leave-requests' }
         });
     }

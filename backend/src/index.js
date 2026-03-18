@@ -4850,7 +4850,7 @@ app.post('/api/students/import', requireAuth, async (req, res, next) => {
 // ============ STUDENT DETAIL APIs ============
 
 // LÃ¡ÂºÂ¥y chi tiÃ¡ÂºÂ¿t hÃ¡Â»Âc viÃƒÂªn (kÃƒÂ¨m enrollments, invoices, attendance)
-app.get('/api/admin/students/:id', requireAuth, async (req, res, next) => {
+app.get('/api/admin/students/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -7353,7 +7353,7 @@ app.get('/api/admin/sessions/:sessionId/available-rooms', requireAuth, async (re
 // ============ ATTENDANCE MANAGEMENT APIs ============
 
 // LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch Ã„â€˜iÃ¡Â»Æ’m danh cÃ¡Â»Â§a mÃ¡Â»â„¢t session
-app.get('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, res, next) => {
+app.get('/api/admin/sessions/:sessionId/attendance', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { sessionId } = req.params;
 
@@ -7374,7 +7374,7 @@ app.get('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, re
 });
 
 // Ã„ÂiÃ¡Â»Æ’m danh hÃƒÂ ng loÃ¡ÂºÂ¡t (Batch attendance)
-app.post('/api/admin/sessions/:sessionId/attendance', requireAuth, async (req, res, next) => {
+app.post('/api/admin/sessions/:sessionId/attendance', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const { sessionId } = req.params;
     const { attendances } = req.body; // Array: [{student_id, status, notes}]

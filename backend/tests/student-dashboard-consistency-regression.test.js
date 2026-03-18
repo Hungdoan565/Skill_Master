@@ -13,6 +13,11 @@ const dashboardSource = fs.readFileSync(
   'utf8'
 );
 
+const supportPageSource = fs.readFileSync(
+  path.resolve(import.meta.dirname, '..', '..', 'frontend', 'src', 'features', 'student-portal', 'pages', 'StudentSupportPage.jsx'),
+  'utf8'
+);
+
 test('student dashboard API exposes enrollment count and session-based today classes', () => {
   assert.match(backendSource, /app\.get\('\/api\/student\/dashboard'/);
   assert.match(backendSource, /activeEnrollmentCount:\s*enrollments\?\.length\s*\|\|\s*0/);
@@ -32,4 +37,13 @@ test('student dashboard onboarding depends on active enrollment count, not missi
 test('student dashboard empty state distinguishes enrolled students with no class today', () => {
   assert.match(dashboardSource, /Hôm nay bạn không có lớp\./);
   assert.match(dashboardSource, /Buổi gần nhất:/);
+});
+
+test('student-facing payment and support copy stay plain-language and self-service oriented', () => {
+  assert.match(dashboardSource, /Trung tâm sẽ xác minh sau khi bạn gửi minh chứng thanh toán\./);
+  assert.doesNotMatch(dashboardSource, /gửi minh chứng để trung tâm xác minh\./i);
+
+  assert.match(supportPageSource, /Theo dõi trao đổi với trung tâm về học tập, kỹ thuật hoặc học phí/);
+  assert.match(supportPageSource, /Theo dõi sau tư vấn/);
+  assert.doesNotMatch(supportPageSource, /Follow-up tư vấn/);
 });

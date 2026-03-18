@@ -26,7 +26,11 @@ import {
 } from '../components';
 
 export function StaffPage() {
-  const { isSuperAdmin } = useAuth();
+  const { isSuperAdmin, isManager, profile } = useAuth();
+  const staffTitle = isManager?.() ? 'Đội ngũ trung tâm' : 'Quản lý Nhân sự';
+  const staffSubtitle = isManager?.()
+    ? `Theo dõi và điều phối nhân sự tại ${profile?.centers?.name || 'trung tâm đang phụ trách'}`
+    : 'Danh sách giáo viên và quản lý trung tâm';
 
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -207,8 +211,8 @@ export function StaffPage() {
       {/* Toast notification */}
       {toast.show && (
         <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg ${toast.type === 'success'
-            ? 'bg-green-500 text-white'
-            : 'bg-red-500 text-white'
+          ? 'bg-green-500 text-white'
+          : 'bg-red-500 text-white'
           }`}>
           {toast.message}
         </div>
@@ -217,10 +221,8 @@ export function StaffPage() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Quản lý Nhân sự</h1>
-          <p className="text-muted-foreground">
-            Danh sách giáo viên và quản lý trung tâm
-          </p>
+          <h1 className="text-3xl font-bold tracking-tight">{staffTitle}</h1>
+          <p className="text-muted-foreground">{staffSubtitle}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={handleRefresh} disabled={loading}>

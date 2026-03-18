@@ -94,11 +94,15 @@ const REPORT_CARDS = [
 
 export default function ReportsPage() {
     const { fetchSavedReports, deleteSavedReport, loading } = useReports();
-    const { session } = useAuth();
+    const { session, isSuperAdmin, profile } = useAuth();
     const [searchParams, setSearchParams] = useSearchParams();
     const [savedReports, setSavedReports] = useState([]);
     const [selectedClass, setSelectedClass] = useState(null);
     const [definitionVersion, setDefinitionVersion] = useState('n/a');
+    const reportTitle = !isSuperAdmin?.() ? 'Báo cáo vận hành trung tâm' : 'Báo cáo & Thống kê';
+    const reportSubtitle = !isSuperAdmin?.()
+        ? `Phân tích dữ liệu trong phạm vi ${profile?.centers?.name || 'trung tâm đang phụ trách'}`
+        : 'Phân tích dữ liệu chi tiết và xuất báo cáo';
 
     // Get classId from URL
     const classIdFromUrl = searchParams.get('classId');
@@ -124,6 +128,10 @@ export default function ReportsPage() {
 
     const fetchKpiDefinitionVersion = useCallback(async () => {
         if (!session?.access_token) return;
+        if (!isSuperAdmin?.()) {
+            setDefinitionVersion('center-scoped');
+            return;
+        }
 
         try {
             const response = await fetch(`${API_URL}/api/admin/system-dashboard`, {
@@ -139,7 +147,7 @@ export default function ReportsPage() {
         } catch (err) {
             console.error('Error fetching KPI definition version:', err);
         }
-    }, [session]);
+    }, [isSuperAdmin, session]);
 
     useEffect(() => {
         loadSavedReports();
@@ -181,9 +189,9 @@ export default function ReportsPage() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Báo cáo & Thống kê</h1>
+                    <h1 className="text-2xl font-bold text-gray-900">{reportTitle}</h1>
                     <p className="text-gray-500 mt-1">
-                        Phân tích dữ liệu chi tiết và xuất báo cáo
+                        {reportSubtitle}
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
                         Chuẩn KPI: phiên bản {definitionVersion}

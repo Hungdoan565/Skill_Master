@@ -62,7 +62,7 @@ export default function StudentSupportPage() {
   const [selectedTicketId, setSelectedTicketId] = useState(null);
   const [replyText, setReplyText] = useState('');
   const { toast } = useToast();
-  
+
   const [formData, setFormData] = useState({
     subject: '',
     category: 'academic',
@@ -240,10 +240,10 @@ export default function StudentSupportPage() {
               Hỗ trợ
             </h1>
             <p className="text-emerald-50 text-base sm:text-lg max-w-xl">
-              Gửi yêu cầu hỗ trợ và theo dõi tiến độ xử lý
+              Theo dõi trao đổi với trung tâm về học tập, kỹ thuật hoặc học phí
             </p>
           </div>
-          <Button 
+          <Button
             onClick={() => setIsModalOpen(true)}
             className="bg-white text-emerald-700 hover:bg-emerald-50 shadow-sm border-0"
             size="lg"
@@ -252,7 +252,7 @@ export default function StudentSupportPage() {
             Tạo yêu cầu hỗ trợ
           </Button>
         </div>
-        
+
         {/* Decorative elements */}
         <div className="absolute top-0 right-0 -translate-y-12 translate-x-1/3 opacity-10 pointer-events-none">
           <svg width="400" height="400" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
@@ -286,7 +286,7 @@ export default function StudentSupportPage() {
           {tickets.map(ticket => {
             const statusConfig = STATUS_MAP[ticket.status] || STATUS_MAP.open;
             const priorityConfig = PRIORITY_MAP[ticket.priority] || PRIORITY_MAP.medium;
-            
+
             return (
               <Card key={ticket.id} className={cn("hover:shadow-md transition-shadow group overflow-hidden border-l-4 rounded-2xl bg-white border-y-border border-r-border", statusConfig.border)}>
                 <CardContent className="p-5">
@@ -298,7 +298,7 @@ export default function StudentSupportPage() {
                       {statusConfig.label}
                     </Badge>
                   </div>
-                  
+
                   <h3 className="font-semibold text-base line-clamp-2 mb-3 group-hover:text-emerald-600 transition-colors">
                     {ticket.subject}
                   </h3>
@@ -306,7 +306,7 @@ export default function StudentSupportPage() {
                   <div className="mb-3 flex flex-wrap items-center gap-2">
                     {ticket.is_consultation_follow_up ? (
                       <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
-                        Follow-up tư vấn
+                        Theo dõi sau tư vấn
                       </Badge>
                     ) : null}
                     {ticket.message_count > 0 ? (
@@ -315,7 +315,7 @@ export default function StudentSupportPage() {
                       </Badge>
                     ) : null}
                   </div>
-                  
+
                   <div className="space-y-2 text-sm text-muted-foreground mb-4">
                     <div className="flex items-center gap-2">
                       <Tag className="h-3.5 w-3.5" />
@@ -326,7 +326,7 @@ export default function StudentSupportPage() {
                       <span>{formatDate(ticket.created_at)}</span>
                     </div>
                   </div>
-                  
+
                   <div className="pt-4 border-t border-border flex items-center justify-between">
                     <Badge variant="secondary" className={cn("text-xs border-0", priorityConfig.color)}>
                       {priorityConfig.label}
@@ -364,7 +364,7 @@ export default function StudentSupportPage() {
                   ) : null}
                   {selectedTicket?.is_consultation_follow_up ? (
                     <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
-                      Follow-up tư vấn
+                      Theo dõi sau tư vấn
                     </Badge>
                   ) : null}
                 </div>
@@ -450,7 +450,7 @@ export default function StudentSupportPage() {
               Vui lòng cung cấp chi tiết về vấn đề bạn đang gặp phải. Chúng tôi sẽ phản hồi trong thời gian sớm nhất.
             </DialogDescription>
           </DialogHeader>
-          
+
           <form onSubmit={handleSubmit} className="space-y-5 py-4">
             <div className="space-y-2">
               <Label htmlFor="subject" className="font-medium">Tiêu đề <span className="text-red-500">*</span></Label>
@@ -463,7 +463,7 @@ export default function StudentSupportPage() {
                 className="focus-visible:ring-emerald-500"
               />
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="category" className="font-medium">Danh mục</Label>
@@ -482,7 +482,7 @@ export default function StudentSupportPage() {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="priority" className="font-medium">Mức độ ưu tiên</Label>
                 <Select
@@ -500,7 +500,7 @@ export default function StudentSupportPage() {
                 </Select>
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="message" className="font-medium">Nội dung chi tiết <span className="text-red-500">*</span></Label>
               <Textarea
@@ -512,7 +512,7 @@ export default function StudentSupportPage() {
                 required
               />
             </div>
-            
+
             <DialogFooter className="pt-2">
               <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
                 Hủy bỏ
