@@ -218,7 +218,7 @@ export function useTeacherAvailability() {
             if (!response.ok) throw new Error('Lỗi khi tải lịch trống');
 
             const data = await response.json();
-            setAvailability(data.availability || []);
+            setAvailability(data.data || data.availability || []);
 
         } catch (err) {
             console.error('Availability fetch error:', err);
@@ -253,7 +253,7 @@ export function useTeacherAvailability() {
             }
 
             const data = await response.json();
-            setAvailability(data.availability || []);
+            setAvailability(data.data || data.availability || []);
             return { success: true };
 
         } catch (err) {

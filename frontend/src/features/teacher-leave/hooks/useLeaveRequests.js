@@ -100,6 +100,53 @@ export function useLeaveRequests() {
         }
     }, [getHeaders, refetch]);
 
+    const updateLeaveRequest = useCallback(async (id, data) => {
+        try {
+            setError(null);
+
+            const payload = normalizeLeavePayload(data);
+
+            // Only send non-empty fields
+            const updatePayload = {};
+            if (payload.leave_type) updatePayload.leave_type = payload.leave_type;
+            if (payload.start_date) updatePayload.start_date = payload.start_date;
+            if (payload.end_date) updatePayload.end_date = payload.end_date;
+            if (payload.reason) updatePayload.reason = payload.reason;
+
+            if (Object.keys(updatePayload).length === 0) {
+                const message = 'Không có dữ liệu cần cập nhật';
+                setError(message);
+                return { success: false, message };
+            }
+
+            if (updatePayload.leave_type && !ALLOWED_LEAVE_TYPES.has(updatePayload.leave_type)) {
+                const message = 'Loại nghỉ không hợp lệ';
+                setError(message);
+                return { success: false, message };
+            }
+
+            const response = await fetch(`${API_URL}/api/teacher/leave-requests/${id}`, {
+                method: 'PATCH',
+                headers: getHeaders(),
+                body: JSON.stringify(updatePayload)
+            });
+
+            const result = await parseJsonSafe(response);
+
+            if (!response.ok || !result?.success) {
+                throw new Error(result?.message || 'Không thể cập nhật đơn xin nghỉ');
+            }
+
+            await refetch();
+            return { success: true, data: result.data };
+        } catch (err) {
+            console.error('Error updating leave request:', err);
+            const message = err.message || 'Đã có lỗi xảy ra khi cập nhật đơn';
+            setError(message);
+            return { success: false, message };
+        }
+    }, [getHeaders, refetch]);
+
     const deleteLeaveRequest = useCallback(async (id) => {
         try {
             setError(null);
@@ -134,6 +181,7 @@ export function useLeaveRequests() {
         loading,
         error,
         createLeaveRequest,
+        updateLeaveRequest,
         deleteLeaveRequest,
         refetch
     };

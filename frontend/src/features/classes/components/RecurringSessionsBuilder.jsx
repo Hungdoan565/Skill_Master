@@ -20,6 +20,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { TimeSelect } from '@/components/ui/time-select';
 
 // Days of week configuration
 const DAYS_CONFIG = [
@@ -340,20 +341,18 @@ export function RecurringSessionsBuilder({
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <Label>Giờ bắt đầu</Label>
-                                    <Input
-                                        type="time"
+                                    <TimeSelect
                                         value={pattern.startTime}
-                                        onChange={(e) => updatePattern('startTime', e.target.value)}
-                                        className="mt-1"
+                                        onChange={(val) => updatePattern('startTime', val)}
+                                        className="mt-1 w-full"
                                     />
                                 </div>
                                 <div>
                                     <Label>Giờ kết thúc</Label>
-                                    <Input
-                                        type="time"
+                                    <TimeSelect
                                         value={pattern.endTime}
-                                        onChange={(e) => updatePattern('endTime', e.target.value)}
-                                        className="mt-1"
+                                        onChange={(val) => updatePattern('endTime', val)}
+                                        className="mt-1 w-full"
                                     />
                                 </div>
                             </div>

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { TimeSelect } from '@/components/ui/time-select';
 
 // Local storage key for templates
 const TEMPLATES_STORAGE_KEY = 'skill_master_class_templates';
@@ -427,19 +428,17 @@ export function ClassTemplateModal({
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="text-xs text-slate-500 mb-1 block">Giờ bắt đầu</label>
-                                        <Input
-                                            type="time"
+                                        <TimeSelect
                                             value={formData.startTime}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, startTime: e.target.value }))}
+                                            onChange={(val) => setFormData(prev => ({ ...prev, startTime: val }))}
                                             className="w-full"
                                         />
                                     </div>
                                     <div>
                                         <label className="text-xs text-slate-500 mb-1 block">Giờ kết thúc</label>
-                                        <Input
-                                            type="time"
+                                        <TimeSelect
                                             value={formData.endTime}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, endTime: e.target.value }))}
+                                            onChange={(val) => setFormData(prev => ({ ...prev, endTime: val }))}
                                             className="w-full"
                                         />
                                     </div>

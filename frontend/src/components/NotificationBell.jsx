@@ -96,6 +96,13 @@ export function NotificationBell({
       return '/teacher/leave-requests';
     }
 
+    if (refType === 'teacher_availability') {
+      if (roleCode === 'SUPER_ADMIN' || roleCode === 'CENTER_MANAGER') {
+        return '/admin/schedule';
+      }
+      return '/teacher/availability';
+    }
+
     if (refType === 'enrollment') {
       if (roleCode === 'STUDENT') return '/student/schedule';
       return '/classes';

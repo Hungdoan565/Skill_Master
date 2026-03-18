@@ -115,6 +115,10 @@ const BaoMatPage = lazy(() => import('@/pages/public/policies').then(m => ({ def
 const FaqPage = lazy(() => import('@/pages/public/policies').then(m => ({ default: m.FaqPage })));
 const TeacherSettingsPage = lazy(() => import('@/features/teacher-profile/pages/TeacherSettingsPage'));
 const StudentProgressPage = lazy(() => import('@/features/teacher-classes/pages/StudentProgressPage'));
+const AssessmentManagementPage = lazy(() => import('@/features/assessment/pages/AssessmentManagementPage'));
+const StudentAssessmentPage = lazy(() => import('@/features/assessment/pages/StudentAssessmentPage'));
+const AssignmentsWorkspacePage = lazy(() => import('@/features/assignments/pages/AssignmentsWorkspacePage'));
+const LaborContractsPage = lazy(() => import('@/features/staff/pages/LaborContractsPage'));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -509,6 +513,9 @@ function App() {
               <Route path="center-comparison" element={<Suspense fallback={<PageLoader />}><CenterComparisonPage /></Suspense>} />
               <Route path="custom-alerts" element={<Suspense fallback={<PageLoader />}><CustomAlertsPage /></Suspense>} />
               <Route path="scheduled-reports" element={<Suspense fallback={<PageLoader />}><ScheduledReportsPage /></Suspense>} />
+              <Route path="assessment" element={<Suspense fallback={<PageLoader />}><AssessmentManagementPage /></Suspense>} />
+              <Route path="assignments" element={<Suspense fallback={<PageLoader />}><AssignmentsWorkspacePage /></Suspense>} />
+              <Route path="labor-contracts" element={<Suspense fallback={<PageLoader />}><LaborContractsPage /></Suspense>} />
             </Route>
 
             {/* Teacher Routes - Chỉ TEACHER */}
@@ -531,6 +538,8 @@ function App() {
               <Route path="attendance" element={<TeacherQuickAttendancePage />} />
               <Route path="profile" element={<TeacherProfilePage />} />
               <Route path="settings" element={<Suspense fallback={<PageLoader />}><TeacherSettingsPage /></Suspense>} />
+              <Route path="assessment" element={<Suspense fallback={<PageLoader />}><AssessmentManagementPage /></Suspense>} />
+              <Route path="assignments" element={<Suspense fallback={<PageLoader />}><AssignmentsWorkspacePage /></Suspense>} />
             </Route>
 
             {/* Student Routes - Chỉ STUDENT */}
@@ -550,6 +559,8 @@ function App() {
               <Route path="support" element={<StudentSupportPage />} />
               <Route path="courses" element={<StudentCourseCatalog />} />
               <Route path="courses/:courseId" element={<StudentCourseDetail />} />
+              <Route path="assessment" element={<Suspense fallback={<PageLoader />}><StudentAssessmentPage /></Suspense>} />
+              <Route path="assignments" element={<Suspense fallback={<PageLoader />}><AssignmentsWorkspacePage /></Suspense>} />
             </Route>
 
             {/* Parent Routes - Chỉ PARENT */}

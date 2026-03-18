@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { TimeSelect } from '@/components/ui/time-select';
 import { supabase } from '@/lib/supabaseClient';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -328,20 +329,20 @@ export function ScheduleExceptionModal({
                     <Clock className="w-4 h-4 inline mr-2" />
                     Giờ mới bắt đầu
                   </label>
-                  <Input
-                    type="time"
+                  <TimeSelect
                     value={formData.new_start_time}
-                    onChange={(e) => setFormData(prev => ({ ...prev, new_start_time: e.target.value }))}
+                    onChange={(val) => setFormData(prev => ({ ...prev, new_start_time: val }))}
+                    className="w-full"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
                     Giờ mới kết thúc
                   </label>
-                  <Input
-                    type="time"
+                  <TimeSelect
                     value={formData.new_end_time}
-                    onChange={(e) => setFormData(prev => ({ ...prev, new_end_time: e.target.value }))}
+                    onChange={(val) => setFormData(prev => ({ ...prev, new_end_time: val }))}
+                    className="w-full"
                   />
                 </div>
               </div>
@@ -381,20 +382,20 @@ export function ScheduleExceptionModal({
                     <Clock className="w-4 h-4 inline mr-2" />
                     Giờ bắt đầu
                   </label>
-                  <Input
-                    type="time"
+                  <TimeSelect
                     value={formData.extra_start_time}
-                    onChange={(e) => setFormData(prev => ({ ...prev, extra_start_time: e.target.value }))}
+                    onChange={(val) => setFormData(prev => ({ ...prev, extra_start_time: val }))}
+                    className="w-full"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
                     Giờ kết thúc
                   </label>
-                  <Input
-                    type="time"
+                  <TimeSelect
                     value={formData.extra_end_time}
-                    onChange={(e) => setFormData(prev => ({ ...prev, extra_end_time: e.target.value }))}
+                    onChange={(val) => setFormData(prev => ({ ...prev, extra_end_time: val }))}
+                    className="w-full"
                   />
                 </div>
               </div>

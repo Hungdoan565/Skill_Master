@@ -375,3 +375,128 @@ a:focus-visible,
   outline: 2px solid #18181b;
   outline-offset: 2px;
 }
+
+/* ============================================================
+   Admin Dashboard — Premium Visual System
+   ============================================================ */
+
+/* Page shell & container */
+.admin-dashboard-shell {
+  background: hsl(var(--background));
+  min-height: 100vh;
+}
+
+.admin-dashboard-container {
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+/* Surface cards with subtle depth */
+.admin-surface-card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+/* Hover lift animation for interactive cards */
+.admin-card-hover {
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+
+.admin-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+/* KPI card layout */
+.admin-kpi-card {
+  position: relative;
+  overflow: hidden;
+  padding: 1.25rem 1.5rem 1rem;
+}
+
+/* Coloured accent bar at top of KPI card */
+.admin-kpi-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 9999px 9999px 0 0;
+}
+
+/* Tabular numeric values */
+.admin-metric-value {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  letter-spacing: -0.02em;
+}
+
+/* Section titles */
+.admin-section-title {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  letter-spacing: -0.015em;
+  line-height: 1.4;
+}
+
+/* Interactive table / list rows */
+.admin-interactive-row {
+  transition: background 130ms ease;
+}
+
+.admin-interactive-row:hover {
+  background: hsl(var(--muted) / 0.45);
+}
+
+/* Focus ring for keyboard navigation */
+.admin-focus-ring:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* Toolbar chip style (select + icon button) */
+.admin-toolbar-chip {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 0.625rem;
+}
+
+/* Warning banner surface */
+.admin-warning-surface {
+  border: 1px solid hsl(38 80% 60% / 0.4);
+  background: hsl(38 95% 98% / 0.9);
+}
+
+.dark .admin-warning-surface {
+  background: hsl(38 40% 8% / 0.6);
+  border-color: hsl(38 70% 40% / 0.4);
+}
+
+/* CTA link row at bottom of cards */
+.admin-cta-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  border-radius: 0.625rem;
+  border: 1px solid hsl(var(--border));
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+  text-decoration: none;
+}
+
+.admin-cta-link:hover {
+  background: hsl(var(--muted) / 0.6);
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border));
+}
+
+.admin-cta-link:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}

@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { TimeSelect } from '@/components/ui/time-select';
 import { SimpleModal } from './SimpleModal';
 import { Select } from './Select';
 import { ConflictCard } from './ConflictCard';
@@ -408,11 +409,10 @@ export function CreateClassModal({
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Giờ bắt đầu</Label>
-                  <Input
-                    type="time"
+                  <TimeSelect
                     value={startTime}
-                    onChange={(e) => {
-                      onSetStartTime(e.target.value);
+                    onChange={(val) => {
+                      onSetStartTime(val);
                       onClearValidationError?.('time');
                     }}
                     className={`h-9 text-sm ${validationErrors.time ? 'border-red-400 focus:ring-red-500' : ''}`}
@@ -420,11 +420,10 @@ export function CreateClassModal({
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Giờ kết thúc</Label>
-                  <Input
-                    type="time"
+                  <TimeSelect
                     value={endTime}
-                    onChange={(e) => {
-                      onSetEndTime(e.target.value);
+                    onChange={(val) => {
+                      onSetEndTime(val);
                       onClearValidationError?.('time');
                     }}
                     className={`h-9 text-sm ${validationErrors.time ? 'border-red-400 focus:ring-red-500' : ''}`}

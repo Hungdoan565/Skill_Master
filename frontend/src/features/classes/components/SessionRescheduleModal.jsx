@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { TimeSelect } from '@/components/ui/time-select';
 
 export function SessionRescheduleModal({
     isOpen,
@@ -196,11 +197,9 @@ export function SessionRescheduleModal({
                                     <label className="text-sm font-medium text-slate-700 mb-2 block">
                                         Giờ bắt đầu <span className="text-red-500">*</span>
                                     </label>
-                                    <Input
-                                        type="time"
+                                    <TimeSelect
                                         value={formData.start_time}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, start_time: e.target.value }))}
-                                        required
+                                        onChange={(val) => setFormData(prev => ({ ...prev, start_time: val }))}
                                         className="w-full"
                                     />
                                 </div>
@@ -208,11 +207,9 @@ export function SessionRescheduleModal({
                                     <label className="text-sm font-medium text-slate-700 mb-2 block">
                                         Giờ kết thúc <span className="text-red-500">*</span>
                                     </label>
-                                    <Input
-                                        type="time"
+                                    <TimeSelect
                                         value={formData.end_time}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, end_time: e.target.value }))}
-                                        required
+                                        onChange={(val) => setFormData(prev => ({ ...prev, end_time: val }))}
                                         className="w-full"
                                     />
                                 </div>

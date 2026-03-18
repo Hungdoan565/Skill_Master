@@ -1,626 +1,523 @@
 /**
- * TeacherAvailabilityModal - Modal quản lý lịch rảnh/bận của giáo viên
- * Cho phép GV đăng ký các khung giờ không thể dạy
+ * TeacherAvailabilityModal - Modal quản lý lịch trống của giáo viên
+ * Dùng chung schema teacher_availability với teacher portal
  */
 
-import { useState, useEffect } from 'react';
-import { 
-  X, 
-  UserCog,
-  Plus,
-  Trash2,
-  Loader2,
-  AlertCircle,
-  Clock,
-  Calendar,
-  Save,
-  Check
+import { useEffect, useMemo, useState } from 'react';
+import {
+    X,
+    UserCog,
+    Loader2,
+    AlertCircle,
+    Clock,
+    Calendar,
+    Plus,
+    Trash2,
+    Save,
+    RotateCcw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { TimeSelect } from '@/components/ui/time-select';
 import { supabase } from '@/lib/supabaseClient';
-import { ConfirmModal } from './ConfirmModal';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const DAYS_OF_WEEK = [
-  { value: 2, label: 'Thứ 2' },
-  { value: 3, label: 'Thứ 3' },
-  { value: 4, label: 'Thứ 4' },
-  { value: 5, label: 'Thứ 5' },
-  { value: 6, label: 'Thứ 6' },
-  { value: 7, label: 'Thứ 7' },
-  { value: 8, label: 'Chủ nhật' }
+    { value: 1, label: 'Thứ 2', short: 'T2' },
+    { value: 2, label: 'Thứ 3', short: 'T3' },
+    { value: 3, label: 'Thứ 4', short: 'T4' },
+    { value: 4, label: 'Thứ 5', short: 'T5' },
+    { value: 5, label: 'Thứ 6', short: 'T6' },
+    { value: 6, label: 'Thứ 7', short: 'T7' },
+    { value: 0, label: 'Chủ nhật', short: 'CN' }
 ];
 
-const AVAILABILITY_TYPES = [
-  { value: 'unavailable', label: 'Không thể dạy', color: 'bg-red-100 text-red-700 border-red-200' },
-  { value: 'preferred', label: 'Ưu tiên dạy', color: 'bg-green-100 text-green-700 border-green-200' },
-  { value: 'temporary', label: 'Nghỉ tạm thời', color: 'bg-amber-100 text-amber-700 border-amber-200' }
+const SLOT_TYPE_OPTIONS = [
+    { value: 'available', label: 'Có thể dạy' },
+    { value: 'preferred', label: 'Ưu tiên' }
 ];
 
-export function TeacherAvailabilityModal({ 
-  isOpen, 
-  onClose,
-  teacher,  // { id, full_name, email }
-  onSuccess 
+const formatDateTime = (value) => {
+    if (!value) return '--';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '--';
+    return date.toLocaleString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        day: '2-digit',
+        month: '2-digit'
+    });
+};
+
+const normalizeDay = (value) => {
+    if (value === null || value === undefined || value === '') return 1;
+    const num = Number(value);
+    if (!Number.isFinite(num)) return 1;
+
+    // legacy mapping: 2..8 => 1..0
+    if (num >= 2 && num <= 8) {
+        return num === 8 ? 0 : num - 1;
+    }
+
+    if (num >= 0 && num <= 6) return num;
+    return 1;
+};
+
+const normalizeTime = (value, fallback = '08:00') => {
+    if (!value || typeof value !== 'string') return fallback;
+    return value.slice(0, 5);
+};
+
+const normalizeSlot = (slot, index = 0) => ({
+    id: slot.id || `slot-${Date.now()}-${index}`,
+    day_of_week: normalizeDay(slot.day_of_week),
+    start_time: normalizeTime(slot.start_time, '08:00'),
+    end_time: normalizeTime(slot.end_time, '10:00'),
+    type: slot.type === 'preferred' ? 'preferred' : 'available'
+});
+
+const serializeSlotsForCompare = (slots = []) => JSON.stringify(
+    [...slots]
+        .map((slot) => ({
+            day_of_week: normalizeDay(slot.day_of_week),
+            start_time: normalizeTime(slot.start_time),
+            end_time: normalizeTime(slot.end_time),
+            type: slot.type === 'preferred' ? 'preferred' : 'available'
+        }))
+        .sort((a, b) => {
+            if (a.day_of_week !== b.day_of_week) return a.day_of_week - b.day_of_week;
+            return a.start_time.localeCompare(b.start_time);
+        })
+);
+
+export function TeacherAvailabilityModal({
+    isOpen,
+    onClose,
+    teacher,
+    onSuccess
 }) {
-  const [availability, setAvailability] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  
-  // New entry form
-  const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({
-    type: 'unavailable',
-    days: [],
-    start_time: '08:00',
-    end_time: '17:00',
-    start_date: '',  // For temporary type
-    end_date: '',
-    reason: ''
-  });
-  
-  // Confirm delete modal
-  const [deleteModal, setDeleteModal] = useState({
-    isOpen: false,
-    slotId: null
-  });
-  const [deleting, setDeleting] = useState(false);
-  
-  // Teachers list (for admin to select)
-  const [teachers, setTeachers] = useState([]);
-  const [selectedTeacher, setSelectedTeacher] = useState(null);
-  const [loadingTeachers, setLoadingTeachers] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [loadingTeachers, setLoadingTeachers] = useState(false);
+    const [error, setError] = useState(null);
 
-  // Fetch teachers list when modal opens (if no teacher provided)
-  useEffect(() => {
-    if (!isOpen) return;
-    
-    // Reset states
-    setLoading(false);
-    setError(null);
-    setAvailability([]);
-    setShowForm(false);
-    
-    // If teacher is provided, use it
-    if (teacher?.id) {
-      setSelectedTeacher(teacher);
-      return;
-    }
-    
-    // Otherwise fetch teachers list for admin to select
-    const fetchTeachers = async () => {
-      setLoadingTeachers(true);
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) throw new Error('Chưa đăng nhập');
-        
-        const res = await fetch(`${API_URL}/api/teachers`, {
-          headers: { Authorization: `Bearer ${session.access_token}` }
+    const [teachers, setTeachers] = useState([]);
+    const [selectedTeacher, setSelectedTeacher] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const [sourceSlots, setSourceSlots] = useState([]);
+    const [draftSlots, setDraftSlots] = useState([]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        setError(null);
+        setSourceSlots([]);
+        setDraftSlots([]);
+
+        if (teacher?.id) {
+            setSelectedTeacher(teacher);
+            return;
+        }
+
+        setSelectedTeacher(null);
+    }, [isOpen, teacher]);
+
+    useEffect(() => {
+        if (!isOpen || teacher?.id) return;
+
+        const fetchTeachers = async () => {
+            setLoadingTeachers(true);
+            setError(null);
+
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) throw new Error('Chưa đăng nhập');
+
+                const response = await fetch(`${API_URL}/api/teachers`, {
+                    headers: { Authorization: `Bearer ${session.access_token}` }
+                });
+                const json = await response.json();
+                if (!response.ok) throw new Error(json?.message || 'Không tải được danh sách giáo viên');
+
+                const teacherList = json?.data || [];
+                setTeachers(teacherList);
+
+                if (!selectedTeacher?.id && teacherList.length > 0) {
+                    const sorted = [...teacherList].sort((a, b) => {
+                        const aDate = new Date(a.updated_at || a.created_at || 0).getTime();
+                        const bDate = new Date(b.updated_at || b.created_at || 0).getTime();
+                        return bDate - aDate;
+                    });
+                    setSelectedTeacher(sorted[0]);
+                }
+            } catch (fetchError) {
+                setError(fetchError.message || 'Không tải được danh sách giáo viên');
+            } finally {
+                setLoadingTeachers(false);
+            }
+        };
+
+        fetchTeachers();
+    }, [isOpen, teacher?.id, selectedTeacher?.id]);
+
+    useEffect(() => {
+        if (!isOpen || !selectedTeacher?.id) return;
+
+        const fetchAvailability = async () => {
+            setLoading(true);
+            setError(null);
+
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) throw new Error('Chưa đăng nhập');
+
+                const response = await fetch(`${API_URL}/api/admin/teacher-availability/${selectedTeacher.id}`, {
+                    headers: { Authorization: `Bearer ${session.access_token}` }
+                });
+                const json = await response.json();
+                if (!response.ok) throw new Error(json?.message || 'Không tải được lịch giáo viên');
+
+                const normalized = (json?.data || []).map((slot, index) => normalizeSlot(slot, index));
+                setSourceSlots(normalized);
+                setDraftSlots(normalized);
+            } catch (fetchError) {
+                setError(fetchError.message || 'Không tải được lịch giáo viên');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchAvailability();
+    }, [isOpen, selectedTeacher?.id]);
+
+    const groupedByDay = useMemo(() => {
+        const grouped = DAYS_OF_WEEK.reduce((acc, day) => ({ ...acc, [day.value]: [] }), {});
+        draftSlots.forEach((slot) => {
+            const day = normalizeDay(slot.day_of_week);
+            if (!grouped[day]) grouped[day] = [];
+            grouped[day].push(slot);
         });
-        
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.message);
-        
-        setTeachers(json.data || []);
-      } catch (err) {
-        console.error('Error fetching teachers:', err);
-        setError(err.message);
-      } finally {
-        setLoadingTeachers(false);
-      }
-    };
-    
-    fetchTeachers();
-  }, [isOpen, teacher?.id]);
 
-  // ESC key handler
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isOpen) onClose?.();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-
-  // Fetch availability when teacher is selected
-  useEffect(() => {
-    if (!isOpen || !selectedTeacher?.id) return;
-    
-    const fetchAvailability = async () => {
-      setLoading(true);
-      setError(null);
-      
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) throw new Error('Chưa đăng nhập');
-        
-        const res = await fetch(`${API_URL}/api/admin/teacher-availability/${selectedTeacher.id}`, {
-          headers: { Authorization: `Bearer ${session.access_token}` }
+        Object.keys(grouped).forEach((dayKey) => {
+            grouped[dayKey].sort((a, b) => a.start_time.localeCompare(b.start_time));
         });
-        
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.message);
-        
-        setAvailability(json.data || []);
-      } catch (err) {
-        console.error('Error:', err);
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
+
+        return grouped;
+    }, [draftSlots]);
+
+    const hasChanges = useMemo(() => (
+        serializeSlotsForCompare(sourceSlots) !== serializeSlotsForCompare(draftSlots)
+    ), [sourceSlots, draftSlots]);
+
+    const filteredTeachers = useMemo(() => {
+        const keyword = searchTerm.trim().toLowerCase();
+        if (!keyword) return teachers;
+        return teachers.filter((item) => (
+            `${item.full_name || ''} ${item.email || ''}`.toLowerCase().includes(keyword)
+        ));
+    }, [teachers, searchTerm]);
+
+    const addSlot = (dayOfWeek) => {
+        setDraftSlots((prev) => ([
+            ...prev,
+            {
+                id: `new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                day_of_week: dayOfWeek,
+                start_time: '08:00',
+                end_time: '10:00',
+                type: 'available'
+            }
+        ]));
     };
-    
-    fetchAvailability();
-  }, [isOpen, selectedTeacher?.id]);
 
-  // Handle toggle day
-  const toggleDay = (dayValue) => {
-    setFormData(prev => ({
-      ...prev,
-      days: prev.days.includes(dayValue) 
-        ? prev.days.filter(d => d !== dayValue)
-        : [...prev.days, dayValue]
-    }));
-  };
+    const updateSlot = (slotId, field, value) => {
+        setDraftSlots((prev) => prev.map((slot) => (
+            slot.id === slotId ? { ...slot, [field]: value } : slot
+        )));
+    };
 
-  // Handle save
-  const handleSave = async () => {
-    if (!selectedTeacher?.id) {
-      setError('Vui lòng chọn giáo viên');
-      return;
-    }
-    
-    if (formData.days.length === 0 && formData.type !== 'temporary') {
-      setError('Vui lòng chọn ít nhất một ngày');
-      return;
-    }
-    
-    if (formData.type === 'temporary' && (!formData.start_date || !formData.end_date)) {
-      setError('Vui lòng chọn khoảng thời gian nghỉ');
-      return;
-    }
-    
-    setSaving(true);
-    setError(null);
-    
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Chưa đăng nhập');
-      
-      const res = await fetch(`${API_URL}/api/admin/teacher-availability/${selectedTeacher.id}`, {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
-      });
-      
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.message);
-      
-      // Refresh list
-      setAvailability(prev => [...prev, ...json.data]);
-      
-      // Reset form
-      setFormData({
-        type: 'unavailable',
-        days: [],
-        start_time: '08:00',
-        end_time: '17:00',
-        start_date: '',
-        end_date: '',
-        reason: ''
-      });
-      setShowForm(false);
-      
-      onSuccess?.();
-    } catch (err) {
-      console.error('Error:', err);
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
+    const removeSlot = (slotId) => {
+        setDraftSlots((prev) => prev.filter((slot) => slot.id !== slotId));
+    };
 
-// Handle delete
-  const handleDelete = async () => {
-    const id = deleteModal.slotId;
-    if (!id) return;
-    
-    setDeleting(true);
-    
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Chưa đăng nhập');
-      
-      // Call DELETE API
-      const res = await fetch(`${API_URL}/api/admin/teacher-availability/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${session.access_token}` }
-      });
-      
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.message);
-      
-      // Remove from local state
-      setAvailability(prev => prev.filter(a => a.id !== id));
-      setDeleteModal({ isOpen: false, slotId: null });
-      onSuccess?.();
-    } catch (err) {
-      console.error('Error:', err);
-      setError(err.message);
-    } finally {
-      setDeleting(false);
-    }
-  };
-  
-  // Open delete confirmation
-  const openDeleteModal = (slotId) => {
-    setDeleteModal({ isOpen: true, slotId });
-  };
+    const resetChanges = () => {
+        setDraftSlots(sourceSlots);
+    };
 
-  if (!isOpen) return null;
+    const handleSave = async () => {
+        if (!selectedTeacher?.id) {
+            setError('Vui lòng chọn giáo viên');
+            return;
+        }
 
-  // Group by type
-  const groupedAvailability = availability.reduce((acc, a) => {
-    if (!acc[a.type]) acc[a.type] = [];
-    acc[a.type].push(a);
-    return acc;
-  }, {});
+        setSaving(true);
+        setError(null);
 
-  return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      
-      {/* Modal */}
-      <div 
-        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl m-4 max-h-[90vh] overflow-hidden flex flex-col"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="teacher-avail-dialog-title"
-      >
-        {/* Header */}
-        <div className="bg-gradient-to-r from-orange-500 to-amber-500 px-6 py-4 shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-white/20 rounded-lg">
-                <UserCog className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h2 
-                  className="text-lg font-semibold text-white"
-                  id="teacher-avail-dialog-title"
-                >Lịch Rảnh/Bận Giáo Viên</h2>
-                <p className="text-orange-100 text-sm">
-                  {selectedTeacher?.full_name || 'Chọn giáo viên để quản lý lịch'}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) throw new Error('Chưa đăng nhập');
+
+            const payload = draftSlots.map((slot) => ({
+                day_of_week: normalizeDay(slot.day_of_week),
+                start_time: normalizeTime(slot.start_time, '08:00'),
+                end_time: normalizeTime(slot.end_time, '10:00'),
+                type: slot.type === 'preferred' ? 'preferred' : 'available'
+            }));
+
+            const response = await fetch(`${API_URL}/api/admin/teacher-availability/${selectedTeacher.id}`, {
+                method: 'PUT',
+                headers: {
+                    Authorization: `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ slots: payload })
+            });
+
+            const json = await response.json();
+            if (!response.ok) throw new Error(json?.message || 'Không thể lưu lịch giáo viên');
+
+            const refreshed = await fetch(`${API_URL}/api/admin/teacher-availability/${selectedTeacher.id}`, {
+                headers: { Authorization: `Bearer ${session.access_token}` }
+            });
+            const refreshedJson = await refreshed.json();
+
+            const normalized = (refreshedJson?.data || []).map((slot, index) => normalizeSlot(slot, index));
+            setSourceSlots(normalized);
+            setDraftSlots(normalized);
+            onSuccess?.();
+        } catch (saveError) {
+            setError(saveError.message || 'Không thể lưu lịch giáo viên');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+
+            <div
+                className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl m-4 max-h-[92vh] overflow-hidden flex flex-col"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="teacher-avail-dialog-title"
             >
-              <X className="w-5 h-5 text-white" />
-            </button>
-          </div>
-        </div>
-        
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {/* Error */}
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-600">
-              <AlertCircle className="w-4 h-4" />
-              <span className="text-sm">{error}</span>
-            </div>
-          )}
-          
-          {/* Teacher selector (nếu không có teacher prop) */}
-          {!teacher?.id && (
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Chọn giáo viên
-              </label>
-              {loadingTeachers ? (
-                <div className="flex items-center gap-2 text-slate-500">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm">Đang tải danh sách giáo viên...</span>
-                </div>
-              ) : teachers.length === 0 ? (
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                  <p className="text-amber-700 text-sm">Không tìm thấy giáo viên nào</p>
-                </div>
-              ) : (
-                <select
-                  value={selectedTeacher?.id || ''}
-                  onChange={(e) => {
-                    const t = teachers.find(t => t.id === e.target.value);
-                    setSelectedTeacher(t);
-                  }}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="">-- Chọn giáo viên --</option>
-                  {teachers.map(t => (
-                    <option key={t.id} value={t.id}>{t.full_name} ({t.email})</option>
-                  ))}
-                </select>
-              )}
-            </div>
-          )}
-          
-          {/* Nếu đã chọn giáo viên thì hiển thị form và list */}
-          {selectedTeacher?.id ? (
-            <>
-              {/* Add button */}
-              {!showForm && (
-                <Button
-                  onClick={() => setShowForm(true)}
-                  className="mb-4 bg-indigo-600 hover:bg-indigo-700 text-white"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Thêm khung giờ
-                </Button>
-              )}
-          
-          {/* Form */}
-          {showForm && (
-            <div className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
-              <h3 className="font-medium text-slate-900 mb-4">Thêm khung giờ mới</h3>
-              
-              {/* Type selector */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-slate-700 mb-2">Loại</label>
-                <div className="flex flex-wrap gap-2">
-                  {AVAILABILITY_TYPES.map(type => (
-                    <button
-                      key={type.value}
-                      onClick={() => setFormData(prev => ({ ...prev, type: type.value }))}
-                      className={`
-                        px-3 py-1.5 rounded-lg text-sm font-medium border-2 transition-all
-                        ${formData.type === type.value 
-                          ? type.color + ' border-current' 
-                          : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                        }
-                      `}
-                    >
-                      {type.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Days selector (for recurring types) */}
-              {formData.type !== 'temporary' && (
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Ngày trong tuần
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {DAYS_OF_WEEK.map(day => (
-                      <button
-                        key={day.value}
-                        onClick={() => toggleDay(day.value)}
-                        className={`
-                          w-12 h-12 rounded-lg text-sm font-medium border-2 transition-all
-                          ${formData.days.includes(day.value)
-                            ? 'bg-indigo-100 border-indigo-500 text-indigo-700'
-                            : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-300'
-                          }
-                        `}
-                      >
-                        {day.label.replace('Thứ ', 'T').replace('Chủ nhật', 'CN')}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {/* Time range (for recurring types) */}
-              {formData.type !== 'temporary' && (
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Từ giờ
-                    </label>
-                    <Input
-                      type="time"
-                      value={formData.start_time}
-                      onChange={(e) => setFormData(prev => ({ ...prev, start_time: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Đến giờ
-                    </label>
-                    <Input
-                      type="time"
-                      value={formData.end_time}
-                      onChange={(e) => setFormData(prev => ({ ...prev, end_time: e.target.value }))}
-                    />
-                  </div>
-                </div>
-              )}
-              
-              {/* Date range (for temporary type) */}
-              {formData.type === 'temporary' && (
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Ngày bắt đầu nghỉ
-                    </label>
-                    <Input
-                      type="date"
-                      value={formData.start_date}
-                      onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Ngày kết thúc nghỉ
-                    </label>
-                    <Input
-                      type="date"
-                      value={formData.end_date}
-                      onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
-                    />
-                  </div>
-                </div>
-              )}
-              
-              {/* Reason */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Lý do (tùy chọn)
-                </label>
-                <Input
-                  type="text"
-                  value={formData.reason}
-                  onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
-                  placeholder="VD: Có lịch dạy ở trường đại học..."
-                />
-              </div>
-              
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowForm(false)}
-                >
-                  Hủy
-                </Button>
-                <Button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                >
-                  {saving ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <Save className="w-4 h-4 mr-2" />
-                  )}
-                  Lưu
-                </Button>
-              </div>
-            </div>
-          )}
-          
-          {/* Availability list */}
-          {loading ? (
-            <div className="py-8 text-center">
-              <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
-              <p className="text-sm text-slate-500 mt-2">Đang tải lịch rảnh/bận...</p>
-            </div>
-          ) : availability.length === 0 ? (
-            <div className="py-8 text-center">
-              <Calendar className="w-12 h-12 mx-auto text-slate-300" />
-              <p className="text-slate-500 mt-2">Chưa có lịch rảnh/bận nào</p>
-              <p className="text-sm text-slate-400">
-                Giáo viên có thể dạy tất cả các khung giờ
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {AVAILABILITY_TYPES.map(type => {
-                const items = groupedAvailability[type.value] || [];
-                if (items.length === 0) return null;
-                
-                return (
-                  <div key={type.value}>
-                    <h4 className="text-sm font-medium text-slate-500 mb-2 flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${
-                        type.value === 'unavailable' ? 'bg-red-500' :
-                        type.value === 'preferred' ? 'bg-green-500' : 'bg-amber-500'
-                      }`} />
-                      {type.label}
-                    </h4>
-                    
-                    <div className="space-y-2">
-                      {items.map(item => (
-                        <div 
-                          key={item.id}
-                          className={`
-                            flex items-center justify-between p-3 rounded-lg border
-                            ${type.color}
-                          `}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Clock className="w-4 h-4" />
-                            <div>
-                              {item.type === 'temporary' ? (
-                                <p className="font-medium">
-                                  {item.start_date} → {item.end_date}
-                                </p>
-                              ) : (
-                                <>
-                                  <p className="font-medium">
-                                    {item.days?.map(d => DAYS_OF_WEEK.find(x => x.value === d)?.label.replace('Thứ ', 'T')).join(', ')}
-                                  </p>
-                                  <p className="text-sm opacity-75">
-                                    {item.start_time?.substring(0, 5)} - {item.end_time?.substring(0, 5)}
-                                  </p>
-                                </>
-                              )}
-                              {item.reason && (
-                                <p className="text-xs opacity-75 mt-1">{item.reason}</p>
-                              )}
+                <div className="bg-gradient-to-r from-orange-500 to-amber-500 px-6 py-4 shrink-0">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-white/20 rounded-lg">
+                                <UserCog className="w-5 h-5 text-white" />
                             </div>
-                          </div>
-                          
-                          <button
-                            onClick={() => openDeleteModal(item.id)}
-                            className="p-2 hover:bg-white/50 rounded-lg transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                            <div>
+                                <h2 className="text-lg font-semibold text-white" id="teacher-avail-dialog-title">Lịch Rảnh/Bận Giáo Viên</h2>
+                                <p className="text-orange-100 text-sm">
+                                    {selectedTeacher?.full_name || 'Chọn giáo viên để xem lịch đã gửi'}
+                                </p>
+                            </div>
                         </div>
-                      ))}
+                        <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-lg transition-colors">
+                            <X className="w-5 h-5 text-white" />
+                        </button>
                     </div>
-                  </div>
-                );
-              })}
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6">
+                    {error && (
+                        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-600">
+                            <AlertCircle className="w-4 h-4" />
+                            <span className="text-sm">{error}</span>
+                        </div>
+                    )}
+
+                    {selectedTeacher?.id ? (
+                        loading ? (
+                            <div className="py-10 text-center">
+                                <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
+                                <p className="text-sm text-slate-500 mt-2">Đang tải lịch giáo viên...</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                                {!teacher?.id && (
+                                    <aside className="lg:col-span-4 rounded-xl border border-slate-200 bg-white overflow-hidden h-fit">
+                                        <div className="p-3 border-b border-slate-200 bg-slate-50">
+                                            <p className="text-sm font-semibold text-slate-900">Giảng viên</p>
+                                            <Input
+                                                value={searchTerm}
+                                                onChange={(event) => setSearchTerm(event.target.value)}
+                                                placeholder="Tìm theo tên/email..."
+                                                className="mt-2"
+                                            />
+                                        </div>
+
+                                        <div className="max-h-[420px] overflow-y-auto divide-y divide-slate-100">
+                                            {loadingTeachers ? (
+                                                <div className="p-4 text-sm text-slate-500 flex items-center gap-2">
+                                                    <Loader2 className="w-4 h-4 animate-spin" /> Đang tải...
+                                                </div>
+                                            ) : filteredTeachers.length === 0 ? (
+                                                <div className="p-4 text-sm text-slate-500">Không có giảng viên phù hợp</div>
+                                            ) : filteredTeachers.map((item) => {
+                                                const active = item.id === selectedTeacher?.id;
+                                                return (
+                                                    <button
+                                                        key={item.id}
+                                                        onClick={() => setSelectedTeacher(item)}
+                                                        className={`w-full text-left px-3 py-3 transition-colors ${active ? 'bg-indigo-50 border-l-2 border-l-indigo-500' : 'hover:bg-slate-50'}`}
+                                                    >
+                                                        <p className="text-sm font-medium text-slate-900">{item.full_name}</p>
+                                                        <p className="text-xs text-slate-500 mt-0.5">{item.email}</p>
+                                                        <p className="text-[11px] text-slate-400 mt-1">
+                                                            Cập nhật: {formatDateTime(item.updated_at || item.created_at)}
+                                                        </p>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </aside>
+                                )}
+
+                                <section className={teacher?.id ? 'col-span-1' : 'lg:col-span-8'}>
+                                    <div className="space-y-4">
+                                        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                                            Admin đang xem trực tiếp dữ liệu giáo viên đã gửi từ hệ thống lịch trống.
+                                        </div>
+
+                                        {DAYS_OF_WEEK.map((day) => {
+                                            const slots = groupedByDay[day.value] || [];
+
+                                            return (
+                                                <div key={day.value} className="rounded-xl border border-slate-200 overflow-hidden">
+                                                    <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="w-9 h-9 rounded-lg bg-indigo-100 text-indigo-700 font-semibold flex items-center justify-center">
+                                                                {day.short}
+                                                            </span>
+                                                            <div>
+                                                                <p className="font-semibold text-slate-900">{day.label}</p>
+                                                                <p className="text-xs text-slate-500">{slots.length} khung giờ</p>
+                                                            </div>
+                                                        </div>
+
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="gap-1.5"
+                                                            onClick={() => addSlot(day.value)}
+                                                        >
+                                                            <Plus className="w-4 h-4" />
+                                                            Thêm
+                                                        </Button>
+                                                    </div>
+
+                                                    <div className="p-3 space-y-2">
+                                                        {slots.length === 0 ? (
+                                                            <div className="py-4 text-center text-sm text-slate-500">
+                                                                Chưa có lịch trống cho ngày này.
+                                                            </div>
+                                                        ) : (
+                                                            slots.map((slot) => (
+                                                                <div key={slot.id} className="p-3 rounded-lg border border-slate-200 bg-white flex flex-col lg:flex-row lg:items-end gap-3">
+                                                                    <div className="flex items-center gap-2 text-slate-700 shrink-0">
+                                                                        <Clock className="w-4 h-4" />
+                                                                        <span className="text-sm font-medium">Khung giờ</span>
+                                                                    </div>
+
+                                                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1">
+                                                                        <div>
+                                                                            <label className="text-xs font-semibold text-slate-600 mb-1 block">TỪ</label>
+                                                                            <TimeSelect
+                                                                                value={normalizeTime(slot.start_time, '08:00')}
+                                                                                onChange={(val) => updateSlot(slot.id, 'start_time', val)}
+                                                                                className="w-full"
+                                                                            />
+                                                                        </div>
+
+                                                                        <div>
+                                                                            <label className="text-xs font-semibold text-slate-600 mb-1 block">ĐẾN</label>
+                                                                            <TimeSelect
+                                                                                value={normalizeTime(slot.end_time, '10:00')}
+                                                                                onChange={(val) => updateSlot(slot.id, 'end_time', val)}
+                                                                                className="w-full"
+                                                                            />
+                                                                        </div>
+
+                                                                        <div>
+                                                                            <label className="text-xs font-semibold text-slate-600 mb-1 block">LOẠI</label>
+                                                                            <select
+                                                                                value={slot.type || 'available'}
+                                                                                onChange={(event) => updateSlot(slot.id, 'type', event.target.value)}
+                                                                                className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                                            >
+                                                                                {SLOT_TYPE_OPTIONS.map((option) => (
+                                                                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                                                                ))}
+                                                                            </select>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                                                                        onClick={() => removeSlot(slot.id)}
+                                                                    >
+                                                                        <Trash2 className="w-4 h-4" />
+                                                                    </Button>
+                                                                </div>
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </section>
+                            </div>
+                        )
+                    ) : !loadingTeachers && (
+                        <div className="py-10 text-center text-slate-500">
+                            <Calendar className="w-10 h-10 mx-auto text-slate-300" />
+                            <p className="mt-2">Chọn giáo viên để xem lịch trống đã gửi</p>
+                        </div>
+                    )}
+                </div>
+
+                <div className="px-6 py-4 bg-slate-50 border-t shrink-0 flex items-center justify-between gap-3">
+                    <div className="text-xs text-slate-500">
+                        {hasChanges ? 'Có thay đổi chưa lưu' : 'Dữ liệu đã đồng bộ'}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" onClick={onClose}>Đóng</Button>
+
+                        <Button
+                            variant="outline"
+                            onClick={resetChanges}
+                            disabled={!hasChanges || saving}
+                            className="gap-1.5"
+                        >
+                            <RotateCcw className="w-4 h-4" />
+                            Hoàn tác
+                        </Button>
+
+                        <Button
+                            onClick={handleSave}
+                            disabled={!selectedTeacher?.id || !hasChanges || saving}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5"
+                        >
+                            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                            Lưu thay đổi
+                        </Button>
+                    </div>
+                </div>
             </div>
-          )}
-            </>
-          ) : !loadingTeachers && !teacher?.id && (
-            <div className="py-8 text-center">
-              <UserCog className="w-12 h-12 mx-auto text-slate-300" />
-              <p className="text-slate-500 mt-2">Chọn giáo viên để xem và quản lý lịch rảnh/bận</p>
-            </div>
-          )}
         </div>
-        
-        {/* Footer */}
-        <div className="px-6 py-4 bg-slate-50 border-t shrink-0">
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={onClose}
-          >
-            Đóng
-          </Button>
-        </div>
-      </div>
-      
-      {/* Confirm Delete Modal */}
-      <ConfirmModal
-        isOpen={deleteModal.isOpen}
-        onClose={() => setDeleteModal({ isOpen: false, slotId: null })}
-        onConfirm={handleDelete}
-        type="danger"
-        title="Xác nhận xóa khung giờ"
-        message="Bạn có chắc chắn muốn xóa khung giờ này? Hành động này không thể hoàn tác."
-        confirmText="Xóa"
-        loading={deleting}
-      />
-    </div>
-  );
+    );
 }
 
 export default TeacherAvailabilityModal;

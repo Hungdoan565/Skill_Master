@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { cn } from '@/lib/utils';
+import { TimeSelect } from '@/components/ui/time-select';
 import {
     Clock,
     Plus,
@@ -11,6 +12,11 @@ import {
     AlertTriangle
 } from 'lucide-react';
 import { useTeacherAvailability } from '@/features/teacher-dashboard';
+
+const SLOT_TYPE_STYLES = {
+    available: 'border-sky-500/30 bg-sky-500/10 text-sky-700',
+    preferred: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700'
+};
 
 const DAYS_OF_WEEK = [
     { value: 1, label: 'Thứ 2', short: 'T2' },
@@ -221,26 +227,36 @@ export function TeacherAvailabilityPage() {
             <div className="space-y-4">
                 {DAYS_OF_WEEK.map((day) => {
                     const daySlots = slotsByDay[day.value] || [];
+                    const totalDuration = daySlots.reduce((sum, slot) => {
+                        const [sh = 0, sm = 0] = String(slot.start_time || '00:00').split(':').map(Number);
+                        const [eh = 0, em = 0] = String(slot.end_time || '00:00').split(':').map(Number);
+                        const startMinutes = sh * 60 + sm;
+                        const endMinutes = eh * 60 + em;
+                        return sum + Math.max(endMinutes - startMinutes, 0);
+                    }, 0);
+                    const totalHours = (totalDuration / 60).toFixed(totalDuration % 60 === 0 ? 0 : 1);
 
                     return (
                         <div
                             key={day.value}
-                            className="bg-white rounded-xl border overflow-hidden"
+                            className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden"
                         >
                             {/* Day Header */}
-                            <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-border">
+                            <div className="flex items-center justify-between px-4 py-3.5 bg-slate-50 border-b border-border">
                                 <div className="flex items-center gap-3">
                                     <span className="w-10 h-10 flex items-center justify-center bg-blue-500/20 text-blue-500 font-bold rounded-xl">
                                         {day.short}
                                     </span>
-                                    <span className="font-medium text-foreground">{day.label}</span>
-                                    <span className="text-sm text-muted-foreground">
-                                        ({daySlots.length} khung giờ)
-                                    </span>
+                                    <div className="space-y-0.5">
+                                        <p className="font-semibold text-foreground">{day.label}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {daySlots.length} khung giờ • {totalHours} giờ khả dụng
+                                        </p>
+                                    </div>
                                 </div>
                                 <button
                                     onClick={() => addSlot(day.value)}
-                                    className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-semibold text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                 >
                                     <Plus className="h-4 w-4" />
                                     Thêm
@@ -258,55 +274,60 @@ export function TeacherAvailabilityPage() {
                                         {daySlots.map((slot) => (
                                             <div
                                                 key={slot._id}
-                                                className="flex items-center gap-4 p-3 bg-slate-50 rounded-xl border border-border"
+                                                className="p-3.5 bg-slate-50 rounded-xl border border-border"
                                             >
-                                                <Clock className="h-5 w-5 text-muted-foreground" />
+                                                <div className="flex flex-col lg:flex-row lg:items-center gap-3.5">
+                                                    <div className="flex items-center gap-2 text-muted-foreground shrink-0">
+                                                        <Clock className="h-5 w-5" />
+                                                        <span className="text-sm font-medium">Khung giờ</span>
+                                                    </div>
 
-{/* Start Time */}
-                                                <div className="flex items-center gap-2">
-                                                    <label className="text-sm text-muted-foreground">Từ:</label>
-                                                    <input
-                                                        type="time"
-                                                        value={slot.start_time}
-                                                        onChange={(e) => updateSlot(slot._id, 'start_time', e.target.value)}
-                                                        className="px-3 py-1.5 border border-border bg-white text-foreground rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                                    />
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 flex-1">
+                                                        <div className="space-y-1">
+                                                            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Từ</label>
+                                                            <TimeSelect
+                                                                value={slot.start_time}
+                                                                onChange={(val) => updateSlot(slot._id, 'start_time', val)}
+                                                                className="w-full"
+                                                            />
+                                                        </div>
+
+                                                        <div className="space-y-1">
+                                                            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Đến</label>
+                                                            <TimeSelect
+                                                                value={slot.end_time}
+                                                                onChange={(val) => updateSlot(slot._id, 'end_time', val)}
+                                                                className="w-full"
+                                                            />
+                                                        </div>
+
+                                                        <div className="space-y-1">
+                                                            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Loại</label>
+                                                            <select
+                                                                value={slot.type || 'available'}
+                                                                onChange={(e) => updateSlot(slot._id, 'type', e.target.value)}
+                                                                className={cn(
+                                                                    'w-full px-3 py-2 border rounded-lg text-sm bg-white text-foreground focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
+                                                                    SLOT_TYPE_STYLES[slot.type || 'available'] || 'border-border'
+                                                                )}
+                                                            >
+                                                                <option value="available">Có thể dạy</option>
+                                                                <option value="preferred">Ưu tiên</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex lg:block">
+                                                        <button
+                                                            onClick={() => removeSlot(slot._id)}
+                                                            className="inline-flex items-center gap-1.5 p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors ml-auto"
+                                                            title="Xóa"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                            <span className="text-sm lg:hidden">Xóa</span>
+                                                        </button>
+                                                    </div>
                                                 </div>
-
-                                                {/* End Time */}
-                                                <div className="flex items-center gap-2">
-                                                    <label className="text-sm text-muted-foreground">Đến:</label>
-                                                    <input
-                                                        type="time"
-                                                        value={slot.end_time}
-                                                        onChange={(e) => updateSlot(slot._id, 'end_time', e.target.value)}
-                                                        className="px-3 py-1.5 border border-border bg-white text-foreground rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                                    />
-                                                </div>
-
-                                                {/* Type */}
-                                                <div className="flex items-center gap-2">
-                                                    <select
-                                                        value={slot.type || 'available'}
-                                                        onChange={(e) => updateSlot(slot._id, 'type', e.target.value)}
-                                                        className={cn(
-                                                            'px-3 py-1.5 border rounded-lg text-sm bg-white text-foreground focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
-                                                            slot.type === 'preferred' ? 'border-green-500/20 bg-green-500/10 text-green-500' : 'border-border'
-                                                        )}
-                                                    >
-                                                        <option value="available">Có thể dạy</option>
-                                                        <option value="preferred">Ưu tiên</option>
-                                                    </select>
-                                                </div>
-
-                                                {/* Remove */}
-                                                <button
-                                                    onClick={() => removeSlot(slot._id)}
-                                                    className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors ml-auto"
-                                                    title="Xóa"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </button>
                                             </div>
                                         ))}
                                     </div>
@@ -319,23 +340,23 @@ export function TeacherAvailabilityPage() {
 
             {/* Sticky Save Bar (when has changes) */}
             {hasChanges && (
-                <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-border shadow-lg p-4 z-50">
+                <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-border shadow-lg p-4 z-50">
                     <div className="max-w-5xl mx-auto flex items-center justify-between">
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-muted-foreground font-medium">
                             <span className="inline-block w-2 h-2 bg-amber-500 rounded-full mr-2"></span>
                             Có thay đổi chưa được lưu
                         </p>
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={handleDiscard}
-                                className="px-4 py-2 text-sm font-medium text-foreground bg-white border border-border rounded-lg hover:bg-slate-50"
+                                className="px-4 py-2 text-sm font-medium text-foreground bg-white border border-border rounded-lg hover:bg-slate-50 transition-colors"
                             >
                                 Hủy
                             </button>
                             <button
                                 onClick={handleSave}
                                 disabled={saving}
-                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
                             >
                                 {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                                 Lưu thay đổi

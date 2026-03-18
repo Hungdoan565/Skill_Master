@@ -19,6 +19,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { TimeSelect } from '@/components/ui/time-select';
 
 // Day configuration (Vietnamese week)
 const DAYS_CONFIG = [
@@ -484,10 +485,10 @@ function Step1Config({
                         <Clock className="w-4 h-4 inline mr-1" />
                         Giờ bắt đầu
                     </Label>
-                    <Input
-                        type="time"
+                    <TimeSelect
                         value={startTime}
-                        onChange={(e) => onStartTimeChange(e.target.value)}
+                        onChange={(val) => onStartTimeChange(val)}
+                        className="w-full"
                     />
                 </div>
                 <div>
@@ -495,10 +496,10 @@ function Step1Config({
                         <Clock className="w-4 h-4 inline mr-1" />
                         Giờ kết thúc
                     </Label>
-                    <Input
-                        type="time"
+                    <TimeSelect
                         value={endTime}
-                        onChange={(e) => onEndTimeChange(e.target.value)}
+                        onChange={(val) => onEndTimeChange(val)}
+                        className="w-full"
                     />
                 </div>
             </div>
