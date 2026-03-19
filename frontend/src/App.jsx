@@ -34,7 +34,8 @@ import {
   ParentGradesPage,
   ParentAttendancePage,
   ParentInvoicesPage,
-  ParentProfilePage
+  ParentProfilePage,
+  ParentSupportPage
 } from '@/features/parent-portal';
 import { TeacherLeaveRequestsPage } from '@/features/teacher-leave';
 import { TeacherProfilePage } from '@/features/teacher-profile';
@@ -578,6 +579,7 @@ function App() {
               <Route path="attendance" element={<ParentAttendancePage />} />
               <Route path="invoices" element={<ParentInvoicesPage />} />
               <Route path="profile" element={<ParentProfilePage />} />
+              <Route path="support" element={<ParentSupportPage />} />
             </Route>
 
             <Route path="*" element={<NotFoundPage />} />

@@ -35,6 +35,8 @@ skills/
 .github/
 .agents/
 .gitnexus/
+.worktrees/
+openspec/
 # Temp files
 nul
 temp/
