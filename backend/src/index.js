@@ -14273,7 +14273,7 @@ app.post('/api/invoices', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAG
 });
 
 // POST /api/invoices/:id/payments - ThÃƒÂªm thanh toÃƒÂ¡n cho hÃƒÂ³a Ã„â€˜Ã†Â¡n
-app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'STUDENT']), async (req, res, next) => {
+app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'STUDENT', 'PARENT']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { amount, payment_method = 'cash', reference_code, notes, transfer_date } = req.body;
@@ -14366,6 +14366,43 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
           message: 'Vui lÃƒÂ²ng tÃ¡ÂºÂ£i lÃƒÂªn Ã¡ÂºÂ£nh minh chÃ¡Â»Â©ng chuyÃ¡Â»Æ’n khoÃ¡ÂºÂ£n'
         });
       }
+    } else if (userRole === 'PARENT') {
+      // Verify parent has can_pay link to invoice's student
+      const { data: parentLink, error: linkError } = await supabase
+        .from('parent_student_links')
+        .select('id, can_pay')
+        .eq('parent_id', userId)
+        .eq('student_id', invoice.student_id)
+        .eq('status', 'active')
+        .single();
+
+      if (linkError || !parentLink) {
+        return res.status(403).json({
+          success: false,
+          message: 'Bạn không có liên kết với học viên của hóa đơn này'
+        });
+      }
+
+      if (!parentLink.can_pay) {
+        return res.status(403).json({
+          success: false,
+          message: 'Tài khoản phụ huynh chưa được cấp quyền thanh toán'
+        });
+      }
+
+      if (payment_method !== 'bank_transfer') {
+        return res.status(400).json({
+          success: false,
+          message: 'Phụ huynh chỉ có thể thanh toán bằng chuyển khoản'
+        });
+      }
+
+      if (!req.body.bank_proof_url) {
+        return res.status(400).json({
+          success: false,
+          message: 'Vui lòng tải lên ảnh minh chứng chuyển khoản'
+        });
+      }
     } else {
       if (userRole === 'CENTER_MANAGER') {
         if (!userCenterId) {
@@ -14407,8 +14444,8 @@ app.post('/api/invoices/:id/payments', requireAuth, requireRole(['SUPER_ADMIN', 
       verificationStatus = 'verified';
       autoVerified = true;
     } else if (payment_method === 'bank_transfer') {
-      if (userRole === 'STUDENT') {
-        // Student transfers must be verified by staff
+      if (userRole === 'STUDENT' || userRole === 'PARENT') {
+        // Student/Parent transfers must be verified by staff
         verificationStatus = 'pending';
         autoVerified = false;
       } else {
@@ -31453,7 +31490,7 @@ app.get('/api/parent/dashboard',
           can_view_academics,
           student:users!parent_student_links_student_id_fkey(
             id, full_name, email, phone, avatar_url, date_of_birth,
-            center:centers(id, name)
+            center:centers!users_center_id_fkey(id, name)
           )
         `)
         .eq('parent_id', parentId)
@@ -31549,7 +31586,7 @@ app.get('/api/parent/children',
           can_view_academics,
           student:users!parent_student_links_student_id_fkey(
             id, full_name, email, phone, avatar_url, date_of_birth, status,
-            center:centers(id, name)
+            center:centers!users_center_id_fkey(id, name)
           )
         `)
         .eq('parent_id', parentId)
@@ -31557,6 +31594,25 @@ app.get('/api/parent/children',
         .order('is_primary', { ascending: false });
 
       if (error) throw error;
+
+      // Fetch active enrollment counts for all linked students
+      const studentIds = (links || []).map(l => l.student?.id).filter(Boolean);
+      let enrollmentCounts = {};
+
+      if (studentIds.length > 0) {
+        const { data: enrollRows, error: enrollError } = await supabase
+          .from('enrollments')
+          .select('student_id')
+          .in('student_id', studentIds)
+          .eq('status', 'active');
+
+        if (!enrollError && enrollRows) {
+          enrollmentCounts = enrollRows.reduce((acc, row) => {
+            acc[row.student_id] = (acc[row.student_id] || 0) + 1;
+            return acc;
+          }, {});
+        }
+      }
 
       const children = (links || []).map(link => ({
         linkId: link.id,
@@ -31571,7 +31627,8 @@ app.get('/api/parent/children',
         isPrimary: link.is_primary,
         canPay: link.can_pay,
         canViewAcademics: link.can_view_academics,
-        centerName: link.student.center?.name
+        centerName: link.student.center?.name,
+        activeClassesCount: enrollmentCounts[link.student.id] || 0
       }));
 
       res.json({
@@ -31597,6 +31654,7 @@ app.get('/api/parent/child/:studentId/schedule',
     try {
       const parentId = req.user.id;
       const { studentId } = req.params;
+      const { startDate, endDate, classId } = req.query;
 
       // Verify parent has access to this student
       const { data: link, error: linkError } = await supabase
@@ -31614,51 +31672,88 @@ app.get('/api/parent/child/:studentId/schedule',
         });
       }
 
-      // Get enrolled classes
-      const { data: enrollments, error } = await supabase
+      const { data: enrollments, error: enrollError } = await supabase
         .from('enrollments')
         .select(`
           id,
           class:classes(
-            id, name, code, schedule, start_date, end_date, room,
-            course:courses(id, title, color),
-            teacher:users!classes_teacher_id_fkey(id, full_name)
+            id, name, code
           )
         `)
         .eq('student_id', studentId)
         .eq('status', 'active');
 
-      if (error) throw error;
+      if (enrollError) throw enrollError;
 
-      // Generate schedule events
-      const events = [];
-      for (const enrollment of enrollments || []) {
-        const cls = enrollment.class;
-        if (!cls?.schedule) continue;
+      const enrolledClassIds = (enrollments || []).map((enrollment) => enrollment.class?.id).filter(Boolean);
 
-        for (const scheduleItem of cls.schedule) {
-          events.push({
-            classId: cls.id,
-            className: cls.name,
-            classCode: cls.code,
-            courseId: cls.course?.id,
-            courseName: cls.course?.title,
-            courseTitle: cls.course?.title,
-            teacherName: cls.teacher?.full_name,
-            roomName: cls.room,
-            room: cls.room,
-            dayOfWeek: scheduleItem.day,
-            startTime: scheduleItem.start,
-            endTime: scheduleItem.end,
-            startDate: cls.start_date,
-            endDate: cls.end_date
-          });
-        }
+      if (enrolledClassIds.length === 0) {
+        return res.json({
+          success: true,
+          data: {
+            events: [],
+            classes: []
+          }
+        });
       }
 
-      events.sort((a, b) => {
-        if (a.dayOfWeek !== b.dayOfWeek) return a.dayOfWeek - b.dayOfWeek;
-        return a.startTime.localeCompare(b.startTime);
+      let sessionsQuery = supabase
+        .from('sessions')
+        .select(`
+          id,
+          session_date,
+          start_time,
+          end_time,
+          status,
+          session_number,
+          class:classes(
+            id, name, code, room,
+            course:courses(id, title),
+            teacher:users!classes_teacher_id_fkey(id, full_name)
+          )
+        `)
+        .in('class_id', enrolledClassIds)
+        .order('session_date', { ascending: true })
+        .order('start_time', { ascending: true });
+
+      if (classId) {
+        sessionsQuery = sessionsQuery.eq('class_id', classId);
+      }
+
+      if (startDate) {
+        sessionsQuery = sessionsQuery.gte('session_date', startDate);
+      }
+
+      if (endDate) {
+        sessionsQuery = sessionsQuery.lte('session_date', endDate);
+      }
+
+      const { data: sessionsData, error: sessionError } = await sessionsQuery;
+      if (sessionError) throw sessionError;
+
+      const events = (sessionsData || []).map((session) => {
+        const date = new Date(session.session_date);
+        const jsDay = date.getDay();
+        const dayOfWeek = jsDay === 0 ? 8 : jsDay + 1;
+
+        return {
+          sessionId: session.id,
+          classId: session.class?.id,
+          className: session.class?.name,
+          classCode: session.class?.code,
+          courseId: session.class?.course?.id,
+          courseName: session.class?.course?.title,
+          courseTitle: session.class?.course?.title,
+          teacherName: session.class?.teacher?.full_name,
+          roomName: session.class?.room || null,
+          room: session.class?.room || null,
+          dayOfWeek,
+          startTime: session.start_time,
+          endTime: session.end_time,
+          sessionDate: session.session_date,
+          status: session.status || 'scheduled',
+          sessionNumber: session.session_number
+        };
       });
 
       console.log(`Ã°Å¸â€œâ€¦ Parent viewing child schedule: ${events.length} events`);
@@ -31718,49 +31813,60 @@ app.get('/api/parent/child/:studentId/grades',
         });
       }
 
-      // Get grades
-      const { data: grades, error } = await supabase
+      let query = supabase
         .from('grades')
         .select(`
-          id, score, grade_type, assessment_date, notes,
-          class:classes(id, name, code, course:courses(id, title))
+          id, score, notes, created_at,
+          grade_structure:grade_structures(id, name, weight, max_score),
+          enrollment:enrollments!inner(
+            id, student_id, class_id,
+            class:classes(id, name, code, course:courses(id, title))
+          )
         `)
-        .eq('student_id', studentId)
-        .order('assessment_date', { ascending: false });
+        .eq('enrollment.student_id', studentId)
+        .order('created_at', { ascending: false });
 
+      const { classId } = req.query;
+      if (classId) {
+        query = query.eq('enrollment.class_id', classId);
+      }
+
+      const { data: rawGrades, error } = await query;
       if (error) throw error;
 
       // Group by class
       const gradesByClass = {};
-      for (const grade of grades || []) {
-        const classId = grade.class?.id;
-        if (!classId) continue;
+      for (const grade of rawGrades || []) {
+        const currentClassId = grade.enrollment?.class?.id;
+        if (!currentClassId) continue;
 
-        if (!gradesByClass[classId]) {
-          gradesByClass[classId] = {
-            classId,
-            className: grade.class.name,
-            classCode: grade.class.code,
-            courseTitle: grade.class.course?.title,
+        if (!gradesByClass[currentClassId]) {
+          gradesByClass[currentClassId] = {
+            classId: currentClassId,
+            className: grade.enrollment.class.name,
+            classCode: grade.enrollment.class.code,
+            courseTitle: grade.enrollment.class.course?.title,
             grades: []
           };
         }
-        gradesByClass[classId].grades.push({
+        gradesByClass[currentClassId].grades.push({
           id: grade.id,
           score: grade.score,
-          gradeType: grade.grade_type,
-          assessmentDate: grade.assessment_date,
-          notes: grade.notes
+          gradeType: grade.grade_structure?.name,
+          assessmentDate: grade.created_at,
+          notes: grade.notes,
+          weight: grade.grade_structure?.weight,
+          maxScore: grade.grade_structure?.max_score
         });
       }
 
-      console.log(`Ã°Å¸â€œÅ  Parent viewing child grades: ${grades?.length || 0} grades`);
+      console.log(`Ã°Å¸â€œÅ  Parent viewing child grades: ${rawGrades?.length || 0} grades`);
 
       res.json({
         success: true,
         data: {
           gradesByClass: Object.values(gradesByClass),
-          totalGrades: grades?.length || 0
+          totalGrades: rawGrades?.length || 0
         }
       });
     } catch (error) {
@@ -31923,13 +32029,13 @@ app.get('/api/parent/child/:studentId/invoices',
       let query = supabase
         .from('invoices')
         .select(`
-          id, invoice_number, type, status, issue_date, due_date,
-          subtotal, discount_amount, final_amount, paid_amount, notes,
+          id, invoice_code, amount, discount_amount, final_amount,
+          paid_amount, status, due_date, description, created_at,
           class:classes(id, name, code, course:courses(id, title)),
-          center:centers(id, name)
+          payments(id, amount, payment_method, payment_date, reference_code, notes, verification_status)
         `)
         .eq('student_id', studentId)
-        .order('issue_date', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (status) {
         query = query.eq('status', status);
@@ -31948,7 +32054,24 @@ app.get('/api/parent/child/:studentId/invoices',
       res.json({
         success: true,
         data: {
-          invoices: invoices || [],
+          invoices: (invoices || []).map((invoice) => ({
+            id: invoice.id,
+            invoice_number: invoice.invoice_code,
+            invoice_code: invoice.invoice_code,
+            status: invoice.status,
+            issue_date: invoice.created_at,
+            created_at: invoice.created_at,
+            due_date: invoice.due_date,
+            final_amount: invoice.final_amount,
+            total_amount: invoice.final_amount,
+            paid_amount: invoice.paid_amount,
+            discount_amount: invoice.discount_amount,
+            notes: invoice.description,
+            className: invoice.class?.name,
+            classCode: invoice.class?.code,
+            courseTitle: invoice.class?.course?.title,
+            payments: invoice.payments || []
+          })),
           summary: {
             totalInvoices: invoices?.length || 0,
             totalAmount,
@@ -33799,7 +33922,7 @@ app.get('/api/my-support-tickets', requireAuth, async (req, res, next) => {
 });
 
 // GET /api/my-support-tickets/:id - Get current student ticket detail with visible thread
-app.get('/api/my-support-tickets/:id', requireAuth, requireRole(['STUDENT']), async (req, res, next) => {
+app.get('/api/my-support-tickets/:id', requireAuth, requireRole(['STUDENT', 'PARENT']), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { effectiveCenterId, error: permError } = getEffectiveCenterId(req.user, req.query.center_id);
