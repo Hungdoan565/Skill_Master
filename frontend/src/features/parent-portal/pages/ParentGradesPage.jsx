@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Loader2, BarChart3, GraduationCap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useParentChildren } from '../hooks/useParentChildren';
 import { useParentChildGrades } from '../hooks/useParentChildGrades';
-
-const formatDate = (dateString) => {
-  if (!dateString) return '--/--/----';
-  return new Date(dateString).toLocaleDateString('vi-VN');
-};
+import { buildParentGradesGroups, formatDate } from './parent-portal-helpers';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 // Child selector component (reusable pills)
 const ChildSelector = ({ children, selectedId, onSelect }) => (
@@ -17,11 +15,10 @@ const ChildSelector = ({ children, selectedId, onSelect }) => (
       <button
         key={child.id}
         onClick={() => onSelect(child.id)}
-        className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-          selectedId === child.id
-            ? 'bg-orange-500 text-white shadow-sm'
-            : 'bg-orange-50 text-orange-700 hover:bg-orange-100'
-        }`}
+        className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${selectedId === child.id
+          ? 'bg-orange-500 text-white shadow-sm'
+          : 'bg-orange-50 text-orange-700 hover:bg-orange-100'
+          }`}
       >
         {child.full_name}
       </button>
@@ -31,6 +28,15 @@ const ChildSelector = ({ children, selectedId, onSelect }) => (
 
 function GradesList({ studentId }) {
   const { grades, loading, error } = useParentChildGrades(studentId);
+  const groupedGrades = buildParentGradesGroups(grades);
+  const [expandedGroups, setExpandedGroups] = useState({});
+
+  const toggleGroup = (groupKey) => {
+    setExpandedGroups((prev) => ({
+      ...prev,
+      [groupKey]: !prev[groupKey],
+    }));
+  };
 
   if (loading) {
     return (
@@ -59,58 +65,84 @@ function GradesList({ studentId }) {
   }
 
   return (
-    <Card>
-      <CardContent className="p-0">
-        <div className="divide-y">
-          {grades.map((grade, idx) => (
-            <div key={idx} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
+    <div className="space-y-4">
+      {groupedGrades.map((group) => (
+        <Card key={group.classKey}>
+          <CardContent className="p-0">
+            <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="font-medium text-lg">{grade.className}</p>
-                <p className="text-sm text-muted-foreground">{grade.courseTitle}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-sm text-gray-600 dark:text-gray-400 bg-muted px-2 py-0.5 rounded">
-                    {grade.gradeType}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    Ngày: {formatDate(grade.assessmentDate)}
-                  </span>
-                </div>
+                <p className="font-medium text-lg">{group.className}</p>
+                <p className="text-sm text-muted-foreground">{group.courseTitle}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{group.assessmentCountLabel}</p>
               </div>
               <div className="text-left sm:text-right shrink-0">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">{group.summaryLabel}</p>
                 <div className="flex items-baseline sm:justify-end gap-1">
                   <span className={cn(
                     "text-2xl font-bold",
-                    grade.score >= 8 ? 'text-green-600' : 
-                    grade.score >= 6.5 ? 'text-blue-600' : 
-                    grade.score >= 5 ? 'text-amber-600' : 'text-red-600'
+                    group.summaryScore >= 8 ? 'text-green-600' :
+                      group.summaryScore >= 6.5 ? 'text-blue-600' :
+                        group.summaryScore >= 5 ? 'text-amber-600' : 'text-red-600'
                   )}>
-                    {grade.score?.toFixed(1) || 'N/A'}
+                    {group.summaryScore?.toFixed?.(1) ?? group.summaryScore ?? 'N/A'}
                   </span>
                   <span className="text-xs text-muted-foreground">/ 10.0</span>
                 </div>
-                {grade.score !== undefined && grade.score !== null && (
-                  <p className={cn(
-                    "text-xs font-medium mt-1 uppercase tracking-wider",
-                    grade.score >= 8 ? 'text-green-600' : 
-                    grade.score >= 6.5 ? 'text-blue-600' : 
-                    grade.score >= 5 ? 'text-amber-600' : 'text-red-600'
-                  )}>
-                    {grade.score >= 8 ? 'Giỏi' : 
-                     grade.score >= 6.5 ? 'Khá' : 
-                     grade.score >= 5 ? 'Trung bình' : 'Yếu'}
-                  </p>
+                {group.latestScore != null && (
+                  <p className="mt-1 text-xs text-muted-foreground">Đầu điểm gần nhất: {group.latestScore.toFixed?.(1) ?? group.latestScore}/10</p>
                 )}
               </div>
             </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+
+            <div className="border-t px-4 py-3 space-y-2">
+              {(expandedGroups[group.classKey] ? group.assessments : group.assessments.slice(0, 3)).map((assessment) => (
+                <div key={assessment.id} className="flex flex-col gap-2 rounded-lg border bg-slate-50/80 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{assessment.gradeType}</p>
+                    <p className="text-xs text-muted-foreground">Ngày: {formatDate(assessment.assessmentDate)}</p>
+                  </div>
+                  <div className="text-left sm:text-right shrink-0">
+                    <span className={cn(
+                      "text-lg font-bold",
+                      assessment.score >= 8 ? 'text-green-600' :
+                        assessment.score >= 6.5 ? 'text-blue-600' :
+                          assessment.score >= 5 ? 'text-amber-600' : 'text-red-600'
+                    )}>
+                      {assessment.score?.toFixed?.(1) ?? assessment.score ?? 'N/A'}
+                    </span>
+                    <span className="ml-1 text-xs text-muted-foreground">/ 10.0</span>
+                  </div>
+                </div>
+              ))}
+
+              {group.assessments.length > 3 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => toggleGroup(group.classKey)}
+                  className="h-9 rounded-lg px-3 text-sm text-orange-700 hover:bg-orange-50 hover:text-orange-800"
+                >
+                  {expandedGroups[group.classKey] ? (
+                    <ChevronUp className="mr-2 h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="mr-2 h-4 w-4" />
+                  )}
+                  {expandedGroups[group.classKey]
+                    ? 'Thu gọn đầu điểm'
+                    : `Xem thêm ${group.assessments.length - 3} đầu điểm`}
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
   );
 }
 
 export default function ParentGradesPage() {
-  const { children, loading: childrenLoading } = useParentChildren();
+  const { children, loading: childrenLoading, error: childrenError } = useParentChildren();
   const [selectedChildId, setSelectedChildId] = useState(null);
 
   useEffect(() => {
@@ -127,6 +159,17 @@ export default function ParentGradesPage() {
     );
   }
 
+  if (childrenError) {
+    return (
+      <div className="space-y-6 p-6">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <p className="font-medium">Không thể tải danh sách học viên liên kết</p>
+          <p className="mt-1">{childrenError}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center gap-3">
@@ -135,18 +178,18 @@ export default function ParentGradesPage() {
         </div>
         <div>
           <h1 className="text-2xl font-bold">Bảng điểm</h1>
-          <p className="text-muted-foreground">Xem kết quả học tập của các con</p>
+          <p className="text-muted-foreground">Theo dõi kết quả học tập của học viên được liên kết</p>
         </div>
       </div>
 
       {children && children.length > 0 ? (
         <div className="bg-white dark:bg-gray-900 p-6 rounded-xl border shadow-sm">
-          <ChildSelector 
-            children={children} 
-            selectedId={selectedChildId} 
-            onSelect={setSelectedChildId} 
+          <ChildSelector
+            children={children}
+            selectedId={selectedChildId}
+            onSelect={setSelectedChildId}
           />
-          
+
           <div className="mt-6">
             {selectedChildId ? (
               <GradesList studentId={selectedChildId} />

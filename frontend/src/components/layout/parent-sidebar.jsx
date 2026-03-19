@@ -21,7 +21,6 @@ const menuGroups = [
     id: 'overview',
     items: [
       { label: 'Tổng quan', icon: LayoutDashboard, path: '/parent' },
-      { label: 'Danh sách con', icon: Users, path: '/parent/children' },
     ],
   },
   {
@@ -95,7 +94,7 @@ export function ParentSidebar() {
             )}
             <div className="space-y-1">
               {group.items.map((item) => {
-                const isActive = location.pathname === item.path || 
+                const isActive = location.pathname === item.path ||
                   (item.path === '/parent' && location.pathname === '/parent/dashboard') ||
                   (item.path === '/parent/children' && location.pathname.startsWith('/parent/child/'));
 
@@ -133,15 +132,33 @@ export function ParentSidebar() {
       {/* Footer */}
       <div className="p-4">
         <div className="mb-4 h-px bg-gradient-to-r from-transparent via-zinc-800 to-transparent" />
-        <Link
-          to="/parent/profile"
-          className="group/support flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-400 hover:bg-zinc-800/80 hover:text-white transition-all duration-200"
-        >
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-800 group-hover/support:bg-zinc-700 transition-colors">
-            <HelpCircle className="h-4 w-4" />
-          </div>
-          <span>Hỗ trợ</span>
-        </Link>
+        {[
+          { to: '/parent/support', icon: HelpCircle, label: 'Hỗ trợ' },
+          { to: '/parent/profile', icon: Users, label: 'Hồ sơ' },
+        ].map(item => {
+          const isActive = location.pathname === item.to;
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              className={cn(
+                'group/footer flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                isActive
+                  ? 'bg-gradient-to-r from-amber-600 to-orange-500 text-white shadow-lg shadow-amber-600/25'
+                  : 'text-zinc-400 hover:bg-zinc-800/80 hover:text-white'
+              )}
+            >
+              <div className={cn(
+                'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
+                isActive ? 'bg-white/20' : 'bg-zinc-800 group-hover/footer:bg-zinc-700'
+              )}>
+                <item.icon className="h-4 w-4" />
+              </div>
+              <span>{item.label}</span>
+              {isActive && <div className="ml-auto h-1.5 w-1.5 rounded-full bg-white/80" />}
+            </Link>
+          );
+        })}
       </div>
     </aside>
   );

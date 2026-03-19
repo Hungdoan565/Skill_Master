@@ -1,7 +1,13 @@
+import { useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { useParentChildren } from '../hooks';
+import { supabase as supabaseClient } from '@/lib/supabaseClient';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { useToast } from '@/components/ui/toast';
 import { 
   User, 
   Mail, 
@@ -9,15 +15,52 @@ import {
   MapPin, 
   Lock, 
   Users, 
-  GraduationCap
+  GraduationCap,
+  Eye,
+  EyeOff,
+  RefreshCw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function ParentProfilePage() {
   const { profile } = useAuth();
   const { children, loading: childrenLoading } = useParentChildren();
+  const { toast } = useToast();
 
-  // Handle loading state slightly gracefully if needed
+  // Password change state
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ newPassword: '', confirmPassword: '' });
+  const [showPassword, setShowPassword] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    const { newPassword, confirmPassword } = passwordForm;
+
+    if (!newPassword || newPassword.length < 6) {
+      toast({ title: 'Lỗi', description: 'Mật khẩu mới phải có ít nhất 6 ký tự.', type: 'error' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast({ title: 'Lỗi', description: 'Mật khẩu xác nhận không khớp.', type: 'error' });
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+
+      toast({ title: 'Thành công', description: 'Mật khẩu đã được cập nhật.', type: 'success' });
+      setShowPasswordDialog(false);
+      setPasswordForm({ newPassword: '', confirmPassword: '' });
+    } catch (err) {
+      toast({ title: 'Không thể đổi mật khẩu', description: err.message || 'Vui lòng thử lại.', type: 'error' });
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   if (!profile) {
     return (
       <div className="flex justify-center items-center min-h-[50vh]">
@@ -96,7 +139,11 @@ export function ParentProfilePage() {
               <p className="text-sm text-muted-foreground">
                 Để bảo vệ tài khoản, vui lòng không chia sẻ mật khẩu cho người khác.
               </p>
-              <Button variant="outline" className="w-full justify-start text-muted-foreground hover:text-orange-600 hover:bg-orange-500/10">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start text-muted-foreground hover:text-orange-600 hover:bg-orange-500/10"
+                onClick={() => setShowPasswordDialog(true)}
+              >
                 <Lock className="h-4 w-4 mr-2" />
                 Đổi mật khẩu
               </Button>
@@ -133,7 +180,7 @@ export function ParentProfilePage() {
                           <h4 className="font-semibold text-foreground">{child.full_name}</h4>
                           <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
                             <span className="font-medium bg-muted px-2 py-0.5 rounded text-xs">
-                              {child.student_code || 'Chưa có mã'}
+                              {child.student_code || child.email || 'Chưa có thông tin'}
                             </span>
                           </div>
                         </div>
@@ -161,6 +208,77 @@ export function ParentProfilePage() {
           </Card>
         </div>
       </div>
+
+      {/* Password Change Dialog */}
+      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5 text-orange-600" />
+              Đổi mật khẩu
+            </DialogTitle>
+            <DialogDescription>
+              Nhập mật khẩu mới cho tài khoản của bạn. Mật khẩu phải có ít nhất 6 ký tự.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleChangePassword} className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="new-password" className="font-medium">Mật khẩu mới</Label>
+              <div className="relative">
+                <Input
+                  id="new-password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Nhập mật khẩu mới"
+                  value={passwordForm.newPassword}
+                  onChange={e => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                  required
+                  minLength={6}
+                  className="pr-10 focus-visible:ring-orange-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password" className="font-medium">Xác nhận mật khẩu</Label>
+              <Input
+                id="confirm-password"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Nhập lại mật khẩu mới"
+                value={passwordForm.confirmPassword}
+                onChange={e => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                required
+                minLength={6}
+                className="focus-visible:ring-orange-500"
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setShowPasswordDialog(false)}>
+                Hủy
+              </Button>
+              <Button
+                type="submit"
+                disabled={changingPassword || !passwordForm.newPassword || !passwordForm.confirmPassword}
+                className="bg-orange-600 hover:bg-orange-700 text-white"
+              >
+                {changingPassword ? (
+                  <><RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Đang xử lý...</>
+                ) : (
+                  <><Lock className="mr-2 h-4 w-4" /> Cập nhật mật khẩu</>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

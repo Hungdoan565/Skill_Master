@@ -10,6 +10,7 @@ export { default as ParentGradesPage } from './pages/ParentGradesPage';
 export { default as ParentAttendancePage } from './pages/ParentAttendancePage';
 export { default as ParentInvoicesPage } from './pages/ParentInvoicesPage';
 export { ParentProfilePage } from './pages/ParentProfilePage';
+export { default as ParentSupportPage } from './pages/ParentSupportPage';
 
 // Hooks
 export {
@@ -19,5 +20,6 @@ export {
   useParentChildGrades,
   useParentChildAttendance,
   useParentChildInvoices,
-  useParentPaymentConfig
+  useParentPaymentConfig,
+  useParentSupport
 } from './hooks';

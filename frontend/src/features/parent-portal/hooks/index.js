@@ -5,3 +5,5 @@ export { useParentChildGrades } from './useParentChildGrades';
 export { useParentChildAttendance } from './useParentChildAttendance';
 export { useParentChildInvoices } from './useParentChildInvoices';
 export { useParentPaymentConfig } from './useParentPaymentConfig';
+export { useParentDashboardAggregator } from './useParentDashboardAggregator';
+export { useParentSupport } from './useParentSupport';
