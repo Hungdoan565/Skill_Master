@@ -34,7 +34,7 @@ export const ProblemSection = () => {
                     {/* Section Header */}
                     <div className={`text-center max-w-3xl mx-auto transform transition-all duration-700
                       ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-                        <span className="inline-block px-4 py-1.5 bg-zinc-900 text-white text-xs font-medium 
+                        <span className="inline-block px-4 py-1.5 bg-foreground text-background text-xs font-medium 
                         rounded-full uppercase tracking-wider mb-6">
                             Có quen không?
                         </span>
@@ -97,8 +97,8 @@ export const ProblemSection = () => {
                         <button
                             onClick={() => setShowConsultation(true)}
                             className="group inline-flex items-center gap-3 px-8 py-4 
-                       bg-zinc-900 text-white text-base font-semibold rounded-full
-                       shadow-lg shadow-zinc-900/25 hover:shadow-xl hover:bg-zinc-800
+                       bg-foreground text-background text-base font-semibold rounded-full
+                       shadow-lg hover:shadow-xl hover:bg-foreground/90
                        active:scale-[0.98] transition-all duration-300"
                             id="problem-cta"
                         >

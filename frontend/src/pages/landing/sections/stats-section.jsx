@@ -77,7 +77,6 @@ export const StatsSection = () => {
                                 <div>
                                     <p className="text-foreground text-sm font-medium">{heroStat.source}</p>
                                     <p className="text-muted-foreground text-xs mt-1">{heroStat.sourceNote}</p>
-                                    <p className="text-neutral-600 text-xs mt-1">{heroStat.sourceNote}</p>
                                 </div>
                                 <a
                                     href="#"
@@ -175,8 +174,8 @@ export const StatsSection = () => {
                                 >
                                     <GraduationCap className="w-3.5 h-3.5" />
                                     <span className="text-xs font-semibold">{tag.label}</span>
-                                    <span className="text-neutral-700 text-xs">·</span>
-                                    <span className="text-neutral-500 text-xs">{tag.note}</span>
+                                    <span className="text-muted-foreground text-xs">·</span>
+                                    <span className="text-muted-foreground/80 text-xs">{tag.note}</span>
                                 </div>
                             ))}
                         </div>
