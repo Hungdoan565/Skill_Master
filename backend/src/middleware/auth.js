@@ -1,3 +1,4 @@
+import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../lib/db.js';
 
 // ============================================================
@@ -52,6 +53,14 @@ export const requireAuth = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
+
+    req.supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY, {
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    });
 
     // Validate token format BEFORE sending to Supabase
     if (!token || token === 'null' || token === 'undefined' || token.length < 20) {
