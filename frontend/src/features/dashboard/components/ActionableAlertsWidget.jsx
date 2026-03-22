@@ -72,7 +72,7 @@ const AlertItem = ({ type, item }) => {
         return (
             <Link
                 to={`/admin/invoices?highlight=${item.invoice_id}`}
-                className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg transition-colors group"
+                className="flex items-center justify-between p-3 hover:bg-muted rounded-lg transition-colors group"
             >
                 <div className="flex-1 min-w-0">
                     <p className="font-medium text-foreground truncate">
@@ -97,7 +97,7 @@ const AlertItem = ({ type, item }) => {
         return (
             <Link
                 to={`/admin/classes/${item.class_id}`}
-                className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg transition-colors group"
+                className="flex items-center justify-between p-3 hover:bg-muted rounded-lg transition-colors group"
             >
                 <div className="flex-1 min-w-0">
                     <p className="font-medium text-foreground truncate">
@@ -117,7 +117,7 @@ const AlertItem = ({ type, item }) => {
         return (
             <Link
                 to={`/admin/certificates?highlight=${item.certificate_id}`}
-                className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg transition-colors group"
+                className="flex items-center justify-between p-3 hover:bg-muted rounded-lg transition-colors group"
             >
                 <div className="flex-1 min-w-0">
                     <p className="font-medium text-foreground truncate">
@@ -139,7 +139,7 @@ const AlertItem = ({ type, item }) => {
         return (
             <Link
                 to={`/admin/invoices?highlight=${item.invoice_id}`}
-                className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg transition-colors group"
+                className="flex items-center justify-between p-3 hover:bg-muted rounded-lg transition-colors group"
             >
                 <div className="flex-1 min-w-0">
                     <p className="font-medium text-foreground truncate">
@@ -184,7 +184,7 @@ const AlertSection = ({ type, config, data }) => {
                         {config.title}
                     </span>
                     {hasItems && (
-                        <Badge variant="secondary" className={`${config.color} bg-white dark:bg-zinc-900`}>
+                        <Badge variant="secondary" className={`${config.color} bg-background`}>
                             {items.length}
                         </Badge>
                     )}

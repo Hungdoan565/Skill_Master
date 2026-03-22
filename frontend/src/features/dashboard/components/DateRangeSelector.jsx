@@ -62,7 +62,7 @@ export function DateRangeSelector({ selectedRange = 'this_month', onRangeChange 
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-4 py-2 bg-white border border-border rounded-lg text-sm font-medium text-foreground hover:bg-muted hover:border-border transition-colors min-w-[160px]"
+        className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg text-sm font-medium text-foreground hover:bg-muted hover:border-border transition-colors min-w-[160px]"
       >
         <Calendar size={16} className="text-muted-foreground" />
         <span className="flex-1 text-left">{currentRange.label}</span>
@@ -73,7 +73,7 @@ export function DateRangeSelector({ selectedRange = 'this_month', onRangeChange 
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 mt-1 w-56 bg-white border border-border rounded-xl shadow-lg py-1 right-0">
+        <div className="absolute z-50 mt-1 w-56 bg-card border border-border rounded-xl shadow-lg py-1 right-0">
           {PRESET_RANGES.map((range) => (
             <button
               key={range.id}
