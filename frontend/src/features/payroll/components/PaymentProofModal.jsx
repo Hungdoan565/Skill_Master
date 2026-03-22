@@ -15,9 +15,9 @@ import { formatCurrency, formatMonthYear } from '../utils';
 function IconSelect({ value, onChange, options, placeholder, icon: Icon }) {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef(null);
-    
+
     const selectedOption = options.find(opt => opt.value === value);
-    
+
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (containerRef.current && !containerRef.current.contains(event.target)) {
@@ -27,27 +27,27 @@ function IconSelect({ value, onChange, options, placeholder, icon: Icon }) {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
-    
+
     return (
         <div ref={containerRef} className="relative">
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 w-full h-10 px-3 rounded-md border border-input bg-white hover:bg-slate-50 transition-colors text-sm justify-between"
+                className="flex items-center gap-2 w-full h-10 px-3 rounded-md border border-input bg-background hover:bg-muted/50 transition-colors text-sm text-foreground justify-between"
             >
                 <div className="flex items-center gap-2">
                     {selectedOption?.icon ? (
                         <selectedOption.icon className={`h-4 w-4 ${selectedOption.iconColor}`} />
                     ) : Icon ? (
-                        <Icon className="h-4 w-4 text-slate-500" />
+                        <Icon className="h-4 w-4 text-muted-foreground" />
                     ) : null}
                     <span>{selectedOption?.label || placeholder}</span>
                 </div>
-                <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>
-            
+
             {isOpen && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-md border shadow-lg z-50 py-1">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-popover text-popover-foreground rounded-md border border-border shadow-lg z-50 py-1">
                     {options.map((option) => (
                         <button
                             key={option.value}
@@ -56,11 +56,10 @@ function IconSelect({ value, onChange, options, placeholder, icon: Icon }) {
                                 onChange(option.value);
                                 setIsOpen(false);
                             }}
-                            className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2 transition-colors ${
-                                value === option.value ? 'bg-slate-50 font-medium' : ''
-                            }`}
+                            className={`w-full text-left px-3 py-2 text-sm hover:bg-muted/50 flex items-center gap-2 transition-colors ${value === option.value ? 'bg-muted/50 font-medium' : ''
+                                }`}
                         >
-                            {option.icon && <option.icon className={`h-4 w-4 ${option.iconColor || 'text-slate-500'}`} />}
+                            {option.icon && <option.icon className={`h-4 w-4 ${option.iconColor || 'text-muted-foreground'}`} />}
                             <span>{option.label}</span>
                         </button>
                     ))}
@@ -191,9 +190,9 @@ export function PaymentProofModal({
             />
 
             {/* Modal */}
-            <div className="relative z-10 w-full max-w-lg rounded-lg bg-white shadow-xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="relative z-10 w-full max-w-lg rounded-lg bg-card border border-border text-foreground shadow-xl mx-4 max-h-[90vh] overflow-y-auto">
                 {/* Header */}
-                <div className="flex items-center justify-between border-b px-6 py-4 sticky top-0 bg-white">
+                <div className="flex items-center justify-between border-b border-border px-6 py-4 sticky top-0 bg-card">
                     <h2 className="text-lg font-semibold flex items-center gap-2">
                         <CheckCircle className="h-5 w-5 text-green-600" />
                         Xác nhận thanh toán
@@ -206,35 +205,35 @@ export function PaymentProofModal({
                 {/* Content */}
                 <form onSubmit={handleSubmit} className="p-6 space-y-6">
                     {/* Payroll Info */}
-                    <div className="p-4 rounded-lg bg-green-50 border border-green-200 space-y-2">
+                    <div className="space-y-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-4">
                         <div className="flex items-center justify-between">
-                            <span className="text-green-800 font-medium">
+                            <span className="font-medium text-emerald-700 dark:text-emerald-300">
                                 {formatMonthYear(payroll.period_month, payroll.period_year)}
                             </span>
-                            <span className="text-green-700 text-sm">
+                            <span className="text-sm text-emerald-700 dark:text-emerald-300">
                                 {payroll.teacher?.full_name}
                             </span>
                         </div>
-                        <div className="text-2xl font-bold text-green-700">
+                        <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
                             {formatCurrency(payroll.net_salary)}
                         </div>
                     </div>
 
                     {/* Bank Info (if available) */}
                     {payroll.teacher?.bank_name && (
-                        <div className="p-4 rounded-lg bg-slate-50 space-y-2">
-                            <h4 className="font-medium text-sm text-slate-600">Thông tin tài khoản nhận</h4>
+                        <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-4">
+                            <h4 className="text-sm font-medium text-muted-foreground">Thông tin tài khoản nhận</h4>
                             <div className="grid grid-cols-2 gap-2 text-sm">
                                 <div>
-                                    <span className="text-slate-500">Ngân hàng:</span>
+                                    <span className="text-muted-foreground">Ngân hàng:</span>
                                     <span className="ml-2 font-medium">{payroll.teacher.bank_name}</span>
                                 </div>
                                 <div>
-                                    <span className="text-slate-500">STK:</span>
+                                    <span className="text-muted-foreground">STK:</span>
                                     <span className="ml-2 font-mono">{payroll.teacher.bank_account_number}</span>
                                 </div>
                                 <div className="col-span-2">
-                                    <span className="text-slate-500">Chủ TK:</span>
+                                    <span className="text-muted-foreground">Chủ TK:</span>
                                     <span className="ml-2 font-medium">{payroll.teacher.bank_account_holder}</span>
                                 </div>
                             </div>
@@ -276,13 +275,13 @@ export function PaymentProofModal({
                             <Image className="h-4 w-4 text-slate-500" />
                             Ảnh chứng từ thanh toán
                         </Label>
-                        
+
                         {proofPreview ? (
                             <div className="relative">
                                 <img
                                     src={proofPreview}
                                     alt="Payment proof preview"
-                                    className="w-full max-h-48 object-contain rounded-lg border"
+                                    className="w-full max-h-48 rounded-lg border border-border object-contain"
                                 />
                                 <Button
                                     type="button"
@@ -297,18 +296,18 @@ export function PaymentProofModal({
                         ) : (
                             <div
                                 onClick={() => fileInputRef.current?.click()}
-                                className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition-colors"
+                                className="cursor-pointer rounded-lg border-2 border-dashed border-border p-8 text-center transition-colors hover:border-indigo-400 hover:bg-indigo-500/5"
                             >
-                                <Upload className="h-8 w-8 mx-auto text-slate-400 mb-2" />
-                                <p className="text-sm text-slate-600">
+                                <Upload className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+                                <p className="text-sm text-foreground">
                                     Click để chọn ảnh chứng từ
                                 </p>
-                                <p className="text-xs text-slate-400 mt-1">
+                                <p className="mt-1 text-xs text-muted-foreground">
                                     PNG, JPG tối đa 5MB
                                 </p>
                             </div>
                         )}
-                        
+
                         <input
                             ref={fileInputRef}
                             type="file"

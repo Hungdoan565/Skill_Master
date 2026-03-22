@@ -64,7 +64,7 @@ export function EditPayrollModal({
             />
 
             {/* Modal */}
-            <div className="relative z-10 w-full max-w-lg rounded-lg bg-white shadow-xl mx-4">
+            <div className="relative z-10 w-full max-w-lg rounded-lg bg-card shadow-xl mx-4">
                 {/* Header */}
                 <div className="flex items-center justify-between border-b px-6 py-4">
                     <h2 className="text-lg font-semibold">Chỉnh sửa bảng lương</h2>
@@ -76,7 +76,7 @@ export function EditPayrollModal({
                 {/* Content */}
                 <form onSubmit={handleSubmit} className="p-6 space-y-6">
                     {/* Payroll Info */}
-                    <div className="p-4 rounded-lg bg-slate-50 space-y-2">
+                    <div className="p-4 rounded-lg bg-muted space-y-2">
                         <div className="flex items-center justify-between">
                             <span className="font-semibold">{payroll.teacher?.full_name}</span>
                             <span className="text-sm text-muted-foreground">
@@ -135,12 +135,12 @@ export function EditPayrollModal({
                             placeholder="Ghi chú thêm về bảng lương..."
                             value={formData.notes}
                             onChange={(e) => handleChange('notes', e.target.value)}
-                            className="w-full rounded-md border border-input bg-white px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         />
                     </div>
 
                     {/* Net Salary Preview */}
-                    <div className="p-4 rounded-lg bg-green-50 border border-green-200">
+                    <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
                         <div className="flex items-center justify-between">
                             <span className="text-sm font-medium text-green-700">Thực nhận</span>
                             <span className="text-xl font-bold text-green-700">

@@ -14,7 +14,7 @@ export function PayrollStats({ stats, loading }) {
                 {[1, 2, 3, 4].map((i) => (
                     <Card key={i}>
                         <CardContent className="p-6">
-                            <div className="h-16 bg-slate-100 animate-pulse rounded" />
+                            <div className="h-16 bg-muted animate-pulse rounded" />
                         </CardContent>
                     </Card>
                 ))}
@@ -28,7 +28,7 @@ export function PayrollStats({ stats, loading }) {
             value: stats?.total_payrolls || 0,
             icon: FileText,
             color: 'text-blue-600',
-            bg: 'bg-blue-50',
+            bg: 'bg-blue-500/10',
             subtitle: `Tháng ${stats?.month}/${stats?.year}`,
         },
         {
@@ -36,7 +36,7 @@ export function PayrollStats({ stats, loading }) {
             value: (stats?.draft || 0) + (stats?.pending || 0),
             icon: Clock,
             color: 'text-orange-600',
-            bg: 'bg-orange-50',
+            bg: 'bg-orange-500/10',
             subtitle: `${stats?.draft || 0} nháp, ${stats?.pending || 0} chờ duyệt`,
         },
         {
@@ -44,7 +44,7 @@ export function PayrollStats({ stats, loading }) {
             value: stats?.paid || 0,
             icon: CheckCircle,
             color: 'text-green-600',
-            bg: 'bg-green-50',
+            bg: 'bg-green-500/10',
             subtitle: formatCurrency(stats?.paid_amount || 0),
         },
         {
@@ -52,7 +52,7 @@ export function PayrollStats({ stats, loading }) {
             value: formatCurrency(stats?.total_amount || 0),
             icon: DollarSign,
             color: 'text-indigo-600',
-            bg: 'bg-indigo-50',
+            bg: 'bg-indigo-500/10',
             subtitle: `Còn ${formatCurrency(stats?.pending_amount || 0)} chưa trả`,
         },
     ];

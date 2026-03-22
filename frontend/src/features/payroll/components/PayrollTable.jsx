@@ -45,10 +45,10 @@ function ActionMenu({ payroll, onView, onEdit, onDelete, onUpdateStatus, onPrint
             </Button>
 
             {isOpen && (
-                <div className="absolute right-0 top-full mt-1 w-52 rounded-lg border bg-white py-1 shadow-lg z-10">
+                <div className="absolute right-0 top-full mt-1 z-10 w-52 rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-lg">
                     <button
                         onClick={() => { onView(payroll); setIsOpen(false); }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                        className="flex w-full items-center gap-2 px-3 py-2 text-sm text-popover-foreground hover:bg-muted/50"
                     >
                         <Eye className="h-4 w-4" />
                         Xem chi tiết
@@ -57,7 +57,7 @@ function ActionMenu({ payroll, onView, onEdit, onDelete, onUpdateStatus, onPrint
                     {onPrint && (
                         <button
                             onClick={() => { onPrint(payroll); setIsOpen(false); }}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-popover-foreground hover:bg-muted/50"
                         >
                             <Printer className="h-4 w-4" />
                             In phiếu lương
@@ -67,7 +67,7 @@ function ActionMenu({ payroll, onView, onEdit, onDelete, onUpdateStatus, onPrint
                     {onViewAudit && (
                         <button
                             onClick={() => { onViewAudit(payroll.id); setIsOpen(false); }}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-popover-foreground hover:bg-muted/50"
                         >
                             <History className="h-4 w-4" />
                             Lịch sử thay đổi
@@ -77,20 +77,20 @@ function ActionMenu({ payroll, onView, onEdit, onDelete, onUpdateStatus, onPrint
                     {canEdit && (
                         <button
                             onClick={() => { onEdit(payroll); setIsOpen(false); }}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-popover-foreground hover:bg-muted/50"
                         >
                             <Edit className="h-4 w-4" />
                             Chỉnh sửa
                         </button>
                     )}
 
-                    <hr className="my-1 border-slate-100" />
+                    <hr className="my-1 border-border" />
 
                     {/* Status updates */}
                     {payroll.status === 'draft' && (
                         <button
                             onClick={() => { onUpdateStatus(payroll.id, 'pending'); setIsOpen(false); }}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-orange-600 hover:bg-orange-50"
+                            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-orange-600 hover:bg-orange-500/10"
                         >
                             <Clock className="h-4 w-4" />
                             Gửi duyệt
@@ -101,14 +101,14 @@ function ActionMenu({ payroll, onView, onEdit, onDelete, onUpdateStatus, onPrint
                         <>
                             <button
                                 onClick={() => { onUpdateStatus(payroll.id, 'approved'); setIsOpen(false); }}
-                                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-green-600 hover:bg-green-50"
+                                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-green-600 hover:bg-green-500/10"
                             >
                                 <CheckCircle className="h-4 w-4" />
                                 Duyệt
                             </button>
                             <button
                                 onClick={() => { onUpdateStatus(payroll.id, 'draft'); setIsOpen(false); }}
-                                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+                                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-popover-foreground hover:bg-muted/50"
                             >
                                 <Ban className="h-4 w-4" />
                                 Trả về nháp
@@ -119,7 +119,7 @@ function ActionMenu({ payroll, onView, onEdit, onDelete, onUpdateStatus, onPrint
                     {payroll.status === 'approved' && (
                         <button
                             onClick={() => { onUpdateStatus(payroll.id, 'paid', payroll); setIsOpen(false); }}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-green-600 hover:bg-green-50"
+                            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-green-600 hover:bg-green-500/10"
                         >
                             <CheckCircle className="h-4 w-4" />
                             Đánh dấu đã thanh toán
@@ -128,10 +128,10 @@ function ActionMenu({ payroll, onView, onEdit, onDelete, onUpdateStatus, onPrint
 
                     {canDelete && (
                         <>
-                            <hr className="my-1 border-slate-100" />
+                            <hr className="my-1 border-border" />
                             <button
                                 onClick={() => { onDelete(payroll); setIsOpen(false); }}
-                                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-500/10"
                             >
                                 <Trash2 className="h-4 w-4" />
                                 Xóa
@@ -158,7 +158,7 @@ export function PayrollTable({
         return (
             <div className="space-y-4">
                 {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-16 bg-slate-100 animate-pulse rounded-lg" />
+                    <div key={i} className="h-16 bg-muted animate-pulse rounded-lg" />
                 ))}
             </div>
         );
@@ -166,7 +166,7 @@ export function PayrollTable({
 
     if (payrolls.length === 0) {
         return (
-            <div className="flex h-40 flex-col items-center justify-center gap-2 text-slate-400">
+            <div className="flex h-40 flex-col items-center justify-center gap-2 text-muted-foreground">
                 <FileText className="h-10 w-10" />
                 <p>Chưa có bảng lương nào</p>
             </div>
@@ -193,16 +193,16 @@ export function PayrollTable({
                     {payrolls.map((payroll) => (
                         <tr
                             key={payroll.id}
-                            className="border-b last:border-0 hover:bg-slate-50 transition-colors"
+                            className="border-b last:border-0 hover:bg-muted/50 transition-colors"
                         >
                             {/* Teacher */}
                             <td className="py-4 pr-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 font-medium text-sm">
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-medium text-sm">
                                         {payroll.teacher?.full_name?.charAt(0)?.toUpperCase() || 'T'}
                                     </div>
                                     <div>
-                                        <p className="font-medium text-slate-900">
+                                        <p className="font-medium text-foreground">
                                             {payroll.teacher?.full_name || 'N/A'}
                                         </p>
                                         <p className="text-xs text-muted-foreground">
@@ -235,7 +235,7 @@ export function PayrollTable({
 
                             {/* Bonus */}
                             <td className="py-4 pr-4 text-right">
-                                <span className="text-sm text-green-600">
+                                <span className="text-sm text-green-600 dark:text-green-400">
                                     +{formatCurrency(payroll.bonus || 0)}
                                 </span>
                             </td>
@@ -249,7 +249,7 @@ export function PayrollTable({
 
                             {/* Net Salary */}
                             <td className="py-4 pr-4 text-right">
-                                <span className="font-semibold text-green-600">
+                                <span className="font-semibold text-green-600 dark:text-green-400">
                                     {formatCurrency(payroll.net_salary)}
                                 </span>
                             </td>

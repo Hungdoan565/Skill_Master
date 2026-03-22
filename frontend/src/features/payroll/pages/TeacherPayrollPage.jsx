@@ -175,7 +175,7 @@ export function TeacherPayrollPage() {
                     <select
                         value={year}
                         onChange={(e) => setYear(parseInt(e.target.value))}
-                        className="rounded-md border px-3 py-2 text-sm"
+                        className="rounded-md border border-border bg-card text-foreground px-3 py-2 text-sm"
                     >
                         {getYearOptions().map((y) => (
                             <option key={y.value} value={y.value}>{y.label}</option>
@@ -276,10 +276,10 @@ export function TeacherPayrollPage() {
                     <CardContent>
                         {loading ? (
                             <div className="flex items-center justify-center py-12">
-                                <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+                                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                             </div>
                         ) : payrolls.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                                 <FileText className="h-12 w-12 mb-2" />
                                 <p>Chưa có bảng lương nào</p>
                             </div>
@@ -291,7 +291,7 @@ export function TeacherPayrollPage() {
                                         onClick={() => handleViewDetail(payroll)}
                                         className={`p-4 rounded-2xl border cursor-pointer transition-colors ${selectedPayroll?.id === payroll.id
                                                 ? 'border-indigo-500 bg-indigo-500/10'
-                                                : 'border-border hover:bg-slate-50'
+                                                : 'border-border hover:bg-muted'
                                             }`}
                                     >
                                         <div className="flex items-center justify-between">
@@ -330,17 +330,17 @@ export function TeacherPayrollPage() {
                     <CardContent>
                         {detailLoading ? (
                             <div className="flex items-center justify-center py-12">
-                                <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+                                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                             </div>
                         ) : !selectedPayroll ? (
-                            <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                                 <Calendar className="h-12 w-12 mb-2" />
                                 <p>Chọn một bảng lương để xem chi tiết</p>
                             </div>
                         ) : (
                             <div className="space-y-6">
                                 {/* Summary */}
-                                <div className="p-4 rounded-lg bg-slate-50">
+                                <div className="p-4 rounded-lg bg-muted">
                                     <div className="flex items-center justify-between mb-3">
                                         <span className="font-semibold text-lg">
                                             {formatMonthYear(selectedPayroll.period_month, selectedPayroll.period_year)}
@@ -401,7 +401,7 @@ export function TeacherPayrollPage() {
                                         <h4 className="font-medium mb-3">Chi tiết buổi dạy</h4>
                                         <div className="max-h-48 overflow-auto space-y-2">
                                             {selectedPayroll.sessions.map((session, idx) => (
-                                                <div key={idx} className="flex justify-between text-sm p-2 bg-slate-50 rounded">
+                                                <div key={idx} className="flex justify-between text-sm p-2 bg-muted rounded">
                                                     <div>
                                                         <span className="font-medium">{formatDate(session.session_date)}</span>
                                                         <span className="text-muted-foreground ml-2">{session.classes?.name}</span>
@@ -415,20 +415,20 @@ export function TeacherPayrollPage() {
 
                                 {/* Notes */}
                                 {selectedPayroll.notes && (
-                                    <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-200">
-                                        <p className="text-sm text-yellow-700">{selectedPayroll.notes}</p>
+                                    <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                                        <p className="text-sm text-amber-700 dark:text-amber-300">{selectedPayroll.notes}</p>
                                     </div>
                                 )}
 
                                 {/* Payment Proof */}
                                 {selectedPayroll.status === 'paid' && selectedPayroll.payment_proof_url && (
                                     <div className="space-y-2">
-                                        <h4 className="font-medium text-sm text-slate-600">Chứng từ thanh toán</h4>
+                                        <h4 className="font-medium text-sm text-muted-foreground">Chứng từ thanh toán</h4>
                                         <div className="border border-border rounded-xl overflow-hidden">
                                             <img 
                                                 src={selectedPayroll.payment_proof_url} 
                                                 alt="Payment proof" 
-                                                className="w-full max-h-48 object-contain bg-slate-50"
+                                                className="w-full max-h-48 object-contain bg-muted"
                                                 onClick={() => window.open(selectedPayroll.payment_proof_url, '_blank')}
                                                 style={{ cursor: 'pointer' }}
                                             />

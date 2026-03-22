@@ -4,11 +4,11 @@
  */
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { 
-    AlertTriangle, 
-    CheckCircle, 
-    XCircle, 
-    Clock, 
+import {
+    AlertTriangle,
+    CheckCircle,
+    XCircle,
+    Clock,
     Search,
     Loader2,
     MessageSquare,
@@ -42,10 +42,10 @@ const getAuthHeaders = async () => {
 };
 
 const DISPUTE_STATUS = {
-    pending: { label: 'Chờ xử lý', color: 'bg-yellow-100 text-yellow-800', icon: Clock },
-    reviewing: { label: 'Đang xem xét', color: 'bg-blue-100 text-blue-800', icon: Search },
-    resolved: { label: 'Đã giải quyết', color: 'bg-green-100 text-green-800', icon: CheckCircle },
-    rejected: { label: 'Từ chối', color: 'bg-red-100 text-red-800', icon: XCircle },
+    pending: { label: 'Chờ xử lý', color: 'border border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300', icon: Clock },
+    reviewing: { label: 'Đang xem xét', color: 'border border-blue-500/20 bg-blue-500/10 text-blue-700 dark:text-blue-300', icon: Search },
+    resolved: { label: 'Đã giải quyết', color: 'border border-green-500/20 bg-green-500/10 text-green-700 dark:text-green-300', icon: CheckCircle },
+    rejected: { label: 'Từ chối', color: 'border border-red-500/20 bg-red-500/10 text-red-700 dark:text-red-300', icon: XCircle },
 };
 
 const DISPUTE_TYPES = {
@@ -61,9 +61,9 @@ const DISPUTE_TYPES = {
 function IconSelect({ value, onChange, options, placeholder, icon: Icon }) {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef(null);
-    
+
     const selectedOption = options.find(opt => opt.value === value);
-    
+
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (containerRef.current && !containerRef.current.contains(event.target)) {
@@ -73,27 +73,27 @@ function IconSelect({ value, onChange, options, placeholder, icon: Icon }) {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
-    
+
     return (
         <div ref={containerRef} className="relative">
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 h-10 px-3 rounded-md border border-input bg-white hover:bg-slate-50 transition-colors text-sm min-w-[160px] justify-between"
+                className="flex min-w-[160px] items-center justify-between gap-2 rounded-md border border-input bg-background px-3 text-sm text-foreground transition-colors hover:bg-muted/50 h-10"
             >
                 <div className="flex items-center gap-2">
                     {selectedOption?.icon ? (
                         <selectedOption.icon className={`h-4 w-4 ${selectedOption.iconColor}`} />
                     ) : Icon ? (
-                        <Icon className="h-4 w-4 text-slate-500" />
+                        <Icon className="h-4 w-4 text-muted-foreground" />
                     ) : null}
                     <span>{selectedOption?.label || placeholder}</span>
                 </div>
-                <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>
-            
+
             {isOpen && (
-                <div className="absolute top-full left-0 mt-1 w-full bg-white rounded-md border shadow-lg z-50 py-1">
+                <div className="absolute top-full left-0 z-50 mt-1 w-full rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-lg">
                     {options.map((option) => (
                         <button
                             key={option.value}
@@ -102,11 +102,10 @@ function IconSelect({ value, onChange, options, placeholder, icon: Icon }) {
                                 onChange(option.value);
                                 setIsOpen(false);
                             }}
-                            className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2 transition-colors ${
-                                value === option.value ? 'bg-slate-50 font-medium' : ''
-                            }`}
+                            className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-muted/50 ${value === option.value ? 'bg-muted/50 font-medium' : 'text-popover-foreground'
+                                }`}
                         >
-                            {option.icon && <option.icon className={`h-4 w-4 ${option.iconColor || 'text-slate-500'}`} />}
+                            {option.icon && <option.icon className={`h-4 w-4 ${option.iconColor || 'text-muted-foreground'}`} />}
                             <span>{option.label}</span>
                         </button>
                     ))}
@@ -128,7 +127,7 @@ export function DisputeManagementPage() {
 
     // Status filter options với icons
     const statusOptions = [
-        { value: 'all', label: 'Tất cả trạng thái', icon: Filter, iconColor: 'text-slate-500' },
+        { value: 'all', label: 'Tất cả trạng thái', icon: Filter, iconColor: 'text-muted-foreground' },
         { value: 'pending', label: 'Chờ xử lý', icon: Clock, iconColor: 'text-yellow-500' },
         { value: 'reviewing', label: 'Đang xem xét', icon: Search, iconColor: 'text-blue-500' },
         { value: 'resolved', label: 'Đã giải quyết', icon: CheckCircle, iconColor: 'text-green-500' },
@@ -217,7 +216,7 @@ export function DisputeManagementPage() {
                     <CardContent className="pt-6">
                         <div className="flex items-center justify-between">
                             <span className="text-sm text-muted-foreground">Tổng số</span>
-                            <AlertTriangle className="h-4 w-4 text-slate-500" />
+                            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
                         </div>
                         <p className="text-2xl font-bold">{stats.total}</p>
                     </CardContent>
@@ -285,10 +284,10 @@ export function DisputeManagementPage() {
                     <CardContent>
                         {loading ? (
                             <div className="flex items-center justify-center py-12">
-                                <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+                                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                             </div>
                         ) : disputes.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                                 <CheckCircle className="h-12 w-12 mb-2" />
                                 <p>Không có khiếu nại nào</p>
                             </div>
@@ -300,16 +299,15 @@ export function DisputeManagementPage() {
                                         <div
                                             key={dispute.id}
                                             onClick={() => setSelectedDispute(dispute)}
-                                            className={`p-4 rounded-lg border cursor-pointer transition-colors ${
-                                                selectedDispute?.id === dispute.id
-                                                    ? 'border-indigo-500 bg-indigo-50'
-                                                    : 'hover:bg-slate-50'
-                                            }`}
+                                            className={`p-4 rounded-lg border cursor-pointer transition-colors ${selectedDispute?.id === dispute.id
+                                                    ? 'border-indigo-500 bg-indigo-500/10'
+                                                    : 'hover:bg-muted/50'
+                                                }`}
                                         >
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2 mb-1">
-                                                        <User className="h-4 w-4 text-slate-400" />
+                                                        <User className="h-4 w-4 text-muted-foreground" />
                                                         <span className="font-medium truncate">
                                                             {dispute.teacher?.full_name || 'N/A'}
                                                         </span>
@@ -331,10 +329,10 @@ export function DisputeManagementPage() {
                                                     {DISPUTE_STATUS[dispute.status]?.label}
                                                 </Badge>
                                             </div>
-                                            <p className="text-sm text-slate-600 mt-2 line-clamp-2">
+                                            <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
                                                 {dispute.reason}
                                             </p>
-                                            <p className="text-xs text-slate-400 mt-2">
+                                            <p className="mt-2 text-xs text-muted-foreground">
                                                 {new Date(dispute.created_at).toLocaleDateString('vi-VN')}
                                             </p>
                                         </div>
@@ -355,25 +353,25 @@ export function DisputeManagementPage() {
                     </CardHeader>
                     <CardContent>
                         {!selectedDispute ? (
-                            <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                                 <Search className="h-12 w-12 mb-2" />
                                 <p>Chọn một khiếu nại để xem chi tiết</p>
                             </div>
                         ) : (
                             <div className="space-y-6">
                                 {/* Teacher Info */}
-                                <div className="p-4 rounded-lg bg-slate-50">
+                                <div className="rounded-lg border border-border bg-muted/30 p-4">
                                     <h4 className="font-medium mb-2">Giáo viên</h4>
                                     <p className="text-lg font-semibold">{selectedDispute.teacher?.full_name}</p>
                                     <p className="text-sm text-muted-foreground">{selectedDispute.teacher?.email}</p>
                                 </div>
 
                                 {/* Payroll Info */}
-                                <div className="p-4 rounded-lg bg-orange-50 border border-orange-200">
-                                    <h4 className="font-medium text-orange-800 mb-2">Bảng lương</h4>
+                                <div className="rounded-lg border border-orange-500/20 bg-orange-500/10 p-4">
+                                    <h4 className="mb-2 font-medium text-orange-700 dark:text-orange-300">Bảng lương</h4>
                                     <div className="grid grid-cols-2 gap-2 text-sm">
                                         <div>
-                                            <span className="text-orange-600">Kỳ lương:</span>
+                                            <span className="text-orange-700 dark:text-orange-300">Kỳ lương:</span>
                                             <span className="ml-2 font-medium">
                                                 {formatMonthYear(
                                                     selectedDispute.payroll?.period_month,
@@ -382,7 +380,7 @@ export function DisputeManagementPage() {
                                             </span>
                                         </div>
                                         <div>
-                                            <span className="text-orange-600">Tiền lương:</span>
+                                            <span className="text-orange-700 dark:text-orange-300">Tiền lương:</span>
                                             <span className="ml-2 font-medium">
                                                 {formatCurrency(selectedDispute.payroll?.net_salary)}
                                             </span>
@@ -400,7 +398,7 @@ export function DisputeManagementPage() {
                                     </div>
                                     <div>
                                         <Label className="text-muted-foreground">Lý do chi tiết</Label>
-                                        <p className="p-3 rounded-lg bg-slate-50 text-sm whitespace-pre-wrap">
+                                        <p className="rounded-lg bg-muted/30 p-3 text-sm whitespace-pre-wrap">
                                             {selectedDispute.reason}
                                         </p>
                                     </div>
@@ -414,11 +412,11 @@ export function DisputeManagementPage() {
 
                                 {/* Admin Response */}
                                 {selectedDispute.admin_response && (
-                                    <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
-                                        <h4 className="font-medium text-blue-800 mb-2">Phản hồi của quản lý</h4>
+                                    <div className="rounded-lg border border-blue-500/20 bg-blue-500/10 p-4">
+                                        <h4 className="mb-2 font-medium text-blue-700 dark:text-blue-300">Phản hồi của quản lý</h4>
                                         <p className="text-sm whitespace-pre-wrap">{selectedDispute.admin_response}</p>
                                         {selectedDispute.resolved_at && (
-                                            <p className="text-xs text-blue-600 mt-2">
+                                            <p className="mt-2 text-xs text-blue-700 dark:text-blue-300">
                                                 Xử lý lúc: {new Date(selectedDispute.resolved_at).toLocaleString('vi-VN')}
                                             </p>
                                         )}
@@ -475,7 +473,7 @@ export function DisputeManagementPage() {
                         className="absolute inset-0 bg-black/50"
                         onClick={() => setResponseModal({ isOpen: false, dispute: null })}
                     />
-                    <div className="relative z-10 w-full max-w-md rounded-lg bg-white shadow-xl mx-4">
+                    <div className="relative z-10 mx-4 w-full max-w-md rounded-lg border border-border bg-card text-foreground shadow-xl">
                         <div className="p-6 space-y-4">
                             <h3 className="text-lg font-semibold">
                                 {responseData.status === 'reviewing' && 'Đánh dấu đang xem xét'}
@@ -491,7 +489,7 @@ export function DisputeManagementPage() {
                                     onChange={(e) => setResponseData(prev => ({ ...prev, admin_response: e.target.value }))}
                                     placeholder="Nhập phản hồi của bạn..."
                                     rows={4}
-                                    className="w-full px-3 py-2 rounded-md border border-input bg-white text-sm resize-none"
+                                    className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
                                 />
                             </div>
 
@@ -508,8 +506,8 @@ export function DisputeManagementPage() {
                                     disabled={submitting || !responseData.admin_response.trim()}
                                     className={
                                         responseData.status === 'resolved' ? 'bg-green-600 hover:bg-green-700 text-white' :
-                                        responseData.status === 'rejected' ? 'bg-red-600 hover:bg-red-700 text-white' :
-                                        ''
+                                            responseData.status === 'rejected' ? 'bg-red-600 hover:bg-red-700 text-white' :
+                                                ''
                                     }
                                 >
                                     {submitting ? (

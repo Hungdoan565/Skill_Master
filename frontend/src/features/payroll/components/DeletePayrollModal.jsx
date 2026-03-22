@@ -29,7 +29,7 @@ export function DeletePayrollModal({
             />
 
             {/* Modal */}
-            <div className="relative z-10 w-full max-w-md rounded-lg bg-white shadow-xl mx-4">
+            <div className="relative z-10 w-full max-w-md rounded-lg bg-card shadow-xl mx-4">
                 {/* Header */}
                 <div className="flex items-center justify-between border-b px-6 py-4">
                     <h2 className="text-lg font-semibold text-red-600 flex items-center gap-2">
@@ -47,7 +47,7 @@ export function DeletePayrollModal({
                         Bạn có chắc chắn muốn xóa bảng lương này?
                     </p>
 
-                    <div className="p-4 rounded-lg bg-red-50 border border-red-200 space-y-2">
+                    <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20 space-y-2">
                         <p className="font-semibold text-red-800">
                             {payroll.teacher?.full_name}
                         </p>

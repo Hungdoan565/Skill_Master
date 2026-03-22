@@ -11,17 +11,17 @@ import { Button } from '@/components/ui/button';
 import { formatCurrency } from '../utils';
 
 const ACTION_CONFIG = {
-    created:        { label: 'Tạo mới',         icon: FileText,    bgColor: 'bg-blue-50',   iconBg: 'bg-blue-100',   iconColor: 'text-blue-600',  dotColor: 'bg-blue-500' },
-    updated:        { label: 'Cập nhật',         icon: Edit,        bgColor: 'bg-amber-50',  iconBg: 'bg-amber-100',  iconColor: 'text-amber-600', dotColor: 'bg-amber-500' },
-    status_changed: { label: 'Đổi trạng thái',   icon: CheckCircle, bgColor: 'bg-green-50',  iconBg: 'bg-green-100',  iconColor: 'text-green-600', dotColor: 'bg-green-500' },
-    deleted:        { label: 'Xóa',              icon: Trash2,      bgColor: 'bg-red-50',    iconBg: 'bg-red-100',    iconColor: 'text-red-600',   dotColor: 'bg-red-500' },
+    created:        { label: 'Tạo mới',         icon: FileText,    bgColor: 'bg-blue-500/10',   iconBg: 'bg-blue-500/15',   iconColor: 'text-blue-600',  dotColor: 'bg-blue-500' },
+    updated:        { label: 'Cập nhật',         icon: Edit,        bgColor: 'bg-amber-500/10',  iconBg: 'bg-amber-500/15',  iconColor: 'text-amber-600', dotColor: 'bg-amber-500' },
+    status_changed: { label: 'Đổi trạng thái',   icon: CheckCircle, bgColor: 'bg-green-500/10',  iconBg: 'bg-green-500/15',  iconColor: 'text-green-600', dotColor: 'bg-green-500' },
+    deleted:        { label: 'Xóa',              icon: Trash2,      bgColor: 'bg-red-500/10',    iconBg: 'bg-red-500/15',    iconColor: 'text-red-600',   dotColor: 'bg-red-500' },
 };
 
 const STATUS_CONFIG = {
-    draft:    { label: 'Nháp',          className: 'bg-slate-100  text-slate-700' },
-    pending:  { label: 'Chờ duyệt',     className: 'bg-amber-100  text-amber-700' },
-    approved: { label: 'Đã duyệt',      className: 'bg-green-100  text-green-700' },
-    paid:     { label: 'Đã thanh toán',  className: 'bg-blue-100   text-blue-700' },
+    draft:    { label: 'Nháp',          className: 'bg-muted  text-muted-foreground' },
+    pending:  { label: 'Chờ duyệt',     className: 'bg-amber-500/10  text-amber-700 dark:text-amber-300' },
+    approved: { label: 'Đã duyệt',      className: 'bg-green-500/10  text-green-700 dark:text-green-300' },
+    paid:     { label: 'Đã thanh toán',  className: 'bg-blue-500/10   text-blue-700 dark:text-blue-300' },
 };
 
 // Map raw field names to human-readable Vietnamese labels
@@ -64,7 +64,7 @@ function formatFieldValue(field, value) {
 }
 
 function StatusBadge({ status }) {
-    const cfg = STATUS_CONFIG[status] || { label: status, className: 'bg-slate-100 text-slate-700' };
+    const cfg = STATUS_CONFIG[status] || { label: status, className: 'bg-muted text-muted-foreground' };
     return (
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${cfg.className}`}>
             {cfg.label}
@@ -90,7 +90,7 @@ function ChangedFields({ oldValues, newValues }) {
         }
     });
 
-    if (changes.length === 0) return <p className="text-sm text-slate-400 italic">Không có thay đổi chi tiết</p>;
+    if (changes.length === 0) return <p className="text-sm text-muted-foreground italic">Không có thay đổi chi tiết</p>;
 
     return (
         <div className="space-y-2">
@@ -100,29 +100,29 @@ function ChangedFields({ oldValues, newValues }) {
                 const isMoney = MONEY_FIELDS.includes(field);
 
                 return (
-                    <div key={field} className="flex items-center gap-2 text-sm bg-white px-3 py-2 rounded-lg border border-slate-100">
+                    <div key={field} className="flex items-center gap-2 text-sm bg-card px-3 py-2 rounded-lg border border-border">
                         {isMoney ? (
-                            <DollarSign className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                            <DollarSign className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                         ) : (
-                            <Edit className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                            <Edit className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                         )}
-                        <span className="text-slate-500 font-medium min-w-[90px]">{label}</span>
+                        <span className="text-muted-foreground font-medium min-w-[90px]">{label}</span>
 
                         {oldVal !== null && oldVal !== undefined ? (
                             <>
                                 {isStatus ? (
                                     <StatusBadge status={oldVal} />
                                 ) : (
-                                    <span className="text-slate-400 line-through text-xs">{formatFieldValue(field, oldVal)}</span>
+                                    <span className="text-muted-foreground line-through text-xs">{formatFieldValue(field, oldVal)}</span>
                                 )}
-                                <ArrowRight className="h-3 w-3 text-slate-300 flex-shrink-0" />
+                                <ArrowRight className="h-3 w-3 text-muted-foreground/50 flex-shrink-0" />
                             </>
                         ) : null}
 
                         {isStatus ? (
                             <StatusBadge status={newVal} />
                         ) : (
-                            <span className={`font-semibold ${isMoney && newVal > (oldVal || 0) ? 'text-green-600' : isMoney && newVal < (oldVal || 0) ? 'text-red-600' : 'text-slate-700'}`}>
+                            <span className={`font-semibold ${isMoney && newVal > (oldVal || 0) ? 'text-green-600' : isMoney && newVal < (oldVal || 0) ? 'text-red-600' : 'text-foreground'}`}>
                                 {formatFieldValue(field, newVal)}
                             </span>
                         )}
@@ -144,7 +144,7 @@ function AuditLogItem({ log, isFirst, isLast }) {
             return (
                 <div className="flex items-center gap-2 mt-1">
                     <StatusBadge status={log.old_values.status} />
-                    <ArrowRight className="h-3.5 w-3.5 text-slate-400" />
+                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
                     <StatusBadge status={log.new_values.status} />
                 </div>
             );
@@ -166,7 +166,7 @@ function AuditLogItem({ log, isFirst, isLast }) {
                 }
             });
             if (changed.length > 0) {
-                return <p className="text-sm text-slate-500 mt-1">Thay đổi: {changed.join(', ')}</p>;
+                return <p className="text-sm text-muted-foreground mt-1">Thay đổi: {changed.join(', ')}</p>;
             }
         }
         return null;
@@ -176,12 +176,12 @@ function AuditLogItem({ log, isFirst, isLast }) {
         <div className="relative flex gap-4">
             {/* Timeline line */}
             <div className="flex flex-col items-center">
-                <div className={`w-3 h-3 rounded-full ${config.dotColor} ring-4 ring-white z-10 mt-1.5`}></div>
-                {!isLast && <div className="w-0.5 flex-1 bg-slate-200 mt-1"></div>}
+                <div className={`w-3 h-3 rounded-full ${config.dotColor} ring-4 ring-card z-10 mt-1.5`}></div>
+                {!isLast && <div className="w-0.5 flex-1 bg-border mt-1"></div>}
             </div>
 
             {/* Content card */}
-            <div className={`flex-1 mb-4 rounded-xl border border-slate-200 overflow-hidden transition-all duration-200 ${expanded ? config.bgColor : 'bg-white hover:bg-slate-50'}`}>
+            <div className={`flex-1 mb-4 rounded-xl border border-border overflow-hidden transition-all duration-200 ${expanded ? config.bgColor : 'bg-card hover:bg-muted/50'}`}>
                 <div
                     className="p-4 cursor-pointer"
                     onClick={() => hasDetails && setExpanded(!expanded)}
@@ -193,13 +193,13 @@ function AuditLogItem({ log, isFirst, isLast }) {
                             </div>
                             <div>
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-semibold text-sm text-slate-800">{config.label}</span>
+                                    <span className="font-semibold text-sm text-foreground">{config.label}</span>
                                     {log.notes && (
-                                        <span className="text-xs text-slate-400 italic">• {log.notes}</span>
+                                        <span className="text-xs text-muted-foreground italic">• {log.notes}</span>
                                     )}
                                 </div>
 
-                                <div className="flex items-center gap-3 mt-1 text-xs text-slate-400">
+                                <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                                     <span className="flex items-center gap-1">
                                         <Clock className="h-3 w-3" />
                                         {new Date(log.changed_at).toLocaleString('vi-VN')}
@@ -217,8 +217,8 @@ function AuditLogItem({ log, isFirst, isLast }) {
                         </div>
 
                         {hasDetails && (
-                            <button className="p-1 rounded hover:bg-slate-200 transition-colors">
-                                {expanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+                            <button className="p-1 rounded hover:bg-muted transition-colors">
+                                {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                             </button>
                         )}
                     </div>
@@ -227,7 +227,7 @@ function AuditLogItem({ log, isFirst, isLast }) {
                 {/* Expanded details — human-readable diffs */}
                 {expanded && hasDetails && (
                     <div className="px-4 pb-4 pt-0">
-                        <div className="border-t border-slate-200 pt-3">
+                        <div className="border-t border-border pt-3">
                             <ChangedFields oldValues={log.old_values} newValues={log.new_values} />
                         </div>
                     </div>
@@ -257,16 +257,16 @@ export function AuditTrailModal({ isOpen, onClose, payrollId, fetchAuditTrail })
         <div style={{ position: 'fixed', inset: 0, zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} onClick={onClose} />
 
-            <div className="relative z-10 w-full max-w-lg max-h-[85vh] overflow-hidden rounded-xl bg-white shadow-2xl mx-4 flex flex-col">
+            <div className="relative z-10 w-full max-w-lg max-h-[85vh] overflow-hidden rounded-xl bg-card shadow-2xl mx-4 flex flex-col">
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-indigo-50 to-blue-50">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-gradient-to-r from-indigo-500/10 to-blue-500/10">
                     <h2 className="text-lg font-semibold flex items-center gap-3">
-                        <div className="p-2 bg-indigo-100 rounded-lg">
+                        <div className="p-2 bg-indigo-500/15 rounded-lg">
                             <History className="h-4 w-4 text-indigo-600" />
                         </div>
                         Lịch sử thay đổi
                     </h2>
-                    <Button variant="ghost" size="icon" onClick={onClose} className="hover:bg-white/60">
+                    <Button variant="ghost" size="icon" onClick={onClose} className="hover:bg-muted">
                         <X className="h-5 w-5" />
                     </Button>
                 </div>
@@ -274,18 +274,18 @@ export function AuditTrailModal({ isOpen, onClose, payrollId, fetchAuditTrail })
                 {/* Content */}
                 <div className="flex-1 overflow-auto p-6">
                     {loading ? (
-                        <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-                            <div className="p-4 bg-slate-100 rounded-full mb-3">
+                        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                            <div className="p-4 bg-muted rounded-full mb-3">
                                 <Loader2 className="h-6 w-6 animate-spin text-indigo-400" />
                             </div>
                             <p className="text-sm">Đang tải lịch sử...</p>
                         </div>
                     ) : logs.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-                            <div className="p-4 bg-slate-100 rounded-full mb-3">
+                        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                            <div className="p-4 bg-muted rounded-full mb-3">
                                 <History className="h-8 w-8" />
                             </div>
-                            <p className="font-medium text-slate-500">Chưa có lịch sử thay đổi</p>
+                            <p className="font-medium text-muted-foreground">Chưa có lịch sử thay đổi</p>
                             <p className="text-sm mt-1">Hoặc chức năng audit trail chưa được kích hoạt</p>
                         </div>
                     ) : (
@@ -303,11 +303,11 @@ export function AuditTrailModal({ isOpen, onClose, payrollId, fetchAuditTrail })
                 </div>
 
                 {/* Footer */}
-                <div className="px-6 py-3 border-t bg-slate-50 flex items-center justify-between">
-                    <p className="text-xs text-slate-400">
+                <div className="px-6 py-3 border-t border-border bg-muted/30 flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">
                         {logs.length > 0 ? `${logs.length} bản ghi thay đổi` : 'Không có bản ghi'}
                     </p>
-                    <div className="flex items-center gap-3 text-xs text-slate-400">
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500"></span> Tạo</span>
                         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500"></span> Sửa</span>
                         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500"></span> Trạng thái</span>
