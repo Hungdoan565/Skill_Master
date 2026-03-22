@@ -82,9 +82,9 @@ export default function CertificatePrintModal({ certificate, open, onOpenChange 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl w-full p-0 flex flex-col bg-white border-0 shadow-2xl overflow-hidden max-h-[95vh]">
+      <DialogContent className="max-w-5xl w-full p-0 flex flex-col bg-card border-0 shadow-2xl overflow-hidden max-h-[95vh]">
         {/* Toolbar */}
-        <div className="flex items-center justify-between p-4 bg-slate-50 border-b shrink-0 print:hidden z-10 relative">
+        <div className="flex items-center justify-between p-4 bg-muted border-b shrink-0 print:hidden z-10 relative">
           <div>
             <h2 className="text-lg font-semibold text-slate-800">In & Tải Chứng nhận</h2>
             <p className="text-sm text-slate-500">Mã: {certNumber}</p>
@@ -110,7 +110,7 @@ export default function CertificatePrintModal({ certificate, open, onOpenChange 
         </div>
 
         {/* Certificate Preview Container */}
-        <div className="p-4 md:p-8 overflow-y-auto bg-slate-200/50 flex justify-center print:p-0 print:bg-white flex-1 min-h-0">
+        <div className="p-4 md:p-8 overflow-y-auto bg-muted flex justify-center print:p-0 print:bg-white flex-1 min-h-0">
           
           {/* ═══════════ PRINT AREA ═══════════ */}
           <div 

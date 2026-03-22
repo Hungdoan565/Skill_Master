@@ -14,7 +14,7 @@ export default function StepPreviewAndConfirm({ form, selectedStudents, certific
 
   if (!certificateType || selectedStudents.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-center h-64 bg-white rounded-xl border border-border">
+      <div className="flex flex-col items-center justify-center p-12 text-center h-64 bg-card rounded-xl border border-border">
         <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin mb-4" />
         <p className="text-muted-foreground font-medium">Đang tải dữ liệu xem trước...</p>
       </div>
@@ -48,7 +48,7 @@ export default function StepPreviewAndConfirm({ form, selectedStudents, certific
     <div className="space-y-6 h-full flex flex-col">
       <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-5 flex items-start gap-4 shadow-sm relative overflow-hidden">
         <div className="absolute top-0 right-0 -mt-10 -mr-10 w-32 h-32 bg-amber-500/20 rounded-full blur-2xl" />
-        <div className="h-12 w-12 bg-white rounded-full flex items-center justify-center border border-amber-500/20 shadow-sm shrink-0 z-10">
+        <div className="h-12 w-12 bg-card rounded-full flex items-center justify-center border border-amber-500/20 shadow-sm shrink-0 z-10">
           <CheckCircle2 className="w-6 h-6 text-amber-500" />
         </div>
         <div className="z-10 relative">
@@ -73,7 +73,7 @@ export default function StepPreviewAndConfirm({ form, selectedStudents, certific
                 Học viên <span className="text-foreground">{currentIndex + 1}</span> / {selectedStudents.length}
               </span>
             </div>
-            <div className="flex items-center gap-1.5 bg-white p-1 rounded-lg border border-border shadow-sm">
+            <div className="flex items-center gap-1.5 bg-card p-1 rounded-lg border border-border shadow-sm">
               <Button type="button" variant="outline" size="icon" className="w-8 h-8 rounded-md border-0 bg-transparent hover:bg-muted text-muted-foreground" onClick={handlePrev}>
                 <ChevronLeft className="w-4 h-4" />
               </Button>
@@ -87,7 +87,7 @@ export default function StepPreviewAndConfirm({ form, selectedStudents, certific
           {/* MOCK CERTIFICATE PREVIEW */}
           <div className="relative group perspective-1000 w-full flex-1 min-h-[400px]">
             <div 
-              className="absolute inset-0 w-full bg-white rounded-xl shadow-2xl relative overflow-hidden flex flex-col items-center justify-center p-8 text-center transition-transform duration-500 ease-out"
+              className="absolute inset-0 w-full bg-card rounded-xl shadow-2xl relative overflow-hidden flex flex-col items-center justify-center p-8 text-center transition-transform duration-500 ease-out"
               style={{ 
                 border: `12px solid ${templateConf.previewColor}15`,
                 boxShadow: `0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 40px ${templateConf.previewColor}20` 
@@ -175,7 +175,7 @@ export default function StepPreviewAndConfirm({ form, selectedStudents, certific
           </div>
 
           {/* Pagination dots */}
-          <div className="flex justify-center gap-2 flex-wrap max-h-12 overflow-hidden mt-4 bg-white border border-border rounded-full py-2 px-4 shadow-sm w-max mx-auto">
+          <div className="flex justify-center gap-2 flex-wrap max-h-12 overflow-hidden mt-4 bg-card border border-border rounded-full py-2 px-4 shadow-sm w-max mx-auto">
             {selectedStudents.map((s, idx) => (
               <button
                 key={idx}
@@ -197,7 +197,7 @@ export default function StepPreviewAndConfirm({ form, selectedStudents, certific
 
         {/* RIGHT PANEL: Settings */}
         <div className="space-y-6">
-          <Card className="p-5 border-border bg-white shadow-sm hover:shadow-md transition-shadow">
+          <Card className="p-5 border-border bg-card shadow-sm hover:shadow-md transition-shadow">
             <h4 className="font-bold text-foreground mb-4 text-xs uppercase tracking-widest flex items-center gap-2">
               <div className="w-1.5 h-3 bg-primary rounded-full" />
               Tùy chọn hiển thị
@@ -211,7 +211,7 @@ export default function StepPreviewAndConfirm({ form, selectedStudents, certific
                     htmlFor="showQR" 
                     className={cn(
                       "flex items-start space-x-3 p-3 rounded-xl border cursor-pointer transition-all duration-200 group relative overflow-hidden",
-                      field.value ? "bg-primary/5 border-primary shadow-sm" : "bg-white border-border hover:border-primary/50 hover:bg-muted"
+                      field.value ? "bg-primary/5 border-primary shadow-sm" : "bg-card border-border hover:border-primary/50 hover:bg-muted"
                     )}
                   >
                     <div className={cn("absolute left-0 top-0 bottom-0 w-1 transition-colors", field.value ? "bg-primary" : "bg-transparent group-hover:bg-primary/30")} />
@@ -242,7 +242,7 @@ export default function StepPreviewAndConfirm({ form, selectedStudents, certific
                     htmlFor="showSerial" 
                     className={cn(
                       "flex items-start space-x-3 p-3 rounded-xl border cursor-pointer transition-all duration-200 group relative overflow-hidden",
-                      field.value ? "bg-primary/5 border-primary shadow-sm" : "bg-white border-border hover:border-primary/50 hover:bg-muted"
+                      field.value ? "bg-primary/5 border-primary shadow-sm" : "bg-card border-border hover:border-primary/50 hover:bg-muted"
                     )}
                   >
                     <div className={cn("absolute left-0 top-0 bottom-0 w-1 transition-colors", field.value ? "bg-primary" : "bg-transparent group-hover:bg-primary/30")} />
@@ -267,7 +267,7 @@ export default function StepPreviewAndConfirm({ form, selectedStudents, certific
             </div>
           </Card>
 
-          <Card className="p-5 border-border bg-white shadow-sm hover:shadow-md transition-shadow">
+          <Card className="p-5 border-border bg-card shadow-sm hover:shadow-md transition-shadow">
             <h4 className="font-bold text-foreground mb-4 text-xs uppercase tracking-widest flex items-center gap-2">
               <div className="w-1.5 h-3 bg-emerald-500 rounded-full" />
               Thông báo & Tự động hóa
@@ -280,7 +280,7 @@ export default function StepPreviewAndConfirm({ form, selectedStudents, certific
                   htmlFor="sendEmail" 
                   className={cn(
                     "flex items-start space-x-3 p-3 rounded-xl border cursor-pointer transition-all duration-200 group relative overflow-hidden",
-                    field.value ? "bg-emerald-500/5 border-emerald-500 shadow-sm" : "bg-white border-border hover:border-emerald-500/50 hover:bg-muted"
+                    field.value ? "bg-emerald-500/5 border-emerald-500 shadow-sm" : "bg-card border-border hover:border-emerald-500/50 hover:bg-muted"
                   )}
                 >
                   <div className={cn("absolute left-0 top-0 bottom-0 w-1 transition-colors", field.value ? "bg-emerald-500" : "bg-transparent group-hover:bg-emerald-500/30")} />
@@ -309,7 +309,7 @@ export default function StepPreviewAndConfirm({ form, selectedStudents, certific
             <div className="space-y-2">
               <div className="flex justify-between items-center text-sm">
                 <span className="text-muted-foreground font-medium">Tổng số học viên:</span>
-                <span className="font-bold bg-white border border-border px-2 py-0.5 rounded text-foreground">{selectedStudents.length}</span>
+                <span className="font-bold bg-card border border-border px-2 py-0.5 rounded text-foreground">{selectedStudents.length}</span>
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-muted-foreground font-medium">Hành động:</span>

@@ -205,7 +205,7 @@ export default function IssueInternalWizard({ open, onOpenChange, onSuccess, cen
     <>
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-5xl p-0 overflow-hidden flex flex-col max-h-[90vh] border-border shadow-2xl">
-        <div className="p-6 border-b border-border bg-white dark:bg-zinc-950 relative overflow-hidden">
+        <div className="p-6 border-b border-border bg-background relative overflow-hidden">
           <div className="absolute top-0 right-0 -mt-20 -mr-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
           <DialogHeader className="mb-0 relative z-10">
             <div className="flex items-center justify-between">
@@ -244,8 +244,8 @@ export default function IssueInternalWizard({ open, onOpenChange, onSuccess, cen
                     <div className={cn(
                       "w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-all duration-300 shadow-sm",
                       isCompleted ? "bg-primary border-primary text-primary-foreground scale-100" :
-                      isCurrent ? "bg-white border-primary text-primary scale-110 shadow-[0_0_15px_rgba(var(--primary),0.3)] ring-4 ring-primary/10" :
-                      "bg-white border-border text-muted-foreground scale-95"
+                      isCurrent ? "bg-card border-primary text-primary scale-110 shadow-[0_0_15px_rgba(var(--primary),0.3)] ring-4 ring-primary/10" :
+                      "bg-card border-border text-muted-foreground scale-95"
                     )}>
                       {isCompleted ? <Check className="w-5 h-5 animate-in zoom-in duration-300" /> : idx + 1}
                     </div>
@@ -265,7 +265,7 @@ export default function IssueInternalWizard({ open, onOpenChange, onSuccess, cen
 
         <FormProvider {...methods}>
           <form className="flex-1 flex flex-col overflow-hidden" onSubmit={e => e.preventDefault()}>
-            <div className="p-6 overflow-y-auto bg-zinc-50 dark:bg-zinc-900 flex-1">
+            <div className="p-6 overflow-y-auto bg-muted flex-1">
               {activeStep === 0 && (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 h-full">
                   <StepSelectTypeAndStudents 
@@ -295,13 +295,13 @@ export default function IssueInternalWizard({ open, onOpenChange, onSuccess, cen
               )}
             </div>
 
-            <DialogFooter className="p-4 border-t border-border bg-white dark:bg-zinc-950 flex justify-between items-center px-6">
+            <DialogFooter className="p-4 border-t border-border bg-background flex justify-between items-center px-6">
               <Button 
                 type="button" 
                 variant="outline" 
                 onClick={handlePrev}
                 disabled={activeStep === 0 || submitting}
-                className="border-border bg-white hover:bg-muted font-semibold px-6"
+                className="border-border bg-card hover:bg-muted font-semibold px-6"
               >
                 Quay lại
               </Button>

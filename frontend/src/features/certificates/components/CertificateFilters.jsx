@@ -88,13 +88,13 @@ export default function CertificateFilters({ filters, onFilterChange, certificat
             placeholder="Tìm theo tên học viên, mã CCCD..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 bg-white border-border/50 shadow-sm focus-visible:ring-1 focus-visible:border-primary transition-all"
+            className="pl-9 bg-card border-border/50 shadow-sm focus-visible:ring-1 focus-visible:border-primary transition-all"
           />
         </div>
 
         {/* Type Filter */}
         <Select value={selectedType || 'all'} onValueChange={handleTypeChange}>
-          <SelectTrigger className="w-[180px] bg-white border-border/50 shadow-sm transition-all focus:ring-1">
+          <SelectTrigger className="w-[180px] bg-card border-border/50 shadow-sm transition-all focus:ring-1">
             <SelectValue placeholder="Tất cả loại" />
           </SelectTrigger>
           <SelectContent className="max-h-[300px]">
@@ -107,7 +107,7 @@ export default function CertificateFilters({ filters, onFilterChange, certificat
 
         {/* Status Filter */}
         <Select value={filters?.status || 'all'} onValueChange={handleStatusChange}>
-          <SelectTrigger className="w-[160px] bg-white border-border/50 shadow-sm transition-all focus:ring-1">
+          <SelectTrigger className="w-[160px] bg-card border-border/50 shadow-sm transition-all focus:ring-1">
             <SelectValue placeholder="Trạng thái" />
           </SelectTrigger>
           <SelectContent>
@@ -124,7 +124,7 @@ export default function CertificateFilters({ filters, onFilterChange, certificat
         </Select>
 
         {/* Date Filters Container */}
-        <div className="flex items-center bg-white rounded-md border border-border/50 shadow-sm overflow-hidden h-9 px-1 focus-within:ring-1 focus-within:ring-ring focus-within:border-primary transition-all">
+        <div className="flex items-center bg-card rounded-md border border-border/50 shadow-sm overflow-hidden h-9 px-1 focus-within:ring-1 focus-within:ring-ring focus-within:border-primary transition-all">
           <div className="pl-2 pr-1 text-muted-foreground flex items-center">
             <CalendarIcon className="h-4 w-4" />
           </div>

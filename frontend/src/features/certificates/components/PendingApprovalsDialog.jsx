@@ -119,7 +119,7 @@ export default function PendingApprovalsDialog({ open, onOpenChange, onApprove, 
         ) : (
           <>
             {approvals.length > 1 && (
-              <div className="flex justify-between items-center bg-zinc-50 dark:bg-zinc-900 p-3 rounded-lg border border-border">
+              <div className="flex justify-between items-center bg-muted p-3 rounded-lg border border-border">
                 <span className="text-sm font-medium text-muted-foreground">Tổng cộng {approvals.length} yêu cầu</span>
                 <Button size="sm" onClick={handleApproveAll} className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm border-0">
                   <CheckCircle className="h-4 w-4 mr-2" /> Duyệt tất cả
@@ -129,7 +129,7 @@ export default function PendingApprovalsDialog({ open, onOpenChange, onApprove, 
 
             <div className="space-y-4">
               {approvals.map(approval => (
-                <Card key={approval.id} className="p-0 overflow-hidden border-l-4 border-l-amber-500 bg-white border-border shadow-sm transition-all hover:shadow-md">
+                <Card key={approval.id} className="p-0 overflow-hidden border-l-4 border-l-amber-500 bg-card border-border shadow-sm transition-all hover:shadow-md">
                   <div className="p-4 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                     <div className="flex gap-4 flex-1">
                       <div className="hidden sm:flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-sm">
@@ -183,7 +183,7 @@ export default function PendingApprovalsDialog({ open, onOpenChange, onApprove, 
                             placeholder="Lý do từ chối..."
                             value={rejectReason}
                             onChange={e => setRejectReason(e.target.value)}
-                            className="w-full sm:w-48 h-9 text-sm bg-white border-border text-foreground"
+                            className="w-full sm:w-48 h-9 text-sm bg-card border-border text-foreground"
                             autoFocus
                           />
                           <Button size="sm" variant="destructive" onClick={() => handleReject(approval.id)}

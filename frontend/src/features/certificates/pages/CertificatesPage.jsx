@@ -101,7 +101,7 @@ export default function CertificatesPage() {
   return (
     <div className="space-y-8 pb-8 animate-in fade-in duration-500">
       {/* Header Area with Subtle Background/Gradient */}
-      <div className="relative overflow-hidden rounded-xl bg-white border border-border/50 shadow-sm p-6 sm:p-8">
+      <div className="relative overflow-hidden rounded-xl bg-card border border-border/50 shadow-sm p-6 sm:p-8">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
         <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
         <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl" />
@@ -155,7 +155,7 @@ export default function CertificatesPage() {
 
           {/* Tab: Issued */}
           <TabsContent value="issued" className="space-y-5 focus-visible:outline-none focus-visible:ring-0">
-            <div className="p-4 rounded-xl bg-white border border-border/50 shadow-sm">
+            <div className="p-4 rounded-xl bg-card border border-border/50 shadow-sm">
               <CertificateFilters
                 filters={filters}
                 onFilterChange={handleFilterChange}
@@ -165,7 +165,7 @@ export default function CertificatesPage() {
 
             {/* Bulk actions */}
             {selectedRows.length > 0 && (
-              <div className="flex items-center gap-4 p-3 bg-white rounded-xl border border-border shadow-sm animate-in slide-in-from-bottom-2 fade-in duration-300">
+              <div className="flex items-center gap-4 p-3 bg-card rounded-xl border border-border shadow-sm animate-in slide-in-from-bottom-2 fade-in duration-300">
                 <div className="flex items-center gap-2 pl-2 border-r border-border pr-4">
                   <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-medium">
                     {selectedRows.length}
@@ -174,7 +174,7 @@ export default function CertificatesPage() {
                     chứng chỉ đã chọn
                   </span>
                 </div>
-                <Button size="sm" variant="secondary" className="hover:bg-accent transition-colors bg-white" onClick={() => gooeyToast.info('Đang phát triển...')}>
+                <Button size="sm" variant="secondary" className="hover:bg-accent transition-colors bg-card" onClick={() => gooeyToast.info('Đang phát triển...')}>
                   <Printer className="h-4 w-4 mr-2" /> In hàng loạt
                 </Button>
                 <Button size="sm" variant="destructive" className="bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20 hover:text-destructive" onClick={() => gooeyToast.info('Đang phát triển...')}>
@@ -183,7 +183,7 @@ export default function CertificatesPage() {
               </div>
             )}
 
-            <div className="rounded-xl border border-border/50 shadow-sm bg-white overflow-hidden">
+            <div className="rounded-xl border border-border/50 shadow-sm bg-card overflow-hidden">
               <DataTable
                 columns={columns}
                 data={certificates}
