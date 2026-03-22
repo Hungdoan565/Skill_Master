@@ -126,7 +126,7 @@ export const CenterDetailPage = () => {
             <div className="flex items-center justify-center min-h-[400px]">
                 <div className="flex flex-col items-center gap-4">
                     <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
-                    <p className="text-gray-500">Đang tải thông tin cơ sở...</p>
+                    <p className="text-muted-foreground">Đang tải thông tin cơ sở...</p>
                 </div>
             </div>
         );
@@ -137,7 +137,7 @@ export const CenterDetailPage = () => {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
                 <div className="text-center">
-                    <p className="text-gray-500 mb-4">Không tìm thấy cơ sở</p>
+                    <p className="text-muted-foreground mb-4">Không tìm thấy cơ sở</p>
                     <button
                         onClick={() => navigate('/admin/centers')}
                         className="text-indigo-600 hover:text-indigo-800 font-medium"

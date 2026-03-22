@@ -116,34 +116,34 @@ export function AssignManagerModal({
 
             {/* Modal */}
             <div className="flex min-h-full items-center justify-center p-4">
-                <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden">
+                <div className="relative bg-card rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden">
                     {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-border">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                            <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
                                 <UserPlus className="h-5 w-5 text-purple-600" />
                             </div>
                             <div>
-                                <h2 className="text-lg font-semibold text-gray-900">
+                                <h2 className="text-lg font-semibold text-foreground">
                                     Gán quản lý trung tâm
                                 </h2>
-                                <p className="text-sm text-gray-500">
+                                <p className="text-sm text-muted-foreground">
                                     {center?.name}
                                 </p>
                             </div>
                         </div>
                         <button
                             onClick={onClose}
-                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            className="p-2 hover:bg-muted rounded-lg transition-colors"
                         >
-                            <X className="h-5 w-5 text-gray-500" />
+                            <X className="h-5 w-5 text-muted-foreground" />
                         </button>
                     </div>
 
                     {/* Search */}
-                    <div className="px-6 py-4 border-b">
+                    <div className="px-6 py-4 border-b border-border">
                         <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
@@ -158,29 +158,29 @@ export function AssignManagerModal({
                         {loadingStaff ? (
                             <div className="p-8 text-center">
                                 <div className="animate-spin w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full mx-auto" />
-                                <p className="mt-2 text-gray-500">Đang tải...</p>
+                                <p className="mt-2 text-muted-foreground">Đang tải...</p>
                             </div>
                         ) : filteredStaff.length === 0 ? (
                             <div className="p-8 text-center">
                                 <User className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                                <p className="text-gray-500">
+                                <p className="text-muted-foreground">
                                     {search ? 'Không tìm thấy nhân viên phù hợp' : 'Chưa có nhân viên nào'}
                                 </p>
                             </div>
                         ) : (
-                            <div className="divide-y">
+                            <div className="divide-y divide-border">
                                 {/* Option: Không gán ai */}
                                 <button
                                     onClick={() => setSelectedUserId(null)}
-                                    className={`w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition-colors ${selectedUserId === null ? 'bg-indigo-50' : ''
+                                    className={`w-full px-6 py-4 flex items-center gap-4 hover:bg-muted transition-colors ${selectedUserId === null ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''
                                         }`}
                                 >
-                                    <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
-                                        <User className="h-6 w-6 text-gray-400" />
+                                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                                        <User className="h-6 w-6 text-muted-foreground" />
                                     </div>
                                     <div className="flex-1 text-left">
-                                        <p className="font-medium text-gray-900">Không gán quản lý</p>
-                                        <p className="text-sm text-gray-500">Xóa quản lý hiện tại</p>
+                                        <p className="font-medium text-foreground">Không gán quản lý</p>
+                                        <p className="text-sm text-muted-foreground">Xóa quản lý hiện tại</p>
                                     </div>
                                     {selectedUserId === null && (
                                         <Check className="h-5 w-5 text-indigo-600" />
@@ -192,10 +192,10 @@ export function AssignManagerModal({
                                     <button
                                         key={person.id}
                                         onClick={() => setSelectedUserId(person.id)}
-                                        className={`w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition-colors ${selectedUserId === person.id ? 'bg-indigo-50' : ''
+                                        className={`w-full px-6 py-4 flex items-center gap-4 hover:bg-muted transition-colors ${selectedUserId === person.id ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''
                                             }`}
                                     >
-                                        <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
+                                        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center overflow-hidden">
                                             {person.avatar_url ? (
                                                 <img
                                                     src={person.avatar_url}
@@ -203,29 +203,29 @@ export function AssignManagerModal({
                                                     className="w-full h-full object-cover"
                                                 />
                                             ) : (
-                                                <span className="text-lg font-medium text-gray-600">
+                                                <span className="text-lg font-medium text-muted-foreground">
                                                     {getInitials(person.full_name)}
                                                 </span>
                                             )}
                                         </div>
                                         <div className="flex-1 text-left">
                                             <div className="flex items-center gap-2">
-                                                <p className="font-medium text-gray-900">{person.full_name}</p>
+                                                <p className="font-medium text-foreground">{person.full_name}</p>
                                                 <Badge className={`text-xs border-0 ${
-                                                    getRoleCode(person) === 'SUPER_ADMIN' ? 'bg-red-100 text-red-700' :
-                                                    getRoleCode(person) === 'CENTER_MANAGER' ? 'bg-blue-100 text-blue-700' :
-                                                    getRoleCode(person) === 'TEACHER' ? 'bg-emerald-100 text-emerald-700' :
-                                                    'bg-gray-100 text-gray-600'
+                                                    getRoleCode(person) === 'SUPER_ADMIN' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' :
+                                                    getRoleCode(person) === 'CENTER_MANAGER' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' :
+                                                    getRoleCode(person) === 'TEACHER' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300' :
+                                                    'bg-muted text-muted-foreground'
                                                 }`}>
                                                     {getRoleLabel(person)}
                                                 </Badge>
                                                 {center?.manager_id === person.id && (
-                                                    <Badge className="text-xs bg-green-100 text-green-700 border-0">
+                                                    <Badge className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-0">
                                                         Hiện tại
                                                     </Badge>
                                                 )}
                                             </div>
-                                            <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
+                                            <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
                                                 {person.email && (
                                                     <span className="flex items-center gap-1">
                                                         <Mail className="h-3 w-3" />
@@ -256,7 +256,7 @@ export function AssignManagerModal({
                     </div>
 
                     {/* Footer */}
-                    <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-end gap-3">
+                    <div className="px-6 py-4 border-t border-border bg-muted/50 flex items-center justify-end gap-3">
                         <Button
                             variant="outline"
                             onClick={onClose}

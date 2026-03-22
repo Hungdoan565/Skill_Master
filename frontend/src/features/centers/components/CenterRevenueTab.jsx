@@ -63,15 +63,15 @@ export function CenterRevenueTab({
             <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     {[1, 2, 3, 4].map(i => (
-                        <Card key={i} className="p-4 animate-pulse border-gray-200 shadow-sm">
-                            <div className="h-4 w-20 bg-gray-100 rounded mb-2" />
-                            <div className="h-8 w-32 bg-gray-100 rounded" />
+                        <Card key={i} className="p-4 animate-pulse border-border shadow-sm">
+                            <div className="h-4 w-20 bg-muted rounded mb-2" />
+                            <div className="h-8 w-32 bg-muted rounded" />
                         </Card>
                     ))}
                 </div>
-                <Card className="p-6 animate-pulse border-gray-200 shadow-sm">
-                    <div className="h-6 w-40 bg-gray-100 rounded mb-4" />
-                    <div className="h-64 bg-gray-50/50 rounded" />
+                <Card className="p-6 animate-pulse border-border shadow-sm">
+                    <div className="h-6 w-40 bg-muted rounded mb-4" />
+                    <div className="h-64 bg-muted/30 rounded" />
                 </Card>
             </div>
         );
@@ -113,16 +113,16 @@ export function CenterRevenueTab({
             </div>
 
             {/* Revenue Chart */}
-            <Card className="p-6 border-gray-200 shadow-sm bg-white">
+            <Card className="p-6 border-border shadow-sm bg-card">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                     <div>
-                        <h3 className="text-lg font-semibold text-gray-900">Doanh thu theo tháng</h3>
-                        <p className="text-sm text-gray-500 mt-1">12 tháng gần nhất</p>
+                        <h3 className="text-lg font-semibold text-foreground">Doanh thu theo tháng</h3>
+                        <p className="text-sm text-muted-foreground mt-1">12 tháng gần nhất</p>
                     </div>
                     <Button
                         onClick={() => navigate(`/admin/invoices?centerId=${centerId}`)}
                         variant="outline"
-                        className="gap-2 border-gray-200 text-gray-700 hover:bg-gray-50"
+                        className="gap-2 border-border text-foreground hover:bg-muted"
                     >
                         <ExternalLink className="h-4 w-4" />
                         Xem tất cả hóa đơn
@@ -130,9 +130,9 @@ export function CenterRevenueTab({
                 </div>
 
                 {revenueData.length === 0 ? (
-                    <div className="h-64 flex items-center justify-center text-gray-500 bg-gray-50/50 rounded-lg border border-dashed border-gray-200">
+                    <div className="h-64 flex items-center justify-center text-muted-foreground bg-muted/30 rounded-lg border border-dashed border-border">
                         <div className="text-center">
-                            <Calendar className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+                            <Calendar className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
                             <p className="text-sm">Chưa có dữ liệu doanh thu</p>
                         </div>
                     </div>
@@ -180,20 +180,20 @@ export function CenterRevenueTab({
             {/* Summary stats */}
             {summary && (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <Card className="p-5 border-gray-200 shadow-sm bg-white">
-                        <p className="text-sm font-medium text-gray-500 mb-2">Tổng doanh thu (12 tháng)</p>
-                        <p className="text-2xl font-bold text-gray-900 tracking-tight">
+                    <Card className="p-5 border-border shadow-sm bg-card">
+                        <p className="text-sm font-medium text-muted-foreground mb-2">Tổng doanh thu (12 tháng)</p>
+                        <p className="text-2xl font-bold text-foreground tracking-tight">
                             {formatCurrency(summary.totalRevenue)}
                         </p>
                     </Card>
-                    <Card className="p-5 border-gray-200 shadow-sm bg-white">
-                        <p className="text-sm font-medium text-gray-500 mb-2">Trung bình doanh thu / tháng</p>
-                        <p className="text-2xl font-bold text-gray-900 tracking-tight">
+                    <Card className="p-5 border-border shadow-sm bg-card">
+                        <p className="text-sm font-medium text-muted-foreground mb-2">Trung bình doanh thu / tháng</p>
+                        <p className="text-2xl font-bold text-foreground tracking-tight">
                             {formatCurrency(summary.avgRevenue)}
                         </p>
                     </Card>
-                    <Card className="p-5 border-gray-200 shadow-sm bg-white">
-                        <p className="text-sm font-medium text-gray-500 mb-2">Tăng trưởng (so với tháng trước)</p>
+                    <Card className="p-5 border-border shadow-sm bg-card">
+                        <p className="text-sm font-medium text-muted-foreground mb-2">Tăng trưởng (so với tháng trước)</p>
                         <div className="flex items-center gap-2.5">
                             <p className={`text-2xl font-bold tracking-tight ${summary.trendUp ? 'text-emerald-600' : 'text-red-600'}`}>
                                 {summary.trend > 0 ? '+' : ''}{summary.trend}%
@@ -216,15 +216,15 @@ export function CenterRevenueTab({
 // Stat Card component
 function StatCard({ title, value, icon: Icon, color, trend, trendUp, subText }) {
     const colorMap = {
-        emerald: { bg: 'bg-emerald-50', text: 'text-emerald-600', iconBg: 'bg-emerald-100', iconText: 'text-emerald-600' },
-        red: { bg: 'bg-red-50', text: 'text-red-600', iconBg: 'bg-red-100', iconText: 'text-red-600' },
-        amber: { bg: 'bg-amber-50', text: 'text-amber-600', iconBg: 'bg-amber-100', iconText: 'text-amber-600' },
-        indigo: { bg: 'bg-indigo-50', text: 'text-indigo-600', iconBg: 'bg-indigo-100', iconText: 'text-indigo-600' }
+        emerald: { bg: 'bg-emerald-50 dark:bg-emerald-900/30', text: 'text-emerald-600', iconBg: 'bg-emerald-100 dark:bg-emerald-800/50', iconText: 'text-emerald-600 dark:text-emerald-400' },
+        red: { bg: 'bg-red-50 dark:bg-red-900/30', text: 'text-red-600', iconBg: 'bg-red-100 dark:bg-red-800/50', iconText: 'text-red-600 dark:text-red-400' },
+        amber: { bg: 'bg-amber-50 dark:bg-amber-900/30', text: 'text-amber-600', iconBg: 'bg-amber-100 dark:bg-amber-800/50', iconText: 'text-amber-600 dark:text-amber-400' },
+        indigo: { bg: 'bg-indigo-50 dark:bg-indigo-900/30', text: 'text-indigo-600', iconBg: 'bg-indigo-100 dark:bg-indigo-800/50', iconText: 'text-indigo-600 dark:text-indigo-400' }
     };
     const colors = colorMap[color] || colorMap.emerald;
 
     return (
-        <Card className="p-5 border-gray-200 shadow-sm bg-white hover:border-gray-300 transition-colors group">
+        <Card className="p-5 border-border shadow-sm bg-card hover:border-muted-foreground/30 transition-colors group">
             <div className="flex items-start justify-between mb-4">
                 <div className={`p-2.5 rounded-xl ${colors.iconBg} group-hover:scale-110 transition-transform duration-200`}>
                     <Icon className={`h-5 w-5 ${colors.iconText}`} />
@@ -237,13 +237,13 @@ function StatCard({ title, value, icon: Icon, color, trend, trendUp, subText }) 
                 )}
             </div>
             <div>
-                <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
+                <p className="text-sm font-medium text-muted-foreground mb-1">{title}</p>
                 <div className="flex items-baseline gap-2">
-                    <p className="text-2xl font-bold text-gray-900 tracking-tight">{value}</p>
+                    <p className="text-2xl font-bold text-foreground tracking-tight">{value}</p>
                 </div>
             </div>
             {subText && (
-                <p className="text-xs text-gray-500 mt-2 font-medium">
+                <p className="text-xs text-muted-foreground mt-2 font-medium">
                     {subText}
                 </p>
             )}
@@ -256,9 +256,9 @@ function CustomTooltip({ active, payload, label }) {
     if (!active || !payload || !payload.length) return null;
 
     return (
-        <div className="bg-white px-4 py-3 shadow-md rounded-xl border border-gray-100 min-w-[150px]">
-            <p className="text-sm font-medium text-gray-500 mb-1">{label}</p>
-            <p className="text-lg font-bold text-gray-900">
+        <div className="bg-card px-4 py-3 shadow-md rounded-xl border border-border min-w-[150px]">
+            <p className="text-sm font-medium text-muted-foreground mb-1">{label}</p>
+            <p className="text-lg font-bold text-foreground">
                 {formatCurrency(payload[0].value)}
             </p>
         </div>

@@ -61,12 +61,12 @@ export function CenterStatsCards({ stats, loading = false }) {
                     <Card key={i} className="p-6">
                         <div className="animate-pulse">
                             <div className="flex items-center justify-between">
-                                <div className="w-12 h-12 bg-gray-200 rounded-xl" />
-                                <div className="w-16 h-4 bg-gray-200 rounded" />
+                                <div className="w-12 h-12 bg-muted rounded-xl" />
+                                <div className="w-16 h-4 bg-muted rounded" />
                             </div>
                             <div className="mt-4">
-                                <div className="w-20 h-8 bg-gray-200 rounded mb-2" />
-                                <div className="w-24 h-4 bg-gray-200 rounded" />
+                                <div className="w-20 h-8 bg-muted rounded mb-2" />
+                                <div className="w-24 h-4 bg-muted rounded" />
                             </div>
                         </div>
                     </Card>
@@ -82,7 +82,7 @@ export function CenterStatsCards({ stats, loading = false }) {
                 return (
                     <Card key={index} className="p-6 hover:shadow-md transition-shadow">
                         <div className="flex items-center justify-between">
-                            <div className={`w-12 h-12 ${card.lightColor} rounded-xl flex items-center justify-center`}>
+                            <div className={`w-12 h-12 ${card.lightColor} dark:bg-opacity-20 rounded-xl flex items-center justify-center`}>
                                 <Icon className={`h-6 w-6 ${card.textColor}`} />
                             </div>
                             {card.trend !== undefined && (
@@ -100,12 +100,12 @@ export function CenterStatsCards({ stats, loading = false }) {
                             )}
                         </div>
                         <div className="mt-4">
-                            <h3 className="text-2xl font-bold text-gray-900">
+                            <h3 className="text-2xl font-bold text-foreground">
                                 {card.value.toLocaleString('vi-VN')}
                             </h3>
-                            <p className="text-sm text-gray-500 mt-1">{card.title}</p>
+                            <p className="text-sm text-muted-foreground mt-1">{card.title}</p>
                             {card.subtext && (
-                                <p className="text-xs text-gray-400 mt-0.5">{card.subtext}</p>
+                                <p className="text-xs text-muted-foreground/70 mt-0.5">{card.subtext}</p>
                             )}
                         </div>
                     </Card>

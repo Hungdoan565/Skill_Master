@@ -108,12 +108,12 @@ const APPROVAL_TYPES = {
 };
 
 const COLOR_MAP = {
-  blue: { text: 'text-blue-600', bg: 'bg-blue-100', border: 'border-blue-200', badge: 'bg-blue-100 text-blue-800' },
-  purple: { text: 'text-purple-600', bg: 'bg-purple-100', border: 'border-purple-200', badge: 'bg-purple-100 text-purple-800' },
-  green: { text: 'text-green-600', bg: 'bg-green-100', border: 'border-green-200', badge: 'bg-green-100 text-green-800' },
-  orange: { text: 'text-orange-600', bg: 'bg-orange-100', border: 'border-orange-200', badge: 'bg-orange-100 text-orange-800' },
-  red: { text: 'text-red-600', bg: 'bg-red-100', border: 'border-red-200', badge: 'bg-red-100 text-red-800' },
-  teal: { text: 'text-teal-600', bg: 'bg-teal-100', border: 'border-teal-200', badge: 'bg-teal-100 text-teal-800' },
+  blue: { text: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-900/30', border: 'border-blue-200 dark:border-blue-800', badge: 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' },
+  purple: { text: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-100 dark:bg-purple-900/30', border: 'border-purple-200 dark:border-purple-800', badge: 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300' },
+  green: { text: 'text-green-600 dark:text-green-400', bg: 'bg-green-100 dark:bg-green-900/30', border: 'border-green-200 dark:border-green-800', badge: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' },
+  orange: { text: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-100 dark:bg-orange-900/30', border: 'border-orange-200 dark:border-orange-800', badge: 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300' },
+  red: { text: 'text-red-600 dark:text-red-400', bg: 'bg-red-100 dark:bg-red-900/30', border: 'border-red-200 dark:border-red-800', badge: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' },
+  teal: { text: 'text-teal-600 dark:text-teal-400', bg: 'bg-teal-100 dark:bg-teal-900/30', border: 'border-teal-200 dark:border-teal-800', badge: 'bg-teal-100 dark:bg-teal-900/30 text-teal-800 dark:text-teal-300' },
 };
 
 export default function ApprovalInboxPage() {
@@ -402,7 +402,7 @@ export default function ApprovalInboxPage() {
             <div className="flex items-center space-x-2">
               <h1 className="text-2xl font-bold tracking-tight">Phê duyệt</h1>
               {totalCount > 0 && (
-                <span className="px-2.5 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-semibold">
+                <span className="px-2.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 text-xs font-semibold">
                   {totalCount} chờ xử lý
                 </span>
               )}
@@ -464,7 +464,7 @@ export default function ApprovalInboxPage() {
             <p>Đang tải danh sách...</p>
           </div>
         ) : items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed">
+          <div className="flex flex-col items-center justify-center py-16 bg-card rounded-xl border border-dashed border-border">
             <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
               <Inbox className="w-8 h-8 text-muted-foreground" />
             </div>
@@ -485,7 +485,7 @@ export default function ApprovalInboxPage() {
               const date = new Date(item.created_at || item.createdAt || Date.now());
 
               return (
-                <div key={`${item._type}-${item.id}`} className="flex flex-col sm:flex-row sm:items-center justify-between bg-white rounded-xl border p-4 hover:bg-slate-50 transition-colors gap-4">
+                <div key={`${item._type}-${item.id}`} className="flex flex-col sm:flex-row sm:items-center justify-between bg-card rounded-xl border border-border p-4 hover:bg-muted/50 transition-colors gap-4">
                   <div className="flex items-start space-x-4">
                     <div className={`mt-1 flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${colors.bg} ${colors.text}`}>
                       <Icon className="w-5 h-5" />
@@ -508,14 +508,14 @@ export default function ApprovalInboxPage() {
                   <div className="flex items-center space-x-2 sm:ml-auto">
                     <button
                       onClick={() => handleApprove(item._type, item.id)}
-                      className="flex items-center justify-center flex-1 sm:flex-none border border-green-500/50 text-green-600 hover:bg-green-50 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors"
+                      className="flex items-center justify-center flex-1 sm:flex-none border border-green-500/50 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors"
                     >
                       <Check className="w-4 h-4 mr-1.5" />
                       Phê duyệt
                     </button>
                     <button
                       onClick={() => setRejectDialog({ isOpen: true, type: item._type, itemId: item.id, reason: '' })}
-                      className="flex items-center justify-center flex-1 sm:flex-none border border-red-500/50 text-red-600 hover:bg-red-50 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors"
+                      className="flex items-center justify-center flex-1 sm:flex-none border border-red-500/50 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors"
                     >
                       <X className="w-4 h-4 mr-1.5" />
                       Từ chối
@@ -530,7 +530,7 @@ export default function ApprovalInboxPage() {
 
       {rejectDialog.isOpen && (
         <div className="fixed inset-0 z-[300] bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+          <div className="bg-card rounded-2xl p-6 w-full max-w-md shadow-xl border border-border">
             <h3 className="text-lg font-semibold mb-2">Lý do từ chối</h3>
             <p className="text-sm text-muted-foreground mb-4">
               Vui lòng nhập lý do từ chối yêu cầu này. Lý do sẽ được gửi cho người tạo yêu cầu.
@@ -539,7 +539,7 @@ export default function ApprovalInboxPage() {
               value={rejectDialog.reason}
               onChange={(e) => setRejectDialog(prev => ({ ...prev, reason: e.target.value }))}
               placeholder="Nhập lý do..."
-              className="w-full rounded-xl border border-input bg-white px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring min-h-[100px] resize-none mb-6"
+              className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring min-h-[100px] resize-none mb-6 text-foreground"
               autoFocus
             />
             <div className="flex items-center justify-end space-x-2">

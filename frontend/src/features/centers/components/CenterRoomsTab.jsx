@@ -32,15 +32,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const ROOM_TYPE_CONFIG = {
-    standard: { label: 'Tiêu chuẩn', color: 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200' },
-    lab: { label: 'Phòng Lab', color: 'bg-purple-50 text-purple-700 hover:bg-purple-100 border-purple-200' },
-    vip: { label: 'VIP', color: 'bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200' }
+    standard: { label: 'Tiêu chuẩn', color: 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 border-blue-200 dark:border-blue-800' },
+    lab: { label: 'Phòng Lab', color: 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-100 border-purple-200 dark:border-purple-800' },
+    vip: { label: 'VIP', color: 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 hover:bg-amber-100 border-amber-200 dark:border-amber-800' }
 };
 
 const STATUS_CONFIG = {
     active: { label: 'Hoạt động', color: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200', icon: CheckCircle },
     maintenance: { label: 'Bảo trì', color: 'bg-orange-50 text-orange-700 hover:bg-orange-100 border-orange-200', icon: Wrench },
-    inactive: { label: 'Không dùng', color: 'bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200', icon: Building2 }
+    inactive: { label: 'Không dùng', color: 'bg-gray-50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-600', icon: Building2 }
 };
 
 const EQUIPMENT_ICONS = {
@@ -82,7 +82,7 @@ export function CenterRoomsTab({ rooms, loading = false, centerId }) {
             key: 'code',
             label: 'Mã phòng',
             render: (_, row) => (
-                <div className="font-mono text-xs font-medium text-gray-500 bg-gray-50 px-2 py-1 rounded inline-block">
+                <div className="font-mono text-xs font-medium text-muted-foreground bg-muted px-2 py-1 rounded inline-block">
                     {row.code}
                 </div>
             )
@@ -92,7 +92,7 @@ export function CenterRoomsTab({ rooms, loading = false, centerId }) {
             label: 'Tên phòng',
             sortable: true,
             render: (_, row) => (
-                <div className="font-medium text-gray-900 group-hover:text-indigo-600 transition-colors">
+                <div className="font-medium text-foreground group-hover:text-indigo-600 transition-colors">
                     {row.name}
                 </div>
             )
@@ -102,8 +102,8 @@ export function CenterRoomsTab({ rooms, loading = false, centerId }) {
             label: 'Sức chứa',
             sortable: true,
             render: (_, row) => (
-                <div className="flex items-center gap-1.5 text-gray-700">
-                    <Users className="h-4 w-4 text-gray-400" />
+                <div className="flex items-center gap-1.5 text-foreground">
+                    <Users className="h-4 w-4 text-muted-foreground" />
                     <span>{row.capacity || 0} chỗ</span>
                 </div>
             )
@@ -125,7 +125,7 @@ export function CenterRoomsTab({ rooms, loading = false, centerId }) {
             label: 'Trang thiết bị',
             render: (_, row) => {
                 const equipment = row.equipment || [];
-                if (!equipment.length) return <span className="text-gray-400 text-sm italic">Không có</span>;
+                if (!equipment.length) return <span className="text-muted-foreground text-sm italic">Không có</span>;
 
                 return (
                     <div className="flex flex-wrap gap-1.5">
@@ -135,7 +135,7 @@ export function CenterRoomsTab({ rooms, loading = false, centerId }) {
                             return (
                                 <div 
                                     key={i} 
-                                    className="p-1.5 bg-gray-50 border border-gray-100 rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors cursor-help"
+                                    className="p-1.5 bg-muted border border-border rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-help"
                                     title={config?.label || eq}
                                 >
                                     <Icon className="h-3.5 w-3.5" />
@@ -143,7 +143,7 @@ export function CenterRoomsTab({ rooms, loading = false, centerId }) {
                             );
                         })}
                         {equipment.length > 3 && (
-                            <div className="px-1.5 py-1 bg-gray-50 border border-gray-100 rounded text-xs font-medium text-gray-500 flex items-center">
+                            <div className="px-1.5 py-1 bg-muted border border-border rounded text-xs font-medium text-muted-foreground flex items-center">
                                 +{equipment.length - 3}
                             </div>
                         )}
@@ -178,11 +178,11 @@ export function CenterRoomsTab({ rooms, loading = false, centerId }) {
         return (
             <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                    <div className="h-10 w-64 bg-gray-100 rounded animate-pulse" />
-                    <div className="h-10 w-32 bg-gray-100 rounded animate-pulse" />
+                    <div className="h-10 w-64 bg-muted rounded animate-pulse" />
+                    <div className="h-10 w-32 bg-muted rounded animate-pulse" />
                 </div>
-                <Card className="border-gray-200 shadow-sm overflow-hidden">
-                    <div className="h-[400px] bg-gray-50/50 animate-pulse" />
+                <Card className="border-border shadow-sm overflow-hidden">
+                    <div className="h-[400px] bg-muted/30 animate-pulse" />
                 </Card>
             </div>
         );
@@ -194,19 +194,19 @@ export function CenterRoomsTab({ rooms, loading = false, centerId }) {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                     <div className="relative w-full sm:w-64">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="Tìm kiếm phòng học..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-9 bg-white border-gray-200 focus-visible:ring-indigo-500 rounded-xl"
+                            className="pl-9 bg-background border-border focus-visible:ring-indigo-500 rounded-xl"
                         />
                     </div>
 
                     <select
                         value={filterStatus}
                         onChange={(e) => setFilterStatus(e.target.value)}
-                        className="h-10 px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+                        className="h-10 px-3 py-2 bg-background border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-foreground"
                     >
                         <option value="">Tất cả trạng thái</option>
                         <option value="active">Hoạt động</option>
@@ -217,7 +217,7 @@ export function CenterRoomsTab({ rooms, loading = false, centerId }) {
                     <select
                         value={filterType}
                         onChange={(e) => setFilterType(e.target.value)}
-                        className="h-10 px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+                        className="h-10 px-3 py-2 bg-background border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-foreground"
                     >
                         <option value="">Tất cả loại phòng</option>
                         <option value="standard">Tiêu chuẩn</option>
@@ -229,7 +229,7 @@ export function CenterRoomsTab({ rooms, loading = false, centerId }) {
                 <Button
                     onClick={() => navigate('/admin/rooms')}
                     variant="outline"
-                    className="gap-2 border-gray-200 bg-white hover:bg-gray-50 text-gray-700 rounded-xl w-full sm:w-auto"
+                    className="gap-2 border-border bg-card hover:bg-muted text-foreground rounded-xl w-full sm:w-auto"
                 >
                     <ExternalLink className="h-4 w-4" />
                     Quản lý toàn bộ
@@ -238,27 +238,27 @@ export function CenterRoomsTab({ rooms, loading = false, centerId }) {
 
             {/* Stats Pills */}
             <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-2 px-2 sm:mx-0 sm:px-0 scrollbar-hide">
-                <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-100 border-0 whitespace-nowrap">
+                <Badge variant="secondary" className="bg-muted text-foreground hover:bg-muted border-0 whitespace-nowrap">
                     Tổng: {stats.total}
                 </Badge>
-                <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border-0 whitespace-nowrap">
+                <Badge variant="secondary" className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 border-0 whitespace-nowrap">
                     <CheckCircle className="h-3 w-3 mr-1" />
                     Hoạt động: {stats.active}
                 </Badge>
                 {stats.maintenance > 0 && (
-                    <Badge variant="secondary" className="bg-orange-50 text-orange-700 hover:bg-orange-50 border-0 whitespace-nowrap">
+                    <Badge variant="secondary" className="bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 hover:bg-orange-50 border-0 whitespace-nowrap">
                         <Wrench className="h-3 w-3 mr-1" />
                         Bảo trì: {stats.maintenance}
                     </Badge>
                 )}
-                <Badge variant="secondary" className="bg-indigo-50 text-indigo-700 hover:bg-indigo-50 border-0 whitespace-nowrap">
+                <Badge variant="secondary" className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 border-0 whitespace-nowrap">
                     <Users className="h-3 w-3 mr-1" />
                     Sức chứa: {stats.totalCapacity} chỗ
                 </Badge>
             </div>
 
             {/* Data Table */}
-            <Card className="border-gray-200 shadow-sm overflow-hidden bg-white">
+            <Card className="border-border shadow-sm overflow-hidden bg-card">
                 <DataTable 
                     columns={columns} 
                     data={filteredRooms} 

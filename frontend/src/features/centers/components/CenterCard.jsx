@@ -74,7 +74,7 @@ export function CenterCard({
 
     return (
         <div
-            className={`relative group bg-white rounded-xl border border-gray-200/80 overflow-hidden transition-all duration-300 hover:shadow-[0_8px_30px_-12px_rgba(0,0,0,0.12)] hover:border-gray-300/80 cursor-pointer ${isDeleted ? 'opacity-60 grayscale-[30%]' : ''}`}
+            className={`relative group bg-card rounded-xl border border-border overflow-hidden transition-all duration-300 hover:shadow-[0_8px_30px_-12px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_8px_30px_-12px_rgba(0,0,0,0.4)] hover:border-border cursor-pointer ${isDeleted ? 'opacity-60 grayscale-[30%]' : ''}`}
             onClick={handleCardClick}
         >
             {/* Compact Header Banner */}
@@ -88,11 +88,11 @@ export function CenterCard({
                         <img
                             src={center.logo_url}
                             alt={center.name}
-                            className="w-12 h-12 rounded-lg border-[3px] border-white shadow-sm object-cover bg-white"
+                            className="w-12 h-12 rounded-lg border-[3px] border-card shadow-sm object-cover bg-card"
                         />
                     ) : (
-                        <div className="w-12 h-12 rounded-lg border-[3px] border-white shadow-sm bg-white flex items-center justify-center">
-                            <span className="text-sm font-bold text-gray-500">
+                        <div className="w-12 h-12 rounded-lg border-[3px] border-card shadow-sm bg-card flex items-center justify-center">
+                            <span className="text-sm font-bold text-muted-foreground">
                                 {getInitials(center.name)}
                             </span>
                         </div>
@@ -122,20 +122,20 @@ export function CenterCard({
                             </Button>
 
                             {showMenu && (
-                                <div className="absolute right-0 mt-1 w-44 bg-white rounded-lg shadow-lg border border-gray-200 z-50 py-1">
+                                <div className="absolute right-0 mt-1 w-44 bg-popover rounded-lg shadow-lg dark:shadow-black/30 border border-border z-50 py-1">
                                     {onViewDetails && (
                                         <button
                                             onClick={() => { onViewDetails(center); setShowMenu(false); }}
-                                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 text-gray-700"
+                                            className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2 text-foreground"
                                         >
-                                            <Eye className="h-3.5 w-3.5 text-gray-400" />
+                                            <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                                             Xem chi tiết
                                         </button>
                                     )}
                                     {!isDeleted && onEdit && (
                                         <button
                                             onClick={() => { onEdit(center); setShowMenu(false); }}
-                                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 text-gray-700"
+                                            className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2 text-foreground"
                                         >
                                             <Edit className="h-3.5 w-3.5 text-blue-500" />
                                             Chỉnh sửa
@@ -144,7 +144,7 @@ export function CenterCard({
                                     {!isDeleted && onAssignManager && (
                                         <button
                                             onClick={() => { onAssignManager(center); setShowMenu(false); }}
-                                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 text-gray-700"
+                                            className="w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center gap-2 text-foreground"
                                         >
                                             <UserPlus className="h-3.5 w-3.5 text-violet-500" />
                                             Gán quản lý
@@ -179,42 +179,42 @@ export function CenterCard({
             <div className="px-4 pt-9 pb-4">
                 {/* Name + Code */}
                 <div className="mb-3">
-                    <h3 className="font-semibold text-[15px] text-gray-900 line-clamp-1 leading-tight">
+                    <h3 className="font-semibold text-[15px] text-foreground line-clamp-1 leading-tight">
                         {center.name}
                     </h3>
                     {center.code && (
-                        <span className="text-xs text-gray-400 font-medium">#{center.code}</span>
+                        <span className="text-xs text-muted-foreground/60 font-medium">#{center.code}</span>
                     )}
                 </div>
 
                 {/* Contact Info - Clean list */}
-                <div className="space-y-1.5 text-[13px] text-gray-500">
+                <div className="space-y-1.5 text-[13px] text-muted-foreground">
                     {center.address && (
                         <div className="flex items-start gap-2">
-                            <MapPin className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-gray-300" />
+                            <MapPin className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-muted-foreground/50" />
                             <span className="line-clamp-1">{center.address}</span>
                         </div>
                     )}
                     <div className="flex items-center gap-3 flex-wrap">
                         {center.hotline && (
                             <div className="flex items-center gap-1.5">
-                                <Phone className="h-3 w-3 text-gray-300" />
+                                <Phone className="h-3 w-3 text-muted-foreground/50" />
                                 <span>{center.hotline}</span>
                             </div>
                         )}
                         {center.email && (
                             <div className="flex items-center gap-1.5 min-w-0">
-                                <Mail className="h-3 w-3 flex-shrink-0 text-gray-300" />
+                                <Mail className="h-3 w-3 flex-shrink-0 text-muted-foreground/50" />
                                 <span className="truncate">{center.email}</span>
                             </div>
                         )}
                     </div>
                     {todayHours && (
                         <div className="flex items-center gap-1.5">
-                            <Clock className="h-3 w-3 text-gray-300" />
+                            <Clock className="h-3 w-3 text-muted-foreground/50" />
                             <span>
                                 Hôm nay:{' '}
-                                <span className={isOpenToday ? 'text-emerald-600 font-medium' : 'text-amber-500 font-medium'}>
+                                <span className={isOpenToday ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-amber-500 dark:text-amber-400 font-medium'}>
                                     {todayHours}
                                 </span>
                             </span>
@@ -224,16 +224,16 @@ export function CenterCard({
 
                 {/* Stats Pills Row */}
                 {(center.rooms_count !== undefined || center.teachers_count !== undefined || center.students_count !== undefined) && (
-                    <div className="mt-3.5 pt-3.5 border-t border-gray-100 flex items-center gap-2">
-                        <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md text-xs font-medium">
+                    <div className="mt-3.5 pt-3.5 border-t border-border flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2.5 py-1 rounded-md text-xs font-medium">
                             <Building2 className="h-3 w-3" />
                             {center.rooms_count || 0}
                         </div>
-                        <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-md text-xs font-medium">
+                        <div className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 px-2.5 py-1 rounded-md text-xs font-medium">
                             <Users className="h-3 w-3" />
                             {center.teachers_count || 0}
                         </div>
-                        <div className="flex items-center gap-1.5 bg-violet-50 text-violet-700 px-2.5 py-1 rounded-md text-xs font-medium">
+                        <div className="flex items-center gap-1.5 bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 px-2.5 py-1 rounded-md text-xs font-medium">
                             <GraduationCap className="h-3 w-3" />
                             {center.students_count || 0}
                         </div>
@@ -242,9 +242,9 @@ export function CenterCard({
 
                 {/* Manager info */}
                 {center.manager && (
-                    <div className="mt-3 pt-3 border-t border-gray-100">
+                    <div className="mt-3 pt-3 border-t border-border">
                         <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                            <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
                                 {center.manager.avatar_url ? (
                                     <img
                                         src={center.manager.avatar_url}
@@ -252,16 +252,16 @@ export function CenterCard({
                                         className="w-7 h-7 rounded-full object-cover"
                                     />
                                 ) : (
-                                    <span className="text-[10px] font-semibold text-gray-500">
+                                    <span className="text-[10px] font-semibold text-muted-foreground">
                                         {getInitials(center.manager.full_name)}
                                     </span>
                                 )}
                             </div>
                             <div className="min-w-0">
-                                <p className="text-[13px] font-medium text-gray-800 line-clamp-1 leading-tight">
+                                <p className="text-[13px] font-medium text-foreground line-clamp-1 leading-tight">
                                     {center.manager.full_name}
                                 </p>
-                                <p className="text-[11px] text-gray-400">Quản lý</p>
+                                <p className="text-[11px] text-muted-foreground/60">Quản lý</p>
                             </div>
                         </div>
                     </div>

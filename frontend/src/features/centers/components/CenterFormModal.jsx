@@ -73,27 +73,27 @@ export function CenterFormModal({
 
             {/* Modal */}
             <div className="flex min-h-full items-center justify-center p-4">
-                <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+                <div className="relative bg-card rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
                     {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-border">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
+                            <div className="w-10 h-10 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
                                 <Building2 className="h-5 w-5 text-indigo-600" />
                             </div>
                             <div>
-                                <h2 className="text-lg font-semibold text-gray-900">
+                                <h2 className="text-lg font-semibold text-foreground">
                                     {isEdit ? 'Chỉnh sửa trung tâm' : 'Thêm trung tâm mới'}
                                 </h2>
-                                <p className="text-sm text-gray-500">
+                                <p className="text-sm text-muted-foreground">
                                     {isEdit ? 'Cập nhật thông tin trung tâm' : 'Điền thông tin để tạo trung tâm mới'}
                                 </p>
                             </div>
                         </div>
                         <button
                             onClick={handleClose}
-                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            className="p-2 hover:bg-muted rounded-lg transition-colors"
                         >
-                            <X className="h-5 w-5 text-gray-500" />
+                            <X className="h-5 w-5 text-muted-foreground" />
                         </button>
                     </div>
 
@@ -102,7 +102,7 @@ export function CenterFormModal({
                         <div className="p-6 space-y-6">
                             {/* Thông tin cơ bản */}
                             <div>
-                                <h3 className="text-sm font-medium text-gray-900 mb-4 flex items-center gap-2">
+                                <h3 className="text-sm font-medium text-foreground mb-4 flex items-center gap-2">
                                     <FileText className="h-4 w-4" />
                                     Thông tin cơ bản
                                 </h3>
@@ -146,7 +146,7 @@ export function CenterFormModal({
                                             id="status"
                                             value={formData.status}
                                             onChange={(e) => updateField('status', e.target.value)}
-                                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                            className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         >
                                             {STATUS_OPTIONS.map(opt => (
                                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -158,7 +158,7 @@ export function CenterFormModal({
 
                             {/* Địa chỉ & Liên hệ */}
                             <div>
-                                <h3 className="text-sm font-medium text-gray-900 mb-4 flex items-center gap-2">
+                                <h3 className="text-sm font-medium text-foreground mb-4 flex items-center gap-2">
                                     <MapPin className="h-4 w-4" />
                                     Địa chỉ & Liên hệ
                                 </h3>
@@ -219,7 +219,7 @@ export function CenterFormModal({
 
                             {/* Logo Upload */}
                             <div>
-                                <h3 className="text-sm font-medium text-gray-900 mb-4 flex items-center gap-2">
+                                <h3 className="text-sm font-medium text-foreground mb-4 flex items-center gap-2">
                                     <Image className="h-4 w-4" />
                                     Logo trung tâm
                                 </h3>
@@ -240,13 +240,13 @@ export function CenterFormModal({
                                     onChange={(e) => updateField('description', e.target.value)}
                                     placeholder="Mô tả ngắn về trung tâm..."
                                     rows={3}
-                                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
+                                    className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
                                 />
                             </div>
 
                             {/* Giờ làm việc */}
                             <div>
-                                <h3 className="text-sm font-medium text-gray-900 mb-4 flex items-center gap-2">
+                                <h3 className="text-sm font-medium text-foreground mb-4 flex items-center gap-2">
                                     <Clock className="h-4 w-4" />
                                     Giờ làm việc
                                 </h3>
@@ -256,19 +256,19 @@ export function CenterFormModal({
                                         return (
                                             <div
                                                 key={key}
-                                                className={`flex items-center gap-4 p-3 rounded-lg ${hours.closed ? 'bg-gray-50' : 'bg-white border'}`}
+                                                className={`flex items-center gap-4 p-3 rounded-lg ${hours.closed ? 'bg-muted/50' : 'bg-background border border-border'}`}
                                             >
                                                 <div className="w-24">
-                                                    <span className="font-medium text-gray-700">{label}</span>
+                                                    <span className="font-medium text-foreground">{label}</span>
                                                 </div>
                                                 <label className="flex items-center gap-2 cursor-pointer">
                                                     <input
                                                         type="checkbox"
                                                         checked={hours.closed}
                                                         onChange={() => toggleDayOff(key)}
-                                                        className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                                        className="w-4 h-4 rounded border-border text-indigo-600 focus:ring-indigo-500"
                                                     />
-                                                    <span className="text-sm text-gray-600">Nghỉ</span>
+                                                    <span className="text-sm text-muted-foreground">Nghỉ</span>
                                                 </label>
                                                 {!hours.closed && (
                                                     <>
@@ -277,7 +277,7 @@ export function CenterFormModal({
                                                                 value={hours.open}
                                                                 onChange={(val) => updateWorkingHours(key, 'open', val)}
                                                             />
-                                                            <span className="text-gray-500">-</span>
+                                                            <span className="text-muted-foreground">-</span>
                                                             <TimeSelect
                                                                 value={hours.close}
                                                                 onChange={(val) => updateWorkingHours(key, 'close', val)}
@@ -293,7 +293,7 @@ export function CenterFormModal({
                         </div>
 
                         {/* Footer */}
-                        <div className="px-6 py-4 border-t bg-gray-50 flex items-center justify-end gap-3">
+                        <div className="px-6 py-4 border-t border-border bg-muted/50 flex items-center justify-end gap-3">
                             <Button
                                 type="button"
                                 variant="outline"
