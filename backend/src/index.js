@@ -35462,20 +35462,259 @@ const gracefulShutdown = async (signal) => {
 
   console.log(`\n${signal} received. Starting graceful shutdown...`);
 
-  server.close(async () => {
-    console.log('HTTP server closed');
+  // ═══════════════════════════════════════════════════════
+// LEAVE REQUESTS ROUTES
+// Teacher: GET list, POST create, PATCH update, DELETE cancel
+// Admin: GET list with filter, PATCH approve/reject
+// ═══════════════════════════════════════════════════════
 
-    try {
-      const { stopJobScheduler } = await import('./jobs/index.js');
-      await stopJobScheduler();
-    } catch (err) {
-      console.warn('Ã¢Å¡Â Ã¯Â¸Â Error stopping job scheduler:', err.message);
+// ── TEACHER ──────────────────────────────────────────────
+app.get('/api/teacher/leave-requests', requireAuth, requireRole(['TEACHER']), async (req, res) => {
+  try {
+    const { status } = req.query;
+
+    const teacherProfile = await getTeacherProfile(req.user.id);
+    if (!teacherProfile?.center_id) {
+      return res.status(400).json({ success: false, message: 'Bạn chưa được gán vào trung tâm nào.' });
     }
 
-    if (shutdownTimeout) {
-      clearTimeout(shutdownTimeout);
+    let query = supabaseAdmin
+      .from('leave_requests')
+      .select('*, teacher:users!leave_requests_staff_id_fkey(full_name, email, phone)')
+      .eq('center_id', teacherProfile.center_id)
+      .order('created_at', { ascending: false });
+
+    if (status && ['pending', 'approved', 'rejected'].includes(status)) {
+      query = query.eq('status', status);
     }
-    process.exit(0);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return res.json({ success: true, data: data || [] });
+  } catch (error) {
+    console.error('Error fetching teacher leave requests:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.post('/api/teacher/leave-requests', requireAuth, requireRole(['TEACHER']), async (req, res) => {
+  try {
+    const { leave_type, start_date, end_date, reason } = req.body;
+
+    if (!leave_type || !start_date || !end_date) {
+      return res.status(400).json({ success: false, message: 'Loại nghỉ, ngày bắt đầu và ngày kết thúc là bắt buộc.' });
+    }
+
+    const teacherProfile = await getTeacherProfile(req.user.id);
+    if (!teacherProfile?.center_id) {
+      return res.status(400).json({ success: false, message: 'Bạn chưa được gán vào trung tâm nào.' });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('leave_requests')
+      .insert({
+        staff_id: req.user.id,
+        center_id: teacherProfile.center_id,
+        leave_type,
+        start_date,
+        end_date,
+        reason: reason || '',
+        status: 'pending',
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return res.status(201).json({ success: true, data });
+  } catch (error) {
+    console.error('Error creating leave request:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.patch('/api/teacher/leave-requests/:id', requireAuth, requireRole(['TEACHER']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { leave_type, start_date, end_date, reason } = req.body;
+
+    const { data: existing } = await supabaseAdmin
+      .from('leave_requests')
+      .select('id, status, staff_id')
+      .eq('id', id)
+      .single();
+
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn xin nghỉ.' });
+    }
+    if (existing.staff_id !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền sửa đơn này.' });
+    }
+    if (existing.status !== 'pending') {
+      return res.status(400).json({ success: false, message: 'Chỉ có thể sửa đơn đang chờ duyệt.' });
+    }
+
+    const updates = {};
+    if (leave_type) updates.leave_type = leave_type;
+    if (start_date) updates.start_date = start_date;
+    if (end_date) updates.end_date = end_date;
+    if (reason !== undefined) updates.reason = reason;
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ success: false, message: 'Không có dữ liệu cần cập nhật.' });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('leave_requests')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error updating leave request:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.delete('/api/teacher/leave-requests/:id', requireAuth, requireRole(['TEACHER']), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data: existing } = await supabaseAdmin
+      .from('leave_requests')
+      .select('id, status, staff_id')
+      .eq('id', id)
+      .single();
+
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn xin nghỉ.' });
+    }
+    if (existing.staff_id !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền xóa đơn này.' });
+    }
+    if (existing.status !== 'pending') {
+      return res.status(400).json({ success: false, message: 'Chỉ có thể xóa đơn đang chờ duyệt.' });
+    }
+
+    const { error } = await supabaseAdmin
+      .from('leave_requests')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    return res.json({ success: true, message: 'Đã xóa đơn xin nghỉ.' });
+  } catch (error) {
+    console.error('Error deleting leave request:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ── ADMIN / MANAGER ──────────────────────────────────────
+app.get('/api/admin/leave-requests', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res) => {
+  try {
+    const { status } = req.query;
+    const { effectiveCenterId: centerId } = getEffectiveCenterId(req.user, null);
+
+    let query = supabaseAdmin
+      .from('leave_requests')
+      .select('*, teacher:users!leave_requests_staff_id_fkey(full_name, email, phone)')
+      .order('created_at', { ascending: false });
+
+    if (centerId) {
+      query = query.eq('center_id', centerId);
+    }
+    if (status && ['pending', 'approved', 'rejected'].includes(status)) {
+      query = query.eq('status', status);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return res.json({ success: true, data: data || [] });
+  } catch (error) {
+    console.error('Error fetching leave requests:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.patch('/api/admin/leave-requests/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, reviewer_notes } = req.body;
+
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Trạng thái không hợp lệ.' });
+    }
+
+    const { data: existing, error: fetchError } = await supabaseAdmin
+      .from('leave_requests')
+      .select('*, teacher:users!leave_requests_staff_id_fkey(full_name, center_id)')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !existing) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn xin nghỉ.' });
+    }
+    if (existing.status !== 'pending') {
+      return res.status(400).json({ success: false, message: 'Đơn này đã được xử lý trước đó.' });
+    }
+
+    const { data: updated, error: updateError } = await supabaseAdmin
+      .from('leave_requests')
+      .update({
+        status,
+        reviewer_notes: reviewer_notes || '',
+        reviewed_by: req.user.id,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    // Send realtime notification to the teacher
+    const { effectiveCenterId: centerId } = getEffectiveCenterId(req.user, null);
+    const notificationResult = await createNotification(supabaseAdmin, {
+      userId: existing.staff_id,
+      centerId: existing.center_id || centerId || null,
+      type: `leave_request_${status}`,
+      title: status === 'approved' ? 'Đơn xin nghỉ đã được duyệt' : 'Đơn xin nghỉ đã bị từ chối',
+      message: status === 'approved'
+        ? `Đơn xin nghỉ của bạn từ ngày ${existing.start_date} đến ${existing.end_date} đã được duyệt.`
+        : `Đơn xin nghỉ của bạn từ ngày ${existing.start_date} đến ${existing.end_date} đã bị từ chối.${reviewer_notes ? ' Lý do: ' + reviewer_notes : ''}`
+      ,
+      referenceId: existing.id,
+      referenceType: 'leave_request',
+    });
+
+    if (!notificationResult?.success && notificationResult?.reason !== 'insert_failed') {
+      console.warn('Leave request notification failed:', notificationResult?.reason);
+    }
+
+    return res.json({ success: true, data: updated });
+  } catch (error) {
+    console.error('Error updating leave request:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+
+server.close(async () => {
+  console.log('HTTP server closed');
+
+  try {
+    const { stopJobScheduler } = await import('./jobs/index.js');
+    await stopJobScheduler();
+  } catch (err) {
+    console.warn('Error stopping job scheduler:', err.message);
+  }
+
+  if (shutdownTimeout) {
+    clearTimeout(shutdownTimeout);
+  }
+  process.exit(0);
   });
 
   // Force exit after 10 seconds if graceful shutdown fails

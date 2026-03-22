@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { gooeyToast } from 'goey-toast';
+import { supabase } from '@/lib/supabaseClient';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -122,6 +123,29 @@ export function LeaveManagementPage() {
   useEffect(() => {
     fetchRequests();
   }, [fetchRequests]);
+
+  useEffect(() => {
+    const userId = session?.user?.id;
+    const accessToken = session?.access_token;
+    if (!userId || !accessToken) return;
+
+    supabase.realtime.setAuth(accessToken);
+    const channel = supabase
+      .channel(`manager-leave-notifications:${userId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+        (payload) => {
+          if (payload.new?.reference_type !== 'leave_request') return;
+          gooeyToast.success('Co don xin nghi moi can duyet!', {
+            description: payload.new?.message || '',
+          });
+          void fetchRequests();
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [session?.user?.id, session?.access_token, fetchRequests]);
 
   const pendingCount = useMemo(() => requests.filter((item) => item.status === 'pending').length, [requests]);
 

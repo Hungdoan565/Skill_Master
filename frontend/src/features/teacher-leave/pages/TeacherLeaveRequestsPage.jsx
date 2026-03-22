@@ -1,4 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { supabase } from '@/lib/supabaseClient';
+import { gooeyToast } from 'goey-toast';
 import { useAuth } from '@/contexts/auth-context';
 import {
     CalendarDays,
@@ -236,12 +238,12 @@ function ConfirmDialog({ open, title, message, confirmLabel, confirmColor, onCon
 // ─────────────────────────── Main Page ───────────────────────────
 
 export function TeacherLeaveRequestsPage() {
-    const { profile } = useAuth();
+    const { profile, session } = useAuth();
     const { requests, loading, error, createLeaveRequest, updateLeaveRequest, deleteLeaveRequest, refetch } = useLeaveRequests();
 
     // Form state
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingRequest, setEditingRequest] = useState(null); // null = create, object = edit
+    const [editingRequest, setEditingRequest] = useState(null);
     const [formData, setFormData] = useState(EMPTY_FORM);
     const [submitting, setSubmitting] = useState(false);
     const [formError, setFormError] = useState('');
@@ -260,6 +262,34 @@ export function TeacherLeaveRequestsPage() {
         const rejected = requests.filter((item) => item.status === 'rejected').length;
         return { total, pending, approved, rejected };
     }, [requests]);
+
+    // ─── Realtime notifications for leave request status changes ───
+    useEffect(() => {
+        const userId = session?.user?.id;
+        const accessToken = session?.access_token;
+        if (!userId || !accessToken) return;
+
+        supabase.realtime.setAuth(accessToken);
+        const channel = supabase
+            .channel(`teacher-leave-status:${userId}`)
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+                (payload) => {
+                    if (payload.new?.reference_type !== 'leave_request') return;
+                    const isApproved = payload.new?.type === 'leave_request_approved';
+                    gooeyToast[isApproved ? 'success' : 'warning'](
+                        payload.new?.title || (isApproved ? 'Don duoc duyet!' : 'Don bi tu choi!'),
+                        { description: payload.new?.message || '' }
+                    );
+                    if (typeof refetch === 'function') {
+                        void refetch();
+                    }
+                }
+            )
+            .subscribe();
+        return () => { supabase.removeChannel(channel); };
+    }, [session?.user?.id, session?.access_token, refetch]);
 
     // ─── Filtered list ───
     const filteredRequests = useMemo(() => {
