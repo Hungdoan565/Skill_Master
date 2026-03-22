@@ -15,7 +15,7 @@ export const FeaturedSection = ({ posts }) => {
     const sidePosts = posts.slice(1, 3);
 
     return (
-        <section className="py-16 bg-white">
+        <section className="py-16 bg-background">
             <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
                 {/* Section Header */}
                 <div className={`flex items-center gap-4 mb-10 transition-all duration-700
@@ -24,11 +24,11 @@ export const FeaturedSection = ({ posts }) => {
                 >
                     <div className="flex items-center gap-2">
                         <span className="w-3 h-3 bg-red-600 rounded-full animate-pulse" />
-                        <span className="text-sm font-semibold text-zinc-900 uppercase tracking-wider">
+                        <span className="text-sm font-semibold text-foreground uppercase tracking-wider">
                             Bài viết nổi bật
                         </span>
                     </div>
-                    <div className="flex-1 h-px bg-stone-200" />
+                    <div className="flex-1 h-px bg-muted" />
                 </div>
 
                 {/* Featured Grid */}
@@ -78,8 +78,8 @@ export const FeaturedSection = ({ posts }) => {
                             <Link
                                 key={post.id}
                                 to={`/blog/${post.slug}`}
-                                className="group flex gap-6 p-4 bg-stone-50 rounded-2xl
-                                    hover:bg-white hover:shadow-lg hover:shadow-stone-200/50 
+                                className="group flex gap-6 p-4 bg-muted rounded-2xl
+                                    hover:bg-card hover:shadow-lg hover:shadow-black/5 dark:shadow-black/20 
                                     transition-all duration-300"
                             >
                                 <div className="w-32 h-24 flex-shrink-0 rounded-xl overflow-hidden">
@@ -95,11 +95,11 @@ export const FeaturedSection = ({ posts }) => {
                                     <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">
                                         {post.category}
                                     </span>
-                                    <h3 className="text-lg font-bold text-zinc-900 mt-1 mb-2 
+                                    <h3 className="text-lg font-bold text-foreground mt-1 mb-2 
                                         group-hover:text-red-600 transition-colors line-clamp-2">
                                         {post.title}
                                     </h3>
-                                    <div className="flex items-center gap-3 text-sm text-zinc-500">
+                                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
                                         <span>{formatDate(post.date)}</span>
                                         <span>•</span>
                                         <span>{post.readTime} phút đọc</span>

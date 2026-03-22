@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/auth-context';
 import logoImage from '@/assets/logo.png';
 import { ConsultationModal, BookingModal } from '@/components/common';
 import { UniversalSearchOverlay } from '@/components/common/UniversalSearchOverlay';
+import { ThemeToggleSimple } from '@/components/ui/theme-toggle';
 
 // ============================================
 // DROPDOWN COMPONENTS
@@ -17,7 +18,7 @@ import { UniversalSearchOverlay } from '@/components/common/UniversalSearchOverl
 const DropdownSection = ({ title, children }) => (
     <div className="py-2">
         {title && (
-            <p className="px-4 py-2 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
+            <p className="px-4 py-2 text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
                 {title}
             </p>
         )}
@@ -27,17 +28,17 @@ const DropdownSection = ({ title, children }) => (
 
 const DropdownItem = ({ icon: Icon, title, description, href = '#', onClick }) => {
     const content = (
-        <div className="flex items-start gap-3 p-3 rounded-xl hover:bg-stone-50 transition-colors cursor-pointer group">
-            <div className="flex-shrink-0 w-10 h-10 bg-stone-100 rounded-xl flex items-center justify-center
-                    group-hover:bg-red-50 group-hover:text-red-600 transition-colors">
-                <Icon className="w-5 h-5 text-zinc-500 group-hover:text-red-600 transition-colors" aria-hidden="true" />
+        <div className="flex items-start gap-3 p-3 rounded-xl hover:bg-stone-50 dark:hover:bg-zinc-700 transition-colors cursor-pointer group">
+            <div className="flex-shrink-0 w-10 h-10 bg-stone-100 dark:bg-zinc-700 rounded-xl flex items-center justify-center
+                    group-hover:bg-red-50 dark:group-hover:bg-red-900/30 group-hover:text-red-600 transition-colors">
+                <Icon className="w-5 h-5 text-zinc-500 dark:text-zinc-400 group-hover:text-red-600 transition-colors" aria-hidden="true" />
             </div>
             <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-zinc-900 group-hover:text-red-600 transition-colors">
+                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 group-hover:text-red-600 transition-colors">
                     {title}
                 </p>
                 {description && (
-                    <p className="text-xs text-zinc-500 mt-0.5 line-clamp-2">{description}</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 line-clamp-2">{description}</p>
                 )}
             </div>
         </div>
@@ -84,7 +85,7 @@ const NavDropdown = ({ label, children, isOpen, onToggle, onClose }) => {
             <button
                 onClick={onToggle}
                 className={`flex items-center gap-1.5 text-sm font-medium transition-colors duration-200 group
-                  ${isOpen ? 'text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'}`}
+                  ${isOpen ? 'text-zinc-900 dark:text-white' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'}`}
                 aria-expanded={isOpen}
                 aria-haspopup="true"
             >
@@ -95,8 +96,8 @@ const NavDropdown = ({ label, children, isOpen, onToggle, onClose }) => {
             {/* Dropdown Panel - Enhanced smooth animation */}
             <div
                 className={`absolute top-full left-0 mt-2 min-w-[280px] origin-top-left
-                  bg-white/95 backdrop-blur-xl rounded-xl border-t-4 border-t-red-600 border-x border-b border-stone-200/50 
-                  shadow-2xl shadow-zinc-900/10
+                  bg-white/95 dark:bg-zinc-800/95 backdrop-blur-xl rounded-xl border-t-4 border-t-red-600 border-x border-b border-stone-200/50 dark:border-zinc-700/50
+                  shadow-2xl shadow-zinc-900/10 dark:shadow-black/30
                   transition-all duration-300 cubic-bezier(0.34, 1.56, 0.64, 1) z-50 overflow-hidden
                   ${isOpen
                         ? 'opacity-100 scale-100 translate-y-0 visible'
@@ -179,8 +180,8 @@ const UserDropdown = () => {
                 className={`
           flex items-center gap-2.5 rounded-full pl-1 pr-3 py-1 
           transition-all duration-200 cursor-pointer
-          hover:bg-zinc-100 border border-transparent
-          ${isOpen ? 'bg-zinc-100 border-zinc-200' : ''}
+          hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-transparent
+          ${isOpen ? 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700' : ''}
         `}
                 aria-expanded={isOpen}
                 aria-label="User menu"
@@ -192,14 +193,14 @@ const UserDropdown = () => {
                         {getInitials(displayName)}
                     </div>
                 )}
-                <span className="text-sm font-medium text-zinc-700 hidden sm:block max-w-[120px] truncate">
+                <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 hidden sm:block max-w-[120px] truncate">
                     {displayName}
                 </span>
                 <ChevronDown className={`h-4 w-4 text-zinc-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
             </button>
 
-            <div className={`absolute right-0 top-full mt-2 w-64 origin-top-right rounded-2xl border border-zinc-200/80 bg-white py-2 shadow-xl shadow-zinc-200/50 transition-all duration-200 ease-out z-50 ${isOpen ? 'opacity-100 scale-100 translate-y-0 visible' : 'opacity-0 scale-95 -translate-y-2 invisible pointer-events-none'}`}>
-                <div className="px-4 py-3 border-b border-zinc-100">
+            <div className={`absolute right-0 top-full mt-2 w-64 origin-top-right rounded-2xl border border-zinc-200/80 dark:border-zinc-700 bg-white dark:bg-zinc-800 py-2 shadow-xl shadow-zinc-200/50 dark:shadow-black/30 transition-all duration-200 ease-out z-50 ${isOpen ? 'opacity-100 scale-100 translate-y-0 visible' : 'opacity-0 scale-95 -translate-y-2 invisible pointer-events-none'}`}>
+                <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-700">
                     <div className="flex items-center gap-3">
                         {avatarUrl ? (
                             <img src={avatarUrl} alt={displayName} className="h-11 w-11 rounded-full object-cover" />
@@ -209,8 +210,8 @@ const UserDropdown = () => {
                             </div>
                         )}
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-zinc-900 truncate">{displayName}</p>
-                            <p className="text-xs text-zinc-500 truncate">{user?.email}</p>
+                            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">{displayName}</p>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{user?.email}</p>
                         </div>
                     </div>
                     {roleCode && (
@@ -221,19 +222,19 @@ const UserDropdown = () => {
                 </div>
 
                 <div className="py-1">
-                    <button onClick={handleDashboard} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors">
+                    <button onClick={handleDashboard} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors">
                         <LayoutDashboard className="h-4 w-4 text-zinc-400" />
                         <span>Vào Dashboard</span>
                     </button>
-                    <button onClick={() => { setIsOpen(false); navigate('/profile'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors">
+                    <button onClick={() => { setIsOpen(false); navigate('/profile'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors">
                         <User className="h-4 w-4 text-zinc-400" />
                         <span>Hồ sơ cá nhân</span>
                     </button>
-                    <button onClick={() => { setIsOpen(false); navigate('/settings'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors">
+                    <button onClick={() => { setIsOpen(false); navigate('/settings'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors">
                         <Settings className="h-4 w-4 text-zinc-400" />
                         <span>Cài đặt</span>
                     </button>
-                    <div className="my-1 mx-3 border-t border-zinc-100" />
+                    <div className="my-1 mx-3 border-t border-zinc-100 dark:border-zinc-700" />
                     <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
                         <LogOut className="h-4 w-4 text-red-500" />
                         <span>Đăng xuất</span>
@@ -271,13 +272,13 @@ export const Header = () => {
 
     return (
         <>
-            <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? 'bg-stone-50/80 backdrop-blur-xl border-b border-stone-200/50 shadow-sm' : 'bg-transparent'
+            <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${scrolled ? 'bg-stone-50/80 dark:bg-zinc-900/80 backdrop-blur-xl border-b border-stone-200/50 dark:border-zinc-700/50 shadow-sm' : 'bg-transparent'
                 }`}>
                 <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
                     <nav className="flex items-center justify-between h-24">
                         {/* Logo */}
                         <Link to="/" className="group flex items-center gap-2">
-                            <img src={logoImage} alt="Skill Master Logo" className="h-24 w-auto object-contain group-hover:scale-105 transition-transform duration-300" />
+                            <img src={logoImage} alt="Skill Master Logo" className="h-24 w-auto object-contain group-hover:scale-105 transition-all duration-300 dark:brightness-0 dark:invert" />
                         </Link>
 
                         {/* Desktop Navigation */}
@@ -298,11 +299,11 @@ export const Header = () => {
                                             <DropdownItem icon={BarChart3} title="Phân tích dữ liệu" description="Power BI, SQL cơ bản" href="/courses" />
                                         </DropdownSection>
                                     </div>
-                                    <Link to="/courses" className="block mt-2 mx-2 p-4 bg-gradient-to-r from-red-50 to-orange-50 rounded-xl border border-red-100 hover:border-red-200 transition-colors">
+                                    <Link to="/courses" className="block mt-2 mx-2 p-4 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 rounded-xl border border-red-100 dark:border-red-800/30 hover:border-red-200 dark:hover:border-red-700/50 transition-colors">
                                         <div className="flex items-center justify-between">
                                             <div>
-                                                <p className="text-sm font-semibold text-zinc-900">Xem tất cả khóa học</p>
-                                                <p className="text-xs text-zinc-500 mt-0.5">20+ khóa học đa dạng trình độ</p>
+                                                <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Xem tất cả khóa học</p>
+                                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">20+ khóa học đa dạng trình độ</p>
                                             </div>
                                             <ArrowRight className="w-5 h-5 text-red-600" />
                                         </div>
@@ -327,7 +328,7 @@ export const Header = () => {
                                         <DropdownItem icon={GraduationCap} title="Đội ngũ giảng viên" description="100% có chứng chỉ quốc tế" href="/about#team" />
                                         <DropdownItem icon={School} title="Cơ sở vật chất" description="Phòng học hiện đại, tiện nghi" href="/about#facilities" />
                                     </DropdownSection>
-                                    <div className="border-t border-stone-100 my-1" />
+                                    <div className="border-t border-stone-100 dark:border-zinc-700 my-1" />
                                     <DropdownSection title="Thành tựu">
                                         <DropdownItem icon={Star} title="Học viên tiêu biểu" description="Câu chuyện thành công" href="/about#success" />
                                         <DropdownItem icon={Award} title="Chứng nhận & Giải thưởng" description="Đối tác Cambridge, ETS" href="/about#achievements" />
@@ -342,7 +343,7 @@ export const Header = () => {
                                         <DropdownItem icon={Video} title="Video bài giảng" description="Kho video 500+ bài học" href="/resources#videos" />
                                         <DropdownItem icon={BookMarked} title="Tài liệu miễn phí" description="Đề thi, flashcard, ebook" href="/resources#materials" />
                                     </DropdownSection>
-                                    <div className="border-t border-stone-100 my-1" />
+                                    <div className="border-t border-stone-100 dark:border-zinc-700 my-1" />
                                     <DropdownSection title="Kiểm tra">
                                         <DropdownItem icon={Target} title="Test trình độ" description="Đánh giá năng lực miễn phí" href="/assessment" />
                                         <DropdownItem icon={HelpCircle} title="Tư vấn lộ trình" description="Chuyên gia tư vấn 1-1 miễn phí" onClick={() => { closeDropdown(); setShowConsultationModal(true); }} />
@@ -358,10 +359,10 @@ export const Header = () => {
                                         <DropdownItem icon={Mail} title="Email" description="info@skillmaster.edu.vn" href="mailto:info@skillmaster.edu.vn" />
                                         <DropdownItem icon={Calendar} title="Đặt lịch học thử" description="Trải nghiệm miễn phí 1 buổi" onClick={() => { closeDropdown(); setShowBookingModal(true); }} />
                                     </DropdownSection>
-                                    <div className="mx-2 mt-2 p-3 bg-stone-50 rounded-xl">
+                                    <div className="mx-2 mt-2 p-3 bg-stone-50 dark:bg-zinc-700 rounded-xl">
                                         <div className="flex items-start gap-2">
                                             <MapPin className="w-4 h-4 text-zinc-400 mt-0.5 flex-shrink-0" />
-                                            <p className="text-xs text-zinc-500">Tầng 5, Tòa nhà ABC, 123 Nguyễn Văn Linh, Quận 7, TP.HCM</p>
+                                            <p className="text-xs text-zinc-500 dark:text-zinc-400">Tầng 5, Tòa nhà ABC, 123 Nguyễn Văn Linh, Quận 7, TP.HCM</p>
                                         </div>
                                     </div>
                                 </div>
@@ -370,9 +371,11 @@ export const Header = () => {
 
                         {/* Auth Buttons + Search */}
                         <div className="hidden lg:flex items-center gap-4">
+                            {/* Theme Toggle */}
+                            <ThemeToggleSimple />
                             {/* Search Button */}
                             <button
-                                className="p-2 rounded-full text-zinc-500 hover:text-zinc-900 hover:bg-stone-100 transition-all duration-200"
+                                className="p-2 rounded-full text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-stone-100 dark:hover:bg-zinc-800 transition-all duration-200"
                                 aria-label="Tìm kiếm"
                                 onClick={() => setSearchOpen(true)}
                             >
@@ -382,7 +385,7 @@ export const Header = () => {
                                 <UserDropdown />
                             ) : (
                                 <>
-                                    <Link to="/login" className="text-sm font-medium text-zinc-600 hover:text-zinc-900 px-4 py-2 transition-colors">Đăng nhập</Link>
+                                    <Link to="/login" className="text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white px-4 py-2 transition-colors">Đăng nhập</Link>
                                     <button
                                         onClick={() => setShowConsultationModal(true)}
                                         className="inline-flex items-center justify-center px-5 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-full hover:bg-red-700 transition-all shadow-lg shadow-red-600/20 hover:shadow-xl hover:shadow-red-600/30"
@@ -394,7 +397,7 @@ export const Header = () => {
                         </div>
 
                         {/* Mobile Menu Button */}
-                        <button className="lg:hidden p-2 text-zinc-600 hover:bg-stone-100 rounded-lg" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+                        <button className="lg:hidden p-2 text-zinc-600 dark:text-zinc-400 hover:bg-stone-100 dark:hover:bg-zinc-800 rounded-lg" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
                             {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                         </button>
                     </nav>
@@ -402,22 +405,22 @@ export const Header = () => {
 
                 {/* Mobile Menu */}
                 {mobileMenuOpen && (
-                    <div className="lg:hidden absolute top-24 left-0 right-0 bg-white border-t border-stone-200 p-6 shadow-xl animate-fade-in-down">
+                    <div className="lg:hidden absolute top-24 left-0 right-0 bg-white dark:bg-zinc-900 border-t border-stone-200 dark:border-zinc-700 p-6 shadow-xl animate-fade-in-down">
                         <div className="flex flex-col gap-4">
-                            <Link to="/courses" className="font-medium text-lg text-zinc-900">Khóa học</Link>
-                            <Link to="/roadmap" className="font-medium text-lg text-zinc-900">Lộ trình</Link>
-                            <Link to="/about" className="font-medium text-lg text-zinc-900">Về chúng tôi</Link>
-                            <Link to="/blog" className="font-medium text-lg text-zinc-900">Tài nguyên</Link>
-                            <Link to="/contact" className="font-medium text-lg text-zinc-900">Liên hệ</Link>
-                            <hr className="border-stone-100" />
+                            <Link to="/courses" className="font-medium text-lg text-zinc-900 dark:text-zinc-100">Khóa học</Link>
+                            <Link to="/roadmap" className="font-medium text-lg text-zinc-900 dark:text-zinc-100">Lộ trình</Link>
+                            <Link to="/about" className="font-medium text-lg text-zinc-900 dark:text-zinc-100">Về chúng tôi</Link>
+                            <Link to="/blog" className="font-medium text-lg text-zinc-900 dark:text-zinc-100">Tài nguyên</Link>
+                            <Link to="/contact" className="font-medium text-lg text-zinc-900 dark:text-zinc-100">Liên hệ</Link>
+                            <hr className="border-stone-100 dark:border-zinc-700" />
                             {isAuthenticated ? (
                                 <div className="flex flex-col gap-2">
-                                    <Link to="/dashboard" className="px-4 py-3 bg-zinc-50 rounded-xl font-medium text-zinc-900">Vào Dashboard</Link>
-                                    <Link to="/profile" className="px-4 py-3 bg-zinc-50 rounded-xl font-medium text-zinc-900">Hồ sơ cá nhân</Link>
+                                    <Link to="/dashboard" className="px-4 py-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl font-medium text-zinc-900 dark:text-zinc-100">Vào Dashboard</Link>
+                                    <Link to="/profile" className="px-4 py-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl font-medium text-zinc-900 dark:text-zinc-100">Hồ sơ cá nhân</Link>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-2 gap-4">
-                                    <Link to="/login" className="flex items-center justify-center px-4 py-3 border border-stone-200 rounded-xl font-semibold text-zinc-700">Đăng nhập</Link>
+                                    <Link to="/login" className="flex items-center justify-center px-4 py-3 border border-stone-200 dark:border-zinc-700 rounded-xl font-semibold text-zinc-700 dark:text-zinc-300">Đăng nhập</Link>
                                     <Link to="/register" className="flex items-center justify-center px-4 py-3 bg-red-600 text-white rounded-xl font-semibold">Đăng ký</Link>
                                 </div>
                             )}

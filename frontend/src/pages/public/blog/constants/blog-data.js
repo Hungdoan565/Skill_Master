@@ -4,6 +4,25 @@
 
 import { BookOpen, Users, TrendingUp } from 'lucide-react';
 
+// Blog Thumbnail Imports
+import ieltsRoadmapImg from '@/assets/blog/thumbnails/ielts-roadmap.png';
+import toeicListeningImg from '@/assets/blog/thumbnails/toeic-listening.png';
+import excelFormulasImg from '@/assets/blog/thumbnails/excel-formulas.png';
+import ieltsWritingImg from '@/assets/blog/thumbnails/ielts-writing.png';
+import toeicGrammarImg from '@/assets/blog/thumbnails/toeic-grammar.png';
+import powerpointDesignImg from '@/assets/blog/thumbnails/powerpoint-design.png';
+import ieltsSpeakingImg from '@/assets/blog/thumbnails/ielts-speaking.png';
+import toeicReadingImg from '@/assets/blog/thumbnails/toeic-reading.png';
+import wordMailmergeImg from '@/assets/blog/thumbnails/word-mailmerge.png';
+import ieltsVocabularyImg from '@/assets/blog/thumbnails/ielts-vocabulary.png';
+import toeicPart2Img from '@/assets/blog/thumbnails/toeic-part2.png';
+import googleSheetsImg from '@/assets/blog/thumbnails/google-sheets.png';
+
+// Author Avatar Imports
+import avatarNguyenVanA from '@/assets/blog/avatars/nguyen-van-a.png';
+import avatarTranThiB from '@/assets/blog/avatars/tran-thi-b.png';
+import avatarLeVanC from '@/assets/blog/avatars/le-van-c.png';
+
 // Categories
 export const CATEGORIES = [
     { id: 'all', label: 'Tất cả', icon: BookOpen },
@@ -39,8 +58,8 @@ export const MOCK_POSTS = [
         title: 'Lộ trình tự học IELTS từ 5.0 lên 7.0 trong 6 tháng',
         excerpt: 'Bộ hướng dẫn chi tiết giúp bạn cải thiện band IELTS một cách hiệu quả với phương pháp học tập khoa học và lịch trình cụ thể từng tuần.',
         category: 'ielts', date: '2024-12-21', readTime: 12, views: 2340,
-        thumbnail: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=800',
-        author: { name: 'Nguyễn Văn A', initials: 'NA', role: 'IELTS Instructor', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face' },
+        thumbnail: ieltsRoadmapImg,
+        author: { name: 'Nguyễn Văn A', initials: 'NA', role: 'IELTS Instructor', avatar: avatarNguyenVanA },
         featured: true, tags: ['IELTS', 'Lộ trình', 'Tự học']
     },
     {
@@ -48,8 +67,8 @@ export const MOCK_POSTS = [
         title: 'Chiến thuật làm bài TOEIC Listening đạt 400+ điểm',
         excerpt: 'Những kỹ thuật và mẹo hay giúp bạn tối ưu điểm số Listening trong kỳ thi TOEIC với các phương pháp đã được kiểm chứng.',
         category: 'toeic', date: '2024-12-19', readTime: 8, views: 1850,
-        thumbnail: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800',
-        author: { name: 'Trần Thị B', initials: 'TB', role: 'TOEIC Expert', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&h=80&fit=crop&crop=face' },
+        thumbnail: toeicListeningImg,
+        author: { name: 'Trần Thị B', initials: 'TB', role: 'TOEIC Expert', avatar: avatarTranThiB },
         featured: true, tags: ['TOEIC', 'Listening', 'Tips']
     },
     {
@@ -57,8 +76,8 @@ export const MOCK_POSTS = [
         title: '50 công thức Excel cần biết cho dân văn phòng',
         excerpt: 'Tổng hợp các công thức Excel từ cơ bản đến nâng cao, giúp bạn làm việc hiệu quả hơn và tiết kiệm thời gian đáng kể.',
         category: 'it', date: '2024-12-18', readTime: 15, views: 3200,
-        thumbnail: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800',
-        author: { name: 'Lê Văn C', initials: 'LC', role: 'IT Specialist', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&h=80&fit=crop&crop=face' },
+        thumbnail: excelFormulasImg,
+        author: { name: 'Lê Văn C', initials: 'LC', role: 'IT Specialist', avatar: avatarLeVanC },
         featured: true, tags: ['Excel', 'Công thức', 'Văn phòng']
     },
     {
@@ -66,8 +85,8 @@ export const MOCK_POSTS = [
         title: 'Template viết IELTS Writing Task 2 Band 7+',
         excerpt: 'Cấu trúc bài viết chi tiết kèm các cụm từ academic giúp bạn đạt band điểm cao trong phần thi Writing Task 2.',
         category: 'ielts', date: '2024-12-15', readTime: 10, views: 1920,
-        thumbnail: 'https://images.unsplash.com/photo-1455390582262-044cdead277a?w=800',
-        author: { name: 'Nguyễn Văn A', initials: 'NA', role: 'IELTS Instructor', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face' },
+        thumbnail: ieltsWritingImg,
+        author: { name: 'Nguyễn Văn A', initials: 'NA', role: 'IELTS Instructor', avatar: avatarNguyenVanA },
         tags: ['IELTS Writing', 'Template', 'Band 7']
     },
     {
@@ -75,8 +94,8 @@ export const MOCK_POSTS = [
         title: 'Tổng hợp ngữ pháp TOEIC Part 5 thường gặp',
         excerpt: 'Các điểm ngữ pháp quan trọng xuất hiện với tần suất cao trong Part 5 và cách nhận biết đáp án đúng nhanh chóng.',
         category: 'toeic', date: '2024-12-12', readTime: 7, views: 1650,
-        thumbnail: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=800',
-        author: { name: 'Trần Thị B', initials: 'TB', role: 'TOEIC Expert', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&h=80&fit=crop&crop=face' },
+        thumbnail: toeicGrammarImg,
+        author: { name: 'Trần Thị B', initials: 'TB', role: 'TOEIC Expert', avatar: avatarTranThiB },
         tags: ['TOEIC', 'Grammar', 'Part 5']
     },
     {
@@ -84,8 +103,8 @@ export const MOCK_POSTS = [
         title: 'Bí quyết thiết kế PowerPoint chuyên nghiệp',
         excerpt: 'Hướng dẫn tạo slide thuyết trình đẹp mắt, thu hút với các nguyên tắc thiết kế cơ bản và template miễn phí.',
         category: 'it', date: '2024-12-10', readTime: 9, views: 980,
-        thumbnail: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800',
-        author: { name: 'Lê Văn C', initials: 'LC', role: 'IT Specialist', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&h=80&fit=crop&crop=face' },
+        thumbnail: powerpointDesignImg,
+        author: { name: 'Lê Văn C', initials: 'LC', role: 'IT Specialist', avatar: avatarLeVanC },
         tags: ['PowerPoint', 'Thiết kế', 'Thuyết trình']
     },
     {
@@ -93,8 +112,8 @@ export const MOCK_POSTS = [
         title: 'Các câu hỏi IELTS Speaking Part 1 thường gặp & mẫu trả lời',
         excerpt: 'Tổng hợp 50+ câu hỏi Speaking Part 1 kèm ideas và cách triển khai câu trả lời tự nhiên, ghi điểm.',
         category: 'ielts', date: '2024-12-08', readTime: 11, views: 2100,
-        thumbnail: 'https://images.unsplash.com/photo-1543269865-cbf427effbad?w=800',
-        author: { name: 'Nguyễn Văn A', initials: 'NA', role: 'IELTS Instructor', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face' },
+        thumbnail: ieltsSpeakingImg,
+        author: { name: 'Nguyễn Văn A', initials: 'NA', role: 'IELTS Instructor', avatar: avatarNguyenVanA },
         tags: ['IELTS Speaking', 'Part 1', 'Mẫu câu']
     },
     {
@@ -102,8 +121,8 @@ export const MOCK_POSTS = [
         title: '7 chiến lược đọc hiểu TOEIC Reading Part 7 hiệu quả',
         excerpt: 'Phương pháp làm bài Reading nhanh và chính xác, tối ưu thời gian cho các dạng bài Single và Multiple Passages.',
         category: 'toeic', date: '2024-12-05', readTime: 13, views: 1420,
-        thumbnail: 'https://images.unsplash.com/photo-1506880018603-83d5b814b5a6?w=800',
-        author: { name: 'Trần Thị B', initials: 'TB', role: 'TOEIC Expert', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&h=80&fit=crop&crop=face' },
+        thumbnail: toeicReadingImg,
+        author: { name: 'Trần Thị B', initials: 'TB', role: 'TOEIC Expert', avatar: avatarTranThiB },
         tags: ['TOEIC Reading', 'Part 7', 'Strategies']
     },
     {
@@ -111,8 +130,8 @@ export const MOCK_POSTS = [
         title: 'Hướng dẫn Mail Merge trong Word: Tạo thư hàng loạt',
         excerpt: 'Từng bước tạo thư mời, chứng nhận, phong bì hàng loạt với tính năng Mail Merge của Microsoft Word.',
         category: 'it', date: '2024-12-03', readTime: 8, views: 760,
-        thumbnail: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=800',
-        author: { name: 'Lê Văn C', initials: 'LC', role: 'IT Specialist', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&h=80&fit=crop&crop=face' },
+        thumbnail: wordMailmergeImg,
+        author: { name: 'Lê Văn C', initials: 'LC', role: 'IT Specialist', avatar: avatarLeVanC },
         tags: ['Word', 'Mail Merge', 'Tự động hóa']
     },
     {
@@ -120,8 +139,8 @@ export const MOCK_POSTS = [
         title: '500 từ vựng IELTS Academic thường gặp nhất',
         excerpt: 'Danh sách từ vựng Academic Word List với ví dụ và cách sử dụng trong Writing và Speaking.',
         category: 'ielts', date: '2024-12-01', readTime: 20, views: 2890,
-        thumbnail: 'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?w=800',
-        author: { name: 'Nguyễn Văn A', initials: 'NA', role: 'IELTS Instructor', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face' },
+        thumbnail: ieltsVocabularyImg,
+        author: { name: 'Nguyễn Văn A', initials: 'NA', role: 'IELTS Instructor', avatar: avatarNguyenVanA },
         tags: ['IELTS', 'Vocabulary', 'Academic']
     },
     {
@@ -129,8 +148,8 @@ export const MOCK_POSTS = [
         title: 'Mẹo nghe TOEIC Part 2: Nhận diện bẫy thường gặp',
         excerpt: 'Các loại bẫy trong Part 2 và cách loại trừ đáp án sai một cách nhanh chóng.',
         category: 'toeic', date: '2024-11-28', readTime: 6, views: 1280,
-        thumbnail: 'https://images.unsplash.com/photo-1553877522-43269d4ea984?w=800',
-        author: { name: 'Trần Thị B', initials: 'TB', role: 'TOEIC Expert', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&h=80&fit=crop&crop=face' },
+        thumbnail: toeicPart2Img,
+        author: { name: 'Trần Thị B', initials: 'TB', role: 'TOEIC Expert', avatar: avatarTranThiB },
         tags: ['TOEIC', 'Part 2', 'Listening']
     },
     {
@@ -138,8 +157,8 @@ export const MOCK_POSTS = [
         title: 'Google Sheets: Công thức và hàm cần biết',
         excerpt: 'So sánh Google Sheets với Excel và các hàm độc quyền của Sheets mà bạn nên biết.',
         category: 'it', date: '2024-11-25', readTime: 12, views: 890,
-        thumbnail: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800',
-        author: { name: 'Lê Văn C', initials: 'LC', role: 'IT Specialist', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&h=80&fit=crop&crop=face' },
+        thumbnail: googleSheetsImg,
+        author: { name: 'Lê Văn C', initials: 'LC', role: 'IT Specialist', avatar: avatarLeVanC },
         tags: ['Google Sheets', 'Formulas', 'Cloud']
     },
 ];

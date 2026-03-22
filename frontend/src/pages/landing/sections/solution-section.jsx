@@ -96,18 +96,18 @@ const FeatureRow = ({ feature, index, isReversed }) => {
                     <div className={`w-10 h-10 rounded-xl ${feature.iconColor} flex items-center justify-center`}>
                         <Icon className="w-5 h-5 text-white" />
                     </div>
-                    <span className="text-sm font-medium text-zinc-500 uppercase tracking-wider">
+                    <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
                         {feature.title}
                     </span>
                 </div>
 
                 {/* Headline */}
-                <h3 className="font-display text-3xl lg:text-4xl font-bold text-zinc-900 tracking-tight leading-[1.2]">
+                <h3 className="font-display text-3xl lg:text-4xl font-bold text-foreground tracking-tight leading-[1.2]">
                     {feature.headline}
                 </h3>
 
                 {/* Description */}
-                <p className="text-lg text-zinc-500 leading-relaxed">
+                <p className="text-lg text-muted-foreground leading-relaxed">
                     {feature.description}
                 </p>
 
@@ -116,7 +116,7 @@ const FeatureRow = ({ feature, index, isReversed }) => {
                     {feature.bullets.map((bullet, idx) => (
                         <li key={idx} className="flex items-start gap-3">
                             <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5 shrink-0" />
-                            <span className="text-zinc-700">{bullet}</span>
+                            <span className="text-foreground/90">{bullet}</span>
                         </li>
                     ))}
                 </ul>
@@ -128,8 +128,8 @@ const FeatureRow = ({ feature, index, isReversed }) => {
                 ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'}`}>
                 <div className="relative group">
                     {/* Screenshot Container */}
-                    <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-zinc-900/10
-                        border border-stone-200 bg-white
+                    <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-black/10 dark:shadow-black/30
+                        border border-border bg-card
                         group-hover:shadow-3xl group-hover:shadow-zinc-900/15 
                         group-hover:-translate-y-1 transition-all duration-500">
                         {image && (
@@ -160,7 +160,7 @@ export const SolutionSection = () => {
 
     return (
         <>
-            <section ref={ref} className="py-28 lg:py-32 bg-white overflow-hidden">
+            <section ref={ref} className="py-28 lg:py-32 bg-background overflow-hidden">
                 <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
                     {/* Section Header */}
                     <div className={`text-center max-w-3xl mx-auto mb-20 transform transition-all duration-700
@@ -169,12 +169,12 @@ export const SolutionSection = () => {
                             rounded-full uppercase tracking-wider mb-6">
                             Giải pháp
                         </span>
-                        <h2 className="font-display text-4xl lg:text-5xl font-bold text-zinc-900 tracking-tight">
+                        <h2 className="font-display text-4xl lg:text-5xl font-bold text-foreground tracking-tight">
                             Skill Master giải quyết
                             <br />
-                            <span className="text-zinc-400">tất cả cho bạn</span>
+                            <span className="text-muted-foreground/70">tất cả cho bạn</span>
                         </h2>
-                        <p className="mt-6 text-lg text-zinc-500 leading-relaxed max-w-2xl mx-auto">
+                        <p className="mt-6 text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto">
                             Một nền tảng duy nhất cho cả quản lý trung tâm và trải nghiệm học tập.
                             Không phải phần mềm rời rạc — mà là hệ sinh thái hoàn chỉnh.
                         </p>
@@ -191,10 +191,10 @@ export const SolutionSection = () => {
                     ))}
 
                     {/* Bottom Divider + CTA */}
-                    <div className={`mt-24 pt-16 border-t border-stone-200 text-center
+                    <div className={`mt-24 pt-16 border-t border-border text-center
                         transform transition-all duration-700 delay-500
                         ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-                        <p className="text-lg text-zinc-500 mb-6">
+                        <p className="text-lg text-muted-foreground mb-6">
                             Sẵn sàng trải nghiệm nền tảng?
                         </p>
                         <button

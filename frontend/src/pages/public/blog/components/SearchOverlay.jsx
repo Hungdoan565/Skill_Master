@@ -48,27 +48,27 @@ export const SearchOverlay = ({ isOpen, onClose }) => {
             />
 
             {/* Modal */}
-            <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="relative w-full max-w-2xl bg-card rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
                 {/* Search Header */}
-                <div className="relative p-6 border-b border-stone-100">
-                    <Search className="absolute left-8 top-1/2 -translate-y-1/2 w-6 h-6 text-zinc-400" />
+                <div className="relative p-6 border-b border-border/50">
+                    <Search className="absolute left-8 top-1/2 -translate-y-1/2 w-6 h-6 text-muted-foreground/70" />
                     <input
                         ref={inputRef}
                         type="text"
                         placeholder="Tìm kiếm bài viết, chủ đề..."
-                        className="w-full pl-12 pr-12 py-3 text-lg bg-transparent border-none focus:ring-0 text-zinc-900 placeholder:text-zinc-400"
+                        className="w-full pl-12 pr-12 py-3 text-lg bg-transparent border-none focus:ring-0 text-foreground placeholder:text-muted-foreground/70"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         onKeyDown={(e) => e.key === 'Escape' && onClose()}
                     />
                     <button
                         onClick={onClose}
-                        className="absolute right-6 top-1/2 -translate-y-1/2 p-2 text-zinc-400 hover:text-zinc-900 transition-colors"
+                        className="absolute right-6 top-1/2 -translate-y-1/2 p-2 text-muted-foreground/70 hover:text-foreground transition-colors"
                     >
                         <X className="w-5 h-5" />
                     </button>
                     <div className="absolute right-16 top-1/2 -translate-y-1/2 hidden sm:block">
-                        <span className="text-[10px] font-bold text-zinc-400 px-1.5 py-0.5 rounded border border-stone-200">
+                        <span className="text-[10px] font-bold text-muted-foreground/70 px-1.5 py-0.5 rounded border border-border">
                             ESC
                         </span>
                     </div>
@@ -79,14 +79,14 @@ export const SearchOverlay = ({ isOpen, onClose }) => {
                     {!query.trim() ? (
                         <div className="py-8 text-center">
                             <TrendingUp className="w-12 h-12 text-stone-100 mx-auto mb-4" />
-                            <p className="text-zinc-500 font-medium">Nhập từ khóa để bắt đầu tìm kiếm</p>
+                            <p className="text-muted-foreground font-medium">Nhập từ khóa để bắt đầu tìm kiếm</p>
 
                             <div className="mt-8 flex flex-wrap justify-center gap-2">
                                 {['IELTS', 'TOEIC', 'Excel', 'Writing'].map(tag => (
                                     <button
                                         key={tag}
                                         onClick={() => setQuery(tag)}
-                                        className="px-4 py-2 bg-stone-50 text-zinc-600 text-sm font-medium rounded-xl hover:bg-stone-100 transition-colors"
+                                        className="px-4 py-2 bg-muted text-muted-foreground text-sm font-medium rounded-xl hover:bg-muted transition-colors"
                                     >
                                         #{tag}
                                     </button>
@@ -100,7 +100,7 @@ export const SearchOverlay = ({ isOpen, onClose }) => {
                                     key={post.id}
                                     to={`/blog/${post.slug}`}
                                     onClick={onClose}
-                                    className="group flex gap-4 p-3 rounded-2xl hover:bg-stone-50 transition-all border border-transparent hover:border-stone-100"
+                                    className="group flex gap-4 p-3 rounded-2xl hover:bg-muted transition-all border border-transparent hover:border-border/50"
                                 >
                                     <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
                                         <SmartImage
@@ -112,13 +112,13 @@ export const SearchOverlay = ({ isOpen, onClose }) => {
                                         />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <h4 className="font-bold text-zinc-900 line-clamp-1 group-hover:text-red-600 transition-colors">
+                                        <h4 className="font-bold text-foreground line-clamp-1 group-hover:text-red-600 transition-colors">
                                             {post.title}
                                         </h4>
-                                        <p className="text-xs text-zinc-500 line-clamp-1 mt-1">
+                                        <p className="text-xs text-muted-foreground line-clamp-1 mt-1">
                                             {post.excerpt}
                                         </p>
-                                        <div className="flex items-center gap-3 mt-2 text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">
+                                        <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground/70 font-semibold uppercase tracking-wider">
                                             <span className="text-red-600">{post.category}</span>
                                             <span>•</span>
                                             <div className="flex items-center gap-1">
@@ -128,13 +128,13 @@ export const SearchOverlay = ({ isOpen, onClose }) => {
                                         </div>
                                     </div>
                                     <div className="self-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <ChevronRight className="w-5 h-5 text-zinc-400" />
+                                        <ChevronRight className="w-5 h-5 text-muted-foreground/70" />
                                     </div>
                                 </Link>
                             ))}
                         </div>
                     ) : (
-                        <div className="py-12 text-center text-zinc-500">
+                        <div className="py-12 text-center text-muted-foreground">
                             Không tìm thấy kết quả cho "<span className="font-semibold">{query}</span>"
                         </div>
                     )}
@@ -142,7 +142,7 @@ export const SearchOverlay = ({ isOpen, onClose }) => {
 
                 {/* Footer */}
                 {results.length > 0 && (
-                    <div className="p-4 bg-stone-50 text-center border-t border-stone-100">
+                    <div className="p-4 bg-muted text-center border-t border-border/50">
                         <Link
                             to={`/blog?search=${query}`}
                             onClick={onClose}

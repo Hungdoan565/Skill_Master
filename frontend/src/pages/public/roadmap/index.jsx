@@ -62,16 +62,16 @@ const PageHeader = () => {
           <div className="lg:col-span-5 p-6 lg:p-12 lg:border-r border-neutral-900">
             <div className={`transform transition-all duration-500
                           ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-              <span className="inline-flex items-center gap-2 text-xs font-medium tracking-widest uppercase text-neutral-500 mb-6">
+              <span className="inline-flex items-center gap-2 text-xs font-medium tracking-widest uppercase text-muted-foreground mb-6">
                 <span className="w-8 h-px bg-neutral-400" />
                 Lộ trình học tập
               </span>
-              <h1 className="text-4xl lg:text-5xl xl:text-6xl font-bold text-neutral-900 tracking-tight leading-[1.1]">
+              <h1 className="text-4xl lg:text-5xl xl:text-6xl font-bold text-foreground tracking-tight leading-[1.1]">
                 Đích đến của bạn?
               </h1>
 
               {/* Quick Stats - Below Title */}
-              <div className="flex gap-8 mt-10 pt-8 border-t border-neutral-200">
+              <div className="flex gap-8 mt-10 pt-8 border-t border-border">
                 {quickStats.map((stat, i) => (
                   <div
                     key={i}
@@ -79,8 +79,8 @@ const PageHeader = () => {
                              ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
                     style={{ transitionDelay: `${200 + i * 100}ms` }}
                   >
-                    <span className="text-3xl font-bold text-neutral-900">{stat.value}</span>
-                    <p className="text-xs text-neutral-500 mt-1">{stat.label}</p>
+                    <span className="text-3xl font-bold text-foreground">{stat.value}</span>
+                    <p className="text-xs text-muted-foreground mt-1">{stat.label}</p>
                   </div>
                 ))}
               </div>
@@ -91,7 +91,7 @@ const PageHeader = () => {
           <div className="lg:col-span-7 flex flex-col">
             <div className={`flex-1 p-6 lg:p-12 transform transition-all duration-500 delay-100
                           ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-              <p className="text-lg text-neutral-600 leading-relaxed max-w-xl">
+              <p className="text-lg text-muted-foreground leading-relaxed max-w-xl">
                 Mỗi người có một mục tiêu riêng. Hãy cho chúng tôi biết bạn muốn
                 đi đâu, và chúng tôi sẽ vẽ ra con đường ngắn nhất để bạn đến được đó.
               </p>
@@ -100,24 +100,24 @@ const PageHeader = () => {
               <div className="mt-8 flex items-center gap-4">
                 <div className="flex items-center gap-2 text-sm">
                   <span className="w-6 h-6 bg-neutral-900 text-white flex items-center justify-center text-xs font-bold">1</span>
-                  <span className="text-neutral-600">Chọn mục tiêu</span>
+                  <span className="text-muted-foreground">Chọn mục tiêu</span>
                 </div>
                 <ArrowRight className="w-4 h-4 text-neutral-300" />
                 <div className="flex items-center gap-2 text-sm">
-                  <span className="w-6 h-6 bg-neutral-200 text-neutral-600 flex items-center justify-center text-xs font-bold">2</span>
+                  <span className="w-6 h-6 bg-neutral-200 text-muted-foreground flex items-center justify-center text-xs font-bold">2</span>
                   <span className="text-neutral-400">Xác định level</span>
                 </div>
                 <ArrowRight className="w-4 h-4 text-neutral-300" />
                 <div className="flex items-center gap-2 text-sm">
-                  <span className="w-6 h-6 bg-neutral-200 text-neutral-600 flex items-center justify-center text-xs font-bold">3</span>
+                  <span className="w-6 h-6 bg-neutral-200 text-muted-foreground flex items-center justify-center text-xs font-bold">3</span>
                   <span className="text-neutral-400">Bắt đầu học</span>
                 </div>
               </div>
             </div>
 
             {/* Scroll CTA */}
-            <div className="p-6 lg:px-12 lg:pb-12 border-t border-neutral-200">
-              <a href="#goals" className="inline-flex items-center gap-3 text-neutral-900 font-medium
+            <div className="p-6 lg:px-12 lg:pb-12 border-t border-border">
+              <a href="#goals" className="inline-flex items-center gap-3 text-foreground font-medium
                                         hover:opacity-60 transition-opacity group">
                 <span className="w-10 h-10 border border-neutral-900 flex items-center justify-center
                               group-hover:bg-neutral-900 group-hover:text-white transition-colors">
@@ -184,19 +184,19 @@ const GoalsSection = () => {
       <div className="max-w-[1600px] mx-auto">
 
         {/* Section Header */}
-        <div className="grid lg:grid-cols-12 border-b border-neutral-200">
-          <div className="lg:col-span-4 p-6 lg:p-12 lg:border-r border-neutral-200">
-            <span className="text-xs font-medium tracking-widest uppercase text-neutral-500">
+        <div className="grid lg:grid-cols-12 border-b border-border">
+          <div className="lg:col-span-4 p-6 lg:p-12 lg:border-r border-border">
+            <span className="text-xs font-medium tracking-widest uppercase text-muted-foreground">
               Bước 1
             </span>
           </div>
           <div className={`lg:col-span-8 p-6 lg:p-12
                         transform transition-all duration-500
                         ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-            <h2 className="text-3xl lg:text-4xl font-bold text-neutral-900 tracking-tight">
+            <h2 className="text-3xl lg:text-4xl font-bold text-foreground tracking-tight">
               Chọn mục tiêu của bạn
             </h2>
-            <p className="mt-4 text-neutral-500">
+            <p className="mt-4 text-muted-foreground">
               Click vào mục tiêu phù hợp để xem lộ trình chi tiết
             </p>
           </div>
@@ -207,7 +207,7 @@ const GoalsSection = () => {
           {goals.map((goal, i) => (
             <div
               key={goal.id}
-              className={`relative border-b lg:border-b-0 lg:border-r border-neutral-200 last:border-r-0
+              className={`relative border-b lg:border-b-0 lg:border-r border-border last:border-r-0
                        transform transition-all duration-500 cursor-pointer
                        ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
               style={{ transitionDelay: `${100 + i * 100}ms` }}
@@ -222,12 +222,12 @@ const GoalsSection = () => {
 
               {/* Card Header */}
               <div className={`p-6 lg:p-8 transition-colors duration-300
-                           ${hoveredGoal === goal.id ? goal.color : 'bg-white'}`}>
+                           ${hoveredGoal === goal.id ? goal.color : 'bg-card'}`}>
 
                 {/* Top row */}
                 <div className="flex items-start justify-between mb-6">
                   <div className={`w-14 h-14 flex items-center justify-center transition-colors duration-300
-                               ${goal.popular ? 'bg-[#FF4D00] text-white' : 'bg-neutral-100 text-neutral-900'}`}>
+                               ${goal.popular ? 'bg-[#FF4D00] text-white' : 'bg-muted text-foreground'}`}>
                     <goal.icon className="w-7 h-7" />
                   </div>
                   <div className="text-right">
@@ -241,44 +241,44 @@ const GoalsSection = () => {
                 </div>
 
                 {/* Title */}
-                <h3 className="text-2xl font-bold text-neutral-900 mb-2">{goal.title}</h3>
-                <p className={`text-sm font-semibold mb-4 ${goal.popular ? 'text-[#FF4D00]' : 'text-neutral-500'}`}>
+                <h3 className="text-2xl font-bold text-foreground mb-2">{goal.title}</h3>
+                <p className={`text-sm font-semibold mb-4 ${goal.popular ? 'text-[#FF4D00]' : 'text-muted-foreground'}`}>
                   {goal.subtitle}
                 </p>
-                <p className="text-neutral-600 leading-relaxed mb-6">{goal.description}</p>
+                <p className="text-muted-foreground leading-relaxed mb-6">{goal.description}</p>
 
                 {/* Quick Stats */}
                 <div className="flex gap-4 mb-6">
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-neutral-400" />
-                    <span className="text-sm text-neutral-600">{goal.stats.duration}</span>
+                    <span className="text-sm text-muted-foreground">{goal.stats.duration}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4 text-neutral-400" />
-                    <span className="text-sm text-neutral-600">{goal.stats.students}</span>
+                    <span className="text-sm text-muted-foreground">{goal.stats.students}</span>
                   </div>
                 </div>
 
                 {/* Target Badge */}
                 <div className={`inline-flex items-center gap-2 px-4 py-2 mb-6
-                             ${goal.popular ? 'bg-[#FF4D00]/10 text-[#FF4D00]' : 'bg-neutral-100 text-neutral-700'}`}>
+                             ${goal.popular ? 'bg-[#FF4D00]/10 text-[#FF4D00]' : 'bg-muted text-neutral-700'}`}>
                   <Target className="w-4 h-4" />
                   <span className="text-sm font-semibold">Mục tiêu: {goal.stats.target}</span>
                 </div>
               </div>
 
               {/* Expandable Courses on Hover */}
-              <div className={`overflow-hidden transition-all duration-300 border-t border-neutral-200
+              <div className={`overflow-hidden transition-all duration-300 border-t border-border
                            ${hoveredGoal === goal.id ? 'max-h-[300px]' : 'max-h-0'}`}>
-                <div className="p-6 lg:p-8 bg-neutral-50">
-                  <p className="text-xs font-medium tracking-widest uppercase text-neutral-500 mb-4">
+                <div className="p-6 lg:p-8 bg-muted">
+                  <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-4">
                     Khóa học đề xuất
                   </p>
                   <div className="space-y-2 mb-6">
                     {goal.courses.map((course, j) => (
-                      <div key={j} className="flex items-center gap-3 p-3 bg-white border border-neutral-200">
+                      <div key={j} className="flex items-center gap-3 p-3 bg-card border border-border">
                         <CheckCircle className={`w-4 h-4 ${goal.popular ? 'text-[#FF4D00]' : 'text-neutral-400'}`} />
-                        <span className="text-sm font-medium text-neutral-900">{course}</span>
+                        <span className="text-sm font-medium text-foreground">{course}</span>
                       </div>
                     ))}
                   </div>
@@ -294,7 +294,7 @@ const GoalsSection = () => {
                     </Link>
                     <Link to="/contact"
                       className="flex-1 py-3 border border-neutral-300 text-neutral-700 text-center text-sm 
-                                   font-semibold uppercase tracking-wider hover:bg-white transition-colors duration-150">
+                                   font-semibold uppercase tracking-wider hover:bg-card transition-colors duration-150">
                       Tư vấn
                     </Link>
                   </div>
@@ -379,23 +379,23 @@ const LevelsSection = () => {
   };
 
   return (
-    <section ref={ref} className="border-b border-neutral-900 bg-neutral-50">
+    <section ref={ref} className="border-b border-neutral-900 bg-muted">
       <div className="max-w-[1600px] mx-auto">
 
         {/* Section Header */}
-        <div className="grid lg:grid-cols-12 border-b border-neutral-200">
-          <div className="lg:col-span-4 p-6 lg:p-12 lg:border-r border-neutral-200">
-            <span className="text-xs font-medium tracking-widest uppercase text-neutral-500">
+        <div className="grid lg:grid-cols-12 border-b border-border">
+          <div className="lg:col-span-4 p-6 lg:p-12 lg:border-r border-border">
+            <span className="text-xs font-medium tracking-widest uppercase text-muted-foreground">
               Bước 2
             </span>
           </div>
           <div className={`lg:col-span-8 p-6 lg:p-12
                         transform transition-all duration-500
                         ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-            <h2 className="text-3xl lg:text-4xl font-bold text-neutral-900 tracking-tight">
+            <h2 className="text-3xl lg:text-4xl font-bold text-foreground tracking-tight">
               Xác định trình độ hiện tại
             </h2>
-            <p className="mt-4 text-neutral-500">
+            <p className="mt-4 text-muted-foreground">
               Hover để xem chi tiết • Mỗi level có màu sắc riêng biệt
             </p>
           </div>
@@ -431,7 +431,7 @@ const LevelsSection = () => {
                     <span className={`text-sm font-bold ${getColorClasses(level.color, 'text')}`}>
                       {level.level}
                     </span>
-                    <span className="block text-xs text-neutral-500 mt-1">{level.title}</span>
+                    <span className="block text-xs text-muted-foreground mt-1">{level.title}</span>
                   </div>
                 </div>
               ))}
@@ -451,10 +451,10 @@ const LevelsSection = () => {
               onMouseEnter={() => setActiveLevel(level.id)}
               onMouseLeave={() => setActiveLevel(null)}
             >
-              <div className={`bg-white border-2 transition-all duration-300 overflow-hidden
+              <div className={`bg-card border-2 transition-all duration-300 overflow-hidden
                            ${activeLevel === level.id
                   ? getColorClasses(level.color, 'border') + ' shadow-lg'
-                  : 'border-neutral-200'}`}>
+                  : 'border-border'}`}>
 
                 {/* Color Bar */}
                 <div className={`h-1.5 ${getColorClasses(level.color, 'accent')}`} />
@@ -475,8 +475,8 @@ const LevelsSection = () => {
                                      ${getColorClasses(level.color, 'badge')}`}>
                         {level.level}
                       </span>
-                      <h3 className="text-2xl font-bold text-neutral-900 mt-3">{level.title}</h3>
-                      <p className="text-neutral-500 mt-1">{level.subtitle}</p>
+                      <h3 className="text-2xl font-bold text-foreground mt-3">{level.title}</h3>
+                      <p className="text-muted-foreground mt-1">{level.subtitle}</p>
                     </div>
                     <span className="text-sm text-neutral-400">{level.duration}</span>
                   </div>
@@ -524,9 +524,9 @@ const LevelsSection = () => {
         </div>
 
         {/* CTA Row */}
-        <div className="grid lg:grid-cols-12 border-t border-neutral-200">
-          <div className="lg:col-span-8 p-6 lg:p-8 lg:border-r border-neutral-200">
-            <p className="text-neutral-600">
+        <div className="grid lg:grid-cols-12 border-t border-border">
+          <div className="lg:col-span-8 p-6 lg:p-8 lg:border-r border-border">
+            <p className="text-muted-foreground">
               Chưa biết trình độ của mình? Làm bài test nhanh để được xếp lớp chính xác.
             </p>
           </div>
@@ -593,7 +593,7 @@ const WhySection = () => {
         {/* Section Header */}
         <div className="grid lg:grid-cols-12 border-b border-neutral-800">
           <div className="lg:col-span-4 p-6 lg:p-12 lg:border-r border-neutral-800">
-            <span className="text-xs font-medium tracking-widest uppercase text-neutral-500">
+            <span className="text-xs font-medium tracking-widest uppercase text-muted-foreground">
               Tại sao chọn chúng tôi
             </span>
           </div>
@@ -644,7 +644,7 @@ const WhySection = () => {
                   <div className="w-10 h-10 bg-neutral-800 flex items-center justify-center">
                     <feature.icon className="w-5 h-5 text-white" />
                   </div>
-                  <span className="text-sm text-neutral-600">{feature.num}</span>
+                  <span className="text-sm text-muted-foreground">{feature.num}</span>
                 </div>
 
                 <h3 className="text-lg font-bold text-white mb-2">{feature.title}</h3>
@@ -672,7 +672,7 @@ const WhySection = () => {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-neutral-500 mt-2">{stat.label}</p>
+                <p className="text-sm text-muted-foreground mt-2">{stat.label}</p>
               )}
             </div>
           ))}
@@ -689,17 +689,17 @@ const CTASection = () => {
   const [ref, isInView] = useInView();
 
   return (
-    <section ref={ref} className="bg-white">
+    <section ref={ref} className="bg-background">
       <div className="max-w-[1600px] mx-auto">
         <div className="grid lg:grid-cols-12">
           {/* Left - Main Message */}
-          <div className="lg:col-span-7 p-8 lg:p-16 lg:border-r border-neutral-200">
-            <h2 className={`text-3xl lg:text-4xl font-bold text-neutral-900 tracking-tight
+          <div className="lg:col-span-7 p-8 lg:p-16 lg:border-r border-border">
+            <h2 className={`text-3xl lg:text-4xl font-bold text-foreground tracking-tight
                         transform transition-all duration-500
                         ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
               Bắt đầu hành trình ngay hôm nay
             </h2>
-            <p className={`mt-4 text-neutral-500 leading-relaxed max-w-xl
+            <p className={`mt-4 text-muted-foreground leading-relaxed max-w-xl
                         transform transition-all duration-500 delay-100
                         ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
               Đăng ký tư vấn miễn phí để nhận lộ trình học tập được thiết kế riêng cho bạn.
@@ -725,7 +725,7 @@ const CTASection = () => {
             <Link
               to="/courses"
               className="w-full py-4 mt-3 border border-neutral-300 text-neutral-700 text-sm font-semibold uppercase tracking-wider
-                       hover:bg-neutral-50 transition-colors duration-150 text-center"
+                       hover:bg-muted transition-colors duration-150 text-center"
             >
               Xem danh sách khóa học
             </Link>
@@ -747,7 +747,7 @@ const CTASection = () => {
 // ============================================
 export const RoadmapPage = () => {
   return (
-    <div className="min-h-screen bg-white antialiased">
+    <div className="min-h-screen bg-card antialiased">
       <SEOHead
         title="Lộ trình học tập"
         description="Khám phá lộ trình học tập tối ưu cho IELTS, TOEIC và Tin học quốc tế tại Skill Master. Từ mất gốc đến thành thạo với phương pháp học hiện đại."

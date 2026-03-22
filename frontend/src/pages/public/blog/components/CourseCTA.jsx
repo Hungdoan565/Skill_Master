@@ -12,6 +12,11 @@ import {
     Zap
 } from 'lucide-react';
 
+import ieltsRoadmapImg from '@/assets/blog/thumbnails/ielts-roadmap.png';
+import toeicListeningImg from '@/assets/blog/thumbnails/toeic-listening.png';
+import excelFormulasImg from '@/assets/blog/thumbnails/excel-formulas.png';
+import graduationImg from '@/assets/landing/trust/graduation.png';
+
 // ============================================
 // SCROLL-TO-TOP LINK COMPONENT
 // ============================================
@@ -39,7 +44,7 @@ const COURSE_RECOMMENDATIONS = {
         title: 'Khóa học IELTS Intensive',
         subtitle: 'Lộ trình cam kết đầu ra 7.0+',
         description: 'Học 1-1 với giáo viên 8.0+ IELTS. Phương pháp học tập khoa học, cam kết kết quả.',
-        image: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=600',
+        image: ieltsRoadmapImg,
         badge: 'Best Seller',
         rating: 4.9,
         students: 2847,
@@ -53,7 +58,7 @@ const COURSE_RECOMMENDATIONS = {
         title: 'TOEIC 700+ Guarantee',
         subtitle: 'Chinh phục TOEIC trong 2 tháng',
         description: 'Phương pháp học tối ưu cho người đi làm. Lịch học linh hoạt, tài liệu độc quyền.',
-        image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=600',
+        image: toeicListeningImg,
         badge: 'Hot',
         rating: 4.8,
         students: 3521,
@@ -67,7 +72,7 @@ const COURSE_RECOMMENDATIONS = {
         title: 'Excel & Office Master',
         subtitle: 'Thành thạo Excel trong 30 ngày',
         description: 'Từ cơ bản đến nâng cao. Ứng dụng thực tế cho công việc văn phòng.',
-        image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600',
+        image: excelFormulasImg,
         badge: 'New',
         rating: 4.7,
         students: 1893,
@@ -81,7 +86,7 @@ const COURSE_RECOMMENDATIONS = {
         title: 'Khám phá các khóa học',
         subtitle: 'Nâng cao kỹ năng của bạn',
         description: 'Hàng trăm khóa học chất lượng cao đang chờ bạn khám phá.',
-        image: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=600',
+        image: graduationImg,
         badge: 'Explore',
         rating: 4.8,
         students: 15000,
@@ -198,7 +203,7 @@ export const InArticleCourseCTA = ({ category }) => {
                                     {formatPrice(course.salePrice)}
                                 </span>
                                 {course.originalPrice && (
-                                    <span className="text-sm text-stone-500 line-through">
+                                    <span className="text-sm text-muted-foreground line-through">
                                         {formatPrice(course.originalPrice)}
                                     </span>
                                 )}
@@ -248,7 +253,7 @@ export const SidebarCourseCTA = ({ category }) => {
 
             <ScrollLink
                 to={course.slug}
-                className="block w-full py-2.5 bg-white text-red-600 font-semibold 
+                className="block w-full py-2.5 bg-card text-red-600 font-semibold 
                     text-center rounded-xl hover:bg-red-50 transition-colors"
             >
                 Tìm hiểu thêm
@@ -264,17 +269,17 @@ export const EndOfArticleCTA = ({ category }) => {
     const course = COURSE_RECOMMENDATIONS[category] || COURSE_RECOMMENDATIONS.default;
 
     return (
-        <div className="bg-stone-50 rounded-2xl p-8 text-center my-8">
+        <div className="bg-muted rounded-2xl p-8 text-center my-8">
             <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center 
                 mx-auto mb-4">
                 <Sparkles className="w-8 h-8 text-red-600" />
             </div>
 
-            <h3 className="text-xl font-bold text-zinc-900 mb-2">
+            <h3 className="text-xl font-bold text-foreground mb-2">
                 Bạn muốn học sâu hơn?
             </h3>
 
-            <p className="text-zinc-600 mb-6 max-w-md mx-auto">
+            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
                 Tham gia <strong>{course.title}</strong> để được hướng dẫn bài bản
                 và đạt kết quả nhanh chóng.
             </p>
@@ -290,8 +295,8 @@ export const EndOfArticleCTA = ({ category }) => {
                 </ScrollLink>
                 <ScrollLink
                     to="/courses"
-                    className="px-6 py-3 bg-white text-zinc-600 font-medium rounded-xl 
-                        border border-stone-200 hover:bg-stone-50 transition-colors"
+                    className="px-6 py-3 bg-card text-muted-foreground font-medium rounded-xl 
+                        border border-border hover:bg-muted transition-colors"
                 >
                     Xem tất cả khóa học
                 </ScrollLink>

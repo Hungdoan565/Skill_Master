@@ -54,7 +54,7 @@ export const SocialShare = ({ url, title, description }) => {
 
     return (
         <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-zinc-500">Chia sẻ:</span>
+            <span className="text-sm font-medium text-muted-foreground">Chia sẻ:</span>
             <div className="flex items-center gap-2">
                 {shareLinks.map((link) => (
                     <a
@@ -62,8 +62,8 @@ export const SocialShare = ({ url, title, description }) => {
                         href={link.href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className={`w-10 h-10 rounded-full border border-stone-200 
-                            flex items-center justify-center text-zinc-500
+                        className={`w-10 h-10 rounded-full border border-border 
+                            flex items-center justify-center text-muted-foreground
                             transition-all duration-300 ${link.color}`}
                         aria-label={link.ariaLabel}
                     >
@@ -72,11 +72,11 @@ export const SocialShare = ({ url, title, description }) => {
                 ))}
                 <button
                     onClick={copyToClipboard}
-                    className={`w-10 h-10 rounded-full border border-stone-200 
+                    className={`w-10 h-10 rounded-full border border-border 
                         flex items-center justify-center transition-all duration-300
                         ${copied
                             ? 'bg-green-500 text-white border-green-500'
-                            : 'text-zinc-500 hover:bg-zinc-800 hover:text-white hover:border-zinc-800'
+                            : 'text-muted-foreground hover:bg-zinc-800 hover:text-white hover:border-zinc-800'
                         }`}
                     aria-label={copied ? 'Đã sao chép' : 'Sao chép liên kết'}
                 >
@@ -129,7 +129,7 @@ export const FloatingSocialShare = ({ url, title, description }) => {
 
     return (
         <div className="fixed left-6 top-1/2 -translate-y-1/2 z-40 hidden xl:flex flex-col gap-3">
-            <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-2 -rotate-90 origin-center whitespace-nowrap absolute -left-8 top-1/2">
+            <span className="text-xs font-medium text-muted-foreground/70 uppercase tracking-wider mb-2 -rotate-90 origin-center whitespace-nowrap absolute -left-8 top-1/2">
                 Chia sẻ
             </span>
             {shareLinks.map((link) => (

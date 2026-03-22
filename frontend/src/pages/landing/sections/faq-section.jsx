@@ -16,7 +16,7 @@ export const FAQSection = () => {
     };
 
     return (
-        <section id="faq" ref={ref} className="py-32 bg-white">
+        <section id="faq" ref={ref} className="py-32 bg-background">
             <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
                 {/* Section Header */}
                 <div className={`text-center max-w-2xl mx-auto transform transition-all duration-700
@@ -25,12 +25,12 @@ export const FAQSection = () => {
                         rounded-full uppercase tracking-wider mb-6">
                         Câu hỏi thường gặp
                     </span>
-                    <h2 className="font-display text-4xl lg:text-5xl font-bold text-zinc-900 tracking-tight">
+                    <h2 className="font-display text-4xl lg:text-5xl font-bold text-foreground tracking-tight">
                         Giải đáp thắc mắc
                         <br />
-                        <span className="text-zinc-400">của bạn</span>
+                        <span className="text-muted-foreground/70">của bạn</span>
                     </h2>
-                    <p className="mt-6 text-lg text-zinc-500">
+                    <p className="mt-6 text-lg text-muted-foreground">
                         Những câu hỏi phổ biến nhất từ học viên. Không tìm thấy câu trả lời?
                         Hãy liên hệ với chúng tôi!
                     </p>
@@ -43,8 +43,8 @@ export const FAQSection = () => {
                         return (
                             <div
                                 key={index}
-                                className={`group border border-stone-200 rounded-2xl overflow-hidden
-                         bg-white hover:border-stone-300 hover:shadow-lg hover:shadow-stone-200/50
+                                className={`group border border-border rounded-2xl overflow-hidden
+                         bg-card hover:border-border hover:shadow-lg hover:shadow-black/5 dark:shadow-black/20
                          transition-all duration-300
                          transform ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
                                 style={{ transitionDelay: `${200 + index * 50}ms` }}
@@ -59,12 +59,12 @@ export const FAQSection = () => {
                                     aria-controls={`faq-answer-${index}`}
                                 >
                                     <span className={`font-semibold text-lg transition-colors
-                                ${isOpen ? 'text-red-600' : 'text-zinc-900 group-hover:text-red-600'}`}>
+                                ${isOpen ? 'text-red-600' : 'text-foreground group-hover:text-red-600'}`}>
                                         {faq.question}
                                     </span>
                                     <ChevronDown
                                         className={`flex-shrink-0 w-5 h-5 ml-4 transition-all duration-300
-                              ${isOpen ? 'rotate-180 text-red-600' : 'text-zinc-400 group-hover:text-red-600'}`}
+                              ${isOpen ? 'rotate-180 text-red-600' : 'text-muted-foreground/70 group-hover:text-red-600'}`}
                                         aria-hidden="true"
                                     />
                                 </button>
@@ -77,7 +77,7 @@ export const FAQSection = () => {
                                     aria-hidden={!isOpen}
                                 >
                                     <div className="px-6 pb-5 pt-2">
-                                        <p className="text-zinc-600 leading-relaxed">
+                                        <p className="text-muted-foreground leading-relaxed">
                                             {faq.answer}
                                         </p>
                                     </div>
@@ -90,7 +90,7 @@ export const FAQSection = () => {
                 {/* Contact CTA */}
                 <div className={`mt-12 text-center transform transition-all duration-700 delay-500
                       ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-                    <p className="text-zinc-500 mb-4">
+                    <p className="text-muted-foreground mb-4">
                         Vẫn còn thắc mắc?
                     </p>
                     <a

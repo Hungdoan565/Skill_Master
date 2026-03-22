@@ -20,7 +20,7 @@ export const CoursesSection = () => {
 
     return (
         <>
-            <section id="courses" ref={ref} className="py-32 bg-stone-50">
+            <section id="courses" ref={ref} className="py-32 bg-muted">
                 <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
                     {/* Section Header */}
                     <div className={`max-w-2xl transform transition-all duration-700
@@ -29,12 +29,12 @@ export const CoursesSection = () => {
                           rounded-full uppercase tracking-wider mb-6">
                             Chương trình đào tạo
                         </span>
-                        <h2 className="font-display text-4xl lg:text-5xl font-bold text-zinc-900 tracking-tight">
+                        <h2 className="font-display text-4xl lg:text-5xl font-bold text-foreground tracking-tight">
                             Lộ trình học tập
                             <br />
-                            <span className="text-zinc-400">được thiết kế riêng</span>
+                            <span className="text-muted-foreground/70">được thiết kế riêng</span>
                         </h2>
-                        <p className="mt-6 text-lg text-zinc-500 leading-relaxed">
+                        <p className="mt-6 text-lg text-muted-foreground leading-relaxed">
                             Mỗi chương trình được xây dựng dựa trên phương pháp giảng dạy hiện đại,
                             kết hợp lý thuyết và thực hành để đảm bảo hiệu quả tối đa.
                         </p>
@@ -46,8 +46,8 @@ export const CoursesSection = () => {
                             <div
                                 key={index}
                                 onClick={() => handleCourseClick(course)}
-                                className={`group relative p-8 bg-white rounded-3xl border border-stone-200
-                         hover:border-stone-300 hover:shadow-xl hover:shadow-stone-200/50
+                                className={`group relative p-8 bg-card rounded-3xl border border-border
+                         hover:border-border hover:shadow-xl hover:shadow-black/5 dark:shadow-black/20
                          transition-all duration-500 cursor-pointer
                          transform ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
                                 style={{ transitionDelay: `${200 + index * 100}ms` }}
@@ -59,18 +59,18 @@ export const CoursesSection = () => {
                                 </span>
 
                                 {/* Content */}
-                                <h3 className="font-display text-2xl font-bold text-zinc-900 
-                            group-hover:text-zinc-700 transition-colors">
+                                <h3 className="font-display text-2xl font-bold text-foreground 
+                            group-hover:text-foreground/90 transition-colors">
                                     {course.title}
                                 </h3>
-                                <p className="mt-3 text-zinc-500 leading-relaxed">
+                                <p className="mt-3 text-muted-foreground leading-relaxed">
                                     {course.description}
                                 </p>
 
                                 {/* Features */}
                                 <div className="mt-6 flex flex-wrap gap-2">
                                     {course.features.map((feature, i) => (
-                                        <span key={i} className="px-3 py-1.5 bg-stone-100 text-zinc-600 
+                                        <span key={i} className="px-3 py-1.5 bg-muted text-muted-foreground 
                                           text-sm rounded-lg">
                                             {feature}
                                         </span>
@@ -78,10 +78,10 @@ export const CoursesSection = () => {
                                 </div>
 
                                 {/* Footer */}
-                                <div className="mt-8 pt-6 border-t border-stone-100 flex items-center justify-between">
+                                <div className="mt-8 pt-6 border-t border-border/50 flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-zinc-400">Thời lượng</p>
-                                        <p className="font-semibold text-zinc-900">{course.duration}</p>
+                                        <p className="text-sm text-muted-foreground/70">Thời lượng</p>
+                                        <p className="font-semibold text-foreground">{course.duration}</p>
                                     </div>
                                     <button
                                         className={`flex items-center justify-center w-12 h-12 rounded-full
@@ -112,7 +112,7 @@ export const CoursesSection = () => {
                         ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
                         <Link
                             to="/courses"
-                            className="inline-flex items-center gap-2 text-zinc-600 hover:text-zinc-900 
+                            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground 
                        font-medium transition-colors group"
                         >
                             Xem tất cả khóa học

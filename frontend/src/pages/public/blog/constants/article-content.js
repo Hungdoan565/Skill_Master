@@ -4,6 +4,13 @@
 // Detailed content for each blog post
 // ============================================
 
+import ieltsRoadmapImg from '@/assets/blog/thumbnails/ielts-roadmap.png';
+import toeicListeningImg from '@/assets/blog/thumbnails/toeic-listening.png';
+import excelFormulasImg from '@/assets/blog/thumbnails/excel-formulas.png';
+import ieltsWritingImg from '@/assets/blog/thumbnails/ielts-writing.png';
+import toeicGrammarImg from '@/assets/blog/thumbnails/toeic-grammar.png';
+import powerpointDesignImg from '@/assets/blog/thumbnails/powerpoint-design.png';
+
 export const ARTICLE_CONTENT = {
     // =========================================
     // POST 1: IELTS Roadmap 5.0 → 7.0
@@ -44,7 +51,7 @@ export const ARTICLE_CONTENT = {
 </ol>
 
 <figure>
-    <img src="https://images.unsplash.com/photo-1456324504439-367cee3b3c32?w=800" alt="Study schedule" />
+    <img src="${ieltsRoadmapImg}" alt="Study schedule" />
     <figcaption>Lên kế hoạch học tập khoa học là bước đầu tiên để thành công</figcaption>
 </figure>
 
@@ -145,7 +152,7 @@ Question: "Why was the meeting canceled?"
 </ul>
 
 <figure>
-    <img src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800" alt="TOEIC Listening" />
+    <img src="${toeicListeningImg}" alt="TOEIC Listening" />
     <figcaption>Luyện nghe đều đặn là chìa khóa để đạt điểm cao TOEIC Listening</figcaption>
 </figure>
 
@@ -208,7 +215,7 @@ Question: "Why was the meeting canceled?"
 =SUMIFS(D:D, A:A, "IELTS", B:B, ">7")  // Nhiều điều kiện</code></pre>
 
 <figure>
-    <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800" alt="Excel formulas" />
+    <img src="${excelFormulasImg}" alt="Excel formulas" />
     <figcaption>Excel là công cụ không thể thiếu trong công việc văn phòng</figcaption>
 </figure>
 
@@ -291,7 +298,7 @@ In conclusion, [restate thesis].
 [Final thought/recommendation].</code></pre>
 
 <figure>
-    <img src="https://images.unsplash.com/photo-1455390582262-044cdead277a?w=800" alt="IELTS Writing" />
+    <img src="${ieltsWritingImg}" alt="IELTS Writing" />
     <figcaption>Viết đúng cấu trúc là bước đầu tiên để đạt band cao</figcaption>
 </figure>
 
@@ -362,7 +369,7 @@ The company's _____ has increased by 20%.
 - next week, tomorrow → Future</code></pre>
 
 <figure>
-    <img src="https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=800" alt="TOEIC Grammar" />
+    <img src="${toeicGrammarImg}" alt="TOEIC Grammar" />
     <figcaption>Nắm vững ngữ pháp giúp bạn làm Part 5 nhanh và chính xác</figcaption>
 </figure>
 
@@ -421,7 +428,7 @@ The company's _____ has increased by 20%.
 </p>
 
 <figure>
-    <img src="https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800" alt="PowerPoint Design" />
+    <img src="${powerpointDesignImg}" alt="PowerPoint Design" />
     <figcaption>Thiết kế đơn giản giúp khán giả tập trung vào nội dung</figcaption>
 </figure>
 
@@ -450,7 +457,7 @@ Background: #FFFFFF (White)</code></pre>
     Nguồn ảnh miễn phí chất lượng:
 </p>
 <ol>
-    <li>Unsplash.com</li>
+    <li>Freepik.com</li>
     <li>Pexels.com</li>
     <li>Pixabay.com</li>
 </ol>

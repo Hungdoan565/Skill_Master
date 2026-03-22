@@ -12,13 +12,13 @@ import { testimonials } from '../constants/landing-data';
 
 // ── Mini compact card for the flanking positions ──────────────────────
 const CompactCard = ({ t }) => (
-    <div className="flex-1 p-5 bg-white rounded-2xl border border-stone-200 shadow-sm flex flex-col gap-4">
+    <div className="flex-1 p-5 bg-card rounded-2xl border border-border shadow-sm flex flex-col gap-4">
         <div className="flex items-center gap-1">
             {[...Array(5)].map((_, i) => (
                 <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
             ))}
         </div>
-        <p className="text-zinc-600 text-sm leading-relaxed flex-1 line-clamp-4">
+        <p className="text-muted-foreground text-sm leading-relaxed flex-1 line-clamp-4">
             "{t.content}"
         </p>
         <div>
@@ -26,13 +26,13 @@ const CompactCard = ({ t }) => (
                 style={{ backgroundColor: t.resultColor || '#374151' }}>
                 {t.result}
             </span>
-            <div className="flex items-center gap-2.5 pt-3 border-t border-stone-100">
+            <div className="flex items-center gap-2.5 pt-3 border-t border-border/50">
                 <div className={`w-8 h-8 rounded-full ${t.color} flex items-center justify-center shrink-0`}>
                     <span className="text-white font-bold text-xs">{t.initials}</span>
                 </div>
                 <div>
-                    <p className="text-xs font-semibold text-zinc-800">{t.author}</p>
-                    <p className="text-[11px] text-zinc-400">{t.role}</p>
+                    <p className="text-xs font-semibold text-foreground">{t.author}</p>
+                    <p className="text-[11px] text-muted-foreground/70">{t.role}</p>
                 </div>
             </div>
         </div>
@@ -41,7 +41,7 @@ const CompactCard = ({ t }) => (
 
 // ── Featured hero card ────────────────────────────────────────────────
 const FeaturedCard = ({ t }) => (
-    <div className="relative bg-white rounded-3xl border border-stone-200 shadow-xl p-8 md:p-10 flex flex-col gap-6">
+    <div className="relative bg-card rounded-3xl border border-border shadow-xl p-8 md:p-10 flex flex-col gap-6">
         {/* Decorative huge quote mark */}
         <div className="absolute -top-5 -left-2 text-[120px] font-serif text-stone-100 leading-none select-none"
             aria-hidden="true">"</div>
@@ -54,7 +54,7 @@ const FeaturedCard = ({ t }) => (
         </div>
 
         {/* Quote text — big and prominent */}
-        <blockquote className="relative z-10 text-xl md:text-2xl font-medium text-zinc-800 leading-relaxed">
+        <blockquote className="relative z-10 text-xl md:text-2xl font-medium text-foreground leading-relaxed">
             "{t.content}"
         </blockquote>
 
@@ -65,17 +65,17 @@ const FeaturedCard = ({ t }) => (
                 <ArrowRight className="w-4 h-4" />
                 {t.result}
             </span>
-            <span className="text-zinc-400 text-sm">Kết quả thực tế sau khoá học</span>
+            <span className="text-muted-foreground/70 text-sm">Kết quả thực tế sau khoá học</span>
         </div>
 
         {/* Author */}
-        <div className="relative z-10 flex items-center gap-4 pt-6 border-t border-stone-100">
+        <div className="relative z-10 flex items-center gap-4 pt-6 border-t border-border/50">
             <div className={`w-14 h-14 rounded-2xl ${t.color} flex items-center justify-center shrink-0 shadow-md`}>
                 <span className="text-white font-bold text-lg">{t.initials}</span>
             </div>
             <div>
-                <p className="font-bold text-zinc-900 text-lg">{t.author}</p>
-                <p className="text-zinc-500">{t.role}</p>
+                <p className="font-bold text-foreground text-lg">{t.author}</p>
+                <p className="text-muted-foreground">{t.role}</p>
             </div>
         </div>
     </div>
@@ -83,7 +83,7 @@ const FeaturedCard = ({ t }) => (
 
 // ── Marquee card (compact horizontal) ────────────────────────────────
 const MarqueeCard = ({ t }) => (
-    <div className="shrink-0 w-72 mx-3 p-4 bg-white rounded-2xl border border-stone-200 shadow-sm 
+    <div className="shrink-0 w-72 mx-3 p-4 bg-card rounded-2xl border border-border shadow-sm 
         flex flex-col gap-3 hover:shadow-md transition-shadow duration-300">
         <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
@@ -96,14 +96,14 @@ const MarqueeCard = ({ t }) => (
                 {t.result}
             </span>
         </div>
-        <p className="text-zinc-600 text-sm leading-relaxed line-clamp-2">"{t.content}"</p>
-        <div className="flex items-center gap-2 pt-2 border-t border-stone-100">
+        <p className="text-muted-foreground text-sm leading-relaxed line-clamp-2">"{t.content}"</p>
+        <div className="flex items-center gap-2 pt-2 border-t border-border/50">
             <div className={`w-7 h-7 rounded-full ${t.color} flex items-center justify-center shrink-0`}>
                 <span className="text-white font-bold text-[10px]">{t.initials}</span>
             </div>
             <div>
-                <p className="text-xs font-semibold text-zinc-800">{t.author}</p>
-                <p className="text-[10px] text-zinc-400">{t.role}</p>
+                <p className="text-xs font-semibold text-foreground">{t.author}</p>
+                <p className="text-[10px] text-muted-foreground/70">{t.role}</p>
             </div>
         </div>
     </div>
@@ -139,7 +139,7 @@ const MarqueeRow = ({ items, reverse = false }) => {
 // ── Stats bar ─────────────────────────────────────────────────────────
 const StatsBar = () => (
     <div className="flex items-center justify-center gap-8 md:gap-16 py-8 px-6
-        bg-white rounded-2xl border border-stone-200 shadow-sm">
+        bg-card rounded-2xl border border-border shadow-sm">
         {[
             { value: '1,200+', label: 'Học viên theo học' },
             { value: '4.9/5', label: 'Đánh giá trung bình' },
@@ -147,8 +147,8 @@ const StatsBar = () => (
             { value: '50+', label: 'Khoá học hoàn thành' },
         ].map((stat) => (
             <div key={stat.label} className="text-center">
-                <p className="text-2xl md:text-3xl font-bold text-zinc-900">{stat.value}</p>
-                <p className="text-xs text-zinc-400 mt-1 whitespace-nowrap">{stat.label}</p>
+                <p className="text-2xl md:text-3xl font-bold text-foreground">{stat.value}</p>
+                <p className="text-xs text-muted-foreground/70 mt-1 whitespace-nowrap">{stat.label}</p>
             </div>
         ))}
     </div>
@@ -166,7 +166,7 @@ export const TestimonialsSection = () => {
     const row2 = [...testimonials].reverse();
 
     return (
-        <section id="testimonials" ref={ref} className="py-32 bg-stone-50 overflow-hidden">
+        <section id="testimonials" ref={ref} className="py-32 bg-muted overflow-hidden">
 
             {/* ── Part 1: Hero Spotlight ── */}
             <div className="max-w-[1200px] mx-auto px-6 lg:px-12">
@@ -177,10 +177,10 @@ export const TestimonialsSection = () => {
                         rounded-full uppercase tracking-wider mb-6">
                         Học viên nói gì
                     </span>
-                    <h2 className="font-display text-4xl lg:text-5xl font-bold text-zinc-900 tracking-tight">
+                    <h2 className="font-display text-4xl lg:text-5xl font-bold text-foreground tracking-tight">
                         Họ đã thành công
                         <br />
-                        <span className="text-zinc-400">cùng Skill Master</span>
+                        <span className="text-muted-foreground/70">cùng Skill Master</span>
                     </h2>
                 </div>
 

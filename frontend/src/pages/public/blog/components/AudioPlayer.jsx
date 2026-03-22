@@ -158,7 +158,7 @@ export const AudioPlayer = ({ content, title }) => {
     }
 
     return (
-        <div className="bg-gradient-to-r from-stone-50 to-stone-100 rounded-2xl p-4 border border-stone-200 shadow-sm">
+        <div className="bg-gradient-to-r from-stone-50 to-stone-100 dark:from-zinc-800 dark:to-zinc-900 rounded-2xl p-4 border border-border shadow-sm">
             <div className="flex items-center gap-4">
                 {/* Icon */}
                 <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-orange-500 rounded-xl 
@@ -168,7 +168,7 @@ export const AudioPlayer = ({ content, title }) => {
 
                 {/* Content */}
                 <div className="flex-1">
-                    <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">
+                    <p className="text-xs font-bold text-muted-foreground/70 uppercase tracking-wider mb-1">
                         🎧 Nghe bài viết
                     </p>
                     <div className="flex items-center gap-3">
@@ -176,7 +176,7 @@ export const AudioPlayer = ({ content, title }) => {
                         <button
                             onClick={skipBack}
                             disabled={!isPlaying}
-                            className="p-1.5 text-zinc-400 hover:text-zinc-900 disabled:opacity-30 transition-colors"
+                            className="p-1.5 text-muted-foreground/70 hover:text-foreground disabled:opacity-30 transition-colors"
                         >
                             <SkipBack className="w-4 h-4" />
                         </button>
@@ -196,7 +196,7 @@ export const AudioPlayer = ({ content, title }) => {
                         <button
                             onClick={skipForward}
                             disabled={!isPlaying}
-                            className="p-1.5 text-zinc-400 hover:text-zinc-900 disabled:opacity-30 transition-colors"
+                            className="p-1.5 text-muted-foreground/70 hover:text-foreground disabled:opacity-30 transition-colors"
                         >
                             <SkipForward className="w-4 h-4" />
                         </button>
@@ -211,7 +211,7 @@ export const AudioPlayer = ({ content, title }) => {
                         )}
 
                         {/* Progress Bar */}
-                        <div className="flex-1 h-1.5 bg-stone-200 rounded-full overflow-hidden">
+                        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                             <div
                                 className="h-full bg-gradient-to-r from-red-500 to-orange-500 transition-all duration-300"
                                 style={{ width: `${progress}%` }}
@@ -222,17 +222,17 @@ export const AudioPlayer = ({ content, title }) => {
                         <div className="relative">
                             <button
                                 onClick={() => setShowSettings(!showSettings)}
-                                className="p-1.5 text-zinc-400 hover:text-zinc-900 transition-colors"
+                                className="p-1.5 text-muted-foreground/70 hover:text-foreground transition-colors"
                             >
                                 <Settings className="w-4 h-4" />
                             </button>
 
                             {showSettings && (
-                                <div className="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-xl 
-                                    border border-stone-200 shadow-xl p-3 space-y-3 z-10">
+                                <div className="absolute bottom-full right-0 mb-2 w-48 bg-card rounded-xl 
+                                    border border-border shadow-xl p-3 space-y-3 z-10">
                                     {/* Rate */}
                                     <div>
-                                        <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                                        <label className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider">
                                             Tốc độ: {rate}x
                                         </label>
                                         <input
@@ -242,20 +242,20 @@ export const AudioPlayer = ({ content, title }) => {
                                             step="0.1"
                                             value={rate}
                                             onChange={(e) => setRate(parseFloat(e.target.value))}
-                                            className="w-full h-1.5 bg-stone-200 rounded-full appearance-none cursor-pointer"
+                                            className="w-full h-1.5 bg-muted rounded-full appearance-none cursor-pointer"
                                         />
                                     </div>
 
                                     {/* Voice Selection */}
                                     {voices.length > 0 && (
                                         <div>
-                                            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                                            <label className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-wider">
                                                 Giọng đọc
                                             </label>
                                             <select
                                                 value={voice?.name || ''}
                                                 onChange={(e) => setVoice(voices.find(v => v.name === e.target.value))}
-                                                className="w-full mt-1 text-xs p-1.5 border border-stone-200 rounded-lg"
+                                                className="w-full mt-1 text-xs p-1.5 border border-border rounded-lg"
                                             >
                                                 {voices.map(v => (
                                                     <option key={v.name} value={v.name}>

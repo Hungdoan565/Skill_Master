@@ -60,7 +60,7 @@ export const LandingPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-white selection:bg-red-500/20 selection:text-red-900 font-sans">
+    <div className="min-h-screen bg-white dark:bg-zinc-950 selection:bg-red-500/20 selection:text-red-900 dark:selection:text-red-200 font-sans">
       <SEOHead
         title="Skill Master — Hệ thống quản lý trung tâm đào tạo thế hệ mới"
         description="Quản lý lớp học, theo dõi tiến độ, lộ trình cá nhân hóa — tất cả trong một nền tảng. Dành cho trung tâm Anh ngữ & Tin học."

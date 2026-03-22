@@ -9,10 +9,10 @@ import { POPULAR_TAGS, formatDate } from '../constants/blog-data';
 // ============================================
 export const TagCloudWidget = ({ currentTags = [] }) => {
     return (
-        <div className="bg-white rounded-2xl border border-stone-200 p-6">
+        <div className="bg-card rounded-2xl border border-border p-6">
             <div className="flex items-center gap-2 mb-6">
                 <Tag className="w-5 h-5 text-red-600" />
-                <h3 className="text-sm font-semibold text-zinc-900 uppercase tracking-wider">
+                <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">
                     Chủ đề phổ biến
                 </h3>
             </div>
@@ -24,15 +24,15 @@ export const TagCloudWidget = ({ currentTags = [] }) => {
                         <Link
                             key={tag.name}
                             to={`/blog?tag=${tag.name}`}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all
+                                    className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all
                                 ${isActive
-                                    ? 'bg-red-600 text-white shadow-lg shadow-red-200'
-                                    : 'bg-stone-50 text-zinc-600 hover:bg-red-50 hover:text-red-600'
+                                    ? 'bg-red-600 text-white shadow-lg shadow-red-200 dark:shadow-red-900/30'
+                                    : 'bg-muted text-muted-foreground hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600'
                                 }
                             `}
                         >
                             #{tag.name}
-                            <span className={`ml-1.5 opacity-60 ${isActive ? 'text-white' : 'text-zinc-400'}`}>
+                            <span className={`ml-1.5 opacity-60 ${isActive ? 'text-white' : 'text-muted-foreground/70'}`}>
                                 {tag.count}
                             </span>
                         </Link>
@@ -53,10 +53,10 @@ export const RecentPostsWidget = ({ posts, currentPostId }) => {
         .slice(0, 4);
 
     return (
-        <div className="bg-white rounded-2xl border border-stone-200 p-6">
+        <div className="bg-card rounded-2xl border border-border p-6">
             <div className="flex items-center gap-2 mb-6">
                 <TrendingUp className="w-5 h-5 text-red-600" />
-                <h3 className="text-sm font-semibold text-zinc-900 uppercase tracking-wider">
+                <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">
                     Bài viết mới nhất
                 </h3>
             </div>
@@ -78,11 +78,11 @@ export const RecentPostsWidget = ({ posts, currentPostId }) => {
                             />
                         </div>
                         <div className="flex-1 min-w-0">
-                            <h4 className="text-sm font-bold text-zinc-900 line-clamp-2 
+                            <h4 className="text-sm font-bold text-foreground line-clamp-2 
                                 group-hover:text-red-600 transition-colors leading-snug">
                                 {post.title}
                             </h4>
-                            <div className="flex items-center gap-2 mt-2 text-[10px] text-zinc-400 font-medium">
+                            <div className="flex items-center gap-2 mt-2 text-[10px] text-muted-foreground/70 font-medium">
                                 <Clock className="w-3 h-3" />
                                 <span>{formatDate(post.date)}</span>
                                 <span>•</span>
@@ -96,9 +96,9 @@ export const RecentPostsWidget = ({ posts, currentPostId }) => {
             <Link
                 to="/blog"
                 className="flex items-center justify-center gap-2 mt-8 py-3 w-full 
-                    bg-stone-50 text-zinc-600 text-xs font-bold rounded-xl 
-                    hover:bg-red-50 hover:text-red-600 transition-all border border-transparent
-                    hover:border-red-100"
+                    bg-muted text-muted-foreground text-xs font-bold rounded-xl 
+                    hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 transition-all border border-transparent
+                    hover:border-red-100 dark:hover:border-red-800/30"
             >
                 Xem tất cả blog
                 <ChevronRight className="w-3 h-3" />

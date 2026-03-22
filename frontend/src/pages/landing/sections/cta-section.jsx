@@ -229,7 +229,7 @@ export const CTASection = () => {
                                         )}
                                     </button>
 
-                                    <p className="text-center text-xs text-stone-500">
+                                    <p className="text-center text-xs text-muted-foreground">
                                         *Cam kết bảo mật thông tin 100%. Không spam.
                                     </p>
                                 </form>

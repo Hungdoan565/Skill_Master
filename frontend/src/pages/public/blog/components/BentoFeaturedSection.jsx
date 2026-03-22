@@ -28,7 +28,7 @@ export const BentoFeaturedSection = ({ posts }) => {
     const widePost = posts[3];
 
     return (
-        <section className="py-16 lg:py-24 bg-gradient-to-b from-stone-50 to-white overflow-hidden">
+        <section className="py-16 lg:py-24 bg-gradient-to-b from-stone-50 to-white dark:from-zinc-900 dark:to-zinc-950 overflow-hidden">
             <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
                 {/* Section Header */}
                 <div
@@ -43,11 +43,11 @@ export const BentoFeaturedSection = ({ posts }) => {
                                 Nổi bật
                             </span>
                         </div>
-                        <div className="hidden sm:block w-24 h-px bg-gradient-to-r from-stone-300 to-transparent" />
+                        <div className="hidden sm:block w-24 h-px bg-gradient-to-r from-stone-300 dark:from-zinc-600 to-transparent" />
                     </div>
                     <Link
                         to="/blog?filter=featured"
-                        className="group flex items-center gap-2 text-sm font-medium text-zinc-500 
+                        className="group flex items-center gap-2 text-sm font-medium text-muted-foreground 
                             hover:text-red-600 transition-colors"
                     >
                         Xem tất cả
@@ -183,7 +183,7 @@ const SideFeaturedCard = ({ post, index }) => {
     return (
         <Link
             to={`/blog/${post.slug}`}
-            className="group relative flex-1 min-h-[200px] rounded-2xl overflow-hidden bg-zinc-100"
+            className="group relative flex-1 min-h-[200px] rounded-2xl overflow-hidden bg-muted"
             style={{ transitionDelay: `${index * 100}ms` }}
         >
             {/* Background Image */}
@@ -234,8 +234,8 @@ const WideCard = ({ post }) => {
         <Link
             to={`/blog/${post.slug}`}
             className="group relative flex flex-col lg:flex-row rounded-2xl overflow-hidden 
-                bg-gradient-to-r from-stone-100 to-stone-50 border border-stone-200
-                hover:shadow-xl hover:shadow-stone-200/50 transition-all duration-500"
+                bg-gradient-to-r from-stone-100 to-stone-50 dark:from-zinc-800 dark:to-zinc-900 border border-border
+                hover:shadow-xl hover:shadow-black/5 dark:hover:shadow-black/20 transition-all duration-500"
         >
             <div className="lg:w-1/3 aspect-[16/9] lg:aspect-auto overflow-hidden">
                 <SmartImage
@@ -253,13 +253,13 @@ const WideCard = ({ post }) => {
                         uppercase tracking-wider rounded-full">
                         {post.category}
                     </span>
-                    <span className="text-zinc-400 text-sm">{formatDate(post.date)}</span>
+                    <span className="text-muted-foreground/70 text-sm">{formatDate(post.date)}</span>
                 </div>
-                <h3 className="text-xl lg:text-2xl font-bold text-zinc-900 mb-3 
+                <h3 className="text-xl lg:text-2xl font-bold text-foreground mb-3 
                     group-hover:text-red-600 transition-colors leading-tight">
                     {post.title}
                 </h3>
-                <p className="text-zinc-500 leading-relaxed mb-4 line-clamp-2">
+                <p className="text-muted-foreground leading-relaxed mb-4 line-clamp-2">
                     {post.excerpt}
                 </p>
                 <div className="flex items-center justify-between">
@@ -268,17 +268,17 @@ const WideCard = ({ post }) => {
                             src={post.author.avatar}
                             alt={post.author.name}
                             className="w-full h-full object-cover"
-                            containerClassName="w-10 h-10 rounded-full border-2 border-white shadow-sm bg-white shrink-0"
+                            containerClassName="w-10 h-10 rounded-full border-2 border-white shadow-sm bg-card shrink-0"
                             aspectRatio="aspect-square"
                         />
                         <div>
-                            <p className="text-sm font-semibold text-zinc-900">{post.author.name}</p>
-                            <p className="text-xs text-zinc-400">{post.readTime} phút đọc</p>
+                            <p className="text-sm font-semibold text-foreground">{post.author.name}</p>
+                            <p className="text-xs text-muted-foreground/70">{post.readTime} phút đọc</p>
                         </div>
                     </div>
-                    <div className="w-10 h-10 rounded-full bg-stone-200 flex items-center justify-center
+                    <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center
                         group-hover:bg-red-600 transition-colors duration-300">
-                        <ArrowUpRight className="w-5 h-5 text-zinc-400 group-hover:text-white transition-colors" />
+                        <ArrowUpRight className="w-5 h-5 text-muted-foreground/70 group-hover:text-white transition-colors" />
                     </div>
                 </div>
             </div>

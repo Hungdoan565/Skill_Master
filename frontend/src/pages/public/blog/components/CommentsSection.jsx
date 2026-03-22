@@ -39,12 +39,12 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, isDeleting }) => {
             />
 
             {/* Modal */}
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 
-                animate-in zoom-in-95 duration-200">
+            <div className="relative bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-md mx-4 
+                animate-in zoom-in-95 duration-200 border border-border">
                 {/* Close button */}
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 p-1 text-zinc-400 hover:text-zinc-600 
+                    className="absolute top-4 right-4 p-1 text-muted-foreground/70 hover:text-muted-foreground 
                         transition-colors"
                 >
                     <X className="w-5 h-5" />
@@ -53,18 +53,18 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, isDeleting }) => {
                 {/* Content */}
                 <div className="p-6 text-center">
                     {/* Warning Icon */}
-                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center 
+                    <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center 
                         mx-auto mb-4">
                         <AlertTriangle className="w-8 h-8 text-red-600" />
                     </div>
 
                     {/* Title */}
-                    <h3 className="text-xl font-bold text-zinc-900 mb-2">
+                    <h3 className="text-xl font-bold text-foreground mb-2">
                         Xóa bình luận?
                     </h3>
 
                     {/* Description */}
-                    <p className="text-zinc-600 text-sm mb-6">
+                    <p className="text-muted-foreground text-sm mb-6">
                         Bạn có chắc chắn muốn xóa bình luận này không?
                         Hành động này không thể hoàn tác.
                     </p>
@@ -74,8 +74,8 @@ const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, isDeleting }) => {
                         <button
                             onClick={onClose}
                             disabled={isDeleting}
-                            className="flex-1 px-4 py-2.5 bg-stone-100 text-zinc-700 font-medium 
-                                rounded-xl hover:bg-stone-200 transition-colors disabled:opacity-50"
+                            className="flex-1 px-4 py-2.5 bg-muted text-foreground/90 font-medium 
+                                rounded-xl hover:bg-muted transition-colors disabled:opacity-50"
                         >
                             Hủy
                         </button>
@@ -145,12 +145,12 @@ const ReportModal = ({ isOpen, onClose, onSubmit, isSubmitting }) => {
             />
 
             {/* Modal */}
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 
-                animate-in zoom-in-95 duration-200">
+            <div className="relative bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-md mx-4 
+                animate-in zoom-in-95 duration-200 border border-border">
                 {/* Close button */}
                 <button
                     onClick={handleClose}
-                    className="absolute top-4 right-4 p-1 text-zinc-400 hover:text-zinc-600 
+                    className="absolute top-4 right-4 p-1 text-muted-foreground/70 hover:text-muted-foreground 
                         transition-colors"
                 >
                     <X className="w-5 h-5" />
@@ -160,14 +160,14 @@ const ReportModal = ({ isOpen, onClose, onSubmit, isSubmitting }) => {
                 <div className="p-6">
                     {/* Header */}
                     <div className="flex items-center gap-3 mb-5">
-                        <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
+                        <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center">
                             <Flag className="w-6 h-6 text-amber-600" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-zinc-900">
+                            <h3 className="text-lg font-bold text-foreground">
                                 Báo cáo bình luận
                             </h3>
-                            <p className="text-sm text-zinc-500">
+                            <p className="text-sm text-muted-foreground">
                                 Chọn lý do báo cáo
                             </p>
                         </div>
@@ -181,8 +181,8 @@ const ReportModal = ({ isOpen, onClose, onSubmit, isSubmitting }) => {
                                 className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer
                                     transition-all duration-200
                                     ${selectedReason === reason.id
-                                        ? 'border-red-500 bg-red-50'
-                                        : 'border-stone-200 hover:border-stone-300 hover:bg-stone-50'
+                                        ? 'border-red-500 bg-red-50 dark:bg-red-900/20'
+                                        : 'border-border hover:border-border hover:bg-muted'
                                     }`}
                             >
                                 <input
@@ -193,7 +193,7 @@ const ReportModal = ({ isOpen, onClose, onSubmit, isSubmitting }) => {
                                     onChange={(e) => setSelectedReason(e.target.value)}
                                     className="w-4 h-4 text-red-600 focus:ring-red-500"
                                 />
-                                <span className={`text-sm ${selectedReason === reason.id ? 'font-medium text-red-700' : 'text-zinc-700'}`}>
+                                <span className={`text-sm ${selectedReason === reason.id ? 'font-medium text-red-700 dark:text-red-400' : 'text-foreground/90'}`}>
                                     {reason.label}
                                 </span>
                             </label>
@@ -207,8 +207,8 @@ const ReportModal = ({ isOpen, onClose, onSubmit, isSubmitting }) => {
                             onChange={(e) => setAdditionalInfo(e.target.value)}
                             placeholder="Vui lòng mô tả chi tiết..."
                             rows={3}
-                            className="w-full px-4 py-3 bg-stone-50 rounded-xl text-sm
-                                border border-stone-200 focus:outline-none focus:border-red-300
+                            className="w-full px-4 py-3 bg-muted rounded-xl text-sm
+                                border border-border focus:outline-none focus:border-red-300
                                 focus:ring-2 focus:ring-red-500/10 resize-none mb-4"
                         />
                     )}
@@ -218,8 +218,8 @@ const ReportModal = ({ isOpen, onClose, onSubmit, isSubmitting }) => {
                         <button
                             onClick={handleClose}
                             disabled={isSubmitting}
-                            className="flex-1 px-4 py-2.5 bg-stone-100 text-zinc-700 font-medium 
-                                rounded-xl hover:bg-stone-200 transition-colors disabled:opacity-50"
+                            className="flex-1 px-4 py-2.5 bg-muted text-foreground/90 font-medium 
+                                rounded-xl hover:bg-muted transition-colors disabled:opacity-50"
                         >
                             Hủy
                         </button>
@@ -277,15 +277,15 @@ const SortDropdown = ({ value, onChange }) => {
         <div className="relative" ref={dropdownRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 px-3 py-1.5 bg-stone-100 rounded-lg
-                    text-sm text-zinc-600 hover:bg-stone-200 transition-colors"
+                className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-lg
+                    text-sm text-muted-foreground hover:bg-muted transition-colors"
             >
                 <span>{selectedOption?.label}</span>
                 <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>
 
-            <div className={`absolute right-0 top-full mt-1 w-40 bg-white rounded-lg
-                shadow-lg border border-stone-200 py-1 z-20 transition-all duration-200
+            <div className={`absolute right-0 top-full mt-1 w-40 bg-card rounded-lg
+                shadow-lg border border-border py-1 z-20 transition-all duration-200
                 ${isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}
             >
                 {options.map(option => (
@@ -298,7 +298,7 @@ const SortDropdown = ({ value, onChange }) => {
                         className={`w-full px-3 py-2 text-left text-sm flex items-center justify-between
                             ${value === option.id
                                 ? 'bg-red-50 text-red-600 font-medium'
-                                : 'text-zinc-600 hover:bg-stone-50'
+                                : 'text-muted-foreground hover:bg-muted'
                             }`}
                     >
                         {option.label}
@@ -410,7 +410,7 @@ const Comment = ({
                 <div className="flex-1 min-w-0">
                     {/* Header */}
                     <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-zinc-900 text-sm">
+                        <span className="font-semibold text-foreground text-sm">
                             {comment.author.name}
                         </span>
                         {comment.isOwner && (
@@ -424,13 +424,13 @@ const Comment = ({
                                 {comment.author.badge}
                             </span>
                         )}
-                        <span className="text-xs text-zinc-400">
+                        <span className="text-xs text-muted-foreground/70">
                             {formatDate(comment.date)}
                         </span>
                     </div>
 
                     {/* Comment text */}
-                    <p className="text-sm text-zinc-700 mt-1 leading-relaxed">
+                    <p className="text-sm text-foreground/90 mt-1 leading-relaxed">
                         {comment.content}
                     </p>
 
@@ -442,7 +442,7 @@ const Comment = ({
                             className={`flex items-center gap-1 text-xs transition-colors
                                 ${comment.isLiked
                                     ? 'text-red-500 font-medium'
-                                    : 'text-zinc-400 hover:text-red-500'
+                                    : 'text-muted-foreground/70 hover:text-red-500'
                                 }`}
                         >
                             <Heart className={`w-4 h-4 ${comment.isLiked ? 'fill-current' : ''}`} />
@@ -453,7 +453,7 @@ const Comment = ({
                         {!isReply && (
                             <button
                                 onClick={() => setShowReplyInput(!showReplyInput)}
-                                className="flex items-center gap-1 text-xs text-zinc-400 
+                                className="flex items-center gap-1 text-xs text-muted-foreground/70 
                                     hover:text-blue-500 transition-colors"
                             >
                                 <Reply className="w-4 h-4" />
@@ -465,14 +465,14 @@ const Comment = ({
                         <div className="relative" ref={menuRef}>
                             <button
                                 onClick={() => setShowMenu(!showMenu)}
-                                className="p-1 text-zinc-400 hover:text-zinc-600 transition-colors"
+                                className="p-1 text-muted-foreground/70 hover:text-muted-foreground transition-colors"
                             >
                                 <MoreHorizontal className="w-4 h-4" />
                             </button>
 
                             {showMenu && (
-                                <div className="absolute left-0 top-full mt-1 w-36 bg-white 
-                                    rounded-xl shadow-lg border border-stone-200 py-1 z-20">
+                                <div className="absolute left-0 top-full mt-1 w-36 bg-card 
+                                    rounded-xl shadow-lg border border-border py-1 z-20">
                                     {comment.isOwner && (
                                         <button
                                             onClick={handleDeleteClick}
@@ -488,8 +488,8 @@ const Comment = ({
                                             onRequestReport(comment.id);
                                             setShowMenu(false);
                                         }}
-                                        className="w-full px-3 py-2 text-left text-xs text-zinc-600 
-                                            hover:bg-stone-50 flex items-center gap-2"
+                                        className="w-full px-3 py-2 text-left text-xs text-muted-foreground 
+                                            hover:bg-muted flex items-center gap-2"
                                     >
                                         <Flag className="w-3 h-3" />
                                         Báo cáo
@@ -515,7 +515,7 @@ const Comment = ({
                                 onKeyDown={handleKeyDown}
                                 placeholder="Viết phản hồi..."
                                 disabled={isSubmitting}
-                                className="flex-1 px-4 py-2 bg-stone-100 rounded-full text-sm
+                                className="flex-1 px-4 py-2 bg-muted rounded-full text-sm
                                     border-0 focus:outline-none focus:ring-2 focus:ring-red-500/20
                                     disabled:opacity-50"
                             />
@@ -586,11 +586,11 @@ const CommentSkeleton = () => (
     <div className="animate-pulse">
         {[1, 2, 3].map(i => (
             <div key={i} className="flex gap-3 mb-6">
-                <div className="w-10 h-10 bg-stone-200 rounded-full" />
+                <div className="w-10 h-10 bg-muted rounded-full" />
                 <div className="flex-1">
-                    <div className="h-4 bg-stone-200 rounded w-32 mb-2" />
-                    <div className="h-3 bg-stone-200 rounded w-full mb-1" />
-                    <div className="h-3 bg-stone-200 rounded w-3/4" />
+                    <div className="h-4 bg-muted rounded w-32 mb-2" />
+                    <div className="h-3 bg-muted rounded w-full mb-1" />
+                    <div className="h-3 bg-muted rounded w-3/4" />
                 </div>
             </div>
         ))}
@@ -740,14 +740,14 @@ export const CommentsSection = ({ postSlug }) => {
     };
 
     return (
-        <section className="py-12 border-t border-stone-200">
+        <section className="py-12 border-t border-border">
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
-                    <MessageCircle className="w-6 h-6 text-zinc-900" />
-                    <h2 className="text-xl font-bold text-zinc-900">
+                    <MessageCircle className="w-6 h-6 text-foreground" />
+                    <h2 className="text-xl font-bold text-foreground">
                         Bình luận
-                        <span className="ml-2 text-base font-normal text-zinc-400">
+                        <span className="ml-2 text-base font-normal text-muted-foreground/70">
                             ({totalCount})
                         </span>
                     </h2>
@@ -755,7 +755,7 @@ export const CommentsSection = ({ postSlug }) => {
 
                 {/* Custom Sort Dropdown */}
                 <div className="flex items-center gap-2">
-                    <span className="text-xs text-zinc-400">Sắp xếp:</span>
+                    <span className="text-xs text-muted-foreground/70">Sắp xếp:</span>
                     <SortDropdown value={sortBy} onChange={setSortBy} />
                 </div>
             </div>
@@ -786,16 +786,16 @@ export const CommentsSection = ({ postSlug }) => {
                             }
                             rows={3}
                             disabled={!isAuthenticated || isSubmitting}
-                            className="w-full px-4 py-3 bg-stone-50 rounded-xl text-sm
-                                border border-stone-200 focus:outline-none focus:border-red-300
+                            className="w-full px-4 py-3 bg-muted rounded-xl text-sm
+                                border border-border focus:outline-none focus:border-red-300
                                 focus:ring-2 focus:ring-red-500/10 resize-none
-                                disabled:bg-stone-100 disabled:cursor-not-allowed"
+                                disabled:bg-muted disabled:cursor-not-allowed"
                         />
                         <div className="flex items-center justify-between mt-3">
                             <div className="flex items-center gap-2">
                                 <button
                                     type="button"
-                                    className="p-2 text-zinc-400 hover:text-zinc-600 transition-colors"
+                                    className="p-2 text-muted-foreground/70 hover:text-muted-foreground transition-colors"
                                 >
                                     <Smile className="w-5 h-5" />
                                 </button>
@@ -832,7 +832,7 @@ export const CommentsSection = ({ postSlug }) => {
             {!isLoading && (
                 <div className="space-y-6">
                     {sortedComments.length === 0 ? (
-                        <div className="text-center py-12 text-zinc-400">
+                        <div className="text-center py-12 text-muted-foreground/70">
                             <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
                             <p>Chưa có bình luận nào. Hãy là người đầu tiên!</p>
                         </div>

@@ -9,7 +9,7 @@ import React from 'react';
 
 export const ArticleContent = ({ content, children }) => {
     return (
-        <article className="article-content prose prose-lg lg:prose-xl max-w-none">
+        <article className="article-content prose prose-lg lg:prose-xl dark:prose-invert max-w-none">
             {/* If content is HTML string */}
             {content && (
                 <div
@@ -29,6 +29,14 @@ export const ArticleContent = ({ content, children }) => {
                     --article-border: #e4e4e7;
                     --article-bg-code: #fafafa;
                     --article-accent: #dc2626;
+                }
+
+                .dark .article-content {
+                    --article-text: #fafafa;
+                    --article-text-muted: #a1a1aa;
+                    --article-border: #3f3f46;
+                    --article-bg-code: #27272a;
+                    --article-accent: #ef4444;
                 }
 
                 .article-content h2 {
@@ -115,6 +123,10 @@ export const ArticleContent = ({ content, children }) => {
                     border-radius: 0 1rem 1rem 0;
                     font-style: italic;
                     color: var(--article-text-muted);
+                }
+
+                .dark .article-content blockquote {
+                    background: linear-gradient(to right, rgba(127, 29, 29, 0.15), transparent);
                 }
 
                 .article-content blockquote p {

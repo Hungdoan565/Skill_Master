@@ -28,7 +28,7 @@ export const MethodSection = () => {
     }, [isInView, isPaused]);
 
     return (
-        <section id="method" ref={ref} className="py-32 bg-white">
+        <section id="method" ref={ref} className="py-32 bg-background">
             <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
                 <div className="grid lg:grid-cols-2 gap-16 items-center">
 
@@ -37,7 +37,7 @@ export const MethodSection = () => {
                         ${isInView ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-12'}`}>
                         <div className="relative aspect-square max-w-lg mx-auto">
                             {/* Background Circle */}
-                            <div className="absolute inset-0 bg-stone-50 rounded-full scale-90" aria-hidden="true" />
+                            <div className="absolute inset-0 bg-muted rounded-full scale-90" aria-hidden="true" />
 
                             {/* Active Step Highlight Ring */}
                             <div
@@ -49,8 +49,8 @@ export const MethodSection = () => {
 
                             {/* Center Content - Changes based on step */}
                             <div className="absolute inset-0 flex items-center justify-center">
-                                <div className="relative w-48 h-48 bg-white rounded-full flex items-center justify-center
-                             shadow-2xl shadow-zinc-900/10 z-10 overflow-hidden">
+                                <div className="relative w-48 h-48 bg-card rounded-full flex items-center justify-center
+                             shadow-2xl shadow-black/10 dark:shadow-black/30 z-10 overflow-hidden">
                                     {/* Animated Icon Transition */}
                                     {methodSteps.map((step, index) => {
                                         const Icon = stepIcons[index];
@@ -87,7 +87,7 @@ export const MethodSection = () => {
                              transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300
                              ${isActive
                                                 ? 'bg-red-600 text-white shadow-lg shadow-red-600/30 scale-110 z-20'
-                                                : 'bg-white text-zinc-400 border border-stone-200 hover:border-red-200 hover:text-red-500 scale-100 z-10'}`}
+                                                : 'bg-card text-muted-foreground/70 border border-border hover:border-red-200 hover:text-red-500 scale-100 z-10'}`}
                                         style={{ left: `${x}%`, top: `${y}%` }}
                                         aria-label={`Bước ${step.number}: ${step.title}`}
                                     >
@@ -122,10 +122,10 @@ export const MethodSection = () => {
                           rounded-full uppercase tracking-wider mb-6">
                             Phương pháp học
                         </span>
-                        <h2 className="font-display text-4xl lg:text-5xl font-bold text-zinc-900 tracking-tight">
+                        <h2 className="font-display text-4xl lg:text-5xl font-bold text-foreground tracking-tight">
                             4 bước đến thành công
                         </h2>
-                        <p className="mt-6 text-lg text-zinc-500 leading-relaxed mb-10">
+                        <p className="mt-6 text-lg text-muted-foreground leading-relaxed mb-10">
                             Quy trình học tập khoa học, được chứng minh hiệu quả qua hàng nghìn học viên.
                         </p>
 
@@ -139,16 +139,16 @@ export const MethodSection = () => {
                                         onClick={() => { setActiveStep(index); setIsPaused(true); }}
                                         className={`relative pl-8 pr-6 py-6 rounded-2xl cursor-pointer transition-all duration-500
                               ${isActive
-                                                ? 'bg-stone-50 border border-stone-200 shadow-sm translate-x-4'
-                                                : 'hover:bg-white hover:translate-x-2 border border-transparent'}`}
+                                                ? 'bg-muted border border-border shadow-sm translate-x-4'
+                                                : 'hover:bg-card hover:translate-x-2 border border-transparent'}`}
                                     >
                                         {/* Progress Bar (Vertical) used as connector visually? No, use left border */}
                                         <div className={`absolute left-0 top-6 bottom-6 w-1 rounded-r-full transition-colors duration-300
-                                  ${isActive ? 'bg-red-600' : 'bg-stone-200'}`} />
+                                  ${isActive ? 'bg-red-600' : 'bg-muted'}`} />
 
                                         <h3 className={`text-xl font-bold transition-colors duration-300 flex items-center gap-3
-                                  ${isActive ? 'text-zinc-900' : 'text-zinc-400'}`}>
-                                            <span className={`text-sm font-normal py-0.5 px-2 rounded-md ${isActive ? 'bg-red-100 text-red-700' : 'bg-stone-100 text-stone-500'}`}>
+                                  ${isActive ? 'text-foreground' : 'text-muted-foreground/70'}`}>
+                                            <span className={`text-sm font-normal py-0.5 px-2 rounded-md ${isActive ? 'bg-red-100 text-red-700' : 'bg-muted text-muted-foreground'}`}>
                                                 Bước {step.number}
                                             </span>
                                             {step.title}
@@ -158,7 +158,7 @@ export const MethodSection = () => {
                                             className={`mt-2 overflow-hidden transition-all duration-500 ease-in-out
                                  ${isActive ? 'max-h-24 opacity-100' : 'max-h-0 opacity-0'}`}
                                         >
-                                            <p className="text-zinc-600 leading-relaxed">
+                                            <p className="text-muted-foreground leading-relaxed">
                                                 {step.description}
                                             </p>
                                         </div>

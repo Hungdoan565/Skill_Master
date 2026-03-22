@@ -1,9 +1,10 @@
 import { gooeyToast } from 'goey-toast';
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { SEOHead } from '@/components/common';
 import { Footer } from '@/pages/landing/components/footer';
 import { supabase } from '@/lib/supabaseClient';
+import { useAuth } from '@/contexts/auth-context';
 import {
     ArrowRight,
     CheckCircle,
@@ -157,19 +158,70 @@ const getThemeConfig = (category) => {
     }
 };
 
-// Tech Theme Decorative Component - Code Snippets
-const TechDecoration = ({ accentColor }) => (
-    <div className="absolute inset-0 bg-neutral-900/50 backdrop-blur-sm p-12 flex flex-col justify-end">
-        <div className="space-y-2 opacity-30 font-mono text-xs" style={{ color: accentColor }}>
-            {Array(10).fill(0).map((_, i) => (
-                <div key={i} className="flex justify-between">
-                    <span>0x0{i}AF...</span>
-                    <span>STATUS: {i % 2 === 0 ? 'READY' : 'WAITING'}</span>
-                </div>
-            ))}
+const parseJsonArray = (value) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value !== 'string' || !value.trim()) return [];
+
+    try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+};
+
+const formatStartDate = (value) => {
+    if (!value) return 'Liên tục mỗi tháng';
+    const parsedDate = new Date(value);
+    return Number.isNaN(parsedDate.getTime()) ? value : parsedDate.toLocaleDateString('vi-VN');
+};
+
+const pickCourseImages = (course) => {
+    const candidates = [
+        course?.cover_image,
+        course?.image_url,
+        course?.thumbnail_url,
+        course?.thumbnail,
+    ];
+
+    return candidates.filter((value) => {
+        if (typeof value !== 'string') return false;
+        const normalized = value.trim();
+        if (!normalized) return false;
+        if (normalized === 'null' || normalized === 'undefined') return false;
+        return true;
+    });
+};
+
+// Tech Theme Decorative Component - Abstract Data Flow
+const TechDecoration = ({ accentColor, compact = false, hasImage = false }) => {
+    const bgClass = compact
+        ? (hasImage ? 'bg-transparent' : 'bg-neutral-950/45')
+        : 'bg-neutral-900/55';
+
+    return (
+        <div className={`absolute inset-0 ${bgClass} ${hasImage ? 'backdrop-blur-0' : 'backdrop-blur-[2px]'} p-8 lg:p-10 flex flex-col justify-end`}>
+            <div
+                className={`absolute inset-0 ${hasImage ? 'opacity-[0.025]' : 'opacity-[0.08]'}`}
+                style={{
+                    backgroundImage: `linear-gradient(${accentColor}40 1px, transparent 1px), linear-gradient(90deg, ${accentColor}40 1px, transparent 1px)`,
+                    backgroundSize: '24px 24px'
+                }}
+            />
+
+            <div className={`relative space-y-3 ${hasImage ? 'opacity-35' : 'opacity-80'}`}>
+                {[90, 70, 82, 58, 74, 46].map((width, i) => (
+                    <div key={i} className={`h-2 rounded-full overflow-hidden ${hasImage ? 'bg-white/10' : 'bg-neutral-700/70'}`}>
+                        <div
+                            className="h-full rounded-full"
+                            style={{ width: `${width}%`, backgroundColor: accentColor, opacity: 0.75 }}
+                        />
+                    </div>
+                ))}
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 // Academic Theme Decorative Component - Guarantee Seal (Premium Trust Badge)
 const AcademicDecoration = ({ accentColor, certInfo }) => {
@@ -643,7 +695,7 @@ const ConsultationModal = ({ isOpen, onClose, courseId, courseName }) => {
 // MOBILE FIXED ACTION BAR
 // ============================================
 
-const MobileActionBar = ({ price, courseSlug, onConsult, theme }) => (
+const MobileActionBar = ({ price, enrollHref, enrollLabel, onEnrollClick, onConsult, theme }) => (
     <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-neutral-200 p-4 shadow-[0_-10px_20px_rgba(0,0,0,0.05)] flex items-center justify-between gap-4 animate-in slide-in-from-bottom duration-500">
         <div className="flex-shrink-0">
             <p className="text-[10px] font-bold text-neutral-500 uppercase tracking-widest">Học phí</p>
@@ -657,10 +709,11 @@ const MobileActionBar = ({ price, courseSlug, onConsult, theme }) => (
                 Tư vấn
             </button>
             <Link
-                to={`/register?courseSlug=${courseSlug}`}
+                to={enrollHref}
+                onClick={onEnrollClick}
                 className={`flex-1 py-3 text-white text-xs font-black uppercase tracking-widest text-center ${theme.ctaBg}`}
             >
-                Đăng ký
+                {enrollLabel}
             </Link>
         </div>
     </div>
@@ -672,82 +725,136 @@ const MobileActionBar = ({ price, courseSlug, onConsult, theme }) => (
 
 export const CourseDetailPage = () => {
     const { id } = useParams(); // Should be slug or id
+    const navigate = useNavigate();
+    const { isAuthenticated, profile } = useAuth();
     const [course, setCourse] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeSyllabus, setActiveSyllabus] = useState(0);
     const [activeFaq, setActiveFaq] = useState(null);
     const [showConsultation, setShowConsultation] = useState(false);
+    const [heroImageIndex, setHeroImageIndex] = useState(0);
+    const [heroImageError, setHeroImageError] = useState(false);
 
     useEffect(() => {
         fetchCourseDetail();
         window.scrollTo(0, 0); // Scroll to top on load
     }, [id]);
 
+    useEffect(() => {
+        setHeroImageIndex(0);
+        setHeroImageError(false);
+    }, [course?.cover_image, course?.image_url, course?.thumbnail_url, course?.thumbnail]);
+
     const fetchCourseDetail = async () => {
         try {
             setLoading(true);
+            const routeId = decodeURIComponent(id || '').trim();
 
-            // Try to find by Slug first
-            let { data, error } = await supabase
+            let data = null;
+
+            // 1) Canonical lookup by slug (public page chỉ hiển thị active)
+            const { data: slugData, error: slugError } = await supabase
                 .from('courses')
                 .select('*')
-                .eq('slug', id)
-                .single();
+                .eq('status', 'active')
+                .eq('slug', routeId)
+                .maybeSingle();
 
-            // If not found by slug, try by code
-            if (error && error.code === 'PGRST116') {
-                const { data: dataCode, error: errorCode } = await supabase
-                    .from('courses')
-                    .select('*')
-                    .ilike('code', id.replace(/-/g, '%'))
-                    .single();
+            if (slugError) throw slugError;
+            if (slugData) data = slugData;
 
-                if (!errorCode && dataCode) {
-                    data = dataCode;
-                    error = null;
-                }
-            }
+            // 2) Lookup by code variants (exact match)
+            if (!data) {
+                const codeVariants = Array.from(
+                    new Set([
+                        routeId.toUpperCase(),
+                        routeId.replace(/-/g, '_').toUpperCase(),
+                        routeId.replace(/[-_\s]/g, '').toUpperCase()
+                    ].filter(Boolean))
+                );
 
-            // If still not found, try by title (fuzzy search)
-            if (error && error.code === 'PGRST116') {
-                const searchTerm = id.replace(/-/g, ' ');
-                const { data: dataTitle, error: errorTitle } = await supabase
-                    .from('courses')
-                    .select('*')
-                    .ilike('title', `%${searchTerm}%`)
-                    .limit(1)
-                    .single();
-
-                if (!errorTitle && dataTitle) {
-                    data = dataTitle;
-                    error = null;
-                }
-            }
-
-            // Finally try by UUID if it looks like one
-            if (error && error.code === 'PGRST116') {
-                const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
-                if (isUUID) {
-                    const { data: dataId, error: errorId } = await supabase
+                for (const codeValue of codeVariants) {
+                    const { data: codeData, error: codeError } = await supabase
                         .from('courses')
                         .select('*')
-                        .eq('id', id)
-                        .single();
+                        .eq('status', 'active')
+                        .eq('code', codeValue)
+                        .maybeSingle();
 
-                    if (!errorId && dataId) {
-                        data = dataId;
-                        error = null;
+                    if (codeError) throw codeError;
+                    if (codeData) {
+                        data = codeData;
+                        break;
                     }
                 }
             }
 
-            if (error) throw error;
+            // 3) UUID lookup
+            if (!data) {
+                const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(routeId);
+                if (isUUID) {
+                    const { data: dataId, error: errorId } = await supabase
+                        .from('courses')
+                        .select('*')
+                        .eq('status', 'active')
+                        .eq('id', routeId)
+                        .maybeSingle();
+
+                    if (errorId) throw errorId;
+                    if (dataId) {
+                        data = dataId;
+                    }
+                }
+            }
+
+            // 4) Fuzzy title fallback (deterministic)
+            if (!data) {
+                const searchTerm = routeId.replace(/-/g, ' ');
+                const { data: titleMatches, error: titleError } = await supabase
+                    .from('courses')
+                    .select('*')
+                    .eq('status', 'active')
+                    .ilike('title', `%${searchTerm}%`)
+                    .order('updated_at', { ascending: false })
+                    .limit(1);
+
+                if (titleError) throw titleError;
+                data = titleMatches?.[0] || null;
+            }
+
+            if (!data) {
+                setCourse(null);
+                return;
+            }
+
+            // Chuẩn hóa URL theo slug thực tế để tránh fallback nhiều lần
+            if (data.slug && data.slug !== routeId) {
+                navigate(`/courses/${data.slug}`, { replace: true });
+            }
+
             setCourse(data);
         } catch (err) {
             console.error("Error fetching course:", err);
+            setCourse(null);
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleEnrollClick = (event) => {
+        const userRoleCode = profile?.roles?.code;
+
+        if (!isAuthenticated) return;
+
+        event.preventDefault();
+
+        if (userRoleCode === 'STUDENT') {
+            navigate('/student/courses');
+            return;
+        }
+
+        gooeyToast('Tài khoản hiện tại không phải học viên. Vui lòng để lại thông tin để trung tâm tư vấn lộ trình phù hợp.');
+        setShowConsultation(true);
     };
 
     if (loading) return <LoadingSkeleton />;
@@ -764,15 +871,35 @@ export const CourseDetailPage = () => {
     );
 
     // Parse JSON fields
-    const syllabus = typeof course.syllabus === 'string' ? JSON.parse(course.syllabus) : course.syllabus || [];
-    const features = typeof course.features === 'string' ? JSON.parse(course.features) : course.features || [];
-    const outcomes = typeof course.outcomes === 'string' ? JSON.parse(course.outcomes) : course.outcomes || [];
-    const faq = typeof course.faq === 'string' ? JSON.parse(course.faq) : course.faq || [];
+    const syllabus = parseJsonArray(course.syllabus);
+    const features = parseJsonArray(course.features);
+    const outcomes = parseJsonArray(course.outcomes);
+    const faq = parseJsonArray(course.faq);
 
     // Get dynamic theme based on course category
     const theme = getThemeConfig(course.category);
     const isTechTheme = theme.type === 'tech';
     const certInfo = extractCourseCertInfo(course);
+    const heroImageCandidates = pickCourseImages(course);
+    const heroImageSrc = heroImageCandidates[heroImageIndex] || '';
+    const hasHeroImage = Boolean(heroImageSrc) && !heroImageError;
+    const classSizeValue = course.max_students || course.class_size || '8-15';
+    const classSizeUnit = typeof classSizeValue === 'number' ? 'Max' : 'HV';
+    const learningMode = course.delivery_mode || 'Online / Offline';
+    const nextStartDate = formatStartDate(course.next_start_date || course.start_date);
+    const courseSlugOrId = course.slug || course.id;
+    const registerHref = `/register?courseSlug=${encodeURIComponent(courseSlugOrId)}`;
+    const userRoleCode = profile?.roles?.code;
+    const desktopEnrollLabel = !isAuthenticated
+        ? 'Đăng ký ngay'
+        : userRoleCode === 'STUDENT'
+            ? 'Xem lớp mở'
+            : 'Nhận tư vấn ngay';
+    const mobileEnrollLabel = !isAuthenticated
+        ? 'Đăng ký'
+        : userRoleCode === 'STUDENT'
+            ? 'Xem lớp'
+            : 'Tư vấn';
 
     return (
         <div className={`min-h-screen bg-white antialiased font-sans ${theme.selection}`}>
@@ -858,8 +985,8 @@ export const CourseDetailPage = () => {
                                         <p className={`text-[10px] uppercase tracking-widest mb-2 font-bold ${isTechTheme ? 'text-neutral-500' : 'text-neutral-500'}`}>Class Size</p>
                                         <div className={`flex items-end gap-2 ${theme.heroText}`}>
                                             <Users className="w-5 h-5 mb-1" style={{ color: theme.heroAccent }} />
-                                            <span className="text-2xl font-mono font-bold">12</span>
-                                            <span className="text-xs text-neutral-500 mb-1.5">Max</span>
+                                            <span className="text-2xl font-mono font-bold">{classSizeValue}</span>
+                                            <span className="text-xs text-neutral-500 mb-1.5">{classSizeUnit}</span>
                                         </div>
                                     </div>
                                     <div>
@@ -874,8 +1001,33 @@ export const CourseDetailPage = () => {
 
                             {/* Decorative Right Panel - Theme-specific */}
                             <div className="hidden lg:block lg:col-span-4 relative overflow-hidden">
-                                {theme.showCodeDeco && <TechDecoration accentColor={theme.heroAccent} />}
-                                {theme.showAcademicDeco && <AcademicDecoration accentColor={theme.heroAccent} certInfo={certInfo} />}
+                                {hasHeroImage ? (
+                                    <div className="absolute inset-0">
+                                        <img
+                                            src={heroImageSrc}
+                                            alt={course.title}
+                                            className="w-full h-full object-cover"
+                                            loading="eager"
+                                            decoding="async"
+                                            onError={() => {
+                                                if (heroImageIndex < heroImageCandidates.length - 1) {
+                                                    setHeroImageIndex((prev) => prev + 1);
+                                                    return;
+                                                }
+
+                                                setHeroImageError(true);
+                                            }}
+                                        />
+                                        <div className={`absolute inset-0 ${isTechTheme ? 'bg-neutral-950/10' : 'bg-white/12'}`} />
+                                        {theme.showCodeDeco && <TechDecoration accentColor={theme.heroAccent} compact hasImage />}
+                                        {theme.showAcademicDeco && <AcademicDecoration accentColor={theme.heroAccent} certInfo={certInfo} />}
+                                    </div>
+                                ) : (
+                                    <>
+                                        {theme.showCodeDeco && <TechDecoration accentColor={theme.heroAccent} />}
+                                        {theme.showAcademicDeco && <AcademicDecoration accentColor={theme.heroAccent} certInfo={certInfo} />}
+                                    </>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -1186,9 +1338,9 @@ export const CourseDetailPage = () => {
                                             <div className="w-8 h-8 rounded-full bg-neutral-900 flex items-center justify-center border border-neutral-800">
                                                 <Users className="w-4 h-4" style={{ color: theme.heroAccent }} />
                                             </div>
-                                            <span className="text-xs font-bold text-neutral-300">Học viên mới tuần này</span>
+                                            <span className="text-xs font-bold text-neutral-300">Hình thức học</span>
                                         </div>
-                                        <span className="text-sm font-black text-white bg-neutral-900 px-2 py-0.5 rounded border border-neutral-800">127+</span>
+                                        <span className="text-xs font-mono font-bold text-white uppercase">{learningMode}</span>
                                     </div>
 
                                     <div className="flex items-center justify-between">
@@ -1198,17 +1350,18 @@ export const CourseDetailPage = () => {
                                             </div>
                                             <span className="text-xs font-bold text-neutral-300">Khai giảng dự kiến</span>
                                         </div>
-                                        <span className="text-xs font-mono font-bold text-white uppercase">05/01/2025</span>
+                                        <span className="text-xs font-mono font-bold text-white uppercase">{nextStartDate}</span>
                                     </div>
                                 </div>
 
                                 <div className="space-y-3">
                                     <Link
-                                        to={`/register?courseSlug=${course.slug}`}
+                                        to={registerHref}
+                                        onClick={handleEnrollClick}
                                         className={`relative w-full py-5 ${theme.ctaBg} text-white font-black uppercase tracking-widest ${theme.ctaHover} hover:text-black transition-all flex items-center justify-center gap-2 group/btn overflow-hidden`}
                                         style={{ boxShadow: `0 10px 20px ${theme.heroAccent}30` }}
                                     >
-                                        <span className="relative z-10">Đăng ký ngay</span>
+                                        <span className="relative z-10">{desktopEnrollLabel}</span>
                                         <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform relative z-10" />
                                     </Link>
                                     <button
@@ -1277,7 +1430,9 @@ export const CourseDetailPage = () => {
                 {/* MOBILE ACTION BAR */}
                 <MobileActionBar
                     price={course?.price}
-                    courseSlug={course?.slug}
+                    enrollHref={registerHref}
+                    enrollLabel={mobileEnrollLabel}
+                    onEnrollClick={handleEnrollClick}
                     onConsult={() => setShowConsultation(true)}
                     theme={theme}
                 />

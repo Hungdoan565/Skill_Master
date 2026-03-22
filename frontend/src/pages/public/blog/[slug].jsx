@@ -92,7 +92,7 @@ const BlogDetailPage = () => {
         : `https://skillmaster.vn/blog/${slug}`;
 
     return (
-        <div className="min-h-screen bg-white">
+        <div className="min-h-screen bg-card">
             {/* SEO */}
             <BlogSEO post={post} />
 
@@ -139,8 +139,8 @@ const BlogDetailPage = () => {
                                         {post.tags.map(tag => (
                                             <span
                                                 key={tag}
-                                                className="px-4 py-2 bg-stone-100 text-zinc-600 text-sm 
-                                                    font-medium rounded-full hover:bg-red-50 
+                                                className="px-4 py-2 bg-muted text-muted-foreground text-sm 
+                                                    font-medium rounded-full hover:bg-red-50 dark:hover:bg-red-900/20
                                                     hover:text-red-600 transition-colors cursor-pointer"
                                             >
                                                 #{tag}
@@ -174,12 +174,12 @@ const BlogDetailPage = () => {
                             {/* Print-friendly wrapper */}
                             <div className="print-article">
                                 {/* Article Title for Print */}
-                                <h1 className="hidden print:block text-3xl font-bold text-zinc-900 mb-4">
+                                <h1 className="hidden print:block text-3xl font-bold text-foreground mb-4">
                                     {post.title}
                                 </h1>
 
                                 {/* Author info for Print */}
-                                <div className="hidden print:block text-sm text-zinc-600 mb-6 pb-4 border-b border-stone-200">
+                                <div className="hidden print:block text-sm text-muted-foreground mb-6 pb-4 border-b border-border">
                                     <p><strong>Tác giả:</strong> {post.author.name}</p>
                                     <p><strong>Ngày đăng:</strong> {new Date(post.date).toLocaleDateString('vi-VN')}</p>
                                     <p><strong>Thời gian đọc:</strong> {post.readTime} phút</p>
@@ -198,8 +198,8 @@ const BlogDetailPage = () => {
                             </div>
 
                             {/* Inline Share */}
-                            <div className="mt-12 pt-8 border-t border-stone-200">
-                                <p className="text-sm font-semibold text-zinc-900 uppercase tracking-wider mb-4">
+                            <div className="mt-12 pt-8 border-t border-border">
+                                <p className="text-sm font-semibold text-foreground uppercase tracking-wider mb-4">
                                     Chia sẻ bài viết
                                 </p>
                                 <SocialShare url={shareUrl} title={post.title} />
@@ -228,7 +228,7 @@ const BlogDetailPage = () => {
                 </div>
 
                 {/* Related Posts */}
-                <section className="bg-stone-50 py-16">
+                <section className="bg-muted py-16">
                     <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
                         <RelatedPosts
                             currentPost={post}

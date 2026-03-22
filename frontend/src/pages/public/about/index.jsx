@@ -126,11 +126,11 @@ const PageHeader = () => {
           <div className="lg:col-span-5 p-6 lg:p-12 lg:border-r border-neutral-900">
             <div className={`transform transition-all duration-500
                           ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-              <span className="inline-flex items-center gap-2 text-xs font-medium tracking-widest uppercase text-neutral-500 mb-6">
+              <span className="inline-flex items-center gap-2 text-xs font-medium tracking-widest uppercase text-muted-foreground mb-6">
                 <span className="w-8 h-px bg-neutral-400" />
                 Về chúng tôi
               </span>
-              <h1 className="text-4xl lg:text-5xl xl:text-6xl font-bold text-neutral-900 tracking-tight leading-[1.1]">
+              <h1 className="text-4xl lg:text-5xl xl:text-6xl font-bold text-foreground tracking-tight leading-[1.1]">
                 Skill Master
               </h1>
             </div>
@@ -141,44 +141,44 @@ const PageHeader = () => {
             <div className={`p-6 lg:p-12
                           transform transition-all duration-500 delay-100
                           ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-              <p className="text-lg text-neutral-600 leading-relaxed max-w-xl">
+              <p className="text-lg text-muted-foreground leading-relaxed max-w-xl">
                 Hệ thống đào tạo Anh ngữ và Tin học hàng đầu,
                 cam kết mang đến chất lượng giáo dục chuẩn quốc tế từ năm 2016.
               </p>
             </div>
 
             {/* Quick Stats - ASYMMETRIC RHYTHM */}
-            <div className="grid grid-cols-12 border-t border-neutral-200">
+            <div className="grid grid-cols-12 border-t border-border">
               {/* Big stat 1 - Years (anchor) */}
-              <div className={`col-span-5 p-6 lg:p-8 border-r border-neutral-200 bg-neutral-50
+              <div className={`col-span-5 p-6 lg:p-8 border-r border-border bg-muted
                            transform transition-all duration-500 delay-200
                            ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-                <p className="text-5xl lg:text-6xl font-black text-neutral-900">
+                <p className="text-5xl lg:text-6xl font-black text-foreground">
                   <Counter end={8} />
                 </p>
-                <p className="text-sm text-neutral-600 mt-2">Năm kinh nghiệm</p>
+                <p className="text-sm text-muted-foreground mt-2">Năm kinh nghiệm</p>
                 <p className="text-xs text-neutral-400 mt-1">Từ 2016 đến nay</p>
               </div>
 
               {/* Big stat 2 - Students */}
-              <div className={`col-span-4 p-6 lg:p-8 border-r border-neutral-200
+              <div className={`col-span-4 p-6 lg:p-8 border-r border-border
                            transform transition-all duration-500 delay-300
                            ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-                <p className="text-4xl lg:text-5xl font-bold text-neutral-900">
+                <p className="text-4xl lg:text-5xl font-bold text-foreground">
                   <Counter end={10} suffix="K" />
                 </p>
-                <p className="text-xs text-neutral-500 uppercase tracking-wider mt-2">Học viên</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mt-2">Học viên</p>
               </div>
 
               {/* Small stats stacked */}
               <div className="col-span-3 flex flex-col">
-                <div className={`flex-1 p-4 lg:p-6 border-b border-neutral-200
+                <div className={`flex-1 p-4 lg:p-6 border-b border-border
                              transform transition-all duration-500 delay-400
                              ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-                  <p className="text-2xl font-bold text-neutral-900">
+                  <p className="text-2xl font-bold text-foreground">
                     <Counter end={50} suffix="+" />
                   </p>
-                  <p className="text-[10px] text-neutral-500 uppercase tracking-wider mt-1">Giảng viên</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">Giảng viên</p>
                 </div>
                 <div className={`flex-1 p-4 lg:p-6 bg-[#FF4D00]
                              transform transition-all duration-500 delay-500
@@ -251,7 +251,7 @@ const StorySection = () => {
           <div className="lg:col-span-5 p-6 lg:p-12 lg:border-r border-neutral-900 bg-neutral-900">
             <div className={`transform transition-all duration-500
                           ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-              <span className="text-xs font-medium tracking-widest uppercase text-neutral-500 mb-8 block">
+              <span className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-8 block">
                 Tầm nhìn
               </span>
               <blockquote className="text-2xl lg:text-3xl font-light text-white leading-relaxed">
@@ -285,7 +285,7 @@ const StorySection = () => {
 
             <div className={`relative z-10 transform transition-all duration-500 delay-100
                           ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-              <span className="text-xs font-medium tracking-widest uppercase text-neutral-500 mb-8 block">
+              <span className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-8 block">
                 Hành trình
               </span>
 
@@ -309,8 +309,8 @@ const StorySection = () => {
                     className={`grid grid-cols-12 border-t py-6 transition-all duration-300 cursor-pointer
                              ${item.highlight
                         ? 'border-t-2 border-[#FF4D00] bg-gradient-to-r from-orange-50 to-transparent -mx-6 px-6 lg:-mx-12 lg:px-12'
-                        : 'border-neutral-200'}
-                             ${hoveredYear === item.year ? 'bg-neutral-50/80' : ''}
+                        : 'border-border'}
+                             ${hoveredYear === item.year ? 'bg-muted/80' : ''}
                              transform ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
                     style={{ transitionDelay: `${200 + i * 100}ms` }}
                   >
@@ -321,20 +321,20 @@ const StorySection = () => {
                           ? 'bg-[#FF4D00] border-[#FF4D00]'
                           : hoveredYear === item.year
                             ? 'bg-[#FF4D00] border-[#FF4D00] scale-125'
-                            : 'bg-white border-neutral-300'}`}
+                            : 'bg-card border-neutral-300'}`}
                       />
-                      <span className={`text-sm font-bold ${item.highlight ? 'text-[#FF4D00]' : 'text-neutral-900'}`}>
+                      <span className={`text-sm font-bold ${item.highlight ? 'text-[#FF4D00]' : 'text-foreground'}`}>
                         {item.year}
                       </span>
                     </div>
                     <div className="col-span-3 flex items-center gap-2">
                       {item.highlight && <Award className="w-4 h-4 text-[#FF4D00]" />}
-                      <span className={`text-sm font-medium ${item.highlight ? 'text-[#FF4D00]' : 'text-neutral-900'}`}>
+                      <span className={`text-sm font-medium ${item.highlight ? 'text-[#FF4D00]' : 'text-foreground'}`}>
                         {item.title}
                       </span>
                     </div>
                     <div className="col-span-7">
-                      <span className={`text-sm ${item.highlight ? 'text-neutral-700 font-medium' : 'text-neutral-500'}`}>
+                      <span className={`text-sm ${item.highlight ? 'text-neutral-700 font-medium' : 'text-muted-foreground'}`}>
                         {item.desc}
                       </span>
                     </div>
@@ -391,7 +391,7 @@ const ValuesSection = () => {
       {/* Giant Watermark for Visual Depth */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none
                     opacity-[0.02] z-0">
-        <p className="text-[20rem] lg:text-[30rem] font-black text-neutral-900 whitespace-nowrap
+        <p className="text-[20rem] lg:text-[30rem] font-black text-foreground whitespace-nowrap
                     transform -rotate-6">
           VALUES
         </p>
@@ -400,31 +400,31 @@ const ValuesSection = () => {
       <div className="max-w-[1600px] mx-auto relative z-10">
 
         {/* Section Header */}
-        <div className="grid lg:grid-cols-12 border-b border-neutral-200">
-          <div className="lg:col-span-4 p-6 lg:p-12 lg:border-r border-neutral-200">
-            <span className="text-xs font-medium tracking-widest uppercase text-neutral-500">
+        <div className="grid lg:grid-cols-12 border-b border-border">
+          <div className="lg:col-span-4 p-6 lg:p-12 lg:border-r border-border">
+            <span className="text-xs font-medium tracking-widest uppercase text-muted-foreground">
               Giá trị cốt lõi
             </span>
           </div>
           <div className={`lg:col-span-8 p-6 lg:p-12
                         transform transition-all duration-500
                         ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-            <h2 className="text-3xl lg:text-4xl font-bold text-neutral-900 tracking-tight">
+            <h2 className="text-3xl lg:text-4xl font-bold text-foreground tracking-tight">
               Những điều chúng tôi tin tưởng
             </h2>
           </div>
         </div>
 
         {/* FEATURED VALUE - Expanded */}
-        <div className={`grid lg:grid-cols-12 border-b border-neutral-200 bg-neutral-50
+        <div className={`grid lg:grid-cols-12 border-b border-border bg-muted
                       transform transition-all duration-500
                       ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <div className="lg:col-span-1 p-6 lg:p-8 lg:border-r border-neutral-200 flex items-start">
+          <div className="lg:col-span-1 p-6 lg:p-8 lg:border-r border-border flex items-start">
             <span className="text-4xl font-black text-[#FF4D00]">{featuredValue.num}</span>
           </div>
-          <div className="lg:col-span-4 p-6 lg:p-8 lg:border-r border-neutral-200">
-            <h3 className="text-3xl font-bold text-neutral-900 mb-4">{featuredValue.title}</h3>
-            <p className="text-neutral-600 leading-relaxed">{featuredValue.desc}</p>
+          <div className="lg:col-span-4 p-6 lg:p-8 lg:border-r border-border">
+            <h3 className="text-3xl font-bold text-foreground mb-4">{featuredValue.title}</h3>
+            <p className="text-muted-foreground leading-relaxed">{featuredValue.desc}</p>
           </div>
           <div className="lg:col-span-7 p-6 lg:p-8 flex items-center">
             <blockquote className="text-xl lg:text-2xl font-light text-neutral-700 italic border-l-4 border-[#FF4D00] pl-6">
@@ -438,15 +438,15 @@ const ValuesSection = () => {
           {otherValues.map((value, i) => (
             <div
               key={i}
-              className={`p-6 lg:p-8 border-b lg:border-b-0 lg:border-r border-neutral-200 last:border-r-0
-                       hover:bg-neutral-50 transition-colors duration-150
+              className={`p-6 lg:p-8 border-b lg:border-b-0 lg:border-r border-border last:border-r-0
+                       hover:bg-muted transition-colors duration-150
                        transform transition-all duration-500
                        ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
               style={{ transitionDelay: `${200 + i * 100}ms` }}
             >
               <span className="text-sm font-medium text-neutral-400 mb-3 block">{value.num}</span>
-              <h3 className="text-xl font-bold text-neutral-900 mb-2">{value.title}</h3>
-              <p className="text-sm text-neutral-600 leading-relaxed">{value.desc}</p>
+              <h3 className="text-xl font-bold text-foreground mb-2">{value.title}</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">{value.desc}</p>
             </div>
           ))}
         </div>
@@ -477,27 +477,27 @@ const TrustBadgesSection = () => {
   ];
 
   return (
-    <section ref={ref} className="border-b border-neutral-900 bg-neutral-50">
+    <section ref={ref} className="border-b border-neutral-900 bg-muted">
       <div className="max-w-[1600px] mx-auto">
 
         {/* Section Header */}
-        <div className="grid lg:grid-cols-12 border-b border-neutral-200">
-          <div className="lg:col-span-4 p-6 lg:p-12 lg:border-r border-neutral-200">
-            <span className="text-xs font-medium tracking-widest uppercase text-neutral-500">
+        <div className="grid lg:grid-cols-12 border-b border-border">
+          <div className="lg:col-span-4 p-6 lg:p-12 lg:border-r border-border">
+            <span className="text-xs font-medium tracking-widest uppercase text-muted-foreground">
               Đối tác & Chứng nhận
             </span>
           </div>
           <div className={`lg:col-span-8 p-6 lg:p-12
                         transform transition-all duration-500
                         ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-            <h2 className="text-2xl lg:text-3xl font-bold text-neutral-900 tracking-tight">
+            <h2 className="text-2xl lg:text-3xl font-bold text-foreground tracking-tight">
               Được tin tưởng bởi các tổ chức hàng đầu
             </h2>
           </div>
         </div>
 
         {/* Animated Logo Strip */}
-        <div className="py-8 overflow-hidden border-b border-neutral-200">
+        <div className="py-8 overflow-hidden border-b border-border">
           <div className={`flex gap-12 lg:gap-16 items-center justify-center flex-wrap px-6
                         transform transition-all duration-700
                         ${isInView ? 'opacity-100' : 'opacity-0'}`}>
@@ -507,7 +507,7 @@ const TrustBadgesSection = () => {
                 className="flex flex-col items-center gap-2 group cursor-pointer"
                 style={{ transitionDelay: `${i * 100}ms` }}
               >
-                <div className="w-20 h-20 lg:w-24 lg:h-24 bg-white border border-neutral-200 
+                <div className="w-20 h-20 lg:w-24 lg:h-24 bg-card border border-border 
                               flex items-center justify-center rounded-lg
                               group-hover:border-[#FF4D00]/50 transition-all duration-300
                               group-hover:shadow-lg group-hover:-translate-y-1">
@@ -516,7 +516,7 @@ const TrustBadgesSection = () => {
                     {partner.name.substring(0, 2).toUpperCase()}
                   </span>
                 </div>
-                <span className="text-xs text-neutral-500 text-center opacity-0 
+                <span className="text-xs text-muted-foreground text-center opacity-0 
                                group-hover:opacity-100 transition-opacity">
                   {partner.type}
                 </span>
@@ -530,8 +530,8 @@ const TrustBadgesSection = () => {
           {certifications.map((cert, i) => (
             <div
               key={i}
-              className={`p-6 lg:p-8 border-b lg:border-b-0 lg:border-r border-neutral-200 last:border-r-0
-                       flex items-center gap-4 hover:bg-white transition-colors
+              className={`p-6 lg:p-8 border-b lg:border-b-0 lg:border-r border-border last:border-r-0
+                       flex items-center gap-4 hover:bg-card transition-colors
                        transform transition-all duration-500
                        ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
               style={{ transitionDelay: `${300 + i * 100}ms` }}
@@ -540,8 +540,8 @@ const TrustBadgesSection = () => {
                 <Award className="w-6 h-6 text-[#FF4D00]" />
               </div>
               <div>
-                <p className="font-bold text-neutral-900">{cert.label}</p>
-                <p className="text-sm text-neutral-500">{cert.desc}</p>
+                <p className="font-bold text-foreground">{cert.label}</p>
+                <p className="text-sm text-muted-foreground">{cert.desc}</p>
               </div>
             </div>
           ))}
@@ -576,7 +576,7 @@ const SuccessSpotlightSection = () => {
           <div className="lg:col-span-3 p-6 lg:p-12 lg:border-r border-neutral-700">
             <div className={`transform transition-all duration-500
                           ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-              <span className="text-xs font-medium tracking-widest uppercase text-neutral-500 mb-4 block">
+              <span className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-4 block">
                 Success Story
               </span>
               <p className="text-2xl font-bold text-white">
@@ -791,19 +791,19 @@ const TeamSection = () => {
       <div className="max-w-[1600px] mx-auto">
 
         {/* Section Header */}
-        <div className="grid lg:grid-cols-12 border-b border-neutral-200">
-          <div className="lg:col-span-4 p-6 lg:p-12 lg:border-r border-neutral-200">
-            <span className="text-xs font-medium tracking-widest uppercase text-neutral-500">
+        <div className="grid lg:grid-cols-12 border-b border-border">
+          <div className="lg:col-span-4 p-6 lg:p-12 lg:border-r border-border">
+            <span className="text-xs font-medium tracking-widest uppercase text-muted-foreground">
               Đội ngũ giảng viên
             </span>
           </div>
           <div className={`lg:col-span-8 p-6 lg:p-12
                         transform transition-all duration-500
                         ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-            <h2 className="text-3xl lg:text-4xl font-bold text-neutral-900 tracking-tight">
+            <h2 className="text-3xl lg:text-4xl font-bold text-foreground tracking-tight">
               Những người dẫn dắt
             </h2>
-            <p className="mt-4 text-neutral-500 max-w-xl">
+            <p className="mt-4 text-muted-foreground max-w-xl">
               Đội ngũ giảng viên Việt Nam và quốc tế, 100% có chứng chỉ quốc tế,
               trung bình 8+ năm kinh nghiệm giảng dạy.
             </p>
@@ -811,13 +811,13 @@ const TeamSection = () => {
         </div>
 
         {/* ========== STRIP: 3 LEADERSHIP AVATARS ========== */}
-        <div className={`grid lg:grid-cols-12 border-b border-neutral-200
+        <div className={`grid lg:grid-cols-12 border-b border-border
                       transform transition-all duration-500 delay-100
                       ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
 
           {/* Left: 3 Avatars */}
-          <div className="lg:col-span-5 p-6 lg:p-10 lg:border-r border-neutral-200 bg-neutral-50">
-            <p className="text-xs font-medium tracking-widest uppercase text-neutral-500 mb-6">
+          <div className="lg:col-span-5 p-6 lg:p-10 lg:border-r border-border bg-muted">
+            <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-6">
               Ban lãnh đạo
             </p>
 
@@ -884,7 +884,7 @@ const TeamSection = () => {
                                    ${member.nationality === 'VN' ? 'bg-neutral-900 text-white' : 'bg-[#FF4D00] text-white'}`}>
                       {member.nationality === 'VN' ? 'Vietnam' : 'International'}
                     </span>
-                    <h3 className="text-2xl lg:text-3xl font-bold text-neutral-900 tracking-tight">
+                    <h3 className="text-2xl lg:text-3xl font-bold text-foreground tracking-tight">
                       {member.name}
                     </h3>
                     <p className="text-[#FF4D00] font-semibold mt-1">{member.role}</p>
@@ -894,12 +894,12 @@ const TeamSection = () => {
 
                 {/* Certifications */}
                 <div className="mb-6">
-                  <p className="text-xs font-medium tracking-widest uppercase text-neutral-500 mb-3">
+                  <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">
                     Chứng chỉ
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {member.certifications.map((cert, j) => (
-                      <span key={j} className="px-3 py-1.5 bg-neutral-100 text-xs font-medium text-neutral-700">
+                      <span key={j} className="px-3 py-1.5 bg-muted text-xs font-medium text-neutral-700">
                         {cert.abbr} · {cert.score}
                       </span>
                     ))}
@@ -908,25 +908,25 @@ const TeamSection = () => {
 
                 {/* Specialties */}
                 <div className="mb-6">
-                  <p className="text-xs font-medium tracking-widest uppercase text-neutral-500 mb-3">
+                  <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-3">
                     Chuyên môn
                   </p>
                   <div className="flex flex-wrap gap-3">
                     {member.specialties.map((spec, j) => (
-                      <span key={j} className="text-sm text-neutral-600">{spec}</span>
+                      <span key={j} className="text-sm text-muted-foreground">{spec}</span>
                     ))}
                   </div>
                 </div>
 
                 {/* Stats */}
-                <div className="flex gap-10 pt-8 border-t border-neutral-200">
+                <div className="flex gap-10 pt-8 border-t border-border">
                   <div>
                     <p className="text-[11px] text-neutral-400 uppercase tracking-[0.1em] font-medium">Kinh nghiệm</p>
-                    <p className="text-3xl font-bold text-neutral-900 mt-2">{member.years}<span className="text-sm font-medium ml-1 text-neutral-500 underline decoration-[#FF4D00] decoration-2 underline-offset-4">năm</span></p>
+                    <p className="text-3xl font-bold text-foreground mt-2">{member.years}<span className="text-sm font-medium ml-1 text-muted-foreground underline decoration-[#FF4D00] decoration-2 underline-offset-4">năm</span></p>
                   </div>
                   <div>
                     <p className="text-[11px] text-neutral-400 uppercase tracking-[0.1em] font-medium">Học viên</p>
-                    <p className="text-3xl font-bold text-neutral-900 mt-2">{member.students}</p>
+                    <p className="text-3xl font-bold text-foreground mt-2">{member.students}</p>
                   </div>
                 </div>
               </div>
@@ -935,8 +935,8 @@ const TeamSection = () => {
         </div>
 
         {/* ========== MARQUEE: ALL TEACHERS CAROUSEL ========== */}
-        <div className="border-b border-neutral-200 pt-16 pb-12 overflow-hidden bg-neutral-50/30">
-          <p className="text-xs font-medium tracking-widest uppercase text-neutral-500 px-6 lg:px-10 mb-6">
+        <div className="border-b border-border pt-16 pb-12 overflow-hidden bg-muted/30">
+          <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground px-6 lg:px-10 mb-6">
             Toàn bộ đội ngũ · Hover để xem chi tiết
           </p>
 
@@ -1043,15 +1043,15 @@ const MarqueeCard = ({ member, index, onClick }) => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={onClick}
-      className={`flex-shrink-0 border bg-white shadow-sm transition-all duration-300 cursor-pointer
+      className={`flex-shrink-0 border bg-card shadow-sm transition-all duration-300 cursor-pointer
                 ${isInternational
           ? 'w-[300px] lg:w-[360px] border-[#FF4D00]/30 hover:border-[#FF4D00]'
-          : 'w-[260px] lg:w-[300px] border-neutral-200'}
-                ${isHovered ? 'bg-white shadow-xl -translate-y-2' : ''}`}
+          : 'w-[260px] lg:w-[300px] border-border'}
+                ${isHovered ? 'bg-card shadow-xl -translate-y-2' : ''}`}
     >
       <div className="flex">
         {/* Avatar */}
-        <div className={`flex-shrink-0 relative overflow-hidden bg-neutral-100
+        <div className={`flex-shrink-0 relative overflow-hidden bg-muted
                       ${isInternational ? 'w-28 h-32' : 'w-24 h-28'}`}>
           <img
             src={member.image}
@@ -1081,7 +1081,7 @@ const MarqueeCard = ({ member, index, onClick }) => {
         {/* Info */}
         <div className="flex-1 p-3 flex flex-col justify-between">
           <div>
-            <h4 className={`font-bold text-neutral-900 leading-tight
+            <h4 className={`font-bold text-foreground leading-tight
                          ${isInternational ? 'text-base' : 'text-sm'}`}>
               {member.name}
             </h4>
@@ -1091,7 +1091,7 @@ const MarqueeCard = ({ member, index, onClick }) => {
           {/* Expandable info on hover */}
           <div className={`transition-all duration-300 overflow-hidden
                         ${isHovered ? 'max-h-24 opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
-            <div className="flex gap-3 text-[10px] text-neutral-500 font-medium">
+            <div className="flex gap-3 text-[10px] text-muted-foreground font-medium">
               <span className="text-neutral-700">{member.years} năm KN</span>
               <span>·</span>
               <span className="text-neutral-700">{member.students} học viên</span>
@@ -1101,7 +1101,7 @@ const MarqueeCard = ({ member, index, onClick }) => {
                 <span key={j} className={`px-1.5 py-0.5 text-[10px]
                                        ${isInternational
                     ? 'bg-[#FF4D00]/10 text-[#FF4D00]'
-                    : 'bg-neutral-100 text-neutral-600'}`}>
+                    : 'bg-muted text-muted-foreground'}`}>
                   {cert.abbr}
                 </span>
               ))}
@@ -1109,9 +1109,9 @@ const MarqueeCard = ({ member, index, onClick }) => {
           </div>
 
           {/* Default mini stats */}
-          <div className={`flex gap-2 text-[10px] text-neutral-500 font-medium transition-all duration-300
+          <div className={`flex gap-2 text-[10px] text-muted-foreground font-medium transition-all duration-300
                         ${isHovered ? 'opacity-0' : 'opacity-100'}`}>
-            <span className="text-neutral-900">{member.years}y</span>
+            <span className="text-foreground">{member.years}y</span>
             <span className="text-neutral-300">|</span>
             <span className="capitalize">{member.department}</span>
           </div>
@@ -1238,7 +1238,7 @@ const TeamProfileModal = ({ member, isOpen, onClose, onNext, onPrev }) => {
           </div>
 
           {/* Right: Profile Details (3/5) */}
-          <div className="md:col-span-3 bg-white p-8 md:p-10
+          <div className="md:col-span-3 bg-card p-8 md:p-10
             overflow-y-auto max-h-[60vh] md:max-h-[92vh] space-y-8">
 
             {/* Department */}
@@ -1251,8 +1251,8 @@ const TeamProfileModal = ({ member, isOpen, onClose, onNext, onPrev }) => {
               <div className="flex flex-wrap gap-2">
                 {member.specialties.map((s, i) => (
                   <span key={i} className="px-4 py-2 rounded-xl text-sm font-medium
-                    bg-stone-50 border border-stone-200 text-zinc-700
-                    hover:bg-stone-100 transition-colors">
+                    bg-muted border border-border text-foreground/90
+                    hover:bg-muted transition-colors">
                     {s}
                   </span>
                 ))}
@@ -1273,7 +1273,7 @@ const TeamProfileModal = ({ member, isOpen, onClose, onNext, onPrev }) => {
               <div className="space-y-3">
                 {member.certifications.map((cert, i) => (
                   <div key={i} className="flex gap-4 p-4 rounded-2xl
-                    bg-stone-50 border border-stone-100 hover:bg-stone-100
+                    bg-muted border border-border/50 hover:bg-muted
                     transition-colors group">
                     {/* Cert logo tile */}
                     <div
@@ -1292,25 +1292,25 @@ const TeamProfileModal = ({ member, isOpen, onClose, onNext, onPrev }) => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <p className="text-zinc-900 font-semibold text-sm leading-tight">
+                          <p className="text-foreground font-semibold text-sm leading-tight">
                             {cert.name}
                           </p>
-                          <p className="text-zinc-500 text-xs mt-0.5">{cert.issuer}</p>
+                          <p className="text-muted-foreground text-xs mt-0.5">{cert.issuer}</p>
                         </div>
                         <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold
-                          bg-zinc-100 text-zinc-600 whitespace-nowrap">
+                          bg-muted text-muted-foreground whitespace-nowrap">
                           {cert.category}
                         </span>
                       </div>
                       {/* Score bar */}
                       <div className="mt-2 flex items-center gap-2">
-                        <div className="h-1.5 flex-1 bg-stone-200 rounded-full overflow-hidden">
+                        <div className="h-1.5 flex-1 bg-muted rounded-full overflow-hidden">
                           <div
                             className="h-full rounded-full transition-all duration-1000"
                             style={{ backgroundColor: cert.color, width: '100%' }}
                           />
                         </div>
-                        <span className="text-xs font-bold text-zinc-700 whitespace-nowrap">
+                        <span className="text-xs font-bold text-foreground/90 whitespace-nowrap">
                           {cert.score}
                         </span>
                       </div>
@@ -1321,14 +1321,14 @@ const TeamProfileModal = ({ member, isOpen, onClose, onNext, onPrev }) => {
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-2 gap-4 pt-6 border-t border-stone-200">
-              <div className="bg-stone-50 rounded-2xl p-5 text-center">
-                <p className="text-3xl font-bold text-neutral-900">{member.years}</p>
-                <p className="text-xs text-neutral-500 mt-1 uppercase tracking-wider">Năm kinh nghiệm</p>
+            <div className="grid grid-cols-2 gap-4 pt-6 border-t border-border">
+              <div className="bg-muted rounded-2xl p-5 text-center">
+                <p className="text-3xl font-bold text-foreground">{member.years}</p>
+                <p className="text-xs text-muted-foreground mt-1 uppercase tracking-wider">Năm kinh nghiệm</p>
               </div>
-              <div className="bg-stone-50 rounded-2xl p-5 text-center">
-                <p className="text-3xl font-bold text-neutral-900">{member.students}</p>
-                <p className="text-xs text-neutral-500 mt-1 uppercase tracking-wider">Học viên</p>
+              <div className="bg-muted rounded-2xl p-5 text-center">
+                <p className="text-3xl font-bold text-foreground">{member.students}</p>
+                <p className="text-xs text-muted-foreground mt-1 uppercase tracking-wider">Học viên</p>
               </div>
             </div>
           </div>
@@ -1433,12 +1433,12 @@ const LocationsSection = () => {
       <div className="max-w-[1600px] mx-auto">
 
         {/* Section Header with Tabs */}
-        <div className="grid lg:grid-cols-12 border-b border-neutral-200">
-          <div className="lg:col-span-4 p-6 lg:p-12 lg:border-r border-neutral-200">
-            <span className="text-xs font-medium tracking-widest uppercase text-neutral-500 mb-4 block">
+        <div className="grid lg:grid-cols-12 border-b border-border">
+          <div className="lg:col-span-4 p-6 lg:p-12 lg:border-r border-border">
+            <span className="text-xs font-medium tracking-widest uppercase text-muted-foreground mb-4 block">
               Cơ sở
             </span>
-            <h2 className={`text-3xl lg:text-4xl font-bold text-neutral-900 tracking-tight
+            <h2 className={`text-3xl lg:text-4xl font-bold text-foreground tracking-tight
                         transform transition-all duration-500
                         ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
               3 địa điểm
@@ -1455,15 +1455,15 @@ const LocationsSection = () => {
                   className={`flex-1 p-4 lg:p-6 text-left transition-all duration-300 border-b-2
                             ${activeLocation === i
                       ? 'bg-neutral-900 text-white border-[#FF4D00]'
-                      : 'bg-white text-neutral-600 border-transparent hover:bg-neutral-50'}`}
+                      : 'bg-card text-muted-foreground border-transparent hover:bg-muted'}`}
                 >
                   <span className="text-xs text-neutral-400 block mb-1">
                     {String(i + 1).padStart(2, '0')}
                   </span>
-                  <span className={`font-bold block ${activeLocation === i ? 'text-white' : 'text-neutral-900'}`}>
+                  <span className={`font-bold block ${activeLocation === i ? 'text-white' : 'text-foreground'}`}>
                     {loc.name}
                   </span>
-                  <span className={`text-xs mt-1 block ${activeLocation === i ? 'text-[#FF4D00]' : 'text-neutral-500'}`}>
+                  <span className={`text-xs mt-1 block ${activeLocation === i ? 'text-[#FF4D00]' : 'text-muted-foreground'}`}>
                     {loc.label}
                   </span>
                 </button>
@@ -1477,7 +1477,7 @@ const LocationsSection = () => {
                       ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
 
           {/* Left: Image */}
-          <div className="lg:col-span-5 lg:border-r border-neutral-200 relative overflow-hidden bg-neutral-100">
+          <div className="lg:col-span-5 lg:border-r border-border relative overflow-hidden bg-muted">
             {locations.map((loc, i) => (
               <div
                 key={i}
@@ -1500,7 +1500,7 @@ const LocationsSection = () => {
           </div>
 
           {/* Middle: Info */}
-          <div className="lg:col-span-4 p-6 lg:p-8 lg:border-r border-neutral-200 flex flex-col justify-between relative min-h-[350px]">
+          <div className="lg:col-span-4 p-6 lg:p-8 lg:border-r border-border flex flex-col justify-between relative min-h-[350px]">
             {locations.map((loc, i) => (
               <div
                 key={i}
@@ -1508,7 +1508,7 @@ const LocationsSection = () => {
                           ${activeLocation === i ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}
               >
                 <div>
-                  <h3 className="text-2xl font-bold text-neutral-900 mb-6">
+                  <h3 className="text-2xl font-bold text-foreground mb-6">
                     Cơ sở {loc.name}
                   </h3>
 
@@ -1528,9 +1528,9 @@ const LocationsSection = () => {
                     <div className="flex items-start gap-3">
                       <MapPin className="w-5 h-5 text-[#FF4D00] mt-0.5 flex-shrink-0" />
                       <div>
-                        <p className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Địa chỉ</p>
-                        <p className="text-neutral-900 font-medium">{loc.address}</p>
-                        <div className="flex items-center gap-1.5 mt-1.5 text-xs text-neutral-500 bg-neutral-100 px-2 py-1 rounded w-fit">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Địa chỉ</p>
+                        <p className="text-foreground font-medium">{loc.address}</p>
+                        <div className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground bg-muted px-2 py-1 rounded w-fit">
                           <Navigation className="w-3 h-3" />
                           {loc.landmark}
                         </div>
@@ -1540,18 +1540,18 @@ const LocationsSection = () => {
                     <div className="flex items-start gap-3">
                       <Phone className="w-5 h-5 text-[#FF4D00] mt-0.5 flex-shrink-0" />
                       <div>
-                        <p className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Hotline</p>
-                        <p className="text-neutral-900 font-bold">{loc.phone}</p>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Hotline</p>
+                        <p className="text-foreground font-bold">{loc.phone}</p>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 <div>
-                  <p className="text-xs text-neutral-500 uppercase tracking-wider mb-3">Cơ sở vật chất</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">Cơ sở vật chất</p>
                   <div className="flex flex-wrap gap-2">
                     {loc.features.map((f, j) => (
-                      <span key={j} className="px-3 py-1.5 bg-neutral-100 text-sm text-neutral-700">
+                      <span key={j} className="px-3 py-1.5 bg-muted text-sm text-neutral-700">
                         {f}
                       </span>
                     ))}
@@ -1562,7 +1562,7 @@ const LocationsSection = () => {
           </div>
 
           {/* Right: Map Preview + Link */}
-          <div className="lg:col-span-3 bg-neutral-100 relative min-h-[350px] flex flex-col">
+          <div className="lg:col-span-3 bg-muted relative min-h-[350px] flex flex-col">
             {/* Map Placeholder / Embed Area */}
             <div className="flex-1 relative overflow-hidden">
               {locations.map((loc, i) => (
@@ -1603,7 +1603,7 @@ const LocationsSection = () => {
         </div>
 
         {/* Quick Navigation Dots */}
-        <div className="flex justify-center gap-2 py-4 border-t border-neutral-200">
+        <div className="flex justify-center gap-2 py-4 border-t border-border">
           {locations.map((_, i) => (
             <button
               key={i}
@@ -1726,7 +1726,7 @@ const CTASection = () => {
 // ============================================
 export const AboutPage = () => {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-card">
       <SEOHead
         title="Về chúng tôi"
         description="Skill Master - Hệ thống đào tạo Anh ngữ & Tin học chuẩn quốc tế. Tìm hiểu về tầm nhìn, sứ mệnh và đội ngũ chuyên gia của chúng tôi."

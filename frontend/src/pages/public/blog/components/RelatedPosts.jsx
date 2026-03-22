@@ -11,12 +11,12 @@ export const RelatedPosts = ({ posts, currentCategory }) => {
     if (!posts || posts.length === 0) return null;
 
     return (
-        <section className="py-16 bg-stone-50">
+        <section className="py-16 bg-muted">
             <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
                 {/* Section Header */}
                 <div className="flex items-center justify-between mb-10">
                     <div className="flex items-center gap-4">
-                        <span className="text-sm font-semibold text-zinc-900 uppercase tracking-wider">
+                        <span className="text-sm font-semibold text-foreground uppercase tracking-wider">
                             Bài viết liên quan
                         </span>
                         <div className="hidden sm:block w-24 h-px bg-stone-300" />
@@ -37,8 +37,8 @@ export const RelatedPosts = ({ posts, currentCategory }) => {
                         <Link
                             key={post.id}
                             to={`/blog/${post.slug}`}
-                            className="group bg-white rounded-2xl border border-stone-200 overflow-hidden
-                                hover:shadow-lg hover:shadow-stone-200/50 hover:border-stone-300
+                            className="group bg-card rounded-2xl border border-border overflow-hidden
+                                hover:shadow-lg hover:shadow-black/5 dark:shadow-black/20 hover:border-border
                                 hover:-translate-y-1 transition-all duration-300"
                         >
                             <div className="aspect-[16/10] overflow-hidden">
@@ -54,11 +54,11 @@ export const RelatedPosts = ({ posts, currentCategory }) => {
                                 <span className="text-xs font-semibold text-red-600 uppercase tracking-wider">
                                     {post.category}
                                 </span>
-                                <h3 className="text-lg font-bold text-zinc-900 mt-2 mb-3 
+                                <h3 className="text-lg font-bold text-foreground mt-2 mb-3 
                                     group-hover:text-red-600 transition-colors line-clamp-2">
                                     {post.title}
                                 </h3>
-                                <div className="flex items-center gap-4 text-xs text-zinc-400">
+                                <div className="flex items-center gap-4 text-xs text-muted-foreground/70">
                                     <span className="flex items-center gap-1">
                                         <Calendar className="w-3.5 h-3.5" />
                                         {formatDate(post.date)}

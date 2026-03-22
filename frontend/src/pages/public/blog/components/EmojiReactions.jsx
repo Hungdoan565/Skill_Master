@@ -107,7 +107,7 @@ export const EmojiReactions = ({ postSlug }) => {
     if (isLoading) {
         return (
             <div className="flex gap-4 py-6">
-                <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
+                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground/70" />
             </div>
         );
     }
@@ -127,7 +127,7 @@ export const EmojiReactions = ({ postSlug }) => {
                             transition-all duration-300 relative overflow-hidden
                             ${isSelected
                                 ? 'bg-red-50 border-red-200 text-red-600 shadow-sm'
-                                : 'bg-white border-stone-200 text-zinc-600 hover:border-red-200 hover:bg-stone-50'
+                                : 'bg-card border-border text-muted-foreground hover:border-red-200 hover:bg-muted'
                             }
                             ${isProcessing ? 'opacity-70 cursor-wait' : ''}
                         `}

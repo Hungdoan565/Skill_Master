@@ -32,7 +32,7 @@ export const BackToTopButton = () => {
 export const ReadingProgressBar = ({ progress, markers = [] }) => {
     return (
         <div
-            className="fixed top-0 left-0 right-0 h-1.5 bg-stone-100 z-[60] overflow-hidden group"
+            className="fixed top-0 left-0 right-0 h-1.5 bg-muted z-[60] overflow-hidden group"
             role="progressbar"
             aria-valuenow={Math.round(progress)}
             aria-valuemin="0"
@@ -85,9 +85,9 @@ export const Pagination = ({ currentPage, totalPages, onPageChange }) => {
             <button
                 onClick={() => onPageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="p-3 rounded-xl bg-stone-100 text-zinc-600 
+                className="p-3 rounded-xl bg-muted text-muted-foreground 
                     disabled:opacity-50 disabled:cursor-not-allowed 
-                    hover:bg-stone-200 transition-colors"
+                    hover:bg-muted transition-colors"
                 aria-label="Trang trước"
             >
                 <ChevronLeft className="w-5 h-5" />
@@ -95,7 +95,7 @@ export const Pagination = ({ currentPage, totalPages, onPageChange }) => {
 
             {pages.map((page, i) => (
                 page === '...' ? (
-                    <span key={i} className="px-3 py-2 text-zinc-400" aria-hidden="true">...</span>
+                    <span key={i} className="px-3 py-2 text-muted-foreground/70" aria-hidden="true">...</span>
                 ) : (
                     <button
                         key={page}
@@ -105,7 +105,7 @@ export const Pagination = ({ currentPage, totalPages, onPageChange }) => {
                         className={`min-w-[44px] py-3 font-medium rounded-xl transition-all duration-300
                             ${currentPage === page
                                 ? 'bg-zinc-900 text-white shadow-lg shadow-zinc-900/25'
-                                : 'bg-stone-100 text-zinc-600 hover:bg-stone-200'
+                                : 'bg-muted text-muted-foreground hover:bg-muted'
                             }`}
                     >
                         {page}
@@ -116,9 +116,9 @@ export const Pagination = ({ currentPage, totalPages, onPageChange }) => {
             <button
                 onClick={() => onPageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="p-3 rounded-xl bg-stone-100 text-zinc-600 
+                className="p-3 rounded-xl bg-muted text-muted-foreground 
                     disabled:opacity-50 disabled:cursor-not-allowed 
-                    hover:bg-stone-200 transition-colors"
+                    hover:bg-muted transition-colors"
                 aria-label="Trang sau"
             >
                 <ChevronRight className="w-5 h-5" />
@@ -132,11 +132,11 @@ export const Pagination = ({ currentPage, totalPages, onPageChange }) => {
 // ============================================
 export const EmptyState = ({ searchTerm, activeFilter, onClear }) => (
     <div className="py-24 text-center" role="status">
-        <div className="w-20 h-20 bg-stone-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+        <div className="w-20 h-20 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-6">
             <Search className="w-8 h-8 text-stone-400" aria-hidden="true" />
         </div>
-        <h3 className="text-2xl font-bold text-zinc-900 mb-3">Không tìm thấy bài viết</h3>
-        <p className="text-zinc-500 max-w-md mx-auto mb-8">
+        <h3 className="text-2xl font-bold text-foreground mb-3">Không tìm thấy bài viết</h3>
+        <p className="text-muted-foreground max-w-md mx-auto mb-8">
             {searchTerm
                 ? `Không có kết quả cho "${searchTerm}"`
                 : `Chưa có bài viết trong danh mục này`
@@ -182,19 +182,19 @@ export const SortDropdown = ({ options, value, onChange }) => {
         <div className="relative" ref={dropdownRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className={`flex items-center gap-2 px-4 py-2 bg-stone-100 rounded-xl
-                    hover:bg-stone-200 transition-all duration-300
-                    ${isOpen ? 'ring-2 ring-red-500/20 bg-white border-stone-200 shadow-md' : 'border border-transparent'}
+                className={`flex items-center gap-2 px-4 py-2 bg-muted rounded-xl
+                    hover:bg-muted transition-all duration-300
+                    ${isOpen ? 'ring-2 ring-red-500/20 bg-card border-border shadow-md' : 'border border-transparent'}
                 `}
                 aria-haspopup="listbox"
                 aria-expanded={isOpen}
             >
-                <SortAsc className="w-4 h-4 text-zinc-400" />
-                <span className="text-sm font-medium text-zinc-600">{selectedOption.label}</span>
-                <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+                <SortAsc className="w-4 h-4 text-muted-foreground/70" />
+                <span className="text-sm font-medium text-muted-foreground">{selectedOption.label}</span>
+                <ChevronDown className={`w-4 h-4 text-muted-foreground/70 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
             </button>
 
-            <div className={`absolute right-0 mt-2 w-48 bg-white border border-stone-200 rounded-2xl shadow-xl z-50 overflow-hidden transition-all duration-300 origin-top-right
+            <div className={`absolute right-0 mt-2 w-48 bg-card border border-border rounded-2xl shadow-xl z-50 overflow-hidden transition-all duration-300 origin-top-right
                 ${isOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'}
             `}>
                 <div
@@ -208,7 +208,7 @@ export const SortDropdown = ({ options, value, onChange }) => {
                             className={`w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors
                                 ${value === option.id
                                     ? 'bg-red-50 text-red-600 font-semibold'
-                                    : 'text-zinc-600 hover:bg-stone-50 hover:text-zinc-900'}
+                                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'}
                             `}
                             role="option"
                             aria-selected={value === option.id}
@@ -247,13 +247,13 @@ export const Breadcrumbs = ({ items }) => {
                         {item.href ? (
                             <a
                                 href={item.href}
-                                className="text-zinc-500 hover:text-red-600 transition-colors"
+                                className="text-muted-foreground hover:text-red-600 transition-colors"
                                 itemProp="item"
                             >
                                 <span itemProp="name">{item.label}</span>
                             </a>
                         ) : (
-                            <span className="text-zinc-900 font-medium" itemProp="name">
+                            <span className="text-foreground font-medium" itemProp="name">
                                 {item.label}
                             </span>
                         )}

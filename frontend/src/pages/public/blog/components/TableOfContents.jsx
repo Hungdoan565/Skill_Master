@@ -17,7 +17,7 @@ export const TableOfContents = ({ headings = [], activeId }) => {
             className="hidden xl:block sticky top-24"
             aria-label="Mục lục bài viết"
         >
-            <div className="bg-stone-50 rounded-2xl p-6 border border-stone-200 
+            <div className="bg-muted rounded-2xl p-6 border border-border 
                 max-h-[calc(100vh-160px)] overflow-y-auto custom-scrollbar shadow-sm">
                 {/* Header */}
                 <button
@@ -29,12 +29,12 @@ export const TableOfContents = ({ headings = [], activeId }) => {
                             rounded-lg flex items-center justify-center">
                             <List className="w-4 h-4 text-white" />
                         </div>
-                        <span className="text-sm font-semibold text-zinc-900 uppercase tracking-wider">
+                        <span className="text-sm font-semibold text-foreground uppercase tracking-wider">
                             Mục lục
                         </span>
                     </div>
                     <ChevronRight
-                        className={`w-4 h-4 text-zinc-400 transition-transform duration-300
+                        className={`w-4 h-4 text-muted-foreground/70 transition-transform duration-300
                             ${isCollapsed ? '' : 'rotate-90'}`}
                     />
                 </button>
@@ -51,7 +51,7 @@ export const TableOfContents = ({ headings = [], activeId }) => {
                                 ${heading.level === 4 ? 'pl-9' : ''}
                                 ${activeId === heading.id
                                     ? 'bg-red-50 text-red-600 font-medium border-l-2 border-red-600'
-                                    : 'text-zinc-600 hover:bg-stone-100 hover:text-zinc-900'
+                                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                                 }`}
                             onClick={(e) => {
                                 e.preventDefault();
@@ -67,8 +67,8 @@ export const TableOfContents = ({ headings = [], activeId }) => {
                 </div>
 
                 {/* Progress indicator */}
-                <div className="mt-4 pt-4 border-t border-stone-200">
-                    <div className="flex items-center justify-between text-xs text-zinc-500">
+                <div className="mt-4 pt-4 border-t border-border">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span>Tiến độ đọc</span>
                         <span className="font-mono">{headings.length} mục</span>
                     </div>

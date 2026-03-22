@@ -46,7 +46,7 @@ export const BookmarkButton = ({
                 ${variant === 'solid'
                     ? bookmarked
                         ? 'bg-red-600 text-white shadow-lg shadow-red-500/25'
-                        : 'bg-stone-100 text-zinc-400 hover:bg-stone-200'
+                        : 'bg-muted text-muted-foreground/70 hover:bg-muted'
                     : bookmarked
                         ? 'text-red-600'
                         : 'text-zinc-300 hover:text-red-600'
@@ -82,13 +82,13 @@ export const BookmarkedPostsWidget = ({ posts }) => {
     const bookmarkedPosts = posts.filter(post => bookmarks.includes(post.id));
 
     return (
-        <div className="bg-white rounded-2xl border border-stone-200 p-6">
+        <div className="bg-card rounded-2xl border border-border p-6">
             <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-zinc-900 uppercase tracking-wider flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider flex items-center gap-2">
                     <BookmarkCheck className="w-4 h-4 text-red-600" />
                     Đã lưu
                 </h3>
-                <span className="text-xs font-medium text-zinc-400 bg-stone-100 px-2 py-1 rounded-full">
+                <span className="text-xs font-medium text-muted-foreground/70 bg-muted px-2 py-1 rounded-full">
                     {bookmarkCount}
                 </span>
             </div>
@@ -105,11 +105,11 @@ export const BookmarkedPostsWidget = ({ posts }) => {
                             className="w-16 h-12 object-cover rounded-lg flex-shrink-0"
                         />
                         <div className="flex-1 min-w-0">
-                            <h4 className="text-sm font-medium text-zinc-900 line-clamp-2 
+                            <h4 className="text-sm font-medium text-foreground line-clamp-2 
                                 group-hover:text-red-600 transition-colors">
                                 {post.title}
                             </h4>
-                            <span className="text-xs text-zinc-400">{post.readTime} phút</span>
+                            <span className="text-xs text-muted-foreground/70">{post.readTime} phút</span>
                         </div>
                     </a>
                 ))}

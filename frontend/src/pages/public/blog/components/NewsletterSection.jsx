@@ -56,7 +56,7 @@ export const NewsletterSection = () => {
                                     placeholder="Nhập email của bạn..."
                                     required
                                     className={`flex-1 px-6 py-4 bg-white/5 border-2 rounded-xl 
-                                    text-white placeholder:text-stone-500 
+                                    text-white placeholder:text-muted-foreground 
                                     focus:border-red-500 focus:outline-none transition-colors
                                     ${error ? 'border-red-500/50' : 'border-white/10'}`}
                                 />
@@ -97,7 +97,7 @@ export const NewsletterSection = () => {
                         </div>
                     )}
 
-                    <p className="text-xs text-stone-500 mt-6">
+                    <p className="text-xs text-muted-foreground mt-6">
                         *Cam kết bảo mật thông tin 100%
                     </p>
                 </div>

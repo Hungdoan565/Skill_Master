@@ -22,7 +22,7 @@ export const HeroSection = () => {
                 aria-label="Hero section"
             >
                 {/* Background — ORIGINAL light theme */}
-                <div className="absolute inset-0 bg-stone-50">
+                <div className="absolute inset-0 bg-muted">
                     <div className="absolute inset-0 opacity-[0.03]"
                         style={{
                             backgroundImage: `linear-gradient(#18181B 1px, transparent 1px),
@@ -46,14 +46,14 @@ export const HeroSection = () => {
                         <div className="lg:col-span-7 space-y-8">
                             {/* Badge */}
                             <div className={`inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur
-                            border border-stone-200 rounded-full shadow-sm
+                            border border-border rounded-full shadow-sm
                             transform transition-all duration-700 delay-100
                             ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
                                 <span className="flex h-2 w-2" aria-hidden="true">
                                     <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-red-400 opacity-75" />
                                     <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600" />
                                 </span>
-                                <span className="text-xs font-medium text-zinc-600 tracking-wide uppercase">
+                                <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
                                     Khai giảng tháng 4 — Còn 8 suất
                                 </span>
                             </div>
@@ -62,23 +62,23 @@ export const HeroSection = () => {
                             <h1 className={`transform transition-all duration-700 delay-200
                             ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
                                 <span className="block font-display text-5xl sm:text-6xl lg:text-7xl font-bold 
-                             text-zinc-900 tracking-tight leading-[1.1]">
+                             text-foreground tracking-tight leading-[1.1]">
                                     Chinh phục
                                 </span>
                                 <span className="block font-display text-5xl sm:text-6xl lg:text-7xl font-bold 
                              tracking-tight leading-[1.1] mt-2">
-                                    <span className="text-zinc-900">Anh ngữ</span>
+                                    <span className="text-foreground">Anh ngữ</span>
                                     <span className="text-red-600"> & </span>
-                                    <span className="text-zinc-900">Tin học</span>
+                                    <span className="text-foreground">Tin học</span>
                                 </span>
                                 <span className="block font-display text-5xl sm:text-6xl lg:text-7xl font-bold 
-                             text-zinc-400 tracking-tight leading-[1.1] mt-2">
+                             text-muted-foreground/70 tracking-tight leading-[1.1] mt-2">
                                     một cách bài bản.
                                 </span>
                             </h1>
 
                             {/* Description */}
-                            <p className={`max-w-lg text-lg text-zinc-500 leading-relaxed
+                            <p className={`max-w-lg text-lg text-muted-foreground leading-relaxed
                           transform transition-all duration-700 delay-300
                           ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
                                 Hệ thống đào tạo chuẩn quốc tế, phương pháp học hiện đại,
@@ -105,14 +105,14 @@ export const HeroSection = () => {
                                 <a
                                     href="#method"
                                     className="group inline-flex items-center gap-3 px-6 py-4 
-                           text-zinc-700 font-medium hover:text-zinc-900 transition-colors"
+                           text-foreground/90 font-medium hover:text-foreground transition-colors"
                                     aria-label="Tìm hiểu thêm"
                                 >
                                     <span className="flex items-center justify-center w-12 h-12 rounded-full 
-                                bg-white border border-stone-200 shadow-sm
+                                bg-card border border-border shadow-sm
                                 group-hover:shadow-md group-hover:border-red-200 
                                 group-hover:bg-red-50 transition-all duration-300">
-                                        <Play className="w-5 h-5 text-zinc-700 group-hover:text-red-600 ml-0.5"
+                                        <Play className="w-5 h-5 text-foreground/90 group-hover:text-red-600 ml-0.5"
                                             fill="currentColor" aria-hidden="true" />
                                     </span>
                                     Tìm hiểu thêm
@@ -120,18 +120,18 @@ export const HeroSection = () => {
                             </div>
 
                             {/* Trust Indicators */}
-                            <div className={`flex items-center gap-8 pt-8 border-t border-stone-200
+                            <div className={`flex items-center gap-8 pt-8 border-t border-border
                             transform transition-all duration-700 delay-500
                             ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
                                 <div className="flex items-center gap-6">
                                     <div className="flex items-center gap-2">
                                         <Shield className="w-5 h-5 text-green-600" />
-                                        <span className="text-sm text-zinc-600">Cam kết đầu ra</span>
+                                        <span className="text-sm text-muted-foreground">Cam kết đầu ra</span>
                                     </div>
                                     <div className="w-px h-4 bg-stone-300" />
                                     <div className="flex items-center gap-2">
                                         <Award className="w-5 h-5 text-amber-500" />
-                                        <span className="text-sm text-zinc-600">Chứng chỉ Quốc tế</span>
+                                        <span className="text-sm text-muted-foreground">Chứng chỉ Quốc tế</span>
                                     </div>
                                     <div className="w-px h-4 bg-stone-300 hidden sm:block" />
                                     <div className="hidden sm:flex items-center gap-2">
@@ -140,7 +140,7 @@ export const HeroSection = () => {
                                                 <Star key={i} className="w-4 h-4 text-amber-400 fill-amber-400" />
                                             ))}
                                         </div>
-                                        <span className="text-sm text-zinc-600">4.9/5</span>
+                                        <span className="text-sm text-muted-foreground">4.9/5</span>
                                     </div>
                                 </div>
                             </div>
@@ -155,7 +155,7 @@ export const HeroSection = () => {
 
                             {/* Full-bleed Photo Container */}
                             <div className="relative w-full aspect-[4/3] sm:aspect-square lg:aspect-[4/3] xl:aspect-[16/11]">
-                                <div className="absolute inset-0 bg-white rounded-[2.5rem] shadow-2xl shadow-zinc-900/10 
+                                <div className="absolute inset-0 bg-card rounded-[2.5rem] shadow-2xl shadow-black/10 dark:shadow-black/30 
                                              border-4 border-white overflow-hidden group transition-transform duration-700 hover:-translate-y-1">
                                     <div className="absolute inset-0 rounded-[calc(2.5rem-4px)] overflow-hidden">
                                         <SmartImage
@@ -176,8 +176,8 @@ export const HeroSection = () => {
                                             <CheckCircle2 className="w-5 h-5 text-green-600" />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-semibold text-zinc-900">92% hài lòng</p>
-                                            <p className="text-xs text-zinc-500">khảo sát 2025</p>
+                                            <p className="text-sm font-semibold text-foreground">92% hài lòng</p>
+                                            <p className="text-xs text-muted-foreground">khảo sát 2025</p>
                                         </div>
                                     </div>
                                 </div>
@@ -191,8 +191,8 @@ export const HeroSection = () => {
                                             <TrendingUp className="w-5 h-5 text-blue-600" />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-semibold text-zinc-900">500+ học viên</p>
-                                            <p className="text-xs text-zinc-500">đang theo học</p>
+                                            <p className="text-sm font-semibold text-foreground">500+ học viên</p>
+                                            <p className="text-xs text-muted-foreground">đang theo học</p>
                                         </div>
                                     </div>
                                 </div>
@@ -204,7 +204,7 @@ export const HeroSection = () => {
                 {/* Scroll Indicator */}
                 <div className="absolute bottom-8 left-1/2 -translate-x-1/2" aria-hidden="true">
                     <div className="flex flex-col items-center gap-2 animate-bounce">
-                        <span className="text-xs font-medium text-zinc-400 uppercase tracking-widest">Scroll</span>
+                        <span className="text-xs font-medium text-muted-foreground/70 uppercase tracking-widest">Scroll</span>
                         <div className="w-px h-8 bg-gradient-to-b from-zinc-300 to-transparent" />
                     </div>
                 </div>

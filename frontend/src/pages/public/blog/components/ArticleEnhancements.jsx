@@ -47,26 +47,26 @@ export const FontSizeToggle = ({ onSizeChange }) => {
     };
 
     return (
-        <div className="flex items-center gap-1 bg-stone-100 rounded-xl p-1">
+        <div className="flex items-center gap-1 bg-muted rounded-xl p-1">
             <button
                 onClick={decrease}
                 disabled={currentIndex === 0}
                 className="w-8 h-8 flex items-center justify-center rounded-lg
                     disabled:opacity-30 disabled:cursor-not-allowed
-                    hover:bg-white hover:shadow-sm transition-all text-zinc-600"
+                    hover:bg-card hover:shadow-sm transition-all text-muted-foreground"
                 aria-label="Giảm cỡ chữ"
             >
                 <Minus className="w-4 h-4" />
             </button>
             <div className="w-8 h-8 flex items-center justify-center">
-                <Type className="w-4 h-4 text-zinc-600" />
+                <Type className="w-4 h-4 text-muted-foreground" />
             </div>
             <button
                 onClick={increase}
                 disabled={currentIndex === sizeKeys.length - 1}
                 className="w-8 h-8 flex items-center justify-center rounded-lg
                     disabled:opacity-30 disabled:cursor-not-allowed
-                    hover:bg-white hover:shadow-sm transition-all text-zinc-600"
+                    hover:bg-card hover:shadow-sm transition-all text-muted-foreground"
                 aria-label="Tăng cỡ chữ"
             >
                 <Plus className="w-4 h-4" />
@@ -164,19 +164,19 @@ export const TextToSpeech = ({ text, title }) => {
             {!isPlaying ? (
                 <button
                     onClick={speak}
-                    className="flex items-center gap-2 px-4 py-2 bg-stone-100 
-                        hover:bg-stone-200 text-zinc-600 rounded-xl transition-all"
+                    className="flex items-center gap-2 px-4 py-2 bg-muted 
+                        hover:bg-muted text-muted-foreground rounded-xl transition-all"
                     aria-label="Nghe bài viết"
                 >
                     <Volume2 className="w-4 h-4" />
                     <span className="text-sm font-medium">Nghe</span>
                 </button>
             ) : (
-                <div className="flex items-center gap-1 bg-red-50 rounded-xl p-1">
+                <div className="flex items-center gap-1 bg-red-50 dark:bg-red-900/20 rounded-xl p-1">
                     <button
                         onClick={isPaused ? resume : pause}
                         className="w-8 h-8 flex items-center justify-center rounded-lg
-                            hover:bg-white transition-all text-red-600"
+                            hover:bg-card transition-all text-red-600"
                         aria-label={isPaused ? "Tiếp tục" : "Tạm dừng"}
                     >
                         {isPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
@@ -184,7 +184,7 @@ export const TextToSpeech = ({ text, title }) => {
                     <button
                         onClick={stop}
                         className="w-8 h-8 flex items-center justify-center rounded-lg
-                            hover:bg-white transition-all text-red-600"
+                            hover:bg-card transition-all text-red-600"
                         aria-label="Dừng đọc"
                     >
                         <VolumeX className="w-4 h-4" />
@@ -212,8 +212,8 @@ export const ReadingModeToggle = ({ isActive, onToggle }) => {
             onClick={onToggle}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all
                 ${isActive
-                    ? 'bg-red-600 text-white shadow-lg shadow-red-200'
-                    : 'bg-stone-100 hover:bg-stone-200 text-zinc-600'
+                    ? 'bg-red-600 text-white shadow-lg shadow-red-200 dark:shadow-red-900/30'
+                    : 'bg-muted hover:bg-muted text-muted-foreground'
                 }`}
             aria-label={isActive ? "Tắt chế độ đọc" : "Bật chế độ đọc"}
         >
@@ -235,13 +235,13 @@ export const ReadingModeOverlay = ({ post, content, onClose }) => {
     }, []);
 
     return (
-        <div className="fixed inset-0 z-[300] bg-stone-50 overflow-y-auto">
+        <div className="fixed inset-0 z-[300] bg-muted overflow-y-auto">
             {/* Close button */}
             <button
                 onClick={onClose}
-                className="fixed top-6 right-6 w-12 h-12 bg-white rounded-full 
+                className="fixed top-6 right-6 w-12 h-12 bg-card rounded-full 
                     shadow-lg flex items-center justify-center z-50
-                    hover:bg-red-50 hover:text-red-600 transition-colors"
+                    hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 transition-colors"
                 aria-label="Đóng chế độ đọc"
             >
                 <X className="w-5 h-5" />
@@ -250,20 +250,20 @@ export const ReadingModeOverlay = ({ post, content, onClose }) => {
             {/* Content */}
             <div className="max-w-2xl mx-auto px-6 py-16">
                 {/* Title */}
-                <h1 className="text-3xl md:text-4xl font-bold text-zinc-900 mb-6 leading-tight">
+                <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-6 leading-tight">
                     {post.title}
                 </h1>
 
                 {/* Meta */}
-                <div className="flex items-center gap-4 mb-10 pb-6 border-b border-stone-200">
+                <div className="flex items-center gap-4 mb-10 pb-6 border-b border-border">
                     <img
                         src={post.author.avatar}
                         alt={post.author.name}
                         className="w-10 h-10 rounded-full"
                     />
                     <div>
-                        <p className="text-sm font-medium text-zinc-900">{post.author.name}</p>
-                        <p className="text-xs text-zinc-500">{post.readTime} phút đọc</p>
+                        <p className="text-sm font-medium text-foreground">{post.author.name}</p>
+                        <p className="text-xs text-muted-foreground">{post.readTime} phút đọc</p>
                     </div>
                 </div>
 
@@ -294,8 +294,8 @@ export const EstimatedTimeLeft = ({ totalMinutes, progress }) => {
     }
 
     return (
-        <span className="text-sm text-zinc-500">
-            Còn ~<span className="font-semibold text-zinc-700">{minutesLeft}</span> phút
+        <span className="text-sm text-muted-foreground">
+            Còn ~<span className="font-semibold text-foreground/90">{minutesLeft}</span> phút
         </span>
     );
 };
@@ -332,7 +332,7 @@ export const ArticleSettingsPanel = ({
                 className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all
                     ${isOpen
                         ? 'bg-zinc-900 text-white'
-                        : 'bg-stone-100 hover:bg-stone-200 text-zinc-600'
+                        : 'bg-muted hover:bg-muted text-muted-foreground'
                     }`}
                 aria-label="Cài đặt bài viết"
             >
@@ -340,31 +340,31 @@ export const ArticleSettingsPanel = ({
             </button>
 
             {/* Dropdown Panel */}
-            <div className={`absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl 
-                shadow-xl border border-stone-200 overflow-hidden z-50
+            <div className={`absolute right-0 top-full mt-2 w-72 bg-card rounded-2xl 
+                shadow-xl border border-border overflow-hidden z-50
                 transition-all duration-300 origin-top-right
                 ${isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}
             >
-                <div className="p-4 border-b border-stone-100">
-                    <h3 className="text-sm font-semibold text-zinc-900">Tùy chỉnh đọc</h3>
+                <div className="p-4 border-b border-border/50">
+                    <h3 className="text-sm font-semibold text-foreground">Tùy chỉnh đọc</h3>
                 </div>
 
                 <div className="p-4 space-y-4">
                     {/* Font Size */}
                     <div className="flex items-center justify-between">
-                        <span className="text-sm text-zinc-600">Cỡ chữ</span>
+                        <span className="text-sm text-muted-foreground">Cỡ chữ</span>
                         <FontSizeToggle onSizeChange={onSizeChange} />
                     </div>
 
                     {/* Text to Speech */}
                     <div className="flex items-center justify-between">
-                        <span className="text-sm text-zinc-600">Nghe bài viết</span>
+                        <span className="text-sm text-muted-foreground">Nghe bài viết</span>
                         <TextToSpeech text={articleText} title={articleTitle} />
                     </div>
 
                     {/* Reading Mode */}
                     <div className="flex items-center justify-between">
-                        <span className="text-sm text-zinc-600">Chế độ tập trung</span>
+                        <span className="text-sm text-muted-foreground">Chế độ tập trung</span>
                         <ReadingModeToggle
                             isActive={readingMode}
                             onToggle={onReadingModeToggle}

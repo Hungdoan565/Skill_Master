@@ -67,25 +67,25 @@ export const ArticleContentSkeleton = () => (
             <div key={i} className="space-y-3">
                 {/* Heading */}
                 {i % 2 === 0 && (
-                    <div className={`h-8 bg-stone-200 rounded-lg w-2/3 ${shimmerClass}`} />
+                    <div className={`h-8 bg-muted rounded-lg w-2/3 ${shimmerClass}`} />
                 )}
                 {/* Lines */}
-                <div className={`h-5 bg-stone-100 rounded w-full ${shimmerClass}`} />
-                <div className={`h-5 bg-stone-100 rounded w-full ${shimmerClass}`} />
-                <div className={`h-5 bg-stone-100 rounded w-5/6 ${shimmerClass}`} />
-                <div className={`h-5 bg-stone-100 rounded w-4/5 ${shimmerClass}`} />
+                <div className={`h-5 bg-muted rounded w-full ${shimmerClass}`} />
+                <div className={`h-5 bg-muted rounded w-full ${shimmerClass}`} />
+                <div className={`h-5 bg-muted rounded w-5/6 ${shimmerClass}`} />
+                <div className={`h-5 bg-muted rounded w-4/5 ${shimmerClass}`} />
             </div>
         ))}
 
         {/* Image placeholder */}
-        <div className={`h-64 bg-stone-200 rounded-2xl ${shimmerClass}`} />
+        <div className={`h-64 bg-muted rounded-2xl ${shimmerClass}`} />
 
         {/* More paragraphs */}
         {[5, 6].map((i) => (
             <div key={i} className="space-y-3">
-                <div className={`h-5 bg-stone-100 rounded w-full ${shimmerClass}`} />
-                <div className={`h-5 bg-stone-100 rounded w-11/12 ${shimmerClass}`} />
-                <div className={`h-5 bg-stone-100 rounded w-full ${shimmerClass}`} />
+                <div className={`h-5 bg-muted rounded w-full ${shimmerClass}`} />
+                <div className={`h-5 bg-muted rounded w-11/12 ${shimmerClass}`} />
+                <div className={`h-5 bg-muted rounded w-full ${shimmerClass}`} />
             </div>
         ))}
     </div>
@@ -95,28 +95,28 @@ export const ArticleContentSkeleton = () => (
 export const SidebarSkeleton = () => (
     <div className="space-y-8">
         {/* TOC Skeleton */}
-        <div className="bg-stone-50 rounded-2xl p-6 border border-stone-200">
+        <div className="bg-muted rounded-2xl p-6 border border-border">
             <div className="flex items-center gap-3 mb-4">
-                <div className={`w-8 h-8 bg-stone-200 rounded-lg ${shimmerClass}`} />
-                <div className={`w-20 h-5 bg-stone-200 rounded ${shimmerClass}`} />
+                <div className={`w-8 h-8 bg-muted rounded-lg ${shimmerClass}`} />
+                <div className={`w-20 h-5 bg-muted rounded ${shimmerClass}`} />
             </div>
             <div className="space-y-3">
                 {[1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className={`h-8 bg-stone-100 rounded-lg ${shimmerClass}`} />
+                    <div key={i} className={`h-8 bg-muted rounded-lg ${shimmerClass}`} />
                 ))}
             </div>
         </div>
 
         {/* Widget Skeleton */}
-        <div className="bg-stone-50 rounded-2xl p-6 border border-stone-200">
-            <div className={`w-32 h-5 bg-stone-200 rounded mb-4 ${shimmerClass}`} />
+        <div className="bg-muted rounded-2xl p-6 border border-border">
+            <div className={`w-32 h-5 bg-muted rounded mb-4 ${shimmerClass}`} />
             <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
                     <div key={i} className="flex gap-3">
-                        <div className={`w-16 h-16 bg-stone-200 rounded-xl ${shimmerClass}`} />
+                        <div className={`w-16 h-16 bg-muted rounded-xl ${shimmerClass}`} />
                         <div className="flex-1 space-y-2">
-                            <div className={`h-4 bg-stone-200 rounded w-full ${shimmerClass}`} />
-                            <div className={`h-3 bg-stone-100 rounded w-2/3 ${shimmerClass}`} />
+                            <div className={`h-4 bg-muted rounded w-full ${shimmerClass}`} />
+                            <div className={`h-3 bg-muted rounded w-2/3 ${shimmerClass}`} />
                         </div>
                     </div>
                 ))}
@@ -130,21 +130,21 @@ export const CommentsSkeleton = () => (
     <div className="space-y-6">
         {/* Comment input skeleton */}
         <div className="flex gap-4">
-            <div className={`w-12 h-12 bg-stone-200 rounded-full ${shimmerClass}`} />
-            <div className={`flex-1 h-24 bg-stone-100 rounded-xl ${shimmerClass}`} />
+            <div className={`w-12 h-12 bg-muted rounded-full ${shimmerClass}`} />
+            <div className={`flex-1 h-24 bg-muted rounded-xl ${shimmerClass}`} />
         </div>
 
         {/* Comments list skeleton */}
         {[1, 2, 3].map((i) => (
-            <div key={i} className="flex gap-4 py-4 border-b border-stone-100">
-                <div className={`w-10 h-10 bg-stone-200 rounded-full ${shimmerClass}`} />
+            <div key={i} className="flex gap-4 py-4 border-b border-border/50">
+                <div className={`w-10 h-10 bg-muted rounded-full ${shimmerClass}`} />
                 <div className="flex-1 space-y-3">
                     <div className="flex items-center gap-2">
-                        <div className={`w-28 h-4 bg-stone-200 rounded ${shimmerClass}`} />
-                        <div className={`w-16 h-3 bg-stone-100 rounded ${shimmerClass}`} />
+                        <div className={`w-28 h-4 bg-muted rounded ${shimmerClass}`} />
+                        <div className={`w-16 h-3 bg-muted rounded ${shimmerClass}`} />
                     </div>
-                    <div className={`h-4 bg-stone-100 rounded w-full ${shimmerClass}`} />
-                    <div className={`h-4 bg-stone-100 rounded w-4/5 ${shimmerClass}`} />
+                    <div className={`h-4 bg-muted rounded w-full ${shimmerClass}`} />
+                    <div className={`h-4 bg-muted rounded w-4/5 ${shimmerClass}`} />
                 </div>
             </div>
         ))}

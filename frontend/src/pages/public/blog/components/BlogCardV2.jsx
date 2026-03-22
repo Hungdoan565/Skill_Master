@@ -27,8 +27,8 @@ export const BlogCardV2 = ({ post, index, size = 'standard' }) => {
 const StandardCard = React.forwardRef(({ post, index, isInView, prefersReducedMotion }, ref) => (
     <article
         ref={ref}
-        className={`group bg-white rounded-2xl border border-stone-200 overflow-hidden
-            hover:shadow-2xl hover:shadow-stone-200/60 hover:border-stone-300
+        className={`group bg-card rounded-2xl border border-border overflow-hidden
+            hover:shadow-2xl hover:shadow-stone-200/60 hover:border-border
             hover:-translate-y-2 transition-all duration-500 ease-out
             ${isInView && !prefersReducedMotion ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}
         style={{ transitionDelay: prefersReducedMotion ? '0ms' : `${Math.min(index * 100, 400)}ms` }}
@@ -52,7 +52,7 @@ const StandardCard = React.forwardRef(({ post, index, isInView, prefersReducedMo
 
                 {/* Category Badge */}
                 <div className="absolute top-4 left-4">
-                    <span className="px-3 py-1.5 bg-white/90 backdrop-blur-sm text-zinc-900 
+                    <span className="px-3 py-1.5 bg-white/90 backdrop-blur-sm text-foreground 
                         text-xs font-semibold uppercase tracking-wider rounded-full shadow-sm
                         group-hover:bg-gradient-to-r group-hover:from-red-600 group-hover:to-orange-500 
                         group-hover:text-white transition-all duration-300">
@@ -75,7 +75,7 @@ const StandardCard = React.forwardRef(({ post, index, isInView, prefersReducedMo
                 {/* Read Time Overlay (appears on hover) */}
                 <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 
                     translate-y-2 group-hover:translate-y-0 transition-all duration-300">
-                    <span className="px-3 py-1.5 bg-white/90 backdrop-blur-sm text-zinc-700 
+                    <span className="px-3 py-1.5 bg-white/90 backdrop-blur-sm text-foreground/90 
                         text-xs font-medium rounded-full flex items-center gap-1.5">
                         <Clock className="w-3 h-3" />
                         {post.readTime} phút
@@ -86,7 +86,7 @@ const StandardCard = React.forwardRef(({ post, index, isInView, prefersReducedMo
             {/* Content */}
             <div className="p-6">
                 {/* Title */}
-                <h3 className="text-xl font-bold text-zinc-900 mb-3 
+                <h3 className="text-xl font-bold text-foreground mb-3 
                     group-hover:text-transparent group-hover:bg-clip-text 
                     group-hover:bg-gradient-to-r group-hover:from-red-600 group-hover:to-orange-500
                     transition-all duration-300 leading-tight line-clamp-2">
@@ -94,7 +94,7 @@ const StandardCard = React.forwardRef(({ post, index, isInView, prefersReducedMo
                 </h3>
 
                 {/* Excerpt */}
-                <p className="text-sm text-zinc-500 leading-relaxed mb-4 line-clamp-2">
+                <p className="text-sm text-muted-foreground leading-relaxed mb-4 line-clamp-2">
                     {post.excerpt}
                 </p>
 
@@ -104,7 +104,7 @@ const StandardCard = React.forwardRef(({ post, index, isInView, prefersReducedMo
                         {post.tags.slice(0, 3).map(tag => (
                             <span key={tag} className="text-xs px-2.5 py-1 
                                 bg-gradient-to-r from-stone-100 to-stone-50 
-                                text-zinc-500 rounded-full 
+                                text-muted-foreground rounded-full 
                                 hover:from-red-50 hover:to-orange-50 hover:text-red-600 
                                 transition-colors cursor-pointer">
                                 {tag}
@@ -114,7 +114,7 @@ const StandardCard = React.forwardRef(({ post, index, isInView, prefersReducedMo
                 )}
 
                 {/* Author + Arrow */}
-                <div className="flex items-center justify-between pt-5 border-t border-stone-100">
+                <div className="flex items-center justify-between pt-5 border-t border-border/50">
                     <div className="flex items-center gap-3 
                         group-hover:-translate-x-1 transition-transform duration-300">
                         <SmartImage
@@ -122,19 +122,19 @@ const StandardCard = React.forwardRef(({ post, index, isInView, prefersReducedMo
                             alt={post.author.name}
                             className="w-full h-full object-cover"
                             containerClassName="w-10 h-10 rounded-full border-2 border-white shadow-sm
-                                group-hover:border-red-500/50 transition-colors bg-white shrink-0"
+                                group-hover:border-red-500/50 transition-colors bg-card shrink-0"
                             aspectRatio="aspect-square"
                         />
                         <div>
-                            <p className="text-sm font-semibold text-zinc-900">{post.author.name}</p>
-                            <p className="text-xs text-zinc-400">{formatDate(post.date)}</p>
+                            <p className="text-sm font-semibold text-foreground">{post.author.name}</p>
+                            <p className="text-xs text-muted-foreground/70">{formatDate(post.date)}</p>
                         </div>
                     </div>
-                    <div className="w-10 h-10 rounded-full bg-stone-100 flex items-center justify-center
+                    <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center
                         group-hover:bg-gradient-to-r group-hover:from-red-600 group-hover:to-orange-500 
                         group-hover:shadow-lg group-hover:shadow-red-500/25
                         transition-all duration-300">
-                        <ArrowUpRight className="w-5 h-5 text-zinc-400 
+                        <ArrowUpRight className="w-5 h-5 text-muted-foreground/70 
                             group-hover:text-white group-hover:rotate-12 transition-all" />
                     </div>
                 </div>
@@ -149,7 +149,7 @@ const StandardCard = React.forwardRef(({ post, index, isInView, prefersReducedMo
 const LargeCard = React.forwardRef(({ post, index, isInView, prefersReducedMotion }, ref) => (
     <article
         ref={ref}
-        className={`group col-span-2 bg-white rounded-3xl border border-stone-200 overflow-hidden
+        className={`group col-span-2 bg-card rounded-3xl border border-border overflow-hidden
             hover:shadow-2xl hover:shadow-stone-200/60 transition-all duration-500
             ${isInView && !prefersReducedMotion ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}
         style={{ transitionDelay: prefersReducedMotion ? '0ms' : `${Math.min(index * 100, 400)}ms` }}
@@ -184,18 +184,18 @@ const LargeCard = React.forwardRef(({ post, index, isInView, prefersReducedMotio
                 </div>
 
                 {/* Title */}
-                <h3 className="text-2xl lg:text-3xl font-bold text-zinc-900 mb-4 
+                <h3 className="text-2xl lg:text-3xl font-bold text-foreground mb-4 
                     group-hover:text-red-600 transition-colors leading-tight tracking-tight">
                     {post.title}
                 </h3>
 
                 {/* Excerpt */}
-                <p className="text-zinc-500 leading-relaxed mb-6 line-clamp-3">
+                <p className="text-muted-foreground leading-relaxed mb-6 line-clamp-3">
                     {post.excerpt}
                 </p>
 
                 {/* Meta */}
-                <div className="flex items-center gap-4 text-sm text-zinc-400 mb-6">
+                <div className="flex items-center gap-4 text-sm text-muted-foreground/70 mb-6">
                     <time className="flex items-center gap-1.5">
                         <Calendar className="w-4 h-4" />
                         {formatDate(post.date)}
@@ -213,18 +213,18 @@ const LargeCard = React.forwardRef(({ post, index, isInView, prefersReducedMotio
                 </div>
 
                 {/* Author */}
-                <div className="flex items-center justify-between pt-6 border-t border-stone-100">
+                <div className="flex items-center justify-between pt-6 border-t border-border/50">
                     <div className="flex items-center gap-3">
                         <SmartImage
                             src={post.author.avatar}
                             alt={post.author.name}
                             className="w-full h-full object-cover"
-                            containerClassName="w-12 h-12 rounded-full border-2 border-white shadow-md bg-white shrink-0"
+                            containerClassName="w-12 h-12 rounded-full border-2 border-white shadow-md bg-card shrink-0"
                             aspectRatio="aspect-square"
                         />
                         <div>
-                            <p className="font-semibold text-zinc-900">{post.author.name}</p>
-                            <p className="text-sm text-zinc-400">{post.author.role}</p>
+                            <p className="font-semibold text-foreground">{post.author.name}</p>
+                            <p className="text-sm text-muted-foreground/70">{post.author.role}</p>
                         </div>
                     </div>
                     <div className="w-12 h-12 rounded-full bg-gradient-to-r from-red-600 to-orange-500 
@@ -244,8 +244,8 @@ const LargeCard = React.forwardRef(({ post, index, isInView, prefersReducedMotio
 const CompactCard = React.forwardRef(({ post, index, isInView, prefersReducedMotion }, ref) => (
     <article
         ref={ref}
-        className={`group flex gap-4 p-4 bg-white rounded-xl border border-stone-200
-            hover:shadow-lg hover:shadow-stone-200/50 hover:border-stone-300
+        className={`group flex gap-4 p-4 bg-card rounded-xl border border-border
+            hover:shadow-lg hover:shadow-black/5 dark:shadow-black/20 hover:border-border
             transition-all duration-300
             ${isInView && !prefersReducedMotion ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
         style={{ transitionDelay: prefersReducedMotion ? '0ms' : `${Math.min(index * 75, 300)}ms` }}
@@ -268,11 +268,11 @@ const CompactCard = React.forwardRef(({ post, index, isInView, prefersReducedMot
                 <span className="text-xs font-semibold text-red-600 uppercase tracking-wider mb-1">
                     {post.category}
                 </span>
-                <h3 className="text-base font-bold text-zinc-900 mb-2 
+                <h3 className="text-base font-bold text-foreground mb-2 
                     group-hover:text-red-600 transition-colors leading-tight line-clamp-2">
                     {post.title}
                 </h3>
-                <div className="flex items-center gap-3 text-xs text-zinc-400">
+                <div className="flex items-center gap-3 text-xs text-muted-foreground/70">
                     <span>{formatDate(post.date)}</span>
                     <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
@@ -295,23 +295,23 @@ const CompactCard = React.forwardRef(({ post, index, isInView, prefersReducedMot
 export const CardSkeletonV2 = ({ size = 'standard' }) => {
     if (size === 'large') {
         return (
-            <div className="col-span-2 bg-white rounded-3xl border border-stone-200 overflow-hidden animate-pulse">
+            <div className="col-span-2 bg-card rounded-3xl border border-border overflow-hidden animate-pulse">
                 <div className="flex flex-col lg:flex-row">
-                    <div className="lg:w-3/5 aspect-[16/10] lg:aspect-[4/3] bg-stone-200" />
+                    <div className="lg:w-3/5 aspect-[16/10] lg:aspect-[4/3] bg-muted" />
                     <div className="lg:w-2/5 p-8 lg:p-10 space-y-4">
                         <div className="flex gap-2">
-                            <div className="h-6 w-16 bg-stone-200 rounded-full" />
-                            <div className="h-6 w-6 bg-stone-200 rounded-full" />
+                            <div className="h-6 w-16 bg-muted rounded-full" />
+                            <div className="h-6 w-6 bg-muted rounded-full" />
                         </div>
-                        <div className="h-8 bg-stone-200 rounded w-full" />
-                        <div className="h-8 bg-stone-200 rounded w-3/4" />
-                        <div className="h-4 bg-stone-200 rounded w-full" />
-                        <div className="h-4 bg-stone-200 rounded w-2/3" />
+                        <div className="h-8 bg-muted rounded w-full" />
+                        <div className="h-8 bg-muted rounded w-3/4" />
+                        <div className="h-4 bg-muted rounded w-full" />
+                        <div className="h-4 bg-muted rounded w-2/3" />
                         <div className="flex items-center gap-3 pt-4">
-                            <div className="w-12 h-12 bg-stone-200 rounded-full" />
+                            <div className="w-12 h-12 bg-muted rounded-full" />
                             <div className="space-y-2">
-                                <div className="h-4 w-28 bg-stone-200 rounded" />
-                                <div className="h-3 w-20 bg-stone-200 rounded" />
+                                <div className="h-4 w-28 bg-muted rounded" />
+                                <div className="h-3 w-20 bg-muted rounded" />
                             </div>
                         </div>
                     </div>
@@ -321,21 +321,21 @@ export const CardSkeletonV2 = ({ size = 'standard' }) => {
     }
 
     return (
-        <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden animate-pulse">
-            <div className="aspect-[16/10] bg-stone-200" />
+        <div className="bg-card rounded-2xl border border-border overflow-hidden animate-pulse">
+            <div className="aspect-[16/10] bg-muted" />
             <div className="p-6 space-y-4">
-                <div className="h-6 bg-stone-200 rounded w-3/4" />
-                <div className="h-4 bg-stone-200 rounded w-full" />
-                <div className="h-4 bg-stone-200 rounded w-2/3" />
+                <div className="h-6 bg-muted rounded w-3/4" />
+                <div className="h-4 bg-muted rounded w-full" />
+                <div className="h-4 bg-muted rounded w-2/3" />
                 <div className="flex items-center gap-2">
-                    <div className="h-5 w-14 bg-stone-200 rounded-full" />
-                    <div className="h-5 w-14 bg-stone-200 rounded-full" />
+                    <div className="h-5 w-14 bg-muted rounded-full" />
+                    <div className="h-5 w-14 bg-muted rounded-full" />
                 </div>
-                <div className="flex items-center gap-3 pt-4 border-t border-stone-100">
-                    <div className="w-10 h-10 bg-stone-200 rounded-full" />
+                <div className="flex items-center gap-3 pt-4 border-t border-border/50">
+                    <div className="w-10 h-10 bg-muted rounded-full" />
                     <div className="space-y-2">
-                        <div className="h-4 w-24 bg-stone-200 rounded" />
-                        <div className="h-3 w-16 bg-stone-200 rounded" />
+                        <div className="h-4 w-24 bg-muted rounded" />
+                        <div className="h-3 w-16 bg-muted rounded" />
                     </div>
                 </div>
             </div>

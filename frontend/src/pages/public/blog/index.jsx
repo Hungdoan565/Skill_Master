@@ -40,8 +40,8 @@ const HeroSection = ({ totalPosts, totalCategories, searchTerm, onSearchChange, 
     return (
         <section className="relative pt-24 pb-16 lg:pt-32 lg:pb-24 overflow-hidden">
             {/* Background */}
-            <div className="absolute inset-0 bg-gradient-to-b from-stone-50 to-white">
-                <div className="absolute inset-0 opacity-[0.03]"
+            <div className="absolute inset-0 bg-gradient-to-b from-stone-50 to-white dark:from-zinc-900 dark:to-zinc-950">
+                <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.06]"
                     style={{
                         backgroundImage: `linear-gradient(#18181B 1px, transparent 1px),
                               linear-gradient(90deg, #18181B 1px, transparent 1px)`,
@@ -52,6 +52,7 @@ const HeroSection = ({ totalPosts, totalCategories, searchTerm, onSearchChange, 
                 <div
                     className="absolute top-0 right-0 w-[600px] h-[600px] 
                         bg-gradient-to-br from-red-100 via-orange-50 to-transparent 
+                        dark:from-red-900/30 dark:via-orange-900/10 dark:to-transparent
                         rounded-full blur-3xl opacity-60 transition-transform duration-100"
                     style={{ transform: `translateY(${parallaxOffset}px)` }}
                     aria-hidden="true"
@@ -65,20 +66,20 @@ const HeroSection = ({ totalPosts, totalCategories, searchTerm, onSearchChange, 
                         ${isInView && !prefersReducedMotion ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
                 >
                     {/* Badge */}
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur
-                        border border-stone-200 rounded-full shadow-sm mb-8">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 dark:bg-zinc-800/80 backdrop-blur
+                        border border-border rounded-full shadow-sm mb-8">
                         <span className="flex h-2 w-2" aria-hidden="true">
                             <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-red-400 opacity-75" />
                             <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600" />
                         </span>
-                        <span className="text-xs font-medium text-zinc-600 tracking-wide uppercase">
+                        <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
                             Blog & Tài nguyên
                         </span>
                     </div>
 
                     {/* Main Headline */}
                     <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold 
-                        text-zinc-900 tracking-tight leading-[1.1] mb-6">
+                        text-foreground tracking-tight leading-[1.1] mb-6">
                         Kiến thức{' '}
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-orange-500">
                             không giới hạn
@@ -86,30 +87,30 @@ const HeroSection = ({ totalPosts, totalCategories, searchTerm, onSearchChange, 
                     </h1>
 
                     {/* Description */}
-                    <p className="text-lg lg:text-xl text-zinc-500 leading-relaxed max-w-2xl mx-auto mb-10">
+                    <p className="text-lg lg:text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto mb-10">
                         Tips học tập, ôn thi IELTS, TOEIC và Tin học.
                         Chia sẻ kiến thức từ đội ngũ giảng viên Skill Master.
                     </p>
 
                     {/* Search */}
                     <div className="relative max-w-xl mx-auto">
-                        <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" aria-hidden="true" />
+                        <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400 dark:text-zinc-500" aria-hidden="true" />
                         <input
                             type="search"
                             value={searchTerm}
                             onChange={(e) => onSearchChange(e.target.value)}
                             placeholder="Tìm kiếm bài viết..."
                             aria-label="Tìm kiếm bài viết"
-                            className="w-full pl-14 pr-14 py-4 bg-white border border-stone-200 rounded-2xl
-                                shadow-lg shadow-stone-200/50
+                            className="w-full pl-14 pr-14 py-4 bg-card border border-border rounded-2xl
+                                shadow-lg shadow-black/5 dark:shadow-black/20
                                 focus:border-red-500 focus:ring-2 focus:ring-red-500/20 focus:outline-none 
-                                transition-all duration-300 placeholder:text-stone-400"
+                                transition-all duration-300 placeholder:text-stone-400 dark:placeholder:text-zinc-500"
                         />
                         {searchTerm && (
                             <button
                                 onClick={onClearSearch}
                                 className="absolute right-5 top-1/2 -translate-y-1/2 p-1.5 rounded-full
-                                    text-stone-400 hover:text-zinc-900 hover:bg-stone-100 transition-all"
+                                    text-stone-400 hover:text-foreground hover:bg-muted transition-all"
                                 aria-label="Xóa tìm kiếm"
                             >
                                 <X className="w-4 h-4" />
@@ -118,29 +119,29 @@ const HeroSection = ({ totalPosts, totalCategories, searchTerm, onSearchChange, 
                     </div>
 
                     {/* Stats with Count-Up Animation */}
-                    <div className="flex items-center justify-center gap-8 lg:gap-12 mt-12 pt-8 border-t border-stone-200">
+                    <div className="flex items-center justify-center gap-8 lg:gap-12 mt-12 pt-8 border-t border-border">
                         <div className="text-center">
-                            <span className="block text-3xl lg:text-4xl font-bold text-zinc-900"
+                            <span className="block text-3xl lg:text-4xl font-bold text-foreground"
                                 style={{ fontVariantNumeric: 'tabular-nums' }}>
                                 {animatedPosts}
                             </span>
-                            <span className="text-sm text-zinc-500">Bài viết</span>
+                            <span className="text-sm text-muted-foreground">Bài viết</span>
                         </div>
-                        <div className="w-px h-12 bg-stone-200" aria-hidden="true" />
+                        <div className="w-px h-12 bg-muted" aria-hidden="true" />
                         <div className="text-center">
-                            <span className="block text-3xl lg:text-4xl font-bold text-zinc-900"
+                            <span className="block text-3xl lg:text-4xl font-bold text-foreground"
                                 style={{ fontVariantNumeric: 'tabular-nums' }}>
                                 {animatedCategories}
                             </span>
-                            <span className="text-sm text-zinc-500">Chủ đề</span>
+                            <span className="text-sm text-muted-foreground">Chủ đề</span>
                         </div>
-                        <div className="w-px h-12 bg-stone-200" aria-hidden="true" />
+                        <div className="w-px h-12 bg-muted" aria-hidden="true" />
                         <div className="text-center">
-                            <span className="block text-3xl lg:text-4xl font-bold text-zinc-900"
+                            <span className="block text-3xl lg:text-4xl font-bold text-foreground"
                                 style={{ fontVariantNumeric: 'tabular-nums' }}>
                                 {animatedReads >= 1000 ? `${Math.floor(animatedReads / 1000)}k+` : animatedReads}
                             </span>
-                            <span className="text-sm text-zinc-500">Lượt đọc</span>
+                            <span className="text-sm text-muted-foreground">Lượt đọc</span>
                         </div>
                     </div>
                 </div>
@@ -154,7 +155,7 @@ const HeroSection = ({ totalPosts, totalCategories, searchTerm, onSearchChange, 
 // ============================================
 const FilterSection = ({ categories, activeFilter, onFilterChange, sortBy, onSortChange, resultCount }) => {
     return (
-        <section className="sticky top-16 z-40 bg-white/80 backdrop-blur-xl border-y border-stone-200">
+        <section className="sticky top-16 z-40 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border-y border-border">
             <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 py-4">
                     {/* Filter Buttons */}
@@ -171,15 +172,15 @@ const FilterSection = ({ categories, activeFilter, onFilterChange, sortBy, onSor
                                 className={`px-5 py-2.5 text-sm font-medium transition-all duration-300
                                     whitespace-nowrap flex items-center gap-2 rounded-full
                                     ${activeFilter === cat.id
-                                        ? 'bg-zinc-900 text-white shadow-lg shadow-zinc-900/25'
-                                        : 'bg-stone-100 text-zinc-600 hover:bg-stone-200 hover:text-zinc-900'
+                                        ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 shadow-lg shadow-zinc-900/25 dark:shadow-white/10'
+                                        : 'bg-stone-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-stone-200 dark:hover:bg-zinc-700 hover:text-zinc-900 dark:hover:text-zinc-200'
                                     }`}
                             >
                                 {cat.label}
                                 <span className={`text-xs font-mono px-1.5 py-0.5 rounded-full
                                     ${activeFilter === cat.id
-                                        ? 'bg-white/20 text-white/80'
-                                        : 'bg-stone-200 text-zinc-500'}`}>
+                                        ? 'bg-white/20 text-white/80 dark:bg-zinc-900/20 dark:text-zinc-900/80'
+                                        : 'bg-stone-200/80 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400'}`}>
                                     {cat.count}
                                 </span>
                             </button>
@@ -188,7 +189,7 @@ const FilterSection = ({ categories, activeFilter, onFilterChange, sortBy, onSor
 
                     {/* Sort Dropdown */}
                     <div className="flex items-center gap-4">
-                        <span className="text-sm text-zinc-500" aria-live="polite">
+                        <span className="text-sm text-muted-foreground" aria-live="polite">
                             {resultCount} kết quả
                         </span>
                         <SortDropdown
@@ -207,11 +208,11 @@ const FilterSection = ({ categories, activeFilter, onFilterChange, sortBy, onSor
 // POPULAR TAGS SECTION
 // ============================================
 const PopularTagsSection = ({ tags, onTagClick }) => (
-    <section className="py-12 bg-stone-50" aria-labelledby="popular-tags-heading">
+    <section className="py-12 bg-muted" aria-labelledby="popular-tags-heading">
         <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
             <div className="flex items-center gap-4 mb-6">
-                <Tag className="w-5 h-5 text-zinc-400" aria-hidden="true" />
-                <h2 id="popular-tags-heading" className="text-sm font-semibold text-zinc-900 uppercase tracking-wider">
+                <Tag className="w-5 h-5 text-muted-foreground/70" aria-hidden="true" />
+                <h2 id="popular-tags-heading" className="text-sm font-semibold text-foreground uppercase tracking-wider">
                     Chủ đề phổ biến
                 </h2>
             </div>
@@ -220,16 +221,16 @@ const PopularTagsSection = ({ tags, onTagClick }) => (
                     <button
                         key={tag.name}
                         onClick={() => onTagClick(tag.name)}
-                        className="group px-4 py-2.5 bg-white border border-stone-200 rounded-full
-                            hover:border-red-500 hover:bg-red-50 transition-all duration-300
+                        className="group px-4 py-2.5 bg-card border border-border rounded-full
+                            hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-300
                             flex items-center gap-2"
                         role="listitem"
                     >
-                        <span className="text-sm font-medium text-zinc-700 group-hover:text-red-600 transition-colors">
+                        <span className="text-sm font-medium text-foreground/90 group-hover:text-red-600 transition-colors">
                             {tag.name}
                         </span>
-                        <span className="text-xs text-zinc-400 bg-stone-100 px-2 py-0.5 rounded-full
-                            group-hover:bg-red-100 group-hover:text-red-500 transition-colors"
+                        <span className="text-xs text-muted-foreground/70 bg-muted px-2 py-0.5 rounded-full
+                            group-hover:bg-red-100 dark:group-hover:bg-red-900/30 group-hover:text-red-500 transition-colors"
                             aria-label={`${tag.count} bài viết`}
                         >
                             {tag.count}
@@ -278,7 +279,7 @@ export const BlogPage = () => {
     const isDefaultView = !searchTerm && activeFilter === 'all' && currentPage === 1;
 
     return (
-        <div className="min-h-screen bg-white">
+        <div className="min-h-screen bg-card">
             {/* Accessibility: Skip to content */}
             <SkipToContent />
 
@@ -329,15 +330,15 @@ export const BlogPage = () => {
                 )}
 
                 {/* Blog List */}
-                <section className="py-16 bg-white" aria-labelledby="all-posts-heading">
+                <section className="py-16 bg-background" aria-labelledby="all-posts-heading">
                     <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
                         {/* Section Header */}
                         {isDefaultView && (
                             <div className="flex items-center gap-4 mb-10">
-                                <h2 id="all-posts-heading" className="text-sm font-semibold text-zinc-900 uppercase tracking-wider">
+                                <h2 id="all-posts-heading" className="text-sm font-semibold text-foreground uppercase tracking-wider">
                                     Tất cả bài viết
                                 </h2>
-                                <div className="flex-1 h-px bg-stone-200" aria-hidden="true" />
+                                <div className="flex-1 h-px bg-muted" aria-hidden="true" />
                             </div>
                         )}
 

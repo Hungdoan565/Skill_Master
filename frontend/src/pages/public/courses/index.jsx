@@ -82,11 +82,11 @@ const PageHeader = ({ totalCourses, totalCategories }) => {
           <div className="lg:col-span-5 p-6 lg:p-12 lg:border-r border-neutral-900">
             <div className={`transform transition-all duration-500
                           ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-              <span className="inline-flex items-center gap-2 text-xs font-medium tracking-widest uppercase text-neutral-500 mb-6">
+              <span className="inline-flex items-center gap-2 text-xs font-medium tracking-widest uppercase text-muted-foreground mb-6">
                 <span className="w-8 h-px bg-neutral-400" />
                 Danh mục khóa học
               </span>
-              <h1 className="text-4xl lg:text-5xl xl:text-6xl font-bold text-neutral-900 tracking-tight leading-[1.1]">
+              <h1 className="text-4xl lg:text-5xl xl:text-6xl font-bold text-foreground tracking-tight leading-[1.1]">
                 Khóa học
               </h1>
             </div>
@@ -94,34 +94,34 @@ const PageHeader = ({ totalCourses, totalCategories }) => {
 
           {/* Right - Description & Stats */}
           <div className="lg:col-span-7 flex flex-col">
-            <div className={`p-6 lg:p-12 border-b border-neutral-200 lg:border-b-0
+            <div className={`p-6 lg:p-12 border-b border-border lg:border-b-0
                           transform transition-all duration-500 delay-100
                           ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-              <p className="text-lg text-neutral-600 leading-relaxed max-w-xl">
+              <p className="text-lg text-muted-foreground leading-relaxed max-w-xl">
                 Khám phá các chương trình đào tạo Anh ngữ và Tin học được thiết kế
                 theo chuẩn quốc tế, phù hợp với mọi mục tiêu học tập.
               </p>
             </div>
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-3 border-t border-neutral-200">
-              <div className={`p-6 lg:p-8 border-r border-neutral-200
+            <div className="grid grid-cols-3 border-t border-border">
+              <div className={`p-6 lg:p-8 border-r border-border
                            transform transition-all duration-500 delay-200
                            ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-                <p className="text-3xl lg:text-4xl font-bold text-neutral-900">{totalCourses}</p>
-                <p className="text-xs text-neutral-500 uppercase tracking-wider mt-1">Khóa học</p>
+                <p className="text-3xl lg:text-4xl font-bold text-foreground">{totalCourses}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Khóa học</p>
               </div>
-              <div className={`p-6 lg:p-8 border-r border-neutral-200
+              <div className={`p-6 lg:p-8 border-r border-border
                            transform transition-all duration-500 delay-300
                            ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-                <p className="text-3xl lg:text-4xl font-bold text-neutral-900">{totalCategories}</p>
-                <p className="text-xs text-neutral-500 uppercase tracking-wider mt-1">Lĩnh vực</p>
+                <p className="text-3xl lg:text-4xl font-bold text-foreground">{totalCategories}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Lĩnh vực</p>
               </div>
               <div className={`p-6 lg:p-8
                            transform transition-all duration-500 delay-400
                            ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-                <p className="text-3xl lg:text-4xl font-bold text-neutral-900">100%</p>
-                <p className="text-xs text-neutral-500 uppercase tracking-wider mt-1">Cam kết</p>
+                <p className="text-3xl lg:text-4xl font-bold text-foreground">100%</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Cam kết</p>
               </div>
             </div>
           </div>
@@ -141,7 +141,7 @@ const FilterSection = ({ activeFilter, setActiveFilter, searchTerm, setSearchTer
   ];
 
   return (
-    <section className="border-b border-neutral-200 sticky top-16 bg-white/80 backdrop-blur-md z-40 transition-all duration-300">
+    <section className="border-b border-border sticky top-16 bg-white/80 backdrop-blur-md z-40 transition-all duration-300">
       <div className="max-w-[1600px] mx-auto">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 lg:px-8">
           {/* Filter Tabs */}
@@ -155,7 +155,7 @@ const FilterSection = ({ activeFilter, setActiveFilter, searchTerm, setSearchTer
                 }}
                 className={`px-4 py-2 text-sm font-medium transition-colors duration-150 whitespace-nowrap rounded-full md:rounded-none ${activeFilter === filter.id
                   ? 'bg-neutral-900 text-white'
-                  : 'text-neutral-600 hover:bg-neutral-100'
+                  : 'text-muted-foreground hover:bg-muted'
                   }`}
               >
                 {filter.label}
@@ -171,7 +171,7 @@ const FilterSection = ({ activeFilter, setActiveFilter, searchTerm, setSearchTer
               placeholder="Tìm khóa học..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full md:w-64 pl-10 pr-4 py-2 border border-neutral-200 text-sm
+              className="w-full md:w-64 pl-10 pr-4 py-2 border border-border text-sm
                        placeholder:text-neutral-400 focus:outline-none focus:border-neutral-900
                        transition-colors duration-150"
             />
@@ -198,14 +198,14 @@ const CourseCard = ({ course, index, isExpanded, onToggle }) => {
   return (
     <div
       ref={ref}
-      className={`border-b border-neutral-200 last:border-b-0
+      className={`border-b border-border last:border-b-0
                transform transition-all duration-500
                ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
       style={{ transitionDelay: `${index * 50}ms` }}
     >
       {/* Main Card Content */}
       <div
-        className="group relative grid lg:grid-cols-12 hover:bg-neutral-50 transition-all duration-300 ease-out overflow-hidden"
+        className="group relative grid lg:grid-cols-12 hover:bg-muted transition-all duration-300 ease-out overflow-hidden"
       >
         {/* HOVER WATERMARK ART */}
         <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-32 group-hover:translate-x-12 opacity-0 group-hover:opacity-5 pointer-events-none transition-all duration-700 ease-out">
@@ -218,8 +218,8 @@ const CourseCard = ({ course, index, isExpanded, onToggle }) => {
         <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#FF4D00] transform -translate-x-full group-hover:translate-x-0 transition-transform duration-300 ease-out" />
 
         {/* Number & Category */}
-        <div className="lg:col-span-2 p-6 lg:p-8 lg:border-r border-transparent lg:group-hover:border-neutral-200 transaction-colors flex lg:flex-col justify-between lg:justify-start gap-4 z-10">
-          <span className="text-xl font-mono font-bold text-neutral-300 group-hover:text-neutral-900 transition-colors duration-300">
+        <div className="lg:col-span-2 p-6 lg:p-8 lg:border-r border-transparent lg:group-hover:border-border transaction-colors flex lg:flex-col justify-between lg:justify-start gap-4 z-10">
+          <span className="text-xl font-mono font-bold text-neutral-300 group-hover:text-foreground transition-colors duration-300">
             {String(index + 1).padStart(2, '0')}
           </span>
           <div className="flex items-center gap-2">
@@ -235,32 +235,32 @@ const CourseCard = ({ course, index, isExpanded, onToggle }) => {
         </div>
 
         {/* Title & Description */}
-        <div className="lg:col-span-5 p-6 lg:p-8 lg:border-r border-transparent lg:group-hover:border-neutral-200 z-10">
+        <div className="lg:col-span-5 p-6 lg:p-8 lg:border-r border-transparent lg:group-hover:border-border z-10">
           <Link to={courseUrl} className="block group/title">
-            <h3 className="text-xl lg:text-3xl font-black text-neutral-900 mb-2 group-hover/title:text-[#FF4D00] group-hover:translate-x-2 transition-all duration-300">
+            <h3 className="text-xl lg:text-3xl font-black text-foreground mb-2 group-hover/title:text-[#FF4D00] group-hover:translate-x-2 transition-all duration-300">
               {course.title}
             </h3>
           </Link>
           <p className="text-sm font-mono text-[#FF4D00] mb-4 opacity-0 group-hover:opacity-100 transform -translate-y-2 group-hover:translate-y-0 transition-all duration-300 delay-75">
             {course.subtitle} ///
           </p>
-          <p className="text-sm text-neutral-600 leading-relaxed max-w-md group-hover:text-neutral-900 transition-colors">
+          <p className="text-sm text-muted-foreground leading-relaxed max-w-md group-hover:text-foreground transition-colors">
             {course.description}
           </p>
         </div>
 
         {/* Quick Info */}
-        <div className="lg:col-span-3 p-6 lg:p-8 lg:border-r border-transparent lg:group-hover:border-neutral-200 z-10 flex items-center">
+        <div className="lg:col-span-3 p-6 lg:p-8 lg:border-r border-transparent lg:group-hover:border-border z-10 flex items-center">
           <div className="grid grid-cols-2 gap-x-8 gap-y-4 w-full">
             <div>
-              <p className="text-[10px] text-neutral-400 uppercase tracking-widest mb-1 group-hover:text-neutral-500">Thời lượng</p>
-              <p className="text-sm font-bold text-neutral-900 font-mono">
+              <p className="text-[10px] text-neutral-400 uppercase tracking-widest mb-1 group-hover:text-muted-foreground">Thời lượng</p>
+              <p className="text-sm font-bold text-foreground font-mono">
                 {course.duration}
               </p>
             </div>
             <div>
-              <p className="text-[10px] text-neutral-400 uppercase tracking-widest mb-1 group-hover:text-neutral-500">Số buổi</p>
-              <p className="text-sm font-bold text-neutral-900 font-mono">
+              <p className="text-[10px] text-neutral-400 uppercase tracking-widest mb-1 group-hover:text-muted-foreground">Số buổi</p>
+              <p className="text-sm font-bold text-foreground font-mono">
                 {course.sessions}
               </p>
             </div>
@@ -271,10 +271,10 @@ const CourseCard = ({ course, index, isExpanded, onToggle }) => {
         <div className="lg:col-span-2 p-6 lg:p-8 flex flex-col justify-between z-10">
           <div className="text-right lg:text-left group-hover:scale-110 transition-transform duration-300 origin-left">
             <p className="text-[10px] text-neutral-400 uppercase tracking-widest mb-1 group-hover:text-[#FF4D00]">Học phí</p>
-            <p className="text-xl font-black text-neutral-900">{formatCurrency(course.price || 0)}</p>
+            <p className="text-xl font-black text-foreground">{formatCurrency(course.price || 0)}</p>
           </div>
 
-          <div className="mt-4 flex items-center gap-2 text-sm font-bold text-neutral-900 justify-end lg:justify-start">
+          <div className="mt-4 flex items-center gap-2 text-sm font-bold text-foreground justify-end lg:justify-start">
             <Link to={courseUrl} className="opacity-0 group-hover:opacity-100 -translate-x-4 group-hover:translate-x-0 transition-all duration-300 hover:text-[#FF4D00]">
               Chi tiết
             </Link>
@@ -292,10 +292,10 @@ const CourseCard = ({ course, index, isExpanded, onToggle }) => {
 
       {/* Expanded Details */}
       <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isExpanded ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'}`}>
-        <div className="grid lg:grid-cols-12 bg-neutral-50 border-t border-neutral-200">
+        <div className="grid lg:grid-cols-12 bg-muted border-t border-border">
           {/* Features */}
-          <div className="lg:col-span-4 p-6 lg:p-8 lg:border-r border-neutral-200">
-            <h4 className="text-xs font-medium text-neutral-500 uppercase tracking-widest mb-4">
+          <div className="lg:col-span-4 p-6 lg:p-8 lg:border-r border-border">
+            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-4">
               Đặc điểm khóa học
             </h4>
             <ul className="space-y-3">
@@ -310,18 +310,18 @@ const CourseCard = ({ course, index, isExpanded, onToggle }) => {
 
           {/* Levels - Shown only if available */}
           {course.levels && course.levels.length > 0 && (
-            <div className="lg:col-span-5 p-6 lg:p-8 lg:border-r border-neutral-200">
-              <h4 className="text-xs font-medium text-neutral-500 uppercase tracking-widest mb-4">
+            <div className="lg:col-span-5 p-6 lg:p-8 lg:border-r border-border">
+              <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-4">
                 Các cấp độ
               </h4>
               <div className="space-y-3">
                 {course.levels.map((level, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 bg-white border border-neutral-200">
+                  <div key={i} className="flex items-center justify-between p-3 bg-card border border-border">
                     <div>
-                      <p className="font-medium text-neutral-900">{level.name}</p>
-                      <p className="text-xs text-neutral-500">Mục tiêu: {level.target}</p>
+                      <p className="font-medium text-foreground">{level.name}</p>
+                      <p className="text-xs text-muted-foreground">Mục tiêu: {level.target}</p>
                     </div>
-                    <span className="text-xs text-neutral-500">{level.duration}</span>
+                    <span className="text-xs text-muted-foreground">{level.duration}</span>
                   </div>
                 ))}
               </div>
@@ -330,7 +330,7 @@ const CourseCard = ({ course, index, isExpanded, onToggle }) => {
 
           {/* Schedule & CTA */}
           <div className={`${(course.levels && course.levels.length > 0) ? 'lg:col-span-3' : 'lg:col-span-8'} p-6 lg:p-8`}>
-            <h4 className="text-xs font-medium text-neutral-500 uppercase tracking-widest mb-4">
+            <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-4">
               Lịch học
             </h4>
             <p className="text-sm text-neutral-700 mb-6">{course.schedule}</p>
@@ -345,7 +345,7 @@ const CourseCard = ({ course, index, isExpanded, onToggle }) => {
                 Xem chi tiết
                 <ArrowRight className="w-4 h-4" />
               </Link>
-              <button className="w-full px-6 py-3 border border-neutral-900 text-neutral-900 
+              <button className="w-full px-6 py-3 border border-neutral-900 text-foreground 
                               text-sm font-semibold uppercase tracking-wider
                               hover:bg-neutral-900 hover:text-white transition-colors duration-150">
                 Tư vấn miễn phí
@@ -362,7 +362,7 @@ const CourseCard = ({ course, index, isExpanded, onToggle }) => {
 // COURSE SKELETON COMPONENT
 // ============================================
 const CourseSkeleton = () => (
-  <div className="border-b border-neutral-200 p-8 animate-pulse text-transparent select-none bg-neutral-50/50">
+  <div className="border-b border-border p-8 animate-pulse text-transparent select-none bg-muted/50">
     <div className="max-w-[1600px] mx-auto grid lg:grid-cols-12 gap-8">
       <div className="lg:col-span-2">
         <div className="w-12 h-6 bg-neutral-200 rounded mb-4" />
@@ -417,7 +417,7 @@ const CoursesList = ({ courses, loading, openCardIndex, setOpenCardIndex }) => {
           ))
         ) : (
           <div className="p-12 text-center">
-            <p className="text-neutral-500">Không tìm thấy khóa học phù hợp.</p>
+            <p className="text-muted-foreground">Không tìm thấy khóa học phù hợp.</p>
           </div>
         )}
       </div>
@@ -458,7 +458,7 @@ const CTASection = () => {
                 type="tel"
                 placeholder="Số điện thoại của bạn"
                 className="flex-1 px-4 py-4 bg-transparent border border-neutral-700 text-white
-                         placeholder:text-neutral-600 focus:outline-none focus:border-neutral-500
+                         placeholder:text-muted-foreground focus:outline-none focus:border-neutral-500
                          transition-colors duration-150"
               />
               <button className="px-8 py-4 bg-[#FF4D00] text-white text-sm font-semibold 
@@ -549,7 +549,7 @@ export const CoursesPage = () => {
     }));
 
   return (
-    <div className="min-h-screen bg-white antialiased">
+    <div className="min-h-screen bg-card antialiased">
       <SEOHead
         title="Lộ trình học tiếng Anh & Tin học chuẩn quốc tế"
         description="Khám phá các khóa học Tiếng Anh (IELTS, TOEIC) và Tin học văn phòng chuẩn quốc tế tại Skill Master. Đào tạo chất lượng cao, cam kết đầu ra bằng văn bản."

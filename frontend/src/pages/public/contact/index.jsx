@@ -125,7 +125,7 @@ const HeroSection = () => {
               LEFT PANEL: "THE INPUT ZONE"
               Clean form, ample whitespace, no distractions
               ======================================== */}
-          <div className="lg:col-span-7 relative p-8 lg:p-16 xl:p-20 flex flex-col justify-center bg-white">
+          <div className="lg:col-span-7 relative p-8 lg:p-16 xl:p-20 flex flex-col justify-center bg-card">
 
             <div className={`relative z-10 max-w-xl transform transition-all duration-1000
                           ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-16'}`}>
@@ -139,13 +139,13 @@ const HeroSection = () => {
               </div>
 
               {/* Heading */}
-              <h1 className="text-4xl lg:text-5xl font-bold text-neutral-900 tracking-tight leading-[1.15] mb-4">
+              <h1 className="text-4xl lg:text-5xl font-bold text-foreground tracking-tight leading-[1.15] mb-4">
                 Gửi tin nhắn
                 <br />
                 <span className="text-neutral-400">cho chúng tôi</span>
               </h1>
 
-              <p className="text-lg text-neutral-500 mb-10 max-w-md">
+              <p className="text-lg text-muted-foreground mb-10 max-w-md">
                 Điền thông tin bên dưới, chúng tôi sẽ liên hệ bạn trong vòng 24 giờ.
               </p>
 
@@ -155,8 +155,8 @@ const HeroSection = () => {
                   <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
                     <CheckCircle className="w-10 h-10 text-green-600" />
                   </div>
-                  <h3 className="text-2xl font-bold text-neutral-900 mb-2">Đã gửi thành công!</h3>
-                  <p className="text-neutral-500 mb-6">Chúng tôi sẽ liên hệ bạn trong thời gian sớm nhất.</p>
+                  <h3 className="text-2xl font-bold text-foreground mb-2">Đã gửi thành công!</h3>
+                  <p className="text-muted-foreground mb-6">Chúng tôi sẽ liên hệ bạn trong thời gian sớm nhất.</p>
                   <button
                     onClick={() => {
                       setSubmitted(false);
@@ -192,7 +192,7 @@ const HeroSection = () => {
                       onChange={(e) => handleInputChange('name', e.target.value)}
                       onFocus={() => setFocusedField('name')}
                       onBlur={() => setFocusedField(null)}
-                      className={`w-full px-4 py-3.5 bg-white border rounded-xl transition-all
+                      className={`w-full px-4 py-3.5 bg-card border rounded-xl transition-all
                                ${errors.name
                           ? 'border-red-400 ring-2 ring-red-100'
                           : focusedField === 'name'
@@ -221,7 +221,7 @@ const HeroSection = () => {
                         onChange={(e) => handleInputChange('email', e.target.value)}
                         onFocus={() => setFocusedField('email')}
                         onBlur={() => setFocusedField(null)}
-                        className={`w-full px-4 py-3.5 bg-white border rounded-xl transition-all
+                        className={`w-full px-4 py-3.5 bg-card border rounded-xl transition-all
                                  ${errors.email
                             ? 'border-red-400 ring-2 ring-red-100'
                             : focusedField === 'email'
@@ -247,7 +247,7 @@ const HeroSection = () => {
                         onChange={(e) => handleInputChange('phone', e.target.value)}
                         onFocus={() => setFocusedField('phone')}
                         onBlur={() => setFocusedField(null)}
-                        className={`w-full px-4 py-3.5 bg-white border rounded-xl transition-all
+                        className={`w-full px-4 py-3.5 bg-card border rounded-xl transition-all
                                  ${errors.phone
                             ? 'border-red-400 ring-2 ring-red-100'
                             : focusedField === 'phone'
@@ -276,7 +276,7 @@ const HeroSection = () => {
                       onChange={(e) => handleInputChange('message', e.target.value)}
                       onFocus={() => setFocusedField('message')}
                       onBlur={() => setFocusedField(null)}
-                      className={`w-full px-4 py-3.5 bg-white border rounded-xl transition-all resize-none
+                      className={`w-full px-4 py-3.5 bg-card border rounded-xl transition-all resize-none
                                ${focusedField === 'message'
                           ? 'border-[#FF4D00] ring-2 ring-[#FF4D00]/20'
                           : 'border-gray-200 hover:border-gray-300'}`}
@@ -319,7 +319,7 @@ const HeroSection = () => {
 
                   {/* Privacy note */}
                   <p className="text-xs text-neutral-400 text-center">
-                    Bằng việc gửi form, bạn đồng ý với <a href="#" className="underline hover:text-neutral-600">Chính sách bảo mật</a> của chúng tôi.
+                    Bằng việc gửi form, bạn đồng ý với <a href="#" className="underline hover:text-muted-foreground">Chính sách bảo mật</a> của chúng tôi.
                   </p>
                 </form>
               )}
@@ -340,8 +340,8 @@ const HeroSection = () => {
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
               </span>
               <span className="text-sm text-green-400 font-medium">Đang trực tuyến</span>
-              <span className="text-neutral-600">•</span>
-              <span className="text-sm text-neutral-500">Mở cửa đến 21:00</span>
+              <span className="text-muted-foreground">•</span>
+              <span className="text-sm text-muted-foreground">Mở cửa đến 21:00</span>
             </div>
 
             {/* The Hook: Response Time */}
@@ -354,9 +354,9 @@ const HeroSection = () => {
                 <span className="text-7xl lg:text-8xl xl:text-9xl font-black leading-none tracking-tighter">
                   &lt;24
                 </span>
-                <span className="text-3xl font-bold text-neutral-500">giờ</span>
+                <span className="text-3xl font-bold text-muted-foreground">giờ</span>
               </div>
-              <p className="text-neutral-500 mt-3">
+              <p className="text-muted-foreground mt-3">
                 Thực tế trung bình chỉ <span className="text-white font-semibold">4 giờ</span>
               </p>
             </div>
@@ -364,7 +364,7 @@ const HeroSection = () => {
             {/* Contact Methods - Info Cards */}
             <div className={`space-y-3 mb-10 transform transition-all duration-1000 delay-300
                           ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-              <p className="text-xs uppercase tracking-[0.2em] text-neutral-500 font-medium mb-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground font-medium mb-4">
                 Hoặc liên hệ trực tiếp
               </p>
 
@@ -378,10 +378,10 @@ const HeroSection = () => {
                   <Phone className="w-5 h-5 text-white" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-xs text-neutral-500 uppercase tracking-wider">Hotline 24/7</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Hotline 24/7</p>
                   <p className="text-lg font-semibold">1900 1234</p>
                 </div>
-                <ArrowUpRight className="w-5 h-5 text-neutral-600 group-hover:text-white transition-colors" />
+                <ArrowUpRight className="w-5 h-5 text-muted-foreground group-hover:text-white transition-colors" />
               </a>
 
               {/* Email Card */}
@@ -394,10 +394,10 @@ const HeroSection = () => {
                   <Mail className="w-5 h-5 text-white" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-xs text-neutral-500 uppercase tracking-wider">Email</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Email</p>
                   <p className="text-lg font-semibold">info@skillmaster.edu.vn</p>
                 </div>
-                <ArrowUpRight className="w-5 h-5 text-neutral-600 group-hover:text-white transition-colors" />
+                <ArrowUpRight className="w-5 h-5 text-muted-foreground group-hover:text-white transition-colors" />
               </a>
 
               {/* Zalo Card */}
@@ -412,10 +412,10 @@ const HeroSection = () => {
                   <MessageCircle className="w-5 h-5 text-white" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-xs text-neutral-500 uppercase tracking-wider">Zalo OA</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Zalo OA</p>
                   <p className="text-lg font-semibold">Chat ngay</p>
                 </div>
-                <ArrowUpRight className="w-5 h-5 text-neutral-600 group-hover:text-white transition-colors" />
+                <ArrowUpRight className="w-5 h-5 text-muted-foreground group-hover:text-white transition-colors" />
               </a>
             </div>
 
@@ -431,7 +431,7 @@ const HeroSection = () => {
                 </div>
                 <div>
                   <p className="text-sm font-semibold">Trần Hoàng</p>
-                  <p className="text-xs text-neutral-500">Học viên IELTS 7.5</p>
+                  <p className="text-xs text-muted-foreground">Học viên IELTS 7.5</p>
                 </div>
               </div>
             </div>
@@ -497,15 +497,15 @@ const LocationsSection = () => {
   ];
 
   return (
-    <section ref={ref} className="border-t border-neutral-900 bg-white">
+    <section ref={ref} className="border-t border-neutral-900 bg-background">
       <div className="max-w-[1600px] mx-auto">
 
         {/* Section Header */}
-        <div className="grid lg:grid-cols-12 border-b border-neutral-200">
-          <div className="lg:col-span-4 p-8 lg:p-12 lg:border-r border-neutral-200">
+        <div className="grid lg:grid-cols-12 border-b border-border">
+          <div className="lg:col-span-4 p-8 lg:p-12 lg:border-r border-border">
             <div className="flex items-center gap-3">
               <div className="w-2 h-2 bg-[#FF4D00]" />
-              <span className="text-xs font-medium tracking-[0.3em] uppercase text-neutral-500">
+              <span className="text-xs font-medium tracking-[0.3em] uppercase text-muted-foreground">
                 03 — Địa điểm
               </span>
             </div>
@@ -514,11 +514,11 @@ const LocationsSection = () => {
                         transform transition-all duration-500
                         ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
             <div>
-              <h2 className="text-4xl lg:text-5xl font-bold text-neutral-900 tracking-tight">
+              <h2 className="text-4xl lg:text-5xl font-bold text-foreground tracking-tight">
                 Ghé thăm
                 <span className="text-neutral-400"> chúng tôi</span>
               </h2>
-              <p className="text-neutral-500 mt-4 max-w-md">
+              <p className="text-muted-foreground mt-4 max-w-md">
                 3 cơ sở hiện đại tại các vị trí trung tâm TP.HCM, thuận tiện di chuyển.
               </p>
             </div>
@@ -531,7 +531,7 @@ const LocationsSection = () => {
                   className={`px-4 py-2 text-sm font-medium transition-colors
                            ${activeLocation === i
                       ? 'bg-neutral-900 text-white'
-                      : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'}`}
+                      : 'bg-muted text-muted-foreground hover:bg-neutral-200'}`}
                 >
                   {loc.name}
                   {loc.isNew && (
@@ -577,7 +577,7 @@ const LocationsSection = () => {
                   {/* Highlight Badge */}
                   <div className="absolute top-6 left-6">
                     <div className={`px-4 py-2 text-sm font-medium
-                                  ${loc.isNew ? 'bg-[#FF4D00] text-white' : 'bg-white text-neutral-900'}`}>
+                                  ${loc.isNew ? 'bg-[#FF4D00] text-white' : 'bg-card text-foreground'}`}>
                       {loc.highlight}
                     </div>
                   </div>
@@ -592,37 +592,37 @@ const LocationsSection = () => {
                   <span className="text-xs uppercase tracking-widest text-[#FF4D00] font-medium">
                     {loc.type}
                   </span>
-                  <h3 className="text-4xl lg:text-5xl font-bold text-neutral-900 tracking-tight mt-4 mb-6">
+                  <h3 className="text-4xl lg:text-5xl font-bold text-foreground tracking-tight mt-4 mb-6">
                     {loc.name}
                   </h3>
 
                   {/* Contact Info Grid */}
                   <div className="grid gap-6">
-                    <div className="flex items-start gap-4 p-4 bg-white">
+                    <div className="flex items-start gap-4 p-4 bg-card">
                       <MapPin className="w-5 h-5 text-[#FF4D00] mt-0.5 shrink-0" />
                       <div>
                         <p className="text-xs uppercase tracking-widest text-neutral-400 mb-1">Địa chỉ</p>
-                        <p className="text-neutral-900 font-medium">{loc.address}</p>
+                        <p className="text-foreground font-medium">{loc.address}</p>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <a
                         href={`tel:${loc.phone.replace(/\s/g, '')}`}
-                        className="flex items-start gap-4 p-4 bg-white hover:bg-neutral-100 transition-colors group"
+                        className="flex items-start gap-4 p-4 bg-card hover:bg-muted transition-colors group"
                       >
                         <Phone className="w-5 h-5 text-neutral-400 group-hover:text-[#FF4D00] transition-colors mt-0.5 shrink-0" />
                         <div>
                           <p className="text-xs uppercase tracking-widest text-neutral-400 mb-1">Điện thoại</p>
-                          <p className="text-neutral-900 font-medium">{loc.phone}</p>
+                          <p className="text-foreground font-medium">{loc.phone}</p>
                         </div>
                       </a>
 
-                      <div className="flex items-start gap-4 p-4 bg-white">
+                      <div className="flex items-start gap-4 p-4 bg-card">
                         <Clock className="w-5 h-5 text-neutral-400 mt-0.5 shrink-0" />
                         <div>
                           <p className="text-xs uppercase tracking-widest text-neutral-400 mb-1">Giờ mở cửa</p>
-                          <p className="text-neutral-900 font-medium">{loc.hours}</p>
+                          <p className="text-foreground font-medium">{loc.hours}</p>
                         </div>
                       </div>
                     </div>
@@ -645,7 +645,7 @@ const LocationsSection = () => {
                 </div>
 
                 {/* Bottom: Actions */}
-                <div className="mt-8 pt-8 border-t border-neutral-200 flex flex-wrap gap-4">
+                <div className="mt-8 pt-8 border-t border-border flex flex-wrap gap-4">
                   <a
                     href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc.address)}`}
                     target="_blank"
@@ -659,7 +659,7 @@ const LocationsSection = () => {
                   </a>
                   <a
                     href={`tel:${loc.phone.replace(/\s/g, '')}`}
-                    className="group inline-flex items-center gap-3 px-6 py-4 border-2 border-neutral-900 text-neutral-900
+                    className="group inline-flex items-center gap-3 px-6 py-4 border-2 border-neutral-900 text-foreground
                              hover:bg-neutral-900 hover:text-white transition-colors"
                   >
                     <Phone className="w-5 h-5" />
@@ -670,7 +670,7 @@ const LocationsSection = () => {
             </div>
 
             {/* Embedded Google Map */}
-            <div className="h-[300px] lg:h-[400px] border-t border-neutral-200">
+            <div className="h-[300px] lg:h-[400px] border-t border-border">
               <iframe
                 src={loc.mapEmbed}
                 width="100%"
@@ -694,9 +694,9 @@ const LocationsSection = () => {
               onClick={() => setActiveLocation(i)}
               onMouseEnter={() => setHoveredCard(i)}
               onMouseLeave={() => setHoveredCard(null)}
-              className={`relative p-6 lg:p-8 text-left border-r border-neutral-200 last:border-r-0 
+              className={`relative p-6 lg:p-8 text-left border-r border-border last:border-r-0 
                        transition-all duration-500 group overflow-hidden
-                       ${activeLocation === i ? 'bg-neutral-900 text-white' : 'bg-white hover:bg-neutral-50'}`}
+                       ${activeLocation === i ? 'bg-neutral-900 text-white' : 'bg-card hover:bg-muted'}`}
             >
               {/* Hover Effect - Sliding background */}
               <div className={`absolute inset-0 bg-[#FF4D00] transition-transform duration-500
@@ -710,12 +710,12 @@ const LocationsSection = () => {
                     {loc.type}
                   </span>
                   <h4 className={`text-2xl font-bold
-                              ${activeLocation === i ? 'text-white' : 'text-neutral-900'}
+                              ${activeLocation === i ? 'text-white' : 'text-foreground'}
                               ${hoveredCard === i && activeLocation !== i ? 'text-white' : ''}`}>
                     {loc.name}
                   </h4>
                   <p className={`text-sm mt-2
-                             ${activeLocation === i ? 'text-neutral-400' : 'text-neutral-500'}
+                             ${activeLocation === i ? 'text-neutral-400' : 'text-muted-foreground'}
                              ${hoveredCard === i && activeLocation !== i ? 'text-white/80' : ''}`}>
                     {loc.address.split(',')[0]}
                   </p>
@@ -724,8 +724,8 @@ const LocationsSection = () => {
                 <div className={`w-10 h-10 flex items-center justify-center transition-all
                              ${activeLocation === i
                     ? 'bg-[#FF4D00] text-white'
-                    : 'bg-neutral-100 text-neutral-400 group-hover:bg-white group-hover:text-[#FF4D00]'}
-                             ${hoveredCard === i && activeLocation !== i ? 'bg-white text-[#FF4D00]' : ''}`}>
+                    : 'bg-muted text-neutral-400 group-hover:bg-card group-hover:text-[#FF4D00]'}
+                             ${hoveredCard === i && activeLocation !== i ? 'bg-card text-[#FF4D00]' : ''}`}>
                   <ArrowUpRight className="w-5 h-5" />
                 </div>
               </div>
@@ -780,16 +780,16 @@ const FAQSection = () => {
         <div className="grid lg:grid-cols-12">
 
           {/* Left - Header with Visual Interest */}
-          <div className="lg:col-span-4 p-8 lg:p-12 lg:border-r border-neutral-200">
+          <div className="lg:col-span-4 p-8 lg:p-12 lg:border-r border-border">
             <div className="lg:sticky lg:top-24">
               <div className="flex items-center gap-3 mb-8">
                 <div className="w-2 h-2 bg-[#FF4D00]" />
-                <span className="text-xs font-medium tracking-[0.3em] uppercase text-neutral-500">
+                <span className="text-xs font-medium tracking-[0.3em] uppercase text-muted-foreground">
                   04 — FAQ
                 </span>
               </div>
 
-              <h2 className={`text-5xl lg:text-6xl font-bold text-neutral-900 tracking-tight mb-6
+              <h2 className={`text-5xl lg:text-6xl font-bold text-foreground tracking-tight mb-6
                            transform transition-all duration-500
                            ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
                 Hỏi
@@ -797,7 +797,7 @@ const FAQSection = () => {
                 <span className="text-neutral-400">đáp</span>
               </h2>
 
-              <p className={`text-neutral-500 leading-relaxed mb-8
+              <p className={`text-muted-foreground leading-relaxed mb-8
                           transform transition-all duration-500 delay-100
                           ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
                 Câu trả lời cho những thắc mắc phổ biến nhất. Không tìm thấy?
@@ -807,11 +807,11 @@ const FAQSection = () => {
               </p>
 
               {/* Quick Stats */}
-              <div className={`p-6 bg-white border-l-4 border-[#FF4D00]
+              <div className={`p-6 bg-card border-l-4 border-[#FF4D00]
                            transform transition-all duration-500 delay-200
                            ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-                <p className="text-4xl font-bold text-neutral-900">95%</p>
-                <p className="text-sm text-neutral-500 mt-1">
+                <p className="text-4xl font-bold text-foreground">95%</p>
+                <p className="text-sm text-muted-foreground mt-1">
                   câu hỏi được giải đáp trong lần đầu tiên
                 </p>
               </div>
@@ -823,7 +823,7 @@ const FAQSection = () => {
             {faqs.map((faq, i) => (
               <div
                 key={i}
-                className={`border-b border-neutral-200 last:border-b-0 
+                className={`border-b border-border last:border-b-0 
                           transform transition-all duration-500
                           ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
                 style={{ transitionDelay: `${100 + i * 50}ms` }}
@@ -831,18 +831,18 @@ const FAQSection = () => {
                 <button
                   onClick={() => setOpenIndex(openIndex === i ? -1 : i)}
                   className={`w-full p-6 lg:p-8 text-left flex items-start gap-6 transition-colors
-                           ${openIndex === i ? 'bg-white' : 'hover:bg-white/50'}`}
+                           ${openIndex === i ? 'bg-card' : 'hover:bg-white/50'}`}
                 >
                   {/* Number */}
                   <span className={`text-sm font-bold w-8 h-8 flex items-center justify-center shrink-0 transition-colors
-                                ${openIndex === i ? 'bg-[#FF4D00] text-white' : 'bg-neutral-200 text-neutral-500'}`}>
+                                ${openIndex === i ? 'bg-[#FF4D00] text-white' : 'bg-neutral-200 text-muted-foreground'}`}>
                     {String(i + 1).padStart(2, '0')}
                   </span>
 
                   {/* Question + Icon */}
                   <div className="flex-1 flex items-start justify-between gap-4">
                     <span className={`text-lg font-medium transition-colors
-                                  ${openIndex === i ? 'text-neutral-900' : 'text-neutral-700'}`}>
+                                  ${openIndex === i ? 'text-foreground' : 'text-neutral-700'}`}>
                       {faq.q}
                       {faq.highlight && (
                         <span className="ml-2 px-2 py-0.5 text-xs bg-[#FF4D00]/10 text-[#FF4D00] align-middle">
@@ -861,7 +861,7 @@ const FAQSection = () => {
                 <div className={`overflow-hidden transition-all duration-300 ease-out
                              ${openIndex === i ? 'max-h-48' : 'max-h-0'}`}>
                   <div className="px-6 lg:px-8 pb-6 lg:pb-8 pl-20 lg:pl-[88px]">
-                    <p className="text-neutral-600 leading-relaxed">
+                    <p className="text-muted-foreground leading-relaxed">
                       {faq.a}
                     </p>
                   </div>
@@ -895,7 +895,7 @@ const CTASection = () => {
             {/* Section indicator */}
             <div className="flex items-center gap-3 mb-auto">
               <div className="w-2 h-2 bg-[#FF4D00]" />
-              <span className="text-xs font-medium tracking-[0.3em] uppercase text-neutral-500">
+              <span className="text-xs font-medium tracking-[0.3em] uppercase text-muted-foreground">
                 05 — Bắt đầu
               </span>
             </div>
@@ -920,15 +920,15 @@ const CTASection = () => {
             <div className="grid grid-cols-3 gap-4 pt-8 border-t border-neutral-800 mt-auto">
               <div>
                 <p className="text-2xl lg:text-3xl font-bold text-[#FF4D00]">10K+</p>
-                <p className="text-xs text-neutral-500 uppercase tracking-wider mt-1">Học viên</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Học viên</p>
               </div>
               <div>
                 <p className="text-2xl lg:text-3xl font-bold">98%</p>
-                <p className="text-xs text-neutral-500 uppercase tracking-wider mt-1">Hài lòng</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Hài lòng</p>
               </div>
               <div>
                 <p className="text-2xl lg:text-3xl font-bold">5 năm</p>
-                <p className="text-xs text-neutral-500 uppercase tracking-wider mt-1">Kinh nghiệm</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Kinh nghiệm</p>
               </div>
             </div>
           </div>
@@ -956,12 +956,12 @@ const CTASection = () => {
               {/* Primary CTA */}
               <Link
                 to="/register"
-                className="group flex items-center justify-between p-6 bg-white text-neutral-900
+                className="group flex items-center justify-between p-6 bg-card text-foreground
                          hover:bg-neutral-900 hover:text-white transition-colors mb-4"
               >
                 <div>
                   <p className="text-xl font-bold">Đăng ký học thử</p>
-                  <p className="text-sm text-neutral-500 group-hover:text-neutral-400">
+                  <p className="text-sm text-muted-foreground group-hover:text-neutral-400">
                     Miễn phí • Không cam kết
                   </p>
                 </div>
@@ -994,7 +994,7 @@ const CTASection = () => {
 // ============================================
 export const ContactPage = () => {
   return (
-    <div className="min-h-screen bg-white antialiased">
+    <div className="min-h-screen bg-card antialiased">
       <SEOHead
         title="Liên hệ"
         description="Liên hệ với Skill Master để được tư vấn lộ trình học IELTS, TOEIC và Tin học văn phòng cá nhân hóa. Chúng tôi luôn sẵn sàng hỗ trợ bạn."

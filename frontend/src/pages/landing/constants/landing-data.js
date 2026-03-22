@@ -130,7 +130,7 @@ export const courses = [
         features: ['Lớp 8-12 học viên', 'Cam kết đầu ra', 'Giáo viên 8.0+'],
         duration: '3-6 tháng',
         color: 'from-red-500 to-orange-500',
-        bgColor: 'bg-red-50',
+        bgColor: 'bg-red-50 dark:bg-red-900/40',
         details: {
             price: '5.500.000đ',
             schedule: 'Thứ 2-4-6 (19:30 - 21:00)',
@@ -150,7 +150,7 @@ export const courses = [
         features: ['Thi thử hàng tuần', 'Phòng tự học', 'Tài liệu ETS'],
         duration: '2-4 tháng',
         color: 'from-blue-500 to-cyan-500',
-        bgColor: 'bg-blue-50',
+        bgColor: 'bg-blue-50 dark:bg-blue-900/40',
         details: {
             price: '3.800.000đ',
             schedule: 'Thứ 3-5-7 (18:00 - 19:30)',
@@ -170,7 +170,7 @@ export const courses = [
         features: ['Chứng chỉ MOS', 'Thực hành 70%', 'Học 1 kèm 1'],
         duration: '1-2 tháng',
         color: 'from-emerald-500 to-teal-500',
-        bgColor: 'bg-emerald-50',
+        bgColor: 'bg-emerald-50 dark:bg-emerald-900/40',
         details: {
             price: '2.500.000đ',
             schedule: 'Linh hoạt (Sáng/Chiều/Tối)',
@@ -190,7 +190,7 @@ export const courses = [
         features: ['Quốc tế công nhận', 'Online/Offline', 'Hỗ trợ thi'],
         duration: '2-3 tháng',
         color: 'from-violet-500 to-purple-500',
-        bgColor: 'bg-violet-50',
+        bgColor: 'bg-violet-50 dark:bg-violet-900/40',
         details: {
             price: '3.200.000đ',
             schedule: 'Cuối tuần (T7-CN)',

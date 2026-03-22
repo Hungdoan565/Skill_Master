@@ -190,12 +190,12 @@ const CinematicProfileModal = ({ teacher, teacherIndex, isOpen, onClose, onNext,
                     </div>
 
                     {/* ── Right: Profile Details (3/5) ── */}
-                    <div className="md:col-span-3 bg-white p-8 md:p-10 
+                    <div className="md:col-span-3 bg-card p-8 md:p-10 
                         overflow-y-auto max-h-[60vh] md:max-h-[92vh] space-y-8">
 
                         {/* Section: Chuyên môn */}
                         <div>
-                            <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-[0.2em] mb-4
+                            <h4 className="text-xs font-bold text-muted-foreground/70 uppercase tracking-[0.2em] mb-4
                                 flex items-center gap-2">
                                 <BookOpen className="w-4 h-4" />
                                 Chuyên môn giảng dạy
@@ -203,13 +203,13 @@ const CinematicProfileModal = ({ teacher, teacherIndex, isOpen, onClose, onNext,
                             <div className="flex flex-wrap gap-2">
                                 {teacher.specialty.split(' & ').map((s, i) => (
                                     <span key={i} className="px-4 py-2 rounded-xl text-sm font-medium
-                                        bg-stone-50 border border-stone-200 text-zinc-700
-                                        hover:bg-stone-100 transition-colors">
+                                        bg-muted border border-border text-foreground/90
+                                        hover:bg-muted transition-colors">
                                         {s.trim()}
                                     </span>
                                 ))}
                                 <span className="px-4 py-2 rounded-xl text-sm font-medium
-                                    bg-stone-50 border border-stone-200 text-zinc-700">
+                                    bg-muted border border-border text-foreground/90">
                                     {teacher.role}
                                 </span>
                             </div>
@@ -217,7 +217,7 @@ const CinematicProfileModal = ({ teacher, teacherIndex, isOpen, onClose, onNext,
 
                         {/* Section: Chứng chỉ & Bằng cấp */}
                         <div>
-                            <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-[0.2em] mb-4
+                            <h4 className="text-xs font-bold text-muted-foreground/70 uppercase tracking-[0.2em] mb-4
                                 flex items-center gap-2">
                                 <Award className="w-4 h-4" />
                                 Chứng chỉ quốc tế & Bằng cấp
@@ -225,7 +225,7 @@ const CinematicProfileModal = ({ teacher, teacherIndex, isOpen, onClose, onNext,
                             <div className="space-y-3">
                                 {(teacher.certifications || []).map((cert, i) => (
                                     <div key={i} className="flex gap-4 p-4 rounded-2xl
-                                        bg-stone-50 border border-stone-100 hover:bg-stone-100 
+                                        bg-muted border border-border/50 hover:bg-muted 
                                         transition-colors group">
                                         {/* Cert logo tile */}
                                         <div
@@ -246,25 +246,25 @@ const CinematicProfileModal = ({ teacher, teacherIndex, isOpen, onClose, onNext,
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-start justify-between gap-2">
                                                 <div>
-                                                    <p className="text-zinc-900 font-semibold text-sm leading-tight">
+                                                    <p className="text-foreground font-semibold text-sm leading-tight">
                                                         {cert.name}
                                                     </p>
-                                                    <p className="text-zinc-500 text-xs mt-0.5">{cert.issuer}</p>
+                                                    <p className="text-muted-foreground text-xs mt-0.5">{cert.issuer}</p>
                                                 </div>
                                                 <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold
-                                                    bg-zinc-100 text-zinc-600 whitespace-nowrap">
+                                                    bg-muted text-muted-foreground whitespace-nowrap">
                                                     {cert.category}
                                                 </span>
                                             </div>
                                             {/* Score bar */}
                                             <div className="mt-2 flex items-center gap-2">
-                                                <div className="h-1.5 flex-1 bg-stone-200 rounded-full overflow-hidden">
+                                                <div className="h-1.5 flex-1 bg-muted rounded-full overflow-hidden">
                                                     <div
                                                         className="h-full rounded-full transition-all duration-1000"
                                                         style={{ backgroundColor: cert.color, width: '100%' }}
                                                     />
                                                 </div>
-                                                <span className="text-xs font-bold text-zinc-700 whitespace-nowrap">
+                                                <span className="text-xs font-bold text-foreground/90 whitespace-nowrap">
                                                     {cert.score}
                                                 </span>
                                             </div>
@@ -280,16 +280,16 @@ const CinematicProfileModal = ({ teacher, teacherIndex, isOpen, onClose, onNext,
                                 <div className={`absolute -left-2 top-0 bottom-0 w-1 rounded-full bg-gradient-to-b ${accent.bg}`} />
                                 <div className="pl-6 py-4">
                                     <Quote className="w-8 h-8 text-stone-200 mb-3" />
-                                    <p className="text-zinc-700 text-lg italic leading-relaxed">
+                                    <p className="text-foreground/90 text-lg italic leading-relaxed">
                                         "{quote}"
                                     </p>
                                     <div className="flex items-center gap-3 mt-4">
-                                        <div className="w-8 h-8 rounded-full overflow-hidden border border-stone-200 shadow-sm">
+                                        <div className="w-8 h-8 rounded-full overflow-hidden border border-border shadow-sm">
                                             <SmartImage src={teacher.image} alt={teacher.name}
                                                 className="w-full h-full object-cover"
                                                 containerClassName="w-full h-full" aspectRatio="aspect-square" />
                                         </div>
-                                        <span className="text-zinc-500 text-sm font-medium">— {teacher.name}</span>
+                                        <span className="text-muted-foreground text-sm font-medium">— {teacher.name}</span>
                                     </div>
                                 </div>
                             </div>
@@ -319,7 +319,7 @@ const CinematicProfileModal = ({ teacher, teacherIndex, isOpen, onClose, onNext,
                 <div className="flex justify-center gap-1.5 mt-6">
                     {teachers.map((_, i) => (
                         <div key={i} className={`h-1.5 rounded-full transition-all duration-300
-                            ${i === teacherIndex ? 'w-6 bg-white' : 'w-1.5 bg-white/30'}`} />
+                            ${i === teacherIndex ? 'w-6 bg-card' : 'w-1.5 bg-white/30'}`} />
                     ))}
                 </div>
             </div>
@@ -402,7 +402,7 @@ export const TeacherCarousel = () => {
     const currentTeachers = getCurrentTeachers();
 
     return (
-        <section id="teachers" ref={ref} className="py-32 bg-stone-50 overflow-hidden">
+        <section id="teachers" ref={ref} className="py-32 bg-muted overflow-hidden">
             <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
                 {/* Header */}
                 <div className={`text-center max-w-2xl mx-auto transform transition-all duration-700
@@ -411,12 +411,12 @@ export const TeacherCarousel = () => {
                         rounded-full uppercase tracking-wider mb-6">
                         Đội ngũ giảng viên
                     </span>
-                    <h2 className="font-display text-4xl lg:text-5xl font-bold text-zinc-900 tracking-tight">
+                    <h2 className="font-display text-4xl lg:text-5xl font-bold text-foreground tracking-tight">
                         Học từ những người
                         <br />
-                        <span className="text-zinc-400">giỏi nhất trong ngành</span>
+                        <span className="text-muted-foreground/70">giỏi nhất trong ngành</span>
                     </h2>
-                    <p className="mt-6 text-lg text-zinc-500">
+                    <p className="mt-6 text-lg text-muted-foreground">
                         100% giảng viên có chứng chỉ quốc tế và kinh nghiệm giảng dạy chuyên sâu.
                     </p>
                 </div>
@@ -429,16 +429,16 @@ export const TeacherCarousel = () => {
                     {/* Arrows — pushed out far from cards */}
                     <button onClick={goToPrev}
                         className="absolute left-0 lg:left-2 top-1/2 -translate-y-1/2 z-20
-                            w-12 h-12 bg-white rounded-full shadow-lg border border-stone-200
-                            flex items-center justify-center text-zinc-600 hover:text-zinc-900 hover:bg-stone-50
+                            w-12 h-12 bg-card rounded-full shadow-lg border border-border
+                            flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted
                             hover:shadow-xl hover:scale-110 transition-all duration-300"
                         aria-label="Trước">
                         <ChevronLeft className="w-6 h-6" />
                     </button>
                     <button onClick={goToNext}
                         className="absolute right-0 lg:right-2 top-1/2 -translate-y-1/2 z-20
-                            w-12 h-12 bg-white rounded-full shadow-lg border border-stone-200
-                            flex items-center justify-center text-zinc-600 hover:text-zinc-900 hover:bg-stone-50
+                            w-12 h-12 bg-card rounded-full shadow-lg border border-border
+                            flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted
                             hover:shadow-xl hover:scale-110 transition-all duration-300"
                         aria-label="Sau">
                         <ChevronRight className="w-6 h-6" />
@@ -455,7 +455,7 @@ export const TeacherCarousel = () => {
                                     key={`${currentBatch}-${localIndex}`}
                                     accent={accent}
                                     onClick={() => openProfile(teacher, globalIndex)}
-                                    className="bg-white rounded-3xl border border-stone-200 animate-fade-slide-in"
+                                    className="bg-card rounded-3xl border border-border animate-fade-slide-in"
                                     style={{
                                         animationDelay: `${localIndex * 100}ms`,
                                         animationFillMode: 'backwards',
@@ -484,8 +484,8 @@ export const TeacherCarousel = () => {
                                         </span>
 
                                         {/* Name */}
-                                        <h3 className="mt-3 font-semibold text-lg text-zinc-900">{teacher.name}</h3>
-                                        <p className="text-sm text-zinc-500">{teacher.role}</p>
+                                        <h3 className="mt-3 font-semibold text-lg text-foreground">{teacher.name}</h3>
+                                        <p className="text-sm text-muted-foreground">{teacher.role}</p>
 
                                         {/* Stats */}
                                         <div className="mt-3 flex items-center justify-center gap-3 text-sm">
@@ -493,17 +493,17 @@ export const TeacherCarousel = () => {
                                                 <Star className="w-4 h-4 fill-current" />
                                                 <span className="font-semibold">{teacher.rating}</span>
                                             </div>
-                                            <div className="w-px h-4 bg-stone-200" />
-                                            <div className="flex items-center gap-1 text-zinc-400">
+                                            <div className="w-px h-4 bg-muted" />
+                                            <div className="flex items-center gap-1 text-muted-foreground/70">
                                                 <Users className="w-4 h-4" />
                                                 <span>{teacher.students}</span>
                                             </div>
                                         </div>
 
                                         {/* Specialty */}
-                                        <div className="mt-4 pt-4 border-t border-stone-100">
-                                            <p className="text-xs text-zinc-400">{teacher.experience}</p>
-                                            <p className="text-sm font-medium text-zinc-700 mt-1">{teacher.specialty}</p>
+                                        <div className="mt-4 pt-4 border-t border-border/50">
+                                            <p className="text-xs text-muted-foreground/70">{teacher.experience}</p>
+                                            <p className="text-sm font-medium text-foreground/90 mt-1">{teacher.specialty}</p>
                                         </div>
                                     </div>
                                 </SpotlightCard>
@@ -522,7 +522,7 @@ export const TeacherCarousel = () => {
                     </div>
                 </div>
 
-                <p className={`text-center text-zinc-500 mt-6 transform transition-all duration-700 delay-500
+                <p className={`text-center text-muted-foreground mt-6 transform transition-all duration-700 delay-500
                     ${isInView ? 'opacity-100' : 'opacity-0'}`}>
                     {teachers.length} giảng viên chuyên môn cao
                 </p>
