@@ -68,7 +68,7 @@ export default function LeadCaptureCard() {
   }
 
   return (
-    <div className="mx-2 my-2 rounded-xl border border-border bg-white p-4 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
+    <div className="mx-2 my-2 rounded-xl border border-border bg-white dark:bg-zinc-900 p-4 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
       <p className="mb-3 text-sm font-medium text-foreground">
         Muốn được tư vấn chi tiết hơn?
       </p>
@@ -80,7 +80,7 @@ export default function LeadCaptureCard() {
           value={formData.name}
           onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
           required
-          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
+          className="w-full rounded-lg border border-border bg-white dark:bg-zinc-800 px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
         />
 
         <input
@@ -90,7 +90,7 @@ export default function LeadCaptureCard() {
           onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
           required
           pattern="^0[3-9]\d{8}$"
-          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
+          className="w-full rounded-lg border border-border bg-white dark:bg-zinc-800 px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
         />
 
         <div className="flex gap-2">

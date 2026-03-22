@@ -57,7 +57,7 @@ function MessageActions({ message, onCopy, onRegenerate, onEdit, onRate, isLast 
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex items-center gap-0.5 rounded-lg border border-border bg-white p-0.5 shadow-sm">
+      <div className="flex items-center gap-0.5 rounded-lg border border-border bg-white dark:bg-zinc-900 p-0.5 shadow-sm">
         {/* Copy — available for both roles */}
         <ActionButton icon={Copy} label="Sao chép" onClick={handleCopy} />
 

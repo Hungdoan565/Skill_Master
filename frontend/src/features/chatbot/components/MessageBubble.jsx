@@ -100,7 +100,7 @@ const MessageBubble = memo(function MessageBubble({
                 value={editText}
                 onChange={(e) => setEditText(e.target.value)}
                 onKeyDown={handleEditKeyDown}
-                className="w-full min-h-[60px] max-h-[120px] resize-none rounded-xl border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full min-h-[60px] max-h-[120px] resize-none rounded-xl border border-border bg-white dark:bg-zinc-900 dark:text-foreground px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                 rows={1}
               />
               <div className="flex justify-end gap-1.5">
@@ -182,7 +182,7 @@ const MessageBubble = memo(function MessageBubble({
           <GraduationCap className="h-3.5 w-3.5 text-primary" />
         </div>
         <div className="max-w-[85%]">
-          <div className="rounded-2xl rounded-bl-md border border-border bg-slate-50 px-3.5 py-3 text-sm">
+          <div className="rounded-2xl rounded-bl-md border border-border bg-slate-50 dark:bg-zinc-900 px-3.5 py-3 text-sm">
             <p className="font-medium text-foreground">Cuộc trò chuyện đã đạt giới hạn</p>
             <p className="mt-1 text-muted-foreground">Bạn có thể bắt đầu cuộc trò chuyện mới hoặc liên hệ tư vấn viên trực tiếp!</p>
             <button
@@ -202,17 +202,17 @@ const MessageBubble = memo(function MessageBubble({
   if (message.role === 'advisor') {
     return (
       <div className="group flex gap-2 animate-in fade-in slide-in-from-left-2 duration-200">
-        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 mt-1">
+        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/40 mt-1">
           <svg className="h-3.5 w-3.5 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
             <circle cx="12" cy="7" r="4" />
           </svg>
         </div>
         <div className="max-w-[80%]">
-          <p className="mb-0.5 text-[10px] font-semibold text-indigo-600">
+          <p className="mb-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">
             {message.senderName || 'Tư vấn viên'}
           </p>
-          <div className="rounded-2xl rounded-bl-md bg-indigo-50 border border-indigo-100 px-3.5 py-2.5 text-sm text-slate-800">
+          <div className="rounded-2xl rounded-bl-md bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-800 px-3.5 py-2.5 text-sm text-slate-800 dark:text-slate-200">
             <p className="whitespace-pre-wrap break-words">{message.content}</p>
           </div>
           <div className="mt-0.5 flex items-center gap-1.5">

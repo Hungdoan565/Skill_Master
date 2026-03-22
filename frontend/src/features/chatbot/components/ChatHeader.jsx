@@ -6,7 +6,7 @@ export default function ChatHeader({ onToggleDrawer }) {
   const isStudent = mode === 'student';
 
   return (
-    <div className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-white px-4">
+    <div className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-white dark:bg-zinc-950 px-4">
       <div className="flex items-center gap-2">
         {isStudent && (
           <button
