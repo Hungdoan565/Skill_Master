@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/lib/supabaseClient';
 import { API_URL, BANK_OPTIONS } from '../utils/constants';
 
@@ -108,19 +109,19 @@ export function BankInfoTab({ onMessage }) {
     return (
         <div className="space-y-6">
             {/* Info Card */}
-            <Card className={isComplete ? 'border-green-200 bg-green-50/50' : 'border-orange-200 bg-orange-50/50'}>
+            <Card className={isComplete ? 'border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-900/20' : 'border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-900/20'}>
                 <CardContent className="flex items-center gap-3 py-4">
                     {isComplete ? (
                         <>
-                            <CheckCircle className="h-5 w-5 text-green-600" />
-                            <span className="text-green-700">
+                            <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-300" />
+                            <span className="text-green-700 dark:text-green-300">
                                 Thông tin ngân hàng đã được cập nhật. Lương sẽ được chuyển vào tài khoản này.
                             </span>
                         </>
                     ) : (
                         <>
-                            <Building2 className="h-5 w-5 text-orange-600" />
-                            <span className="text-orange-700">
+                            <Building2 className="h-5 w-5 text-orange-600 dark:text-orange-300" />
+                            <span className="text-orange-700 dark:text-orange-300">
                                 Vui lòng cập nhật thông tin ngân hàng để nhận lương qua chuyển khoản.
                             </span>
                         </>
@@ -135,7 +136,7 @@ export function BankInfoTab({ onMessage }) {
                         <Building2 className="h-5 w-5" />
                         Thông tin tài khoản ngân hàng
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription className="dark:text-slate-300">
                         Thông tin này sẽ được sử dụng để chuyển lương hàng tháng
                     </CardDescription>
                 </CardHeader>
@@ -146,19 +147,18 @@ export function BankInfoTab({ onMessage }) {
                             <Building2 className="h-4 w-4 text-slate-500" />
                             Ngân hàng <span className="text-red-500">*</span>
                         </Label>
-                        <select
-                            id="bank_name"
-                            value={bankInfo.bank_name}
-                            onChange={(e) => handleChange('bank_name', e.target.value)}
-                            className="w-full h-10 px-3 rounded-md border border-input bg-white text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                        >
-                            <option value="">-- Chọn ngân hàng --</option>
-                            {BANK_OPTIONS.map(bank => (
-                                <option key={bank.value} value={bank.label}>
-                                    {bank.label}
-                                </option>
-                            ))}
-                        </select>
+                        <Select value={bankInfo.bank_name || undefined} onValueChange={(val) => handleChange('bank_name', val)}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="-- Chọn ngân hàng --" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {BANK_OPTIONS.map(bank => (
+                                    <SelectItem key={bank.value} value={bank.label}>
+                                        {bank.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     {/* Account Number */}
@@ -175,7 +175,7 @@ export function BankInfoTab({ onMessage }) {
                             onChange={(e) => handleChange('bank_account_number', e.target.value.replace(/\D/g, ''))}
                             maxLength={20}
                         />
-                        <p className="text-xs text-slate-500">Chỉ nhập số, không có dấu cách</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-300">Chỉ nhập số, không có dấu cách</p>
                     </div>
 
                     {/* Account Holder Name */}
@@ -192,7 +192,7 @@ export function BankInfoTab({ onMessage }) {
                             onChange={(e) => handleChange('bank_account_holder', e.target.value.toUpperCase())}
                             className="uppercase"
                         />
-                        <p className="text-xs text-slate-500">Tên phải khớp chính xác với tên trên tài khoản ngân hàng (không dấu, viết hoa)</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-300">Tên phải khớp chính xác với tên trên tài khoản ngân hàng (không dấu, viết hoa)</p>
                     </div>
 
                     {/* Preview Card */}
@@ -216,7 +216,7 @@ export function BankInfoTab({ onMessage }) {
                     )}
 
                     {/* Save Button */}
-                    <div className="flex justify-end pt-4 border-t">
+                    <div className="flex justify-end pt-4 border-t dark:border-slate-700">
                         <Button
                             onClick={handleSave}
                             disabled={saving || !hasChanges}
@@ -239,10 +239,10 @@ export function BankInfoTab({ onMessage }) {
             </Card>
 
             {/* Note */}
-            <Card className="bg-blue-50/50 border-blue-200">
+            <Card className="bg-blue-50/50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
                 <CardContent className="py-4">
-                    <h4 className="font-medium text-blue-800 mb-2">Lưu ý quan trọng</h4>
-                    <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
+                    <h4 className="font-medium text-blue-800 dark:text-blue-300 mb-2">Lưu ý quan trọng</h4>
+                    <ul className="text-sm text-blue-700 dark:text-blue-400 space-y-1 list-disc list-inside">
                         <li>Thông tin ngân hàng chỉ được sử dụng để chuyển lương</li>
                         <li>Đảm bảo tên chủ tài khoản khớp với tên trên thẻ ATM/sổ ngân hàng</li>
                         <li>Nếu có thay đổi tài khoản, vui lòng cập nhật trước kỳ lương tiếp theo</li>

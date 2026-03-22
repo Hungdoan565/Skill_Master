@@ -32,7 +32,7 @@ const FormField = ({ label, required, children, hint }) => (
             {required && <span className="text-red-500 ml-1">*</span>}
         </label>
         {children}
-        {hint && <p className="text-xs text-gray-500">{hint}</p>}
+        {hint && <p className="text-xs text-gray-500 dark:text-slate-400">{hint}</p>}
     </div>
 );
 
@@ -218,12 +218,12 @@ export function EmailConfigTab({ onMessage }) {
             {/* Section Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-indigo-50 rounded-xl">
+                    <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl">
                         <Mail className="w-5 h-5 text-indigo-600" />
                     </div>
                     <div>
-                        <h2 className="text-lg font-semibold text-gray-900">Cấu hình Email SMTP</h2>
-                        <p className="text-sm text-gray-500">Thiết lập máy chủ email để gửi thông báo</p>
+                        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Cấu hình Email SMTP</h2>
+                        <p className="text-sm text-gray-500 dark:text-slate-400">Thiết lập máy chủ email để gửi thông báo</p>
                     </div>
                 </div>
                 <StatusBadge status={testStatus.status} lastTested={testStatus.lastTested} />
@@ -234,8 +234,8 @@ export function EmailConfigTab({ onMessage }) {
                 <CardContent className="pt-6">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="font-medium text-gray-900">Kích hoạt gửi email</p>
-                            <p className="text-sm text-gray-500">Tắt để ngừng tất cả email từ hệ thống</p>
+                            <p className="font-medium text-gray-900 dark:text-white">Kích hoạt gửi email</p>
+                            <p className="text-sm text-gray-500 dark:text-slate-400">Tắt để ngừng tất cả email từ hệ thống</p>
                         </div>
                         <Switch
                             checked={config.isActive}
@@ -271,7 +271,7 @@ export function EmailConfigTab({ onMessage }) {
                                         px-3 py-1.5 rounded-lg border text-sm transition-all
                                         ${selectedPreset === preset.name
                                             ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                                            : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                                            : 'border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-slate-500 text-gray-600 dark:text-slate-300'
                                         }
                                     `}
                                 >
@@ -319,7 +319,7 @@ export function EmailConfigTab({ onMessage }) {
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300"
                                 >
                                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                 </button>
@@ -333,8 +333,8 @@ export function EmailConfigTab({ onMessage }) {
                             onChange={(v) => updateConfig('smtpSecure', v)}
                         />
                         <div>
-                            <p className="font-medium text-gray-900">Sử dụng TLS/SSL</p>
-                            <p className="text-sm text-gray-500">Bật nếu server yêu cầu kết nối bảo mật</p>
+                            <p className="font-medium text-gray-900 dark:text-white">Sử dụng TLS/SSL</p>
+                            <p className="text-sm text-gray-500 dark:text-slate-400">Bật nếu server yêu cầu kết nối bảo mật</p>
                         </div>
                     </div>
                 </CardContent>

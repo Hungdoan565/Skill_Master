@@ -27,8 +27,8 @@ const NotificationItem = ({ icon: Icon, title, description, checked, onChange, d
                 <Icon className="w-4 h-4 text-gray-600" />
             </div>
             <div>
-                <p className="font-medium text-gray-900">{title}</p>
-                <p className="text-sm text-gray-500">{description}</p>
+                <p className="font-medium text-gray-900 dark:text-white">{title}</p>
+                <p className="text-sm text-gray-500 dark:text-slate-400">{description}</p>
             </div>
         </div>
         <Switch checked={checked} onChange={onChange} disabled={disabled} />
@@ -115,12 +115,12 @@ export function NotificationPreferencesTab({ onMessage }) {
         <div className="space-y-6">
             {/* Section Header */}
             <div className="flex items-center gap-3 mb-2">
-                <div className="p-2.5 bg-indigo-50 rounded-xl">
+                <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl">
                     <Bell className="w-5 h-5 text-indigo-600" />
                 </div>
                 <div>
-                    <h2 className="text-lg font-semibold text-gray-900">Cài đặt thông báo</h2>
-                    <p className="text-sm text-gray-500">Tùy chỉnh cách bạn nhận thông báo từ hệ thống</p>
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Cài đặt thông báo</h2>
+                    <p className="text-sm text-gray-500 dark:text-slate-400">Tùy chỉnh cách bạn nhận thông báo từ hệ thống</p>
                 </div>
             </div>
 
@@ -249,7 +249,7 @@ export function NotificationPreferencesTab({ onMessage }) {
                                     px-4 py-2 rounded-lg border-2 transition-all
                                     ${preferences.emailDigestFrequency === option.value
                                         ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                                        : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                                        : 'border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-slate-500 text-gray-600 dark:text-slate-300'
                                     }
                                 `}
                             >
@@ -257,7 +257,7 @@ export function NotificationPreferencesTab({ onMessage }) {
                             </button>
                         ))}
                     </div>
-                    <p className="text-sm text-gray-500 mt-3">
+                    <p className="text-sm text-gray-500 dark:text-slate-400 mt-3">
                         {preferences.emailDigestFrequency === 'instant' && 'Bạn sẽ nhận email ngay khi có sự kiện xảy ra'}
                         {preferences.emailDigestFrequency === 'daily' && 'Bạn sẽ nhận một email tổng hợp mỗi ngày vào 8:00 sáng'}
                         {preferences.emailDigestFrequency === 'weekly' && 'Bạn sẽ nhận một email tổng hợp mỗi tuần vào thứ Hai'}

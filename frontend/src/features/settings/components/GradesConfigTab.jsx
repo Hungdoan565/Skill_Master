@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useSettings } from '../hooks';
 import {
     SETTING_KEYS,
@@ -148,18 +149,18 @@ export function GradesConfigTab({ onMessage }) {
         <div className="space-y-6">
             {/* Section Header */}
             <div className="flex items-center gap-3 mb-2">
-                <div className="p-2.5 bg-indigo-50 rounded-xl">
+                <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl">
                     <GraduationCap className="w-5 h-5 text-indigo-600" />
                 </div>
                 <div>
-                    <h2 className="text-lg font-semibold text-gray-900">Đánh giá</h2>
-                    <p className="text-sm text-gray-500">Cấu hình thang điểm, cách tính và các cột đánh giá</p>
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Đánh giá</h2>
+                    <p className="text-sm text-gray-500 dark:text-slate-300">Cấu hình thang điểm, cách tính và các cột đánh giá</p>
                 </div>
             </div>
 
             {/* Basic Config */}
             <Card className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                     <GraduationCap className="w-5 h-5 text-indigo-600" />
                     Cấu hình chung
                 </h3>
@@ -201,40 +202,35 @@ export function GradesConfigTab({ onMessage }) {
                     {/* Calculation Type */}
                     <div className="space-y-2">
                         <Label htmlFor="calcType">Cách tính điểm</Label>
-                        <select
-                            id="calcType"
-                            value={gradeConfig.defaultCalculationType}
-                            onChange={(e) => setGradeConfig(prev => ({
-                                ...prev,
-                                defaultCalculationType: e.target.value
-                            }))}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm
-                                     focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        >
-                            {CALCULATION_TYPE_OPTIONS.map(opt => (
-                                <option key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                </option>
-                            ))}
-                        </select>
+                        <Select value={gradeConfig.defaultCalculationType} onValueChange={(val) => setGradeConfig(prev => ({ ...prev, defaultCalculationType: val }))}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Chọn cách tính" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {CALCULATION_TYPE_OPTIONS.map(opt => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     {/* Default Template */}
                     <div className="space-y-2">
                         <Label htmlFor="gradeTemplate">Template mặc định</Label>
-                        <select
-                            id="gradeTemplate"
-                            value={gradeConfig.defaultTemplate}
-                            onChange={(e) => handleTemplateChange(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm
-                                     focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        >
-                            {GRADE_TEMPLATE_OPTIONS.map(opt => (
-                                <option key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                </option>
-                            ))}
-                        </select>
+                        <Select value={gradeConfig.defaultTemplate} onValueChange={(val) => handleTemplateChange(val)}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Chọn template" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {GRADE_TEMPLATE_OPTIONS.map(opt => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
             </Card>
@@ -242,7 +238,7 @@ export function GradesConfigTab({ onMessage }) {
             {/* Grade Columns Config */}
             <Card className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                         <Calculator className="w-5 h-5 text-indigo-600" />
                         Cột điểm mặc định
                     </h3>
@@ -272,7 +268,7 @@ export function GradesConfigTab({ onMessage }) {
                 <div className="overflow-x-auto">
                     <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                         <thead>
-                            <tr className="text-left text-sm text-gray-500 border-b">
+                            <tr className="text-left text-sm text-gray-500 dark:text-slate-300 border-b dark:border-slate-700">
                                 <th className="pb-2 font-medium">Tên cột</th>
                                 {gradeConfig.defaultCalculationType === 'weighted' && (
                                     <th className="pb-2 font-medium w-28">Trọng số (%)</th>
@@ -283,7 +279,7 @@ export function GradesConfigTab({ onMessage }) {
                         </thead>
                         <tbody>
                             {gradeColumns.map((col, idx) => (
-                                <tr key={col.id} className="border-b border-gray-100">
+                                <tr key={col.id} className="border-b border-gray-100 dark:border-slate-700">
                                     <td className="py-3 pr-3">
                                         <Input
                                             value={col.name}
@@ -327,7 +323,7 @@ export function GradesConfigTab({ onMessage }) {
                 </div>
 
                 {gradeColumns.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
+                    <div className="text-center py-8 text-gray-500 dark:text-slate-300">
                         <GraduationCap className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                         <p>Chưa có cột điểm nào</p>
                         <Button
@@ -344,11 +340,11 @@ export function GradesConfigTab({ onMessage }) {
             </Card>
 
             {/* Info Banner */}
-            <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-blue-800">
+            <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-blue-800 dark:text-blue-200">
                     <p className="font-medium mb-1">Hướng dẫn</p>
-                    <ul className="list-disc list-inside text-blue-600 space-y-1">
+                    <ul className="list-disc list-inside text-blue-600 dark:text-blue-200 space-y-1">
                         <li>Chọn template phù hợp hoặc tùy chỉnh các cột điểm</li>
                         <li>Với cách tính "Trọng số", tổng % phải bằng 100</li>
                         <li>Cấu hình này áp dụng làm mặc định khi tạo khóa học mới</li>

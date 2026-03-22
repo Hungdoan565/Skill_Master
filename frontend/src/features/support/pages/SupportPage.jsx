@@ -77,10 +77,10 @@ const TicketListItem = ({ ticket, selected, onClick }) => {
         <div
             onClick={() => onClick(ticket)}
             className={`
-                flex gap-3 px-3 py-3 cursor-pointer transition-all border-b border-slate-100
+                flex gap-3 px-3 py-3 cursor-pointer transition-all border-b border-border
                 ${selected
-                    ? 'bg-indigo-50 border-l-[3px] border-l-indigo-500'
-                    : 'hover:bg-slate-50 border-l-[3px] border-l-transparent'}
+                    ? 'bg-indigo-50 dark:bg-indigo-500/10 border-l-[3px] border-l-indigo-500'
+                    : 'hover:bg-muted/50 border-l-[3px] border-l-transparent'}
             `}
         >
             {/* Priority bar */}
@@ -89,46 +89,46 @@ const TicketListItem = ({ ticket, selected, onClick }) => {
             {/* Content */}
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[11px] font-mono text-slate-400">{ticket.ticket_number}</span>
+                    <span className="text-[11px] font-mono text-muted-foreground">{ticket.ticket_number}</span>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${statusCfg.color}`}>
                         {statusCfg.label}
                     </span>
                 </div>
 
-                <p className="text-sm font-medium text-slate-800 truncate leading-tight">
+                <p className="text-sm font-medium text-foreground truncate leading-tight">
                     {cleanSubject(ticket.subject)}
                 </p>
 
                 <div className="flex items-center gap-2 mt-1.5">
-                    <div className="h-5 w-5 rounded-full bg-slate-200 flex items-center justify-center">
-                        <span className="text-[9px] font-semibold text-slate-600">{getInitials(name)}</span>
+                    <div className="h-5 w-5 rounded-full bg-slate-200 dark:bg-muted flex items-center justify-center">
+                        <span className="text-[9px] font-semibold text-slate-600 dark:text-muted-foreground">{getInitials(name)}</span>
                     </div>
-                    <span className="text-xs text-slate-500 truncate">{name}</span>
-                    <span className="text-slate-300">·</span>
-                    <span className="text-[11px] text-slate-400">{formatRelativeTime(ticket.updated_at)}</span>
+                    <span className="text-xs text-muted-foreground truncate">{name}</span>
+                    <span className="text-muted-foreground/40">·</span>
+                    <span className="text-[11px] text-muted-foreground">{formatRelativeTime(ticket.updated_at)}</span>
                 </div>
 
                 <div className="flex items-center gap-1.5 mt-1.5">
-                    <Badge variant="outline" className="text-[10px] py-0 h-5 gap-1 border-slate-200">
+                    <Badge variant="outline" className="text-[10px] py-0 h-5 gap-1 border-border">
                         <CatIcon className="h-2.5 w-2.5" /> {categoryCfg.label}
                     </Badge>
                     {ticket.source === 'chatbot' && (
-                        <Badge variant="outline" className="text-[10px] py-0 h-5 bg-violet-50 text-violet-600 border-violet-200">
+                        <Badge variant="outline" className="text-[10px] py-0 h-5 bg-violet-50 dark:bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-200 dark:border-violet-500/30">
                             🤖 Molly
                         </Badge>
                     )}
                     {ticket.source === 'website' && (
-                        <Badge variant="outline" className="text-[10px] py-0 h-5 bg-sky-50 text-sky-600 border-sky-200">
+                        <Badge variant="outline" className="text-[10px] py-0 h-5 bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-200 dark:border-sky-500/30">
                             🌐 Web
                         </Badge>
                     )}
                     {!isConsultation && isFollowUp && (
-                        <Badge variant="outline" className="text-[10px] py-0 h-5 bg-violet-50 text-violet-600 border-violet-200">
+                        <Badge variant="outline" className="text-[10px] py-0 h-5 bg-violet-50 dark:bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-200 dark:border-violet-500/30">
                             <ClipboardList className="h-2.5 w-2.5 mr-0.5" /> Follow-up
                         </Badge>
                     )}
                     {ticket.message_count > 0 && (
-                        <span className="text-[10px] text-slate-400 ml-auto flex items-center gap-0.5">
+                        <span className="text-[10px] text-muted-foreground ml-auto flex items-center gap-0.5">
                             <MessageSquare className="h-3 w-3" /> {ticket.message_count}
                         </span>
                     )}
@@ -147,8 +147,8 @@ const MessageBubble = ({ message, isStaff }) => {
     if (isSystem) {
         return (
             <div className="flex justify-center my-3">
-                <div className="bg-slate-100 rounded-lg px-4 py-2 max-w-[80%]">
-                    <p className="text-xs text-slate-500 text-center">
+                <div className="bg-muted rounded-lg px-4 py-2 max-w-[80%]">
+                    <p className="text-xs text-muted-foreground text-center">
                         <StickyNote className="h-3 w-3 inline mr-1" />
                         Handoff từ tư vấn — xem chi tiết ở sidebar phải →
                     </p>
@@ -160,16 +160,16 @@ const MessageBubble = ({ message, isStaff }) => {
     return (
         <div className={`flex ${isStaff ? 'justify-end' : 'justify-start'} mb-4`}>
             {!isStaff && (
-                <div className="h-7 w-7 rounded-full bg-slate-200 flex items-center justify-center mr-2 mt-1 shrink-0">
-                    <span className="text-[10px] font-semibold text-slate-600">{getInitials(senderName)}</span>
+                <div className="h-7 w-7 rounded-full bg-slate-200 dark:bg-muted flex items-center justify-center mr-2 mt-1 shrink-0">
+                    <span className="text-[10px] font-semibold text-slate-600 dark:text-muted-foreground">{getInitials(senderName)}</span>
                 </div>
             )}
             <div className={`max-w-[70%] ${message.is_internal ? 'border-2 border-dashed border-amber-300' : ''}`}>
                 <div className={`rounded-2xl px-4 py-2.5 ${message.is_internal
-                        ? 'bg-amber-50 text-amber-900'
+                        ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-900 dark:text-amber-300'
                         : isStaff
                             ? 'bg-indigo-600 text-white'
-                            : 'bg-slate-100 text-slate-900'
+                            : 'bg-muted text-foreground'
                     }`}>
                     {message.is_internal && (
                         <div className="flex items-center gap-1 mb-1">
@@ -180,14 +180,14 @@ const MessageBubble = ({ message, isStaff }) => {
                     <p className="text-sm whitespace-pre-wrap leading-relaxed">{content}</p>
                 </div>
                 <div className={`flex items-center gap-1.5 mt-1 px-1 ${isStaff ? 'justify-end' : ''}`}>
-                    <span className={`text-[11px] ${isStaff ? 'text-slate-400' : 'text-slate-400'}`}>{senderName}</span>
-                    <span className="text-slate-300">·</span>
-                    <span className="text-[11px] text-slate-400">{formatRelativeTime(message.created_at)}</span>
+                    <span className="text-[11px] text-muted-foreground">{senderName}</span>
+                    <span className="text-muted-foreground/40">·</span>
+                    <span className="text-[11px] text-muted-foreground">{formatRelativeTime(message.created_at)}</span>
                 </div>
             </div>
             {isStaff && (
-                <div className="h-7 w-7 rounded-full bg-indigo-100 flex items-center justify-center ml-2 mt-1 shrink-0">
-                    <span className="text-[10px] font-semibold text-indigo-600">{getInitials(senderName)}</span>
+                <div className="h-7 w-7 rounded-full bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center ml-2 mt-1 shrink-0">
+                    <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">{getInitials(senderName)}</span>
                 </div>
             )}
         </div>
@@ -210,8 +210,8 @@ const ConsultationContext = ({ ctx }) => {
         <div className="space-y-3">
             <div className="flex items-center gap-2">
                 <ClipboardList className="h-4 w-4 text-violet-600" />
-                <span className="text-xs font-semibold text-slate-700">Bối cảnh tư vấn</span>
-                <Badge variant="outline" className="text-[9px] border-violet-200 text-violet-600">
+                <span className="text-xs font-semibold text-foreground">Bối cảnh tư vấn</span>
+                <Badge variant="outline" className="text-[9px] border-violet-200 dark:border-violet-500/30 text-violet-600 dark:text-violet-400">
                     {STATUS_LABELS[ctx.status] || ctx.status}
                 </Badge>
             </div>
@@ -220,29 +220,29 @@ const ConsultationContext = ({ ctx }) => {
                 <div className="space-y-1.5">
                     {intake.goal && (
                         <div className="flex items-center gap-2 text-xs">
-                            <span className="text-slate-400">🎯</span>
-                            <span className="text-slate-700">{intake.goal}</span>
+                            <span className="text-muted-foreground">🎯</span>
+                            <span className="text-foreground">{intake.goal}</span>
                         </div>
                     )}
                     {intake.course && (
                         <div className="flex items-center gap-2 text-xs">
-                            <span className="text-slate-400">📚</span>
-                            <span className="text-slate-700">{intake.course}</span>
+                            <span className="text-muted-foreground">📚</span>
+                            <span className="text-foreground">{intake.course}</span>
                         </div>
                     )}
                     {intake.level && (
                         <div className="flex items-center gap-2 text-xs">
-                            <span className="text-slate-400">📊</span>
-                            <span className="text-slate-700">{intake.level}</span>
+                            <span className="text-muted-foreground">📊</span>
+                            <span className="text-foreground">{intake.level}</span>
                         </div>
                     )}
                 </div>
             )}
 
             {ctx.advisor_notes && (
-                <div className="bg-slate-50 rounded-lg p-2.5">
-                    <p className="text-[11px] font-semibold text-slate-500 mb-1">✏️ Ghi chú advisor</p>
-                    <p className="text-xs text-slate-600 line-clamp-4 whitespace-pre-wrap">{ctx.advisor_notes}</p>
+                <div className="bg-muted rounded-lg p-2.5">
+                    <p className="text-[11px] font-semibold text-muted-foreground mb-1">✏️ Ghi chú advisor</p>
+                    <p className="text-xs text-foreground/80 line-clamp-4 whitespace-pre-wrap">{ctx.advisor_notes}</p>
                 </div>
             )}
 
@@ -250,7 +250,7 @@ const ConsultationContext = ({ ctx }) => {
                 <div>
                     <button
                         onClick={() => setShowChat(!showChat)}
-                        className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 hover:text-slate-700"
+                        className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground hover:text-foreground"
                     >
                         💬 Chat Molly ({ctx.chat_excerpt.length} tin)
                         <ChevronRight className={`h-3 w-3 transition-transform ${showChat ? 'rotate-90' : ''}`} />
@@ -260,8 +260,8 @@ const ConsultationContext = ({ ctx }) => {
                             {ctx.chat_excerpt.map((msg) => (
                                 <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                     <div className={`max-w-[90%] rounded-lg px-2 py-1 text-[11px] ${msg.role === 'user'
-                                            ? 'bg-blue-50 text-blue-800'
-                                            : 'bg-violet-50 text-violet-800'
+                                            ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-800 dark:text-blue-300'
+                                            : 'bg-violet-50 dark:bg-violet-500/10 text-violet-800 dark:text-violet-300'
                                         }`}>
                                         <span className="line-clamp-2">{msg.content}</span>
                                     </div>
@@ -449,15 +449,15 @@ export function SupportPage() {
     return (
         <div className="h-[calc(100vh-64px)] flex flex-col">
             {/* Top Bar */}
-            <div className="flex items-center justify-between px-6 py-3 bg-white border-b shrink-0">
+            <div className="flex items-center justify-between px-6 py-3 bg-card border-b border-border shrink-0">
                 <div className="flex items-center gap-4">
                     <div>
-                        <h1 className="text-lg font-bold text-slate-900">{supportTitle}</h1>
-                        <p className="hidden md:block text-xs text-slate-500 mt-0.5">
+                        <h1 className="text-lg font-bold text-foreground">{supportTitle}</h1>
+                        <p className="hidden md:block text-xs text-muted-foreground mt-0.5">
                             {isSuperAdmin() ? 'Theo dõi và điều phối ticket toàn hệ thống' : 'Xử lý ticket trong phạm vi trung tâm đang phụ trách'}
                         </p>
                     </div>
-                    <div className="hidden md:flex items-center gap-3 text-xs text-slate-500">
+                    <div className="hidden md:flex items-center gap-3 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-blue-500" /> {stats.open} mới</span>
                         <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-yellow-500" /> {stats.inProgress} đang xử lý</span>
                         <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-500" /> {stats.resolved} đã xong</span>
@@ -468,7 +468,7 @@ export function SupportPage() {
                         <select
                             value={selectedCenter}
                             onChange={(e) => setSelectedCenter(e.target.value)}
-                            className="text-xs px-2 py-1.5 border border-slate-200 rounded-lg bg-white"
+                            className="text-xs px-2 py-1.5 border border-border rounded-lg bg-background text-foreground"
                         >
                             <option value="">Tất cả trung tâm</option>
                             {centers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -488,9 +488,9 @@ export function SupportPage() {
             <div className="flex-1 flex overflow-hidden">
 
                 {/* ── Panel 1: Ticket List ── */}
-                <div className={`w-[320px] border-r bg-white flex flex-col shrink-0 ${mobileShowDetail ? 'hidden lg:flex' : 'flex'}`}>
+                <div className={`w-[320px] border-r border-border bg-card flex flex-col shrink-0 ${mobileShowDetail ? 'hidden lg:flex' : 'flex'}`}>
                     {/* Search + Filters */}
-                    <div className="p-3 border-b space-y-2">
+                    <div className="p-3 border-b border-border space-y-2">
                         <div className="relative">
                             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                             <Input
@@ -502,12 +502,12 @@ export function SupportPage() {
                         </div>
                         <div className="flex gap-2">
                             <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
-                                className="flex-1 text-xs px-2 py-1.5 border border-slate-200 rounded-lg bg-white">
+                                className="flex-1 text-xs px-2 py-1.5 border border-border rounded-lg bg-background text-foreground">
                                 <option value="">Trạng thái</option>
                                 {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                             </select>
                             <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}
-                                className="flex-1 text-xs px-2 py-1.5 border border-slate-200 rounded-lg bg-white">
+                                className="flex-1 text-xs px-2 py-1.5 border border-border rounded-lg bg-background text-foreground">
                                 <option value="">Ưu tiên</option>
                                 {PRIORITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                             </select>
@@ -519,8 +519,8 @@ export function SupportPage() {
                                     key={tab.value}
                                     onClick={() => setSourceFilter(tab.value)}
                                     className={`text-[11px] px-2.5 py-1 rounded-full transition-all font-medium ${sourceFilter === tab.value
-                                            ? 'bg-indigo-100 text-indigo-700 ring-1 ring-indigo-200'
-                                            : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                                            ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 ring-1 ring-indigo-200 dark:ring-indigo-500/30'
+                                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
                                         }`}
                                 >
                                     {tab.label}
@@ -536,7 +536,7 @@ export function SupportPage() {
                                 <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
                             </div>
                         ) : filteredTickets.length === 0 ? (
-                            <div className="text-center py-16 text-slate-400">
+                            <div className="text-center py-16 text-muted-foreground">
                                 <MessageSquare className="h-10 w-10 mx-auto mb-2 opacity-40" />
                                 <p className="text-sm">Không có ticket</p>
                             </div>
@@ -554,20 +554,20 @@ export function SupportPage() {
                 </div>
 
                 {/* ── Panel 2: Conversation ── */}
-                <div className={`flex-1 flex flex-col bg-slate-50 ${!mobileShowDetail && !selectedTicket ? 'hidden lg:flex' : 'flex'}`}>
+                <div className={`flex-1 flex flex-col bg-background ${!mobileShowDetail && !selectedTicket ? 'hidden lg:flex' : 'flex'}`}>
                     {activeTicket ? (
                         <>
                             {/* Ticket Toolbar */}
-                            <div className="px-4 py-3 bg-white border-b flex items-center gap-3 shrink-0">
+                            <div className="px-4 py-3 bg-card border-b border-border flex items-center gap-3 shrink-0">
                                 <button
                                     onClick={() => { setSelectedTicket(null); setMobileShowDetail(false); }}
-                                    className="lg:hidden p-1 hover:bg-slate-100 rounded"
+                                    className="lg:hidden p-1 hover:bg-muted rounded"
                                 >
                                     <ArrowLeft className="h-4 w-4" />
                                 </button>
 
-                                <Hash className="h-4 w-4 text-slate-400" />
-                                <span className="text-sm font-mono text-slate-600">{activeTicket.ticket_number}</span>
+                                <Hash className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm font-mono text-muted-foreground">{activeTicket.ticket_number}</span>
 
                                 {/* Status dropdown */}
                                 <select
@@ -592,7 +592,7 @@ export function SupportPage() {
                             {/* Messages */}
                             <div className="flex-1 overflow-y-auto px-6 py-4">
                                 {messages.length === 0 ? (
-                                    <div className="text-center text-slate-400 py-16">
+                                    <div className="text-center text-muted-foreground py-16">
                                         <MessageSquare className="h-10 w-10 mx-auto mb-2 opacity-30" />
                                         <p className="text-sm">Chưa có tin nhắn</p>
                                     </div>
@@ -614,13 +614,13 @@ export function SupportPage() {
                             />
 
                             {/* Reply Input */}
-                            <div className="px-4 py-3 bg-white border-t shrink-0">
+                            <div className="px-4 py-3 bg-card border-t border-border shrink-0">
                                 <div className="flex items-center gap-2 mb-2">
                                     <button
                                         onClick={() => setIsInternal(!isInternal)}
                                         className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full transition-colors ${isInternal
-                                                ? 'bg-amber-100 text-amber-700 font-medium'
-                                                : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                                                ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 font-medium'
+                                                : 'bg-muted text-muted-foreground hover:bg-muted/80'
                                             }`}
                                     >
                                         {isInternal ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
@@ -638,9 +638,9 @@ export function SupportPage() {
                                         onKeyDown={handleKeyDown}
                                         placeholder={isInternal ? 'Ghi chú nội bộ...' : 'Nhập phản hồi...'}
                                         rows={1}
-                                        className={`flex-1 resize-none text-sm px-4 py-2.5 rounded-xl border focus:outline-none focus:ring-2 ${isInternal
-                                                ? 'border-amber-300 focus:ring-amber-300 bg-amber-50'
-                                                : 'border-slate-200 focus:ring-indigo-300'
+                                        className={`flex-1 resize-none text-sm px-4 py-2.5 rounded-xl border focus:outline-none focus:ring-2 bg-background text-foreground ${isInternal
+                                                ? 'border-amber-300 dark:border-amber-500/40 focus:ring-amber-300 dark:focus:ring-amber-500/40 bg-amber-50 dark:bg-amber-500/10'
+                                                : 'border-border focus:ring-indigo-300 dark:focus:ring-indigo-500/40'
                                             }`}
                                     />
                                     <Button
@@ -655,7 +655,7 @@ export function SupportPage() {
                             </div>
                         </>
                     ) : (
-                        <div className="flex-1 flex items-center justify-center text-slate-400">
+                        <div className="flex-1 flex items-center justify-center text-muted-foreground">
                             <div className="text-center">
                                 <MessageSquare className="h-16 w-16 mx-auto mb-3 opacity-20" />
                                 <p className="text-sm">Chọn một ticket để xem</p>
@@ -666,23 +666,23 @@ export function SupportPage() {
 
                 {/* ── Panel 3: Context Sidebar ── */}
                 {activeTicket && (
-                    <div className="w-[300px] border-l bg-white overflow-y-auto hidden xl:block shrink-0">
+                    <div className="w-[300px] border-l border-border bg-card overflow-y-auto hidden xl:block shrink-0">
                         <div className="p-4 space-y-5">
                             {/* Requester Card */}
                             <div>
-                                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3">Người yêu cầu</p>
+                                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Người yêu cầu</p>
                                 <div className="flex items-center gap-3 mb-3">
-                                    <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
-                                        <span className="text-sm font-semibold text-indigo-600">
+                                    <div className="h-10 w-10 rounded-full bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center shrink-0">
+                                        <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">
                                             {getInitials(activeTicket.created_by_user?.full_name || activeTicket.guest_name || activeTicket.students?.full_name || activeTicket.consultation_context?.full_name)}
                                         </span>
                                     </div>
                                     <div className="min-w-0">
-                                        <p className="text-sm font-semibold text-slate-800 truncate">
+                                        <p className="text-sm font-semibold text-foreground truncate">
                                             {activeTicket.created_by_user?.full_name || activeTicket.guest_name || activeTicket.students?.full_name || activeTicket.consultation_context?.full_name || 'Khách hàng'}
                                         </p>
                                         {activeTicket.source && activeTicket.source !== 'manual' && (
-                                            <Badge variant="outline" className="text-[9px] mt-0.5 border-violet-200 text-violet-600 bg-violet-50">
+                                            <Badge variant="outline" className="text-[9px] mt-0.5 border-violet-200 dark:border-violet-500/30 text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-500/10">
                                                 {activeTicket.source === 'chatbot' ? '🤖 Từ Molly' : `🌐 ${activeTicket.source}`}
                                             </Badge>
                                         )}
@@ -691,7 +691,7 @@ export function SupportPage() {
                                 <div className="space-y-2">
                                     {(activeTicket.students?.phone || activeTicket.guest_phone || activeTicket.consultation_context?.phone) && (
                                         <div className="flex items-center gap-2 text-xs">
-                                            <Phone className="h-3.5 w-3.5 text-slate-400" />
+                                            <Phone className="h-3.5 w-3.5 text-muted-foreground" />
                                             <a href={`tel:${activeTicket.students?.phone || activeTicket.guest_phone || activeTicket.consultation_context?.phone}`}
                                                 className="text-indigo-600 hover:underline font-medium">
                                                 {activeTicket.students?.phone || activeTicket.guest_phone || activeTicket.consultation_context?.phone}
@@ -700,59 +700,59 @@ export function SupportPage() {
                                     )}
                                     {(activeTicket.students?.email || activeTicket.guest_email || activeTicket.consultation_context?.email) && (
                                         <div className="flex items-center gap-2 text-xs">
-                                            <Mail className="h-3.5 w-3.5 text-slate-400" />
-                                            <span className="text-slate-600 truncate">
+                                            <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                                            <span className="text-foreground/80 truncate">
                                                 {activeTicket.students?.email || activeTicket.guest_email || activeTicket.consultation_context?.email}
                                             </span>
                                         </div>
                                     )}
                                     {activeTicket.consultation_context?.preferred_time && (
                                         <div className="flex items-center gap-2 text-xs">
-                                            <Clock className="h-3.5 w-3.5 text-slate-400" />
-                                            <span className="text-slate-600">Liên hệ: {activeTicket.consultation_context.preferred_time}</span>
+                                            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                                            <span className="text-foreground/80">Liên hệ: {activeTicket.consultation_context.preferred_time}</span>
                                         </div>
                                     )}
                                 </div>
                             </div>
 
-                            <hr className="border-slate-100" />
+                            <hr className="border-border" />
 
                             {/* Consultation Context */}
                             {activeTicket.consultation_context && (
                                 <>
                                     <ConsultationContext ctx={activeTicket.consultation_context} />
-                                    <hr className="border-slate-100" />
+                                    <hr className="border-border" />
                                 </>
                             )}
 
                             {/* Ticket Info */}
                             <div>
-                                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3">Chi tiết ticket</p>
+                                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Chi tiết ticket</p>
                                 <div className="space-y-2 text-xs">
                                     <div className="flex justify-between">
-                                        <span className="text-slate-400">Tạo lúc</span>
-                                        <span className="text-slate-700">{formatDate(activeTicket.created_at)}</span>
+                                        <span className="text-muted-foreground">Tạo lúc</span>
+                                        <span className="text-foreground">{formatDate(activeTicket.created_at)}</span>
                                     </div>
                                     <div className="flex justify-between">
-                                        <span className="text-slate-400">Cập nhật</span>
-                                        <span className="text-slate-700">{formatRelativeTime(activeTicket.updated_at)}</span>
+                                        <span className="text-muted-foreground">Cập nhật</span>
+                                        <span className="text-foreground">{formatRelativeTime(activeTicket.updated_at)}</span>
                                     </div>
                                     {activeTicket.assigned_to?.full_name && (
                                         <div className="flex justify-between">
-                                            <span className="text-slate-400">Phụ trách</span>
-                                            <span className="text-slate-700">{activeTicket.assigned_to.full_name}</span>
+                                            <span className="text-muted-foreground">Phụ trách</span>
+                                            <span className="text-foreground">{activeTicket.assigned_to.full_name}</span>
                                         </div>
                                     )}
                                     {activeTicket.resolved_by?.full_name && (
                                         <div className="flex justify-between">
-                                            <span className="text-slate-400">Giải quyết bởi</span>
-                                            <span className="text-slate-700">{activeTicket.resolved_by.full_name}</span>
+                                            <span className="text-muted-foreground">Giải quyết bởi</span>
+                                            <span className="text-foreground">{activeTicket.resolved_by.full_name}</span>
                                         </div>
                                     )}
                                     {activeTicket.resolution_notes && (
-                                        <div className="mt-2 bg-green-50 rounded-lg p-2.5">
-                                            <p className="text-[11px] font-semibold text-green-600 mb-1">Ghi chú giải quyết</p>
-                                            <p className="text-xs text-green-800">{activeTicket.resolution_notes}</p>
+                                        <div className="mt-2 bg-green-50 dark:bg-green-500/10 rounded-lg p-2.5">
+                                            <p className="text-[11px] font-semibold text-green-600 dark:text-green-400 mb-1">Ghi chú giải quyết</p>
+                                            <p className="text-xs text-green-800 dark:text-green-300">{activeTicket.resolution_notes}</p>
                                         </div>
                                     )}
                                 </div>

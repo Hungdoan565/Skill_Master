@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { CollapsibleSection } from '@/components/ui/collapsible';
 import { useSettings } from '../hooks';
@@ -30,14 +31,14 @@ import { SETTING_KEYS, DEFAULT_SECURITY_CONFIG } from '../utils/constants';
 function StatusBadge({ enforced }) {
     if (enforced) {
         return (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full border border-emerald-200 dark:border-emerald-800">
                 <CheckCircle2 className="w-3 h-3" />
                 Đang áp dụng
             </span>
         );
     }
     return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium bg-amber-50 text-amber-700 rounded-full border border-amber-200">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full border border-amber-200 dark:border-amber-800">
             <Timer className="w-3 h-3" />
             Sắp ra mắt
         </span>
@@ -50,10 +51,10 @@ function ToggleOption({ label, checked, onChange, disabled = false, hint }) {
         <label className={`flex items-center gap-3 ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} group`}>
             <Switch checked={checked} onChange={onChange} disabled={disabled} />
             <div>
-                <span className={`text-sm ${disabled ? 'text-gray-400' : 'text-gray-700 group-hover:text-gray-900'}`}>
+                <span className={`text-sm ${disabled ? 'text-gray-400 dark:text-slate-500' : 'text-gray-700 dark:text-slate-300 group-hover:text-gray-900 dark:group-hover:text-white'}`}>
                     {label}
                 </span>
-                {hint && <p className="text-xs text-gray-400 mt-0.5">{hint}</p>}
+                {hint && <p className="text-xs text-gray-400 dark:text-slate-400 mt-0.5">{hint}</p>}
             </div>
         </label>
     );
@@ -126,21 +127,21 @@ export function SecurityTab({ onMessage, onDirtyChange }) {
         <div className="space-y-6">
             {/* Section Header */}
             <div className="flex items-center gap-3 mb-2">
-                <div className="p-2.5 bg-indigo-50 rounded-xl">
+                <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl">
                     <Shield className="w-5 h-5 text-indigo-600" />
                 </div>
                 <div>
-                    <h2 className="text-lg font-semibold text-gray-900">Bảo mật</h2>
-                    <p className="text-sm text-gray-500">Cấu hình chính sách bảo mật và kiểm soát truy cập</p>
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Bảo mật</h2>
+                    <p className="text-sm text-gray-500 dark:text-slate-300">Cấu hình chính sách bảo mật và kiểm soát truy cập</p>
                 </div>
             </div>
 
             {/* Honest Mode Banner */}
-            <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+            <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
                 <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
                 <div>
-                    <p className="font-medium text-amber-800">Một số tính năng bảo mật đang được phát triển</p>
-                    <p className="text-sm text-amber-600 mt-1">
+                    <p className="font-medium text-amber-800 dark:text-amber-200">Một số tính năng bảo mật đang được phát triển</p>
+                    <p className="text-sm text-amber-600 dark:text-amber-200 mt-1">
                         Các cài đặt đánh dấu <StatusBadge enforced={false} /> sẽ được áp dụng trong phiên bản tiếp theo.
                         Cấu hình sẽ được lưu và tự động kích hoạt khi tính năng sẵn sàng.
                     </p>
@@ -165,7 +166,7 @@ export function SecurityTab({ onMessage, onDirtyChange }) {
                             value={securityConfig.sessionTimeoutHours}
                             onChange={(e) => updateNumericField('sessionTimeoutHours', e.target.value)}
                         />
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-gray-500 dark:text-slate-300">
                             Tự động logout sau khoảng thời gian không hoạt động
                         </p>
                     </div>
@@ -179,9 +180,9 @@ export function SecurityTab({ onMessage, onDirtyChange }) {
                             max="10"
                             value={securityConfig.maxLoginAttempts}
                             disabled
-                            className="bg-gray-50"
+                            className="bg-gray-50 dark:bg-slate-800"
                         />
-                        <p className="text-xs text-gray-400 flex items-center gap-1">
+                        <p className="text-xs text-gray-400 dark:text-slate-300 flex items-center gap-1">
                             <Timer className="w-3 h-3" /> Sẽ áp dụng khi có rate limiting
                         </p>
                     </div>
@@ -195,9 +196,9 @@ export function SecurityTab({ onMessage, onDirtyChange }) {
                             max="1440"
                             value={securityConfig.lockoutDurationMinutes}
                             disabled
-                            className="bg-gray-50"
+                            className="bg-gray-50 dark:bg-slate-800"
                         />
-                        <p className="text-xs text-gray-400 flex items-center gap-1">
+                        <p className="text-xs text-gray-400 dark:text-slate-500 flex items-center gap-1">
                             <Timer className="w-3 h-3" /> Sẽ áp dụng khi có rate limiting
                         </p>
                     </div>
@@ -211,10 +212,10 @@ export function SecurityTab({ onMessage, onDirtyChange }) {
                 badge={<StatusBadge enforced={false} />}
                 defaultOpen={false}
             >
-                <div className="opacity-60">
-                    <div className="flex items-start gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
-                        <Info className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                        <p className="text-xs text-gray-500">
+                <div className="opacity-100">
+                    <div className="flex items-start gap-2 mb-4 p-3 bg-gray-50 dark:bg-slate-800/50 rounded-lg">
+                        <Info className="w-4 h-4 text-gray-400 dark:text-slate-400 mt-0.5 flex-shrink-0" />
+                        <p className="text-xs text-gray-500 dark:text-slate-200">
                             Chính sách mật khẩu hiện được lưu cấu hình nhưng chưa enforce ở backend.
                             Khi tính năng sẵn sàng, các quy tắc dưới đây sẽ tự động được áp dụng.
                         </p>
@@ -242,7 +243,7 @@ export function SecurityTab({ onMessage, onDirtyChange }) {
                                 value={securityConfig.passwordExpiryDays}
                                 onChange={(e) => updateNumericField('passwordExpiryDays', e.target.value)}
                             />
-                            <p className="text-xs text-gray-500">0 = không hết hạn</p>
+                            <p className="text-xs text-gray-500 dark:text-slate-200">0 = không hết hạn</p>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="passwordHistory">Không trùng mật khẩu</Label>
@@ -254,11 +255,11 @@ export function SecurityTab({ onMessage, onDirtyChange }) {
                                 value={securityConfig.passwordHistoryCount}
                                 onChange={(e) => updateNumericField('passwordHistoryCount', e.target.value)}
                             />
-                            <p className="text-xs text-gray-500">0 = cho phép trùng</p>
+                            <p className="text-xs text-gray-500 dark:text-slate-200">0 = cho phép trùng</p>
                         </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-4 pt-4 border-t">
+                    <div className="flex flex-wrap gap-4 pt-4 border-t dark:border-slate-700">
                         <ToggleOption
                             label="Yêu cầu chữ hoa"
                             checked={securityConfig.requireUppercase}
@@ -290,10 +291,10 @@ export function SecurityTab({ onMessage, onDirtyChange }) {
                 badge={<StatusBadge enforced={false} />}
                 defaultOpen={false}
             >
-                <div className="opacity-60">
-                    <div className="flex items-start gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
-                        <Info className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                        <p className="text-xs text-gray-500">
+                <div className="opacity-100">
+                    <div className="flex items-start gap-2 mb-4 p-3 bg-gray-50 dark:bg-slate-800/50 rounded-lg">
+                        <Info className="w-4 h-4 text-gray-400 dark:text-slate-400 mt-0.5 flex-shrink-0" />
+                        <p className="text-xs text-gray-500 dark:text-slate-200">
                             Tính năng 2FA đang được phát triển. Cấu hình sẽ được lưu và tự động áp dụng khi sẵn sàng.
                         </p>
                     </div>
@@ -312,23 +313,19 @@ export function SecurityTab({ onMessage, onDirtyChange }) {
                             />
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t dark:border-slate-700">
                             <div className="space-y-2">
                                 <Label htmlFor="2faMethod">Phương thức 2FA mặc định</Label>
-                                <select
-                                    id="2faMethod"
-                                    value={securityConfig.default2FAMethod}
-                                    onChange={(e) => setSecurityConfig(prev => ({
-                                        ...prev,
-                                        default2FAMethod: e.target.value
-                                    }))}
-                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm
-                                             focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                >
-                                    <option value="email">Email OTP</option>
-                                    <option value="totp">TOTP (Authenticator App)</option>
-                                    <option value="sms">SMS OTP</option>
-                                </select>
+                                <Select value={securityConfig.default2FAMethod} onValueChange={(val) => setSecurityConfig(prev => ({ ...prev, default2FAMethod: val }))}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Chọn phương thức" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="email">Email OTP</SelectItem>
+                                        <SelectItem value="totp">TOTP (Authenticator App)</SelectItem>
+                                        <SelectItem value="sms">SMS OTP</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
 
                             <div className="space-y-2">
@@ -354,10 +351,10 @@ export function SecurityTab({ onMessage, onDirtyChange }) {
                 badge={<StatusBadge enforced={false} />}
                 defaultOpen={false}
             >
-                <div className="opacity-60">
-                    <div className="flex items-start gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
-                        <Info className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                        <p className="text-xs text-gray-500">
+                <div className="opacity-100">
+                    <div className="flex items-start gap-2 mb-4 p-3 bg-gray-50 dark:bg-slate-800/50 rounded-lg">
+                        <Info className="w-4 h-4 text-gray-400 dark:text-slate-400 mt-0.5 flex-shrink-0" />
+                        <p className="text-xs text-gray-500 dark:text-slate-200">
                             Tính năng kiểm soát truy cập nâng cao đang được phát triển.
                         </p>
                     </div>
@@ -387,13 +384,13 @@ export function SecurityTab({ onMessage, onDirtyChange }) {
 
             {/* Audit Log — Coming Soon Card */}
             <Card className="p-6">
-                <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center">
-                    <Clock className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                    <p className="font-medium text-gray-500">Nhật ký hoạt động</p>
-                    <p className="text-sm text-gray-400 mt-1">
+                <div className="border-2 border-dashed border-gray-200 dark:border-slate-700 rounded-xl p-8 text-center">
+                    <Clock className="w-10 h-10 text-gray-300 dark:text-slate-500 mx-auto mb-3" />
+                    <p className="font-medium text-gray-500 dark:text-slate-200">Nhật ký hoạt động</p>
+                    <p className="text-sm text-gray-400 dark:text-slate-400 mt-1">
                         Theo dõi tất cả thay đổi cấu hình và đăng nhập bất thường
                     </p>
-                    <span className="inline-flex items-center gap-1 mt-3 px-3 py-1 text-xs font-medium bg-amber-50 text-amber-600 rounded-full border border-amber-200">
+                    <span className="inline-flex items-center gap-1 mt-3 px-3 py-1 text-xs font-medium bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-full border border-amber-200 dark:border-amber-800">
                         <Timer className="w-3 h-3" />
                         Sẽ bổ sung trong phiên bản tiếp theo
                     </span>

@@ -152,12 +152,12 @@ export function ProfileTab({ onMessage }) {
         <div className="space-y-6">
             {/* Section Header */}
             <div className="flex items-center gap-3 mb-2">
-                <div className="p-2.5 bg-indigo-50 rounded-xl">
+                <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl">
                     <User className="w-5 h-5 text-indigo-600" />
                 </div>
                 <div>
-                    <h2 className="text-lg font-semibold text-gray-900">Hồ sơ cá nhân</h2>
-                    <p className="text-sm text-gray-500">Quản lý thông tin cá nhân, ảnh đại diện và mật khẩu đăng nhập</p>
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Hồ sơ cá nhân</h2>
+                    <p className="text-sm text-gray-500 dark:text-slate-400">Quản lý thông tin cá nhân, ảnh đại diện và mật khẩu đăng nhập</p>
                 </div>
             </div>
 
@@ -205,17 +205,17 @@ export function ProfileTab({ onMessage }) {
 
                     {/* Info */}
                     <div className="flex-1 text-center md:text-left">
-                        <h2 className="text-2xl font-bold text-gray-900">
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                             {currentProfile?.full_name || 'Chưa cập nhật tên'}
                         </h2>
-                        <p className="text-gray-500 mt-1">{currentProfile?.email}</p>
+                        <p className="text-gray-500 dark:text-slate-400 mt-1">{currentProfile?.email}</p>
                         <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-3">
                             <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${roleBadge.color}`}>
                                 <Shield className="w-3.5 h-3.5" />
                                 {roleBadge.label}
                             </span>
                             {currentProfile?.centers?.name && (
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700">
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300">
                                     <Building2 className="w-3.5 h-3.5" />
                                     {currentProfile.centers.name}
                                 </span>
@@ -227,13 +227,13 @@ export function ProfileTab({ onMessage }) {
 
             {/* Profile Form */}
             <Card className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Thông tin cá nhân</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Thông tin cá nhân</h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Full Name */}
                     <div className="space-y-2">
                         <Label htmlFor="full_name" className="flex items-center gap-2">
-                            <User className="w-4 h-4 text-gray-400" />
+                            <User className="w-4 h-4 text-gray-400 dark:text-slate-500" />
                             Họ và tên
                         </Label>
                         <Input
@@ -247,21 +247,21 @@ export function ProfileTab({ onMessage }) {
                     {/* Email (readonly) */}
                     <div className="space-y-2">
                         <Label htmlFor="email" className="flex items-center gap-2">
-                            <Mail className="w-4 h-4 text-gray-400" />
+                            <Mail className="w-4 h-4 text-gray-400 dark:text-slate-500" />
                             Email
                         </Label>
                         <Input
                             id="email"
                             value={currentProfile?.email || ''}
                             disabled
-                            className="bg-gray-50"
+                            className="bg-gray-50 dark:bg-slate-800"
                         />
                     </div>
 
                     {/* Phone */}
                     <div className="space-y-2">
                         <Label htmlFor="phone" className="flex items-center gap-2">
-                            <Phone className="w-4 h-4 text-gray-400" />
+                            <Phone className="w-4 h-4 text-gray-400 dark:text-slate-500" />
                             Số điện thoại
                         </Label>
                         <Input
@@ -270,7 +270,7 @@ export function ProfileTab({ onMessage }) {
                             onChange={(e) => handleChange('phone', e.target.value)}
                             placeholder="Nhập số điện thoại"
                         />
-                        <p className="text-xs text-gray-500">Ví dụ: 0912 345 678</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">Ví dụ: 0912 345 678</p>
                     </div>
                 </div>
 
@@ -293,7 +293,7 @@ export function ProfileTab({ onMessage }) {
             {/* Password Change */}
             <Card className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Đổi mật khẩu</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Đổi mật khẩu</h3>
                     {!showPasswordForm && (
                         <Button
                             variant="outline"
@@ -321,7 +321,7 @@ export function ProfileTab({ onMessage }) {
                                 <button
                                     type="button"
                                     onClick={() => setShowPasswords(prev => ({ ...prev, current: !prev.current }))}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300"
                                 >
                                     {showPasswords.current ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                 </button>
@@ -342,7 +342,7 @@ export function ProfileTab({ onMessage }) {
                                 <button
                                     type="button"
                                     onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300"
                                 >
                                     {showPasswords.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                 </button>
@@ -363,7 +363,7 @@ export function ProfileTab({ onMessage }) {
                                 <button
                                     type="button"
                                     onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300"
                                 >
                                     {showPasswords.confirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                 </button>

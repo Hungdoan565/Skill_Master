@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useSettings } from '../hooks';
 import {
     SETTING_KEYS,
@@ -96,21 +97,21 @@ export function PaymentTab({ onMessage }) {
         <div className="space-y-6">
             {/* Section Header */}
             <div className="flex items-center gap-3 mb-2">
-                <div className="p-2.5 bg-indigo-50 rounded-xl">
+                <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl">
                     <CreditCard className="w-5 h-5 text-indigo-600" />
                 </div>
                 <div>
-                    <h2 className="text-lg font-semibold text-gray-900">Thanh toán</h2>
-                    <p className="text-sm text-gray-500">Cấu hình tài khoản ngân hàng và mã QR thu học phí</p>
+                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Thanh toán</h2>
+                    <p className="text-sm text-gray-500 dark:text-slate-300">Cấu hình tài khoản ngân hàng và mã QR thu học phí</p>
                 </div>
             </div>
 
             {/* Info Banner */}
-            <div className="flex items-start gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-blue-800">
+            <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-blue-800 dark:text-blue-300">
                     <p className="font-medium mb-1">Cấu hình ngân hàng nhận thanh toán</p>
-                    <p className="text-blue-600">
+                    <p className="text-blue-600 dark:text-blue-200">
                         Thông tin này được sử dụng để tạo mã QR VietQR khi thu học phí.
                         Học viên quét mã để chuyển khoản trực tiếp vào tài khoản này.
                     </p>
@@ -120,7 +121,7 @@ export function PaymentTab({ onMessage }) {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Form */}
                 <Card className="p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                         <Building2 className="w-5 h-5 text-indigo-600" />
                         Thông tin tài khoản
                     </h3>
@@ -129,19 +130,18 @@ export function PaymentTab({ onMessage }) {
                         {/* Bank Selection */}
                         <div className="space-y-2">
                             <Label htmlFor="bankId">Ngân hàng</Label>
-                            <select
-                                id="bankId"
-                                value={config.bankId}
-                                onChange={(e) => handleChange('bankId', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm
-                                         focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            >
-                                {BANK_OPTIONS.map(bank => (
-                                    <option key={bank.value} value={bank.value}>
-                                        {bank.label}
-                                    </option>
-                                ))}
-                            </select>
+                            <Select value={config.bankId} onValueChange={(val) => handleChange('bankId', val)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Chọn ngân hàng" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {BANK_OPTIONS.map(bank => (
+                                        <SelectItem key={bank.value} value={bank.value}>
+                                            {bank.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
 
                         {/* Account Number */}
@@ -165,30 +165,29 @@ export function PaymentTab({ onMessage }) {
                                 placeholder="VD: NGUYEN VAN A"
                                 className="uppercase"
                             />
-                            <p className="text-xs text-gray-500">Viết hoa, không dấu</p>
+                            <p className="text-xs text-gray-500 dark:text-slate-300">Viết hoa, không dấu</p>
                         </div>
 
                         {/* QR Template */}
                         <div className="space-y-2">
                             <Label htmlFor="template">Mẫu QR</Label>
-                            <select
-                                id="template"
-                                value={config.template}
-                                onChange={(e) => handleChange('template', e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm
-                                         focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            >
-                                {QR_TEMPLATE_OPTIONS.map(t => (
-                                    <option key={t.value} value={t.value}>
-                                        {t.label}
-                                    </option>
-                                ))}
-                            </select>
+                            <Select value={config.template} onValueChange={(val) => handleChange('template', val)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Chọn mẫu QR" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {QR_TEMPLATE_OPTIONS.map(t => (
+                                        <SelectItem key={t.value} value={t.value}>
+                                            {t.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-3 mt-6 pt-4 border-t">
+                    <div className="flex gap-3 mt-6 pt-4 border-t dark:border-slate-700">
                         <Button
                             variant="outline"
                             onClick={handleReset}
@@ -214,7 +213,7 @@ export function PaymentTab({ onMessage }) {
 
                 {/* Preview */}
                 <Card className="p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                         <QrCode className="w-5 h-5 text-indigo-600" />
                         Xem trước QR
                     </h3>
@@ -233,7 +232,7 @@ export function PaymentTab({ onMessage }) {
                         </div>
 
                         {/* QR Preview */}
-                        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-6 text-center">
+                        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-800/80 rounded-lg p-6 text-center">
                             {qrUrl ? (
                                 <div className="space-y-4">
                                     <img
@@ -244,7 +243,7 @@ export function PaymentTab({ onMessage }) {
                                             e.target.style.display = 'none';
                                         }}
                                     />
-                                    <div className="text-sm text-gray-600">
+                                    <div className="text-sm text-gray-600 dark:text-slate-300">
                                         <p className="font-medium">{config.accountName}</p>
                                         <p>{BANK_OPTIONS.find(b => b.value === config.bankId)?.label} - {config.accountNo}</p>
                                         <p className="text-lg font-bold text-indigo-600 mt-2">
@@ -253,7 +252,7 @@ export function PaymentTab({ onMessage }) {
                                     </div>
                                 </div>
                             ) : (
-                                <div className="text-gray-400 py-8">
+                                <div className="text-gray-400 dark:text-slate-300 py-8">
                                     <QrCode className="w-16 h-16 mx-auto mb-3 opacity-50" />
                                     <p>Nhập thông tin tài khoản để xem QR</p>
                                 </div>
@@ -264,7 +263,7 @@ export function PaymentTab({ onMessage }) {
                         <button
                             onClick={handleCopy}
                             className="w-full flex items-center justify-center gap-2 px-4 py-2 
-                                     bg-gray-100 hover:bg-gray-200 rounded-lg text-sm transition-colors"
+                                     bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-lg text-sm transition-colors"
                         >
                             {copied ? (
                                 <>
@@ -273,8 +272,8 @@ export function PaymentTab({ onMessage }) {
                                 </>
                             ) : (
                                 <>
-                                    <Copy className="w-4 h-4 text-gray-500" />
-                                    <span className="text-gray-700">Copy thông tin TK</span>
+                                    <Copy className="w-4 h-4 text-gray-500 dark:text-slate-300" />
+                                    <span className="text-gray-700 dark:text-slate-300">Copy thông tin TK</span>
                                 </>
                             )}
                         </button>
@@ -284,16 +283,16 @@ export function PaymentTab({ onMessage }) {
 
             {/* Quick Amounts Config */}
             <Card className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                     <CreditCard className="w-5 h-5 text-indigo-600" />
                     Gợi ý số tiền nhanh
                 </h3>
-                <p className="text-sm text-gray-500 mb-4">
+                <p className="text-sm text-gray-500 dark:text-slate-300 mb-4">
                     Các nút số tiền nhanh hiển thị khi thu học phí (đang hardcode: 1tr, 2tr, 5tr)
                 </p>
                 <div className="flex gap-2">
                     {[1000000, 2000000, 5000000].map(amt => (
-                        <span key={amt} className="px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium">
+                        <span key={amt} className="px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 rounded-lg text-sm font-medium">
                             {(amt / 1000000).toFixed(0)} triệu
                         </span>
                     ))}

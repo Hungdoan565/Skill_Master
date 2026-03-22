@@ -153,9 +153,9 @@ export function SettingsPage() {
     const currentTabLabel = currentTab?.label || 'Cài đặt';
 
     return (
-        <div className="min-h-screen bg-gray-50/50">
+        <div className="min-h-screen bg-gray-50/50 dark:bg-transparent">
             {/* Header */}
-            <div className="bg-white border-b sticky top-0 z-[5]">
+            <div className="bg-white dark:bg-slate-900 border-b dark:border-slate-700 sticky top-0 z-[5]">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
                         <div className="flex items-center gap-4">
@@ -163,16 +163,16 @@ export function SettingsPage() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => navigate(-1)}
-                                className="text-gray-600"
+                                className="text-gray-600 dark:text-slate-400"
                             >
                                 <ArrowLeft className="w-4 h-4 mr-2" />
                                 Quay lại
                             </Button>
-                            <div className="flex items-center gap-2 text-gray-500">
+                            <div className="flex items-center gap-2 text-gray-500 dark:text-slate-400">
                                 <Settings className="w-5 h-5" />
-                                <span className="font-medium text-gray-900">Cài đặt</span>
+                                <span className="font-medium text-gray-900 dark:text-white">Cài đặt</span>
                                 <ChevronRight className="w-4 h-4" />
-                                <span className="text-gray-900">{currentTabLabel}</span>
+                                <span className="text-gray-900 dark:text-white">{currentTabLabel}</span>
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
@@ -205,7 +205,7 @@ export function SettingsPage() {
             )}
 
             {/* Mobile Tab Strip (< lg) */}
-            <div className="lg:hidden border-b bg-white sticky top-16 z-[4]">
+            <div className="lg:hidden border-b dark:border-slate-700 bg-white dark:bg-slate-900 sticky top-16 z-[4]">
                 <div className="max-w-7xl mx-auto px-4">
                     <div className="flex gap-1 overflow-x-auto py-2 scrollbar-hide">
                         {filteredGroups.flatMap(g => g.tabs).map((tab) => {
@@ -220,11 +220,11 @@ export function SettingsPage() {
                                         text-sm transition-all flex-shrink-0
                                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500
                                         ${isActive
-                                            ? 'bg-indigo-50 text-indigo-700 font-medium'
-                                            : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'}
+                                            ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-medium'
+                                            : 'text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-700 dark:hover:text-white'}
                                     `}
                                 >
-                                    <IconComponent className={`w-4 h-4 ${isActive ? 'text-indigo-600' : 'text-gray-400'}`} />
+                                    <IconComponent className={`w-4 h-4 ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 dark:text-slate-500'}`} />
                                     {tab.label}
                                     {tab.badge && (
                                         <span className="text-xs px-1.5 py-0.5 bg-emerald-100 text-emerald-600 rounded-full font-medium">
@@ -249,11 +249,11 @@ export function SettingsPage() {
                                     <div key={group.id}>
                                         {/* Group separator (not before first group) */}
                                         {groupIndex > 0 && (
-                                            <div className="my-2 mx-3 border-t border-gray-100" />
+                                            <div className="my-2 mx-3 border-t border-gray-100 dark:border-slate-700" />
                                         )}
 
                                         {/* Group header */}
-                                        <p className="px-4 pt-3 pb-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                                        <p className="px-4 pt-3 pb-1.5 text-xs font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider">
                                             {group.label}
                                         </p>
 
@@ -271,8 +271,8 @@ export function SettingsPage() {
                                                         text-left transition-all duration-200 group relative
                                                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500
                                                         ${isActive
-                                                            ? 'bg-indigo-50 text-indigo-700 font-medium'
-                                                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}
+                                                            ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 font-medium'
+                                                            : 'text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-white'}
                                                     `}
                                                     title={tab.description}
                                                 >
@@ -281,7 +281,7 @@ export function SettingsPage() {
                                                         <div className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-indigo-600 rounded-r-full" />
                                                     )}
 
-                                                    <IconComponent className={`w-[18px] h-[18px] flex-shrink-0 ${isActive ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-500'
+                                                    <IconComponent className={`w-[18px] h-[18px] flex-shrink-0 ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 dark:text-slate-500 group-hover:text-gray-500 dark:group-hover:text-slate-300'
                                                         }`} />
                                                     <span className="text-sm truncate">{tab.label}</span>
 
@@ -309,8 +309,8 @@ export function SettingsPage() {
                             </nav>
 
                             {/* Help Section */}
-                            <div className="p-4 bg-gray-50 border-t">
-                                <p className="text-xs text-gray-500 text-center">
+                            <div className="p-4 bg-gray-50 dark:bg-slate-800/50 border-t dark:border-slate-700">
+                                <p className="text-xs text-gray-500 dark:text-slate-400 text-center">
                                     Cần hỗ trợ? Liên hệ{' '}
                                     <a href="mailto:support@skillmaster.vn" className="text-indigo-600 hover:underline">
                                         support@skillmaster.vn

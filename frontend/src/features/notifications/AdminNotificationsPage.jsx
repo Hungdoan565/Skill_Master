@@ -373,11 +373,11 @@ export default function AdminNotificationsPage() {
         return currentTemplate.fields.some(f => !templateFields[f.key]?.toString().trim());
     }, [currentTemplate, templateFields]);
 
-    // Fetch notification history
+    // Fetch notification history (sent by this admin)
     const fetchHistory = useCallback(async () => {
         setLoadingHistory(true);
         try {
-            const response = await fetch(`${API_URL}/api/notifications?limit=50&page=1`, {
+            const response = await fetch(`${API_URL}/api/notifications/sent?limit=50&offset=0`, {
                 headers: getAuthHeaders()
             });
             if (response.ok) {
@@ -431,6 +431,8 @@ export default function AdminNotificationsPage() {
                     message: data.message || 'Gửi thông báo thành công!'
                 });
                 setStep(4);
+                // Auto-refresh history so it's ready when user switches tab
+                fetchHistory();
             } else {
                 setResult({
                     success: false,
@@ -479,13 +481,13 @@ export default function AdminNotificationsPage() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
                         <div className="p-2 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl text-white">
                             <Bell className="w-6 h-6" />
                         </div>
                         Gửi thông báo hàng loạt
                     </h1>
-                    <p className="text-slate-600 mt-1">
+                    <p className="text-slate-600 dark:text-slate-400 mt-1">
                         Gửi thông báo in-app đến nhiều học viên cùng lúc với nội dung tự động cá nhân hóa
                     </p>
                 </div>
@@ -499,13 +501,13 @@ export default function AdminNotificationsPage() {
             </div>
 
             {/* Tab Toggle */}
-            <div className="flex gap-1 p-1 bg-slate-100 rounded-xl w-fit">
+            <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-fit">
                 <button
                     onClick={() => setActiveTab('send')}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                         activeTab === 'send'
-                            ? 'bg-white text-slate-900 shadow-sm'
-                            : 'text-slate-500 hover:text-slate-700'
+                            ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                     }`}
                 >
                     <Send className="w-4 h-4" />
@@ -515,8 +517,8 @@ export default function AdminNotificationsPage() {
                     onClick={() => { setActiveTab('history'); fetchHistory(); }}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                         activeTab === 'history'
-                            ? 'bg-white text-slate-900 shadow-sm'
-                            : 'text-slate-500 hover:text-slate-700'
+                            ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                     }`}
                 >
                     <History className="w-4 h-4" />
@@ -526,7 +528,7 @@ export default function AdminNotificationsPage() {
 
             {/* Simulation notice */}
             {activeTab === 'send' && (
-            <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
+            <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-xl text-sm text-amber-800 dark:text-amber-200">
                 <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0" />
                 <div>
                     <span className="font-semibold">Lưu ý:</span> Hiện tại hệ thống chỉ gửi <span className="font-semibold">thông báo in-app</span>.
@@ -549,7 +551,7 @@ export default function AdminNotificationsPage() {
                             flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all
                             ${step >= s.num
                                 ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white'
-                                : 'bg-slate-100 text-slate-500'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                             }
                         `}>
                             <span className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs">
@@ -558,7 +560,7 @@ export default function AdminNotificationsPage() {
                             <span className="hidden sm:inline">{s.label}</span>
                         </div>
                         {i < 3 && (
-                            <div className={`w-8 h-0.5 mx-1 ${step > s.num ? 'bg-orange-500' : 'bg-slate-200'}`} />
+                            <div className={`w-8 h-0.5 mx-1 ${step > s.num ? 'bg-orange-500' : 'bg-slate-200 dark:bg-slate-700'}`} />
                         )}
                     </div>
                 ))}
@@ -574,8 +576,8 @@ export default function AdminNotificationsPage() {
                     {/* Left: Filters */}
                     <div className="lg:col-span-2 space-y-4">
                         {/* Filter Type */}
-                        <div className="bg-white rounded-xl border border-slate-200 p-4">
-                            <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                            <h3 className="font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
                                 <Filter className="w-4 h-4 text-orange-500" />
                                 Lọc theo
                             </h3>
@@ -595,8 +597,8 @@ export default function AdminNotificationsPage() {
                                         className={`
                                             flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all
                                             ${filterType === type.value
-                                                ? 'border-orange-500 bg-orange-50 text-orange-700'
-                                                : 'border-slate-200 hover:border-slate-300 text-slate-600'
+                                                ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/50 text-orange-700 dark:text-orange-300'
+                                                : 'border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500 text-slate-600 dark:text-slate-300'
                                             }
                                         `}
                                     >
@@ -608,8 +610,8 @@ export default function AdminNotificationsPage() {
                         </div>
 
                         {/* Payment Status Filter */}
-                        <div className="bg-white rounded-xl border border-slate-200 p-4">
-                            <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                            <h3 className="font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
                                 <Wallet className="w-4 h-4 text-orange-500" />
                                 Trạng thái học phí
                             </h3>
@@ -626,7 +628,7 @@ export default function AdminNotificationsPage() {
                                             flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all
                                             ${paymentStatus === status.value
                                                 ? PAYMENT_STATUS_COLORS[status.value]
-                                                : 'border-slate-200 hover:border-slate-300 text-slate-600'
+                                                : 'border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500 text-slate-600 dark:text-slate-300'
                                             }
                                         `}
                                     >
@@ -638,26 +640,26 @@ export default function AdminNotificationsPage() {
 
                         {/* Course/Class Selection */}
                         {filterType === 'course' && (
-                            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                                 <button
                                     onClick={() => setExpandedCourses(!expandedCourses)}
-                                    className="w-full flex items-center justify-between p-4 hover:bg-slate-50"
+                                    className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800"
                                 >
-                                    <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                                    <h3 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                                         <BookOpen className="w-4 h-4 text-orange-500" />
                                         Chọn khóa học ({selectedCourseIds.length}/{courses.length})
                                     </h3>
-                                    {expandedCourses ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                                    {expandedCourses ? <ChevronUp className="w-5 h-5 dark:text-slate-400" /> : <ChevronDown className="w-5 h-5 dark:text-slate-400" />}
                                 </button>
                                 {expandedCourses && (
-                                    <div className="border-t border-slate-200 max-h-64 overflow-y-auto">
+                                    <div className="border-t border-slate-200 dark:border-slate-700 max-h-64 overflow-y-auto">
                                         {coursesWithInfo.map(course => (
                                             <div
                                                 key={course.id}
                                                 onClick={() => toggleCourse(course.id)}
                                                 className={`
-                                                    flex items-center gap-3 p-3 border-b border-slate-100 cursor-pointer
-                                                    ${selectedCourseIds.includes(course.id) ? 'bg-orange-50' : 'hover:bg-slate-50'}
+                                                    flex items-center gap-3 p-3 border-b border-slate-100 dark:border-slate-800 cursor-pointer
+                                                    ${selectedCourseIds.includes(course.id) ? 'bg-orange-50 dark:bg-orange-950/40' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}
                                                 `}
                                             >
                                                 {selectedCourseIds.includes(course.id) ? (
@@ -666,8 +668,8 @@ export default function AdminNotificationsPage() {
                                                     <Square className="w-5 h-5 text-slate-400" />
                                                 )}
                                                 <div className="flex-1">
-                                                    <p className="font-medium text-slate-900">{course.title}</p>
-                                                    <p className="text-sm text-slate-500">
+                                                    <p className="font-medium text-slate-900 dark:text-white">{course.title}</p>
+                                                    <p className="text-sm text-slate-500 dark:text-slate-400">
                                                         {course.classCount} lớp • {formatCurrency(course.price)}
                                                     </p>
                                                 </div>
@@ -679,26 +681,26 @@ export default function AdminNotificationsPage() {
                         )}
 
                         {filterType === 'class' && (
-                            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
                                 <button
                                     onClick={() => setExpandedClasses(!expandedClasses)}
-                                    className="w-full flex items-center justify-between p-4 hover:bg-slate-50"
+                                    className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800"
                                 >
-                                    <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                                    <h3 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                                         <GraduationCap className="w-4 h-4 text-orange-500" />
                                         Chọn lớp học ({selectedClassIds.length}/{classes.length})
                                     </h3>
-                                    {expandedClasses ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                                    {expandedClasses ? <ChevronUp className="w-5 h-5 dark:text-slate-400" /> : <ChevronDown className="w-5 h-5 dark:text-slate-400" />}
                                 </button>
                                 {expandedClasses && (
-                                    <div className="border-t border-slate-200 max-h-64 overflow-y-auto">
+                                    <div className="border-t border-slate-200 dark:border-slate-700 max-h-64 overflow-y-auto">
                                         {classes.map(cls => (
                                             <div
                                                 key={cls.id}
                                                 onClick={() => toggleClass(cls.id)}
                                                 className={`
-                                                    flex items-center gap-3 p-3 border-b border-slate-100 cursor-pointer
-                                                    ${selectedClassIds.includes(cls.id) ? 'bg-orange-50' : 'hover:bg-slate-50'}
+                                                    flex items-center gap-3 p-3 border-b border-slate-100 dark:border-slate-800 cursor-pointer
+                                                    ${selectedClassIds.includes(cls.id) ? 'bg-orange-50 dark:bg-orange-950/40' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}
                                                 `}
                                             >
                                                 {selectedClassIds.includes(cls.id) ? (
@@ -707,8 +709,8 @@ export default function AdminNotificationsPage() {
                                                     <Square className="w-5 h-5 text-slate-400" />
                                                 )}
                                                 <div className="flex-1">
-                                                    <p className="font-medium text-slate-900">{cls.name}</p>
-                                                    <p className="text-sm text-slate-500">
+                                                    <p className="font-medium text-slate-900 dark:text-white">{cls.name}</p>
+                                                    <p className="text-sm text-slate-500 dark:text-slate-400">
                                                         {cls.courses?.title} • {cls.enrolled_count || 0} học viên
                                                     </p>
                                                 </div>
@@ -735,10 +737,10 @@ export default function AdminNotificationsPage() {
                     </div>
 
                     {/* Right: Student List */}
-                    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                        <div className="p-4 border-b border-slate-200">
+                    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                        <div className="p-4 border-b border-slate-200 dark:border-slate-700">
                             <div className="flex items-center justify-between mb-3">
-                                <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                                <h3 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                                     <Users className="w-4 h-4 text-orange-500" />
                                     Học viên ({selectedStudentIds.length}/{students.length})
                                 </h3>
@@ -750,10 +752,10 @@ export default function AdminNotificationsPage() {
                                         >
                                             Chọn tất cả
                                         </button>
-                                        <span className="text-slate-300">|</span>
+                                        <span className="text-slate-300 dark:text-slate-600">|</span>
                                         <button
                                             onClick={deselectAllStudents}
-                                            className="text-xs text-slate-500 hover:text-slate-700"
+                                            className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
                                         >
                                             Bỏ chọn
                                         </button>
@@ -786,8 +788,8 @@ export default function AdminNotificationsPage() {
                                         key={student.enrollment_id}
                                         onClick={() => toggleStudent(student.enrollment_id)}
                                         className={`
-                                            flex items-start gap-3 p-3 border-b border-slate-100 cursor-pointer
-                                            ${selectedStudentIds.includes(student.enrollment_id) ? 'bg-orange-50' : 'hover:bg-slate-50'}
+                                            flex items-start gap-3 p-3 border-b border-slate-100 dark:border-slate-800 cursor-pointer
+                                            ${selectedStudentIds.includes(student.enrollment_id) ? 'bg-orange-50 dark:bg-orange-950/40' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}
                                         `}
                                     >
                                         {selectedStudentIds.includes(student.enrollment_id) ? (
@@ -796,11 +798,11 @@ export default function AdminNotificationsPage() {
                                             <Square className="w-5 h-5 text-slate-400 mt-0.5" />
                                         )}
                                         <div className="flex-1 min-w-0">
-                                            <p className="font-medium text-slate-900 truncate">{student.full_name}</p>
-                                            <p className="text-xs text-slate-500 truncate">{student.email}</p>
-                                            <p className="text-xs text-slate-400">{student.class_name}</p>
+                                            <p className="font-medium text-slate-900 dark:text-white truncate">{student.full_name}</p>
+                                            <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{student.email}</p>
+                                            <p className="text-xs text-slate-400 dark:text-slate-500">{student.class_name}</p>
                                             {student.remaining_amount > 0 && (
-                                                <p className="text-xs text-red-600 font-medium">
+                                                <p className="text-xs text-red-600 dark:text-red-400 font-medium">
                                                     Nợ: {formatCurrency(student.remaining_amount)}
                                                 </p>
                                             )}
@@ -811,7 +813,7 @@ export default function AdminNotificationsPage() {
                         </div>
 
                         {students.length > 0 && (
-                            <div className="p-4 border-t border-slate-200">
+                            <div className="p-4 border-t border-slate-200 dark:border-slate-700">
                                 <Button
                                     onClick={() => setStep(2)}
                                     disabled={selectedStudentIds.length === 0}
@@ -831,8 +833,8 @@ export default function AdminNotificationsPage() {
                     {/* Left: Template & Fields */}
                     <div className="space-y-4">
                         {/* Notification Type */}
-                        <div className="bg-white rounded-xl border border-slate-200 p-4">
-                            <h3 className="font-semibold text-slate-900 mb-3">Hình thức gửi</h3>
+                        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                            <h3 className="font-semibold text-slate-900 dark:text-white mb-3">Hình thức gửi</h3>
                             <div className="flex gap-3">
                                 {[
                                     { value: 'email', label: 'Email', icon: Mail },
@@ -845,13 +847,13 @@ export default function AdminNotificationsPage() {
                                         className={`
                                             flex items-center gap-2 px-4 py-3 rounded-xl border-2 flex-1 transition-all
                                             ${notificationType === type.value
-                                                ? 'border-orange-500 bg-orange-50'
-                                                : 'border-slate-200 hover:border-slate-300'
+                                                ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/50'
+                                                : 'border-slate-200 dark:border-slate-600 hover:border-slate-300 dark:hover:border-slate-500'
                                             }
                                         `}
                                     >
                                         <type.icon className={`w-5 h-5 ${notificationType === type.value ? 'text-orange-600' : 'text-slate-400'}`} />
-                                        <span className={`font-medium ${notificationType === type.value ? 'text-orange-900' : 'text-slate-700'}`}>
+                                        <span className={`font-medium ${notificationType === type.value ? 'text-orange-900 dark:text-orange-300' : 'text-slate-700 dark:text-slate-300'}`}>
                                             {type.label}
                                         </span>
                                     </button>
@@ -860,15 +862,15 @@ export default function AdminNotificationsPage() {
                         </div>
 
                         {/* Template Selection */}
-                        <div className="bg-white rounded-xl border border-slate-200 p-4">
-                            <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                            <h3 className="font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
                                 <FileText className="w-4 h-4 text-orange-500" />
                                 Mẫu thông báo
                             </h3>
                             <select
                                 value={selectedTemplate}
                                 onChange={(e) => handleTemplateSelect(e.target.value)}
-                                className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400"
+                                className="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400"
                             >
                                 <option value="">-- Chọn mẫu thông báo --</option>
                                 {NOTIFICATION_TEMPLATES.map(template => (
@@ -881,21 +883,21 @@ export default function AdminNotificationsPage() {
 
                         {/* Template Fields */}
                         {currentTemplate && currentTemplate.fields.length > 0 && (
-                            <div className="bg-orange-50 rounded-xl border border-orange-200 p-4">
-                                <h3 className="font-semibold text-orange-800 mb-3">
+                            <div className="bg-orange-50 dark:bg-orange-950/30 rounded-xl border border-orange-200 dark:border-orange-800 p-4">
+                                <h3 className="font-semibold text-orange-800 dark:text-orange-300 mb-3">
                                     📝 Điền thông tin bổ sung
                                 </h3>
                                 <div className="space-y-3">
                                     {currentTemplate.fields.map(field => (
                                         <div key={field.key}>
-                                            <label className="text-sm font-medium text-slate-700 mb-1 block">
+                                            <label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1 block">
                                                 {field.label}
                                             </label>
                                             {field.type === 'select' ? (
                                                 <select
                                                     value={templateFields[field.key] || ''}
                                                     onChange={(e) => handleFieldChange(field.key, e.target.value)}
-                                                    className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+                                                    className="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/20"
                                                 >
                                                     <option value="">-- Chọn --</option>
                                                     {field.options?.map(opt => (
@@ -908,14 +910,14 @@ export default function AdminNotificationsPage() {
                                                     onChange={(e) => handleFieldChange(field.key, e.target.value)}
                                                     placeholder={field.placeholder}
                                                     rows={4}
-                                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 resize-none"
+                                                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/20 resize-none"
                                                 />
                                             ) : field.type === 'date' ? (
                                                 <input
                                                     type="date"
                                                     value={templateFields[field.key] || ''}
                                                     onChange={(e) => handleFieldChange(field.key, e.target.value)}
-                                                    className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+                                                    className="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/20"
                                                 />
                                             ) : (
                                                 <input
@@ -923,7 +925,7 @@ export default function AdminNotificationsPage() {
                                                     value={templateFields[field.key] || ''}
                                                     onChange={(e) => handleFieldChange(field.key, e.target.value)}
                                                     placeholder={field.placeholder}
-                                                    className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+                                                    className="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500/20"
                                                 />
                                             )}
                                         </div>
@@ -934,8 +936,8 @@ export default function AdminNotificationsPage() {
 
                         {/* Auto Fields Info */}
                         {currentTemplate && (
-                            <div className="bg-blue-50 rounded-xl border border-blue-200 p-4">
-                                <h3 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
+                            <div className="bg-blue-50 dark:bg-blue-950/30 rounded-xl border border-blue-200 dark:border-blue-800 p-4">
+                                <h3 className="font-semibold text-blue-800 dark:text-blue-300 mb-2 flex items-center gap-2">
                                     <Info className="w-4 h-4" />
                                     Thông tin tự động điền
                                 </h3>
@@ -955,7 +957,7 @@ export default function AdminNotificationsPage() {
                                         return (
                                         <span
                                             key={field}
-                                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full"
+                                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs font-medium rounded-full"
                                         >
                                             <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
                                             {FIELD_LABELS[field] || field}
@@ -967,10 +969,10 @@ export default function AdminNotificationsPage() {
                     </div>
 
                     {/* Right: Preview */}
-                    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                        <div className="p-4 border-b border-slate-200 bg-slate-50">
+                    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                        <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
                             <div className="flex items-center justify-between">
-                                <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                                <h3 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                                     <Eye className="w-4 h-4 text-orange-500" />
                                     Xem trước nội dung
                                 </h3>
@@ -979,26 +981,26 @@ export default function AdminNotificationsPage() {
                                         <button
                                             onClick={() => setPreviewStudentIndex(i => Math.max(0, i - 1))}
                                             disabled={previewStudentIndex === 0}
-                                            className="p-1 rounded hover:bg-slate-200 disabled:opacity-30"
+                                            className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30"
                                         >
-                                            <ChevronLeft className="w-4 h-4" />
+                                            <ChevronLeft className="w-4 h-4 dark:text-slate-400" />
                                         </button>
-                                        <span className="text-xs text-slate-500 tabular-nums">
+                                        <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
                                             {previewStudentIndex + 1}/{selectedStudents.length}
                                         </span>
                                         <button
                                             onClick={() => setPreviewStudentIndex(i => Math.min(selectedStudents.length - 1, i + 1))}
                                             disabled={previewStudentIndex >= selectedStudents.length - 1}
-                                            className="p-1 rounded hover:bg-slate-200 disabled:opacity-30"
+                                            className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30"
                                         >
-                                            <ChevronRight className="w-4 h-4" />
+                                            <ChevronRight className="w-4 h-4 dark:text-slate-400" />
                                         </button>
                                     </div>
                                 )}
                             </div>
                             {selectedStudents.length > 0 && currentTemplate && (
-                                <p className="text-sm text-slate-500 mt-1">
-                                    Xem cho: <span className="font-medium text-slate-700">{selectedStudents[previewStudentIndex]?.full_name}</span>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                                    Xem cho: <span className="font-medium text-slate-700 dark:text-slate-200">{selectedStudents[previewStudentIndex]?.full_name}</span>
                                 </p>
                             )}
                         </div>
@@ -1017,19 +1019,19 @@ export default function AdminNotificationsPage() {
                             ) : (
                                 <div className="space-y-4">
                                     <div>
-                                        <label className="text-xs font-medium text-slate-500">Tiêu đề:</label>
-                                        <p className="font-semibold text-slate-900">
+                                        <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Tiêu đề:</label>
+                                        <p className="font-semibold text-slate-900 dark:text-white">
                                             {generatePreviewContent(selectedStudents[previewStudentIndex] || selectedStudents[0]).subject}
                                         </p>
                                     </div>
                                     <div>
-                                        <label className="text-xs font-medium text-slate-500">Nội dung:</label>
-                                        <div className="mt-1 p-4 bg-slate-50 rounded-lg text-sm text-slate-700 whitespace-pre-wrap">
+                                        <label className="text-xs font-medium text-slate-500 dark:text-slate-400">Nội dung:</label>
+                                        <div className="mt-1 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">
                                             {generatePreviewContent(selectedStudents[previewStudentIndex] || selectedStudents[0]).content}
                                         </div>
                                     </div>
                                     {hasUnfilledRequiredFields && (
-                                        <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+                                        <div className="flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg text-xs text-red-700 dark:text-red-300">
                                             <AlertCircle className="w-4 h-4" />
                                             Vui lòng điền đầy đủ thông tin bổ sung trước khi gửi
                                         </div>
@@ -1038,7 +1040,7 @@ export default function AdminNotificationsPage() {
                             )}
                         </div>
 
-                        <div className="p-4 border-t border-slate-200 flex gap-3">
+                        <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex gap-3">
                             <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
                                 Quay lại
                             </Button>
@@ -1057,37 +1059,37 @@ export default function AdminNotificationsPage() {
             {/* Step 3: Xác nhận & Gửi */}
             {step === 3 && (
                 <div className="max-w-3xl mx-auto space-y-6">
-                    <div className="bg-white rounded-xl border border-slate-200 p-6">
-                        <h3 className="font-semibold text-slate-900 text-lg mb-4 flex items-center gap-2">
+                    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
+                        <h3 className="font-semibold text-slate-900 dark:text-white text-lg mb-4 flex items-center gap-2">
                             <CheckCircle className="w-5 h-5 text-green-500" />
                             Xác nhận gửi thông báo
                         </h3>
 
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-slate-50 rounded-lg p-4">
-                                    <p className="text-sm text-slate-500">Số người nhận</p>
-                                    <p className="text-2xl font-bold text-slate-900">{selectedStudentIds.length}</p>
+                                <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">Số người nhận</p>
+                                    <p className="text-2xl font-bold text-slate-900 dark:text-white">{selectedStudentIds.length}</p>
                                 </div>
-                                <div className="bg-slate-50 rounded-lg p-4">
-                                    <p className="text-sm text-slate-500">Hình thức</p>
-                                    <p className="text-2xl font-bold text-slate-900">
+                                <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">Hình thức</p>
+                                    <p className="text-2xl font-bold text-slate-900 dark:text-white">
                                         {notificationType === 'email' ? 'Email' : notificationType === 'sms' ? 'SMS' : 'Email & SMS'}
                                     </p>
                                 </div>
                             </div>
 
-                            <div className="bg-slate-50 rounded-lg p-4">
-                                <p className="text-sm text-slate-500 mb-2">Mẫu thông báo</p>
-                                <p className="font-semibold text-slate-900">{currentTemplate?.name}</p>
+                            <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">Mẫu thông báo</p>
+                                <p className="font-semibold text-slate-900 dark:text-white">{currentTemplate?.name}</p>
                             </div>
 
-                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
                                 <div className="flex items-start gap-2">
-                                    <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
+                                    <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5" />
                                     <div>
-                                        <p className="font-medium text-amber-800">Lưu ý</p>
-                                        <p className="text-sm text-amber-700">
+                                        <p className="font-medium text-amber-800 dark:text-amber-300">Lưu ý</p>
+                                        <p className="text-sm text-amber-700 dark:text-amber-400">
                                             Thông báo sẽ được gửi đến {selectedStudentIds.length} học viên.
                                             Mỗi email/SMS sẽ được cá nhân hóa với thông tin riêng của từng học viên.
                                         </p>
@@ -1126,31 +1128,31 @@ export default function AdminNotificationsPage() {
             {step === 4 && result && (
                 <div className="max-w-lg mx-auto">
                     <div className={`
-                        bg-white rounded-xl border-2 p-8 text-center
-                        ${result.success ? 'border-green-200' : 'border-red-200'}
+                        bg-white dark:bg-slate-900 rounded-xl border-2 p-8 text-center
+                        ${result.success ? 'border-green-200 dark:border-green-800' : 'border-red-200 dark:border-red-800'}
                     `}>
                         {result.success ? (
                             <>
-                                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <CheckCircle className="w-8 h-8 text-green-600" />
+                                <div className="w-16 h-16 bg-green-100 dark:bg-green-900/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
                                 </div>
-                                <h3 className="text-xl font-bold text-green-800 mb-2">
+                                <h3 className="text-xl font-bold text-green-800 dark:text-green-300 mb-2">
                                     Gửi thông báo thành công!
                                 </h3>
-                                <p className="text-slate-600 mb-4">
+                                <p className="text-slate-600 dark:text-slate-400 mb-4">
                                     Đã gửi {result.sent} thông báo đến học viên
                                     {result.failed > 0 && ` (${result.failed} thất bại)`}
                                 </p>
                             </>
                         ) : (
                             <>
-                                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <X className="w-8 h-8 text-red-600" />
+                                <div className="w-16 h-16 bg-red-100 dark:bg-red-900/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <X className="w-8 h-8 text-red-600 dark:text-red-400" />
                                 </div>
-                                <h3 className="text-xl font-bold text-red-800 mb-2">
+                                <h3 className="text-xl font-bold text-red-800 dark:text-red-300 mb-2">
                                     Có lỗi xảy ra
                                 </h3>
-                                <p className="text-slate-600 mb-4">{result.message}</p>
+                                <p className="text-slate-600 dark:text-slate-400 mb-4">{result.message}</p>
                             </>
                         )}
 
@@ -1168,9 +1170,9 @@ export default function AdminNotificationsPage() {
 
             {/* === HISTORY TAB === */}
             {activeTab === 'history' && (
-                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                    <div className="p-4 border-b border-slate-200 flex items-center justify-between">
-                        <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                    <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                        <h3 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                             <History className="w-4 h-4 text-orange-500" />
                             Thông báo đã gửi gần đây
                         </h3>
@@ -1193,25 +1195,32 @@ export default function AdminNotificationsPage() {
                             history.map((item) => (
                                 <div
                                     key={item.id}
-                                    className="flex items-start gap-3 p-4 border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                                    className="flex items-start gap-3 p-4 border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                                 >
                                     <div className={`p-2 rounded-lg flex-shrink-0 ${
-                                        item.read_at ? 'bg-slate-100' : 'bg-orange-100'
+                                        item.read_at ? 'bg-green-100 dark:bg-green-900/50' : 'bg-orange-100 dark:bg-orange-900/50'
                                     }`}>
-                                        <Bell className={`w-4 h-4 ${
-                                            item.read_at ? 'text-slate-400' : 'text-orange-500'
+                                        <Send className={`w-4 h-4 ${
+                                            item.read_at ? 'text-green-500' : 'text-orange-500'
                                         }`} />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-slate-900 text-sm truncate">{item.title}</p>
-                                        <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{item.message}</p>
+                                        <p className="font-medium text-slate-900 dark:text-white text-sm truncate">{item.title}</p>
+                                        {item.recipient && (
+                                            <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5 flex items-center gap-1">
+                                                <Users className="w-3 h-3" />
+                                                Gửi đến: {item.recipient.full_name}
+                                                {item.recipient.email && ` (${item.recipient.email})`}
+                                            </p>
+                                        )}
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{item.message}</p>
                                         <div className="flex items-center gap-2 mt-1">
                                             <Clock className="w-3 h-3 text-slate-400" />
                                             <span className="text-xs text-slate-400">
                                                 {new Date(item.created_at).toLocaleString('vi-VN')}
                                             </span>
                                             {item.read_at && (
-                                                <span className="text-xs text-green-600 flex items-center gap-1">
+                                                <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
                                                     <CheckCircle className="w-3 h-3" /> Đã đọc
                                                 </span>
                                             )}

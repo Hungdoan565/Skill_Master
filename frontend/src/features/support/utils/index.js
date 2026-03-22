@@ -12,17 +12,17 @@ export const TICKET_STATUS = {
 };
 
 export const STATUS_OPTIONS = [
-    { value: 'open', label: 'Mới', color: 'bg-blue-100 text-blue-700', bgColor: 'bg-blue-500' },
-    { value: 'in_progress', label: 'Đang xử lý', color: 'bg-yellow-100 text-yellow-700', bgColor: 'bg-yellow-500' },
-    { value: 'resolved', label: 'Đã giải quyết', color: 'bg-green-100 text-green-700', bgColor: 'bg-green-500' },
-    { value: 'closed', label: 'Đã đóng', color: 'bg-slate-100 text-slate-700', bgColor: 'bg-slate-500' },
+    { value: 'open', label: 'Mới', color: 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300', bgColor: 'bg-blue-500' },
+    { value: 'in_progress', label: 'Đang xử lý', color: 'bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-300', bgColor: 'bg-yellow-500' },
+    { value: 'resolved', label: 'Đã giải quyết', color: 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300', bgColor: 'bg-green-500' },
+    { value: 'closed', label: 'Đã đóng', color: 'bg-slate-100 dark:bg-slate-500/20 text-slate-700 dark:text-slate-300', bgColor: 'bg-slate-500' },
 ];
 
 export const PRIORITY_OPTIONS = [
-    { value: 'low', label: 'Thấp', color: 'bg-slate-100 text-slate-700' },
-    { value: 'medium', label: 'Trung bình', color: 'bg-blue-100 text-blue-700' },
-    { value: 'high', label: 'Cao', color: 'bg-orange-100 text-orange-700' },
-    { value: 'urgent', label: 'Khẩn cấp', color: 'bg-red-100 text-red-700' },
+    { value: 'low', label: 'Thấp', color: 'bg-slate-100 dark:bg-slate-500/20 text-slate-700 dark:text-slate-300' },
+    { value: 'medium', label: 'Trung bình', color: 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300' },
+    { value: 'high', label: 'Cao', color: 'bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300' },
+    { value: 'urgent', label: 'Khẩn cấp', color: 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300' },
 ];
 
 export const CATEGORY_OPTIONS = [

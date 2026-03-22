@@ -96,7 +96,7 @@ export default function SmartReplySuggestions({ ticketId, messages, onSelectSugg
     };
 
     return (
-        <div className="px-4 py-2 border-b border-blue-100 bg-gradient-to-r from-blue-50/80 to-indigo-50/50 animate-in slide-in-from-bottom-1 duration-200">
+        <div className="px-4 py-2 border-b border-blue-100 dark:border-blue-500/20 bg-gradient-to-r from-blue-50/80 to-indigo-50/50 dark:from-blue-500/10 dark:to-indigo-500/10 animate-in slide-in-from-bottom-1 duration-200">
             <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-1.5">
                     <Sparkles className="h-3.5 w-3.5 text-blue-500" />
@@ -104,7 +104,7 @@ export default function SmartReplySuggestions({ ticketId, messages, onSelectSugg
                 </div>
                 <button
                     onClick={handleDismiss}
-                    className="text-slate-400 hover:text-slate-600 transition-colors p-0.5"
+                    className="text-muted-foreground hover:text-foreground transition-colors p-0.5"
                     title="Ẩn gợi ý"
                 >
                     <X className="h-3.5 w-3.5" />
@@ -122,7 +122,7 @@ export default function SmartReplySuggestions({ ticketId, messages, onSelectSugg
                         <button
                             key={`${s.type}-${idx}`}
                             onClick={() => handleSelect(s)}
-                            className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-xs text-blue-700 font-medium shadow-sm hover:bg-blue-50 hover:border-blue-300 hover:shadow-md transition-all duration-150 active:scale-95"
+                            className="inline-flex items-center gap-1 rounded-lg border border-blue-200 dark:border-blue-500/30 bg-card px-2.5 py-1.5 text-xs text-blue-700 dark:text-blue-300 font-medium shadow-sm hover:bg-blue-50 dark:hover:bg-blue-500/10 hover:border-blue-300 dark:hover:border-blue-500/40 hover:shadow-md transition-all duration-150 active:scale-95"
                             title="Nhấn để paste vào ô trả lời"
                         >
                             <span>{typeIcons[s.type] || '💡'}</span>
