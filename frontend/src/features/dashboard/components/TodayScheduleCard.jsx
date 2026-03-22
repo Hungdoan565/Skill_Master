@@ -16,7 +16,7 @@ function SessionItem({ session }) {
     const statusConfig = STATUS_CONFIG[session.status] || STATUS_CONFIG.scheduled;
 
     return (
-        <div className="flex items-start gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors">
+        <div className="flex items-start gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors">
             {/* Time */}
             <div className="flex-shrink-0 text-center">
                 <div className="w-14 h-14 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex flex-col items-center justify-center">
@@ -66,7 +66,7 @@ export function TodayScheduleCard({ data, loading = false }) {
 
     if (loading) {
         return (
-            <div className="bg-white rounded-2xl shadow-sm border border-border p-6">
+            <div className="bg-card rounded-2xl shadow-sm border border-border p-6">
                 <div className="animate-pulse">
                     <div className="h-5 w-40 bg-muted rounded mb-4" />
                     <div className="space-y-3">
@@ -89,7 +89,7 @@ export function TodayScheduleCard({ data, loading = false }) {
     const summary = data?.summary || {};
 
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-border p-6">
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-6">
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">

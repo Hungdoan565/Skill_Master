@@ -45,7 +45,7 @@ function TeacherRow({ rank, teacher, maxStudents, isLast }) {
         <div
             className={`
         relative group p-3 rounded-xl transition-all duration-300
-        hover:bg-slate-50 hover:scale-[1.01] cursor-pointer
+        hover:bg-muted/50 hover:scale-[1.01] cursor-pointer
         ${!isLast ? 'mb-2' : ''}
       `}
         >
@@ -151,7 +151,7 @@ export function TopTeachersWidget({ teachers = [], loading = false }) {
 
     if (loading) {
         return (
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-border animate-pulse">
+            <div className="bg-card rounded-2xl p-6 shadow-sm border border-border animate-pulse">
                 <div className="h-6 w-40 bg-muted rounded mb-6" />
                 <div className="space-y-3">
                     {[...Array(5)].map((_, i) => (
@@ -172,7 +172,7 @@ export function TopTeachersWidget({ teachers = [], loading = false }) {
     // Empty state when no teachers
     if (displayTeachers.length === 0) {
         return (
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-border">
+            <div className="bg-card rounded-2xl p-6 shadow-sm border border-border">
                 <div className="flex items-center gap-3 mb-4">
                     <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
                         <Trophy size={22} className="text-white" />
@@ -192,7 +192,7 @@ export function TopTeachersWidget({ teachers = [], loading = false }) {
     }
 
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
+        <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
             {/* Header with gradient */}
             <div className="bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-transparent p-6 pb-4">
                 <div className="flex items-center justify-between">

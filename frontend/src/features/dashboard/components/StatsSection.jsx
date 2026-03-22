@@ -56,7 +56,7 @@ function LargeStatCard({ title, value, description, trend, trendUp, icon: Icon, 
   return (
     <div
       onClick={onClick}
-      className={`bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all duration-300 ${
+      className={`bg-card rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all duration-300 ${
         onClick ? 'cursor-pointer hover:border-gray-300' : ''
       }`}
     >
@@ -93,7 +93,7 @@ function SmallStatCard({ title, value, icon: Icon, alert = false, onClick }) {
   return (
     <div
       onClick={onClick}
-      className={`bg-white rounded-2xl shadow-sm border ${alert ? 'border-red-100' : 'border-gray-100'} p-5 hover:shadow-md transition-all duration-300 ${
+      className={`bg-card rounded-2xl shadow-sm border ${alert ? 'border-red-100' : 'border-gray-100'} p-5 hover:shadow-md transition-all duration-300 ${
         onClick ? 'cursor-pointer hover:border-gray-300' : ''
       }`}
     >
@@ -125,7 +125,7 @@ export function StatsSection({ stats, loading = false }) {
       <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[...Array(2)].map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl p-6 animate-pulse">
+            <div key={i} className="bg-card rounded-2xl p-6 animate-pulse">
               <div className="h-14 w-14 bg-gray-200 rounded-2xl mb-4" />
               <div className="h-4 w-24 bg-gray-200 rounded mb-2" />
               <div className="h-8 w-32 bg-gray-200 rounded" />
@@ -134,7 +134,7 @@ export function StatsSection({ stats, loading = false }) {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[...Array(2)].map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl p-5 animate-pulse">
+            <div key={i} className="bg-card rounded-2xl p-5 animate-pulse">
               <div className="flex items-center gap-4">
                 <div className="h-11 w-11 bg-gray-200 rounded-xl" />
                 <div>

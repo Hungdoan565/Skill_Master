@@ -10,10 +10,10 @@ export function DashboardHeader({ userName, onRefresh, onExport, refreshing = fa
   return (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">
+        <h1 className="text-2xl font-bold text-foreground">
           {getGreeting()} {userName ? `, ${userName}` : ''}
         </h1>
-        <p className="text-gray-500 mt-1">
+        <p className="text-muted-foreground mt-1">
           Tổng quan hoạt động kinh doanh của bạn • {getCurrentDate()}
         </p>
       </div>
@@ -22,7 +22,7 @@ export function DashboardHeader({ userName, onRefresh, onExport, refreshing = fa
         {onExport && (
           <button
             onClick={onExport}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg text-sm font-medium text-foreground hover:bg-muted transition-colors"
           >
             <Download size={16} />
             Xuất báo cáo
@@ -32,7 +32,7 @@ export function DashboardHeader({ userName, onRefresh, onExport, refreshing = fa
         <button
           onClick={onRefresh}
           disabled={refreshing}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg text-sm font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
           {refreshing ? 'Đang tải...' : 'Làm mới'}

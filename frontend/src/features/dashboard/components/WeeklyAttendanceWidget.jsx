@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 export default function WeeklyAttendanceWidget({ data = [], loading = false }) {
   if (loading) {
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
+      <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
         <div className="bg-gradient-to-r from-cyan-500/10 via-sky-500/5 to-transparent p-4">
           <div className="flex items-center gap-3">
             <div className="h-11 w-11 rounded-xl bg-muted animate-pulse" />
@@ -15,7 +15,7 @@ export default function WeeklyAttendanceWidget({ data = [], loading = false }) {
           </div>
         </div>
         <div className="p-4">
-          <div className="h-48 bg-slate-50 rounded-xl animate-pulse" />
+          <div className="h-48 bg-muted rounded-xl animate-pulse" />
         </div>
       </div>
     );
@@ -48,7 +48,7 @@ export default function WeeklyAttendanceWidget({ data = [], loading = false }) {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
+    <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
       <div className="bg-gradient-to-r from-cyan-500/10 via-sky-500/5 to-transparent p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

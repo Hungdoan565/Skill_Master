@@ -13,7 +13,7 @@ export function PrimaryStatCard({ title, value, trend, trendLabel, icon: Icon, a
   const isPositive = trend > 0;
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300">
+    <div className="group relative overflow-hidden rounded-2xl bg-card p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300">
       {/* Background decoration */}
       <div className="absolute top-0 right-0 w-32 h-32 opacity-5 transform translate-x-8 -translate-y-8">
         <Icon size={128} />

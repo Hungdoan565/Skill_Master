@@ -28,7 +28,7 @@ const formatCompact = (value) => {
 const CustomTooltip = ({ active, payload }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white border border-border p-3 rounded-xl shadow-xl">
+      <div className="bg-card border border-border p-3 rounded-xl shadow-xl">
         <p className="text-sm font-bold text-foreground">{payload[0].name}</p>
         <p className="text-xs text-muted-foreground mt-1">
           {formatCurrency(payload[0].value)}

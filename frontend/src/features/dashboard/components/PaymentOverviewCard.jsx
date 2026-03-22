@@ -7,7 +7,7 @@ export function PaymentOverviewCard({ data, loading = false }) {
 
     if (loading) {
         return (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="bg-card rounded-2xl shadow-sm border border-gray-100 p-6">
                 <div className="animate-pulse">
                     <div className="h-5 w-32 bg-gray-200 rounded mb-4" />
                     <div className="h-40 bg-gray-50 rounded-xl mb-4" />
@@ -69,7 +69,7 @@ export function PaymentOverviewCard({ data, loading = false }) {
     ];
 
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col h-full hover:shadow-md transition-shadow">
+        <div className="bg-card rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col h-full hover:shadow-md transition-shadow">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">

@@ -27,7 +27,7 @@ const formatMillions = (value) => {
 const CustomTooltip = ({ active, payload }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white border border-border p-3 rounded-xl shadow-xl">
+      <div className="bg-card border border-border p-3 rounded-xl shadow-xl">
         <p className="text-sm font-bold text-foreground">{payload[0].payload.course_name}</p>
         <p className="text-xs text-muted-foreground mt-1">
           {payload[0].name}: {formatCurrency(payload[0].value)}
@@ -46,7 +46,7 @@ export function TopCoursesRevenueChart({ data = [], loading = false }) {
           <div className="h-6 w-48 bg-muted rounded animate-pulse" />
         </CardHeader>
         <CardContent className="h-[280px]">
-          <div className="h-full w-full bg-slate-50 rounded-xl animate-pulse" />
+          <div className="h-full w-full bg-muted rounded-xl animate-pulse" />
         </CardContent>
       </Card>
     );

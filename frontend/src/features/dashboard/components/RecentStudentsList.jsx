@@ -12,7 +12,7 @@ export function RecentStudentsList({ students = [], loading = false }) {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <div className="bg-card rounded-2xl shadow-sm border border-gray-100 p-6">
         <div className="animate-pulse">
           <div className="h-6 w-48 bg-gray-200 rounded mb-4" />
           <div className="space-y-3">
@@ -32,7 +32,7 @@ export function RecentStudentsList({ students = [], loading = false }) {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+    <div className="bg-card rounded-2xl shadow-sm border border-gray-100 p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
