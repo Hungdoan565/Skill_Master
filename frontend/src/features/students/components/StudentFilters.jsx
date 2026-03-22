@@ -37,13 +37,13 @@ export function StudentFilters({
           <Input
             type="search"
             placeholder="Tìm theo tên, email hoặc SĐT..."
-            className="pl-10 bg-white"
+            className="pl-10 bg-white dark:bg-gray-800 dark:border-gray-700"
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
           />
         </div>
 
-        <div className="inline-flex w-full xl:w-auto rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+        <div className="inline-flex w-full xl:w-auto rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-1 shadow-sm">
           {VIEW_MODE_OPTIONS.map((option) => {
             const isActive = option.value === viewMode;
             const Icon = option.value === 'list' ? LayoutList : Rows3;
@@ -56,7 +56,7 @@ export function StudentFilters({
                 className={`inline-flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors xl:flex-none ${
                   isActive
                     ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-600 hover:bg-slate-50'
+                    : 'text-slate-600 dark:text-gray-400 hover:bg-slate-50 dark:hover:bg-gray-700'
                 }`}
               >
                 <Icon className="h-4 w-4" />
@@ -67,11 +67,11 @@ export function StudentFilters({
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-sm">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div className="grid flex-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
             <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Trạng thái</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Trạng thái</p>
               <SimpleSelect
                 value={statusFilter}
                 onChange={onStatusChange}
@@ -81,7 +81,7 @@ export function StudentFilters({
             </div>
 
             <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Ghi danh</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Ghi danh</p>
               <SimpleSelect
                 value={enrollmentState}
                 onChange={onEnrollmentStateChange}
@@ -91,7 +91,7 @@ export function StudentFilters({
             </div>
 
             <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Trung tâm</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Trung tâm</p>
               <SimpleSelect
                 value={centerFilter}
                 onChange={onCenterChange}
@@ -101,7 +101,7 @@ export function StudentFilters({
             </div>
 
             <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Khóa học</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Khóa học</p>
               <SimpleSelect
                 value={courseFilter}
                 onChange={onCourseChange}
@@ -111,7 +111,7 @@ export function StudentFilters({
             </div>
 
             <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Lớp học</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">Lớp học</p>
               <SimpleSelect
                 value={classFilter}
                 onChange={onClassChange}
@@ -121,9 +121,9 @@ export function StudentFilters({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">
-            <Filter className="h-4 w-4 text-slate-400" />
-            Hiển thị <strong className="text-slate-900">{filteredCount}</strong> / {totalCount}
+          <div className="flex items-center gap-2 rounded-xl bg-slate-50 dark:bg-gray-700/50 px-3 py-2 text-sm text-slate-600 dark:text-gray-400">
+            <Filter className="h-4 w-4 text-slate-400 dark:text-gray-500" />
+            Hiển thị <strong className="text-slate-900 dark:text-gray-100">{filteredCount}</strong> / {totalCount}
           </div>
         </div>
       </div>

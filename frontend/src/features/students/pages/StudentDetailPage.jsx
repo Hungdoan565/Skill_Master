@@ -50,8 +50,8 @@ const TabButton = ({ active, onClick, icon: Icon, label, count }) => (
         className={`
       flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all
       ${active
-                ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                : 'text-slate-600 hover:bg-slate-100 border border-transparent'
+                ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800'
+                : 'text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-gray-800 border border-transparent'
             }
     `}
     >
@@ -60,7 +60,7 @@ const TabButton = ({ active, onClick, icon: Icon, label, count }) => (
         {count !== undefined && (
             <span className={`
         ml-1 px-1.5 py-0.5 text-xs rounded-full
-        ${active ? 'bg-indigo-200 text-indigo-800' : 'bg-slate-200 text-slate-600'}
+        ${active ? 'bg-indigo-200 dark:bg-indigo-800 text-indigo-800 dark:text-indigo-200' : 'bg-slate-200 dark:bg-gray-700 text-slate-600 dark:text-gray-300'}
       `}>
                 {count}
             </span>
@@ -70,11 +70,11 @@ const TabButton = ({ active, onClick, icon: Icon, label, count }) => (
 
 // Info Card
 const InfoCard = ({ icon: Icon, label, value, iconColor = 'text-slate-400' }) => (
-    <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+    <div className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-gray-800/60 rounded-lg">
         <Icon className={`h-5 w-5 mt-0.5 ${iconColor}`} />
         <div className="min-w-0">
-            <p className="text-xs text-slate-500">{label}</p>
-            <p className="text-sm font-medium text-slate-900 truncate">{value || '—'}</p>
+            <p className="text-xs text-slate-500 dark:text-gray-400">{label}</p>
+            <p className="text-sm font-medium text-slate-900 dark:text-gray-100 truncate">{value || '—'}</p>
         </div>
     </div>
 );
@@ -91,18 +91,18 @@ const ClassesTab = ({ enrollments = [] }) => {
     }
 
     return (
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-slate-100 dark:divide-gray-700">
             {enrollments.map((enrollment) => (
-                <div key={enrollment.id} className="p-4 hover:bg-slate-50 transition-colors">
+                <div key={enrollment.id} className="p-4 hover:bg-slate-50 dark:hover:bg-gray-800/50 transition-colors">
                     <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
                             <Link
                                 to={`/admin/classes/${enrollment.class_id}`}
-                                className="font-medium text-slate-900 hover:text-indigo-600 transition-colors"
+                                className="font-medium text-slate-900 dark:text-gray-100 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                             >
                                 {enrollment.classes?.name || 'N/A'}
                             </Link>
-                            <div className="flex items-center gap-2 mt-1 text-sm text-slate-500">
+                            <div className="flex items-center gap-2 mt-1 text-sm text-slate-500 dark:text-gray-400">
                                 <span>{enrollment.classes?.courses?.title || 'N/A'}</span>
                                 {(enrollment.classes?.teacher?.full_name || enrollment.classes?.teachers?.full_name || enrollment.classes?.users?.full_name) && (
                                     <>
@@ -111,7 +111,7 @@ const ClassesTab = ({ enrollments = [] }) => {
                                     </>
                                 )}
                             </div>
-                            <div className="flex items-center gap-4 mt-2 text-xs text-slate-400">
+                            <div className="flex items-center gap-4 mt-2 text-xs text-slate-400 dark:text-gray-500">
                                 <span className="flex items-center gap-1">
                                     <Calendar className="h-3 w-3" />
                                     {formatDate(enrollment.enrolled_at)}
@@ -149,17 +149,17 @@ const PaymentsTab = ({ invoices = [] }) => {
     };
 
     return (
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-slate-100 dark:divide-gray-700">
             {invoices.map((invoice) => {
                 const status = statusConfig[invoice.status] || statusConfig.pending;
                 const StatusIcon = status.icon;
 
                 return (
-                    <div key={invoice.id} className="p-4 hover:bg-slate-50 transition-colors">
+                    <div key={invoice.id} className="p-4 hover:bg-slate-50 dark:hover:bg-gray-800/50 transition-colors">
                         <div className="flex items-start justify-between">
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
-                                    <span className="font-medium text-slate-900">
+                                    <span className="font-medium text-slate-900 dark:text-gray-100">
                                         #{invoice.invoice_number || invoice.id.slice(0, 8)}
                                     </span>
                                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${status.color}`}>
@@ -167,15 +167,15 @@ const PaymentsTab = ({ invoices = [] }) => {
                                         {status.label}
                                     </span>
                                 </div>
-                                <p className="text-sm text-slate-500 mt-1">
+                                <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">
                                     {invoice.description || invoice.classes?.name || 'Học phí'}
                                 </p>
-                                <p className="text-xs text-slate-400 mt-1">
+                                <p className="text-xs text-slate-400 dark:text-gray-500 mt-1">
                                     {formatDate(invoice.created_at)}
                                 </p>
                             </div>
                             <div className="text-right">
-                                <p className="font-semibold text-slate-900">
+                                <p className="font-semibold text-slate-900 dark:text-gray-100">
                                     {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(invoice.amount || 0)}
                                 </p>
                                 {invoice.paid_amount > 0 && invoice.paid_amount !== invoice.amount && (
@@ -204,13 +204,13 @@ const GradesTab = ({ grades = [] }) => {
     }
 
     return (
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-slate-100 dark:divide-gray-700">
             {grades.map((grade, idx) => (
-                <div key={idx} className="p-4 hover:bg-slate-50 transition-colors">
+                <div key={idx} className="p-4 hover:bg-slate-50 dark:hover:bg-gray-800/50 transition-colors">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="font-medium text-slate-900">{grade.class_name || 'N/A'}</p>
-                            <p className="text-sm text-slate-500">{grade.course_name || 'N/A'}</p>
+                            <p className="font-medium text-slate-900 dark:text-gray-100">{grade.class_name || 'N/A'}</p>
+                            <p className="text-sm text-slate-500 dark:text-gray-400">{grade.course_name || 'N/A'}</p>
                         </div>
                         <div className="text-right">
                             <p className={`text-2xl font-bold ${grade.final_grade >= 8 ? 'text-green-600' :
@@ -219,7 +219,7 @@ const GradesTab = ({ grades = [] }) => {
                                 }`}>
                                 {grade.final_grade?.toFixed(1) || '—'}
                             </p>
-                            <p className="text-xs text-slate-400">
+                            <p className="text-xs text-slate-400 dark:text-gray-500">
                                 {grade.final_grade >= 8 ? 'Giỏi' :
                                     grade.final_grade >= 6.5 ? 'Khá' :
                                         grade.final_grade >= 5 ? 'Trung bình' : 'Yếu'}
@@ -251,18 +251,18 @@ const AttendanceTab = ({ attendance = [] }) => {
     };
 
     return (
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-slate-100 dark:divide-gray-700">
             {attendance.slice(0, 20).map((record, idx) => {
                 const status = statusConfig[record.status] || statusConfig.absent;
 
                 return (
-                    <div key={idx} className="p-4 hover:bg-slate-50 transition-colors">
+                    <div key={idx} className="p-4 hover:bg-slate-50 dark:hover:bg-gray-800/50 transition-colors">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="font-medium text-slate-900">
+                                <p className="font-medium text-slate-900 dark:text-gray-100">
                                     {record.class_name || 'N/A'}
                                 </p>
-                                <p className="text-sm text-slate-500">
+                                <p className="text-sm text-slate-500 dark:text-gray-400">
                                     {formatDate(record.session_date)} • {record.session_time || 'N/A'}
                                 </p>
                             </div>
@@ -288,7 +288,7 @@ const formatCertificateScore = (certificate) => {
     if (scoreType === 'band') {
         // IELTS style - band scores
         return (
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-gray-400">
                 {scores.overall && (
                     <span className="font-semibold text-indigo-600">
                         Overall: {scores.overall}
@@ -310,7 +310,7 @@ const formatCertificateScore = (certificate) => {
                     {scores.total || scores.score || 0}
                 </span>
                 {type.score_config?.max && (
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-slate-500 dark:text-gray-400">
                         / {type.score_config.max}
                     </span>
                 )}
@@ -332,7 +332,7 @@ const formatCertificateScore = (certificate) => {
                     </span>
                 )}
                 {scores.score && (
-                    <span className="text-sm text-slate-600">
+                    <span className="text-sm text-slate-600 dark:text-gray-400">
                         Điểm: {scores.score}
                     </span>
                 )}
@@ -395,7 +395,7 @@ const CertificatesTab = ({ certificates = [] }) => {
         const isExternal = certType?.is_external;
 
         return (
-            <div key={certificate.id} className="p-4 hover:bg-slate-50 transition-colors">
+            <div key={certificate.id} className="p-4 hover:bg-slate-50 dark:hover:bg-gray-800/50 transition-colors">
                 <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3 flex-1 min-w-0">
                         {/* Certificate Icon */}
@@ -409,7 +409,7 @@ const CertificatesTab = ({ certificates = [] }) => {
                         <div className="flex-1 min-w-0">
                             {/* Certificate Type Name */}
                             <div className="flex items-center gap-2 flex-wrap">
-                                <p className="font-semibold text-slate-900">
+                                <p className="font-semibold text-slate-900 dark:text-gray-100">
                                     {certType?.name || certificate.courses?.title || 'Chứng chỉ'}
                                 </p>
                                 {isExternal && (
@@ -427,14 +427,14 @@ const CertificatesTab = ({ certificates = [] }) => {
                                     </span>
                                 )}
                                 {certType?.issuing_organization && (
-                                    <span className="text-xs text-slate-500">
+                                    <span className="text-xs text-slate-500 dark:text-gray-400">
                                         {certType.issuing_organization}
                                     </span>
                                 )}
                             </div>
 
                             {/* Certificate Number & External ID */}
-                            <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
+                            <div className="flex items-center gap-3 mt-2 text-xs text-slate-500 dark:text-gray-400">
                                 {certificate.certificate_number && (
                                     <span>Số: <span className="font-medium">{certificate.certificate_number}</span></span>
                                 )}
@@ -449,7 +449,7 @@ const CertificatesTab = ({ certificates = [] }) => {
                             </div>
 
                             {/* Dates */}
-                            <div className="flex items-center gap-4 mt-2 text-xs text-slate-400">
+                            <div className="flex items-center gap-4 mt-2 text-xs text-slate-400 dark:text-gray-500">
                                 {certificate.issued_at && (
                                     <span className="flex items-center gap-1">
                                         <Calendar className="h-3 w-3" />
@@ -502,11 +502,11 @@ const CertificatesTab = ({ certificates = [] }) => {
     };
 
     return (
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-slate-100 dark:divide-gray-700">
             {/* External Certificates */}
             {externalCerts.length > 0 && (
                 <div>
-                    <div className="px-4 py-2 bg-amber-50 border-b border-amber-100">
+                    <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-100 dark:border-amber-800">
                         <p className="text-xs font-medium text-amber-700 flex items-center gap-1">
                             <Award className="h-3 w-3" />
                             Chứng chỉ bên ngoài ({externalCerts.length})
@@ -519,7 +519,7 @@ const CertificatesTab = ({ certificates = [] }) => {
             {/* Internal Certificates */}
             {internalCerts.length > 0 && (
                 <div>
-                    <div className="px-4 py-2 bg-indigo-50 border-b border-indigo-100">
+                    <div className="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 border-b border-indigo-100 dark:border-indigo-800">
                         <p className="text-xs font-medium text-indigo-700 flex items-center gap-1">
                             <Award className="h-3 w-3" />
                             Chứng chỉ nội bộ ({internalCerts.length})
@@ -627,7 +627,7 @@ export function StudentDetailPage() {
                 <Card>
                     <CardContent className="py-12 text-center">
                         <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-500" />
-                        <p className="text-lg font-medium text-slate-900">{error}</p>
+                        <p className="text-lg font-medium text-slate-900 dark:text-gray-100">{error}</p>
                         <Button variant="outline" onClick={loadStudent} className="mt-4">
                             Thử lại
                         </Button>
@@ -659,15 +659,15 @@ export function StudentDetailPage() {
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900">Hồ sơ Học viên</h1>
-                        <p className="text-slate-500">Xem và quản lý thông tin học viên</p>
+                        <h1 className="text-2xl font-bold text-slate-900 dark:text-gray-100">Hồ sơ Học viên</h1>
+                        <p className="text-slate-500 dark:text-gray-400">Xem và quản lý thông tin học viên</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
                     {session?.user?.email?.includes('admin') && (
                         <Button
                             variant="outline"
-                            className="bg-white border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+                            className="bg-white dark:bg-gray-800 border-indigo-200 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
                             onClick={() => setTransferModal({ isOpen: true, submitting: false })}
                         >
                             <Share2 className="h-4 w-4 mr-2" />
@@ -702,31 +702,31 @@ export function StudentDetailPage() {
                                 )}
 
                                 {/* Name & Status */}
-                                <h2 className="mt-4 text-xl font-bold text-slate-900">{student.full_name}</h2>
+                                <h2 className="mt-4 text-xl font-bold text-slate-900 dark:text-gray-100">{student.full_name}</h2>
                                 <Badge variant={student.status === 'active' ? 'success' : 'secondary'} className="mt-2">
                                     {student.status === 'active' ? 'Đang học' : student.status}
                                 </Badge>
                             </div>
 
                             {/* Quick Stats */}
-                            <div className="grid grid-cols-4 gap-2 mt-6 pt-6 border-t">
+                            <div className="grid grid-cols-4 gap-2 mt-6 pt-6 border-t dark:border-gray-700">
                                 <div className="text-center">
                                     <p className="text-2xl font-bold text-indigo-600">{student.enrollments?.length || 0}</p>
-                                    <p className="text-xs text-slate-500">Lớp học</p>
+                                    <p className="text-xs text-slate-500 dark:text-gray-400">Lớp học</p>
                                 </div>
                                 <div className="text-center">
                                     <p className="text-2xl font-bold text-green-600">
                                         {student.invoices?.filter(i => i.status === 'paid').length || 0}
                                     </p>
-                                    <p className="text-xs text-slate-500">Đã thanh toán</p>
+                                    <p className="text-xs text-slate-500 dark:text-gray-400">Đã thanh toán</p>
                                 </div>
                                 <div className="text-center">
                                     <p className="text-2xl font-bold text-purple-600">{student.grades?.length || 0}</p>
-                                    <p className="text-xs text-slate-500">Kết quả</p>
+                                    <p className="text-xs text-slate-500 dark:text-gray-400">Kết quả</p>
                                 </div>
                                 <div className="text-center">
                                     <p className="text-2xl font-bold text-yellow-600">{student.certificates?.length || 0}</p>
-                                    <p className="text-xs text-slate-500">Chứng chỉ</p>
+                                    <p className="text-xs text-slate-500 dark:text-gray-400">Chứng chỉ</p>
                                 </div>
                             </div>
                         </CardContent>

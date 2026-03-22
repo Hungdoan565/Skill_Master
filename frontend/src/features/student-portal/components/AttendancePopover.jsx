@@ -5,10 +5,10 @@ import { cn } from '@/lib/utils';
 import { Check, X, Clock, Minus } from 'lucide-react';
 
 const STATUS_MAP = {
-  present: { label: 'Có mặt', badge: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500', icon: Check },
-  absent: { label: 'Vắng mặt', badge: 'bg-rose-100 text-rose-700', dot: 'bg-rose-500', icon: X },
-  late: { label: 'Đi trễ', badge: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500', icon: Clock },
-  excused: { label: 'Có phép', badge: 'bg-blue-100 text-blue-700', dot: 'bg-blue-500', icon: Minus },
+  present: { label: 'Có mặt', badge: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400', dot: 'bg-emerald-500', icon: Check },
+  absent: { label: 'Vắng mặt', badge: 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400', dot: 'bg-rose-500', icon: X },
+  late: { label: 'Đi trễ', badge: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400', dot: 'bg-amber-500', icon: Clock },
+  excused: { label: 'Có phép', badge: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400', dot: 'bg-blue-500', icon: Minus },
 };
 
 export function AttendancePopover({ date, records, children }) {
@@ -20,13 +20,13 @@ export function AttendancePopover({ date, records, children }) {
         {children}
       </PopoverTrigger>
       <PopoverContent className="w-72 p-0" align="center" side="top" sideOffset={6}>
-        <div className="px-3 py-2 border-b border-slate-100 bg-slate-50/60">
+        <div className="px-3 py-2 border-b border-border bg-muted/60">
           <p className="text-sm font-semibold">
             {format(date, 'EEEE, dd/MM/yyyy', { locale: localeVi })}
           </p>
           <p className="text-xs text-muted-foreground">{records.length} buổi học</p>
         </div>
-        <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto">
+        <div className="divide-y divide-border max-h-48 overflow-y-auto">
           {records.map((record, idx) => {
             const config = STATUS_MAP[record.status] || STATUS_MAP.present;
             const Icon = config.icon;

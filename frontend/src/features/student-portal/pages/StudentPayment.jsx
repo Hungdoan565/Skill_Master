@@ -99,7 +99,7 @@ function StepIndicator({ currentStep }) {
                     ? 'bg-emerald-500 text-white'
                     : isActive
                     ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200'
-                    : 'bg-slate-100 text-slate-400'
+                    : 'bg-muted text-muted-foreground'
                 )}
               >
                 {isDone ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
@@ -107,7 +107,7 @@ function StepIndicator({ currentStep }) {
               <span
                 className={cn(
                   'text-[11px] font-medium transition-colors',
-                  isActive ? 'text-emerald-700' : isDone ? 'text-emerald-600' : 'text-slate-400'
+                  isActive ? 'text-emerald-700' : isDone ? 'text-emerald-600' : 'text-muted-foreground'
                 )}
               >
                 {step.label}
@@ -117,7 +117,7 @@ function StepIndicator({ currentStep }) {
               <div
                 className={cn(
                   'w-14 h-0.5 mx-2 rounded-full transition-colors duration-300 mb-5',
-                  currentStep > step.id ? 'bg-emerald-400' : 'bg-slate-200'
+                  currentStep > step.id ? 'bg-emerald-400' : 'bg-muted'
                 )}
               />
             )}
@@ -187,11 +187,11 @@ function SuccessState({ invoiceCount, amount, onBack }) {
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-4">
       <div className="text-center max-w-md space-y-5">
-        <div className="mx-auto h-20 w-20 rounded-full bg-emerald-100 flex items-center justify-center animate-in zoom-in-50 duration-500">
-          <PartyPopper className="h-10 w-10 text-emerald-600" />
+        <div className="mx-auto h-20 w-20 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center animate-in zoom-in-50 duration-500">
+          <PartyPopper className="h-10 w-10 text-emerald-600 dark:text-emerald-400" />
         </div>
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 delay-200 space-y-2">
-          <h2 className="text-2xl font-bold text-slate-900">Gửi thành công!</h2>
+          <h2 className="text-2xl font-bold text-foreground">Gửi thành công!</h2>
           <p className="text-muted-foreground">
             Đã gửi xác nhận thanh toán {formatMoney(amount)} cho {invoiceCount} hóa đơn.
             Trung tâm sẽ xác minh trong thời gian sớm nhất.
@@ -456,10 +456,10 @@ export function StudentPayment() {
                     <div
                       key={invoice.id}
                       className={cn(
-                        'flex items-center gap-3 p-4 rounded-lg border transition-all cursor-pointer bg-white',
+                        'flex items-center gap-3 p-4 rounded-lg border transition-all cursor-pointer bg-card',
                         isSelected
                           ? 'border-emerald-500 bg-emerald-500/10 shadow-sm'
-                          : 'border-border hover:bg-slate-50'
+                          : 'border-border hover:bg-muted/50'
                       )}
                       onClick={() => toggleSelect(invoice)}
                     >
@@ -661,7 +661,7 @@ export function StudentPayment() {
                       {/* QR Code */}
                       {qrUrl && (
                         <div className="flex justify-center">
-                          <div className="bg-white p-4 rounded-xl border-2 border-dashed border-emerald-500/20 shadow-sm">
+                          <div className="bg-card p-4 rounded-xl border-2 border-dashed border-emerald-500/20 shadow-sm">
                             <img src={qrUrl} alt="Mã QR thanh toán" className="w-64 h-64 object-contain" />
                             <p className="text-center text-xs text-muted-foreground mt-2">
                               Quét mã để thanh toán {formatMoney(paymentAmount)}
@@ -681,13 +681,13 @@ export function StudentPayment() {
                           <img src={bankProofUrl} alt="Minh chứng" className="w-full max-h-48 object-cover rounded-lg border" />
                           <button
                             onClick={() => setBankProofUrl(null)}
-                            className="absolute top-2 right-2 p-1.5 rounded-full bg-white/90 border border-border hover:bg-white transition-colors"
+                            className="absolute top-2 right-2 p-1.5 rounded-full bg-background/90 border border-border hover:bg-background transition-colors"
                           >
                             <X className="h-4 w-4" />
                           </button>
                         </div>
                       ) : (
-                        <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-border rounded-lg cursor-pointer bg-muted/30 hover:bg-slate-50 transition-colors">
+                        <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-border rounded-lg cursor-pointer bg-muted/30 hover:bg-muted/50 transition-colors">
                           <Upload className="h-6 w-6 text-muted-foreground mb-2" />
                           <span className="text-sm text-muted-foreground">Kéo thả hoặc click để tải ảnh</span>
                           <span className="text-xs text-muted-foreground mt-1">PNG, JPG (tối đa 5MB)</span>

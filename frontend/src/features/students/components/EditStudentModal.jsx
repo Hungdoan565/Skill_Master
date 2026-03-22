@@ -133,14 +133,14 @@ export function EditStudentModal({
       <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
         {/* Email (readonly) */}
         <div className="space-y-2">
-          <Label className="text-sm font-medium text-slate-700">Email</Label>
+          <Label className="text-sm font-medium text-slate-700 dark:text-gray-300">Email</Label>
           <Input
             value={student.email}
             readOnly
             disabled
-            className="bg-slate-50 cursor-not-allowed"
+            className="bg-slate-50 dark:bg-gray-800 cursor-not-allowed"
           />
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 dark:text-gray-400">
             Email không thể thay đổi
           </p>
         </div>
@@ -175,11 +175,11 @@ export function EditStudentModal({
 
         {/* Parent/Guardian Section - Show only if student is under 18 */}
         {showParentFields && (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg space-y-4">
-            <h4 className="text-sm font-semibold text-amber-900">
+          <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg space-y-4">
+            <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-300">
               👨‍👩‍👧 Thông tin Phụ huynh/Người giám hộ
             </h4>
-            <p className="text-xs text-amber-700">
+            <p className="text-xs text-amber-700 dark:text-amber-400">
               Học viên dưới 18 tuổi cần thông tin phụ huynh để liên hệ
             </p>
 

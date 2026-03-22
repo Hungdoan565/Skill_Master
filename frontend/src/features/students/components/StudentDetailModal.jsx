@@ -22,18 +22,18 @@ import { Share2 } from 'lucide-react';
 
 // Status badges for enrollments
 const ENROLLMENT_STATUS = {
-    active: { label: 'Đang học', color: 'bg-green-100 text-green-700' },
-    completed: { label: 'Hoàn thành', color: 'bg-blue-100 text-blue-700' },
-    dropped: { label: 'Đã rời', color: 'bg-red-100 text-red-700' },
-    transferred: { label: 'Đã chuyển', color: 'bg-amber-100 text-amber-700' },
+    active: { label: 'Đang học', color: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' },
+    completed: { label: 'Hoàn thành', color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' },
+    dropped: { label: 'Đã rời', color: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' },
+    transferred: { label: 'Đã chuyển', color: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400' },
 };
 
 // Status badges for invoices
 const INVOICE_STATUS = {
-    paid: { label: 'Đã TT', color: 'bg-green-100 text-green-700' },
-    partial: { label: 'TT 1 phần', color: 'bg-amber-100 text-amber-700' },
-    unpaid: { label: 'Chưa TT', color: 'bg-red-100 text-red-700' },
-    cancelled: { label: 'Đã hủy', color: 'bg-slate-100 text-slate-700' },
+    paid: { label: 'Đã TT', color: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' },
+    partial: { label: 'TT 1 phần', color: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400' },
+    unpaid: { label: 'Chưa TT', color: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' },
+    cancelled: { label: 'Đã hủy', color: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400' },
 };
 
 // Format currency
@@ -82,11 +82,11 @@ export function StudentDetailModal({
             />
 
             {/* Modal */}
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto m-4">
+            <div className="relative bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto m-4">
                 {/* Close button */}
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 transition-colors z-10"
+                    className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-gray-700 transition-colors z-10"
                 >
                     <X className="h-5 w-5" />
                 </button>
@@ -123,27 +123,27 @@ export function StudentDetailModal({
                         <div className="p-6 space-y-6">
                             {/* Contact Info */}
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50">
-                                    <Mail className="h-5 w-5 text-slate-400" />
+                                <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-gray-800">
+                                    <Mail className="h-5 w-5 text-slate-400 dark:text-gray-500" />
                                     <div>
-                                        <p className="text-xs text-slate-500">Email</p>
-                                        <p className="font-medium text-sm">{studentData.email}</p>
+                                        <p className="text-xs text-slate-500 dark:text-gray-400">Email</p>
+                                        <p className="font-medium text-sm dark:text-gray-200">{studentData.email}</p>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50">
-                                    <Phone className="h-5 w-5 text-slate-400" />
+                                <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-gray-800">
+                                    <Phone className="h-5 w-5 text-slate-400 dark:text-gray-500" />
                                     <div>
-                                        <p className="text-xs text-slate-500">Số điện thoại</p>
-                                        <p className="font-medium text-sm">{studentData.phone || 'Chưa cập nhật'}</p>
+                                        <p className="text-xs text-slate-500 dark:text-gray-400">Số điện thoại</p>
+                                        <p className="font-medium text-sm dark:text-gray-200">{studentData.phone || 'Chưa cập nhật'}</p>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50">
-                                    <Calendar className="h-5 w-5 text-slate-400" />
+                                <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-gray-800">
+                                    <Calendar className="h-5 w-5 text-slate-400 dark:text-gray-500" />
                                     <div>
-                                        <p className="text-xs text-slate-500">Ngày đăng ký</p>
-                                        <p className="font-medium text-sm">{formatDate(studentData.created_at)}</p>
+                                        <p className="text-xs text-slate-500 dark:text-gray-400">Ngày đăng ký</p>
+                                        <p className="font-medium text-sm dark:text-gray-200">{formatDate(studentData.created_at)}</p>
                                     </div>
                                 </div>
                             </div>
@@ -182,8 +182,8 @@ export function StudentDetailModal({
 
                             {/* Attendance Stats */}
                             {studentData.stats?.attendance && studentData.stats.attendance.total > 0 && (
-                                <div className="p-4 rounded-lg bg-slate-50">
-                                    <h3 className="font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                                <div className="p-4 rounded-lg bg-slate-50 dark:bg-gray-800">
+                                    <h3 className="font-semibold text-slate-700 dark:text-gray-300 mb-3 flex items-center gap-2">
                                         <TrendingUp className="h-4 w-4" />
                                         Điểm danh 30 ngày gần nhất
                                     </h3>
@@ -207,7 +207,7 @@ export function StudentDetailModal({
                             {/* Enrollments List */}
                             {studentData.enrollments && studentData.enrollments.length > 0 && (
                                 <div>
-                                    <h3 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                                    <h3 className="font-semibold text-slate-800 dark:text-gray-200 mb-3 flex items-center gap-2">
                                         <BookOpen className="h-5 w-5 text-blue-600" />
                                         Lớp học ({studentData.enrollments.length})
                                     </h3>
@@ -215,11 +215,11 @@ export function StudentDetailModal({
                                         {studentData.enrollments.map((enrollment) => (
                                             <div
                                                 key={enrollment.id}
-                                                className="flex items-center justify-between p-3 rounded-lg border bg-white hover:bg-slate-50"
+                                                className="flex items-center justify-between p-3 rounded-lg border dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-slate-50 dark:hover:bg-gray-700"
                                             >
                                                 <div>
                                                     <p className="font-medium text-sm">{enrollment.classes?.name || 'N/A'}</p>
-                                                    <p className="text-xs text-slate-500">
+                                                    <p className="text-xs text-slate-500 dark:text-gray-400">
                                                         {enrollment.classes?.courses?.title} • {enrollment.classes?.courses?.category}
                                                     </p>
                                                 </div>
@@ -236,7 +236,7 @@ export function StudentDetailModal({
                             {/* Invoices List */}
                             {studentData.invoices && studentData.invoices.length > 0 && (
                                 <div>
-                                    <h3 className="font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                                    <h3 className="font-semibold text-slate-800 dark:text-gray-200 mb-3 flex items-center gap-2">
                                         <Receipt className="h-5 w-5 text-purple-600" />
                                         Hóa đơn gần đây ({studentData.invoices.length})
                                     </h3>
@@ -244,11 +244,11 @@ export function StudentDetailModal({
                                         {studentData.invoices.map((invoice) => (
                                             <div
                                                 key={invoice.id}
-                                                className="flex items-center justify-between p-3 rounded-lg border bg-white hover:bg-slate-50"
+                                                className="flex items-center justify-between p-3 rounded-lg border dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-slate-50 dark:hover:bg-gray-700"
                                             >
                                                 <div>
                                                     <p className="font-medium text-sm">{invoice.invoice_code}</p>
-                                                    <p className="text-xs text-slate-500">
+                                                    <p className="text-xs text-slate-500 dark:text-gray-400">
                                                         {formatDate(invoice.created_at)}
                                                     </p>
                                                 </div>
@@ -270,7 +270,7 @@ export function StudentDetailModal({
                             {/* Empty State */}
                             {(!studentData.enrollments || studentData.enrollments.length === 0) &&
                                 (!studentData.invoices || studentData.invoices.length === 0) && (
-                                    <div className="text-center py-8 text-slate-500">
+                                    <div className="text-center py-8 text-slate-500 dark:text-gray-400">
                                         <BookOpen className="h-12 w-12 mx-auto mb-2 opacity-30" />
                                         <p>Học viên chưa đăng ký lớp nào</p>
                                     </div>
@@ -278,13 +278,13 @@ export function StudentDetailModal({
                         </div>
 
                         {/* Footer */}
-                        <div className="px-6 py-4 bg-slate-50 border-t flex justify-end">
+                        <div className="px-6 py-4 bg-slate-50 dark:bg-gray-800 border-t dark:border-gray-700 flex justify-end">
                             <Button variant="outline" onClick={onClose}>
                                 Đóng
                             </Button>
                             {session?.user?.email?.includes('admin') && (
                                 <Button
-                                    className="ml-2 bg-white border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+                                    className="ml-2 bg-white dark:bg-gray-800 border-indigo-200 dark:border-indigo-700 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
                                     variant="outline"
                                     onClick={() => setTransferModal({ isOpen: true, submitting: false })}
                                 >
@@ -304,7 +304,7 @@ export function StudentDetailModal({
                         />
                     </>
                 ) : (
-                    <div className="p-8 text-center text-slate-500">
+                    <div className="p-8 text-center text-slate-500 dark:text-gray-400">
                         Không tìm thấy thông tin học viên
                     </div>
                 )}
@@ -317,11 +317,11 @@ export function StudentDetailModal({
 // Sub-component: StatBox
 function StatBox({ icon: Icon, label, value, color = 'blue', small = false }) {
     const colors = {
-        blue: 'bg-blue-50 text-blue-700 border-blue-200',
-        emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-        green: 'bg-green-50 text-green-700 border-green-200',
-        red: 'bg-red-50 text-red-700 border-red-200',
-        slate: 'bg-slate-50 text-slate-700 border-slate-200',
+        blue: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800',
+        emerald: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
+        green: 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800',
+        red: 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800',
+        slate: 'bg-slate-50 dark:bg-gray-800 text-slate-700 dark:text-gray-400 border-slate-200 dark:border-gray-700',
     };
 
     return (

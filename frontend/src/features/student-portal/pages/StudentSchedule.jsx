@@ -86,10 +86,10 @@ const COURSE_COLORS = [
 ];
 
 const STATUS_CONFIG = {
-  scheduled: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Sắp tới' },
-  completed: { bg: 'bg-green-100', text: 'text-green-700', label: 'Đã học' },
-  cancelled: { bg: 'bg-red-100', text: 'text-red-700', label: 'Đã hủy' },
-  in_progress: { bg: 'bg-amber-100', text: 'text-amber-700', label: 'Đang học' }
+  scheduled: { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-400', label: 'Sắp tới' },
+  completed: { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-400', label: 'Đã học' },
+  cancelled: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400', label: 'Đã hủy' },
+  in_progress: { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-400', label: 'Đang học' }
 };
 
 // ============ NOTIFICATION UTILITY ============
@@ -284,7 +284,7 @@ const CountdownBadge = ({ targetDateTime }) => {
   };
   
   return (
-    <div className="flex items-center gap-1 text-[10px] font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full animate-pulse">
+    <div className="flex items-center gap-1 text-[10px] font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-full animate-pulse">
       <Timer className="h-3 w-3" />
       {formatCountdown()}
     </div>
@@ -330,7 +330,7 @@ const ScheduleEvent = ({ event, onClick, isCompact = false }) => {
           </div>
           
           <div className="flex items-center gap-2 mt-2 flex-wrap">
-             <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 h-5 bg-white/50 border-0', status.text)}>
+             <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 h-5 bg-background/50 border-0', status.text)}>
                 {status.label}
              </Badge>
              {isUpcoming && <CountdownBadge targetDateTime={eventDateTime} />}
@@ -368,7 +368,7 @@ const ClassDetailModal = ({ isOpen, onClose, event }) => {
               <h3 className={cn('font-semibold text-lg', colorScheme.text)}>
                 {event.className}
               </h3>
-              <span className={cn('text-xs px-2 py-1 rounded-full bg-white/80 font-medium', status.text)}>
+              <span className={cn('text-xs px-2 py-1 rounded-full bg-background/80 font-medium', status.text)}>
                 {status.label}
               </span>
             </div>
@@ -792,14 +792,14 @@ export function StudentSchedule() {
       {/* Views - Swipeable */}
       <div 
         {...swipeHandlers}
-        className="bg-white rounded-xl border border-border overflow-hidden shadow-sm touch-pan-y"
+        className="bg-card rounded-xl border border-border overflow-hidden shadow-sm touch-pan-y"
       >
-        <div className="sm:hidden text-center text-xs text-muted-foreground py-1 bg-slate-50 border-b border-border">
+        <div className="sm:hidden text-center text-xs text-muted-foreground py-1 bg-muted border-b border-border">
         </div>
         
         {/* Header Grid */}
         <div className={cn(
-          "grid grid-cols-7 border-b border-border bg-slate-50",
+          "grid grid-cols-7 border-b border-border bg-muted",
         )}>
           {DAYS_OF_WEEK.map((day) => (
             <div key={day.value} className="p-3 text-center border-r border-border last:border-r-0">
@@ -810,7 +810,7 @@ export function StudentSchedule() {
         </div>
 
         {error && (
-          <div className="mx-4 mt-4 rounded-xl border border-red-200 bg-red-50 p-4" role="alert" aria-live="assertive">
+          <div className="mx-4 mt-4 rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-900/10 p-4" role="alert" aria-live="assertive">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
@@ -827,8 +827,8 @@ export function StudentSchedule() {
         )}
 
         {!error && !loading && sessions.length === 0 && (
-          <div className="mx-4 mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4" role="status" aria-live="polite">
-            <p className="font-semibold text-amber-700">Chưa có buổi học phù hợp</p>
+          <div className="mx-4 mt-4 rounded-xl border border-amber-200 dark:border-amber-900/50 bg-amber-50 dark:bg-amber-900/10 p-4" role="status" aria-live="polite">
+            <p className="font-semibold text-amber-700 dark:text-amber-500">Chưa có buổi học phù hợp</p>
             <p className="text-sm text-amber-600 mt-1">
               {getEmptyScheduleMessage({ classFilter, selectedClassName: selectedClass?.name })}
             </p>
@@ -954,7 +954,7 @@ export function StudentSchedule() {
       </div>
       
       {/* Legend */}
-      <div className="flex flex-wrap items-center gap-4 text-sm p-4 bg-slate-50 rounded-lg">
+      <div className="flex flex-wrap items-center gap-4 text-sm p-4 bg-muted rounded-lg">
         <span className="font-medium text-foreground">Trạng thái:</span>
         {Object.entries(STATUS_CONFIG).map(([key, config]) => (
           <div key={key} className="flex items-center gap-2">

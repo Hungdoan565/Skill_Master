@@ -32,12 +32,12 @@ export function SimpleModal({ isOpen, onClose, title, children }) {
       onClick={(e) => e.target === overlayRef.current && onClose()}
     >
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-      <div className="relative w-full max-w-md transform rounded-xl bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-md transform rounded-xl bg-white dark:bg-gray-900 p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-gray-100">{title}</h2>
           <button 
             onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+            className="rounded-lg p-1.5 text-slate-400 dark:text-gray-500 transition-colors hover:bg-slate-100 dark:hover:bg-gray-700 hover:text-slate-600 dark:hover:text-gray-300"
           >
             <X className="h-5 w-5" />
           </button>

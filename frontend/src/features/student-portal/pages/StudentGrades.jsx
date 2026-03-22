@@ -137,7 +137,7 @@ function SortableHeader({ label, sortKey, currentSort, onSort, className }) {
   return (
     <th
       className={cn(
-        'px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-slate-50 transition-colors select-none',
+        'px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted/50 transition-colors select-none',
         className
       )}
       onClick={() => onSort(sortKey)}
@@ -155,7 +155,7 @@ function GradeRow({ grade }) {
   const scoreBg = getScoreBgColor(grade.score);
 
   return (
-    <tr className="hover:bg-slate-50 transition-colors">
+    <tr className="hover:bg-muted/50 transition-colors">
       <td className="px-3 py-3">
         <div className="flex items-center gap-2">
           <div className="p-1.5 rounded-md bg-blue-500/10">
@@ -566,7 +566,7 @@ export function StudentGrades() {
                 placeholder="Tìm theo lớp, môn học, loại điểm..."
                 value={searchTerm}
                 onChange={(event) => { setSearchTerm(event.target.value); setCurrentPage(1); }}
-                className="w-full pl-9 pr-4 py-2 text-sm border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                className="w-full pl-9 pr-4 py-2 text-sm border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
             </div>
 

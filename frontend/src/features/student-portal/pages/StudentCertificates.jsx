@@ -55,7 +55,7 @@ function CertificateCard({ certificate, onClick }) {
   return (
     <Card
       className={cn(
-        'hover:shadow-md transition-all bg-white rounded-2xl min-h-[220px] flex flex-col border-border cursor-pointer',
+        'hover:shadow-md transition-all bg-card rounded-2xl min-h-[220px] flex flex-col border-border cursor-pointer',
         isPending && 'opacity-75 border-amber-500/30'
       )}
       onClick={() => onClick?.(certificate)}
@@ -191,7 +191,7 @@ export function StudentCertificates() {
           ))}
         </div>
       ) : (
-        <Card className="bg-white rounded-2xl border-border">
+        <Card className="bg-card rounded-2xl border-border">
           <CardContent className="p-0">
             <EmptyState />
           </CardContent>

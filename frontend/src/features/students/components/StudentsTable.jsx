@@ -45,7 +45,7 @@ export function StudentsTable({
             avatarUrl={student.avatar_url}
           />
           <div>
-            <p className="font-medium text-slate-900">
+            <p className="font-medium text-slate-900 dark:text-gray-100">
               {student.full_name || 'Chưa cập nhật'}
             </p>
             <p className="text-xs text-muted-foreground">
@@ -61,13 +61,13 @@ export function StudentsTable({
       sortable: true,
       render: (_, student) => (
         <div className="space-y-1">
-          <div className="flex items-center gap-1.5 text-sm text-slate-600">
-            <Mail className="h-3.5 w-3.5 text-slate-400" />
+          <div className="flex items-center gap-1.5 text-sm text-slate-600 dark:text-gray-400">
+            <Mail className="h-3.5 w-3.5 text-slate-400 dark:text-gray-500" />
             {student.email}
           </div>
           {student.phone && (
-            <div className="flex items-center gap-1.5 text-sm text-slate-600">
-              <Phone className="h-3.5 w-3.5 text-slate-400" />
+            <div className="flex items-center gap-1.5 text-sm text-slate-600 dark:text-gray-400">
+              <Phone className="h-3.5 w-3.5 text-slate-400 dark:text-gray-500" />
               {student.phone}
             </div>
           )}
@@ -108,21 +108,21 @@ export function StudentsTable({
         <div className="flex items-center justify-end gap-1">
           <button
             onClick={(e) => { e.stopPropagation(); onViewDetails(student); }}
-            className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            className="p-2 rounded-lg text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200 hover:bg-slate-100 dark:hover:bg-gray-700 transition-colors"
             title="Xem chi tiết"
           >
             <Eye className="h-4 w-4" />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onEdit(student); }}
-            className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            className="p-2 rounded-lg text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200 hover:bg-slate-100 dark:hover:bg-gray-700 transition-colors"
             title="Chỉnh sửa"
           >
             <Edit className="h-4 w-4" />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onPromote(student); }}
-            className="p-2 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+            className="p-2 rounded-lg text-slate-500 dark:text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
             title="Nâng cấp vai trò"
           >
             <UserCog className="h-4 w-4" />
@@ -133,7 +133,7 @@ export function StudentsTable({
             student.status === 'suspended' ? (
               <button
                 onClick={(e) => { e.stopPropagation(); onUnlockUser?.(student.id); }}
-                className="p-2 rounded-lg text-green-600 hover:text-green-700 hover:bg-green-50 transition-colors"
+                className="p-2 rounded-lg text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
                 title="Mở khóa tài khoản"
               >
                 <Unlock className="h-4 w-4" />
@@ -141,7 +141,7 @@ export function StudentsTable({
             ) : (
               <button
                 onClick={(e) => { e.stopPropagation(); onLockUser?.(student.id); }}
-                className="p-2 rounded-lg text-red-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                className="p-2 rounded-lg text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                 title="Khóa tài khoản"
               >
                 <Lock className="h-4 w-4" />
@@ -153,7 +153,7 @@ export function StudentsTable({
           {isSuperAdmin && (
             <button
               onClick={(e) => { e.stopPropagation(); onResetPassword?.(student.id); }}
-              className="p-2 rounded-lg text-amber-500 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+              className="p-2 rounded-lg text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
               title="Đặt lại mật khẩu"
             >
               <KeyRound className="h-4 w-4" />

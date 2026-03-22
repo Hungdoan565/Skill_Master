@@ -74,12 +74,12 @@ export function StudentTransferModal({
         >
             <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Current Info */}
-                <div className="p-3 bg-indigo-50 rounded-lg border border-indigo-100 flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-white flex items-center justify-center text-indigo-600 font-bold border border-indigo-200 shadow-sm">
+                <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800 flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-white dark:bg-gray-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold border border-indigo-200 dark:border-indigo-700 shadow-sm">
                         {student.full_name?.charAt(0)}
                     </div>
                     <div>
-                        <p className="text-sm font-semibold text-slate-900">{student.full_name}</p>
+                        <p className="text-sm font-semibold text-slate-900 dark:text-gray-100">{student.full_name}</p>
                         <p className="text-xs text-indigo-600 flex items-center gap-1">
                             <Building2 className="h-3 w-3" />
                             {currentCenter}
@@ -104,7 +104,7 @@ export function StudentTransferModal({
                 </div>
 
                 {/* Enrollment Option */}
-                <div className="space-y-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="space-y-3 p-4 bg-slate-50 dark:bg-gray-800 rounded-xl border border-slate-200 dark:border-gray-700">
                     <div className="flex items-center justify-between">
                         <Label className="font-medium cursor-pointer" htmlFor="transfer_enroll">Chuyển các lớp học hiện tại</Label>
                         <input
@@ -115,7 +115,7 @@ export function StudentTransferModal({
                             onChange={(e) => handleChange('transfer_enrollments', e.target.checked)}
                         />
                     </div>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-slate-500 dark:text-gray-400">
                         {formData.transfer_enrollments
                             ? "✅ Các đăng ký lớp học đang active sẽ được chuyển (giữ nguyên lớp cũ)."
                             : "⚠️ Các lớp học hiện tại sẽ bị hủy (Status: Cancelled)."}
@@ -126,7 +126,7 @@ export function StudentTransferModal({
                 <div className="space-y-2">
                     <Label className="text-sm font-semibold">Ghi chú lý do</Label>
                     <textarea
-                        className="w-full min-h-[80px] rounded-lg border border-slate-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full min-h-[80px] rounded-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 text-sm dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         placeholder="Ví dụ: Học viên chuyển chỗ ở, yêu cầu chuyển chi nhánh gần nhà..."
                         value={formData.notes}
                         onChange={(e) => handleChange('notes', e.target.value)}
@@ -134,7 +134,7 @@ export function StudentTransferModal({
                 </div>
 
                 {/* Warning */}
-                <div className="flex gap-2 p-3 bg-amber-50 rounded-lg text-amber-700">
+                <div className="flex gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg text-amber-700 dark:text-amber-400">
                     <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
                     <p className="text-xs">
                         Hành động này sẽ thay đổi chi nhánh quản lý của học viên. Quyền truy cập dữ liệu của nhân viên chi nhánh cũ sẽ bị giới hạn.
@@ -142,7 +142,7 @@ export function StudentTransferModal({
                 </div>
 
                 {/* Buttons */}
-                <div className="flex justify-end gap-2 pt-4 border-t">
+                <div className="flex justify-end gap-2 pt-4 border-t dark:border-gray-700">
                     <Button type="button" variant="outline" onClick={onClose} className="rounded-xl">
                         Hủy
                     </Button>

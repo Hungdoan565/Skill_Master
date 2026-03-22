@@ -108,7 +108,7 @@ function InvoiceItem({ invoice, onClick }) {
   return (
     <div
       onClick={() => onClick(invoice)}
-      className="flex items-center justify-between p-4 rounded-lg bg-white hover:bg-slate-50 transition-colors border border-border cursor-pointer"
+      className="flex items-center justify-between p-4 rounded-lg bg-card hover:bg-muted/50 transition-colors border border-border cursor-pointer"
     >
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <div className={cn(
@@ -180,13 +180,14 @@ function InvoiceDetailModal({ invoice, open, onClose, onPay }) {
               <p className="text-sm font-medium opacity-90">Hóa đơn</p>
               <p className="text-lg font-bold mt-0.5">{invoice.invoice_code || `HD-${invoice.id}`}</p>
             </div>
-            <div className="flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1.5">
+            <div className="flex items-center gap-2 bg-background/20 backdrop-blur-sm rounded-full px-3 py-1.5">
               <StatusIcon className="h-4 w-4" />
               <span className="text-sm font-semibold">{statusConfig.label}</span>
             </div>
           </div>
         </div>
 
+        {/* Body */}
         <div className="px-6 py-5 space-y-5">
           {/* Description */}
           <div>
@@ -195,7 +196,7 @@ function InvoiceDetailModal({ invoice, open, onClose, onPay }) {
           </div>
 
           {/* Financial Breakdown */}
-          <div className="bg-slate-50 rounded-xl p-4 space-y-3">
+          <div className="bg-muted/50 rounded-xl p-4 space-y-3">
             <div className="flex justify-between items-center text-sm">
               <span className="text-muted-foreground">Tổng tiền</span>
               <span className="font-semibold text-lg">{formatCurrency(total)}</span>
@@ -212,7 +213,7 @@ function InvoiceDetailModal({ invoice, open, onClose, onPay }) {
                     <span>Tiến độ thanh toán</span>
                     <span className="font-medium">{paidPercent}%</span>
                   </div>
-                  <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
                     <div
                       className="h-full bg-emerald-500 rounded-full transition-all duration-500"
                       style={{ width: `${paidPercent}%` }}
@@ -222,7 +223,7 @@ function InvoiceDetailModal({ invoice, open, onClose, onPay }) {
               </>
             )}
             {invoice.status !== 'paid' && remaining > 0 && (
-              <div className="flex justify-between items-center text-sm pt-2 border-t border-slate-200">
+              <div className="flex justify-between items-center text-sm pt-2 border-t border-border">
                 <span className="text-muted-foreground font-medium">Còn lại</span>
                 <span className="font-bold text-rose-600">{formatCurrency(remaining)}</span>
               </div>
@@ -245,9 +246,9 @@ function InvoiceDetailModal({ invoice, open, onClose, onPay }) {
 
           {/* Notes */}
           {invoice.notes && (
-            <div className="border-t border-slate-100 pt-4">
+            <div className="border-t border-border pt-4">
               <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Ghi chú</p>
-              <p className="text-sm text-slate-600">{invoice.notes}</p>
+              <p className="text-sm text-muted-foreground">{invoice.notes}</p>
             </div>
           )}
 

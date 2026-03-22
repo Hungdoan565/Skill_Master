@@ -271,7 +271,7 @@ export default function StudentSupportPage() {
 
       {/* Ticket List */}
       {tickets.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground bg-white rounded-2xl border border-border shadow-sm">
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground bg-card rounded-2xl border border-border shadow-sm">
           <div className="h-20 w-20 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4">
             <HeadphonesIcon className="h-10 w-10 text-emerald-600 dark:text-emerald-400" />
           </div>
@@ -288,7 +288,7 @@ export default function StudentSupportPage() {
             const priorityConfig = PRIORITY_MAP[ticket.priority] || PRIORITY_MAP.medium;
 
             return (
-              <Card key={ticket.id} className={cn("hover:shadow-md transition-shadow group overflow-hidden border-l-4 rounded-2xl bg-white border-y-border border-r-border", statusConfig.border)}>
+              <Card key={ticket.id} className={cn("hover:shadow-md transition-shadow group overflow-hidden border-l-4 rounded-2xl bg-card border-y-border border-r-border", statusConfig.border)}>
                 <CardContent className="p-5">
                   <div className="flex justify-between items-start mb-3">
                     <span className="font-mono text-xs font-semibold text-muted-foreground bg-muted px-2 py-1 rounded">
@@ -305,7 +305,7 @@ export default function StudentSupportPage() {
 
                   <div className="mb-3 flex flex-wrap items-center gap-2">
                     {ticket.is_consultation_follow_up ? (
-                      <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
+                      <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
                         Theo dõi sau tư vấn
                       </Badge>
                     ) : null}
@@ -363,7 +363,7 @@ export default function StudentSupportPage() {
                     </Badge>
                   ) : null}
                   {selectedTicket?.is_consultation_follow_up ? (
-                    <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
+                    <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
                       Theo dõi sau tư vấn
                     </Badge>
                   ) : null}
@@ -394,7 +394,7 @@ export default function StudentSupportPage() {
                             'max-w-[85%] rounded-2xl px-3 py-2 text-sm',
                             isMine
                               ? 'bg-emerald-600 text-white'
-                              : 'bg-white border border-border text-slate-800'
+                              : 'bg-card border border-border text-foreground'
                           )}
                         >
                           <p className={cn('font-medium text-xs mb-1', isMine ? 'text-emerald-50' : 'text-muted-foreground')}>

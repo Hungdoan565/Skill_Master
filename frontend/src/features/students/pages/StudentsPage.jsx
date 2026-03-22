@@ -379,20 +379,20 @@ export function StudentsPage() {
             </Button>
           </Link>
 
-          <Button size="sm" variant="outline" className="bg-white" onClick={() => setShowImportModal(true)}>
+          <Button size="sm" variant="outline" className="bg-white dark:bg-gray-800" onClick={() => setShowImportModal(true)}>
             <Upload className="mr-2 h-4 w-4" /> Import
           </Button>
 
-          <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-2">
-            <GraduationCap className="h-5 w-5 text-green-600" />
-            <span className="text-sm font-medium text-green-700">
+          <div className="flex items-center gap-2 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 px-4 py-2">
+            <GraduationCap className="h-5 w-5 text-green-600 dark:text-green-400" />
+            <span className="text-sm font-medium text-green-700 dark:text-green-300">
               {viewMode === 'list' ? pagination.total : rosterStudents.length} học viên
             </span>
           </div>
         </div>
       </div>
 
-      <Card className="bg-white border-slate-200 shadow-sm">
+      <Card className="bg-white dark:bg-gray-800/50 border-slate-200 dark:border-gray-700 shadow-sm">
         <CardHeader className="pb-3">
           <StudentFilters
             searchTerm={searchTerm}
@@ -452,7 +452,7 @@ export function StudentsPage() {
               />
 
               {error && (
-                <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                <div className="mt-4 rounded-xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/20 px-4 py-3 text-sm text-rose-700 dark:text-rose-300">
                   {error}
                 </div>
               )}

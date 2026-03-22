@@ -50,43 +50,43 @@ import { cn } from '@/lib/utils';
 const STATUS_STYLES = {
   present: {
     label: 'Có mặt',
-    badge: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    badge: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
     dot: 'bg-emerald-500',
     icon: Check,
     iconClass: 'text-white',
   },
   absent: {
     label: 'Vắng mặt',
-    badge: 'bg-rose-100 text-rose-700 border-rose-200',
+    badge: 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-800',
     dot: 'bg-rose-500',
     icon: X,
     iconClass: 'text-white',
   },
   late: {
     label: 'Đi trễ',
-    badge: 'bg-amber-100 text-amber-700 border-amber-200',
+    badge: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800',
     dot: 'bg-amber-500',
     icon: Clock,
     iconClass: 'text-white',
   },
   excused: {
     label: 'Có phép',
-    badge: 'bg-blue-100 text-blue-700 border-blue-200',
+    badge: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800',
     dot: 'bg-blue-500',
     icon: Minus,
     iconClass: 'text-white',
   },
   none: {
     label: 'Không học',
-    badge: 'bg-slate-100 text-slate-600 border-slate-200',
-    dot: 'bg-slate-200',
+    badge: 'bg-muted text-muted-foreground border-border',
+    dot: 'bg-muted',
     icon: null,
     iconClass: '',
   },
   future: {
     label: 'Tương lai',
-    badge: 'bg-slate-100 text-slate-500 border-slate-200',
-    dot: 'bg-transparent border border-dashed border-slate-300',
+    badge: 'bg-muted text-muted-foreground border-border',
+    dot: 'bg-transparent border border-dashed border-border',
     icon: null,
     iconClass: '',
   },
@@ -126,14 +126,14 @@ function CountUpValue({ value }) {
 
 function StatCard({ title, value, color = 'default', icon: Icon, children }) {
   const colorMap = {
-    default: 'bg-slate-50 text-slate-700 border-slate-200',
-    success: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    danger: 'bg-rose-50 text-rose-700 border-rose-200',
-    warning: 'bg-amber-50 text-amber-700 border-amber-200',
+    default: 'bg-muted text-foreground border-border',
+    success: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/50',
+    danger: 'bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-900/50',
+    warning: 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900/50',
   };
 
   return (
-    <Card className="shadow-sm border-slate-200 overflow-hidden">
+    <Card className="shadow-sm border-border overflow-hidden">
       <CardContent className="p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -168,7 +168,7 @@ function ClassSummaryChip({ summary, isActive, onClick }) {
       onClick={onClick}
       className={cn(
         'px-3 py-2 rounded-lg border text-left transition-all min-w-[180px] shrink-0',
-        isActive ? 'bg-primary/10 border-primary/30 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50'
+        isActive ? 'bg-primary/10 border-primary/30 shadow-sm' : 'bg-card border-border hover:bg-muted/50'
       )}
     >
       <p className="font-medium text-sm truncate">{summary.className}</p>
@@ -205,7 +205,7 @@ function AttendanceHeatmap({ records, rangeStart, rangeEnd, statusFocus, onStatu
   const weekdayLabels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
   return (
-    <Card className="shadow-sm border-slate-200">
+    <Card className="shadow-sm border-border">
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -245,13 +245,13 @@ function AttendanceHeatmap({ records, rangeStart, rangeEnd, statusFocus, onStatu
                   <div
                     className={cn(
                       'relative rounded-lg p-1 h-10 transition-all cursor-default group',
-                      isInRequestedRange ? 'bg-white' : 'bg-slate-50/60',
+                      isInRequestedRange ? 'bg-card' : 'bg-muted/60',
                       isDimmed ? 'opacity-35' : 'opacity-100',
                       dayRecords.length > 0 && 'cursor-pointer hover:scale-105 motion-reduce:hover:scale-100'
                     )}
                     style={{ transition: 'transform 150ms ease, opacity 200ms ease' }}
                   >
-                    <div className="relative z-10 text-[10px] leading-none text-slate-400 font-medium">
+                    <div className="relative z-10 text-[10px] leading-none text-muted-foreground font-medium">
                       {format(day, 'd')}
                     </div>
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -282,15 +282,15 @@ function AttendanceHeatmap({ records, rangeStart, rangeEnd, statusFocus, onStatu
         </div>
 
         {/* Legend — lighter chips */}
-        <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center gap-1.5">
+        <div className="pt-3 border-t border-border flex flex-wrap items-center gap-1.5">
           <button
             type="button"
             onClick={() => onStatusFocusChange('all')}
             className={cn(
               'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
               statusFocus === 'all'
-                ? 'bg-slate-900 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted text-muted-foreground hover:bg-muted/80'
             )}
           >
             Tất cả ({records.length})
@@ -306,8 +306,8 @@ function AttendanceHeatmap({ records, rangeStart, rangeEnd, statusFocus, onStatu
                 className={cn(
                   'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors',
                   statusFocus === statusKey
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
                 )}
               >
                 <span className={cn('h-2 w-2 rounded-full', config.dot)} />
@@ -335,7 +335,7 @@ function HistoryTable({ records, hasActiveFilters, onResetFilters }) {
 
   if (records.length === 0) {
     return (
-      <Card className="shadow-sm border-slate-200">
+      <Card className="shadow-sm border-border">
         <CardContent className="py-10 text-center space-y-3">
           <p className="font-medium">Không tìm thấy dữ liệu điểm danh</p>
           <p className="text-sm text-muted-foreground">
@@ -355,25 +355,25 @@ function HistoryTable({ records, hasActiveFilters, onResetFilters }) {
   }
 
   return (
-    <Card className="shadow-sm border-slate-200">
+    <Card className="shadow-sm border-border">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg">Lịch sử điểm danh</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px]">
-            <thead className="bg-slate-50 border-y border-slate-200">
+            <thead className="bg-muted/50 border-y border-border">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Ngày</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Lớp học</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Trạng thái</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Giờ vào</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Ghi chú</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Ngày</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Lớp học</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Trạng thái</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Giờ vào</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Ghi chú</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-border">
               {pagination.items.map((record) => (
-                <tr key={record.id} className="hover:bg-slate-50 transition-colors">
+                <tr key={record.id} className="hover:bg-muted/50 transition-colors">
                   <td className="px-4 py-3 text-sm font-medium">{formatDate(record.session_date)}</td>
                   <td className="px-4 py-3 text-sm">
                     <p className="font-medium">{record.class_name}</p>
@@ -390,7 +390,7 @@ function HistoryTable({ records, hasActiveFilters, onResetFilters }) {
           </table>
         </div>
 
-        <div className="px-4 py-3 border-t border-slate-200 bg-slate-50/70 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-sm text-muted-foreground">
+        <div className="px-4 py-3 border-t border-border bg-muted/50 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-sm text-muted-foreground">
           <div>
             Hiển thị {pagination.startItem}-{pagination.endItem} / {pagination.totalItems} bản ghi
           </div>
@@ -499,7 +499,7 @@ function AttendanceSkeleton() {
             <Skeleton className="h-5 w-36 mb-4" />
           </div>
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="px-4 py-3 border-t border-slate-100 flex gap-4">
+            <div key={i} className="px-4 py-3 border-t border-border flex gap-4">
               <Skeleton className="h-4 w-24" />
               <Skeleton className="h-4 w-40" />
               <Skeleton className="h-4 w-20" />
@@ -555,11 +555,11 @@ export function StudentAttendance() {
   if (error) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center px-4">
-        <Card className="w-full max-w-lg border-rose-200 bg-rose-50/70">
+        <Card className="w-full max-w-lg border-rose-200 dark:border-rose-900/50 bg-rose-50/70 dark:bg-rose-900/20">
           <CardContent className="p-6 text-center">
-            <AlertCircle className="h-10 w-10 mx-auto text-rose-600 mb-3" />
-            <h2 className="text-lg font-semibold text-rose-700 mb-2">Không thể tải điểm danh</h2>
-            <p className="text-sm text-rose-600 mb-4">{error}</p>
+            <AlertCircle className="h-10 w-10 mx-auto text-rose-600 dark:text-rose-400 mb-3" />
+            <h2 className="text-lg font-semibold text-rose-700 dark:text-rose-400 mb-2">Không thể tải điểm danh</h2>
+            <p className="text-sm text-rose-600 dark:text-rose-500 mb-4">{error}</p>
             <Button onClick={refresh} variant="destructive">
               <RefreshCw className="h-4 w-4 mr-2" />
               Thử lại
@@ -657,7 +657,7 @@ export function StudentAttendance() {
       </div>
 
       {/* Trend sparkline */}
-      <Card className="shadow-sm border-slate-200">
+      <Card className="shadow-sm border-border">
         <CardContent className="p-4">
           <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Xu hướng chuyên cần theo tuần</p>
           <TrendSparkline data={weeklyRates} height={60} />
