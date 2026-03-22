@@ -1,21 +1,109 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { ConsultationModal } from '@/components/common';
 import { ArrowRight, Play, CheckCircle2, TrendingUp, Shield, Award, Star, Calendar, Quote } from 'lucide-react';
 import { useInView } from '../hooks/use-in-view';
 import { heroCourseCard, teachers, testimonials } from '../constants/landing-data';
 
+const CATEGORIES = [
+    {
+        id: 'ielts',
+        label: 'IELTS',
+        theme: {
+            badge: 'bg-red-50 text-red-600 border-red-100 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800/50',
+            iconBadge: 'bg-red-50 text-red-500 dark:bg-red-950/80 dark:text-red-300',
+            progress: 'from-red-500 to-orange-400'
+        },
+        course: {
+            ...heroCourseCard,
+            subtitle: 'Tiếng Anh học thuật',
+            targetPrefix: 'Mục tiêu: IELTS ',
+        },
+        teacher: teachers[0],
+        testimonial: testimonials[0]
+    },
+    {
+        id: 'mos',
+        label: 'Tin học/MOS',
+        theme: {
+            badge: 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800/50',
+            iconBadge: 'bg-emerald-50 text-emerald-500 dark:bg-emerald-950/80 dark:text-emerald-300',
+            progress: 'from-emerald-500 to-teal-400'
+        },
+        course: {
+            courseName: 'MOS Master',
+            subtitle: 'Chứng chỉ tin học quốc tế',
+            progress: 85,
+            targetScore: '1000',
+            targetPrefix: 'Mục tiêu: Điểm ',
+            totalLessons: 12,
+            completedLessons: 10,
+            weeklyImprovement: '+200 pts',
+            classRank: 'Top 5%',
+            nextClass: { day: 'Thứ 4', time: '18:00', topic: 'Excel Data Analysis' },
+            recentActivities: [
+                { type: 'assignment', title: 'Pivot Table Practice', score: '100%', time: 'Hôm qua' },
+                { type: 'quiz', title: 'Hàm VLOOKUP', score: '10/10', time: '3 ngày trước' },
+            ]
+        },
+        teacher: teachers[2],
+        testimonial: testimonials[1]
+    },
+    {
+        id: 'comm',
+        label: 'Giao tiếp',
+        theme: {
+            badge: 'bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800/50',
+            iconBadge: 'bg-blue-50 text-blue-500 dark:bg-blue-950/80 dark:text-blue-300',
+            progress: 'from-blue-500 to-cyan-400'
+        },
+        course: {
+            courseName: 'Business Comm',
+            subtitle: 'Tiếng Anh Doanh nghiệp',
+            progress: 55,
+            targetScore: 'B2',
+            targetPrefix: 'Mục tiêu: Cấp độ ',
+            totalLessons: 36,
+            completedLessons: 16,
+            weeklyImprovement: '+Trôi chảy',
+            classRank: 'Tiến bộ nhất',
+            nextClass: { day: 'Thứ 6', time: '19:30', topic: 'Negotiation Skills' },
+            recentActivities: [
+                { type: 'assignment', title: 'Video Roleplay', score: 'Pass', time: 'Hôm qua' },
+                { type: 'quiz', title: 'Business Emails', score: '18/20', time: 'Tuần trước' },
+            ]
+        },
+        teacher: teachers[3],
+        testimonial: testimonials[8]
+    }
+];
+
 /**
- * Hero Section — Revenue-focused, LIGHT background (original style)
- * Primary CTA → ConsultationModal (lead capture)
- * Shows real product screenshot + floating trust elements
+ * Hero Section — Category Studio Canvas
+ * Features multiple domains with auto-rotation, explicit data mapping, and accessible tabs.
  */
 export const HeroSection = () => {
     const [ref, isInView] = useInView();
     const [showConsultation, setShowConsultation] = useState(false);
-    const featuredTeacher = teachers.find((teacher) => teacher.name === heroCourseCard.instructor.name) ?? teachers[0];
-    const featuredTestimonial = testimonials.find((testimonial) => testimonial.featured) ?? testimonials[0];
-    const progressWidth = `${Math.min(Math.max(heroCourseCard.progress, 0), 100)}%`;
+    
+    // Auto-rotate logic for Category Studio
+    const [activeIndex, setActiveIndex] = useState(0);
+    const [isHovered, setIsHovered] = useState(false);
+    const [isFocused, setIsFocused] = useState(false);
+    const [hasInteracted, setHasInteracted] = useState(false);
+    const shouldReduceMotion = useReducedMotion();
 
+    useEffect(() => {
+        if (isHovered || isFocused || hasInteracted || shouldReduceMotion) return;
+        const timer = setInterval(() => {
+            setActiveIndex((prev) => (prev + 1) % CATEGORIES.length);
+        }, 5000);
+        return () => clearInterval(timer);
+    }, [isHovered, isFocused, hasInteracted, shouldReduceMotion]);
+    const activeCategory = CATEGORIES[activeIndex];
+    const activeCourse = activeCategory.course;
+    const activeTeacher = activeCategory.teacher;
+    const activeTestimonial = activeCategory.testimonial;
     return (
         <>
             <section
@@ -47,15 +135,15 @@ export const HeroSection = () => {
                         {/* Left Content */}
                         <div className="lg:col-span-7 space-y-8">
                             {/* Badge */}
-                            <div className={`inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur
-                            border border-border rounded-full shadow-sm
+                            <div className={`inline-flex items-center gap-2 px-4 py-2 bg-white/80 dark:bg-red-500/10 backdrop-blur
+                            border border-border dark:border-red-500/20 rounded-full shadow-sm
                             transform transition-all duration-700 delay-100
                             ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
                                 <span className="flex h-2 w-2" aria-hidden="true">
-                                    <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-red-400 opacity-75" />
+                                    <span className="motion-safe:animate-ping absolute inline-flex h-2 w-2 rounded-full bg-red-400 opacity-75" />
                                     <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600" />
                                 </span>
-                                <span className="text-xs font-medium text-muted-foreground tracking-wide uppercase">
+                                <span className="text-xs font-medium text-muted-foreground dark:text-red-300 tracking-wide uppercase">
                                     Khai giảng tháng 4 — Còn 8 suất
                                 </span>
                             </div>
@@ -112,8 +200,8 @@ export const HeroSection = () => {
                                 >
                                     <span className="flex items-center justify-center w-12 h-12 rounded-full 
                                 bg-card border border-border shadow-sm
-                                group-hover:shadow-md group-hover:border-red-200 
-                                group-hover:bg-red-50 transition-all duration-300">
+                                group-hover:shadow-md group-hover:border-red-200 dark:group-hover:border-red-800/50
+                                group-hover:bg-red-50 dark:group-hover:bg-red-900/30 transition-all duration-300">
                                         <Play className="w-5 h-5 text-foreground/90 group-hover:text-red-600 ml-0.5"
                                             fill="currentColor" aria-hidden="true" />
                                     </span>
@@ -155,147 +243,201 @@ export const HeroSection = () => {
                             {/* Ambient Background Glow */}
                             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[110%] h-[110%] bg-gradient-to-tr from-red-100/40 to-blue-50/40 rounded-full blur-[80px] -z-10" />
 
-                            {/* Proof Board Container: Stack on mobile, absolute positioning on desktop */}
-                            <div className="flex flex-col gap-5 sm:gap-6 lg:block lg:h-[580px] w-full mt-12 lg:mt-0 relative z-10">
-                                
-                                {/* Card 1: Dominant Course Progress */}
-                                <div className="bg-white/90 backdrop-blur-xl rounded-[2rem] p-6 shadow-xl shadow-black/5 border border-white lg:absolute lg:top-0 lg:left-0 lg:w-[380px] z-20 group hover:-translate-y-1 transition-transform duration-500">
-                                    <div className="flex justify-between items-start mb-6">
-                                        <div>
-                                            <span className="inline-block px-3 py-1 bg-red-50 text-red-600 rounded-full text-xs font-semibold mb-3 border border-red-100">
-                                                {heroCourseCard.courseName}
-                                            </span>
-                                            <h3 className="text-foreground font-bold text-xl">Tiến độ học tập</h3>
-                                            <p className="mt-2 text-sm text-muted-foreground">{heroCourseCard.subtitle}</p>
-                                        </div>
-                                        <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-500 shadow-inner">
-                                            <TrendingUp className="w-6 h-6" />
-                                        </div>
-                                    </div>
+                            {/* Proof Board Container: Stack up to lg, absolute positioning on xl to prevent clipping */}
+                            {/* Proof Board Container: Category Studio Canvas */}
+                            <div 
+                                className="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl rounded-[2.5rem] p-6 shadow-2xl shadow-black/5 dark:shadow-black/30 border border-white dark:border-white/10 relative z-20 w-full xl:w-[480px] mx-auto xl:mr-0 xl:ml-auto flex flex-col h-auto min-h-[580px] mt-12 lg:mt-0"
+                                onMouseEnter={() => setIsHovered(true)}
+                                onMouseLeave={() => setIsHovered(false)}
+                                onFocus={() => setIsFocused(true)}
+                                onBlur={() => setIsFocused(false)}
+                            >
+                                {/* Tabs Header */}
+                                <div role="tablist" aria-label="Danh mục chương trình học" className="flex gap-1.5 mb-6 bg-stone-100/50 dark:bg-zinc-800/80 p-1.5 rounded-2xl">
+                                    {CATEGORIES.map((cat, idx) => (
+                                        <button
+                                            key={cat.id}
+                                            role="tab"
+                                            aria-selected={activeIndex === idx}
+                                            aria-controls={`panel-${cat.id}`}
+                                            id={`tab-${cat.id}`}
+                                            onClick={() => {
+                                                setActiveIndex(idx);
+                                                setHasInteracted(true);
+                                            }}
+                                            className={`relative flex-1 py-2.5 px-3 text-[13px] font-semibold rounded-xl transition-colors z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 ${activeIndex === idx ? 'text-foreground' : 'text-muted-foreground hover:text-foreground/80 dark:hover:text-foreground'}`}
+                                            aria-label={`Xem lộ trình ${cat.label}`}
+                                        >
+                                            {activeIndex === idx && (
+                                                <motion.div 
+                                                    layoutId="heroTabBg"
+                                                    className="absolute inset-0 bg-white dark:bg-zinc-950 rounded-xl shadow-sm border border-stone-200/50 dark:border-white/10"
+                                                    initial={false}
+                                                    transition={shouldReduceMotion ? { duration: 0 } : { type: 'spring', bounce: 0.2, duration: 0.6 }}
+                                                />
+                                            )}
+                                            <span className="relative z-20">{cat.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
 
-                                    {/* Progress Bar */}
-                                    <div className="space-y-3 mb-8">
-                                        <div className="flex justify-between text-sm items-end">
-                                            <span className="text-muted-foreground font-medium">Hoàn thành</span>
-                                            <span className="font-bold text-foreground text-lg">{heroCourseCard.progress}%</span>
-                                        </div>
-                                        <div className="h-2.5 w-full bg-stone-100 rounded-full overflow-hidden shadow-inner">
-                                            <div className="h-full bg-gradient-to-r from-red-500 to-orange-400 rounded-full relative" style={{ width: progressWidth }}>
-                                                <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]" />
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-3 gap-3 pt-2">
-                                            <div className="rounded-2xl bg-stone-50 px-3 py-3 border border-stone-100">
-                                                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Mục tiêu</p>
-                                                <p className="mt-1 text-sm font-bold text-foreground">IELTS {heroCourseCard.targetScore}</p>
-                                            </div>
-                                            <div className="rounded-2xl bg-stone-50 px-3 py-3 border border-stone-100">
-                                                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Đã học</p>
-                                                <p className="mt-1 text-sm font-bold text-foreground">{heroCourseCard.completedLessons}/{heroCourseCard.totalLessons} buổi</p>
-                                            </div>
-                                            <div className="rounded-2xl bg-stone-50 px-3 py-3 border border-stone-100">
-                                                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Tăng tốc</p>
-                                                <p className="mt-1 text-sm font-bold text-emerald-600">{heroCourseCard.weeklyImprovement}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Next Class */}
-                                    <div className="bg-stone-50/80 rounded-2xl p-4 flex items-center gap-4 border border-stone-100/50">
-                                        <div className="bg-white p-2.5 rounded-xl shadow-sm text-red-500">
-                                            <Calendar className="w-5 h-5" />
-                                        </div>
-                                        <div>
-                                            <p className="text-xs text-muted-foreground font-medium mb-1">Lớp tiếp theo • {heroCourseCard.nextClass.day}</p>
-                                            <p className="text-sm font-bold text-foreground">{heroCourseCard.nextClass.topic}</p>
-                                            <p className="text-xs text-muted-foreground mt-1">{heroCourseCard.nextClass.time} • {heroCourseCard.classRank}</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="mt-4 space-y-2">
-                                        {heroCourseCard.recentActivities.map((activity) => (
-                                            <div key={`${activity.type}-${activity.title}`} className="flex items-center justify-between rounded-2xl border border-stone-100 bg-white/70 px-4 py-3">
+                                {/* Stage Body */}
+                                <div 
+                                    role="tabpanel"
+                                    id={`panel-${activeCategory.id}`}
+                                    aria-labelledby={`tab-${activeCategory.id}`}
+                                    className="relative flex-1 min-h-[360px]"
+                                >
+                                    <AnimatePresence mode="wait">
+                                        <motion.div
+                                            key={activeCategory.id}
+                                            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+                                            animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+                                            exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
+                                            transition={{ duration: 0.25 }}
+                                            className="flex flex-col h-full"
+                                        >
+                                            <div className="flex justify-between items-start mb-5">
                                                 <div>
-                                                    <p className="text-sm font-semibold text-foreground">{activity.title}</p>
-                                                    <p className="text-xs text-muted-foreground">{activity.time}</p>
+                                                    <span className={`inline-block px-3 py-1 ${activeCategory.theme.badge} rounded-full text-[11px] font-bold mb-2.5 tracking-wide uppercase`}>
+                                                        {activeCourse.courseName}
+                                                    </span>
+                                                    <h3 className="text-foreground font-bold text-xl leading-tight">Lộ trình nổi bật</h3>
+                                                    <p className="mt-1 text-sm text-muted-foreground">{activeCourse.subtitle}</p>
                                                 </div>
-                                                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 border border-emerald-100">
-                                                    {activity.score}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Card 2: Teacher Credibility */}
-                                <div className="bg-white/95 backdrop-blur-xl rounded-[2rem] p-5 shadow-xl shadow-black/5 border border-white lg:absolute lg:top-16 lg:-right-4 lg:w-[300px] z-10 group hover:-translate-y-1 transition-transform duration-500">
-                                    <div className="flex items-center gap-4 mb-4">
-                                        <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-md shrink-0 bg-stone-100">
-                                            <img src={featuredTeacher.image} alt={featuredTeacher.name} className="w-full h-full object-cover" />
-                                        </div>
-                                        <div>
-                                            <div className="flex items-center gap-1.5 mb-0.5">
-                                                <h4 className="font-bold text-foreground">{featuredTeacher.name}</h4>
-                                                <CheckCircle2 className="w-4 h-4 text-blue-500" />
-                                            </div>
-                                            <p className="text-xs text-muted-foreground font-medium">{featuredTeacher.role}</p>
-                                        </div>
-                                    </div>
-                                    <p className="mb-4 text-sm text-foreground/75">{featuredTeacher.experience} • Chuyên môn {featuredTeacher.specialty}</p>
-                                    <div className="flex flex-wrap gap-2">
-                                        <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-semibold border border-blue-100">
-                                            {featuredTeacher.badge}
-                                        </span>
-                                        <span className="px-2.5 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-semibold border border-amber-100 flex items-center gap-1">
-                                            <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
-                                            {featuredTeacher.rating}
-                                        </span>
-                                        <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-semibold border border-emerald-100">
-                                            {featuredTeacher.students}+ học viên
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* Card 3: Testimonial Outcome */}
-                                <div className="bg-white/95 backdrop-blur-xl rounded-[2rem] p-6 shadow-xl shadow-black/5 border border-white lg:absolute lg:bottom-4 lg:left-12 lg:w-[420px] z-30 group hover:-translate-y-1 transition-transform duration-500">
-                                    <div className="absolute top-6 right-6 text-stone-200">
-                                        <Quote className="w-8 h-8 fill-current" />
-                                    </div>
-                                    <div className="flex items-center gap-4 mb-4">
-                                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-inner">
-                                            {featuredTestimonial.initials}
-                                        </div>
-                                        <div>
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <h4 className="font-bold text-foreground text-sm">{featuredTestimonial.author}</h4>
-                                                <div className="flex">
-                                                    {[...Array(5)].map((_, i) => (
-                                                        <Star key={i} className="w-3 h-3 text-amber-400 fill-amber-400" />
-                                                    ))}
+                                                <div className={`w-12 h-12 rounded-2xl ${activeCategory.theme.iconBadge} flex items-center justify-center shadow-inner shrink-0`}>
+                                                    <TrendingUp className="w-6 h-6" />
                                                 </div>
                                             </div>
-                                            <p className="text-xs text-muted-foreground">{featuredTestimonial.role}</p>
-                                        </div>
-                                    </div>
-                                    <p className="text-sm text-foreground/80 leading-relaxed mb-5 pr-6">
-                                        "{featuredTestimonial.content}"
-                                    </p>
-                                    <div className="inline-flex items-center gap-2 px-3.5 py-2 bg-green-50 text-green-700 rounded-xl text-sm font-bold border border-green-100">
-                                        <TrendingUp className="w-4 h-4" />
-                                        {featuredTestimonial.result}
-                                    </div>
+
+                                            {/* Progress Bar */}
+                                            <div className="space-y-3 mb-6">
+                                                <div className="flex justify-between text-sm items-end">
+                                                    <span className="text-muted-foreground font-medium">Hoàn thành</span>
+                                                    <span className="font-bold text-foreground text-lg">{activeCourse.progress}%</span>
+                                                </div>
+                                                <div className="h-2.5 w-full bg-stone-100 dark:bg-zinc-800 rounded-full overflow-hidden shadow-inner">
+                                                    <motion.div 
+                                                        className={`h-full bg-gradient-to-r ${activeCategory.theme.progress} rounded-full`}
+                                                        initial={{ width: 0 }}
+                                                        animate={{ width: `${activeCourse.progress}%` }}
+                                                        transition={shouldReduceMotion ? { duration: 0 } : { duration: 1, delay: 0.1, ease: 'easeOut' }}
+                                                    />
+                                                </div>
+                                                <div className="grid grid-cols-3 gap-2.5 pt-2">
+                                                    <div className="rounded-xl bg-stone-50 dark:bg-zinc-800/80 px-3 py-2.5 border border-stone-100/60 dark:border-white/10">
+                                                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Mục tiêu</p>
+                                                        <p className="mt-1 text-xs font-bold text-foreground truncate">{activeCourse.targetPrefix}{activeCourse.targetScore}</p>
+                                                    </div>
+                                                    <div className="rounded-xl bg-stone-50 dark:bg-zinc-800/80 px-3 py-2.5 border border-stone-100/60 dark:border-white/10">
+                                                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Đã học</p>
+                                                        <p className="mt-1 text-xs font-bold text-foreground">{activeCourse.completedLessons}/{activeCourse.totalLessons} buổi</p>
+                                                    </div>
+                                                    <div className="rounded-xl bg-stone-50 dark:bg-zinc-800/80 px-3 py-2.5 border border-stone-100/60 dark:border-white/10">
+                                                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Tăng tốc</p>
+                                                        <p className="mt-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 truncate">{activeCourse.weeklyImprovement}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Teacher & Next Class Split */}
+                                            <div className="grid grid-cols-2 gap-3 mb-5">
+                                                <div className="bg-white/60 dark:bg-zinc-800/70 rounded-[1.25rem] p-3.5 border border-stone-100/80 dark:border-white/10 shadow-sm flex flex-col justify-center transition-all hover:bg-white/80 dark:hover:bg-zinc-800">
+                                                    <div className="flex items-center gap-3 mb-2">
+                                                        <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-white dark:border-zinc-700 shadow-sm shrink-0 bg-stone-100 dark:bg-zinc-700">
+                                                            <img src={activeTeacher.image} alt={activeTeacher.name} className="w-full h-full object-cover" />
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <div className="flex items-center gap-1">
+                                                                <p className="text-xs font-bold text-foreground truncate">{activeTeacher.name}</p>
+                                                                <CheckCircle2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                                                            </div>
+                                                            <p className="text-[10px] text-muted-foreground truncate">{activeTeacher.badge}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                                                        <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                                                        <span className="font-semibold text-foreground">{activeTeacher.rating}</span>
+                                                        <span>• {activeTeacher.students}+ hv</span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="bg-white/60 dark:bg-zinc-800/70 rounded-[1.25rem] p-3.5 border border-stone-100/80 dark:border-white/10 shadow-sm flex flex-col justify-center transition-all hover:bg-white/80 dark:hover:bg-zinc-800">
+                                                    <div className="flex items-center gap-2 mb-1.5">
+                                                        <Calendar className="w-4 h-4 text-red-500" />
+                                                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Lớp tiếp theo</span>
+                                                    </div>
+                                                    <p className="text-[13px] font-bold text-foreground truncate mb-0.5">{activeCourse.nextClass.topic}</p>
+                                                    <p className="text-[11px] text-muted-foreground">{activeCourse.nextClass.day} • {activeCourse.nextClass.time}</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Activities */}
+                                            <div className="space-y-2.5">
+                                                {activeCourse.recentActivities.map((activity, idx) => (
+                                                    <div key={idx} className="flex items-center justify-between rounded-xl border border-stone-100/80 dark:border-white/10 bg-white/60 dark:bg-zinc-800/70 px-4 py-2.5 shadow-sm transition-all hover:bg-white/80 dark:hover:bg-zinc-800">
+                                                        <div>
+                                                            <p className="text-sm font-semibold text-foreground">{activity.title}</p>
+                                                            <p className="text-[11px] text-muted-foreground mt-0.5">{activity.time}</p>
+                                                        </div>
+                                                        <span className="rounded-lg bg-emerald-50 dark:bg-emerald-900/30 px-2.5 py-1 text-xs font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-800/50">
+                                                            {activity.score}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </motion.div>
+                                    </AnimatePresence>
                                 </div>
-                                
-                            </div>
+
+                                {/* Compact Testimonial Ticker */}
+                                <div className="mt-6 pt-5 border-t border-stone-100 dark:border-white/10 relative overflow-hidden h-[100px]">
+                                    <AnimatePresence mode="wait">
+                                        <motion.div
+                                            key={`test-${activeCategory.id}`}
+                                            initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+                                            animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+                                            exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -10 }}
+                                            transition={{ duration: 0.3 }}
+                                            className="absolute inset-0 flex items-center gap-4 bg-stone-50/80 dark:bg-zinc-800/80 rounded-2xl p-3 border border-stone-200/50 dark:border-white/10"
+                                        >
+                                            <div className="relative shrink-0">
+                                                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-sm ${activeTestimonial.color || 'bg-emerald-500'}`}>
+                                                    {activeTestimonial.initials}
+                                                </div>
+                                                <div className="absolute -bottom-1 -right-1 bg-white dark:bg-zinc-900 rounded-full p-1.5 shadow-sm border border-stone-100 dark:border-white/10">
+                                                    <Quote className="w-3 h-3 text-emerald-600 dark:text-emerald-300 fill-current" />
+                                                </div>
+                                            </div>
+                                            <div className="flex-1 min-w-0 pr-2 flex flex-col justify-center">
+                                                <p className="text-[13px] text-foreground/80 leading-snug line-clamp-2 font-medium">"{activeTestimonial.content}"</p>
+                                                <div className="flex items-center gap-2 mt-1.5">
+                                                    <span className="text-xs font-bold text-foreground">{activeTestimonial.author}</span>
+                                                    <span className="w-1 h-1 rounded-full bg-stone-300 dark:bg-zinc-600" />
+                                                    <span 
+                                                        className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-[var(--badge-bg)] text-[var(--badge-color)] dark:bg-zinc-700 dark:text-zinc-200" 
+                                                        style={{ 
+                                                            '--badge-bg': activeTestimonial.resultColor ? `${activeTestimonial.resultColor}15` : '#ecfdf5', 
+                                                            '--badge-color': activeTestimonial.resultColor || '#047857' 
+                                                        }}
+                                                    >
+                                                        {activeTestimonial.result}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    </AnimatePresence>
+                                </div>
                         </div>
                     </div>
+                </div>
                 </div>
 
                 {/* Scroll Indicator */}
                 <div className="absolute bottom-8 left-1/2 -translate-x-1/2" aria-hidden="true">
-                    <div className="flex flex-col items-center gap-2 animate-bounce">
-                        <span className="text-xs font-medium text-muted-foreground/70 uppercase tracking-widest">Scroll</span>
-                        <div className="w-px h-8 bg-gradient-to-b from-zinc-300 to-transparent" />
+                    <div className="flex flex-col items-center gap-2 opacity-60">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Cuộn xuống</span>
+                        <div className="w-px h-8 bg-gradient-to-b from-zinc-400 to-transparent" />
                     </div>
                 </div>
             </section>
