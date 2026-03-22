@@ -14,11 +14,11 @@ export function StatCard({
     variant = 'default'
 }) {
     const variants = {
-        default: 'bg-white border-border',
-        primary: 'bg-blue-500/10 border-blue-500/20',
-        success: 'bg-green-500/10 border-green-500/20',
-        warning: 'bg-amber-500/10 border-amber-500/20',
-        danger: 'bg-red-500/10 border-red-500/20'
+        default: 'bg-card/95 border-border',
+        primary: 'bg-blue-500/10 dark:bg-blue-500/12 border-blue-500/20 dark:border-blue-500/25',
+        success: 'bg-green-500/10 dark:bg-green-500/12 border-green-500/20 dark:border-green-500/25',
+        warning: 'bg-amber-500/10 dark:bg-amber-500/12 border-amber-500/20 dark:border-amber-500/25',
+        danger: 'bg-red-500/10 dark:bg-red-500/12 border-red-500/20 dark:border-red-500/25'
     };
 
     const iconColors = {
@@ -31,7 +31,7 @@ export function StatCard({
 
     return (
         <div className={cn(
-            'rounded-2xl border p-4 shadow-sm transition-all hover-card-lift overflow-hidden',
+            'overflow-hidden rounded-2xl border p-4 shadow-sm shadow-black/5 transition-all hover-card-lift dark:shadow-black/20',
             variants[variant],
             className
         )}>

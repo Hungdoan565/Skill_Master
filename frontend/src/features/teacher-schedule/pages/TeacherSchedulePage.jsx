@@ -285,9 +285,9 @@ export function TeacherSchedulePage() {
                 title="Lịch dạy"
                 subtitle="Xem và theo dõi các buổi dạy của bạn"
                 icon={CalendarDays}
-                iconColorClass="text-blue-600 bg-blue-50"
+                iconColorClass="text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10"
                 actions={
-                    <div className="flex items-center gap-1 sm:gap-2 bg-white p-1 rounded-xl border shadow-sm">
+                    <div className="flex items-center gap-1 rounded-xl border border-border bg-card/90 p-1 shadow-sm shadow-black/5 dark:shadow-black/20 sm:gap-2">
                         <button
                             onClick={goToPrevWeek}
                             className="p-2 sm:px-3 sm:py-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground btn-tactile"
@@ -298,12 +298,12 @@ export function TeacherSchedulePage() {
 
                         <button
                             onClick={goToThisWeek}
-                            className="px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors btn-tactile whitespace-nowrap"
+                            className="whitespace-nowrap rounded-lg px-2 py-2 text-xs font-medium text-blue-600 transition-colors btn-tactile hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-500/10 sm:px-3 sm:text-sm"
                         >
                             Tuần này
                         </button>
 
-                        <div className="px-2 sm:px-3 py-1.5 bg-muted/50 rounded-lg text-xs sm:text-sm font-medium text-foreground min-w-[140px] sm:min-w-[170px] text-center border border-border/50">
+                        <div className="min-w-[140px] rounded-lg border border-border/60 bg-muted/40 px-2 py-1.5 text-center text-xs font-medium text-foreground dark:bg-muted/20 sm:min-w-[170px] sm:px-3 sm:text-sm">
                             {formatWeekRange()}
                         </div>
 
@@ -335,27 +335,27 @@ export function TeacherSchedulePage() {
                         Phạm vi thống kê: tuần đang chọn ({stats.range?.startDate || startDateStr} đến {stats.range?.endDate || endDateStr})
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                        <div className="bg-white rounded-2xl border border-border p-4 text-center hover-card-lift">
+                        <div className="rounded-2xl border border-border bg-card/95 p-4 text-center shadow-sm shadow-black/5 hover-card-lift dark:shadow-black/20">
                             <p className="text-2xl font-bold text-blue-600">{stats.totalSessions}</p>
                             <p className="text-xs text-muted-foreground">Tổng buổi dạy</p>
                         </div>
-                        <div className="bg-white rounded-2xl border border-border p-4 text-center hover-card-lift">
+                        <div className="rounded-2xl border border-border bg-card/95 p-4 text-center shadow-sm shadow-black/5 hover-card-lift dark:shadow-black/20">
                             <p className="text-2xl font-bold text-green-600">{stats.completedSessions}</p>
                             <p className="text-xs text-muted-foreground">Đã hoàn thành</p>
                         </div>
-                        <div className="bg-white rounded-2xl border border-border p-4 text-center hover-card-lift">
+                        <div className="rounded-2xl border border-border bg-card/95 p-4 text-center shadow-sm shadow-black/5 hover-card-lift dark:shadow-black/20">
                             <p className="text-2xl font-bold text-purple-600">{stats.totalHours}h</p>
                             <p className="text-xs text-muted-foreground">Tổng số giờ</p>
                         </div>
-                        <div className="bg-white rounded-2xl border border-border p-4 text-center hover-card-lift">
+                        <div className="rounded-2xl border border-border bg-card/95 p-4 text-center shadow-sm shadow-black/5 hover-card-lift dark:shadow-black/20">
                             <p className="text-2xl font-bold text-rose-600">{stats.conflictSessions || 0}</p>
                             <p className="text-xs text-muted-foreground">Buổi có xung đột</p>
                         </div>
-                        <div className="bg-white rounded-2xl border border-border p-4 text-center hover-card-lift">
+                        <div className="rounded-2xl border border-border bg-card/95 p-4 text-center shadow-sm shadow-black/5 hover-card-lift dark:shadow-black/20">
                             <p className="text-2xl font-bold text-indigo-600">{stats.substitutedSessions || 0}</p>
                             <p className="text-xs text-muted-foreground">Buổi dạy thay</p>
                         </div>
-                        <div className="bg-white rounded-2xl border border-border p-4 text-center hover-card-lift">
+                        <div className="rounded-2xl border border-border bg-card/95 p-4 text-center shadow-sm shadow-black/5 hover-card-lift dark:shadow-black/20">
                             <p className="text-2xl font-bold text-amber-600">{stats.holidaySessions || 0}</p>
                             <p className="text-xs text-muted-foreground">Buổi vào ngày lễ</p>
                         </div>
@@ -364,9 +364,9 @@ export function TeacherSchedulePage() {
             )}
 
             {/* Schedule Grid - with Sáng/Chiều/Tối grouping */}
-            <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden animate-fade-in-up stagger-2">
+            <div className="animate-fade-in-up stagger-2 overflow-hidden rounded-2xl border border-border bg-card/95 shadow-sm shadow-black/5 dark:shadow-black/20">
                 {/* Days Header */}
-                <div className="grid grid-cols-8 border-b border-border bg-slate-50">
+                <div className="grid grid-cols-8 border-b border-border bg-muted/40 dark:bg-muted/20">
                     {/* Empty cell for time slot labels */}
                     <div className="p-3 text-center border-r border-border bg-muted">
                         <p className="text-xs font-medium text-muted-foreground">Buổi</p>

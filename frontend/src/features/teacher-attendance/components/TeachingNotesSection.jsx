@@ -89,7 +89,7 @@ export function TeachingNotesSection({ sessionId, initialNotes, initialHomework,
     }
 
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-border p-5">
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <BookOpen className="h-4 w-4 text-blue-500" />
@@ -123,7 +123,7 @@ export function TeachingNotesSection({ sessionId, initialNotes, initialHomework,
                             value={teacherNotes}
                             onChange={(e) => setTeacherNotes(e.target.value)}
                             placeholder="Hôm nay đã dạy..."
-                            className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none bg-white"
+                            className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none bg-card text-foreground"
                             rows={3}
                             maxLength={2000}
                         />
@@ -137,7 +137,7 @@ export function TeachingNotesSection({ sessionId, initialNotes, initialHomework,
                             value={homework}
                             onChange={(e) => setHomework(e.target.value)}
                             placeholder="Bài tập: ..."
-                            className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none bg-white"
+                            className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none bg-card text-foreground"
                             rows={2}
                             maxLength={1000}
                         />
@@ -158,13 +158,13 @@ export function TeachingNotesSection({ sessionId, initialNotes, initialHomework,
             ) : hasContent ? (
                 <div className="space-y-2">
                     {teacherNotes && (
-                        <div className="p-3 rounded-lg bg-blue-50/50 border border-blue-100">
+                        <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
                             <p className="text-xs font-medium text-blue-600 mb-1">Nội dung đã dạy</p>
                             <p className="text-sm text-foreground whitespace-pre-wrap">{teacherNotes}</p>
                         </div>
                     )}
                     {homework && (
-                        <div className="p-3 rounded-lg bg-orange-50/50 border border-orange-100">
+                        <div className="p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
                             <p className="text-xs font-medium text-orange-600 mb-1">Bài tập về nhà</p>
                             <p className="text-sm text-foreground whitespace-pre-wrap">{homework}</p>
                         </div>

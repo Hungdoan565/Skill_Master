@@ -116,9 +116,9 @@ export function TeacherDashboardPage() {
     const payrollDisplay = getPayrollDisplay();
 
     return (
-        <div className="min-h-screen bg-secondary/30 dark:bg-background pb-12">
+        <div className="min-h-screen bg-background pb-12 text-foreground">
             {/* Header */}
-            <div className="bg-white dark:bg-card border-b border-border/50 sticky top-0 z-10 transition-colors">
+            <div className="sticky top-0 z-10 border-b border-border/60 bg-background/90 backdrop-blur-xl transition-colors">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                     <TeacherPageHeader
                         title={`${getGreeting()}, ${profile?.full_name || 'Giáo viên'}! 👋`}
@@ -134,7 +134,7 @@ export function TeacherDashboardPage() {
                         actions={
                             <button
                                 onClick={refetch}
-                                className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium border border-border rounded-lg hover:bg-muted dark:hover:bg-slate-800 transition-colors group btn-tactile"
+                                className="inline-flex items-center gap-2 rounded-lg border border-border bg-card/80 px-3 py-2 text-sm font-medium hover:bg-muted/80 transition-colors group btn-tactile"
                                 title="Làm mới dữ liệu"
                             >
                                 <RefreshCw className="h-4 w-4 group-hover:rotate-180 transition-transform duration-500" />

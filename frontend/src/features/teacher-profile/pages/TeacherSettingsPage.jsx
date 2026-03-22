@@ -148,33 +148,33 @@ export default function TeacherSettingsPage() {
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 space-y-8 animate-fade-in-up stagger-1">
                 
                 {/* Notifications Section */}
-                <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden hover-card-lift transition-all duration-300">
-                    <div className="px-6 py-5 border-b border-border bg-slate-50/50 flex items-center">
-                        <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mr-4 shadow-sm border border-blue-100">
+                <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden hover-card-lift transition-all duration-300">
+                    <div className="px-6 py-5 border-b border-border bg-muted/50 flex items-center">
+                        <div className="h-10 w-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center mr-4 shadow-sm border border-blue-500/20">
                             <Bell className="h-5 w-5" />
                         </div>
-                        <h2 className="text-lg font-bold text-slate-800">Cài đặt thông báo</h2>
+                        <h2 className="text-lg font-bold text-foreground">Cài đặt thông báo</h2>
                     </div>
                     <div className="p-6">
                         <ul className="space-y-6">
-                            <li className="flex items-center justify-between pb-6 border-b border-slate-100 last:border-0 last:pb-0">
+                            <li className="flex items-center justify-between pb-6 border-b border-border last:border-0 last:pb-0">
                                 <div className="pr-4">
-                                    <h3 className="text-base font-semibold text-slate-800 mb-1">Thông báo qua Email</h3>
-                                    <p className="text-sm font-medium text-slate-500 leading-relaxed max-w-lg">Nhận thông báo về lịch học và lương qua email đăng ký</p>
+                                    <h3 className="text-base font-semibold text-foreground mb-1">Thông báo qua Email</h3>
+                                    <p className="text-sm font-medium text-muted-foreground leading-relaxed max-w-lg">Nhận thông báo về lịch học và lương qua email đăng ký</p>
                                 </div>
                                 <Toggle checked={emailNotif} onChange={(v) => handleNotifChange('emailNotif', v)} />
                             </li>
-                            <li className="flex items-center justify-between pb-6 border-b border-slate-100 last:border-0 last:pb-0">
+                            <li className="flex items-center justify-between pb-6 border-b border-border last:border-0 last:pb-0">
                                 <div className="pr-4">
-                                    <h3 className="text-base font-semibold text-slate-800 mb-1">Thông báo qua SMS</h3>
-                                    <p className="text-sm font-medium text-slate-500 leading-relaxed max-w-lg">Nhận tin nhắn SMS cho các thông báo khẩn cấp và quan trọng</p>
+                                    <h3 className="text-base font-semibold text-foreground mb-1">Thông báo qua SMS</h3>
+                                    <p className="text-sm font-medium text-muted-foreground leading-relaxed max-w-lg">Nhận tin nhắn SMS cho các thông báo khẩn cấp và quan trọng</p>
                                 </div>
                                 <Toggle checked={smsNotif} onChange={(v) => handleNotifChange('smsNotif', v)} />
                             </li>
-                            <li className="flex items-center justify-between pb-6 border-b border-slate-100 last:border-0 last:pb-0">
+                            <li className="flex items-center justify-between pb-6 border-b border-border last:border-0 last:pb-0">
                                 <div className="pr-4">
-                                    <h3 className="text-base font-semibold text-slate-800 mb-1">Nhắc nhở lớp học</h3>
-                                    <p className="text-sm font-medium text-slate-500 leading-relaxed max-w-lg">Nhận thông báo nhắc nhở 30 phút trước khi lớp học bắt đầu</p>
+                                    <h3 className="text-base font-semibold text-foreground mb-1">Nhắc nhở lớp học</h3>
+                                    <p className="text-sm font-medium text-muted-foreground leading-relaxed max-w-lg">Nhận thông báo nhắc nhở 30 phút trước khi lớp học bắt đầu</p>
                                 </div>
                                 <Toggle checked={classReminders} onChange={(v) => handleNotifChange('classReminders', v)} />
                             </li>
@@ -183,28 +183,28 @@ export default function TeacherSettingsPage() {
                 </div>
 
                 {/* Appearance Section */}
-                <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden hover-card-lift transition-all duration-300">
-                    <div className="px-6 py-5 border-b border-border bg-slate-50/50 flex items-center">
-                        <div className="h-10 w-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center mr-4 shadow-sm border border-purple-100">
+                <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden hover-card-lift transition-all duration-300">
+                    <div className="px-6 py-5 border-b border-border bg-muted/50 flex items-center">
+                        <div className="h-10 w-10 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center mr-4 shadow-sm border border-purple-500/20">
                             <Palette className="h-5 w-5" />
                         </div>
-                        <h2 className="text-lg font-bold text-slate-800">Giao diện</h2>
+                        <h2 className="text-lg font-bold text-foreground">Giao diện</h2>
                     </div>
                     <div className="p-6">
                         <ul className="space-y-6">
-                            <li className="flex items-center justify-between pb-6 border-b border-slate-100 last:border-0 last:pb-0">
+                            <li className="flex items-center justify-between pb-6 border-b border-border last:border-0 last:pb-0">
                                 <div className="pr-4">
-                                    <h3 className="text-base font-semibold text-slate-800 mb-1">Chế độ tối (Dark Mode)</h3>
-                                    <p className="text-sm font-medium text-slate-500 leading-relaxed">Sử dụng giao diện tối màu giúp bảo vệ mắt vào ban đêm</p>
+                                    <h3 className="text-base font-semibold text-foreground mb-1">Chế độ tối (Dark Mode)</h3>
+                                    <p className="text-sm font-medium text-muted-foreground leading-relaxed">Sử dụng giao diện tối màu giúp bảo vệ mắt vào ban đêm</p>
                                 </div>
                                 <Toggle checked={isDark} onChange={toggleTheme} />
                             </li>
-                            <li className="flex items-center justify-between pb-6 border-b border-slate-100 last:border-0 last:pb-0">
+                            <li className="flex items-center justify-between pb-6 border-b border-border last:border-0 last:pb-0">
                                 <div className="pr-4">
-                                    <h3 className="text-base font-semibold text-slate-800 mb-1">Ngôn ngữ hiển thị</h3>
-                                    <p className="text-sm font-medium text-slate-500 leading-relaxed">Chọn ngôn ngữ cho giao diện người dùng và thông báo</p>
+                                    <h3 className="text-base font-semibold text-foreground mb-1">Ngôn ngữ hiển thị</h3>
+                                    <p className="text-sm font-medium text-muted-foreground leading-relaxed">Chọn ngôn ngữ cho giao diện người dùng và thông báo</p>
                                 </div>
-                                <div className="bg-slate-50 p-1.5 rounded-lg border border-slate-200">
+                                <div className="bg-muted p-1.5 rounded-lg border border-border">
                                     <LocaleSwitcher />
                                 </div>
                             </li>
@@ -213,22 +213,22 @@ export default function TeacherSettingsPage() {
                 </div>
 
                 {/* Security Section */}
-                <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden hover-card-lift transition-all duration-300">
-                    <div className="px-6 py-5 border-b border-border bg-slate-50/50 flex items-center">
-                        <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mr-4 shadow-sm border border-emerald-100">
+                <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden hover-card-lift transition-all duration-300">
+                    <div className="px-6 py-5 border-b border-border bg-muted/50 flex items-center">
+                        <div className="h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center mr-4 shadow-sm border border-emerald-500/20">
                             <Shield className="h-5 w-5" />
                         </div>
-                        <h2 className="text-lg font-bold text-slate-800">Bảo mật tài khoản</h2>
+                        <h2 className="text-lg font-bold text-foreground">Bảo mật tài khoản</h2>
                     </div>
                     <div className="p-6">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 bg-slate-50/50 p-5 rounded-xl border border-slate-100">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 bg-muted/50 p-5 rounded-xl border border-border">
                             <div className="flex-1">
-                                <h3 className="text-base font-semibold text-slate-800 mb-1">Đổi mật khẩu</h3>
-                                <p className="text-sm font-medium text-slate-500 leading-relaxed">Đổi mật khẩu định kỳ để bảo vệ tài khoản tốt hơn</p>
+                                <h3 className="text-base font-semibold text-foreground mb-1">Đổi mật khẩu</h3>
+                                <p className="text-sm font-medium text-muted-foreground leading-relaxed">Đổi mật khẩu định kỳ để bảo vệ tài khoản tốt hơn</p>
                             </div>
                             <button
                                 onClick={() => setIsPasswordModalOpen(true)}
-                                className="px-5 py-2.5 bg-white text-slate-700 font-medium rounded-xl hover:bg-slate-50 hover:shadow-sm w-full sm:w-auto text-center border border-slate-200 shadow-sm transition-all btn-tactile"
+                                className="px-5 py-2.5 bg-card text-foreground font-medium rounded-xl hover:bg-muted hover:shadow-sm w-full sm:w-auto text-center border border-border shadow-sm transition-all btn-tactile"
                             >
                                 Đổi mật khẩu
                             </button>
@@ -250,28 +250,28 @@ export default function TeacherSettingsPage() {
 
                     <form onSubmit={handlePasswordChange} className="space-y-4 py-4">
                         {passwordError && (
-                            <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100">
+                            <div className="p-3 bg-red-500/10 text-red-600 dark:text-red-400 text-sm rounded-lg border border-red-500/20">
                                 {passwordError}
                             </div>
                         )}
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-700">Mật khẩu mới</label>
+                            <label className="text-sm font-medium text-foreground">Mật khẩu mới</label>
                             <input
                                 type="password"
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
-                                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                className="w-full px-3 py-2 border border-border bg-card text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                                 placeholder="Nhập ít nhất 6 ký tự"
                                 required
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-700">Xác nhận mật khẩu mới</label>
+                            <label className="text-sm font-medium text-foreground">Xác nhận mật khẩu mới</label>
                             <input
                                 type="password"
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
-                                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                className="w-full px-3 py-2 border border-border bg-card text-foreground rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                                 placeholder="Nhập lại mật khẩu mới"
                                 required
                             />
@@ -281,7 +281,7 @@ export default function TeacherSettingsPage() {
                             <button
                                 type="button"
                                 onClick={() => setIsPasswordModalOpen(false)}
-                                className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors mr-2"
+                                className="px-4 py-2 border border-border text-foreground rounded-lg hover:bg-muted transition-colors mr-2"
                                 disabled={isUpdatingPassword}
                             >
                                 Hủy

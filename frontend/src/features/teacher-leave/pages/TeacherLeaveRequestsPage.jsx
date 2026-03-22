@@ -39,48 +39,48 @@ const LEAVE_TYPE_OPTIONS = [
         label: 'Nghỉ ốm',
         description: 'Nghỉ do bệnh tật, cần đi khám',
         icon: Stethoscope,
-        color: 'text-rose-600',
-        bg: 'bg-rose-50 border-rose-200 hover:border-rose-400'
+        color: 'text-rose-600 dark:text-rose-400',
+        bg: 'bg-rose-500/10 border-rose-500/30 hover:border-rose-400'
     },
     {
         value: 'personal',
         label: 'Việc riêng',
         description: 'Giải quyết công việc cá nhân',
         icon: User,
-        color: 'text-indigo-600',
-        bg: 'bg-indigo-50 border-indigo-200 hover:border-indigo-400'
+        color: 'text-indigo-600 dark:text-indigo-400',
+        bg: 'bg-indigo-500/10 border-indigo-500/30 hover:border-indigo-400'
     },
     {
         value: 'annual',
         label: 'Phép năm',
         description: 'Nghỉ phép thường niên',
         icon: Palmtree,
-        color: 'text-emerald-600',
-        bg: 'bg-emerald-50 border-emerald-200 hover:border-emerald-400'
+        color: 'text-emerald-600 dark:text-emerald-400',
+        bg: 'bg-emerald-500/10 border-emerald-500/30 hover:border-emerald-400'
     },
     {
         value: 'maternity',
         label: 'Thai sản',
         description: 'Nghỉ thai sản / chăm sóc con nhỏ',
         icon: Baby,
-        color: 'text-pink-600',
-        bg: 'bg-pink-50 border-pink-200 hover:border-pink-400'
+        color: 'text-pink-600 dark:text-pink-400',
+        bg: 'bg-pink-500/10 border-pink-500/30 hover:border-pink-400'
     },
     {
         value: 'compensatory',
         label: 'Nghỉ bù',
         description: 'Nghỉ bù sau khi làm thêm',
         icon: Repeat2,
-        color: 'text-amber-600',
-        bg: 'bg-amber-50 border-amber-200 hover:border-amber-400'
+        color: 'text-amber-600 dark:text-amber-400',
+        bg: 'bg-amber-500/10 border-amber-500/30 hover:border-amber-400'
     },
     {
         value: 'other',
         label: 'Lý do khác',
         description: 'Các lý do không thuộc danh mục trên',
         icon: HelpCircle,
-        color: 'text-slate-600',
-        bg: 'bg-slate-50 border-slate-200 hover:border-slate-400'
+        color: 'text-muted-foreground',
+        bg: 'bg-muted border-border hover:border-muted-foreground/30'
     }
 ];
 
@@ -169,17 +169,17 @@ function LeaveTypePicker({ value, onChange }) {
                         onClick={() => onChange(option.value)}
                         className={`flex flex-col items-start gap-1 p-3 rounded-xl border-2 transition-all text-left ${isSelected
                             ? `${option.bg} border-current ring-2 ring-offset-1 ring-current/30`
-                            : `bg-white border-slate-200 hover:${option.bg}`
+                            : `bg-card border-border hover:${option.bg}`
                             }`}
                     >
                         <div className="flex items-center gap-2">
                             <Icon className={`h-4 w-4 ${isSelected ? option.color : 'text-slate-400'}`} />
                             {isSelected && <Check className={`h-3.5 w-3.5 ${option.color} ml-auto`} />}
                         </div>
-                        <span className={`text-xs font-semibold ${isSelected ? option.color : 'text-slate-700'}`}>
+                        <span className={`text-xs font-semibold ${isSelected ? option.color : 'text-foreground'}`}>
                             {option.label}
                         </span>
-                        <span className="text-[10px] text-slate-400 leading-tight">{option.description}</span>
+                        <span className="text-[10px] text-muted-foreground leading-tight">{option.description}</span>
                     </button>
                 );
             })}
@@ -192,7 +192,7 @@ function DurationPreview({ startDate, endDate }) {
     if (!startDate || !endDate || days <= 0) return null;
 
     return (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-semibold animate-fade-in-up">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-700 dark:text-indigo-300 text-sm font-semibold animate-fade-in-up">
             <CalendarDays className="h-4 w-4" />
             {days === 1 ? 'Nghỉ 1 ngày' : `Nghỉ ${days} ngày liên tiếp`}
         </div>
@@ -204,9 +204,9 @@ function ConfirmDialog({ open, title, message, confirmLabel, confirmColor, onCon
     return (
         <div className="fixed inset-0 z-[400] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" onClick={onCancel} />
-            <div className="relative bg-white rounded-2xl shadow-xl border border-border p-6 max-w-sm w-full">
+            <div className="relative bg-card rounded-2xl shadow-xl border border-border p-6 max-w-sm w-full">
                 <div className="flex items-start gap-3 mb-5">
-                    <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center flex-shrink-0">
                         <AlertTriangle className="h-5 w-5 text-rose-500" />
                     </div>
                     <div>
@@ -340,7 +340,7 @@ export function TeacherLeaveRequestsPage() {
     // ─── Loading / Error states ───
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-white">
+            <div className="min-h-screen flex items-center justify-center bg-transparent">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto" />
                     <p className="mt-4 text-muted-foreground">Đang tải danh sách đơn xin nghỉ...</p>
@@ -351,7 +351,7 @@ export function TeacherLeaveRequestsPage() {
 
     if (error && requests.length === 0) {
         return (
-            <div className="min-h-screen flex items-center justify-center px-4 bg-white">
+            <div className="min-h-screen flex items-center justify-center px-4 bg-transparent">
                 <div className="text-center p-6 bg-red-500/10 rounded-2xl max-w-md border border-red-500/20 shadow-sm">
                     <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
                     <h2 className="text-lg font-semibold text-red-700 dark:text-red-400 mb-2">Không thể tải dữ liệu</h2>
@@ -383,7 +383,7 @@ export function TeacherLeaveRequestsPage() {
                     <div className="flex items-center gap-3">
                         <button
                             onClick={refetch}
-                            className="p-2.5 rounded-xl bg-white shadow-sm border border-border hover:bg-slate-50 transition-all hover-card-lift text-slate-600"
+                            className="p-2.5 rounded-xl bg-card shadow-sm border border-border hover:bg-muted transition-all hover-card-lift text-muted-foreground"
                             title="Làm mới dữ liệu"
                         >
                             <RefreshCw className="h-5 w-5" />
@@ -403,18 +403,18 @@ export function TeacherLeaveRequestsPage() {
 
                 {/* ─── Stats Cards ─── */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-blue-50 rounded-2xl border border-blue-200 p-5 shadow-sm hover-card-lift transition-all">
+                    <div className="bg-blue-500/10 rounded-2xl border border-blue-500/20 p-5 shadow-sm hover-card-lift transition-all">
                         <div className="flex items-center gap-2.5 mb-2">
-                            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-lg bg-blue-500/15 flex items-center justify-center">
                                 <ClipboardList className="h-4 w-4 text-blue-600" />
                             </div>
-                            <p className="text-sm font-medium text-blue-700">Tổng số đơn</p>
+                            <p className="text-sm font-medium text-blue-700 dark:text-blue-400">Tổng số đơn</p>
                         </div>
-                        <p className="text-3xl font-bold text-blue-900">{stats.total}</p>
+                        <p className="text-3xl font-bold text-blue-800 dark:text-blue-400">{stats.total}</p>
                     </div>
                     <div className="bg-amber-500/10 rounded-2xl border border-amber-500/20 p-5 shadow-sm hover-card-lift transition-all">
                         <div className="flex items-center gap-2.5 mb-2">
-                            <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center">
                                 <Clock3 className="h-4 w-4 text-amber-600" />
                             </div>
                             <p className="text-sm font-medium text-amber-700 dark:text-amber-400">Chờ duyệt</p>
@@ -423,7 +423,7 @@ export function TeacherLeaveRequestsPage() {
                     </div>
                     <div className="bg-green-500/10 rounded-2xl border border-green-500/20 p-5 shadow-sm hover-card-lift transition-all">
                         <div className="flex items-center gap-2.5 mb-2">
-                            <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-lg bg-green-500/15 flex items-center justify-center">
                                 <CheckCircle2 className="h-4 w-4 text-green-600" />
                             </div>
                             <p className="text-sm font-medium text-green-700 dark:text-green-400">Đã duyệt</p>
@@ -432,7 +432,7 @@ export function TeacherLeaveRequestsPage() {
                     </div>
                     <div className="bg-red-500/10 rounded-2xl border border-red-500/20 p-5 shadow-sm hover-card-lift transition-all">
                         <div className="flex items-center gap-2.5 mb-2">
-                            <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-lg bg-red-500/15 flex items-center justify-center">
                                 <XCircle className="h-4 w-4 text-red-600" />
                             </div>
                             <p className="text-sm font-medium text-red-700 dark:text-red-400">Từ chối</p>
@@ -452,15 +452,15 @@ export function TeacherLeaveRequestsPage() {
                 {/* ─── Filter Bar ─── */}
                 {requests.length > 0 && (
                     <div className="flex items-center gap-2 flex-wrap">
-                        <SlidersHorizontal className="h-4 w-4 text-slate-500" />
-                        <span className="text-sm font-medium text-slate-600 mr-1">Lọc:</span>
+                        <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium text-muted-foreground mr-1">Lọc:</span>
                         {FILTER_OPTIONS.map((opt) => (
                             <button
                                 key={opt.value}
                                 onClick={() => setStatusFilter(opt.value)}
                                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${statusFilter === opt.value
                                     ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                                    : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:text-blue-600'
+                                    : 'bg-card text-muted-foreground border-border hover:border-blue-300 hover:text-blue-600'
                                     }`}
                             >
                                 {opt.label}
@@ -477,8 +477,8 @@ export function TeacherLeaveRequestsPage() {
                 {/* ─── Request List ─── */}
                 <div className="space-y-4">
                     {filteredRequests.length === 0 ? (
-                        <div className="bg-white rounded-2xl border border-border p-10 text-center shadow-sm animate-fade-in-up stagger-2">
-                            <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <div className="bg-card rounded-2xl border border-border p-10 text-center shadow-sm animate-fade-in-up stagger-2">
+                            <div className="bg-blue-500/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <FileText className="h-8 w-8 text-blue-500" />
                             </div>
                             <h3 className="text-lg font-semibold text-foreground">
@@ -514,7 +514,7 @@ export function TeacherLeaveRequestsPage() {
                             return (
                                 <div
                                     key={request.id}
-                                    className={`bg-white rounded-2xl border border-border/80 shadow-sm hover-card-lift transition-all animate-fade-in-up ${cardAccent} ${staggerClass}`}
+                                    className={`bg-card rounded-2xl border border-border/80 shadow-sm hover-card-lift transition-all animate-fade-in-up ${cardAccent} ${staggerClass}`}
                                 >
                                     <div className="p-5 sm:p-6 flex flex-col gap-4">
                                         {/* Top row: Status badge + Timestamp */}
@@ -523,7 +523,7 @@ export function TeacherLeaveRequestsPage() {
                                                 <StatusIcon className="h-3.5 w-3.5" />
                                                 {status.label}
                                             </span>
-                                            <span className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-slate-500 font-medium">
+                                            <span className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground font-medium">
                                                 <Clock3 className="h-3.5 w-3.5" />
                                                 Tạo lúc: {formatDateTime(request.created_at)}
                                             </span>
@@ -535,24 +535,24 @@ export function TeacherLeaveRequestsPage() {
                                                 <LeaveTypeIcon className={`h-5 w-5 ${leaveTypeOpt.color}`} />
                                             </div>
                                             <div>
-                                                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Loại nghỉ</p>
-                                                <h3 className="text-lg font-bold text-slate-900 tracking-tight leading-tight">
+                                                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Loại nghỉ</p>
+                                                <h3 className="text-lg font-bold text-foreground tracking-tight leading-tight">
                                                     {leaveTypeOpt.label}
                                                 </h3>
                                             </div>
                                         </div>
 
                                         {/* Date range */}
-                                        <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3">
-                                            <p className="text-[10px] uppercase tracking-wide font-semibold text-slate-400 mb-1.5">Khoảng thời gian nghỉ</p>
+                                        <div className="rounded-xl border border-border bg-muted px-4 py-3">
+                                            <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground mb-1.5">Khoảng thời gian nghỉ</p>
                                             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                                                <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                                                     <CalendarRange className="h-4 w-4 text-blue-600" />
                                                     <span>{formatDate(request.start_date)}</span>
-                                                    <ArrowRight className="h-3.5 w-3.5 text-slate-400" />
+                                                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
                                                     <span>{formatDate(request.end_date)}</span>
                                                 </div>
-                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-500/10 text-indigo-700 border border-indigo-500/20 w-fit">
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20 w-fit">
                                                     <CalendarDays className="h-3.5 w-3.5" />
                                                     {durationDays <= 1 ? 'Nghỉ 1 ngày' : `Nghỉ ${durationDays} ngày`}
                                                 </span>
@@ -560,23 +560,23 @@ export function TeacherLeaveRequestsPage() {
                                         </div>
 
                                         {/* Reason */}
-                                        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-1">Lý do xin nghỉ</p>
-                                            <p className="leading-relaxed text-slate-700 whitespace-pre-line">{request.reason}</p>
+                                        <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
+                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Lý do xin nghỉ</p>
+                                            <p className="leading-relaxed text-foreground whitespace-pre-line">{request.reason}</p>
                                         </div>
 
                                         {/* Attachments (if any) */}
                                         {hasAttachments && (
                                             <div className="flex items-center gap-2 flex-wrap">
-                                                <Paperclip className="h-4 w-4 text-slate-400" />
-                                                <span className="text-xs text-slate-500 font-medium">Đính kèm:</span>
+                                                <Paperclip className="h-4 w-4 text-muted-foreground" />
+                                                <span className="text-xs text-muted-foreground font-medium">Đính kèm:</span>
                                                 {request.attachments.map((att, idx) => (
                                                     <a
                                                         key={idx}
                                                         href={att.url || att}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-100 text-slate-600 text-xs font-medium hover:bg-slate-200 transition-colors"
+                                                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-muted text-muted-foreground text-xs font-medium hover:bg-muted/80 transition-colors"
                                                     >
                                                         <FileText className="h-3 w-3" />
                                                         {att.name || `File ${idx + 1}`}
@@ -604,7 +604,7 @@ export function TeacherLeaveRequestsPage() {
                                         )}
 
                                         {/* Action footer */}
-                                        <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100">
+                                        <div className="flex items-center justify-end gap-2 pt-1 border-t border-border">
                                             {canEdit ? (
                                                 <>
                                                     <button
@@ -623,7 +623,7 @@ export function TeacherLeaveRequestsPage() {
                                                     </button>
                                                 </>
                                             ) : (
-                                                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-400 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+                                                <span className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground bg-muted px-3 py-1.5 rounded-lg border border-border">
                                                     <Ban className="h-3.5 w-3.5" />
                                                     Đơn đã xử lý
                                                 </span>
@@ -641,9 +641,9 @@ export function TeacherLeaveRequestsPage() {
             {isModalOpen && (
                 <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px]" onClick={closeModal} />
-                    <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-xl border border-border overflow-hidden max-h-[92vh] flex flex-col">
+                    <div className="relative w-full max-w-2xl bg-card rounded-2xl shadow-xl border border-border overflow-hidden max-h-[92vh] flex flex-col">
                         {/* Modal header */}
-                        <div className="px-6 pt-6 pb-4 border-b border-slate-100 bg-gradient-to-r from-blue-50 to-indigo-50 flex-shrink-0">
+                        <div className="px-6 pt-6 pb-4 border-b border-border bg-gradient-to-r from-blue-500/10 to-indigo-500/10 flex-shrink-0">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <h2 className="text-xl font-bold text-foreground tracking-tight">
@@ -657,7 +657,7 @@ export function TeacherLeaveRequestsPage() {
                                 </div>
                                 <button
                                     onClick={closeModal}
-                                    className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-200 transition-colors text-slate-500"
+                                    className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted transition-colors text-muted-foreground"
                                 >
                                     <X className="h-4 w-4" />
                                 </button>
@@ -680,23 +680,23 @@ export function TeacherLeaveRequestsPage() {
                                 <label className="block text-sm font-semibold text-foreground">Thời gian nghỉ</label>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div>
-                                        <p className="text-xs text-slate-500 mb-1">Ngày bắt đầu</p>
+                                        <p className="text-xs text-muted-foreground mb-1">Ngày bắt đầu</p>
                                         <input
                                             type="date"
                                             value={formData.start_date}
                                             min={getTodayISO()}
                                             onChange={(e) => setFormData((prev) => ({ ...prev, start_date: e.target.value }))}
-                                            className="w-full rounded-xl border border-slate-200 bg-white text-foreground px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
+                                            className="w-full rounded-xl border border-border bg-card text-foreground px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
                                         />
                                     </div>
                                     <div>
-                                        <p className="text-xs text-slate-500 mb-1">Ngày kết thúc</p>
+                                        <p className="text-xs text-muted-foreground mb-1">Ngày kết thúc</p>
                                         <input
                                             type="date"
                                             value={formData.end_date}
                                             min={formData.start_date || getTodayISO()}
                                             onChange={(e) => setFormData((prev) => ({ ...prev, end_date: e.target.value }))}
-                                            className="w-full rounded-xl border border-slate-200 bg-white text-foreground px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
+                                            className="w-full rounded-xl border border-border bg-card text-foreground px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
                                         />
                                     </div>
                                 </div>
@@ -712,9 +712,9 @@ export function TeacherLeaveRequestsPage() {
                                     value={formData.reason}
                                     onChange={(e) => setFormData((prev) => ({ ...prev, reason: e.target.value }))}
                                     placeholder="Mô tả lý do xin nghỉ một cách cụ thể để quản lý có thể xem xét nhanh..."
-                                    className="w-full rounded-xl border border-slate-200 bg-white text-foreground px-3.5 py-2.5 leading-relaxed placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all resize-none"
+                                    className="w-full rounded-xl border border-border bg-card text-foreground px-3.5 py-2.5 leading-relaxed placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all resize-none"
                                 />
-                                <p className="text-xs text-slate-400 text-right">{formData.reason.length} ký tự</p>
+                                <p className="text-xs text-muted-foreground text-right">{formData.reason.length} ký tự</p>
                             </div>
 
                             {/* Error */}
@@ -726,7 +726,7 @@ export function TeacherLeaveRequestsPage() {
                             )}
 
                             {/* Footer buttons */}
-                            <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-slate-100">
+                            <div className="pt-2 flex items-center justify-end gap-2.5 border-t border-border">
                                 <button
                                     type="button"
                                     onClick={closeModal}

@@ -65,7 +65,7 @@ export function QuickActions({ pendingLeaveCount = 0 }) {
     ];
 
     return (
-        <div className="rounded-2xl border border-border bg-white dark:bg-card shadow-sm overflow-hidden flex flex-col h-full">
+        <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card/95 shadow-sm shadow-black/5 dark:shadow-black/20">
             <div className="p-5 border-b border-border/50 bg-slate-50/50 dark:bg-muted/20 flex items-center gap-2">
                 <Zap className="h-5 w-5 text-yellow-500" />
                 <h3 className="text-base font-semibold text-foreground">
@@ -81,7 +81,7 @@ export function QuickActions({ pendingLeaveCount = 0 }) {
                         className={`
                             group relative flex flex-col items-center justify-center p-3 rounded-xl
                             transition-all duration-300 border border-transparent
-                            hover:shadow-md hover:-translate-y-1 hover:border-slate-200 dark:hover:border-slate-800
+                            hover:-translate-y-1 hover:border-border hover:shadow-md hover:shadow-black/10 dark:hover:shadow-black/30
                             ${action.color}
                         `}
                     >
@@ -91,10 +91,10 @@ export function QuickActions({ pendingLeaveCount = 0 }) {
                                 {action.badge > 9 ? '9+' : action.badge}
                             </span>
                         )}
-                        <div className="p-2.5 bg-white/60 dark:bg-background/80 rounded-full mb-2 group-hover:scale-110 transition-transform duration-300 shadow-sm">
+                        <div className="mb-2 rounded-full bg-background/80 p-2.5 shadow-sm ring-1 ring-border/60 transition-transform duration-300 group-hover:scale-110">
                             <action.icon className="h-5 w-5 text-current" />
                         </div>
-                        <span className="text-[12px] leading-tight font-medium text-slate-700 dark:text-slate-300 group-hover:text-current transition-colors text-center">{action.label}</span>
+                        <span className="text-center text-[12px] font-medium leading-tight text-foreground/90 transition-colors group-hover:text-current">{action.label}</span>
                     </Link>
                 ))}
             </div>

@@ -147,7 +147,7 @@ export function SmartAlerts({ overview, todaySessions, pendingLeaveCount = 0 }) 
     };
 
     return (
-        <div className="rounded-2xl border border-border bg-white dark:bg-card p-6">
+        <div className="rounded-2xl border border-border bg-card/95 p-6 shadow-sm shadow-black/5 dark:shadow-black/20">
             <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
                 <Bell className="h-5 w-5 text-amber-500" />
                 Thông báo & Nhắc nhở

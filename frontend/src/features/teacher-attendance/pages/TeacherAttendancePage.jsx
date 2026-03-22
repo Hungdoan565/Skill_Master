@@ -159,7 +159,7 @@ export function TeacherAttendancePage() {
                 title={`Điểm danh lớp ${className || '...'}`}
                 subtitle="Quản lý điểm danh học viên theo buổi học"
                 icon={ClipboardCheck}
-                iconColorClass="text-emerald-600 bg-emerald-50"
+                iconColorClass="text-emerald-600 bg-emerald-500/10"
                 breadcrumbs={[
                     { label: 'Lớp học', href: '/teacher/classes' },
                     { label: className || 'Chi tiết lớp', href: `/teacher/classes/${id}` },
@@ -169,7 +169,7 @@ export function TeacherAttendancePage() {
                     <Button
                         variant="outline"
                         onClick={() => navigate(`/teacher/classes/${id}`)}
-                        className="bg-white"
+                        className="bg-card"
                     >
                         <ArrowLeft className="h-4 w-4 mr-2" />
                         Trở lại lớp
@@ -224,7 +224,7 @@ export function TeacherAttendancePage() {
             )}
 
             {/* Sticky Footer */}
-            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-border shadow-lg z-50">
+            <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-lg z-50">
                 <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
                     <div className="text-sm text-muted-foreground">
                         {hasChanges ? (
@@ -271,7 +271,7 @@ export function TeacherAttendancePage() {
 
 function SessionSelector({ sessions, selectedSession, onSelect, editStatus, formatDate }) {
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-border p-4 mb-4">
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-4 mb-4">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                 <div className="flex-1">
                     <label className="block text-sm font-medium text-foreground mb-2">
@@ -283,7 +283,7 @@ function SessionSelector({ sessions, selectedSession, onSelect, editStatus, form
                             const session = sessions.find(s => s.id === e.target.value);
                             onSelect(session);
                         }}
-                        className="w-full h-10 rounded-lg border border-border bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        className="w-full h-10 rounded-lg border border-border bg-card text-foreground px-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
                     >
                         <option value="">-- Chọn buổi học --</option>
                         {sessions.map((session) => (
@@ -358,7 +358,7 @@ function EditStatusBadge({ editStatus }) {
     }
 
     return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500 border border-slate-200">
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-muted text-muted-foreground border border-border">
             <AlertTriangle className="h-3.5 w-3.5" />
             Hết hạn chỉnh sửa — Liên hệ Admin
         </span>
@@ -368,7 +368,7 @@ function EditStatusBadge({ editStatus }) {
 
 function BulkActionsBar({ summary, onMarkAllPresent, onMarkAllAbsent, canEdit }) {
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-border p-4 mb-4">
+        <div className="bg-card rounded-2xl shadow-sm border border-border p-4 mb-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-center gap-2">
                     <Button
@@ -416,7 +416,7 @@ function BulkActionsBar({ summary, onMarkAllPresent, onMarkAllAbsent, canEdit })
 function StudentAttendanceList({ attendance, onUpdateStatus, canEdit, loading, onOpenNote }) {
     if (loading) {
         return (
-            <div className="bg-white rounded-2xl shadow-sm border border-border p-8">
+            <div className="bg-card rounded-2xl shadow-sm border border-border p-8">
                 <div className="flex items-center justify-center">
                     <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
                     <span className="ml-3 text-muted-foreground">Đang tải danh sách...</span>
@@ -427,7 +427,7 @@ function StudentAttendanceList({ attendance, onUpdateStatus, canEdit, loading, o
 
     if (!attendance || attendance.length === 0) {
         return (
-            <div className="bg-white rounded-2xl shadow-sm border border-border p-12 text-center">
+            <div className="bg-card rounded-2xl shadow-sm border border-border p-12 text-center">
                 <Users className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-foreground mb-2">Chưa có dữ liệu điểm danh</h3>
                 <p className="text-muted-foreground">Vui lòng chọn buổi học để xem danh sách học viên</p>
@@ -436,11 +436,11 @@ function StudentAttendanceList({ attendance, onUpdateStatus, canEdit, loading, o
     }
 
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
+        <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
             <div className="overflow-x-auto">
                 <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                     <thead>
-                        <tr className="bg-slate-50 border-b border-border">
+                        <tr className="bg-muted border-b border-border">
                             <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground w-12">#</th>
                             <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Học viên</th>
                             <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">Trạng thái điểm danh</th>
@@ -469,7 +469,7 @@ function StudentRow({ index, record, onUpdateStatus, canEdit, onOpenNote }) {
     const initials = studentName.split(' ').map(n => n[0]).slice(-2).join('').toUpperCase();
 
     return (
-        <tr className="border-b border-border hover:bg-slate-50 transition-colors">
+        <tr className="border-b border-border hover:bg-muted transition-colors">
             <td className="py-3 px-4 text-sm text-muted-foreground font-medium">{index}</td>
             <td className="py-3 px-4">
                 <div className="flex items-center gap-3">
@@ -484,7 +484,7 @@ function StudentRow({ index, record, onUpdateStatus, canEdit, onOpenNote }) {
                     </div>
                     <button
                         onClick={() => onOpenNote?.(record.student_id, studentName)}
-                        className="ml-auto p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                        className="ml-auto p-1.5 rounded-lg text-muted-foreground hover:text-blue-600 hover:bg-blue-500/10 transition-colors"
                         title="Thêm nhận xét"
                     >
                         <MessageSquarePlus className="h-4 w-4" />

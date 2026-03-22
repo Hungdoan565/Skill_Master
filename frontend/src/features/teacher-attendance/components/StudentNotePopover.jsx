@@ -14,7 +14,7 @@ const API_URL = import.meta.env.VITE_API_URL || '';
 const NOTE_TYPES = [
     { value: 'academic', label: 'Học tập', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
     { value: 'behavior', label: 'Thái độ', color: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
-    { value: 'general', label: 'Chung', color: 'bg-slate-100 text-slate-600 border-slate-200' },
+    { value: 'general', label: 'Chung', color: 'bg-muted text-muted-foreground border-border' },
 ];
 
 export function StudentNotePopover({ studentId, classId, sessionId, studentName, onClose }) {
@@ -120,16 +120,16 @@ export function StudentNotePopover({ studentId, classId, sessionId, studentName,
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
             <div
-                className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 max-h-[80vh] overflow-hidden flex flex-col"
+                className="bg-card rounded-2xl shadow-xl w-full max-w-md mx-4 max-h-[80vh] overflow-hidden flex flex-col"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="px-5 py-4 border-b border-border flex items-center justify-between bg-slate-50">
+                <div className="px-5 py-4 border-b border-border flex items-center justify-between bg-muted">
                     <div>
                         <h3 className="font-semibold text-foreground">Nhận xét học viên</h3>
                         <p className="text-sm text-muted-foreground">{studentName}</p>
                     </div>
-                    <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-200 transition-colors">
+                    <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
                         <X className="h-4 w-4" />
                     </button>
                 </div>
@@ -140,7 +140,7 @@ export function StudentNotePopover({ studentId, classId, sessionId, studentName,
                         value={content}
                         onChange={(e) => setContent(e.target.value)}
                         placeholder="Viết nhận xét..."
-                        className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none bg-white"
+                        className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none bg-card text-foreground"
                         rows={3}
                         maxLength={1000}
                     />
@@ -153,7 +153,7 @@ export function StudentNotePopover({ studentId, classId, sessionId, studentName,
                                     onClick={() => setNoteType(type.value)}
                                     className={cn(
                                         'px-2.5 py-1 rounded-full text-xs font-medium border transition-all',
-                                        noteType === type.value ? type.color : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'
+                                        noteType === type.value ? type.color : 'bg-card text-muted-foreground border-border hover:border-border/80'
                                     )}
                                 >
                                     {type.label}
@@ -196,7 +196,7 @@ export function StudentNotePopover({ studentId, classId, sessionId, studentName,
 
                     {loading ? (
                         <div className="flex items-center justify-center py-6">
-                            <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+                            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                         </div>
                     ) : notes.length === 0 ? (
                         <p className="text-sm text-muted-foreground text-center py-6">Chưa có nhận xét nào</p>
@@ -205,12 +205,12 @@ export function StudentNotePopover({ studentId, classId, sessionId, studentName,
                             {notes.map(note => {
                                 const typeConfig = NOTE_TYPES.find(t => t.value === note.note_type) || NOTE_TYPES[2];
                                 return (
-                                    <div key={note.id} className="p-3 rounded-lg bg-slate-50 border border-border group">
+                                    <div key={note.id} className="p-3 rounded-lg bg-muted border border-border group">
                                         <div className="flex items-start justify-between gap-2">
                                             <p className="text-sm text-foreground whitespace-pre-wrap flex-1">{note.content}</p>
                                             <button
                                                 onClick={() => handleDelete(note.id)}
-                                                className="p-1 rounded hover:bg-red-50 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all shrink-0"
+                                                className="p-1 rounded hover:bg-red-500/10 text-muted-foreground/50 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all shrink-0"
                                             >
                                                 <Trash2 className="h-3.5 w-3.5" />
                                             </button>

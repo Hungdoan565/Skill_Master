@@ -14,8 +14,8 @@ import {
 import { useTeacherAvailability } from '@/features/teacher-dashboard';
 
 const SLOT_TYPE_STYLES = {
-    available: 'border-sky-500/30 bg-sky-500/10 text-sky-700',
-    preferred: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700'
+    available: 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300',
+    preferred: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
 };
 
 const DAYS_OF_WEEK = [
@@ -166,7 +166,7 @@ export function TeacherAvailabilityPage() {
                         <>
                             <button
                                 onClick={handleDiscard}
-                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                                className="px-4 py-2 text-sm font-medium text-foreground bg-card border border-border rounded-lg hover:bg-muted transition-colors"
                             >
                                 Hủy thay đổi
                             </button>
@@ -186,7 +186,7 @@ export function TeacherAvailabilityPage() {
                     )}
                     <button
                         onClick={refetch}
-                        className="p-2 text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                        className="p-2 text-muted-foreground bg-card border border-border rounded-lg hover:bg-muted transition-colors"
                         title="Làm mới"
                     >
                         <RefreshCw className="h-5 w-5" />
@@ -239,10 +239,10 @@ export function TeacherAvailabilityPage() {
                     return (
                         <div
                             key={day.value}
-                            className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden"
+                            className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden"
                         >
                             {/* Day Header */}
-                            <div className="flex items-center justify-between px-4 py-3.5 bg-slate-50 border-b border-border">
+                            <div className="flex items-center justify-between px-4 py-3.5 bg-muted border-b border-border">
                                 <div className="flex items-center gap-3">
                                     <span className="w-10 h-10 flex items-center justify-center bg-blue-500/20 text-blue-500 font-bold rounded-xl">
                                         {day.short}
@@ -274,7 +274,7 @@ export function TeacherAvailabilityPage() {
                                         {daySlots.map((slot) => (
                                             <div
                                                 key={slot._id}
-                                                className="p-3.5 bg-slate-50 rounded-xl border border-border"
+                                                className="p-3.5 bg-muted rounded-xl border border-border"
                                             >
                                                 <div className="flex flex-col lg:flex-row lg:items-center gap-3.5">
                                                     <div className="flex items-center gap-2 text-muted-foreground shrink-0">
@@ -307,7 +307,7 @@ export function TeacherAvailabilityPage() {
                                                                 value={slot.type || 'available'}
                                                                 onChange={(e) => updateSlot(slot._id, 'type', e.target.value)}
                                                                 className={cn(
-                                                                    'w-full px-3 py-2 border rounded-lg text-sm bg-white text-foreground focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
+                                                                    'w-full px-3 py-2 border rounded-lg text-sm bg-card text-foreground focus:ring-2 focus:ring-blue-500 focus:border-blue-500',
                                                                     SLOT_TYPE_STYLES[slot.type || 'available'] || 'border-border'
                                                                 )}
                                                             >
@@ -340,7 +340,7 @@ export function TeacherAvailabilityPage() {
 
             {/* Sticky Save Bar (when has changes) */}
             {hasChanges && (
-                <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-border shadow-lg p-4 z-50">
+                <div className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur border-t border-border shadow-lg p-4 z-50">
                     <div className="max-w-5xl mx-auto flex items-center justify-between">
                         <p className="text-sm text-muted-foreground font-medium">
                             <span className="inline-block w-2 h-2 bg-amber-500 rounded-full mr-2"></span>
@@ -349,7 +349,7 @@ export function TeacherAvailabilityPage() {
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={handleDiscard}
-                                className="px-4 py-2 text-sm font-medium text-foreground bg-white border border-border rounded-lg hover:bg-slate-50 transition-colors"
+                                className="px-4 py-2 text-sm font-medium text-foreground bg-card border border-border rounded-lg hover:bg-muted transition-colors"
                             >
                                 Hủy
                             </button>

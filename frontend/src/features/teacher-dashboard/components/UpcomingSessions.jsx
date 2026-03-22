@@ -42,7 +42,7 @@ export function UpcomingSessions({ sessions = [] }) {
     const sortedDates = Object.keys(grouped).sort();
 
     return (
-        <div className="rounded-2xl border border-border bg-white dark:bg-card shadow-sm overflow-hidden">
+        <div className="overflow-hidden rounded-2xl border border-border bg-card/95 shadow-sm shadow-black/5 dark:shadow-black/20">
             <div className="p-5 border-b border-border/50 bg-slate-50/50 dark:bg-muted/20 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <CalendarDays className="h-5 w-5 text-blue-500" />

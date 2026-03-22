@@ -30,15 +30,15 @@ import {
 const API_URL = import.meta.env.VITE_API_URL || '';
 
 const TREND_CONFIG = {
-    improving: { label: 'Tiến bộ', icon: TrendingUp, color: 'text-green-600 bg-green-50' },
-    declining: { label: 'Giảm sút', icon: TrendingDown, color: 'text-red-600 bg-red-50' },
-    stable: { label: 'Ổn định', icon: Minus, color: 'text-blue-600 bg-blue-50' },
+    improving: { label: 'Tiến bộ', icon: TrendingUp, color: 'text-green-600 dark:text-green-400 bg-green-500/10' },
+    declining: { label: 'Giảm sút', icon: TrendingDown, color: 'text-red-600 dark:text-red-400 bg-red-500/10' },
+    stable: { label: 'Ổn định', icon: Minus, color: 'text-blue-600 dark:text-blue-400 bg-blue-500/10' },
 };
 
 const NOTE_TYPE_LABELS = {
-    academic: { label: 'Học tập', color: 'bg-blue-100 text-blue-700' },
-    behavior: { label: 'Thái độ', color: 'bg-amber-100 text-amber-700' },
-    general: { label: 'Chung', color: 'bg-slate-100 text-slate-600' },
+    academic: { label: 'Học tập', color: 'bg-blue-500/15 text-blue-700 dark:text-blue-300' },
+    behavior: { label: 'Thái độ', color: 'bg-amber-500/15 text-amber-700 dark:text-amber-300' },
+    general: { label: 'Chung', color: 'bg-muted text-muted-foreground' },
 };
 
 const ATTENDANCE_STATUS_CONFIG = {
@@ -127,9 +127,9 @@ export function StudentProgressPage() {
     if (error) {
         return (
             <div className="min-h-[60vh] flex items-center justify-center">
-                <div className="text-center p-6 bg-red-50 rounded-2xl max-w-md">
+                <div className="text-center p-6 bg-destructive/10 rounded-2xl max-w-md">
                     <AlertTriangle className="h-10 w-10 text-red-500 mx-auto mb-3" />
-                    <p className="text-red-600 mb-4">{error}</p>
+                    <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
                     <Button onClick={fetchProgress} variant="outline">
                         <RefreshCw className="h-4 w-4 mr-2" /> Thử lại
                     </Button>
@@ -155,7 +155,7 @@ export function StudentProgressPage() {
     return (
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
             {/* Header */}
-            <div className="bg-white rounded-2xl shadow-sm border border-border p-6">
+            <div className="bg-card rounded-2xl shadow-sm border border-border p-6">
                 <div className="flex items-center gap-4 mb-4">
                     <Button variant="outline" size="icon" onClick={() => navigate(-1)} className="shrink-0">
                         <ArrowLeft className="h-4 w-4" />
@@ -184,7 +184,7 @@ export function StudentProgressPage() {
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Attendance Rate */}
-                <div className="bg-white rounded-2xl shadow-sm border border-border p-5">
+                <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
                     <div className="flex items-center gap-3 mb-3">
                         <div className="p-2.5 rounded-lg bg-green-500/10">
                             <CheckCircle className="h-5 w-5 text-green-500" />
@@ -198,7 +198,7 @@ export function StudentProgressPage() {
                 </div>
 
                 {/* Grade Average */}
-                <div className="bg-white rounded-2xl shadow-sm border border-border p-5">
+                <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
                     <div className="flex items-center gap-3 mb-3">
                         <div className="p-2.5 rounded-lg bg-blue-500/10">
                             <BarChart3 className="h-5 w-5 text-blue-500" />
@@ -214,7 +214,7 @@ export function StudentProgressPage() {
                 </div>
 
                 {/* Trend */}
-                <div className="bg-white rounded-2xl shadow-sm border border-border p-5">
+                <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
                     <div className="flex items-center gap-3 mb-3">
                         <div className={cn('p-2.5 rounded-lg', trendConfig.color.split(' ')[1])}>
                             <TrendIcon className={cn('h-5 w-5', trendConfig.color.split(' ')[0])} />
@@ -231,7 +231,7 @@ export function StudentProgressPage() {
             </div>
 
             {/* Attendance Dots + Details */}
-            <div className="bg-white rounded-2xl shadow-sm border border-border p-5">
+            <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
                 <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     Điểm danh gần đây
@@ -265,7 +265,7 @@ export function StudentProgressPage() {
 
             {/* Grades */}
             {grades.items.length > 0 && (
-                <div className="bg-white rounded-2xl shadow-sm border border-border p-5">
+                <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
                     <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
                         <GraduationCap className="h-4 w-4 text-muted-foreground" />
                         Bảng điểm
@@ -277,7 +277,7 @@ export function StudentProgressPage() {
                             return (
                                 <div key={i} className="flex items-center gap-3">
                                     <span className="text-sm text-foreground w-36 truncate font-medium">{g.name || `Bài ${i + 1}`}</span>
-                                    <div className="flex-1 h-2.5 rounded-full bg-slate-100 overflow-hidden border border-border/50">
+                                    <div className="flex-1 h-2.5 rounded-full bg-muted overflow-hidden border border-border/50">
                                         <div className={cn('h-full rounded-full transition-all duration-1000 ease-out shadow-sm', barColor)} style={{ width: `${pct}%` }} />
                                     </div>
                                     <span className="text-sm font-bold text-foreground w-20 text-right">{g.score}/{g.max_score}</span>
@@ -289,7 +289,7 @@ export function StudentProgressPage() {
             )}
 
             {/* Recent Notes */}
-            <div className="bg-white rounded-2xl shadow-sm border border-border p-5">
+            <div className="bg-card rounded-2xl shadow-sm border border-border p-5">
                 <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
                     <FileText className="h-4 w-4 text-muted-foreground" />
                     Nhận xét gần đây
@@ -299,7 +299,7 @@ export function StudentProgressPage() {
                         {recent_notes.map((note, i) => {
                             const typeInfo = NOTE_TYPE_LABELS[note.note_type] || NOTE_TYPE_LABELS.general;
                             return (
-                                <div key={i} className="p-3 rounded-lg bg-slate-50 border border-border">
+                                <div key={i} className="p-3 rounded-lg bg-muted border border-border">
                                     <p className="text-sm text-foreground whitespace-pre-wrap">{note.content}</p>
                                     <div className="flex items-center gap-2 mt-2">
                                         <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-medium', typeInfo.color)}>

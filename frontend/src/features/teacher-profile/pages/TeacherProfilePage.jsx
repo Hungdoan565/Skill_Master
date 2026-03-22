@@ -35,7 +35,7 @@ export default function TeacherProfilePage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-white">
+            <div className="min-h-screen flex items-center justify-center bg-transparent">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
                     <p className="mt-4 text-muted-foreground">Đang tải dữ liệu...</p>
@@ -46,7 +46,7 @@ export default function TeacherProfilePage() {
 
     if (error) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-white">
+            <div className="min-h-screen flex items-center justify-center bg-transparent">
                 <div className="text-center p-6 bg-red-500/10 border border-red-500/20 rounded-2xl max-w-md shadow-sm">
                     <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
                     <h2 className="text-lg font-semibold text-red-700 dark:text-red-400 mb-2">Đã có lỗi xảy ra</h2>
@@ -202,7 +202,7 @@ export default function TeacherProfilePage() {
     return (
         <div className="min-h-screen bg-transparent pb-12">
             {/* Profile Hero Section */}
-            <div className="bg-white border-b border-border shadow-sm mb-8 pt-8 pb-10">
+            <div className="bg-card border-b border-border shadow-sm mb-8 pt-8 pb-10">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex flex-col md:flex-row items-center md:items-start gap-8 animate-fade-in-up">
                         {/* Avatar */}
@@ -211,19 +211,19 @@ export default function TeacherProfilePage() {
                                 <img
                                     src={displayAvatarUrl}
                                     alt={full_name}
-                                    className="h-32 w-32 rounded-3xl border border-slate-200 object-cover shadow-md hover:shadow-lg transition-all duration-300 group-hover:-translate-y-1"
+                                    className="h-32 w-32 rounded-3xl border border-border object-cover shadow-md hover:shadow-lg transition-all duration-300 group-hover:-translate-y-1"
                                 />
                             ) : (
                                 <div className="h-32 w-32 rounded-3xl border border-blue-200 shadow-md bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-4xl font-bold text-white transition-all duration-300 group-hover:-translate-y-1 hover:shadow-lg">
                                     {getInitials(full_name)}
                                 </div>
                             )}
-                            <div className="absolute -bottom-2 -right-2 bg-green-500 w-6 h-6 rounded-full border-4 border-white shadow-sm" title="Đang hoạt động"></div>
+                            <div className="absolute -bottom-2 -right-2 bg-green-500 w-6 h-6 rounded-full border-4 border-card shadow-sm" title="Đang hoạt động"></div>
                             <button
                                 type="button"
                                 onClick={handleAvatarPickClick}
                                 disabled={avatarUploading || saving}
-                                className="absolute -top-2 -right-2 inline-flex h-9 w-9 items-center justify-center rounded-full border border-blue-200 bg-white text-blue-600 shadow-sm hover:bg-blue-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                                className="absolute -top-2 -right-2 inline-flex h-9 w-9 items-center justify-center rounded-full border border-blue-500/30 bg-card text-blue-600 shadow-sm hover:bg-blue-500/10 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
                                 title="Cập nhật ảnh đại diện"
                             >
                                 {avatarUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
@@ -239,13 +239,13 @@ export default function TeacherProfilePage() {
 
                         {/* Name & Role */}
                         <div className="flex-1 text-center md:text-left mt-2 md:mt-2">
-                            <h1 className="text-3xl font-bold text-slate-800 tracking-tight">{full_name}</h1>
+                            <h1 className="text-3xl font-bold text-foreground tracking-tight">{full_name}</h1>
                             <div className="mt-3 flex flex-col md:flex-row items-center gap-4">
-                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${status === 'ACTIVE' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${status === 'ACTIVE' ? 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
                                     {status === 'ACTIVE' ? 'Đang hoạt động' : 'Tạm nghỉ'}
                                 </span>
-                                <div className="flex items-center text-slate-500 font-medium text-sm bg-slate-50 px-3 py-1 rounded-lg border border-slate-100">
-                                    <Mail className="h-4 w-4 mr-2 text-slate-400" />
+                                <div className="flex items-center text-muted-foreground font-medium text-sm bg-muted px-3 py-1 rounded-lg border border-border">
+                                    <Mail className="h-4 w-4 mr-2 text-muted-foreground" />
                                     {email}
                                 </div>
                             </div>
@@ -254,7 +254,7 @@ export default function TeacherProfilePage() {
                         <div className="flex items-center gap-3 self-center md:self-start mt-6 md:mt-2">
                             <button
                                 onClick={refetch}
-                                className="p-2.5 rounded-xl bg-white shadow-sm border border-border hover:bg-slate-50 transition-all hover-card-lift text-slate-600"
+                                className="p-2.5 rounded-xl bg-card shadow-sm border border-border hover:bg-muted transition-all hover-card-lift text-muted-foreground"
                                 title="Làm mới dữ liệu"
                             >
                                 <RefreshCw className="h-5 w-5" />
@@ -277,7 +277,7 @@ export default function TeacherProfilePage() {
             {/* Success Message */}
             {successMessage && (
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6 animate-fade-in-up">
-                    <div className="flex items-center gap-2 p-4 rounded-xl bg-green-50 border border-green-200 text-green-700 font-medium shadow-sm">
+                    <div className="flex items-center gap-2 p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-700 dark:text-green-300 font-medium shadow-sm">
                         <Check className="h-5 w-5 flex-shrink-0 text-green-600" />
                         <span>{successMessage}</span>
                     </div>
@@ -286,7 +286,7 @@ export default function TeacherProfilePage() {
 
             {avatarError && (
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6 animate-fade-in-up">
-                    <div className="flex items-center gap-2 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 font-medium shadow-sm">
+                    <div className="flex items-center gap-2 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-700 dark:text-red-300 font-medium shadow-sm">
                         <AlertTriangle className="h-5 w-5 flex-shrink-0 text-red-600" />
                         <span>{avatarError}</span>
                     </div>
@@ -299,35 +299,35 @@ export default function TeacherProfilePage() {
                 {/* Stats Row */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {/* Classes Stat */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-border p-6 flex items-center hover-card-lift transition-all">
+                    <div className="bg-card rounded-2xl shadow-sm border border-border p-6 flex items-center hover-card-lift transition-all">
                         <div className="p-4 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 mr-5">
                             <BookOpen className="h-7 w-7" />
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-slate-500 mb-1">Tổng lớp dạy</p>
-                            <p className="text-3xl font-bold text-slate-800 tracking-tight">{stats.totalClasses || 0}</p>
+                            <p className="text-sm font-medium text-muted-foreground mb-1">Tổng lớp dạy</p>
+                            <p className="text-3xl font-bold text-foreground tracking-tight">{stats.totalClasses || 0}</p>
                         </div>
                     </div>
 
                     {/* Sessions Stat */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-border p-6 flex items-center hover-card-lift transition-all">
+                    <div className="bg-card rounded-2xl shadow-sm border border-border p-6 flex items-center hover-card-lift transition-all">
                         <div className="p-4 rounded-2xl bg-green-500/10 text-green-600 dark:text-green-400 mr-5">
                             <GraduationCap className="h-7 w-7" />
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-slate-500 mb-1">Tổng buổi dạy</p>
-                            <p className="text-3xl font-bold text-slate-800 tracking-tight">{stats.totalSessions || 0}</p>
+                            <p className="text-sm font-medium text-muted-foreground mb-1">Tổng buổi dạy</p>
+                            <p className="text-3xl font-bold text-foreground tracking-tight">{stats.totalSessions || 0}</p>
                         </div>
                     </div>
 
                     {/* Hours Stat */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-border p-6 flex items-center hover-card-lift transition-all">
+                    <div className="bg-card rounded-2xl shadow-sm border border-border p-6 flex items-center hover-card-lift transition-all">
                         <div className="p-4 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 mr-5">
                             <Clock className="h-7 w-7" />
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-slate-500 mb-1">Số giờ năm nay</p>
-                            <p className="text-3xl font-bold text-slate-800 tracking-tight">{stats.totalHoursThisYear || 0}</p>
+                            <p className="text-sm font-medium text-muted-foreground mb-1">Số giờ năm nay</p>
+                            <p className="text-3xl font-bold text-foreground tracking-tight">{stats.totalHoursThisYear || 0}</p>
                         </div>
                     </div>
                 </div>
@@ -335,14 +335,14 @@ export default function TeacherProfilePage() {
                 {/* Info Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-8">
                     {/* Left Column: Personal Info */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden hover-card-lift transition-all duration-300">
-                        <div className="px-6 py-5 border-b border-border bg-slate-50/50 flex items-center justify-between">
-                            <h2 className="text-lg font-bold text-slate-800">Thông tin cá nhân</h2>
+                    <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden hover-card-lift transition-all duration-300">
+                        <div className="px-6 py-5 border-b border-border bg-muted/50 flex items-center justify-between">
+                            <h2 className="text-lg font-bold text-foreground">Thông tin cá nhân</h2>
                             {isEditing && (
                                 <div className="flex items-center gap-2">
                                     <button
                                         onClick={handleCancelEdit}
-                                        className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-all btn-tactile"
+                                        className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-muted-foreground bg-card border border-border rounded-xl hover:bg-muted transition-all btn-tactile"
                                         disabled={saving}
                                     >
                                         <X className="h-4 w-4" />
@@ -361,7 +361,7 @@ export default function TeacherProfilePage() {
                         </div>
 
                         {editError && (
-                            <div className="mx-6 mt-5 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2 font-medium">
+                            <div className="mx-6 mt-5 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-700 dark:text-red-300 text-sm flex items-center gap-2 font-medium">
                                 <AlertTriangle className="h-5 w-5 flex-shrink-0" />
                                 {editError}
                             </div>
@@ -371,58 +371,58 @@ export default function TeacherProfilePage() {
                             <ul className="space-y-6">
                                 {/* Email — read only always */}
                                 <li className="flex items-start">
-                                    <div className="h-12 w-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 mr-5 border border-slate-200 shadow-sm shrink-0">
+                                    <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center text-muted-foreground mr-5 border border-border shadow-sm shrink-0">
                                         <Mail className="h-5 w-5" />
                                     </div>
                                     <div className="flex-1 pt-1">
-                                        <p className="text-sm font-medium text-slate-500 mb-1">Email</p>
-                                        <p className="text-base font-medium text-slate-800">{email}</p>
+                                        <p className="text-sm font-medium text-muted-foreground mb-1">Email</p>
+                                        <p className="text-base font-medium text-foreground">{email}</p>
                                     </div>
                                 </li>
 
                                 {/* Phone — editable */}
                                 <li className="flex items-start">
-                                    <div className="h-12 w-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 flex-shrink-0 mr-5 border border-blue-100 shadow-sm shrink-0">
+                                    <div className="h-12 w-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-600 flex-shrink-0 mr-5 border border-blue-500/20 shadow-sm shrink-0">
                                         <Phone className="h-5 w-5" />
                                     </div>
                                     <div className="flex-1 pt-1">
-                                        <p className="text-sm font-medium text-slate-500 mb-1">Số điện thoại</p>
+                                        <p className="text-sm font-medium text-muted-foreground mb-1">Số điện thoại</p>
                                         {isEditing ? (
                                             <input
                                                 type="tel"
                                                 value={editForm.phone}
                                                 onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
                                                 placeholder="0912345678"
-                                                className="mt-1 w-full px-4 py-2.5 text-base border border-blue-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 bg-white text-slate-800 shadow-inner"
+                                                className="mt-1 w-full px-4 py-2.5 text-base border border-blue-500/30 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 bg-card text-foreground shadow-inner"
                                                 maxLength={11}
                                                 autoFocus
                                             />
                                         ) : (
-                                            <p className="text-base font-medium text-slate-800">{phone}</p>
+                                            <p className="text-base font-medium text-foreground">{phone}</p>
                                         )}
                                     </div>
                                 </li>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     {/* Hourly rate — read only */}
-                                    <li className="flex items-start bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                        <div className="h-10 w-10 rounded-lg bg-amber-100 flex items-center justify-center text-amber-600 mr-4 shrink-0">
+                                    <li className="flex items-start bg-muted p-4 rounded-xl border border-border">
+                                        <div className="h-10 w-10 rounded-lg bg-amber-500/15 flex items-center justify-center text-amber-600 mr-4 shrink-0">
                                             <DollarSign className="h-5 w-5" />
                                         </div>
                                         <div className="pt-0.5">
-                                            <p className="text-sm font-medium text-slate-500 mb-0.5">Lương / giờ</p>
-                                            <p className="text-base font-bold text-slate-800">{formatCurrency(hourly_rate)}</p>
+                                            <p className="text-sm font-medium text-muted-foreground mb-0.5">Lương / giờ</p>
+                                            <p className="text-base font-bold text-foreground">{formatCurrency(hourly_rate)}</p>
                                         </div>
                                     </li>
 
                                     {/* Join date — read only */}
-                                    <li className="flex items-start bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                        <div className="h-10 w-10 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600 mr-4 shrink-0">
+                                    <li className="flex items-start bg-muted p-4 rounded-xl border border-border">
+                                        <div className="h-10 w-10 rounded-lg bg-emerald-500/15 flex items-center justify-center text-emerald-600 mr-4 shrink-0">
                                             <Calendar className="h-5 w-5" />
                                         </div>
                                         <div className="pt-0.5">
-                                            <p className="text-sm font-medium text-slate-500 mb-0.5">Ngày tham gia</p>
-                                            <p className="text-base font-bold text-slate-800">{formatDate(created_at)}</p>
+                                            <p className="text-sm font-medium text-muted-foreground mb-0.5">Ngày tham gia</p>
+                                            <p className="text-base font-bold text-foreground">{formatDate(created_at)}</p>
                                         </div>
                                     </li>
                                 </div>
@@ -431,48 +431,48 @@ export default function TeacherProfilePage() {
                     </div>
 
                     {/* Right Column: Center Info */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden hover-card-lift transition-all duration-300">
-                        <div className="px-6 py-5 border-b border-border bg-slate-50/50">
-                            <h2 className="text-lg font-bold text-slate-800">Trung tâm trực thuộc</h2>
+                    <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden hover-card-lift transition-all duration-300">
+                        <div className="px-6 py-5 border-b border-border bg-muted/50">
+                            <h2 className="text-lg font-bold text-foreground">Trung tâm trực thuộc</h2>
                         </div>
                         <div className="p-6">
                             {primaryCenter ? (
                                 <ul className="space-y-6">
-                                    <li className="flex items-start bg-indigo-50/50 p-4 rounded-xl border border-indigo-100/50">
-                                        <div className="h-12 w-12 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 mr-5 shrink-0 shadow-sm">
+                                    <li className="flex items-start bg-indigo-500/10 p-4 rounded-xl border border-indigo-500/20">
+                                        <div className="h-12 w-12 rounded-xl bg-indigo-500/15 flex items-center justify-center text-indigo-600 mr-5 shrink-0 shadow-sm">
                                             <Building2 className="h-6 w-6" />
                                         </div>
                                         <div className="pt-1">
-                                            <p className="text-sm font-medium text-indigo-600/80 mb-1">Tên trung tâm</p>
-                                            <p className="text-lg font-bold text-indigo-900">{primaryCenter.name || 'Chưa cập nhật'}</p>
+                                            <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400 mb-1">Tên trung tâm</p>
+                                            <p className="text-lg font-bold text-foreground">{primaryCenter.name || 'Chưa cập nhật'}</p>
                                         </div>
                                     </li>
                                     <li className="flex items-start px-2">
-                                        <div className="h-10 w-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 mr-5 shrink-0">
+                                        <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground mr-5 shrink-0">
                                             <Mail className="h-4 w-4" />
                                         </div>
                                         <div className="pt-1">
-                                            <p className="text-sm font-medium text-slate-500 mb-0.5">Địa chỉ</p>
-                                            <p className="text-base font-medium text-slate-800 leading-relaxed">{primaryCenter.address || 'Chưa cập nhật'}</p>
+                                            <p className="text-sm font-medium text-muted-foreground mb-0.5">Địa chỉ</p>
+                                            <p className="text-base font-medium text-foreground leading-relaxed">{primaryCenter.address || 'Chưa cập nhật'}</p>
                                         </div>
                                     </li>
                                     <li className="flex items-start px-2">
-                                        <div className="h-10 w-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 mr-5 shrink-0">
+                                        <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground mr-5 shrink-0">
                                             <Phone className="h-4 w-4" />
                                         </div>
                                         <div className="pt-1">
-                                            <p className="text-sm font-medium text-slate-500 mb-0.5">Hotline</p>
-                                            <p className="text-base font-medium text-slate-800">{primaryCenter.phone || primaryCenter.hotline || 'Chưa cập nhật'}</p>
+                                            <p className="text-sm font-medium text-muted-foreground mb-0.5">Hotline</p>
+                                            <p className="text-base font-medium text-foreground">{primaryCenter.phone || primaryCenter.hotline || 'Chưa cập nhật'}</p>
                                         </div>
                                     </li>
                                 </ul>
                             ) : (
                                 <div className="flex flex-col items-center justify-center py-16 text-center">
-                                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4 border border-slate-100">
-                                        <Building2 className="h-10 w-10 text-slate-300" />
+                                    <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4 border border-border">
+                                        <Building2 className="h-10 w-10 text-muted-foreground/30" />
                                     </div>
-                                    <p className="text-slate-800 font-semibold text-lg">Chưa liên kết trung tâm</p>
-                                    <p className="text-slate-500 mt-2 max-w-xs">Tài khoản của bạn hiện tại chưa được phân công giảng dạy tại trung tâm nào.</p>
+                                    <p className="text-foreground font-semibold text-lg">Chưa liên kết trung tâm</p>
+                                    <p className="text-muted-foreground mt-2 max-w-xs">Tài khoản của bạn hiện tại chưa được phân công giảng dạy tại trung tâm nào.</p>
                                 </div>
                             )}
                         </div>

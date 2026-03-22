@@ -54,7 +54,7 @@ function SessionCard({ session, onNavigate }) {
     const formatTime = (time) => time?.slice(0, 5) || '--:--';
 
     return (
-        <div className="bg-white rounded-2xl border border-border p-4 hover:shadow-md transition-shadow">
+        <div className="bg-card rounded-2xl border border-border p-4 hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between gap-2 mb-3">
                 <span className="px-2.5 py-1 bg-orange-500/10 text-orange-700 dark:text-orange-400 rounded-lg text-xs font-medium">
                     {formatTime(session.start_time)} - {formatTime(session.end_time)}
@@ -112,7 +112,7 @@ function PendingAlert({ sessions, onNavigate }) {
                         {sessions.slice(0, 3).map((session) => (
                             <div
                                 key={session.id}
-                                className="flex items-center justify-between bg-white rounded-lg p-2 border border-amber-500/20"
+                                className="flex items-center justify-between bg-card rounded-lg p-2 border border-amber-500/20"
                             >
                                 <div className="min-w-0">
                                     <p className="text-sm font-medium text-foreground truncate">
@@ -258,7 +258,7 @@ export function TeacherQuickAttendancePage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-white flex items-center justify-center">
+            <div className="min-h-screen bg-transparent flex items-center justify-center">
                 <div className="text-center">
                     <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-2" />
                     <p className="text-muted-foreground">Đang tải dữ liệu...</p>
@@ -269,8 +269,8 @@ export function TeacherQuickAttendancePage() {
 
     if (error) {
         return (
-            <div className="min-h-screen bg-white flex items-center justify-center p-4">
-                <div className="bg-white rounded-2xl border border-red-500/20 p-6 max-w-md text-center shadow-sm">
+            <div className="min-h-screen bg-transparent flex items-center justify-center p-4">
+                <div className="bg-card rounded-2xl border border-red-500/20 p-6 max-w-md text-center shadow-sm">
                     <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-3" />
                     <h3 className="font-semibold text-foreground mb-2">Đã xảy ra lỗi</h3>
                     <p className="text-muted-foreground mb-4">{error}</p>
@@ -281,9 +281,9 @@ export function TeacherQuickAttendancePage() {
     }
 
     return (
-        <div className="min-h-screen bg-white">
+        <div className="min-h-screen bg-transparent">
             {/* Header */}
-            <div className="bg-white border-b border-border sticky top-0 z-10">
+            <div className="bg-card border-b border-border sticky top-0 z-10">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
                     <div className="flex items-center justify-between">
                         <div>
@@ -315,7 +315,7 @@ export function TeacherQuickAttendancePage() {
                     </div>
 
                     {todaySessions.length === 0 ? (
-                        <div className="bg-white rounded-2xl border border-border p-8 text-center">
+                        <div className="bg-card rounded-2xl border border-border p-8 text-center">
                             <Clock className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
                             <p className="text-muted-foreground">Hôm nay bạn không có buổi dạy nào</p>
                             <p className="text-sm text-muted-foreground/70 mt-1">
@@ -345,16 +345,16 @@ export function TeacherQuickAttendancePage() {
                     </div>
 
                     {upcomingSessions.length === 0 ? (
-                        <div className="bg-white rounded-2xl border border-border p-8 text-center">
+                        <div className="bg-card rounded-2xl border border-border p-8 text-center">
                             <CheckCircle className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
                             <p className="text-muted-foreground">Không có buổi học sắp tới</p>
                         </div>
                     ) : (
-                        <div className="bg-white rounded-2xl border border-border divide-y divide-border">
+                        <div className="bg-card rounded-2xl border border-border divide-y divide-border">
                             {upcomingSessions.map(session => (
                                 <div
                                     key={session.id}
-                                    className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors"
+                                    className="flex items-center justify-between p-4 hover:bg-muted transition-colors"
                                 >
                                     <div className="flex items-center gap-4 min-w-0">
                                         <div className="text-center min-w-[60px]">
