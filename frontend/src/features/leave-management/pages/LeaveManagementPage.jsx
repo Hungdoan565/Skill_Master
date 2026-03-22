@@ -198,8 +198,8 @@ export function LeaveManagementPage() {
         </div>
       </div>
 
-      <div className="rounded-lg border bg-white">
-        <div className="border-b px-4 py-3 text-sm text-muted-foreground">
+      <div className="rounded-lg border border-border bg-card shadow-sm">
+        <div className="border-b border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
           Tổng đơn: <span className="font-medium text-foreground">{requests.length}</span> · Chờ duyệt: <span className="font-medium text-foreground">{pendingCount}</span>
         </div>
 
@@ -232,7 +232,7 @@ export function LeaveManagementPage() {
             )}
 
             {!loading && requests.map((request) => (
-              <TableRow key={request.id}>
+              <TableRow key={request.id} className="hover:bg-muted/30">
                 <TableCell className="font-medium">{request.teacher?.full_name || 'Chưa rõ'}</TableCell>
                 <TableCell>{LEAVE_TYPE_LABELS[request.leave_type] || request.leave_type || '--'}</TableCell>
                 <TableCell>{formatDate(request.start_date)}</TableCell>

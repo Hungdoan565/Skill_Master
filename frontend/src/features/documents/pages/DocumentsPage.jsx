@@ -65,14 +65,14 @@ const TypeIcons = {
 
 // Stats Card
 const StatsCard = ({ icon: Icon, label, value, color }) => (
-    <div className="bg-white rounded-lg border p-4">
+    <div className="bg-white dark:bg-slate-800 rounded-lg border dark:border-slate-700 p-4">
         <div className="flex items-center gap-3">
             <div className={`p-2 rounded-lg ${color}`}>
                 <Icon className="h-5 w-5 text-white" />
             </div>
             <div>
-                <p className="text-sm text-slate-500">{label}</p>
-                <p className="text-2xl font-bold text-slate-900">{value}</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">{label}</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">{value}</p>
             </div>
         </div>
     </div>
@@ -86,7 +86,7 @@ const DocumentCard = ({ document, onDownload, onEdit, onDelete, onPreview, onVie
     const isVideo = isVideoDocument(document);
 
     return (
-        <div className="bg-white border rounded-lg hover:shadow-md transition-shadow">
+        <div className="bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-lg hover:shadow-md transition-shadow">
             <div className="p-4">
                 <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -99,9 +99,9 @@ const DocumentCard = ({ document, onDownload, onEdit, onDelete, onPreview, onVie
                             )}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <h3 className="font-medium text-slate-900 truncate">{document.title}</h3>
-                            <p className="text-sm text-slate-500 mt-0.5 line-clamp-2">{document.description}</p>
-                            <div className="flex items-center gap-3 mt-2 text-xs text-slate-400">
+                            <h3 className="font-medium text-slate-900 dark:text-white truncate">{document.title}</h3>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{document.description}</p>
+                            <div className="flex items-center gap-3 mt-2 text-xs text-slate-400 dark:text-slate-500">
                                 <span>{document.courses?.title || 'Chung'}</span>
                                 <span>•</span>
                                 <span>{formatFileSize(document.file_size)}</span>
@@ -126,11 +126,11 @@ const DocumentCard = ({ document, onDownload, onEdit, onDelete, onPreview, onVie
                                     className="fixed inset-0 z-10"
                                     onClick={() => setMenuOpen(false)}
                                 />
-                                <div className="absolute right-0 top-full mt-1 w-40 bg-white rounded-lg shadow-lg border z-20">
+                                <div className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-slate-800 rounded-lg shadow-lg border dark:border-slate-700 z-20">
                                     {isVideo && (
                                         <button
                                             onClick={() => { onPreview(document); setMenuOpen(false); }}
-                                            className="w-full flex items-center gap-2 px-4 py-2 text-sm text-pink-600 hover:bg-pink-50"
+                                            className="w-full flex items-center gap-2 px-4 py-2 text-sm text-pink-600 hover:bg-pink-50 dark:hover:bg-pink-950/30"
                                         >
                                             <Play className="h-4 w-4" />
                                             Xem video
@@ -138,7 +138,7 @@ const DocumentCard = ({ document, onDownload, onEdit, onDelete, onPreview, onVie
                                     )}
                                     <button
                                         onClick={() => { onDownload(document); setMenuOpen(false); }}
-                                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
                                     >
                                         <Download className="h-4 w-4" />
                                         {isVideo && (isYouTubeUrl(document.file_url) || isVimeoUrl(document.file_url))
@@ -148,21 +148,21 @@ const DocumentCard = ({ document, onDownload, onEdit, onDelete, onPreview, onVie
                                     </button>
                                     <button
                                         onClick={() => { onViewAnalytics(document); setMenuOpen(false); }}
-                                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-blue-600 hover:bg-blue-50"
+                                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30"
                                     >
                                         <BarChart3 className="h-4 w-4" />
                                         Thống kê
                                     </button>
                                     <button
                                         onClick={() => { onEdit(document); setMenuOpen(false); }}
-                                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
                                     >
                                         <Edit2 className="h-4 w-4" />
                                         Chỉnh sửa
                                     </button>
                                     <button
                                         onClick={() => { onDelete(document); setMenuOpen(false); }}
-                                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
                                     >
                                         <Trash2 className="h-4 w-4" />
                                         Xóa
@@ -173,7 +173,7 @@ const DocumentCard = ({ document, onDownload, onEdit, onDelete, onPreview, onVie
                     </div>
                 </div>
             </div>
-            <div className="px-4 py-2 bg-slate-50 border-t flex items-center justify-between text-xs text-slate-500">
+            <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800/50 border-t dark:border-slate-700 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                 <span>Tải lên: {formatDate(document.created_at)}</span>
                 <span>Bởi: {document.uploaded_by_user?.full_name || 'N/A'}</span>
             </div>
@@ -218,19 +218,19 @@ const AnalyticsModal = ({ isOpen, onClose, document }) => {
 
     return (
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80">
-            <div className="bg-white rounded-xl w-full max-w-3xl mx-4 overflow-hidden">
-                <div className="flex items-center justify-between p-4 border-b">
+            <div className="bg-white dark:bg-slate-800 rounded-xl w-full max-w-3xl mx-4 overflow-hidden">
+                <div className="flex items-center justify-between p-4 border-b dark:border-slate-700">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-100 rounded-lg">
+                        <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
                             <BarChart3 className="h-5 w-5 text-blue-600" />
                         </div>
                         <div>
-                            <h2 className="text-lg font-semibold">Thống kê tài liệu</h2>
-                            <p className="text-sm text-slate-500">{document.title}</p>
+                            <h2 className="text-lg font-semibold dark:text-white">Thống kê tài liệu</h2>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">{document.title}</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded">
-                        <X className="h-5 w-5" />
+                    <button onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded">
+                        <X className="h-5 w-5 dark:text-slate-400" />
                     </button>
                 </div>
 
@@ -242,62 +242,62 @@ const AnalyticsModal = ({ isOpen, onClose, document }) => {
                     ) : analytics ? (
                         <div className="space-y-6">
                             {/* Document Info */}
-                            <div className="p-4 bg-slate-50 rounded-lg">
+                            <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
                                 <div className="grid grid-cols-2 gap-4 text-sm">
                                     <div>
-                                        <span className="text-slate-500">Tên file:</span>
-                                        <p className="font-medium text-slate-900 mt-1">{analytics.document?.file_name}</p>
+                                        <span className="text-slate-500 dark:text-slate-400">Tên file:</span>
+                                        <p className="font-medium text-slate-900 dark:text-white mt-1">{analytics.document?.file_name}</p>
                                     </div>
                                     <div>
-                                        <span className="text-slate-500">Loại:</span>
-                                        <p className="font-medium text-slate-900 mt-1 capitalize">{analytics.document?.type}</p>
+                                        <span className="text-slate-500 dark:text-slate-400">Loại:</span>
+                                        <p className="font-medium text-slate-900 dark:text-white mt-1 capitalize">{analytics.document?.type}</p>
                                     </div>
                                     <div>
-                                        <span className="text-slate-500">Kích thước:</span>
-                                        <p className="font-medium text-slate-900 mt-1">{formatFileSize(analytics.document?.file_size)}</p>
+                                        <span className="text-slate-500 dark:text-slate-400">Kích thước:</span>
+                                        <p className="font-medium text-slate-900 dark:text-white mt-1">{formatFileSize(analytics.document?.file_size)}</p>
                                     </div>
                                     <div>
-                                        <span className="text-slate-500">Tải lên:</span>
-                                        <p className="font-medium text-slate-900 mt-1">{formatDate(analytics.document?.created_at)}</p>
+                                        <span className="text-slate-500 dark:text-slate-400">Tải lên:</span>
+                                        <p className="font-medium text-slate-900 dark:text-white mt-1">{formatDate(analytics.document?.created_at)}</p>
                                     </div>
                                 </div>
                             </div>
 
                             {/* Stats Grid */}
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div className="p-4 bg-blue-50 rounded-lg">
+                                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                                     <div className="flex items-center gap-2 text-blue-600 text-sm font-medium mb-1">
                                         <Download className="h-4 w-4" />
                                         Tổng tải
                                     </div>
-                                    <div className="text-2xl font-bold text-slate-900">
+                                    <div className="text-2xl font-bold text-slate-900 dark:text-white">
                                         {analytics.stats?.total_downloads || analytics.document?.download_count || 0}
                                     </div>
                                 </div>
-                                <div className="p-4 bg-green-50 rounded-lg">
+                                <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
                                     <div className="flex items-center gap-2 text-green-600 text-sm font-medium mb-1">
                                         <Users className="h-4 w-4" />
                                         Người dùng
                                     </div>
-                                    <div className="text-2xl font-bold text-slate-900">
+                                    <div className="text-2xl font-bold text-slate-900 dark:text-white">
                                         {analytics.stats?.unique_users || 0}
                                     </div>
                                 </div>
-                                <div className="p-4 bg-purple-50 rounded-lg">
+                                <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
                                     <div className="flex items-center gap-2 text-purple-600 text-sm font-medium mb-1">
                                         <TrendingUp className="h-4 w-4" />
                                         Tháng này
                                     </div>
-                                    <div className="text-2xl font-bold text-slate-900">
+                                    <div className="text-2xl font-bold text-slate-900 dark:text-white">
                                         {analytics.stats?.downloads_this_month || 0}
                                     </div>
                                 </div>
-                                <div className="p-4 bg-orange-50 rounded-lg">
+                                <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
                                     <div className="flex items-center gap-2 text-orange-600 text-sm font-medium mb-1">
                                         <TrendingUp className="h-4 w-4" />
                                         Tuần này
                                     </div>
-                                    <div className="text-2xl font-bold text-slate-900">
+                                    <div className="text-2xl font-bold text-slate-900 dark:text-white">
                                         {analytics.stats?.downloads_this_week || 0}
                                     </div>
                                 </div>
@@ -305,10 +305,10 @@ const AnalyticsModal = ({ isOpen, onClose, document }) => {
 
                             {/* No downloads message */}
                             {(!analytics.recent_downloads || analytics.recent_downloads.length === 0) && (
-                                <div className="text-center py-8 bg-slate-50 rounded-lg">
-                                    <Download className="h-12 w-12 mx-auto text-slate-300 mb-3" />
-                                    <p className="text-slate-500 font-medium">Chưa có lượt tải xuống</p>
-                                    <p className="text-slate-400 text-sm mt-1">
+                                <div className="text-center py-8 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                                    <Download className="h-12 w-12 mx-auto text-slate-300 dark:text-slate-500 mb-3" />
+                                    <p className="text-slate-500 dark:text-slate-400 font-medium">Chưa có lượt tải xuống</p>
+                                    <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">
                                         Thống kê sẽ hiển thị sau khi có người tải tài liệu này
                                     </p>
                                 </div>
@@ -316,13 +316,13 @@ const AnalyticsModal = ({ isOpen, onClose, document }) => {
 
                             {/* Top Downloader */}
                             {analytics.stats?.top_downloader_name && (
-                                <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-100">
+                                <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <div className="text-sm font-medium text-slate-600 mb-1">
+                                            <div className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">
                                                 Người tải nhiều nhất
                                             </div>
-                                            <div className="text-lg font-semibold text-slate-900">
+                                            <div className="text-lg font-semibold text-slate-900 dark:text-white">
                                                 {analytics.stats.top_downloader_name}
                                             </div>
                                         </div>
@@ -336,31 +336,31 @@ const AnalyticsModal = ({ isOpen, onClose, document }) => {
                             {/* Recent Downloads */}
                             {analytics.recent_downloads && analytics.recent_downloads.length > 0 && (
                                 <div>
-                                    <h3 className="text-sm font-semibold text-slate-900 mb-3">
+                                    <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-3">
                                         Lịch sử tải xuống gần đây
                                     </h3>
                                     <div className="space-y-2">
                                         {analytics.recent_downloads.map((dl, idx) => (
                                             <div
                                                 key={idx}
-                                                className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
+                                                className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                                             >
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-semibold text-sm">
+                                                    <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-blue-600 font-semibold text-sm">
                                                         {dl.users?.full_name?.charAt(0) || '?'}
                                                     </div>
                                                     <div>
-                                                        <div className="text-sm font-medium text-slate-900">
+                                                        <div className="text-sm font-medium text-slate-900 dark:text-white">
                                                             {dl.users?.full_name || 'Unknown'}
                                                         </div>
-                                                        <div className="text-xs text-slate-500">
+                                                        <div className="text-xs text-slate-500 dark:text-slate-400">
                                                             {dl.users?.role === 'teacher' ? 'Giáo viên' :
                                                                 dl.users?.role === 'student' ? 'Học viên' :
                                                                     dl.users?.role || 'N/A'}
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div className="text-xs text-slate-500">
+                                                <div className="text-xs text-slate-500 dark:text-slate-400">
                                                     {formatDate(dl.downloaded_at)}
                                                 </div>
                                             </div>
@@ -376,8 +376,8 @@ const AnalyticsModal = ({ isOpen, onClose, document }) => {
                     )}
                 </div>
 
-                <div className="p-4 border-t bg-slate-50 flex justify-between items-center">
-                    <div className="text-xs text-slate-500">
+                <div className="p-4 border-t dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center">
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
                         💡 Tip: Click "Tải xuống" trên tài liệu để tracking được ghi nhận
                     </div>
                     <Button variant="outline" onClick={onClose}>
@@ -398,14 +398,14 @@ const VideoPreviewModal = ({ isOpen, onClose, document }) => {
 
     return (
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80">
-            <div className="bg-white rounded-xl w-full max-w-4xl mx-4 overflow-hidden">
-                <div className="flex items-center justify-between p-4 border-b">
+            <div className="bg-white dark:bg-slate-800 rounded-xl w-full max-w-4xl mx-4 overflow-hidden">
+                <div className="flex items-center justify-between p-4 border-b dark:border-slate-700">
                     <div>
-                        <h2 className="text-lg font-semibold">{document.title}</h2>
-                        <p className="text-sm text-slate-500">{document.description}</p>
+                        <h2 className="text-lg font-semibold dark:text-white">{document.title}</h2>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">{document.description}</p>
                     </div>
-                    <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded">
-                        <X className="h-5 w-5" />
+                    <button onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded">
+                        <X className="h-5 w-5 dark:text-slate-400" />
                     </button>
                 </div>
                 <div className="aspect-video bg-black">
@@ -445,8 +445,8 @@ const VideoPreviewModal = ({ isOpen, onClose, document }) => {
                         </div>
                     )}
                 </div>
-                <div className="p-4 bg-slate-50 flex justify-between items-center">
-                    <span className="text-sm text-slate-500">
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center">
+                    <span className="text-sm text-slate-500 dark:text-slate-400">
                         {isYouTubeUrl(document.file_url) && '📺 YouTube'}
                         {isVimeoUrl(document.file_url) && '📺 Vimeo'}
                         {isDirectVideo && `📁 ${formatFileSize(document.file_size)}`}
@@ -480,17 +480,17 @@ const UploadModal = ({ isOpen, onClose, courses, classes, onSubmit, submitting }
 
     return (
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50">
-            <div className="bg-white rounded-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between p-4 border-b">
-                    <h2 className="text-lg font-semibold">Tải lên tài liệu mới</h2>
-                    <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded">
-                        <X className="h-5 w-5" />
+            <div className="bg-white dark:bg-slate-800 rounded-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between p-4 border-b dark:border-slate-700">
+                    <h2 className="text-lg font-semibold dark:text-white">Tải lên tài liệu mới</h2>
+                    <button onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded">
+                        <X className="h-5 w-5 dark:text-slate-400" />
                     </button>
                 </div>
                 <form onSubmit={handleSubmit} className="p-4 space-y-4">
                     {/* Title */}
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                             Tiêu đề <span className="text-red-500">*</span>
                         </label>
                         <Input
@@ -503,23 +503,23 @@ const UploadModal = ({ isOpen, onClose, courses, classes, onSubmit, submitting }
 
                     {/* Description */}
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Mô tả</label>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Mô tả</label>
                         <textarea
                             value={formData.description}
                             onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                             placeholder="Mô tả ngắn về tài liệu"
                             rows={3}
-                            className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="flex w-full rounded-md border-2 border-input bg-background px-4 py-2 text-base text-foreground placeholder:text-muted-foreground transition-all duration-200 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 hover:border-muted-foreground/30"
                         />
                     </div>
 
                     {/* Type */}
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Loại tài liệu</label>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Loại tài liệu</label>
                         <select
                             value={formData.type}
                             onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value }))}
-                            className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="flex h-11 w-full rounded-md border-2 border-input bg-background px-4 py-2 text-base text-foreground transition-all duration-200 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 hover:border-muted-foreground/30"
                         >
                             {DOCUMENT_TYPES.map(type => (
                                 <option key={type.value} value={type.value}>{type.label}</option>
@@ -529,11 +529,11 @@ const UploadModal = ({ isOpen, onClose, courses, classes, onSubmit, submitting }
 
                     {/* Course */}
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Khóa học</label>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Khóa học</label>
                         <select
                             value={formData.course_id}
                             onChange={(e) => setFormData(prev => ({ ...prev, course_id: e.target.value }))}
-                            className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="flex h-11 w-full rounded-md border-2 border-input bg-background px-4 py-2 text-base text-foreground transition-all duration-200 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 hover:border-muted-foreground/30"
                         >
                             <option value="">Tài liệu chung</option>
                             {courses.map(course => (
@@ -544,10 +544,10 @@ const UploadModal = ({ isOpen, onClose, courses, classes, onSubmit, submitting }
 
                     {/* File */}
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                             Tệp tin <span className="text-red-500">*</span>
                         </label>
-                        <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-indigo-500 transition-colors">
+                        <div className="border-2 border-dashed dark:border-slate-600 rounded-lg p-6 text-center hover:border-indigo-500 transition-colors">
                             <input
                                 type="file"
                                 onChange={(e) => setFile(e.target.files?.[0] || null)}
@@ -557,7 +557,7 @@ const UploadModal = ({ isOpen, onClose, courses, classes, onSubmit, submitting }
                             />
                             <label htmlFor="file-upload" className="cursor-pointer">
                                 <Upload className="h-8 w-8 mx-auto text-slate-400 mb-2" />
-                                <p className="text-sm text-slate-600">
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
                                     {file ? file.name : 'Nhấp để chọn tệp hoặc kéo thả vào đây'}
                                 </p>
                                 {file && (
@@ -621,18 +621,18 @@ const EditModal = ({ isOpen, onClose, document, onSubmit, submitting }) => {
 
     return (
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50">
-            <div className="bg-white rounded-xl w-full max-w-2xl mx-4 overflow-hidden">
-                <div className="flex items-center justify-between p-4 border-b">
-                    <h2 className="text-lg font-semibold">Chỉnh sửa tài liệu</h2>
-                    <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded">
-                        <X className="h-5 w-5" />
+            <div className="bg-white dark:bg-slate-800 rounded-xl w-full max-w-2xl mx-4 overflow-hidden">
+                <div className="flex items-center justify-between p-4 border-b dark:border-slate-700">
+                    <h2 className="text-lg font-semibold dark:text-white">Chỉnh sửa tài liệu</h2>
+                    <button onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded">
+                        <X className="h-5 w-5 dark:text-slate-400" />
                     </button>
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     {/* Title */}
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                             Tiêu đề <span className="text-red-500">*</span>
                         </label>
                         <Input
@@ -645,7 +645,7 @@ const EditModal = ({ isOpen, onClose, document, onSubmit, submitting }) => {
 
                     {/* Description */}
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                             Mô tả
                         </label>
                         <textarea
@@ -653,19 +653,19 @@ const EditModal = ({ isOpen, onClose, document, onSubmit, submitting }) => {
                             onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                             placeholder="Mô tả về tài liệu..."
                             rows={4}
-                            className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="flex w-full rounded-md border-2 border-input bg-background px-4 py-2 text-base text-foreground placeholder:text-muted-foreground transition-all duration-200 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 hover:border-muted-foreground/30"
                         />
                     </div>
 
                     {/* Type */}
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                             Loại tài liệu
                         </label>
                         <select
                             value={formData.type}
                             onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value }))}
-                            className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="flex h-11 w-full rounded-md border-2 border-input bg-background px-4 py-2 text-base text-foreground transition-all duration-200 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 hover:border-muted-foreground/30"
                         >
                             {DOCUMENT_TYPES.map((type) => (
                                 <option key={type.value} value={type.value}>
@@ -676,10 +676,10 @@ const EditModal = ({ isOpen, onClose, document, onSubmit, submitting }) => {
                     </div>
 
                     {/* File info */}
-                    <div className="p-3 bg-slate-50 rounded-lg text-sm text-slate-600">
-                        <p className="font-medium mb-1">File hiện tại:</p>
-                        <p className="text-slate-500">{document?.file_name}</p>
-                        <p className="text-xs text-slate-400 mt-1">
+                    <div className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg text-sm text-slate-600 dark:text-slate-400">
+                        <p className="font-medium mb-1 dark:text-slate-300">File hiện tại:</p>
+                        <p className="text-slate-500 dark:text-slate-400">{document?.file_name}</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
                             Lưu ý: Không thể thay đổi file. Để upload file mới, vui lòng tạo tài liệu mới.
                         </p>
                     </div>
@@ -904,8 +904,8 @@ export function DocumentsPage() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Quản lý Tài liệu</h1>
-                    <p className="text-slate-500">Tài liệu và học liệu cho các khóa học</p>
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Quản lý Tài liệu</h1>
+                    <p className="text-slate-500 dark:text-slate-400">Tài liệu và học liệu cho các khóa học</p>
                 </div>
                 <Button onClick={() => setUploadModal(true)}>
                     <Upload className="h-4 w-4 mr-2" />
@@ -940,7 +940,7 @@ export function DocumentsPage() {
                         <select
                             value={typeFilter}
                             onChange={(e) => setTypeFilter(e.target.value)}
-                            className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="flex h-11 rounded-md border-2 border-input bg-background px-4 py-2 text-base text-foreground transition-all duration-200 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 hover:border-muted-foreground/30"
                         >
                             <option value="">Tất cả loại</option>
                             {DOCUMENT_TYPES.map(type => (
@@ -952,7 +952,7 @@ export function DocumentsPage() {
                         <select
                             value={courseFilter}
                             onChange={(e) => setCourseFilter(e.target.value)}
-                            className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="flex h-11 rounded-md border-2 border-input bg-background px-4 py-2 text-base text-foreground transition-all duration-200 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 hover:border-muted-foreground/30"
                         >
                             <option value="">Tất cả khóa học</option>
                             {courses.map(course => (
@@ -965,7 +965,7 @@ export function DocumentsPage() {
                             <select
                                 value={selectedCenter}
                                 onChange={(e) => setSelectedCenter(e.target.value)}
-                                className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                className="flex h-11 rounded-md border-2 border-input bg-background px-4 py-2 text-base text-foreground transition-all duration-200 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 hover:border-muted-foreground/30"
                             >
                                 <option value="">Tất cả trung tâm</option>
                                 {centers.map(center => (
@@ -1058,9 +1058,9 @@ export function DocumentsPage() {
             {/* Delete Modal */}
             {deleteModal.isOpen && (
                 <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50">
-                    <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-                        <h3 className="text-lg font-semibold text-slate-900">Xác nhận xóa</h3>
-                        <p className="text-slate-500 mt-2">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg p-6 max-w-md w-full mx-4">
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Xác nhận xóa</h3>
+                        <p className="text-slate-500 dark:text-slate-400 mt-2">
                             Bạn có chắc muốn xóa tài liệu <strong>{deleteModal.document?.title}</strong>?
                         </p>
                         <div className="flex justify-end gap-3 mt-6">

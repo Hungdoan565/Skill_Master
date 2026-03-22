@@ -65,7 +65,7 @@ const Switch = React.forwardRef(({ className, checked, onCheckedChange, disabled
     data-state={checked ? 'checked' : 'unchecked'}
     disabled={disabled}
     className={cn(
-      "peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-indigo-600 data-[state=unchecked]:bg-slate-200",
+      "peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-indigo-600 data-[state=unchecked]:bg-muted",
       className
     )}
     onClick={() => !disabled && onCheckedChange?.(!checked)}
@@ -278,9 +278,9 @@ export default function CustomAlertsPage() {
 
   const getSeverityBadge = (severity) => {
     const s = SEVERITIES[severity] || SEVERITIES.info;
-    let colorClass = 'bg-blue-100 text-blue-800 border-transparent hover:bg-blue-200';
-    if (s.color === 'amber') colorClass = 'bg-amber-100 text-amber-800 border-transparent hover:bg-amber-200';
-    if (s.color === 'red') colorClass = 'bg-red-100 text-red-800 border-transparent hover:bg-red-200';
+    let colorClass = 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-transparent hover:bg-blue-500/25';
+    if (s.color === 'amber') colorClass = 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-transparent hover:bg-amber-500/25';
+    if (s.color === 'red') colorClass = 'bg-red-500/15 text-red-700 dark:text-red-400 border-transparent hover:bg-red-500/25';
     
     return (
       <Badge className={cn(colorClass, 'font-medium', 'shadow-none')}>
@@ -322,12 +322,12 @@ export default function CustomAlertsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="mb-6 bg-slate-100 p-1 w-full sm:w-auto flex sm:inline-flex rounded-lg h-12">
-          <TabsTrigger value="rules" className="flex-1 sm:flex-none h-10 px-6 rounded-md data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm">
+        <TabsList className="mb-6 bg-muted p-1 w-full sm:w-auto flex sm:inline-flex rounded-lg h-12">
+          <TabsTrigger value="rules" className="flex-1 sm:flex-none h-10 px-6 rounded-md data-[state=active]:bg-card data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm">
             <Bell className="w-4 h-4 mr-2" />
             Quy tắc cảnh báo
           </TabsTrigger>
-          <TabsTrigger value="history" className="flex-1 sm:flex-none h-10 px-6 rounded-md data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm">
+          <TabsTrigger value="history" className="flex-1 sm:flex-none h-10 px-6 rounded-md data-[state=active]:bg-card data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm">
             <History className="w-4 h-4 mr-2" />
             Lịch sử cảnh báo
             {history.filter(h => !h.acknowledged).length > 0 && (
@@ -339,17 +339,17 @@ export default function CustomAlertsPage() {
         </TabsList>
 
         <TabsContent value="rules" className="space-y-4 outline-none">
-          <Card className="shadow-sm border-slate-200 overflow-hidden">
+          <Card className="shadow-sm border-border overflow-hidden">
             <div className="relative w-full overflow-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
-                    <TableHead className="font-semibold text-slate-700 h-12">Tên quy tắc</TableHead>
-                    <TableHead className="font-semibold text-slate-700 h-12">Điều kiện</TableHead>
-                    <TableHead className="font-semibold text-slate-700 h-12">Mức độ</TableHead>
-                    <TableHead className="font-semibold text-slate-700 h-12">Kênh thông báo</TableHead>
-                    <TableHead className="font-semibold text-slate-700 h-12 text-center">Trạng thái</TableHead>
-                    <TableHead className="font-semibold text-slate-700 h-12 text-right pr-6">Thao tác</TableHead>
+                  <TableRow className="bg-muted/50 hover:bg-muted/50">
+                    <TableHead className="font-semibold text-foreground h-12">Tên quy tắc</TableHead>
+                    <TableHead className="font-semibold text-foreground h-12">Điều kiện</TableHead>
+                    <TableHead className="font-semibold text-foreground h-12">Mức độ</TableHead>
+                    <TableHead className="font-semibold text-foreground h-12">Kênh thông báo</TableHead>
+                    <TableHead className="font-semibold text-foreground h-12 text-center">Trạng thái</TableHead>
+                    <TableHead className="font-semibold text-foreground h-12 text-right pr-6">Thao tác</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -372,9 +372,9 @@ export default function CustomAlertsPage() {
                       <TableRow key={rule.id} className="group">
                         <TableCell className="font-medium align-top">
                           <div className="flex flex-col gap-1.5 mt-1">
-                            <span className="text-slate-900">{rule.name}</span>
+                            <span className="text-foreground">{rule.name}</span>
                             {rule.trigger_count > 0 && (
-                              <span className="text-xs text-slate-500 flex items-center">
+                              <span className="text-xs text-muted-foreground flex items-center">
                                 <History className="w-3.5 h-3.5 mr-1" />
                                 Đã kích hoạt {rule.trigger_count} lần
                               </span>
@@ -383,9 +383,9 @@ export default function CustomAlertsPage() {
                         </TableCell>
                         <TableCell className="align-top">
                           <div className="flex items-center space-x-2 text-sm mt-1">
-                            <span className="text-slate-600">{METRIC_TYPES[rule.metric_type]}</span>
-                            <span className="font-semibold text-slate-900">{OPERATORS[rule.condition_operator]}</span>
-                            <Badge variant="secondary" className="font-mono text-xs bg-slate-100 text-slate-700">
+                            <span className="text-muted-foreground">{METRIC_TYPES[rule.metric_type]}</span>
+                            <span className="font-semibold text-foreground">{OPERATORS[rule.condition_operator]}</span>
+                            <Badge variant="secondary" className="font-mono text-xs bg-muted text-foreground">
                               {rule.threshold_value}
                             </Badge>
                           </div>
@@ -396,7 +396,7 @@ export default function CustomAlertsPage() {
                         <TableCell className="align-top">
                           <div className="flex flex-wrap gap-1 mt-1">
                             {rule.notification_channels?.map(ch => (
-                              <Badge key={ch} variant="outline" className="text-[10px] bg-white text-slate-600 uppercase border-slate-200 shadow-sm">
+                              <Badge key={ch} variant="outline" className="text-[10px] bg-white text-muted-foreground uppercase border-border shadow-sm">
                                 {ch === 'in_app' ? 'In-App' : ch}
                               </Badge>
                             ))}
@@ -412,10 +412,10 @@ export default function CustomAlertsPage() {
                         </TableCell>
                         <TableCell className="text-right align-top pr-4">
                           <div className="flex items-center justify-end space-x-1 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button variant="ghost" size="icon" onClick={() => openEditModal(rule)} className="h-8 w-8 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50">
+                            <Button variant="ghost" size="icon" onClick={() => openEditModal(rule)} className="h-8 w-8 text-muted-foreground hover:text-indigo-600 hover:bg-primary/10">
                               <Edit2 className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => confirmDelete(rule.id)} className="h-8 w-8 text-slate-500 hover:text-red-600 hover:bg-red-50">
+                            <Button variant="ghost" size="icon" onClick={() => confirmDelete(rule.id)} className="h-8 w-8 text-muted-foreground hover:text-red-600 hover:bg-destructive/10">
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
@@ -430,16 +430,16 @@ export default function CustomAlertsPage() {
         </TabsContent>
 
         <TabsContent value="history" className="space-y-4 outline-none">
-          <Card className="shadow-sm border-slate-200 overflow-hidden">
+          <Card className="shadow-sm border-border overflow-hidden">
             <div className="relative w-full overflow-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
-                    <TableHead className="font-semibold text-slate-700 w-12 h-12"></TableHead>
-                    <TableHead className="font-semibold text-slate-700 h-12">Nội dung cảnh báo</TableHead>
-                    <TableHead className="font-semibold text-slate-700 h-12">Thời gian</TableHead>
-                    <TableHead className="font-semibold text-slate-700 h-12">Quy tắc / Trung tâm</TableHead>
-                    <TableHead className="font-semibold text-slate-700 h-12 text-right pr-6">Trạng thái</TableHead>
+                  <TableRow className="bg-muted/50 hover:bg-muted/50">
+                    <TableHead className="font-semibold text-foreground w-12 h-12"></TableHead>
+                    <TableHead className="font-semibold text-foreground h-12">Nội dung cảnh báo</TableHead>
+                    <TableHead className="font-semibold text-foreground h-12">Thời gian</TableHead>
+                    <TableHead className="font-semibold text-foreground h-12">Quy tắc / Trung tâm</TableHead>
+                    <TableHead className="font-semibold text-foreground h-12 text-right pr-6">Trạng thái</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -457,31 +457,31 @@ export default function CustomAlertsPage() {
                     </TableRow>
                   ) : (
                     history.map((item) => (
-                      <TableRow key={item.id} className={cn(!item.acknowledged && "bg-blue-50/30", "group")}>
+                      <TableRow key={item.id} className={cn(!item.acknowledged && "bg-primary/5", "group")}>
                         <TableCell className="align-top pt-4">
                           <div className={cn("p-1.5 rounded-lg inline-flex", 
-                            item.severity === 'warning' ? "bg-amber-100" : 
-                            item.severity === 'critical' ? "bg-red-100" : "bg-blue-100"
+                            item.severity === 'warning' ? "bg-amber-500/15" : 
+                            item.severity === 'critical' ? "bg-red-500/15" : "bg-blue-500/15"
                           )}>
                             {getSeverityIcon(item.severity)}
                           </div>
                         </TableCell>
                         <TableCell className="align-top pt-4">
                           <div className="flex flex-col gap-1.5">
-                            <span className={cn("text-sm leading-relaxed", !item.acknowledged ? "font-semibold text-slate-900" : "text-slate-700")}>
+                            <span className={cn("text-sm leading-relaxed", !item.acknowledged ? "font-semibold text-foreground" : "text-foreground")}>
                               {item.message}
                             </span>
-                            <span className="text-xs text-slate-500 flex items-center">
-                              Giá trị ghi nhận: <Badge variant="secondary" className="ml-1.5 px-1.5 py-0 text-[10px] bg-white border-slate-200 text-slate-700">{item.metric_value}</Badge>
+                            <span className="text-xs text-muted-foreground flex items-center">
+                              Giá trị ghi nhận: <Badge variant="secondary" className="ml-1.5 px-1.5 py-0 text-[10px] bg-white border-border text-foreground">{item.metric_value}</Badge>
                             </span>
                           </div>
                         </TableCell>
                         <TableCell className="align-top pt-4">
                           <div className="flex flex-col gap-1">
-                            <span className="text-sm font-medium text-slate-900">
+                            <span className="text-sm font-medium text-foreground">
                               {new Date(item.triggered_at).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                             </span>
-                            <span className="text-xs text-slate-500 flex items-center">
+                            <span className="text-xs text-muted-foreground flex items-center">
                               <Clock className="w-3 h-3 mr-1" />
                               {formatDistanceToNow(new Date(item.triggered_at), { addSuffix: true, locale: vi })}
                             </span>
@@ -489,9 +489,9 @@ export default function CustomAlertsPage() {
                         </TableCell>
                         <TableCell className="align-top pt-4">
                           <div className="flex flex-col gap-1.5">
-                            <span className="text-sm text-slate-900 font-medium">{item.rule_name}</span>
-                            <span className="text-xs text-slate-500 flex items-center">
-                              <div className="w-1.5 h-1.5 rounded-full bg-slate-300 mr-1.5" />
+                            <span className="text-sm text-foreground font-medium">{item.rule_name}</span>
+                            <span className="text-xs text-muted-foreground flex items-center">
+                              <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30 mr-1.5" />
                               {item.center_name || 'Tất cả trung tâm'}
                             </span>
                           </div>
@@ -499,15 +499,15 @@ export default function CustomAlertsPage() {
                         <TableCell className="text-right align-top pt-4 pr-4">
                           {item.acknowledged ? (
                             <div className="flex flex-col items-end gap-1">
-                              <span className="flex items-center text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-md">
+                              <span className="flex items-center text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1 rounded-md">
                                 <CheckCircle className="w-3.5 h-3.5 mr-1" /> Đã xác nhận
                               </span>
-                              <span className="text-[10px] text-slate-500">
+                              <span className="text-[10px] text-muted-foreground">
                                 bởi {item.acknowledged_by || 'Admin'}
                               </span>
                             </div>
                           ) : (
-                            <Button size="sm" onClick={() => handleAcknowledge(item.id)} className="h-8 shadow-sm bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button size="sm" onClick={() => handleAcknowledge(item.id)} className="h-8 shadow-sm bg-white border-border text-foreground hover:bg-muted hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity">
                               <Check className="w-3.5 h-3.5 mr-1.5" /> Xác nhận
                             </Button>
                           )}
@@ -527,7 +527,7 @@ export default function CustomAlertsPage() {
         <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden gap-0">
           <DialogHeader className="p-6 pb-0">
             <DialogTitle className="text-xl">{editingRule ? 'Sửa quy tắc cảnh báo' : 'Thêm quy tắc mới'}</DialogTitle>
-            <DialogDescription className="mt-2 text-slate-500">
+            <DialogDescription className="mt-2 text-muted-foreground">
               Thiết lập điều kiện để hệ thống tự động gửi cảnh báo khi có sự cố.
             </DialogDescription>
           </DialogHeader>
@@ -535,7 +535,7 @@ export default function CustomAlertsPage() {
           <form onSubmit={handleSubmit(onSubmit)} className="p-6 pt-6 space-y-6">
             <div className="grid gap-5 sm:grid-cols-2">
               <div className="space-y-2.5 sm:col-span-2">
-                <Label htmlFor="name" className="text-slate-700 font-medium">Tên quy tắc</Label>
+                <Label htmlFor="name" className="text-foreground font-medium">Tên quy tắc</Label>
                 <Input 
                   id="name" 
                   placeholder="Ví dụ: Cảnh báo sụt giảm doanh thu" 
@@ -546,7 +546,7 @@ export default function CustomAlertsPage() {
               </div>
 
               <div className="space-y-2.5">
-                <Label className="text-slate-700 font-medium">Loại số liệu</Label>
+                <Label className="text-foreground font-medium">Loại số liệu</Label>
                 <Controller
                   control={control}
                   name="metric_type"
@@ -567,7 +567,7 @@ export default function CustomAlertsPage() {
               </div>
 
               <div className="space-y-2.5">
-                <Label className="text-slate-700 font-medium">Mức độ nghiêm trọng</Label>
+                <Label className="text-foreground font-medium">Mức độ nghiêm trọng</Label>
                 <Controller
                   control={control}
                   name="severity"
@@ -594,7 +594,7 @@ export default function CustomAlertsPage() {
               </div>
 
               <div className="space-y-2.5">
-                <Label className="text-slate-700 font-medium">Toán tử</Label>
+                <Label className="text-foreground font-medium">Toán tử</Label>
                 <Controller
                   control={control}
                   name="condition_operator"
@@ -615,7 +615,7 @@ export default function CustomAlertsPage() {
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor="threshold_value" className="text-slate-700 font-medium">Ngưỡng (Value)</Label>
+                <Label htmlFor="threshold_value" className="text-foreground font-medium">Ngưỡng (Value)</Label>
                 <Input 
                   id="threshold_value" 
                   type="number"
@@ -627,20 +627,20 @@ export default function CustomAlertsPage() {
               </div>
 
               <div className="space-y-2.5">
-                <Label htmlFor="cooldown_minutes" className="text-slate-700 font-medium">Phút chờ (Cooldown)</Label>
+                <Label htmlFor="cooldown_minutes" className="text-foreground font-medium">Phút chờ (Cooldown)</Label>
                 <Input 
                   id="cooldown_minutes" 
                   type="number"
                   {...register('cooldown_minutes', { valueAsNumber: true })} 
                   className={errors.cooldown_minutes ? 'border-red-500 focus:ring-red-500/20' : ''}
                 />
-                <p className="text-[11px] text-slate-500 mt-1">Thời gian chờ giữa 2 lần cảnh báo liên tiếp</p>
+                <p className="text-[11px] text-muted-foreground mt-1">Thời gian chờ giữa 2 lần cảnh báo liên tiếp</p>
                 {errors.cooldown_minutes && <p className="text-xs text-red-500 font-medium">{errors.cooldown_minutes.message}</p>}
               </div>
 
               <div className="space-y-3">
-                <Label className="text-slate-700 font-medium">Kênh thông báo</Label>
-                <div className="flex flex-col space-y-3 mt-2 bg-slate-50 p-3 rounded-md border border-slate-100">
+                <Label className="text-foreground font-medium">Kênh thông báo</Label>
+                <div className="flex flex-col space-y-3 mt-2 bg-muted p-3 rounded-md border border-border">
                   <Controller
                     control={control}
                     name="notification_channels"
@@ -656,7 +656,7 @@ export default function CustomAlertsPage() {
                               field.onChange(newValue);
                             }}
                           />
-                          <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">In-App (Thông báo web)</span>
+                          <span className="text-sm font-medium text-foreground group-hover:text-foreground">In-App (Thông báo web)</span>
                         </label>
                         <label className="flex items-center space-x-3 cursor-pointer group">
                           <Checkbox 
@@ -668,7 +668,7 @@ export default function CustomAlertsPage() {
                               field.onChange(newValue);
                             }}
                           />
-                          <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">Email</span>
+                          <span className="text-sm font-medium text-foreground group-hover:text-foreground">Email</span>
                         </label>
                       </>
                     )}
@@ -677,10 +677,10 @@ export default function CustomAlertsPage() {
                 {errors.notification_channels && <p className="text-xs text-red-500 font-medium mt-1">{errors.notification_channels.message}</p>}
               </div>
 
-              <div className="space-y-2 sm:col-span-2 flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-lg">
+              <div className="space-y-2 sm:col-span-2 flex items-center justify-between p-4 bg-muted border border-border rounded-lg">
                 <div className="flex flex-col gap-1">
-                  <Label className="text-sm font-semibold text-slate-900">Trạng thái hoạt động</Label>
-                  <span className="text-xs text-slate-500">Bật hoặc tắt quy tắc cảnh báo này</span>
+                  <Label className="text-sm font-semibold text-foreground">Trạng thái hoạt động</Label>
+                  <span className="text-xs text-muted-foreground">Bật hoặc tắt quy tắc cảnh báo này</span>
                 </div>
                 <Controller
                   control={control}
@@ -693,7 +693,7 @@ export default function CustomAlertsPage() {
             </div>
 
             <DialogFooter className="pt-6 border-t mt-8 gap-2 sm:gap-0">
-              <Button type="button" variant="outline" onClick={() => setIsRuleModalOpen(false)} className="bg-white">Hủy</Button>
+              <Button type="button" variant="outline" onClick={() => setIsRuleModalOpen(false)} className="bg-card">Hủy</Button>
               <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white">
                 {editingRule ? 'Lưu thay đổi' : 'Tạo quy tắc'}
               </Button>
@@ -707,19 +707,19 @@ export default function CustomAlertsPage() {
         <DialogContent className="sm:max-w-[400px] p-0 overflow-hidden">
           <div className="p-6">
             <div className="flex flex-col items-center text-center space-y-4">
-              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-full bg-red-500/15 flex items-center justify-center">
                 <AlertTriangle className="w-6 h-6 text-red-600" />
               </div>
               <div className="space-y-2">
-                <h3 className="text-lg font-semibold text-slate-900">Xóa quy tắc cảnh báo</h3>
-                <p className="text-sm text-slate-500">
+                <h3 className="text-lg font-semibold text-foreground">Xóa quy tắc cảnh báo</h3>
+                <p className="text-sm text-muted-foreground">
                   Bạn có chắc chắn muốn xóa quy tắc này? Hành động này không thể hoàn tác và các cảnh báo mới sẽ không được tạo.
                 </p>
               </div>
             </div>
           </div>
-          <div className="bg-slate-50 p-4 border-t border-slate-100 flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} className="bg-white">Hủy bỏ</Button>
+          <div className="bg-muted p-4 border-t border-border flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} className="bg-card">Hủy bỏ</Button>
             <Button variant="destructive" onClick={handleDelete} className="bg-red-600 hover:bg-red-700">Xác nhận xóa</Button>
           </div>
         </DialogContent>
