@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { SmartImage } from '@/components/common';
 import { ConsultationModal } from '@/components/common';
-import { ArrowRight, Play, CheckCircle2, TrendingUp, Shield, Award, Star } from 'lucide-react';
+import { ArrowRight, Play, CheckCircle2, TrendingUp, Shield, Award, Star, Calendar, Quote } from 'lucide-react';
 import { useInView } from '../hooks/use-in-view';
-import { landingImages } from '../constants/landing-data';
+import { heroCourseCard, teachers, testimonials } from '../constants/landing-data';
 
 /**
  * Hero Section — Revenue-focused, LIGHT background (original style)
@@ -13,6 +12,9 @@ import { landingImages } from '../constants/landing-data';
 export const HeroSection = () => {
     const [ref, isInView] = useInView();
     const [showConsultation, setShowConsultation] = useState(false);
+    const featuredTeacher = teachers.find((teacher) => teacher.name === heroCourseCard.instructor.name) ?? teachers[0];
+    const featuredTestimonial = testimonials.find((testimonial) => testimonial.featured) ?? testimonials[0];
+    const progressWidth = `${Math.min(Math.max(heroCourseCard.progress, 0), 100)}%`;
 
     return (
         <>
@@ -146,56 +148,144 @@ export const HeroSection = () => {
                             </div>
                         </div>
 
-                        {/* Right Visual — Single Large Photo Container */}
+                        {/* Right Visual — Proof Board */}
                         <div className={`lg:col-span-5 relative transform transition-all duration-1000 delay-300
                           ${isInView ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-12'}`}>
                             
                             {/* Ambient Background Glow */}
                             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[110%] h-[110%] bg-gradient-to-tr from-red-100/40 to-blue-50/40 rounded-full blur-[80px] -z-10" />
 
-                            {/* Full-bleed Photo Container */}
-                            <div className="relative w-full aspect-[4/3] sm:aspect-square lg:aspect-[4/3] xl:aspect-[16/11]">
-                                <div className="absolute inset-0 bg-card rounded-[2.5rem] shadow-2xl shadow-black/10 dark:shadow-black/30 
-                                             border-4 border-white overflow-hidden group transition-transform duration-700 hover:-translate-y-1">
-                                    <div className="absolute inset-0 rounded-[calc(2.5rem-4px)] overflow-hidden">
-                                        <SmartImage
-                                            src={landingImages.center.classroom}
-                                            alt="Cơ sở vật chất hiện đại tại Skill Master"
-                                            className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
-                                            containerClassName="w-full h-full"
-                                        />
-                                        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
+                            {/* Proof Board Container: Stack on mobile, absolute positioning on desktop */}
+                            <div className="flex flex-col gap-5 sm:gap-6 lg:block lg:h-[580px] w-full mt-12 lg:mt-0 relative z-10">
+                                
+                                {/* Card 1: Dominant Course Progress */}
+                                <div className="bg-white/90 backdrop-blur-xl rounded-[2rem] p-6 shadow-xl shadow-black/5 border border-white lg:absolute lg:top-0 lg:left-0 lg:w-[380px] z-20 group hover:-translate-y-1 transition-transform duration-500">
+                                    <div className="flex justify-between items-start mb-6">
+                                        <div>
+                                            <span className="inline-block px-3 py-1 bg-red-50 text-red-600 rounded-full text-xs font-semibold mb-3 border border-red-100">
+                                                {heroCourseCard.courseName}
+                                            </span>
+                                            <h3 className="text-foreground font-bold text-xl">Tiến độ học tập</h3>
+                                            <p className="mt-2 text-sm text-muted-foreground">{heroCourseCard.subtitle}</p>
+                                        </div>
+                                        <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-500 shadow-inner">
+                                            <TrendingUp className="w-6 h-6" />
+                                        </div>
+                                    </div>
+
+                                    {/* Progress Bar */}
+                                    <div className="space-y-3 mb-8">
+                                        <div className="flex justify-between text-sm items-end">
+                                            <span className="text-muted-foreground font-medium">Hoàn thành</span>
+                                            <span className="font-bold text-foreground text-lg">{heroCourseCard.progress}%</span>
+                                        </div>
+                                        <div className="h-2.5 w-full bg-stone-100 rounded-full overflow-hidden shadow-inner">
+                                            <div className="h-full bg-gradient-to-r from-red-500 to-orange-400 rounded-full relative" style={{ width: progressWidth }}>
+                                                <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]" />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-3 pt-2">
+                                            <div className="rounded-2xl bg-stone-50 px-3 py-3 border border-stone-100">
+                                                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Mục tiêu</p>
+                                                <p className="mt-1 text-sm font-bold text-foreground">IELTS {heroCourseCard.targetScore}</p>
+                                            </div>
+                                            <div className="rounded-2xl bg-stone-50 px-3 py-3 border border-stone-100">
+                                                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Đã học</p>
+                                                <p className="mt-1 text-sm font-bold text-foreground">{heroCourseCard.completedLessons}/{heroCourseCard.totalLessons} buổi</p>
+                                            </div>
+                                            <div className="rounded-2xl bg-stone-50 px-3 py-3 border border-stone-100">
+                                                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Tăng tốc</p>
+                                                <p className="mt-1 text-sm font-bold text-emerald-600">{heroCourseCard.weeklyImprovement}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Next Class */}
+                                    <div className="bg-stone-50/80 rounded-2xl p-4 flex items-center gap-4 border border-stone-100/50">
+                                        <div className="bg-white p-2.5 rounded-xl shadow-sm text-red-500">
+                                            <Calendar className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-muted-foreground font-medium mb-1">Lớp tiếp theo • {heroCourseCard.nextClass.day}</p>
+                                            <p className="text-sm font-bold text-foreground">{heroCourseCard.nextClass.topic}</p>
+                                            <p className="text-xs text-muted-foreground mt-1">{heroCourseCard.nextClass.time} • {heroCourseCard.classRank}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-4 space-y-2">
+                                        {heroCourseCard.recentActivities.map((activity) => (
+                                            <div key={`${activity.type}-${activity.title}`} className="flex items-center justify-between rounded-2xl border border-stone-100 bg-white/70 px-4 py-3">
+                                                <div>
+                                                    <p className="text-sm font-semibold text-foreground">{activity.title}</p>
+                                                    <p className="text-xs text-muted-foreground">{activity.time}</p>
+                                                </div>
+                                                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 border border-emerald-100">
+                                                    {activity.score}
+                                                </span>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
 
-                                {/* Floating Card — Satisfaction */}
-                                <div className="absolute top-8 -right-6 p-4 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl 
-                                             border border-white/50 animate-float z-30 hidden lg:block">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                                            <CheckCircle2 className="w-5 h-5 text-green-600" />
+                                {/* Card 2: Teacher Credibility */}
+                                <div className="bg-white/95 backdrop-blur-xl rounded-[2rem] p-5 shadow-xl shadow-black/5 border border-white lg:absolute lg:top-16 lg:-right-4 lg:w-[300px] z-10 group hover:-translate-y-1 transition-transform duration-500">
+                                    <div className="flex items-center gap-4 mb-4">
+                                        <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-md shrink-0 bg-stone-100">
+                                            <img src={featuredTeacher.image} alt={featuredTeacher.name} className="w-full h-full object-cover" />
                                         </div>
                                         <div>
-                                            <p className="text-sm font-semibold text-foreground">92% hài lòng</p>
-                                            <p className="text-xs text-muted-foreground">khảo sát 2025</p>
+                                            <div className="flex items-center gap-1.5 mb-0.5">
+                                                <h4 className="font-bold text-foreground">{featuredTeacher.name}</h4>
+                                                <CheckCircle2 className="w-4 h-4 text-blue-500" />
+                                            </div>
+                                            <p className="text-xs text-muted-foreground font-medium">{featuredTeacher.role}</p>
                                         </div>
+                                    </div>
+                                    <p className="mb-4 text-sm text-foreground/75">{featuredTeacher.experience} • Chuyên môn {featuredTeacher.specialty}</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-semibold border border-blue-100">
+                                            {featuredTeacher.badge}
+                                        </span>
+                                        <span className="px-2.5 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-semibold border border-amber-100 flex items-center gap-1">
+                                            <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                                            {featuredTeacher.rating}
+                                        </span>
+                                        <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-semibold border border-emerald-100">
+                                            {featuredTeacher.students}+ học viên
+                                        </span>
                                     </div>
                                 </div>
 
-                                {/* Floating Card — Active Stats */}
-                                <div className="absolute bottom-10 -left-8 p-4 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl 
-                                             border border-white/50 animate-float z-30 hidden lg:block"
-                                    style={{ animationDelay: '1s' }}>
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                            <TrendingUp className="w-5 h-5 text-blue-600" />
+                                {/* Card 3: Testimonial Outcome */}
+                                <div className="bg-white/95 backdrop-blur-xl rounded-[2rem] p-6 shadow-xl shadow-black/5 border border-white lg:absolute lg:bottom-4 lg:left-12 lg:w-[420px] z-30 group hover:-translate-y-1 transition-transform duration-500">
+                                    <div className="absolute top-6 right-6 text-stone-200">
+                                        <Quote className="w-8 h-8 fill-current" />
+                                    </div>
+                                    <div className="flex items-center gap-4 mb-4">
+                                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-inner">
+                                            {featuredTestimonial.initials}
                                         </div>
                                         <div>
-                                            <p className="text-sm font-semibold text-foreground">500+ học viên</p>
-                                            <p className="text-xs text-muted-foreground">đang theo học</p>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <h4 className="font-bold text-foreground text-sm">{featuredTestimonial.author}</h4>
+                                                <div className="flex">
+                                                    {[...Array(5)].map((_, i) => (
+                                                        <Star key={i} className="w-3 h-3 text-amber-400 fill-amber-400" />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground">{featuredTestimonial.role}</p>
                                         </div>
                                     </div>
+                                    <p className="text-sm text-foreground/80 leading-relaxed mb-5 pr-6">
+                                        "{featuredTestimonial.content}"
+                                    </p>
+                                    <div className="inline-flex items-center gap-2 px-3.5 py-2 bg-green-50 text-green-700 rounded-xl text-sm font-bold border border-green-100">
+                                        <TrendingUp className="w-4 h-4" />
+                                        {featuredTestimonial.result}
+                                    </div>
                                 </div>
+                                
                             </div>
                         </div>
                     </div>

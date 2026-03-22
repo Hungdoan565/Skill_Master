@@ -28,7 +28,10 @@ import {
   FileText,
   Bell,
   BellOff,
-  Timer
+  Timer,
+  Sunrise,
+  Sun,
+  MoonStar
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -215,7 +218,7 @@ const TIME_SLOTS = [
   { 
     key: 'morning', 
     label: 'Sáng', 
-    icon: '🌅', 
+    icon: Sunrise,
     range: '06:00 - 12:00',
     startHour: 6, 
     endHour: 12,
@@ -225,7 +228,7 @@ const TIME_SLOTS = [
   { 
     key: 'afternoon', 
     label: 'Chiều', 
-    icon: '☀️', 
+    icon: Sun,
     range: '12:00 - 18:00',
     startHour: 12, 
     endHour: 18,
@@ -235,7 +238,7 @@ const TIME_SLOTS = [
   { 
     key: 'evening', 
     label: 'Tối', 
-    icon: '🌙', 
+    icon: MoonStar,
     range: '18:00 - 23:00',
     startHour: 18, 
     endHour: 23,
@@ -907,7 +910,7 @@ export function StudentSchedule() {
                               return (
                                 <div key={slot.key} className={cn("rounded-lg p-1.5 border", slot.bg, slot.border)}>
                                   <div className="flex items-center gap-1.5 mb-1.5 px-1">
-                                    <span className="text-sm">{slot.icon}</span>
+                                    <slot.icon className="h-3.5 w-3.5 opacity-80" strokeWidth={2} />
                                     <span className="text-xs font-medium text-muted-foreground">
                                     </span>
                                     <span className="text-[10px] text-muted-foreground">

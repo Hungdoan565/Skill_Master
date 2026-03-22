@@ -8,6 +8,9 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Calendar as CalendarIcon,
+  Sunrise,
+  Sun,
+  MoonStar,
   Clock,
   User,
   MapPin,
@@ -38,7 +41,7 @@ const TIME_SLOTS = [
   { 
     key: 'morning', 
     label: 'Sáng', 
-    icon: '🌅', 
+    icon: Sunrise,
     startHour: 6, 
     endHour: 12, 
     bgClass: 'bg-amber-50',
@@ -48,7 +51,7 @@ const TIME_SLOTS = [
   { 
     key: 'afternoon', 
     label: 'Chiều', 
-    icon: '☀️', 
+    icon: Sun,
     startHour: 12, 
     endHour: 18, 
     bgClass: 'bg-orange-50',
@@ -58,7 +61,7 @@ const TIME_SLOTS = [
   { 
     key: 'evening', 
     label: 'Tối', 
-    icon: '🌙', 
+    icon: MoonStar,
     startHour: 18, 
     endHour: 23, 
     bgClass: 'bg-indigo-50',
@@ -332,7 +335,7 @@ function WeekView({ sessions, currentDate, onSessionClick }) {
             <div className="grid grid-cols-8 min-h-[120px]">
               {/* Slot label */}
               <div className={`p-2 border-r ${slot.borderClass} ${slot.headerClass} flex flex-col items-center justify-center`}>
-                <span className="text-xl mb-1">{slot.icon}</span>
+                <slot.icon className="mb-1 h-4 w-4 opacity-80" strokeWidth={2} />
                 <span className="text-xs font-semibold">{slot.label}</span>
                 <span className="text-[10px] opacity-75 mt-0.5">
                   {slot.startHour}:00 - {slot.endHour}:00
