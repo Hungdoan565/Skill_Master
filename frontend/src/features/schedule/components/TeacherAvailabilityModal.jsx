@@ -300,7 +300,7 @@ export function TeacherAvailabilityModal({
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
             <div
-                className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl m-4 max-h-[92vh] overflow-hidden flex flex-col"
+                className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-4xl m-4 max-h-[92vh] overflow-hidden flex flex-col"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="teacher-avail-dialog-title"
@@ -326,7 +326,7 @@ export function TeacherAvailabilityModal({
 
                 <div className="flex-1 overflow-y-auto p-6">
                     {error && (
-                        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-600">
+                        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-2 text-red-600 dark:text-red-400">
                             <AlertCircle className="w-4 h-4" />
                             <span className="text-sm">{error}</span>
                         </div>
@@ -336,14 +336,14 @@ export function TeacherAvailabilityModal({
                         loading ? (
                             <div className="py-10 text-center">
                                 <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-600" />
-                                <p className="text-sm text-slate-500 mt-2">Đang tải lịch giáo viên...</p>
+                                <p className="text-sm text-slate-500 dark:text-gray-400 mt-2">Đang tải lịch giáo viên...</p>
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                                 {!teacher?.id && (
-                                    <aside className="lg:col-span-4 rounded-xl border border-slate-200 bg-white overflow-hidden h-fit">
-                                        <div className="p-3 border-b border-slate-200 bg-slate-50">
-                                            <p className="text-sm font-semibold text-slate-900">Giảng viên</p>
+                                    <aside className="lg:col-span-4 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden h-fit">
+                                        <div className="p-3 border-b border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800/50">
+                                            <p className="text-sm font-semibold text-slate-900 dark:text-gray-100">Giảng viên</p>
                                             <Input
                                                 value={searchTerm}
                                                 onChange={(event) => setSearchTerm(event.target.value)}
@@ -352,24 +352,24 @@ export function TeacherAvailabilityModal({
                                             />
                                         </div>
 
-                                        <div className="max-h-[420px] overflow-y-auto divide-y divide-slate-100">
+                                        <div className="max-h-[420px] overflow-y-auto divide-y divide-slate-100 dark:divide-gray-700">
                                             {loadingTeachers ? (
-                                                <div className="p-4 text-sm text-slate-500 flex items-center gap-2">
+                                                <div className="p-4 text-sm text-slate-500 dark:text-gray-400 flex items-center gap-2">
                                                     <Loader2 className="w-4 h-4 animate-spin" /> Đang tải...
                                                 </div>
                                             ) : filteredTeachers.length === 0 ? (
-                                                <div className="p-4 text-sm text-slate-500">Không có giảng viên phù hợp</div>
+                                                <div className="p-4 text-sm text-slate-500 dark:text-gray-400">Không có giảng viên phù hợp</div>
                                             ) : filteredTeachers.map((item) => {
                                                 const active = item.id === selectedTeacher?.id;
                                                 return (
                                                     <button
                                                         key={item.id}
                                                         onClick={() => setSelectedTeacher(item)}
-                                                        className={`w-full text-left px-3 py-3 transition-colors ${active ? 'bg-indigo-50 border-l-2 border-l-indigo-500' : 'hover:bg-slate-50'}`}
+                                                        className={`w-full text-left px-3 py-3 transition-colors ${active ? 'bg-indigo-50 dark:bg-indigo-900/30 border-l-2 border-l-indigo-500' : 'hover:bg-slate-50 dark:hover:bg-gray-700'}`}
                                                     >
-                                                        <p className="text-sm font-medium text-slate-900">{item.full_name}</p>
-                                                        <p className="text-xs text-slate-500 mt-0.5">{item.email}</p>
-                                                        <p className="text-[11px] text-slate-400 mt-1">
+                                                        <p className="text-sm font-medium text-slate-900 dark:text-gray-100">{item.full_name}</p>
+                                                        <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">{item.email}</p>
+                                                        <p className="text-[11px] text-slate-400 dark:text-gray-500 mt-1">
                                                             Cập nhật: {formatDateTime(item.updated_at || item.created_at)}
                                                         </p>
                                                     </button>
@@ -381,7 +381,7 @@ export function TeacherAvailabilityModal({
 
                                 <section className={teacher?.id ? 'col-span-1' : 'lg:col-span-8'}>
                                     <div className="space-y-4">
-                                        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                                        <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 px-4 py-3 text-sm text-blue-800 dark:text-blue-300">
                                             Admin đang xem trực tiếp dữ liệu giáo viên đã gửi từ hệ thống lịch trống.
                                         </div>
 
@@ -389,15 +389,15 @@ export function TeacherAvailabilityModal({
                                             const slots = groupedByDay[day.value] || [];
 
                                             return (
-                                                <div key={day.value} className="rounded-xl border border-slate-200 overflow-hidden">
-                                                    <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
+                                                <div key={day.value} className="rounded-xl border border-slate-200 dark:border-gray-700 overflow-hidden">
+                                                    <div className="flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-gray-800/50 border-b border-slate-200 dark:border-gray-700">
                                                         <div className="flex items-center gap-3">
-                                                            <span className="w-9 h-9 rounded-lg bg-indigo-100 text-indigo-700 font-semibold flex items-center justify-center">
+                                                            <span className="w-9 h-9 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 font-semibold flex items-center justify-center">
                                                                 {day.short}
                                                             </span>
                                                             <div>
-                                                                <p className="font-semibold text-slate-900">{day.label}</p>
-                                                                <p className="text-xs text-slate-500">{slots.length} khung giờ</p>
+                                                                <p className="font-semibold text-slate-900 dark:text-gray-100">{day.label}</p>
+                                                                <p className="text-xs text-slate-500 dark:text-gray-400">{slots.length} khung giờ</p>
                                                             </div>
                                                         </div>
 
@@ -415,20 +415,20 @@ export function TeacherAvailabilityModal({
 
                                                     <div className="p-3 space-y-2">
                                                         {slots.length === 0 ? (
-                                                            <div className="py-4 text-center text-sm text-slate-500">
+                                                            <div className="py-4 text-center text-sm text-slate-500 dark:text-gray-400">
                                                                 Chưa có lịch trống cho ngày này.
                                                             </div>
                                                         ) : (
                                                             slots.map((slot) => (
-                                                                <div key={slot.id} className="p-3 rounded-lg border border-slate-200 bg-white flex flex-col lg:flex-row lg:items-end gap-3">
-                                                                    <div className="flex items-center gap-2 text-slate-700 shrink-0">
+                                                                <div key={slot.id} className="p-3 rounded-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex flex-col lg:flex-row lg:items-end gap-3">
+                                                                    <div className="flex items-center gap-2 text-slate-700 dark:text-gray-300 shrink-0">
                                                                         <Clock className="w-4 h-4" />
                                                                         <span className="text-sm font-medium">Khung giờ</span>
                                                                     </div>
 
                                                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1">
                                                                         <div>
-                                                                            <label className="text-xs font-semibold text-slate-600 mb-1 block">TỪ</label>
+                                                                            <label className="text-xs font-semibold text-slate-600 dark:text-gray-400 mb-1 block">TỪ</label>
                                                                             <TimeSelect
                                                                                 value={normalizeTime(slot.start_time, '08:00')}
                                                                                 onChange={(val) => updateSlot(slot.id, 'start_time', val)}
@@ -450,7 +450,7 @@ export function TeacherAvailabilityModal({
                                                                             <select
                                                                                 value={slot.type || 'available'}
                                                                                 onChange={(event) => updateSlot(slot.id, 'type', event.target.value)}
-                                                                                className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                                                className="w-full px-3 py-2 border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-gray-200 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                                                             >
                                                                                 {SLOT_TYPE_OPTIONS.map((option) => (
                                                                                     <option key={option.value} value={option.value}>{option.label}</option>
@@ -463,7 +463,7 @@ export function TeacherAvailabilityModal({
                                                                         type="button"
                                                                         variant="ghost"
                                                                         size="icon"
-                                                                        className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                                                                        className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-900/20"
                                                                         onClick={() => removeSlot(slot.id)}
                                                                     >
                                                                         <Trash2 className="w-4 h-4" />
@@ -480,15 +480,15 @@ export function TeacherAvailabilityModal({
                             </div>
                         )
                     ) : !loadingTeachers && (
-                        <div className="py-10 text-center text-slate-500">
-                            <Calendar className="w-10 h-10 mx-auto text-slate-300" />
+                        <div className="py-10 text-center text-slate-500 dark:text-gray-400">
+                            <Calendar className="w-10 h-10 mx-auto text-slate-300 dark:text-gray-600" />
                             <p className="mt-2">Chọn giáo viên để xem lịch trống đã gửi</p>
                         </div>
                     )}
                 </div>
 
-                <div className="px-6 py-4 bg-slate-50 border-t shrink-0 flex items-center justify-between gap-3">
-                    <div className="text-xs text-slate-500">
+                <div className="px-6 py-4 bg-slate-50 dark:bg-gray-800 border-t dark:border-gray-700 shrink-0 flex items-center justify-between gap-3">
+                    <div className="text-xs text-slate-500 dark:text-gray-400">
                         {hasChanges ? 'Có thay đổi chưa lưu' : 'Dữ liệu đã đồng bộ'}
                     </div>
 

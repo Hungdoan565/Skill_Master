@@ -41,7 +41,7 @@ export function DeleteRoomModal({
       />
       
       {/* Modal */}
-      <div className="relative w-full max-w-md mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-md mx-4 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Header with danger styling */}
         <div className="bg-linear-to-r from-red-500 to-red-600 px-6 py-4">
           <div className="flex items-center justify-between">
@@ -68,7 +68,7 @@ export function DeleteRoomModal({
         <div className="p-6">
           {/* Error message */}
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-red-700">
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-2 text-red-700 dark:text-red-300">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span className="text-sm">{error}</span>
             </div>
@@ -76,20 +76,20 @@ export function DeleteRoomModal({
 
           {/* Warning message */}
           <div className="mb-4">
-            <p className="text-zinc-700 text-center">
+            <p className="text-zinc-700 dark:text-gray-300 text-center">
               Bạn có chắc chắn muốn xóa phòng học này không?
             </p>
           </div>
 
           {/* Room info card */}
-          <div className="bg-red-50 border border-red-100 rounded-xl p-4 mb-4">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-xl p-4 mb-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-linear-to-br from-red-100 to-red-200 flex items-center justify-center ring-2 ring-red-200">
                 <DoorOpen className="w-5 h-5 text-red-500" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-zinc-900 truncate">{room.name}</p>
-                <p className="text-sm text-zinc-500">
+                <p className="font-semibold text-zinc-900 dark:text-gray-100 truncate">{room.name}</p>
+                <p className="text-sm text-zinc-500 dark:text-gray-400">
                   {room.code && (
                     <span className="font-mono bg-white/80 px-1.5 py-0.5 rounded text-xs mr-2">
                       {room.code}
@@ -105,10 +105,10 @@ export function DeleteRoomModal({
           </div>
 
           {/* Warning note */}
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-6">
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 mb-6">
             <div className="flex items-start gap-2">
               <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-              <p className="text-sm text-amber-800">
+              <p className="text-sm text-amber-800 dark:text-amber-300">
                 <strong>Lưu ý:</strong> Không thể xóa phòng nếu có lớp học đang sử dụng.
               </p>
             </div>

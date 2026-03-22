@@ -55,10 +55,10 @@ export function SessionStats({ stats, loading }) {
     return (
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="bg-white rounded-xl p-4 animate-pulse">
-            <div className="h-8 w-8 bg-slate-200 rounded-lg mb-2" />
-            <div className="h-6 w-16 bg-slate-200 rounded mb-1" />
-            <div className="h-4 w-24 bg-slate-200 rounded" />
+          <div key={i} className="bg-white dark:bg-gray-800 rounded-xl p-4 animate-pulse">
+            <div className="h-8 w-8 bg-slate-200 dark:bg-gray-700 rounded-lg mb-2" />
+            <div className="h-6 w-16 bg-slate-200 dark:bg-gray-700 rounded mb-1" />
+            <div className="h-4 w-24 bg-slate-200 dark:bg-gray-700 rounded" />
           </div>
         ))}
       </div>
@@ -75,23 +75,23 @@ export function SessionStats({ stats, loading }) {
             className={`
               rounded-xl p-4 border transition-all
               ${stat.urgent && stat.highlight 
-                ? 'bg-red-600 border-red-600 ring-2 ring-red-300 shadow-lg shadow-red-200' 
+                ? 'bg-red-600 border-red-600 ring-2 ring-red-300 shadow-lg shadow-red-200 dark:ring-red-800 dark:shadow-red-900' 
                 : stat.highlight 
-                  ? 'bg-red-50 border-red-200 ring-2 ring-red-100' 
-                  : 'bg-white border-slate-200 hover:shadow-md'
+                  ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 ring-2 ring-red-100 dark:ring-red-900' 
+                  : 'bg-white dark:bg-gray-800 border-slate-200 dark:border-gray-700 hover:shadow-md'
               }
             `}
           >
             <div className={`
               w-10 h-10 rounded-lg flex items-center justify-center mb-3
-              ${stat.urgent && stat.highlight ? 'bg-white/20' : stat.highlight ? 'bg-red-100' : stat.bgLight}
+              ${stat.urgent && stat.highlight ? 'bg-white/20' : stat.highlight ? 'bg-red-100 dark:bg-red-900/30' : stat.bgLight + ' dark:bg-gray-700'}
             `}>
-              <Icon className={`w-5 h-5 ${stat.urgent && stat.highlight ? 'text-white' : stat.highlight ? 'text-red-600' : 'text-slate-600'}`} />
+              <Icon className={`w-5 h-5 ${stat.urgent && stat.highlight ? 'text-white' : stat.highlight ? 'text-red-600 dark:text-red-400' : 'text-slate-600 dark:text-gray-300'}`} />
             </div>
-            <div className={`text-2xl font-bold ${stat.urgent && stat.highlight ? 'text-white' : stat.highlight ? 'text-red-600' : 'text-slate-900'}`}>
+            <div className={`text-2xl font-bold ${stat.urgent && stat.highlight ? 'text-white' : stat.highlight ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-gray-100'}`}>
               {stat.value}
             </div>
-            <div className={`text-sm ${stat.urgent && stat.highlight ? 'text-red-100' : stat.highlight ? 'text-red-600' : 'text-slate-500'}`}>
+            <div className={`text-sm ${stat.urgent && stat.highlight ? 'text-red-100' : stat.highlight ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-gray-400'}`}>
               {stat.label}
             </div>
             {stat.urgent && stat.highlight && (

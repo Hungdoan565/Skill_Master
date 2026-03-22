@@ -144,15 +144,15 @@ export function RoomsPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="bg-white border-b border-slate-200 -mx-6 -mt-6 px-6 py-5 mb-6">
+      <div className="bg-white dark:bg-gray-800 border-b border-slate-200 dark:border-gray-700 -mx-6 -mt-6 px-6 py-5 mb-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-gradient-to-br from-red-500 to-orange-500 rounded-xl shadow-lg shadow-orange-500/20">
               <DoorOpen className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">Quản lý Phòng học</h1>
-              <p className="text-slate-500 mt-0.5">
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-gray-100">Quản lý Phòng học</h1>
+              <p className="text-slate-500 dark:text-gray-400 mt-0.5">
                 {viewLevel === 'centers' && 'Chọn trung tâm để xem các khu'}
                 {viewLevel === 'zones' && selectedCenter && `${selectedCenter.name} - Chọn khu để xem phòng`}
               </p>
@@ -185,8 +185,8 @@ export function RoomsPage() {
               <Home className="h-4 w-4" />
               Trung tâm
             </button>
-            <ChevronRight className="h-4 w-4 text-slate-400" />
-            <span className="text-slate-600">{selectedCenter?.name}</span>
+            <ChevronRight className="h-4 w-4 text-slate-400 dark:text-gray-500" />
+            <span className="text-slate-600 dark:text-gray-300">{selectedCenter?.name}</span>
           </div>
         )}
       </div>

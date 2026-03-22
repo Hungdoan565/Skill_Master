@@ -28,8 +28,8 @@ export function EquipmentSelector({ selected = [], onToggle }) {
             onClick={() => onToggle(key)}
             className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm border transition-colors ${
               isSelected 
-                ? 'bg-blue-100 border-blue-300 text-blue-700' 
-                : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                ? 'bg-blue-100 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300' 
+                : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
             }`}
           >
             <Icon className="h-4 w-4" />

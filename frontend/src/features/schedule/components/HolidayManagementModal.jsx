@@ -4,8 +4,8 @@
  */
 
 import { useState, useEffect } from 'react';
-import { 
-  X, 
+import {
+  X,
   CalendarOff,
   Plus,
   Trash2,
@@ -30,16 +30,16 @@ const DEFAULT_HOLIDAYS = [
   { date: '2025-09-02', name: 'Quốc khánh', is_recurring: true },
 ];
 
-export function HolidayManagementModal({ 
-  isOpen, 
+export function HolidayManagementModal({
+  isOpen,
   onClose,
-  onSuccess 
+  onSuccess
 }) {
   const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  
+
   // New holiday form
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
@@ -48,7 +48,7 @@ export function HolidayManagementModal({
     is_recurring: false
   });
   const [editingId, setEditingId] = useState(null);
-  
+
   // Confirm delete modal
   const [deleteModal, setDeleteModal] = useState({
     isOpen: false,
@@ -60,22 +60,22 @@ export function HolidayManagementModal({
   // Fetch holidays
   useEffect(() => {
     if (!isOpen) return;
-    
+
     const fetchHolidays = async () => {
       setLoading(true);
       setError(null);
-      
+
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) throw new Error('Chưa đăng nhập');
-        
+
         const res = await fetch(`${API_URL}/api/admin/holidays`, {
           headers: { Authorization: `Bearer ${session.access_token}` }
         });
-        
+
         const json = await res.json();
         if (!res.ok) throw new Error(json.message);
-        
+
         setHolidays(json.data || []);
       } catch (err) {
         console.error('Error:', err);
@@ -86,7 +86,7 @@ export function HolidayManagementModal({
         setLoading(false);
       }
     };
-    
+
     fetchHolidays();
   }, [isOpen]);
 
@@ -105,18 +105,18 @@ export function HolidayManagementModal({
       setError('Vui lòng điền đầy đủ thông tin');
       return;
     }
-    
+
     setSaving(true);
     setError(null);
-    
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Chưa đăng nhập');
-      
-      const url = editingId 
+
+      const url = editingId
         ? `${API_URL}/api/admin/holidays/${editingId}`
         : `${API_URL}/api/admin/holidays`;
-      
+
       const res = await fetch(url, {
         method: editingId ? 'PUT' : 'POST',
         headers: {
@@ -125,22 +125,22 @@ export function HolidayManagementModal({
         },
         body: JSON.stringify(formData)
       });
-      
+
       const json = await res.json();
       if (!res.ok) throw new Error(json.message);
-      
+
       // Refresh list
       if (editingId) {
         setHolidays(prev => prev.map(h => h.id === editingId ? json.data : h));
       } else {
         setHolidays(prev => [...prev, json.data]);
       }
-      
+
       // Reset form
       setFormData({ date: '', name: '', is_recurring: false });
       setShowForm(false);
       setEditingId(null);
-      
+
       onSuccess?.();
     } catch (err) {
       console.error('Error:', err);
@@ -154,23 +154,23 @@ export function HolidayManagementModal({
   const handleDelete = async () => {
     const id = deleteModal.holidayId;
     if (!id) return;
-    
+
     setDeleting(true);
-    
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Chưa đăng nhập');
-      
+
       const res = await fetch(`${API_URL}/api/admin/holidays/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${session.access_token}` }
       });
-      
+
       if (!res.ok) {
         const json = await res.json();
         throw new Error(json.message);
       }
-      
+
       setHolidays(prev => prev.filter(h => h.id !== id));
       setDeleteModal({ isOpen: false, holidayId: null, holidayName: '' });
       onSuccess?.();
@@ -181,7 +181,7 @@ export function HolidayManagementModal({
       setDeleting(false);
     }
   };
-  
+
   // Open delete confirmation
   const openDeleteModal = (holiday) => {
     setDeleteModal({
@@ -215,14 +215,14 @@ export function HolidayManagementModal({
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center">
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
-      
+
       {/* Modal */}
-      <div 
-        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl m-4 max-h-[90vh] overflow-hidden flex flex-col"
+      <div
+        className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl m-4 max-h-[90vh] overflow-hidden flex flex-col border border-slate-200/80 dark:border-slate-700"
         role="dialog"
         aria-modal="true"
         aria-labelledby="holiday-dialog-title"
@@ -235,7 +235,7 @@ export function HolidayManagementModal({
                 <CalendarOff className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 
+                <h2
                   className="text-lg font-semibold text-white"
                   id="holiday-dialog-title"
                 >Quản Lý Ngày Lễ</h2>
@@ -252,17 +252,17 @@ export function HolidayManagementModal({
             </button>
           </div>
         </div>
-        
+
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
           {/* Error */}
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-600">
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/60 rounded-lg flex items-center gap-2 text-red-600 dark:text-red-300">
               <AlertCircle className="w-4 h-4" />
               <span className="text-sm">{error}</span>
             </div>
           )}
-          
+
           {/* Add button */}
           {!showForm && (
             <Button
@@ -277,17 +277,17 @@ export function HolidayManagementModal({
               Thêm ngày nghỉ
             </Button>
           )}
-          
+
           {/* Form */}
           {showForm && (
-            <div className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
-              <h3 className="font-medium text-slate-900 mb-4">
+            <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700">
+              <h3 className="font-medium text-slate-900 dark:text-slate-100 mb-4">
                 {editingId ? 'Sửa ngày nghỉ' : 'Thêm ngày nghỉ mới'}
               </h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Ngày
                   </label>
                   <Input
@@ -296,9 +296,9 @@ export function HolidayManagementModal({
                     onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
                   />
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Tên ngày nghỉ
                   </label>
                   <Input
@@ -309,7 +309,7 @@ export function HolidayManagementModal({
                   />
                 </div>
               </div>
-              
+
               <div className="mt-4">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -318,12 +318,12 @@ export function HolidayManagementModal({
                     onChange={(e) => setFormData(prev => ({ ...prev, is_recurring: e.target.checked }))}
                     className="w-4 h-4 text-red-600 rounded"
                   />
-                  <span className="text-sm text-slate-700">
+                  <span className="text-sm text-slate-700 dark:text-slate-300">
                     Lặp lại hàng năm (chỉ so sánh ngày/tháng)
                   </span>
                 </label>
               </div>
-              
+
               <div className="flex gap-2 mt-4">
                 <Button
                   variant="outline"
@@ -349,61 +349,61 @@ export function HolidayManagementModal({
               </div>
             </div>
           )}
-          
+
           {/* Holidays list */}
           {loading ? (
             <div className="py-8 text-center">
               <Loader2 className="w-6 h-6 animate-spin mx-auto text-red-600" />
-              <p className="text-sm text-slate-500 mt-2">Đang tải danh sách...</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">Đang tải danh sách...</p>
             </div>
           ) : holidays.length === 0 ? (
             <div className="py-8 text-center">
-              <CalendarOff className="w-12 h-12 mx-auto text-slate-300" />
-              <p className="text-slate-500 mt-2">Chưa có ngày nghỉ lễ nào</p>
+              <CalendarOff className="w-12 h-12 mx-auto text-slate-300 dark:text-slate-600" />
+              <p className="text-slate-500 dark:text-slate-400 mt-2">Chưa có ngày nghỉ lễ nào</p>
             </div>
           ) : (
             <div className="space-y-6">
               {Object.entries(groupedHolidays).sort((a, b) => b[0] - a[0]).map(([year, yearHolidays]) => (
                 <div key={year}>
-                  <h3 className="text-sm font-medium text-slate-500 mb-2">Năm {year}</h3>
+                  <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">Năm {year}</h3>
                   <div className="space-y-2">
                     {yearHolidays.sort((a, b) => a.date.localeCompare(b.date)).map(holiday => (
-                      <div 
+                      <div
                         key={holiday.id}
-                        className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg hover:border-red-300 transition-colors"
+                        className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-red-300 dark:hover:border-red-500/60 transition-colors"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                          <div className="w-10 h-10 bg-red-100 dark:bg-red-950/40 rounded-lg flex items-center justify-center">
                             <Calendar className="w-5 h-5 text-red-600" />
                           </div>
                           <div>
-                            <p className="font-medium text-slate-900">{holiday.name}</p>
-                            <p className="text-sm text-slate-500">
-                              {new Date(holiday.date).toLocaleDateString('vi-VN', { 
-                                weekday: 'long', 
-                                year: 'numeric', 
-                                month: 'long', 
-                                day: 'numeric' 
+                            <p className="font-medium text-slate-900 dark:text-slate-100">{holiday.name}</p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">
+                              {new Date(holiday.date).toLocaleDateString('vi-VN', {
+                                weekday: 'long',
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
                               })}
                               {holiday.is_recurring && (
-                                <span className="ml-2 text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">
+                                <span className="ml-2 text-xs bg-orange-100 dark:bg-orange-950/40 text-orange-600 dark:text-orange-300 px-2 py-0.5 rounded-full">
                                   Lặp lại hàng năm
                                 </span>
                               )}
                             </p>
                           </div>
                         </div>
-                        
+
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => handleEdit(holiday)}
-                            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                           >
-                            <Edit2 className="w-4 h-4 text-slate-500" />
+                            <Edit2 className="w-4 h-4 text-slate-500 dark:text-slate-400" />
                           </button>
                           <button
                             onClick={() => openDeleteModal(holiday)}
-                            className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                            className="p-2 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
                           >
                             <Trash2 className="w-4 h-4 text-red-500" />
                           </button>
@@ -416,9 +416,9 @@ export function HolidayManagementModal({
             </div>
           )}
         </div>
-        
+
         {/* Footer */}
-        <div className="px-6 py-4 bg-slate-50 border-t shrink-0">
+        <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 shrink-0">
           <Button
             variant="outline"
             className="w-full"
@@ -428,7 +428,7 @@ export function HolidayManagementModal({
           </Button>
         </div>
       </div>
-      
+
       {/* Confirm Delete Modal */}
       <ConfirmModal
         isOpen={deleteModal.isOpen}

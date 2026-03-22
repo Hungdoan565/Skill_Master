@@ -28,35 +28,35 @@ const STATUS_CONFIG = {
   scheduled: {
     label: 'Chưa học',
     description: 'Buổi học chưa đến giờ',
-    color: 'bg-blue-100 text-blue-700 border-blue-200',
+    color: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800',
     badgeColor: 'bg-blue-500',
     icon: Calendar
   },
   in_progress: {
     label: 'Đang học',
     description: 'Buổi học đang diễn ra',
-    color: 'bg-amber-100 text-amber-700 border-amber-200',
+    color: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800',
     badgeColor: 'bg-amber-500 animate-pulse',
     icon: PlayCircle
   },
   overdue: {
     label: 'Chưa điểm danh',
     description: 'Đã qua giờ, chưa điểm danh',
-    color: 'bg-red-100 text-red-700 border-red-200',
+    color: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800',
     badgeColor: 'bg-red-500',
     icon: AlertTriangle
   },
   completed: {
     label: 'Hoàn thành',
     description: 'Đã điểm danh xong',
-    color: 'bg-green-100 text-green-700 border-green-200',
+    color: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800',
     badgeColor: 'bg-green-500',
     icon: CheckCircle
   },
   cancelled: {
     label: 'Đã hủy',
     description: 'Buổi học bị hủy',
-    color: 'bg-slate-100 text-slate-500 border-slate-200',
+    color: 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-gray-700 dark:text-gray-400 dark:border-gray-600',
     badgeColor: 'bg-slate-400',
     icon: XCircle
   }
@@ -244,10 +244,10 @@ export function SessionsTable({
   
   if (loading) {
     return (
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-slate-200 dark:border-gray-700 overflow-hidden">
         <div className="p-8 text-center">
           <div className="animate-spin w-8 h-8 border-4 border-orange-600 border-t-transparent rounded-full mx-auto mb-4" />
-          <p className="text-slate-500">Đang tải lịch dạy...</p>
+          <p className="text-slate-500 dark:text-gray-400">Đang tải lịch dạy...</p>
         </div>
       </div>
     );
@@ -255,12 +255,12 @@ export function SessionsTable({
 
   if (!sessions || sessions.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-        <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <BookOpen className="w-8 h-8 text-slate-400" />
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-slate-200 dark:border-gray-700 p-12 text-center">
+        <div className="w-16 h-16 bg-slate-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+          <BookOpen className="w-8 h-8 text-slate-400 dark:text-gray-500" />
         </div>
-        <h3 className="text-lg font-medium text-slate-700 mb-2">Không có buổi học nào</h3>
-        <p className="text-slate-500">Thử thay đổi bộ lọc hoặc chọn khoảng thời gian khác</p>
+        <h3 className="text-lg font-medium text-slate-700 dark:text-gray-300 mb-2">Không có buổi học nào</h3>
+        <p className="text-slate-500 dark:text-gray-400">Thử thay đổi bộ lọc hoặc chọn khoảng thời gian khác</p>
       </div>
     );
   }
@@ -334,18 +334,18 @@ export function SessionsTable({
         </div>
       )}
       
-      <div className="bg-white rounded-xl border border-slate-200 overflow-visible">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-slate-200 dark:border-gray-700 overflow-visible">
         {/* Legend - Chú thích trạng thái */}
-        <div className="bg-slate-50 border-b border-slate-200 px-4 py-2 rounded-t-xl">
+        <div className="bg-slate-50 dark:bg-gray-800/50 border-b border-slate-200 dark:border-gray-700 px-4 py-2 rounded-t-xl">
           <div className="flex flex-wrap items-center gap-4 text-xs">
-            <span className="font-medium text-slate-600">Chú thích:</span>
+            <span className="font-medium text-slate-600 dark:text-gray-300">Chú thích:</span>
             {Object.entries(STATUS_CONFIG).map(([key, config]) => {
               const Icon = config.icon;
               return (
                 <div key={key} className="flex items-center gap-1.5">
                   <span className={`w-2 h-2 rounded-full ${config.badgeColor}`}></span>
-                  <Icon className="w-3 h-3 text-slate-500" />
-                  <span className="text-slate-600">{config.label}</span>
+                  <Icon className="w-3 h-3 text-slate-500 dark:text-gray-400" />
+                  <span className="text-slate-600 dark:text-gray-400">{config.label}</span>
                 </div>
               );
             })}
@@ -353,13 +353,13 @@ export function SessionsTable({
         </div>
 
         {/* Table Header - Make it sticky */}
-        <div className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200 px-4 py-3">
-          <div className="grid grid-cols-12 gap-4 text-xs font-medium text-slate-500 uppercase tracking-wider">
+        <div className="sticky top-0 z-10 bg-slate-50 dark:bg-gray-800/80 border-b border-slate-200 dark:border-gray-700 px-4 py-3">
+          <div className="grid grid-cols-12 gap-4 text-xs font-medium text-slate-500 dark:text-gray-400 uppercase tracking-wider">
             {/* Checkbox column */}
             <div className="col-span-1 flex items-center">
               <button
                 onClick={toggleSelectAll}
-                className="p-1 hover:bg-slate-200 rounded transition-colors"
+                className="p-1 hover:bg-slate-200 dark:hover:bg-gray-700 rounded transition-colors"
                 title={allPageSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
               >
                 {allPageSelected ? (
@@ -369,7 +369,7 @@ export function SessionsTable({
                     <div className="w-2 h-0.5 bg-orange-600" />
                   </div>
                 ) : (
-                  <Square className="w-5 h-5 text-slate-400" />
+                  <Square className="w-5 h-5 text-slate-400 dark:text-gray-500" />
                 )}
               </button>
             </div>
@@ -383,7 +383,7 @@ export function SessionsTable({
         </div>
 
         {/* Table Body - Grouped by Date */}
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-slate-100 dark:divide-gray-700">
           {paginatedDates.map((date) => {
             const dateSessions = paginatedGrouped[date];
             const today = new Date().toISOString().split('T')[0];
@@ -393,18 +393,18 @@ export function SessionsTable({
             return (
               <div key={date}>
                 {/* Date Header */}
-                <div className={`px-4 py-2.5 border-b border-slate-100 ${
-                  isToday ? 'bg-orange-50' : isPast ? 'bg-red-50/30' : 'bg-slate-50/50'
+                <div className={`px-4 py-2.5 border-b border-slate-100 dark:border-gray-700 ${
+                  isToday ? 'bg-orange-50 dark:bg-orange-900/20' : isPast ? 'bg-red-50/30 dark:bg-red-900/10' : 'bg-slate-50/50 dark:bg-gray-800/30'
                 }`}>
                   <div className="flex items-center justify-between">
                     <span className={`text-sm font-semibold ${
-                      isToday ? 'text-orange-700' : isPast ? 'text-red-700' : 'text-slate-700'
+                      isToday ? 'text-orange-700 dark:text-orange-400' : isPast ? 'text-red-700 dark:text-red-400' : 'text-slate-700 dark:text-gray-300'
                     }`}>
                       {formatDate(date)}
                     </span>
                     <span className={`text-xs px-2 py-0.5 rounded-full ${
-                      isToday ? 'bg-orange-100 text-orange-700' : 
-                      isPast ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'
+                      isToday ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' : 
+                      isPast ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 'bg-slate-100 text-slate-600 dark:bg-gray-700 dark:text-gray-400'
                     }`}>
                       {dateSessions.length} buổi
                     </span>
@@ -424,8 +424,8 @@ export function SessionsTable({
                     <div 
                       key={session.id}
                       className={`
-                        px-4 py-3 hover:bg-slate-50 transition-colors border-l-4
-                        ${isSelected ? 'bg-orange-50/50' : ''}
+                        px-4 py-3 hover:bg-slate-50 dark:hover:bg-gray-700/50 transition-colors border-l-4
+                        ${isSelected ? 'bg-orange-50/50 dark:bg-orange-900/10' : ''}
                         ${displayStatus === 'overdue' ? 'bg-red-50/30 border-l-red-500' : 
                           displayStatus === 'in_progress' ? 'bg-amber-50/30 border-l-amber-500' :
                           displayStatus === 'completed' ? 'border-l-green-500' :
@@ -438,17 +438,17 @@ export function SessionsTable({
                           {isSelectable ? (
                             <button
                               onClick={() => toggleSelect(session.id)}
-                              className="p-1 hover:bg-slate-200 rounded transition-colors"
+                              className="p-1 hover:bg-slate-200 dark:hover:bg-gray-700 rounded transition-colors"
                             >
                               {isSelected ? (
                                 <CheckSquare className="w-5 h-5 text-orange-600" />
                               ) : (
-                                <Square className="w-5 h-5 text-slate-400 hover:text-slate-600" />
+                                <Square className="w-5 h-5 text-slate-400 dark:text-gray-500 hover:text-slate-600 dark:hover:text-gray-300" />
                               )}
                             </button>
                           ) : (
                             <div className="w-7 h-7 flex items-center justify-center" title={session.is_locked ? 'Đã khóa sổ' : 'Không thể chọn'}>
-                              <Square className="w-5 h-5 text-slate-200" />
+                              <Square className="w-5 h-5 text-slate-200 dark:text-gray-600" />
                             </div>
                           )}
                         </div>
@@ -463,12 +463,12 @@ export function SessionsTable({
                               #{session.session_number}
                             </div>
                             <div className="min-w-0">
-                              <h4 className={`font-medium text-slate-900 line-clamp-1 ${
+                              <h4 className={`font-medium text-slate-900 dark:text-gray-100 line-clamp-1 ${
                                 displayStatus === 'cancelled' ? 'line-through' : ''
                               }`}>
                                 {session.classes?.name}
                               </h4>
-                              <p className="text-xs text-slate-500">
+                              <p className="text-xs text-slate-500 dark:text-gray-400">
                                 {session.classes?.code}
                               </p>
                             </div>
@@ -478,17 +478,17 @@ export function SessionsTable({
                         {/* Time */}
                         <div className="col-span-2">
                           <div className="flex items-center gap-1.5 text-sm">
-                            <Clock className="w-4 h-4 text-slate-400 shrink-0" />
-                            <span className="text-slate-700">
+                            <Clock className="w-4 h-4 text-slate-400 dark:text-gray-500 shrink-0" />
+                            <span className="text-slate-700 dark:text-gray-300">
                               {formatTime(session.start_time)} - {formatTime(session.end_time)}
                             </span>
                           </div>
                           {/* Time info badge */}
                           <div className={`mt-1 text-xs font-medium px-1.5 py-0.5 rounded inline-block ${
-                            timeInfo.type === 'danger' ? 'bg-red-100 text-red-700' :
-                            timeInfo.type === 'warning' ? 'bg-amber-100 text-amber-700' :
-                            timeInfo.type === 'success' ? 'bg-green-100 text-green-700' :
-                            'bg-slate-100 text-slate-600'
+                            timeInfo.type === 'danger' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
+                            timeInfo.type === 'warning' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
+                            timeInfo.type === 'success' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
+                            'bg-slate-100 text-slate-600 dark:bg-gray-700 dark:text-gray-400'
                           }`}>
                             {timeInfo.text}
                           </div>
@@ -504,11 +504,11 @@ export function SessionsTable({
                                 className="w-7 h-7 rounded-full object-cover shrink-0"
                               />
                             ) : (
-                              <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
-                                <User className="w-4 h-4 text-slate-500" />
+                              <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-gray-600 flex items-center justify-center shrink-0">
+                                <User className="w-4 h-4 text-slate-500 dark:text-gray-400" />
                               </div>
                             )}
-                            <span className="text-sm text-slate-700 line-clamp-1">
+                            <span className="text-sm text-slate-700 dark:text-gray-300 line-clamp-1">
                               {session.users?.full_name || 'Chưa phân công'}
                             </span>
                           </div>
@@ -516,8 +516,8 @@ export function SessionsTable({
 
                         {/* Room */}
                         <div className="col-span-2">
-                          <div className="flex items-center gap-1.5 text-sm text-slate-600">
-                            <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
+                          <div className="flex items-center gap-1.5 text-sm text-slate-600 dark:text-gray-300">
+                            <MapPin className="w-4 h-4 text-slate-400 dark:text-gray-500 shrink-0" />
                             <span className="line-clamp-1">
                               {session.rooms?.name || session.classes?.rooms?.name || (
                                 <span className="text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded text-xs">Chưa xếp phòng</span>
@@ -525,7 +525,7 @@ export function SessionsTable({
                             </span>
                           </div>
                           {session.classes?.centers?.name && (
-                            <p className="text-xs text-slate-500 ml-5.5 line-clamp-1">
+                            <p className="text-xs text-slate-500 dark:text-gray-400 ml-5.5 line-clamp-1">
                               {session.classes.centers.name}
                             </p>
                           )}
@@ -542,7 +542,7 @@ export function SessionsTable({
                               {statusConfig.label}
                             </span>
                             {session.is_locked && (
-                              <span className="text-xs text-slate-500 flex items-center gap-1" title="Không thể chỉnh sửa buổi học đã khóa sổ">
+                              <span className="text-xs text-slate-500 dark:text-gray-400 flex items-center gap-1" title="Không thể chỉnh sửa buổi học đã khóa sổ">
                                 🔒 Đã khóa sổ
                               </span>
                             )}
@@ -567,10 +567,10 @@ export function SessionsTable({
         
         {/* Pagination Controls */}
         {totalPages > 1 && (
-          <div className="bg-slate-50 border-t border-slate-200 px-4 py-3">
+          <div className="bg-slate-50 dark:bg-gray-800/50 border-t border-slate-200 dark:border-gray-700 px-4 py-3">
             <div className="flex items-center justify-between">
               {/* Info */}
-              <div className="text-sm text-slate-600">
+              <div className="text-sm text-slate-600 dark:text-gray-400">
                 Hiển thị <span className="font-medium">{startIndex + 1}</span> - <span className="font-medium">{endIndex}</span> trong tổng số <span className="font-medium">{totalItems}</span> buổi học
               </div>
               
@@ -580,7 +580,7 @@ export function SessionsTable({
                 <button
                   onClick={() => goToPage(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-gray-600 text-sm font-medium text-slate-700 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
                 >
                   <ChevronLeft className="w-4 h-4" />
                   Trước
@@ -607,7 +607,7 @@ export function SessionsTable({
                         className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
                           currentPage === pageNum
                             ? 'bg-orange-600 text-white shadow-sm'
-                            : 'text-slate-700 hover:bg-slate-100 border border-slate-200'
+                            : 'text-slate-700 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-gray-700 border border-slate-200 dark:border-gray-600'
                         }`}
                       >
                         {pageNum}
@@ -620,7 +620,7 @@ export function SessionsTable({
                 <button
                   onClick={() => goToPage(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-gray-600 text-sm font-medium text-slate-700 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
                 >
                   Sau
                   <ChevronRight className="w-4 h-4" />

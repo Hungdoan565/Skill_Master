@@ -20,27 +20,27 @@ import { SessionActionMenu } from './SessionActionMenu';
 const STATUS_CONFIG = {
   scheduled: {
     label: 'Chưa học',
-    color: 'bg-blue-100 text-blue-700 border-blue-200',
+    color: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800',
     icon: CalendarIcon
   },
   in_progress: {
     label: 'Đang học',
-    color: 'bg-amber-100 text-amber-700 border-amber-200',
+    color: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800',
     icon: PlayCircle
   },
   overdue: {
     label: 'Quá hạn',
-    color: 'bg-red-100 text-red-700 border-red-200',
+    color: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800',
     icon: AlertTriangle
   },
   completed: {
     label: 'Hoàn thành',
-    color: 'bg-green-100 text-green-700 border-green-200',
+    color: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800',
     icon: CheckCircle
   },
   cancelled: {
     label: 'Đã hủy',
-    color: 'bg-slate-100 text-slate-500 border-slate-200',
+    color: 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-gray-700 dark:text-gray-400 dark:border-gray-600',
     icon: XCircle
   }
 };
@@ -84,22 +84,22 @@ export function DaySessionsModal({
 
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-gray-700">
           <div>
-            <h2 className="text-xl font-semibold text-slate-900">
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-gray-100">
               Lịch dạy - {formatDate(date)}
             </h2>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">
               {sessions.length} buổi học trong ngày
             </p>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-gray-700 transition-colors"
           >
-            <X className="w-5 h-5 text-slate-500" />
+            <X className="w-5 h-5 text-slate-500 dark:text-gray-400" />
           </button>
         </div>
 
@@ -116,11 +116,11 @@ export function DaySessionsModal({
                   key={session.id}
                   className={`
                     p-4 rounded-xl border-l-4 transition-all hover:shadow-md
-                    ${displayStatus === 'overdue' ? 'bg-red-50/50 border-l-red-500' :
-                      displayStatus === 'in_progress' ? 'bg-amber-50/50 border-l-amber-500' :
-                      displayStatus === 'completed' ? 'bg-white border-l-green-500' :
-                      displayStatus === 'cancelled' ? 'bg-slate-50 border-l-slate-300 opacity-60' :
-                      'bg-white border-l-blue-500'
+                    ${displayStatus === 'overdue' ? 'bg-red-50/50 dark:bg-red-900/20 border-l-red-500' :
+                      displayStatus === 'in_progress' ? 'bg-amber-50/50 dark:bg-amber-900/20 border-l-amber-500' :
+                      displayStatus === 'completed' ? 'bg-white dark:bg-gray-800 border-l-green-500' :
+                      displayStatus === 'cancelled' ? 'bg-slate-50 dark:bg-gray-800/50 border-l-slate-300 opacity-60' :
+                      'bg-white dark:bg-gray-800 border-l-blue-500'
                     }
                   `}
                 >
@@ -140,12 +140,12 @@ export function DaySessionsModal({
                           #{session.session_number}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className={`font-semibold text-slate-900 line-clamp-1 ${
+                          <h3 className={`font-semibold text-slate-900 dark:text-gray-100 line-clamp-1 ${
                             displayStatus === 'cancelled' ? 'line-through' : ''
                           }`}>
                             {session.classes?.name}
                           </h3>
-                          <p className="text-sm text-slate-500">
+                          <p className="text-sm text-slate-500 dark:text-gray-400">
                             {session.classes?.code}
                           </p>
                         </div>
@@ -155,24 +155,24 @@ export function DaySessionsModal({
                       <div className="grid grid-cols-3 gap-3 text-sm">
                         {/* Time */}
                         <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-slate-400 shrink-0" />
-                          <span className="text-slate-700">
+                          <Clock className="w-4 h-4 text-slate-400 dark:text-gray-500 shrink-0" />
+                          <span className="text-slate-700 dark:text-gray-300">
                             {formatTime(session.start_time)} - {formatTime(session.end_time)}
                           </span>
                         </div>
 
                         {/* Teacher */}
                         <div className="flex items-center gap-2 min-w-0">
-                          <User className="w-4 h-4 text-slate-400 shrink-0" />
-                          <span className="text-slate-700 truncate">
+                          <User className="w-4 h-4 text-slate-400 dark:text-gray-500 shrink-0" />
+                          <span className="text-slate-700 dark:text-gray-300 truncate">
                             {session.users?.full_name || 'Chưa phân công'}
                           </span>
                         </div>
 
                         {/* Room */}
                         <div className="flex items-center gap-2 min-w-0">
-                          <MapPin className="w-4 h-4 text-slate-400 shrink-0" />
-                          <span className="text-slate-700 truncate">
+                          <MapPin className="w-4 h-4 text-slate-400 dark:text-gray-500 shrink-0" />
+                          <span className="text-slate-700 dark:text-gray-300 truncate">
                             {session.classes?.rooms?.name || 'Chưa xếp phòng'}
                           </span>
                         </div>
@@ -205,7 +205,7 @@ export function DaySessionsModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-slate-200">
+        <div className="flex items-center justify-end gap-3 p-6 border-t border-slate-200 dark:border-gray-700">
           <Button
             variant="outline"
             onClick={onClose}

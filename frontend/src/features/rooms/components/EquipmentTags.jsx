@@ -27,7 +27,7 @@ export function EquipmentTags({ equipment = [] }) {
         return (
           <span 
             key={idx} 
-            className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs"
+            className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded text-xs"
           >
             <Icon className="h-3 w-3" />
             {EQUIPMENT_LABELS[item] || item}

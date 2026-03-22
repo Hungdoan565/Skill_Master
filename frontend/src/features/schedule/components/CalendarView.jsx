@@ -100,33 +100,33 @@ const groupSessionsByTimeSlot = (sessions) => {
 // Status config
 const STATUS_CONFIG = {
   scheduled: {
-    bg: 'bg-blue-100 hover:bg-blue-200',
+    bg: 'bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-900/50',
     border: 'border-l-blue-500',
-    text: 'text-blue-700',
+    text: 'text-blue-700 dark:text-blue-300',
     dot: 'bg-blue-500'
   },
   in_progress: {
-    bg: 'bg-amber-100 hover:bg-amber-200',
+    bg: 'bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/30 dark:hover:bg-amber-900/50',
     border: 'border-l-amber-500',
-    text: 'text-amber-700',
+    text: 'text-amber-700 dark:text-amber-300',
     dot: 'bg-amber-500 animate-pulse'
   },
   overdue: {
-    bg: 'bg-red-100 hover:bg-red-200',
+    bg: 'bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50',
     border: 'border-l-red-500',
-    text: 'text-red-700',
+    text: 'text-red-700 dark:text-red-300',
     dot: 'bg-red-500'
   },
   completed: {
-    bg: 'bg-green-100 hover:bg-green-200',
+    bg: 'bg-green-100 hover:bg-green-200 dark:bg-green-900/30 dark:hover:bg-green-900/50',
     border: 'border-l-green-500',
-    text: 'text-green-700',
+    text: 'text-green-700 dark:text-green-300',
     dot: 'bg-green-500'
   },
   cancelled: {
-    bg: 'bg-slate-100 hover:bg-slate-200',
+    bg: 'bg-slate-100 hover:bg-slate-200 dark:bg-gray-700 dark:hover:bg-gray-600',
     border: 'border-l-slate-400',
-    text: 'text-slate-500 line-through',
+    text: 'text-slate-500 dark:text-gray-400 line-through',
     dot: 'bg-slate-400'
   }
 };
@@ -219,7 +219,7 @@ function SessionCard({ session, onClick, compact = false }) {
             {session.classes?.name || 'N/A'}
           </span>
         </div>
-        <div className="text-[10px] text-slate-500 mt-0.5">
+        <div className="text-[10px] text-slate-500 dark:text-gray-400 mt-0.5">
           {formatTime(session.start_time)}
         </div>
       </button>
@@ -243,25 +243,25 @@ function SessionCard({ session, onClick, compact = false }) {
             </span>
           </div>
           <div className="mt-1 space-y-0.5">
-            <div className="flex items-center gap-1 text-xs text-slate-600">
+            <div className="flex items-center gap-1 text-xs text-slate-600 dark:text-gray-400">
               <Clock className="w-3 h-3" />
               <span>{formatTime(session.start_time)} - {formatTime(session.end_time)}</span>
             </div>
             {session.users?.full_name && (
-              <div className="flex items-center gap-1 text-xs text-slate-500">
+              <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-gray-400">
                 <User className="w-3 h-3" />
                 <span className="truncate">{session.users.full_name}</span>
               </div>
             )}
             {session.classes?.rooms?.name && (
-              <div className="flex items-center gap-1 text-xs text-slate-500">
+              <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-gray-400">
                 <MapPin className="w-3 h-3" />
                 <span>{session.classes.rooms.name}</span>
               </div>
             )}
           </div>
         </div>
-        <span className="text-xs font-bold text-slate-400">#{session.session_number}</span>
+        <span className="text-xs font-bold text-slate-400 dark:text-gray-500">#{session.session_number}</span>
       </div>
     </button>
   );
@@ -292,11 +292,11 @@ function WeekView({ sessions, currentDate, onSessionClick }) {
   }, [sessions]);
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-slate-200 dark:border-gray-700 overflow-hidden">
       {/* Header - Days - Sticky */}
-      <div className="sticky top-0 z-20 grid grid-cols-8 border-b border-slate-200 bg-slate-50 shadow-sm">
-        <div className="p-2 bg-slate-50 border-r border-slate-200">
-          <span className="text-xs font-medium text-slate-500">Buổi</span>
+      <div className="sticky top-0 z-20 grid grid-cols-8 border-b border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 shadow-sm">
+        <div className="p-2 bg-slate-50 dark:bg-gray-800 border-r border-slate-200 dark:border-gray-700">
+          <span className="text-xs font-medium text-slate-500 dark:text-gray-400">Buổi</span>
         </div>
         {weekDates.map((date, i) => {
           const dateKey = formatDateKey(date);
@@ -304,14 +304,14 @@ function WeekView({ sessions, currentDate, onSessionClick }) {
           return (
             <div 
               key={i}
-              className={`p-2 text-center border-r border-slate-200 last:border-r-0 ${
-                isToday ? 'bg-indigo-50' : 'bg-slate-50'
+              className={`p-2 text-center border-r border-slate-200 dark:border-gray-700 last:border-r-0 ${
+                isToday ? 'bg-indigo-50 dark:bg-indigo-900/20' : 'bg-slate-50 dark:bg-gray-800'
               }`}
             >
-              <div className={`text-xs font-medium ${isToday ? 'text-indigo-600' : 'text-slate-500'}`}>
+              <div className={`text-xs font-medium ${isToday ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-gray-400'}`}>
                 {DAYS_OF_WEEK[(i + 1) % 7]}
               </div>
-              <div className={`text-lg font-bold ${isToday ? 'text-indigo-600' : 'text-slate-900'}`}>
+              <div className={`text-lg font-bold ${isToday ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-900 dark:text-gray-100'}`}>
                 {date.getDate()}
               </div>
               {isToday && (
@@ -349,13 +349,13 @@ function WeekView({ sessions, currentDate, onSessionClick }) {
                 return (
                   <div 
                     key={i}
-                    className={`p-1.5 border-r ${slot.borderClass} last:border-r-0 ${slot.bgClass} ${
-                      isToday ? 'ring-1 ring-inset ring-indigo-200' : ''
+                    className={`p-1.5 border-r ${slot.borderClass} dark:border-gray-700 last:border-r-0 ${slot.bgClass} dark:bg-gray-800/50 ${
+                      isToday ? 'ring-1 ring-inset ring-indigo-200 dark:ring-indigo-800' : ''
                     }`}
                   >
                     {cellSessions.length === 0 ? (
                       <div className="h-full flex items-center justify-center">
-                        <span className="text-[10px] text-slate-400">—</span>
+                        <span className="text-[10px] text-slate-400 dark:text-gray-600">—</span>
                       </div>
                     ) : (
                       <div className="space-y-1">
@@ -403,11 +403,11 @@ function MonthView({ sessions, currentDate, onSessionClick, onShowMore }) {
   const MAX_VISIBLE_SESSIONS = 3;
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-slate-200 dark:border-gray-700 overflow-hidden">
       {/* Header - Days of week - Sticky */}
-      <div className="sticky top-0 z-20 grid grid-cols-7 border-b border-slate-200 bg-slate-50 shadow-sm">
+      <div className="sticky top-0 z-20 grid grid-cols-7 border-b border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 shadow-sm">
         {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(day => (
-          <div key={day} className="p-2 text-center text-xs font-medium text-slate-500 border-r border-slate-200 last:border-r-0">
+          <div key={day} className="p-2 text-center text-xs font-medium text-slate-500 dark:text-gray-400 border-r border-slate-200 dark:border-gray-700 last:border-r-0">
             {day}
           </div>
         ))}
@@ -424,15 +424,15 @@ function MonthView({ sessions, currentDate, onSessionClick, onShowMore }) {
             <div 
               key={i}
               className={`
-                min-h-[120px] p-1.5 border-b border-r border-slate-100 
-                ${!isCurrentMonth ? 'bg-slate-50/50' : ''}
-                ${isToday ? 'bg-indigo-50/50' : ''}
+                min-h-[120px] p-1.5 border-b border-r border-slate-100 dark:border-gray-700
+                ${!isCurrentMonth ? 'bg-slate-50/50 dark:bg-gray-900/50' : ''}
+                ${isToday ? 'bg-indigo-50/50 dark:bg-indigo-900/20' : ''}
               `}
             >
               {/* Date number */}
               <div className={`
                 text-sm font-medium mb-1
-                ${isToday ? 'text-indigo-600' : isCurrentMonth ? 'text-slate-900' : 'text-slate-400'}
+                ${isToday ? 'text-indigo-600 dark:text-indigo-400' : isCurrentMonth ? 'text-slate-900 dark:text-gray-100' : 'text-slate-400 dark:text-gray-600'}
               `}>
                 <span className={`
                   inline-flex items-center justify-center w-6 h-6 rounded-full
@@ -455,7 +455,7 @@ function MonthView({ sessions, currentDate, onSessionClick, onShowMore }) {
                 {daySessions.length > MAX_VISIBLE_SESSIONS && (
                   <button
                     onClick={() => onShowMore?.(dateKey, daySessions)}
-                    className="w-full text-[10px] text-indigo-600 hover:text-indigo-800 font-medium text-center py-1 hover:bg-indigo-50 rounded transition-colors"
+                    className="w-full text-[10px] text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-medium text-center py-1 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded transition-colors"
                   >
                     +{daySessions.length - MAX_VISIBLE_SESSIONS} buổi khác
                   </button>
@@ -631,20 +631,20 @@ export function CalendarView({
             <ChevronRight className="w-4 h-4" />
           </Button>
           
-          <h2 className="text-lg font-semibold text-slate-900 ml-2">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-gray-100 ml-2">
             {getTitle()}
           </h2>
         </div>
         
         {/* View Mode Toggle */}
-        <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
+        <div className="flex items-center gap-1 bg-slate-100 dark:bg-gray-800 rounded-lg p-1">
           <button
             onClick={() => handleViewModeChange('week')}
             className={`
               px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5
               ${viewMode === 'week' 
-                ? 'bg-white text-indigo-600 shadow-sm' 
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200'
               }
             `}
           >
@@ -656,8 +656,8 @@ export function CalendarView({
             className={`
               px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5
               ${viewMode === 'month' 
-                ? 'bg-white text-indigo-600 shadow-sm' 
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-gray-200'
               }
             `}
           >
@@ -669,7 +669,7 @@ export function CalendarView({
       
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-4 text-xs">
-        <span className="font-medium text-slate-600">Chú thích:</span>
+        <span className="font-medium text-slate-600 dark:text-gray-400">Chú thích:</span>
         {[
           { status: 'scheduled', label: 'Chưa học' },
           { status: 'in_progress', label: 'Đang học' },
@@ -679,7 +679,7 @@ export function CalendarView({
         ].map(({ status, label }) => (
           <div key={status} className="flex items-center gap-1.5">
             <span className={`w-2 h-2 rounded-full ${STATUS_CONFIG[status].dot}`} />
-            <span className="text-slate-600">{label}</span>
+            <span className="text-slate-600 dark:text-gray-400">{label}</span>
           </div>
         ))}
       </div>

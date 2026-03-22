@@ -37,7 +37,7 @@ const MENU_ITEMS = [
     id: 'view', 
     label: 'Xem chi tiết', 
     icon: Eye, 
-    color: 'text-slate-600 hover:bg-slate-50',
+    color: 'text-slate-600 hover:bg-slate-50 dark:text-gray-300 dark:hover:bg-gray-700',
     enabled: () => true,
     disabledReason: () => ''
   },
@@ -45,7 +45,7 @@ const MENU_ITEMS = [
     id: 'attendance', 
     label: 'Điểm danh', 
     icon: ClipboardCheck, 
-    color: 'text-indigo-600 hover:bg-indigo-50',
+    color: 'text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/30',
     enabled: (session) => {
       if (session.is_locked) return false;
       const status = getDisplayStatus(session);
@@ -64,7 +64,7 @@ const MENU_ITEMS = [
     id: 'complete', 
     label: 'Đánh dấu hoàn thành', 
     icon: CheckCircle2, 
-    color: 'text-green-600 hover:bg-green-50',
+    color: 'text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/30',
     enabled: (session) => {
       if (session.is_locked) return false;
       const status = getDisplayStatus(session);
@@ -83,7 +83,7 @@ const MENU_ITEMS = [
     id: 'changeTeacher', 
     label: 'Đổi giáo viên', 
     icon: UserCog, 
-    color: 'text-blue-600 hover:bg-blue-50',
+    color: 'text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30',
     enabled: (session) => {
       if (session.is_locked) return false;
       return getDisplayStatus(session) === 'scheduled';
@@ -103,7 +103,7 @@ const MENU_ITEMS = [
     id: 'changeRoom', 
     label: 'Đổi phòng học', 
     icon: DoorOpen, 
-    color: 'text-purple-600 hover:bg-purple-50',
+    color: 'text-purple-600 hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-900/30',
     enabled: (session) => {
       if (session.is_locked) return false;
       return getDisplayStatus(session) === 'scheduled';
@@ -122,7 +122,7 @@ const MENU_ITEMS = [
     id: 'cancel', 
     label: 'Hủy buổi học', 
     icon: XCircle, 
-    color: 'text-red-600 hover:bg-red-50',
+    color: 'text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30',
     enabled: (session) => {
       if (session.is_locked) return false;
       const status = getDisplayStatus(session);
@@ -202,8 +202,8 @@ export function SessionActionMenu({
         className={`
           p-2 rounded-lg transition-all
           ${isOpen 
-            ? 'bg-slate-200 text-slate-700' 
-            : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+            ? 'bg-slate-200 dark:bg-gray-600 text-slate-700 dark:text-gray-200' 
+            : 'text-slate-400 dark:text-gray-500 hover:text-slate-600 dark:hover:text-gray-300 hover:bg-slate-100 dark:hover:bg-gray-700'
           }
         `}
         title="Thao tác"
@@ -216,7 +216,7 @@ export function SessionActionMenu({
         <div 
           className={`
             absolute right-0 z-[100]
-            w-56 bg-white rounded-xl border border-slate-200 shadow-xl shadow-slate-200/50
+            w-56 bg-white dark:bg-gray-800 rounded-xl border border-slate-200 dark:border-gray-700 shadow-xl shadow-slate-200/50 dark:shadow-black/30
             py-1 overflow-hidden
             ${menuPosition === 'top' 
               ? 'bottom-full mb-1' 
@@ -229,14 +229,14 @@ export function SessionActionMenu({
           }}
         >
           {/* Status indicator */}
-          <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 mb-1">
-            <span className="text-xs text-slate-500">Trạng thái: </span>
+          <div className="px-3 py-2 bg-slate-50 dark:bg-gray-700/50 border-b border-slate-100 dark:border-gray-700 mb-1">
+            <span className="text-xs text-slate-500 dark:text-gray-400">Trạng thái: </span>
             <span className={`text-xs font-medium ${
-              displayStatus === 'overdue' ? 'text-red-600' :
-              displayStatus === 'in_progress' ? 'text-amber-600' :
-              displayStatus === 'completed' ? 'text-green-600' :
-              displayStatus === 'cancelled' ? 'text-slate-500' :
-              'text-blue-600'
+              displayStatus === 'overdue' ? 'text-red-600 dark:text-red-400' :
+              displayStatus === 'in_progress' ? 'text-amber-600 dark:text-amber-400' :
+              displayStatus === 'completed' ? 'text-green-600 dark:text-green-400' :
+              displayStatus === 'cancelled' ? 'text-slate-500 dark:text-gray-400' :
+              'text-blue-600 dark:text-blue-400'
             }`}>
               {displayStatus === 'scheduled' && 'Chưa học'}
               {displayStatus === 'in_progress' && 'Đang diễn ra'}
@@ -254,7 +254,7 @@ export function SessionActionMenu({
             return (
               <div key={item.id}>
                 {item.dividerBefore && idx > 0 && (
-                  <div className="my-1 border-t border-slate-100" />
+                  <div className="my-1 border-t border-slate-100 dark:border-gray-700" />
                 )}
                 <button
                   onClick={() => handleAction(item)}
@@ -264,7 +264,7 @@ export function SessionActionMenu({
                     transition-colors group
                     ${isEnabled 
                       ? `font-medium ${item.color}` 
-                      : 'text-slate-400 cursor-not-allowed'
+                      : 'text-slate-400 dark:text-gray-500 cursor-not-allowed'
                     }
                   `}
                   title={disabledReason || item.label}
@@ -274,7 +274,7 @@ export function SessionActionMenu({
                     <span>{item.label}</span>
                   </div>
                   {!isEnabled && disabledReason && (
-                    <span className="text-xs text-slate-400 flex items-center gap-1">
+                    <span className="text-xs text-slate-400 dark:text-gray-500 flex items-center gap-1">
                       <Lock className="w-3 h-3" />
                     </span>
                   )}

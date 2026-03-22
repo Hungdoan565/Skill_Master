@@ -31,7 +31,7 @@ export function RoomListModal({
             />
 
             {/* Modal */}
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+            <div className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
 
                 {/* Header */}
                 <div className="bg-gradient-to-r from-red-500 to-orange-500 px-6 py-4 shrink-0">
@@ -70,23 +70,23 @@ export function RoomListModal({
                             {rooms.map(room => (
                                 <div
                                     key={room.id}
-                                    className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md hover:border-orange-200 transition-all"
+                                    className="bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 rounded-xl p-4 hover:shadow-md hover:border-orange-200 dark:hover:border-orange-500/50 transition-all"
                                 >
                                     {/* Room Header */}
                                     <div className="flex items-start justify-between mb-3">
                                         <div className="flex-1">
                                             <div className="flex items-center gap-3 mb-2">
-                                                <h3 className="font-semibold text-slate-900">{room.name}</h3>
-                                                <span className="px-2 py-0.5 text-xs font-mono font-medium bg-slate-100 text-slate-600 rounded">
+                                                <h3 className="font-semibold text-slate-900 dark:text-gray-100">{room.name}</h3>
+                                                <span className="px-2 py-0.5 text-xs font-mono font-medium bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300 rounded">
                                                     {room.code}
                                                 </span>
                                             </div>
-                                            <div className="flex items-center gap-2 text-sm text-slate-600">
+                                            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-gray-400">
                                                 <div className="flex items-center gap-1">
                                                     <Users className="h-4 w-4" />
                                                     <span>{room.capacity} chỗ</span>
                                                 </div>
-                                                <span className="text-slate-300">•</span>
+                                                <span className="text-slate-300 dark:text-gray-600">•</span>
                                                 <span>{room.centers?.name || 'N/A'}</span>
                                             </div>
                                         </div>
@@ -103,7 +103,7 @@ export function RoomListModal({
                                                 size="sm"
                                                 variant="ghost"
                                                 onClick={() => onDelete(room)}
-                                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
                                             >
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
@@ -121,8 +121,8 @@ export function RoomListModal({
 
                                     {/* Notes */}
                                     {room.notes && (
-                                        <div className="mt-3 pt-3 border-t border-slate-100">
-                                            <p className="text-xs text-slate-500 line-clamp-2">{room.notes}</p>
+                                        <div className="mt-3 pt-3 border-t border-slate-100 dark:border-gray-700">
+                                            <p className="text-xs text-slate-500 dark:text-gray-400 line-clamp-2">{room.notes}</p>
                                         </div>
                                     )}
                                 </div>
@@ -132,7 +132,7 @@ export function RoomListModal({
                 </div>
 
                 {/* Footer */}
-                <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 shrink-0">
+                <div className="px-6 py-4 bg-slate-50 dark:bg-gray-800 border-t border-slate-200 dark:border-gray-700 shrink-0">
                     <div className="flex justify-end">
                         <Button onClick={onClose} variant="outline">
                             Đóng

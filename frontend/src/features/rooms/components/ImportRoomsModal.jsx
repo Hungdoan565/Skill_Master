@@ -475,9 +475,9 @@ export function ImportRoomsModal({ isOpen, onClose, onSuccess }) {
         className={cn(
           'relative border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer',
           dragActive
-            ? 'border-orange-500 bg-orange-50'
-            : 'border-slate-300 hover:border-orange-400 hover:bg-orange-50/50',
-          selectedFile && 'border-emerald-500 bg-emerald-50'
+            ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/10'
+            : 'border-slate-300 dark:border-gray-600 hover:border-orange-400 hover:bg-orange-50/50 dark:hover:bg-orange-900/10',
+          selectedFile && 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/10'
         )}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
@@ -514,7 +514,7 @@ export function ImportRoomsModal({ isOpen, onClose, onSuccess }) {
           </div>
         ) : (
           <div className="space-y-2">
-            <Upload className="w-12 h-12 mx-auto text-slate-400" />
+            <Upload className="w-12 h-12 mx-auto text-slate-400 dark:text-gray-500" />
             <p className="font-medium">Kéo thả file vào đây</p>
             <p className="text-sm text-muted-foreground">hoặc click để chọn file</p>
             <p className="text-xs text-muted-foreground">Hỗ trợ: CSV, XLSX</p>
@@ -523,7 +523,7 @@ export function ImportRoomsModal({ isOpen, onClose, onSuccess }) {
       </div>
 
       {/* Template download */}
-      <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+      <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-gray-800 rounded-lg">
         <div>
           <p className="text-sm font-medium">Chưa có file mẫu?</p>
           <p className="text-xs text-muted-foreground">Tải file mẫu để xem định dạng đúng</p>
@@ -554,12 +554,12 @@ export function ImportRoomsModal({ isOpen, onClose, onSuccess }) {
     <div className="space-y-4">
       {/* Validation errors */}
       {validationErrors.length > 0 && (
-        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-          <div className="flex items-center gap-2 text-amber-700 font-medium mb-2">
+        <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+          <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300 font-medium mb-2">
             <AlertTriangle className="w-4 h-4" />
             Cảnh báo ({validationErrors.length})
           </div>
-          <ul className="text-sm text-amber-600 space-y-1 max-h-24 overflow-y-auto">
+          <ul className="text-sm text-amber-600 dark:text-amber-400 space-y-1 max-h-24 overflow-y-auto">
             {validationErrors.slice(0, 5).map((err, i) => (
               <li key={i}>Dòng {err.row}: {err.message}</li>
             ))}
@@ -571,9 +571,9 @@ export function ImportRoomsModal({ isOpen, onClose, onSuccess }) {
       )}
 
       {/* Summary */}
-      <div className="flex items-center gap-4 p-3 bg-slate-50 rounded-lg">
+      <div className="flex items-center gap-4 p-3 bg-slate-50 dark:bg-gray-800 rounded-lg">
         <div className="text-center">
-          <p className="text-2xl font-bold text-slate-900">{previewData.length}</p>
+          <p className="text-2xl font-bold text-slate-900 dark:text-gray-100">{previewData.length}</p>
           <p className="text-xs text-muted-foreground">Phòng</p>
         </div>
         <div className="text-center">
@@ -589,9 +589,9 @@ export function ImportRoomsModal({ isOpen, onClose, onSuccess }) {
       </div>
 
       {/* Preview table */}
-      <div className="border rounded-lg overflow-hidden max-h-[300px] overflow-y-auto">
+      <div className="border dark:border-gray-700 rounded-lg overflow-hidden max-h-[300px] overflow-y-auto">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 sticky top-0">
+          <thead className="bg-slate-50 dark:bg-gray-800 sticky top-0">
             <tr>
               <th className="p-2 text-left">#</th>
               <th className="p-2 text-left">Tên phòng</th>
@@ -601,11 +601,11 @@ export function ImportRoomsModal({ isOpen, onClose, onSuccess }) {
               <th className="p-2 text-left">Trạng thái</th>
             </tr>
           </thead>
-          <tbody className="divide-y">
+          <tbody className="divide-y dark:divide-gray-700">
             {previewData.slice(0, 50).map((room, i) => {
               const hasError = validationErrors.some(e => e.row === room.rowIndex);
               return (
-                <tr key={i} className={cn(hasError && 'bg-amber-50')}>
+                <tr key={i} className={cn(hasError && 'bg-amber-50 dark:bg-amber-900/10')}>
                   <td className="p-2 text-muted-foreground">{room.rowIndex}</td>
                   <td className="p-2 font-medium">{room.name || <span className="text-red-500">—</span>}</td>
                   <td className="p-2">{room.code || <span className="text-red-500">—</span>}</td>
@@ -637,7 +637,7 @@ export function ImportRoomsModal({ isOpen, onClose, onSuccess }) {
           </tbody>
         </table>
         {previewData.length > 50 && (
-          <p className="p-2 text-center text-xs text-muted-foreground bg-slate-50">
+          <p className="p-2 text-center text-xs text-muted-foreground bg-slate-50 dark:bg-gray-800">
             ...và {previewData.length - 50} phòng khác
           </p>
         )}
@@ -652,23 +652,23 @@ export function ImportRoomsModal({ isOpen, onClose, onSuccess }) {
         <>
           <CheckCircle className="w-16 h-16 mx-auto text-emerald-500" />
           <div>
-            <h3 className="text-xl font-bold text-slate-900">Import thành công!</h3>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-gray-100">Import thành công!</h3>
             <p className="text-muted-foreground mt-1">
               Đã tạo {importResult.created} phòng mới
             </p>
           </div>
 
           {importResult.skipped > 0 && (
-            <div className="p-3 bg-amber-50 rounded-lg text-sm text-amber-700">
+            <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg text-sm text-amber-700 dark:text-amber-300">
               <AlertTriangle className="w-4 h-4 inline mr-2" />
               {importResult.skipped} phòng bị bỏ qua (mã phòng đã tồn tại)
             </div>
           )}
 
           {importResult.errors?.length > 0 && (
-            <div className="p-3 bg-red-50 rounded-lg text-sm text-left">
-              <p className="text-red-700 font-medium mb-2">Lỗi:</p>
-              <ul className="text-red-600 space-y-1">
+            <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg text-sm text-left">
+              <p className="text-red-700 dark:text-red-300 font-medium mb-2">Lỗi:</p>
+              <ul className="text-red-600 dark:text-red-400 space-y-1">
                 {importResult.errors.slice(0, 5).map((err, i) => (
                   <li key={i}>• {err}</li>
                 ))}
@@ -680,7 +680,7 @@ export function ImportRoomsModal({ isOpen, onClose, onSuccess }) {
         <>
           <AlertCircle className="w-16 h-16 mx-auto text-red-500" />
           <div>
-            <h3 className="text-xl font-bold text-slate-900">Import thất bại</h3>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-gray-100">Import thất bại</h3>
             <p className="text-muted-foreground mt-1">
               {importResult?.message || 'Không có phòng nào được tạo'}
             </p>
@@ -708,18 +708,18 @@ export function ImportRoomsModal({ isOpen, onClose, onSuccess }) {
                 'w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium',
                 step === s && 'bg-orange-500 text-white',
                 step > s && 'bg-emerald-500 text-white',
-                step < s && 'bg-slate-200 text-slate-500'
+                step < s && 'bg-slate-200 dark:bg-gray-700 text-slate-500 dark:text-gray-400'
               )}>
                 {step > s ? <Check className="w-4 h-4" /> : s}
               </div>
-              {s < 3 && <div className={cn('w-8 h-0.5', step > s ? 'bg-emerald-500' : 'bg-slate-200')} />}
+              {s < 3 && <div className={cn('w-8 h-0.5', step > s ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-gray-700')} />}
             </div>
           ))}
         </div>
 
         {/* Error message */}
         {error && (
-          <div className="flex items-center gap-2 p-3 bg-red-50 text-red-600 rounded-lg text-sm">
+          <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-sm">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             {error}
           </div>
