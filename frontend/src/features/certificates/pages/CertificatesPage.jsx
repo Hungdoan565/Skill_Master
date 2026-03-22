@@ -101,10 +101,10 @@ export default function CertificatesPage() {
   return (
     <div className="space-y-8 pb-8 animate-in fade-in duration-500">
       {/* Header Area with Subtle Background/Gradient */}
-      <div className="relative overflow-hidden rounded-xl bg-card border border-border/50 shadow-sm p-6 sm:p-8">
+      <div className="relative overflow-hidden rounded-xl bg-card border border-border shadow-sm p-6 sm:p-8">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
-        <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl" />
+        <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/5 rounded-full blur-3xl opacity-50" />
+        <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl opacity-50" />
         
         <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
           <div className="space-y-1.5">
@@ -141,10 +141,10 @@ export default function CertificatesPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="bg-muted border border-border/50 p-1 rounded-xl shadow-sm inline-flex mb-2">
-          <TabsTrigger value="overview" className="rounded-lg px-6 data-[state=active]:shadow-sm">Tổng quan</TabsTrigger>
-          <TabsTrigger value="issued" className="rounded-lg px-6 data-[state=active]:shadow-sm">Đã cấp</TabsTrigger>
-          <TabsTrigger value="types" className="rounded-lg px-6 data-[state=active]:shadow-sm">Loại chứng chỉ</TabsTrigger>
+        <TabsList className="bg-muted/80 border border-border p-1 rounded-xl shadow-sm inline-flex mb-2">
+          <TabsTrigger value="overview" className="rounded-lg px-6 data-[state=active]:shadow-sm data-[state=active]:bg-background data-[state=active]:border-border">Tổng quan</TabsTrigger>
+          <TabsTrigger value="issued" className="rounded-lg px-6 data-[state=active]:shadow-sm data-[state=active]:bg-background data-[state=active]:border-border">Đã cấp</TabsTrigger>
+          <TabsTrigger value="types" className="rounded-lg px-6 data-[state=active]:shadow-sm data-[state=active]:bg-background data-[state=active]:border-border">Loại chứng chỉ</TabsTrigger>
         </TabsList>
 
         <div className="mt-4">
@@ -155,7 +155,7 @@ export default function CertificatesPage() {
 
           {/* Tab: Issued */}
           <TabsContent value="issued" className="space-y-5 focus-visible:outline-none focus-visible:ring-0">
-            <div className="p-4 rounded-xl bg-card border border-border/50 shadow-sm">
+            <div className="p-4 rounded-xl bg-card border border-border shadow-sm">
               <CertificateFilters
                 filters={filters}
                 onFilterChange={handleFilterChange}
@@ -183,7 +183,7 @@ export default function CertificatesPage() {
               </div>
             )}
 
-            <div className="rounded-xl border border-border/50 shadow-sm bg-card overflow-hidden">
+            <div className="rounded-xl border border-border shadow-sm bg-card overflow-hidden">
               <DataTable
                 columns={columns}
                 data={certificates}

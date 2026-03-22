@@ -477,7 +477,7 @@ export function ClassDetailPage() {
       </div>
 
       {/* Tabs Container */}
-      <div className="bg-card rounded-xl shadow-sm border border-border">
+      <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-md border border-slate-200 dark:border-zinc-800">
         {/* Tab Navigation */}
         <div className="flex items-center gap-2 p-4 border-b border-border">
           <TabButton
