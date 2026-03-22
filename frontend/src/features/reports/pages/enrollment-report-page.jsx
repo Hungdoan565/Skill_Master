@@ -133,7 +133,7 @@ export default function EnrollmentReportPage() {
             <div className="p-6 flex items-center justify-center min-h-[400px]">
                 <div className="text-center">
                     <RefreshCw className="h-8 w-8 animate-spin mx-auto text-blue-600" />
-                    <p className="mt-2 text-gray-500">Đang tải báo cáo...</p>
+                    <p className="mt-2 text-muted-foreground">Đang tải báo cáo...</p>
                 </div>
             </div>
         );
@@ -151,8 +151,8 @@ export default function EnrollmentReportPage() {
                         </Button>
                     </Link>
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Báo cáo Tuyển sinh</h1>
-                        <p className="text-gray-500">
+                        <h1 className="text-2xl font-bold text-foreground">Báo cáo Tuyển sinh</h1>
+                        <p className="text-muted-foreground">
                             {data?.period?.startDate} - {data?.period?.endDate}
                         </p>
                     </div>
@@ -185,11 +185,11 @@ export default function EnrollmentReportPage() {
                 <CardContent>
                     <div className="flex flex-wrap gap-4">
                         <div>
-                            <Label className="text-xs text-gray-500">Khoảng thời gian</Label>
+                            <Label className="text-xs text-muted-foreground">Khoảng thời gian</Label>
                             <select
                                 value={datePreset}
                                 onChange={(e) => setDatePreset(e.target.value)}
-                                className="mt-1 block w-40 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                                className="mt-1 block w-40 rounded-md border border-border px-3 py-2 text-sm"
                             >
                                 {DATE_PRESETS.map(p => (
                                     <option key={p.value} value={p.value}>{p.label}</option>
@@ -200,7 +200,7 @@ export default function EnrollmentReportPage() {
                         {datePreset === 'custom' && (
                             <>
                                 <div>
-                                    <Label className="text-xs text-gray-500">Từ ngày</Label>
+                                    <Label className="text-xs text-muted-foreground">Từ ngày</Label>
                                     <Input
                                         type="date"
                                         value={customDates.start}
@@ -209,7 +209,7 @@ export default function EnrollmentReportPage() {
                                     />
                                 </div>
                                 <div>
-                                    <Label className="text-xs text-gray-500">Đến ngày</Label>
+                                    <Label className="text-xs text-muted-foreground">Đến ngày</Label>
                                     <Input
                                         type="date"
                                         value={customDates.end}
@@ -242,8 +242,8 @@ export default function EnrollmentReportPage() {
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-gray-500">Tổng ghi danh</p>
-                                        <p className="text-2xl font-bold text-gray-900">
+                                        <p className="text-sm text-muted-foreground">Tổng ghi danh</p>
+                                        <p className="text-2xl font-bold text-foreground">
                                             {formatNumber(data.summary.totalEnrollments)}
                                         </p>
                                         <div className={`flex items-center gap-1 text-sm mt-1 ${data.summary.growthPercent >= 0 ? 'text-green-600' : 'text-red-600'
@@ -267,7 +267,7 @@ export default function EnrollmentReportPage() {
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-gray-500">Đang học</p>
+                                        <p className="text-sm text-muted-foreground">Đang học</p>
                                         <p className="text-2xl font-bold text-green-600">
                                             {formatNumber(data.summary.activeEnrollments)}
                                         </p>
@@ -283,7 +283,7 @@ export default function EnrollmentReportPage() {
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-gray-500">Nghỉ học</p>
+                                        <p className="text-sm text-muted-foreground">Nghỉ học</p>
                                         <p className="text-2xl font-bold text-red-600">
                                             {formatNumber(data.summary.droppedEnrollments)}
                                         </p>
@@ -299,7 +299,7 @@ export default function EnrollmentReportPage() {
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-gray-500">Tỷ lệ nghỉ</p>
+                                        <p className="text-sm text-muted-foreground">Tỷ lệ nghỉ</p>
                                         <p className="text-2xl font-bold text-amber-600">
                                             {formatPercent(data.summary.dropRate, 0)}
                                         </p>
@@ -352,7 +352,7 @@ export default function EnrollmentReportPage() {
                                         </AreaChart>
                                     </ResponsiveContainer>
                                 ) : (
-                                    <div className="flex items-center justify-center h-[300px] text-gray-400">
+                                    <div className="flex items-center justify-center h-[300px] text-muted-foreground">
                                         <p>Chưa có dữ liệu ghi danh trong kỳ này</p>
                                     </div>
                                 )}
@@ -389,7 +389,7 @@ export default function EnrollmentReportPage() {
                                         </PieChart>
                                     </ResponsiveContainer>
                                 ) : (
-                                    <div className="flex items-center justify-center h-[250px] text-gray-400">
+                                    <div className="flex items-center justify-center h-[250px] text-muted-foreground">
                                         <p>Chưa có dữ liệu</p>
                                     </div>
                                 )}
@@ -414,7 +414,7 @@ export default function EnrollmentReportPage() {
                                     </BarChart>
                                 </ResponsiveContainer>
                             ) : (
-                                <div className="flex items-center justify-center h-[300px] text-gray-400">
+                                <div className="flex items-center justify-center h-[300px] text-muted-foreground">
                                     <p>Chưa có dữ liệu khóa học</p>
                                 </div>
                             )}
@@ -430,7 +430,7 @@ export default function EnrollmentReportPage() {
                             <div className="overflow-x-auto">
                                 <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                                     <thead>
-                                        <tr className="border-b text-left text-sm text-gray-500">
+                                        <tr className="border-b text-left text-sm text-muted-foreground">
                                             <th className="pb-3 font-medium">Học viên</th>
                                             <th className="pb-3 font-medium">Email</th>
                                             <th className="pb-3 font-medium">Khóa học</th>
@@ -444,24 +444,24 @@ export default function EnrollmentReportPage() {
                                             (data.recentEnrollments || []).map((e) => (
                                                 <tr key={e.id} className="text-sm">
                                                     <td className="py-3 font-medium">{e.studentName}</td>
-                                                    <td className="py-3 text-gray-500">{e.studentEmail}</td>
+                                                    <td className="py-3 text-muted-foreground">{e.studentEmail}</td>
                                                     <td className="py-3">{e.courseName}</td>
                                                     <td className="py-3">{e.className}</td>
                                                     <td className="py-3">
                                                         <span className={`px-2 py-1 rounded text-xs ${e.status === 'active' ? 'bg-green-100 text-green-700' :
                                                             e.status === 'dropped' ? 'bg-red-100 text-red-700' :
-                                                                'bg-gray-100 text-gray-700'
+                                                                'bg-muted text-foreground'
                                                             }`}>
                                                             {STATUS_LABELS[e.status] || e.status}
                                                         </span>
                                                     </td>
-                                                    <td className="py-3 text-gray-500">
+                                                    <td className="py-3 text-muted-foreground">
                                                         {new Date(e.createdAt).toLocaleDateString('vi-VN')}
                                                     </td>
                                                 </tr>
                                             ))
                                         ) : (
-                                            <tr><td colSpan={6} className="py-8 text-center text-gray-400">Chưa có ghi danh gần đây</td></tr>
+                                            <tr><td colSpan={6} className="py-8 text-center text-muted-foreground">Chưa có ghi danh gần đây</td></tr>
                                         )}
                                     </tbody>
                                 </table>

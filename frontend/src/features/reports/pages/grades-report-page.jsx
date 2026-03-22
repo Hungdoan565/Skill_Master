@@ -148,7 +148,7 @@ export default function GradesReportPage() {
             <div className="p-6 flex items-center justify-center min-h-[400px]">
                 <div className="text-center">
                     <RefreshCw className="h-8 w-8 animate-spin mx-auto text-blue-600" />
-                    <p className="mt-2 text-gray-500">Đang tải báo cáo...</p>
+                    <p className="mt-2 text-muted-foreground">Đang tải báo cáo...</p>
                 </div>
             </div>
         );
@@ -166,8 +166,8 @@ export default function GradesReportPage() {
                         </Button>
                     </Link>
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Báo cáo Điểm số</h1>
-                        <p className="text-gray-500">Thống kê điểm số học viên</p>
+                        <h1 className="text-2xl font-bold text-foreground">Báo cáo Điểm số</h1>
+                        <p className="text-muted-foreground">Thống kê điểm số học viên</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -209,11 +209,11 @@ export default function GradesReportPage() {
                     <div className="flex flex-wrap gap-4">
                         {/* Course Filter */}
                         <div>
-                            <Label className="text-xs text-gray-500">Khóa học</Label>
+                            <Label className="text-xs text-muted-foreground">Khóa học</Label>
                             <select
                                 value={selectedCourseId}
                                 onChange={(e) => setSelectedCourseId(e.target.value)}
-                                className="mt-1 block w-48 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                                className="mt-1 block w-48 rounded-md border border-border px-3 py-2 text-sm"
                             >
                                 <option value="">Tất cả khóa học</option>
                                 {courses.map(c => (
@@ -271,11 +271,11 @@ export default function GradesReportPage() {
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-gray-500">Tỷ lệ đậu</p>
+                                        <p className="text-sm text-muted-foreground">Tỷ lệ đậu</p>
                                         <p className="text-2xl font-bold text-green-600">
                                             {formatPercent(data.summary.passRate, 0)}
                                         </p>
-                                        <p className="text-sm text-gray-500 mt-1">
+                                        <p className="text-sm text-muted-foreground mt-1">
                                             {formatNumber(data.summary.passedStudents)}/{formatNumber(data.summary.totalStudents)} học viên
                                         </p>
                                     </div>
@@ -290,7 +290,7 @@ export default function GradesReportPage() {
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-gray-500">Điểm TB</p>
+                                        <p className="text-sm text-muted-foreground">Điểm TB</p>
                                         <p className="text-2xl font-bold text-blue-600">
                                             {data.summary.avgScore}
                                         </p>
@@ -306,7 +306,7 @@ export default function GradesReportPage() {
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-gray-500">Điểm cao nhất</p>
+                                        <p className="text-sm text-muted-foreground">Điểm cao nhất</p>
                                         <p className="text-2xl font-bold text-purple-600">
                                             {data.summary.maxScore}
                                         </p>
@@ -322,7 +322,7 @@ export default function GradesReportPage() {
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-gray-500">Điểm thấp nhất</p>
+                                        <p className="text-sm text-muted-foreground">Điểm thấp nhất</p>
                                         <p className="text-2xl font-bold text-red-600">
                                             {data.summary.minScore}
                                         </p>
@@ -354,7 +354,7 @@ export default function GradesReportPage() {
                                         </BarChart>
                                     </ResponsiveContainer>
                                 ) : (
-                                    <div className="flex items-center justify-center h-[300px] text-gray-400">
+                                    <div className="flex items-center justify-center h-[300px] text-muted-foreground">
                                         <p>Chưa có dữ liệu phân bố điểm</p>
                                     </div>
                                 )}
@@ -389,7 +389,7 @@ export default function GradesReportPage() {
                                         </PieChart>
                                     </ResponsiveContainer>
                                 ) : (
-                                    <div className="flex items-center justify-center h-[300px] text-gray-400">
+                                    <div className="flex items-center justify-center h-[300px] text-muted-foreground">
                                         <p>Chưa có dữ liệu</p>
                                     </div>
                                 )}
@@ -409,7 +409,7 @@ export default function GradesReportPage() {
                             <div className="overflow-x-auto">
                                 <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                                     <thead>
-                                        <tr className="border-b text-left text-sm text-gray-500">
+                                        <tr className="border-b text-left text-sm text-muted-foreground">
                                             <th className="pb-3 font-medium w-12">#</th>
                                             <th className="pb-3 font-medium">Học viên</th>
                                             <th className="pb-3 font-medium">Khóa học</th>
@@ -430,11 +430,11 @@ export default function GradesReportPage() {
                                                                 {index + 1}
                                                             </span>
                                                         ) : (
-                                                            <span className="text-gray-500">{index + 1}</span>
+                                                            <span className="text-muted-foreground">{index + 1}</span>
                                                         )}
                                                     </td>
                                                     <td className="py-3 font-medium">{student.studentName}</td>
-                                                    <td className="py-3 text-gray-600">{student.courseName}</td>
+                                                    <td className="py-3 text-muted-foreground">{student.courseName}</td>
                                                     <td className="py-3 text-center">
                                                         <span className="font-bold text-green-600">{student.finalScore}</span>
                                                     </td>
@@ -446,7 +446,7 @@ export default function GradesReportPage() {
                                                 </tr>
                                             ))
                                         ) : (
-                                            <tr><td colSpan={5} className="py-8 text-center text-gray-400">Chưa có dữ liệu học viên</td></tr>
+                                            <tr><td colSpan={5} className="py-8 text-center text-muted-foreground">Chưa có dữ liệu học viên</td></tr>
                                         )}
                                     </tbody>
                                 </table>
@@ -470,7 +470,7 @@ export default function GradesReportPage() {
                                 <div className="overflow-x-auto">
                                     <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                                         <thead>
-                                            <tr className="border-b text-left text-sm text-gray-600">
+                                            <tr className="border-b text-left text-sm text-muted-foreground">
                                                 <th className="pb-3 font-medium">Học viên</th>
                                                 <th className="pb-3 font-medium">Khóa học</th>
                                                 <th className="pb-3 font-medium text-center">Điểm TB</th>
@@ -482,11 +482,11 @@ export default function GradesReportPage() {
                                             {data.lowScoreStudents.map((student, index) => (
                                                 <tr key={index} className="text-sm">
                                                     <td className="py-3 font-medium">{student.studentName}</td>
-                                                    <td className="py-3 text-gray-600">{student.courseName}</td>
+                                                    <td className="py-3 text-muted-foreground">{student.courseName}</td>
                                                     <td className="py-3 text-center">
                                                         <span className="font-bold text-red-600">{student.finalScore}</span>
                                                     </td>
-                                                    <td className="py-3 text-center text-gray-500">
+                                                    <td className="py-3 text-center text-muted-foreground">
                                                         {student.passScore}
                                                     </td>
                                                     <td className="py-3 text-center">

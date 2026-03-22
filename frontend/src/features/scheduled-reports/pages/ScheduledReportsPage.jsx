@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   Dialog,
   DialogContent,
@@ -169,6 +170,7 @@ export default function ScheduledReportsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [runningId, setRunningId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -282,7 +284,6 @@ export default function ScheduledReportsPage() {
 
   /* ----- Delete ----- */
   const handleDelete = async (id) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa cấu hình báo cáo này?')) return;
     setDeletingId(id);
     try {
       const response = await fetch(`${API_URL}/api/admin/scheduled-reports/${id}`, {
@@ -292,6 +293,7 @@ export default function ScheduledReportsPage() {
       const result = await response.json();
       if (result.success) {
         gooeyToast.success('Đã xóa cấu hình báo cáo');
+        setDeleteTarget(null);
         fetchData();
       } else {
         gooeyToast.error(result.message || 'Có lỗi xảy ra');
@@ -397,114 +399,113 @@ export default function ScheduledReportsPage() {
             const typeInfo = getReportType(report.report_type);
             const TypeIcon = typeInfo.icon;
             return (
-            <Card key={report.id} className="flex flex-col overflow-hidden hover:shadow-md transition-shadow group border-slate-200 dark:border-slate-700">
-              {/* Card top accent */}
-              <div className={`h-1 ${report.is_active ? 'bg-gradient-to-r from-indigo-500 to-violet-500' : 'bg-slate-200'}`} />
+              <Card key={report.id} className="flex flex-col overflow-hidden hover:shadow-md transition-shadow group border-slate-200 dark:border-slate-700">
+                {/* Card top accent */}
+                <div className={`h-1 ${report.is_active ? 'bg-gradient-to-r from-indigo-500 to-violet-500' : 'bg-slate-200'}`} />
 
-              <CardHeader className="pb-3 pt-4">
-                <div className="flex justify-between items-start gap-3">
-                  <div className="flex items-start gap-3 min-w-0">
-                    <div className={`p-2 rounded-lg shrink-0 ${typeInfo.color}`}>
-                      <TypeIcon className="h-4 w-4" />
+                <CardHeader className="pb-3 pt-4">
+                  <div className="flex justify-between items-start gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className={`p-2 rounded-lg shrink-0 ${typeInfo.color}`}>
+                        <TypeIcon className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <CardTitle className="text-sm font-semibold truncate" title={report.name}>
+                          {report.name}
+                        </CardTitle>
+                        <p className="text-xs text-muted-foreground mt-0.5">{typeInfo.label}</p>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <CardTitle className="text-sm font-semibold truncate" title={report.name}>
-                        {report.name}
-                      </CardTitle>
-                      <p className="text-xs text-muted-foreground mt-0.5">{typeInfo.label}</p>
-                    </div>
+                    <Badge
+                      className={`shrink-0 text-[10px] px-2 py-0.5 ${report.is_active
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : 'bg-slate-50 text-slate-500 border-slate-200'
+                        }`}
+                      variant="outline"
+                    >
+                      {report.is_active ? '● Hoạt động' : '○ Tạm dừng'}
+                    </Badge>
                   </div>
-                  <Badge
-                    className={`shrink-0 text-[10px] px-2 py-0.5 ${
-                      report.is_active
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : 'bg-slate-50 text-slate-500 border-slate-200'
-                    }`}
-                    variant="outline"
-                  >
-                    {report.is_active ? '● Hoạt động' : '○ Tạm dừng'}
-                  </Badge>
-                </div>
-              </CardHeader>
+                </CardHeader>
 
-              <CardContent className="pb-3 flex-1 space-y-3">
-                {report.description && (
-                  <p className="text-xs text-muted-foreground line-clamp-2">{report.description}</p>
-                )}
+                <CardContent className="pb-3 flex-1 space-y-3">
+                  {report.description && (
+                    <p className="text-xs text-muted-foreground line-clamp-2">{report.description}</p>
+                  )}
 
-                {/* Meta grid */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-xs">
-                    <Calendar className="h-3.5 w-3.5 text-indigo-500" />
-                    <span className="text-muted-foreground">Tần suất:</span>
-                    <span className="font-medium">{getScheduleLabel(report.schedule)}</span>
-                  </div>
-                  {report.center_name && (
+                  {/* Meta grid */}
+                  <div className="space-y-2">
                     <div className="flex items-center gap-2 text-xs">
-                      <Building2 className="h-3.5 w-3.5 text-indigo-500" />
-                      <span className="text-muted-foreground">Cơ sở:</span>
-                      <span className="font-medium truncate">{report.center_name}</span>
+                      <Calendar className="h-3.5 w-3.5 text-indigo-500" />
+                      <span className="text-muted-foreground">Tần suất:</span>
+                      <span className="font-medium">{getScheduleLabel(report.schedule)}</span>
                     </div>
-                  )}
-                  <div className="flex items-start gap-2 text-xs">
-                    <Mail className="h-3.5 w-3.5 text-indigo-500 mt-0.5 shrink-0" />
-                    <span className="text-muted-foreground shrink-0">Gửi tới:</span>
-                    <span className="font-medium line-clamp-2">{report.email_recipients?.join(', ')}</span>
+                    {report.center_name && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <Building2 className="h-3.5 w-3.5 text-indigo-500" />
+                        <span className="text-muted-foreground">Cơ sở:</span>
+                        <span className="font-medium truncate">{report.center_name}</span>
+                      </div>
+                    )}
+                    <div className="flex items-start gap-2 text-xs">
+                      <Mail className="h-3.5 w-3.5 text-indigo-500 mt-0.5 shrink-0" />
+                      <span className="text-muted-foreground shrink-0">Gửi tới:</span>
+                      <span className="font-medium line-clamp-2">{report.email_recipients?.join(', ')}</span>
+                    </div>
                   </div>
-                </div>
 
-                {/* Timestamps */}
-                <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 p-2.5 space-y-1.5">
-                  <div className="flex justify-between text-xs">
-                    <span className="flex items-center gap-1.5 text-muted-foreground">
-                      <CheckCircle2 className="h-3 w-3" />
-                      Lần cuối:
-                    </span>
-                    <span className="font-medium">{formatDate(report.last_run_at)}</span>
+                  {/* Timestamps */}
+                  <div className="rounded-lg bg-slate-50 dark:bg-slate-800/50 p-2.5 space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Lần cuối:
+                      </span>
+                      <span className="font-medium">{formatDate(report.last_run_at)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <Timer className="h-3 w-3" />
+                        Tiếp theo:
+                      </span>
+                      <span className="font-medium text-indigo-600">{formatDate(report.next_run_at)}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-xs">
-                    <span className="flex items-center gap-1.5 text-muted-foreground">
-                      <Timer className="h-3 w-3" />
-                      Tiếp theo:
-                    </span>
-                    <span className="font-medium text-indigo-600">{formatDate(report.next_run_at)}</span>
-                  </div>
-                </div>
-              </CardContent>
+                </CardContent>
 
-              {/* Actions */}
-              <div className="px-4 py-3 flex items-center gap-2 border-t bg-slate-50/50 dark:bg-slate-900/50">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 gap-1.5 text-xs h-8 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200"
-                  disabled={runningId === report.id}
-                  onClick={() => handleRunNow(report.id)}
-                >
-                  {runningId === report.id ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Zap className="h-3.5 w-3.5" />
-                  )}
-                  Gửi ngay
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
-                  disabled={deletingId === report.id}
-                  onClick={() => handleDelete(report.id)}
-                  title="Xóa cấu hình"
-                >
-                  {deletingId === report.id ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-3.5 w-3.5" />
-                  )}
-                </Button>
-              </div>
-            </Card>
-          );
+                {/* Actions */}
+                <div className="px-4 py-3 flex items-center gap-2 border-t bg-slate-50/50 dark:bg-slate-900/50">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 gap-1.5 text-xs h-8 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200"
+                    disabled={runningId === report.id}
+                    onClick={() => handleRunNow(report.id)}
+                  >
+                    {runningId === report.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Zap className="h-3.5 w-3.5" />
+                    )}
+                    Gửi ngay
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+                    disabled={deletingId === report.id}
+                    onClick={() => setDeleteTarget({ id: report.id, name: report.name })}
+                    title="Xóa cấu hình"
+                  >
+                    {deletingId === report.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+                </div>
+              </Card>
+            );
           })}
         </div>
       )}
@@ -660,6 +661,22 @@ export default function ScheduledReportsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => {
+          if (deletingId) return;
+          setDeleteTarget(null);
+        }}
+        onConfirm={() => handleDelete(deleteTarget?.id)}
+        title="Xóa cấu hình báo cáo?"
+        message={deleteTarget
+          ? `Bạn có chắc chắn muốn xóa cấu hình "${deleteTarget.name}"? Hành động này sẽ dừng lịch gửi tự động của báo cáo này.`
+          : 'Bạn có chắc chắn muốn xóa cấu hình báo cáo này?'}
+        confirmText="Xóa cấu hình"
+        cancelText="Giữ lại"
+        variant="danger"
+      />
     </div>
   );
 }

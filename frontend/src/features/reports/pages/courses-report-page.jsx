@@ -89,7 +89,7 @@ export default function CoursesReportPage() {
             <div className="p-6 flex items-center justify-center min-h-[400px]">
                 <div className="text-center">
                     <RefreshCw className="h-8 w-8 animate-spin mx-auto text-blue-600" />
-                    <p className="mt-2 text-gray-500">Đang tải báo cáo...</p>
+                    <p className="mt-2 text-muted-foreground">Đang tải báo cáo...</p>
                 </div>
             </div>
         );
@@ -107,8 +107,8 @@ export default function CoursesReportPage() {
                         </Button>
                     </Link>
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Báo cáo Khóa học</h1>
-                        <p className="text-gray-500">Phân tích hiệu suất các khóa học</p>
+                        <h1 className="text-2xl font-bold text-foreground">Báo cáo Khóa học</h1>
+                        <p className="text-muted-foreground">Phân tích hiệu suất các khóa học</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -160,8 +160,8 @@ export default function CoursesReportPage() {
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-gray-500">Tổng khóa học</p>
-                                        <p className="text-2xl font-bold text-gray-900">
+                                        <p className="text-sm text-muted-foreground">Tổng khóa học</p>
+                                        <p className="text-2xl font-bold text-foreground">
                                             {formatNumber(data.summary.totalCourses)}
                                         </p>
                                     </div>
@@ -176,7 +176,7 @@ export default function CoursesReportPage() {
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-gray-500">Tổng lớp học</p>
+                                        <p className="text-sm text-muted-foreground">Tổng lớp học</p>
                                         <p className="text-2xl font-bold text-purple-600">
                                             {formatNumber(data.summary.totalClasses)}
                                         </p>
@@ -192,7 +192,7 @@ export default function CoursesReportPage() {
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-gray-500">Tổng học viên</p>
+                                        <p className="text-sm text-muted-foreground">Tổng học viên</p>
                                         <p className="text-2xl font-bold text-green-600">
                                             {formatNumber(data.summary.totalEnrollments)}
                                         </p>
@@ -208,7 +208,7 @@ export default function CoursesReportPage() {
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-gray-500">Tổng doanh thu</p>
+                                        <p className="text-sm text-muted-foreground">Tổng doanh thu</p>
                                         <p className="text-2xl font-bold text-amber-600">
                                             {formatCurrency(data.summary.totalRevenue)}
                                         </p>
@@ -243,7 +243,7 @@ export default function CoursesReportPage() {
                                         </BarChart>
                                     </ResponsiveContainer>
                                 ) : (
-                                    <div className="flex items-center justify-center h-[300px] text-gray-400">
+                                    <div className="flex items-center justify-center h-[300px] text-muted-foreground">
                                         <p>Chưa có dữ liệu doanh thu</p>
                                     </div>
                                 )}
@@ -267,7 +267,7 @@ export default function CoursesReportPage() {
                                         </BarChart>
                                     </ResponsiveContainer>
                                 ) : (
-                                    <div className="flex items-center justify-center h-[300px] text-gray-400">
+                                    <div className="flex items-center justify-center h-[300px] text-muted-foreground">
                                         <p>Chưa có dữ liệu học viên</p>
                                     </div>
                                 )}
@@ -305,7 +305,7 @@ export default function CoursesReportPage() {
                                     </BarChart>
                                 </ResponsiveContainer>
                             ) : (
-                                <div className="flex items-center justify-center h-[300px] text-gray-400">
+                                <div className="flex items-center justify-center h-[300px] text-muted-foreground">
                                     <p>Chưa có dữ liệu danh mục</p>
                                 </div>
                             )}
@@ -321,7 +321,7 @@ export default function CoursesReportPage() {
                             <div className="overflow-x-auto">
                                 <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                                     <thead>
-                                        <tr className="border-b text-left text-sm text-gray-500">
+                                        <tr className="border-b text-left text-sm text-muted-foreground">
                                             <th className="pb-3 font-medium">Mã</th>
                                             <th className="pb-3 font-medium">Tên khóa học</th>
                                             <th className="pb-3 font-medium">Danh mục</th>
@@ -338,24 +338,24 @@ export default function CoursesReportPage() {
                                                     <td className="py-3 font-mono text-blue-600">{course.code}</td>
                                                     <td className="py-3 font-medium">{course.title}</td>
                                                     <td className="py-3">
-                                                        <span className="px-2 py-1 bg-gray-100 rounded text-xs">
+                                                        <span className="px-2 py-1 bg-muted rounded text-xs">
                                                             {course.category}
                                                         </span>
                                                     </td>
                                                     <td className="py-3 text-center">
                                                         <span className="text-green-600">{course.ongoingClasses}</span>
-                                                        <span className="text-gray-400"> / </span>
+                                                        <span className="text-muted-foreground"> / </span>
                                                         <span>{course.totalClasses}</span>
                                                     </td>
                                                     <td className="py-3 text-center">{course.totalEnrollments}</td>
-                                                    <td className="py-3 text-center text-gray-500">{course.avgEnrollmentsPerClass}</td>
+                                                    <td className="py-3 text-center text-muted-foreground">{course.avgEnrollmentsPerClass}</td>
                                                     <td className="py-3 text-right font-medium text-green-600">
                                                         {formatCurrency(course.totalRevenue)}
                                                     </td>
                                                 </tr>
                                             ))
                                         ) : (
-                                            <tr><td colSpan={7} className="py-8 text-center text-gray-400">Chưa có dữ liệu khóa học</td></tr>
+                                            <tr><td colSpan={7} className="py-8 text-center text-muted-foreground">Chưa có dữ liệu khóa học</td></tr>
                                         )}
                                     </tbody>
                                 </table>

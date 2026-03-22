@@ -178,13 +178,13 @@ export function SaveReportModal({
             />
 
             {/* Modal */}
-            <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="relative bg-card rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
 
                 {/* Header with gradient */}
                 <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-5 py-4 text-white shrink-0">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-white/20 rounded-lg">
+                            <div className="p-2 bg-foreground/10 rounded-lg">
                                 <Save className="w-5 h-5" />
                             </div>
                             <div>
@@ -197,7 +197,7 @@ export function SaveReportModal({
                         <button
                             onClick={onClose}
                             disabled={saving}
-                            className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
+                            className="p-1.5 hover:bg-foreground/10 rounded-lg transition-colors"
                         >
                             <X className="w-5 h-5" />
                         </button>
@@ -210,8 +210,8 @@ export function SaveReportModal({
                         <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                             <CheckCircle className="w-8 h-8 text-green-600" />
                         </div>
-                        <h4 className="text-lg font-semibold text-gray-900">Đã lưu báo cáo!</h4>
-                        <p className="text-sm text-gray-500 mt-1">Bạn có thể xem lại trong mục "Báo cáo đã lưu"</p>
+                        <h4 className="text-lg font-semibold text-foreground">Đã lưu báo cáo!</h4>
+                        <p className="text-sm text-muted-foreground mt-1">Bạn có thể xem lại trong mục "Báo cáo đã lưu"</p>
                     </div>
                 ) : (
                     <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
@@ -227,8 +227,8 @@ export function SaveReportModal({
 
                             {/* Report Name */}
                             <div>
-                                <Label className="text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-2">
-                                    <Type className="w-4 h-4 text-gray-400" />
+                                <Label className="text-sm font-medium text-foreground mb-1.5 flex items-center gap-2">
+                                    <Type className="w-4 h-4 text-muted-foreground" />
                                     Tên báo cáo <span className="text-red-500">*</span>
                                 </Label>
                                 <Input
@@ -242,8 +242,8 @@ export function SaveReportModal({
 
                             {/* Description */}
                             <div>
-                                <Label className="text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-2">
-                                    <FileText className="w-4 h-4 text-gray-400" />
+                                <Label className="text-sm font-medium text-foreground mb-1.5 flex items-center gap-2">
+                                    <FileText className="w-4 h-4 text-muted-foreground" />
                                     Mô tả (tùy chọn)
                                 </Label>
                                 <textarea
@@ -251,27 +251,27 @@ export function SaveReportModal({
                                     onChange={(e) => updateField('description', e.target.value)}
                                     placeholder="Ghi chú thêm về báo cáo này..."
                                     rows={2}
-                                    className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full mt-1 px-3 py-2 border border-border rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                 />
                             </div>
 
                             {/* Public toggle */}
-                            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
                                 <div className="flex items-center gap-2">
-                                    <Globe className="w-4 h-4 text-gray-400" />
+                                    <Globe className="w-4 h-4 text-muted-foreground" />
                                     <div>
-                                        <p className="text-sm font-medium text-gray-700">Chia sẻ với trung tâm</p>
-                                        <p className="text-xs text-gray-500">Nhân viên khác có thể xem</p>
+                                        <p className="text-sm font-medium text-foreground">Chia sẻ với trung tâm</p>
+                                        <p className="text-xs text-muted-foreground">Nhân viên khác có thể xem</p>
                                     </div>
                                 </div>
                                 <button
                                     type="button"
                                     onClick={() => updateField('isPublic', !formData.isPublic)}
-                                    className={`relative w-11 h-6 rounded-full transition-colors ${formData.isPublic ? 'bg-indigo-600' : 'bg-gray-300'
+                                    className={`relative w-11 h-6 rounded-full transition-colors ${formData.isPublic ? 'bg-indigo-600' : 'bg-muted'
                                         }`}
                                 >
                                     <span
-                                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${formData.isPublic ? 'translate-x-5' : ''
+                                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-card rounded-full shadow transition-transform ${formData.isPublic ? 'translate-x-5' : ''
                                             }`}
                                     />
                                 </button>
@@ -279,14 +279,14 @@ export function SaveReportModal({
 
                             {/* Schedule (optional feature) */}
                             <div>
-                                <Label className="text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-2">
-                                    <Clock className="w-4 h-4 text-gray-400" />
+                                <Label className="text-sm font-medium text-foreground mb-1.5 flex items-center gap-2">
+                                    <Clock className="w-4 h-4 text-muted-foreground" />
                                     Lịch gửi tự động (tùy chọn)
                                 </Label>
                                 <select
                                     value={formData.schedule || ''}
                                     onChange={(e) => updateField('schedule', e.target.value || null)}
-                                    className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full mt-1 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                 >
                                     <option value="">Không tự động gửi</option>
                                     <option value="daily">Hàng ngày</option>
@@ -298,8 +298,8 @@ export function SaveReportModal({
                             {/* Email recipients (show if schedule is set) */}
                             {formData.schedule && (
                                 <div>
-                                    <Label className="text-sm font-medium text-gray-700 mb-1.5 flex items-center gap-2">
-                                        <Mail className="w-4 h-4 text-gray-400" />
+                                    <Label className="text-sm font-medium text-foreground mb-1.5 flex items-center gap-2">
+                                        <Mail className="w-4 h-4 text-muted-foreground" />
                                         Email nhận báo cáo
                                     </Label>
                                     <Input
@@ -308,7 +308,7 @@ export function SaveReportModal({
                                         placeholder="email1@example.com, email2@example.com"
                                         className="mt-1"
                                     />
-                                    <p className="text-xs text-gray-500 mt-1">Phân cách bằng dấu phẩy</p>
+                                    <p className="text-xs text-muted-foreground mt-1">Phân cách bằng dấu phẩy</p>
                                 </div>
                             )}
 
@@ -330,7 +330,7 @@ export function SaveReportModal({
                         </div>
 
                         {/* Footer */}
-                        <div className="px-5 py-4 bg-gray-50 border-t flex items-center justify-end gap-3 shrink-0">
+                        <div className="px-5 py-4 bg-muted border-t flex items-center justify-end gap-3 shrink-0">
                             <Button
                                 type="button"
                                 variant="outline"

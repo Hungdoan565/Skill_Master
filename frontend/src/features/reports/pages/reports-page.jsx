@@ -189,11 +189,11 @@ export default function ReportsPage() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">{reportTitle}</h1>
-                    <p className="text-gray-500 mt-1">
+                    <h1 className="text-2xl font-bold text-foreground">{reportTitle}</h1>
+                    <p className="text-muted-foreground mt-1">
                         {reportSubtitle}
                     </p>
-                    <p className="text-xs text-gray-400 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                         Chuẩn KPI: phiên bản {definitionVersion}
                     </p>
                 </div>
@@ -260,7 +260,7 @@ export default function ReportsPage() {
                                                     Liên quan
                                                 </Badge>
                                             )}
-                                            <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-1 transition-all" />
+                                            <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-muted-foreground group-hover:translate-x-1 transition-all" />
                                         </div>
                                     </div>
                                     <CardTitle className="text-lg mt-3">{report.title}</CardTitle>
@@ -285,11 +285,11 @@ export default function ReportsPage() {
                 </CardHeader>
                 <CardContent>
                     {loading ? (
-                        <div className="text-center py-8 text-gray-500">
+                        <div className="text-center py-8 text-muted-foreground">
                             Đang tải...
                         </div>
                     ) : savedReports.length === 0 ? (
-                        <div className="text-center py-8 text-gray-500">
+                        <div className="text-center py-8 text-muted-foreground">
                             <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
                             <p>Chưa có báo cáo nào được lưu</p>
                             <p className="text-sm mt-1">Khi xem báo cáo, bạn có thể lưu lại để xem nhanh sau này</p>
@@ -299,16 +299,16 @@ export default function ReportsPage() {
                             {savedReports.map((report) => (
                                 <div
                                     key={report.id}
-                                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100"
+                                    className="flex items-center justify-between p-3 bg-muted rounded-lg hover:bg-muted"
                                 >
                                     <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-white rounded">
-                                            <FileText className="h-5 w-5 text-gray-600" />
+                                        <div className="p-2 bg-card rounded">
+                                            <FileText className="h-5 w-5 text-muted-foreground" />
                                         </div>
                                         <div>
-                                            <p className="font-medium text-gray-900">{report.name}</p>
-                                            <div className="flex items-center gap-2 text-sm text-gray-500">
-                                                <span className="px-2 py-0.5 bg-gray-200 rounded text-xs">
+                                            <p className="font-medium text-foreground">{report.name}</p>
+                                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                <span className="px-2 py-0.5 bg-muted/70 rounded text-xs">
                                                     {REPORT_TYPE_LABELS[report.report_type] || report.report_type}
                                                 </span>
                                                 <span className="flex items-center gap-1">

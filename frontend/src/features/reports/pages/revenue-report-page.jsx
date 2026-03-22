@@ -139,7 +139,7 @@ export default function RevenueReportPage() {
             <div className="p-6 flex items-center justify-center min-h-[400px]">
                 <div className="text-center">
                     <RefreshCw className="h-8 w-8 animate-spin mx-auto text-blue-600" />
-                    <p className="mt-2 text-gray-500">Đang tải báo cáo...</p>
+                    <p className="mt-2 text-muted-foreground">Đang tải báo cáo...</p>
                 </div>
             </div>
         );
@@ -157,8 +157,8 @@ export default function RevenueReportPage() {
                         </Button>
                     </Link>
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Báo cáo Doanh thu</h1>
-                        <p className="text-gray-500">
+                        <h1 className="text-2xl font-bold text-foreground">Báo cáo Doanh thu</h1>
+                        <p className="text-muted-foreground">
                             {data?.period?.startDate} - {data?.period?.endDate}
                         </p>
                     </div>
@@ -192,11 +192,11 @@ export default function RevenueReportPage() {
                     <div className="flex flex-wrap gap-4">
                         {/* Date Preset */}
                         <div>
-                            <Label className="text-xs text-gray-500">Khoảng thời gian</Label>
+                            <Label className="text-xs text-muted-foreground">Khoảng thời gian</Label>
                             <select
                                 value={datePreset}
                                 onChange={(e) => setDatePreset(e.target.value)}
-                                className="mt-1 block w-40 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                                className="mt-1 block w-40 rounded-md border border-border px-3 py-2 text-sm"
                             >
                                 {DATE_PRESETS.map(p => (
                                     <option key={p.value} value={p.value}>{p.label}</option>
@@ -208,7 +208,7 @@ export default function RevenueReportPage() {
                         {datePreset === 'custom' && (
                             <>
                                 <div>
-                                    <Label className="text-xs text-gray-500">Từ ngày</Label>
+                                    <Label className="text-xs text-muted-foreground">Từ ngày</Label>
                                     <Input
                                         type="date"
                                         value={customDates.start}
@@ -217,7 +217,7 @@ export default function RevenueReportPage() {
                                     />
                                 </div>
                                 <div>
-                                    <Label className="text-xs text-gray-500">Đến ngày</Label>
+                                    <Label className="text-xs text-muted-foreground">Đến ngày</Label>
                                     <Input
                                         type="date"
                                         value={customDates.end}
@@ -230,11 +230,11 @@ export default function RevenueReportPage() {
 
                         {/* Group by */}
                         <div>
-                            <Label className="text-xs text-gray-500">Nhóm theo</Label>
+                            <Label className="text-xs text-muted-foreground">Nhóm theo</Label>
                             <select
                                 value={groupBy}
                                 onChange={(e) => setGroupBy(e.target.value)}
-                                className="mt-1 block w-32 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                                className="mt-1 block w-32 rounded-md border border-border px-3 py-2 text-sm"
                             >
                                 <option value="day">Ngày</option>
                                 <option value="week">Tuần</option>
@@ -268,8 +268,8 @@ export default function RevenueReportPage() {
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-gray-500">Tổng doanh thu</p>
-                                        <p className="text-2xl font-bold text-gray-900">
+                                        <p className="text-sm text-muted-foreground">Tổng doanh thu</p>
+                                        <p className="text-2xl font-bold text-foreground">
                                             {formatCurrency(data.summary.totalRevenue)}
                                         </p>
                                         <div className={`flex items-center gap-1 text-sm mt-1 ${data.summary.growthPercent >= 0 ? 'text-green-600' : 'text-red-600'
@@ -294,11 +294,11 @@ export default function RevenueReportPage() {
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-gray-500">Số giao dịch</p>
-                                        <p className="text-2xl font-bold text-gray-900">
+                                        <p className="text-sm text-muted-foreground">Số giao dịch</p>
+                                        <p className="text-2xl font-bold text-foreground">
                                             {formatNumber(data.summary.totalTransactions)}
                                         </p>
-                                        <p className="text-sm text-gray-500 mt-1">
+                                        <p className="text-sm text-muted-foreground mt-1">
                                             trong {data.period.days} ngày
                                         </p>
                                     </div>
@@ -314,8 +314,8 @@ export default function RevenueReportPage() {
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-gray-500">TB mỗi giao dịch</p>
-                                        <p className="text-2xl font-bold text-gray-900">
+                                        <p className="text-sm text-muted-foreground">TB mỗi giao dịch</p>
+                                        <p className="text-2xl font-bold text-foreground">
                                             {formatCurrency(data.summary.averageTransaction)}
                                         </p>
                                     </div>
@@ -331,13 +331,13 @@ export default function RevenueReportPage() {
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-gray-500">Kỳ trước</p>
-                                        <p className="text-2xl font-bold text-gray-900">
+                                        <p className="text-sm text-muted-foreground">Kỳ trước</p>
+                                        <p className="text-2xl font-bold text-foreground">
                                             {formatCurrency(data.summary.prevRevenue)}
                                         </p>
                                     </div>
-                                    <div className="p-3 bg-gray-100 rounded-lg">
-                                        <Calendar className="h-6 w-6 text-gray-600" />
+                                    <div className="p-3 bg-muted rounded-lg">
+                                        <Calendar className="h-6 w-6 text-muted-foreground" />
                                     </div>
                                 </div>
                             </CardContent>
@@ -388,7 +388,7 @@ export default function RevenueReportPage() {
                                         </AreaChart>
                                     </ResponsiveContainer>
                                 ) : (
-                                    <div className="flex items-center justify-center h-[300px] text-gray-400">
+                                    <div className="flex items-center justify-center h-[300px] text-muted-foreground">
                                         <p>Chưa có dữ liệu doanh thu trong kỳ này</p>
                                     </div>
                                 )}
@@ -425,7 +425,7 @@ export default function RevenueReportPage() {
                                         </PieChart>
                                     </ResponsiveContainer>
                                 ) : (
-                                    <div className="flex items-center justify-center h-[250px] text-gray-400">
+                                    <div className="flex items-center justify-center h-[250px] text-muted-foreground">
                                         <p>Chưa có dữ liệu</p>
                                     </div>
                                 )}
@@ -450,7 +450,7 @@ export default function RevenueReportPage() {
                                     </BarChart>
                                 </ResponsiveContainer>
                             ) : (
-                                <div className="flex items-center justify-center h-[300px] text-gray-400">
+                                <div className="flex items-center justify-center h-[300px] text-muted-foreground">
                                     <p>Chưa có dữ liệu khóa học</p>
                                 </div>
                             )}
@@ -467,7 +467,7 @@ export default function RevenueReportPage() {
                             <div className="overflow-x-auto">
                                 <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                                     <thead>
-                                        <tr className="border-b text-left text-sm text-gray-500">
+                                        <tr className="border-b text-left text-sm text-muted-foreground">
                                             <th className="pb-3 font-medium">Mã HĐ</th>
                                             <th className="pb-3 font-medium">Học viên</th>
                                             <th className="pb-3 font-medium">Khóa học</th>
@@ -484,11 +484,11 @@ export default function RevenueReportPage() {
                                                     <td className="py-3">{tx.studentName}</td>
                                                     <td className="py-3">{tx.courseName}</td>
                                                     <td className="py-3">
-                                                        <span className="px-2 py-1 bg-gray-100 rounded text-xs">
+                                                        <span className="px-2 py-1 bg-muted rounded text-xs">
                                                             {PAYMENT_METHOD_LABELS[tx.method] || tx.method}
                                                         </span>
                                                     </td>
-                                                    <td className="py-3 text-gray-500">
+                                                    <td className="py-3 text-muted-foreground">
                                                         {new Date(tx.paymentDate).toLocaleDateString('vi-VN')}
                                                     </td>
                                                     <td className="py-3 text-right font-medium text-green-600">
@@ -497,7 +497,7 @@ export default function RevenueReportPage() {
                                                 </tr>
                                             ))
                                         ) : (
-                                            <tr><td colSpan={6} className="py-8 text-center text-gray-400">Chưa có giao dịch trong kỳ này</td></tr>
+                                            <tr><td colSpan={6} className="py-8 text-center text-muted-foreground">Chưa có giao dịch trong kỳ này</td></tr>
                                         )}
                                     </tbody>
                                 </table>

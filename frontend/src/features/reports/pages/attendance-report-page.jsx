@@ -183,7 +183,7 @@ export default function AttendanceReportPage() {
             <div className="p-6 flex items-center justify-center min-h-[400px]">
                 <div className="text-center">
                     <RefreshCw className="h-8 w-8 animate-spin mx-auto text-blue-600" />
-                    <p className="mt-2 text-gray-500">Đang tải báo cáo...</p>
+                    <p className="mt-2 text-muted-foreground">Đang tải báo cáo...</p>
                 </div>
             </div>
         );
@@ -201,8 +201,8 @@ export default function AttendanceReportPage() {
                         </Button>
                     </Link>
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Báo cáo Chuyên cần</h1>
-                        <p className="text-gray-500">
+                        <h1 className="text-2xl font-bold text-foreground">Báo cáo Chuyên cần</h1>
+                        <p className="text-muted-foreground">
                             {data?.period?.startDate} - {data?.period?.endDate}
                         </p>
                     </div>
@@ -246,11 +246,11 @@ export default function AttendanceReportPage() {
                 <CardContent>
                     <div className="flex flex-wrap gap-4">
                         <div>
-                            <Label className="text-xs text-gray-500">Khoảng thời gian</Label>
+                            <Label className="text-xs text-muted-foreground">Khoảng thời gian</Label>
                             <select
                                 value={datePreset}
                                 onChange={(e) => setDatePreset(e.target.value)}
-                                className="mt-1 block w-40 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                                className="mt-1 block w-40 rounded-md border border-border px-3 py-2 text-sm"
                             >
                                 {DATE_PRESETS.map(p => (
                                     <option key={p.value} value={p.value}>{p.label}</option>
@@ -261,7 +261,7 @@ export default function AttendanceReportPage() {
                         {datePreset === 'custom' && (
                             <>
                                 <div>
-                                    <Label className="text-xs text-gray-500">Từ ngày</Label>
+                                    <Label className="text-xs text-muted-foreground">Từ ngày</Label>
                                     <Input
                                         type="date"
                                         value={customDates.start}
@@ -270,7 +270,7 @@ export default function AttendanceReportPage() {
                                     />
                                 </div>
                                 <div>
-                                    <Label className="text-xs text-gray-500">Đến ngày</Label>
+                                    <Label className="text-xs text-muted-foreground">Đến ngày</Label>
                                     <Input
                                         type="date"
                                         value={customDates.end}
@@ -283,11 +283,11 @@ export default function AttendanceReportPage() {
 
                         {/* Course Filter */}
                         <div>
-                            <Label className="text-xs text-gray-500">Khóa học</Label>
+                            <Label className="text-xs text-muted-foreground">Khóa học</Label>
                             <select
                                 value={selectedCourseId}
                                 onChange={(e) => setSelectedCourseId(e.target.value)}
-                                className="mt-1 block w-44 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                                className="mt-1 block w-44 rounded-md border border-border px-3 py-2 text-sm"
                             >
                                 <option value="">Tất cả khóa học</option>
                                 {courses.map(c => (
@@ -345,7 +345,7 @@ export default function AttendanceReportPage() {
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-gray-500">Tỷ lệ đi học</p>
+                                        <p className="text-sm text-muted-foreground">Tỷ lệ đi học</p>
                                         <p className="text-2xl font-bold text-green-600">
                                             {formatPercent(data.summary.attendanceRate, 0)}
                                         </p>
@@ -360,7 +360,7 @@ export default function AttendanceReportPage() {
                         <Card>
                             <CardContent className="pt-6">
                                 <div className="text-center">
-                                    <p className="text-sm text-gray-500">Có mặt</p>
+                                    <p className="text-sm text-muted-foreground">Có mặt</p>
                                     <p className="text-2xl font-bold text-green-600">
                                         {formatNumber(data.summary.presentCount)}
                                     </p>
@@ -371,7 +371,7 @@ export default function AttendanceReportPage() {
                         <Card>
                             <CardContent className="pt-6">
                                 <div className="text-center">
-                                    <p className="text-sm text-gray-500">Vắng</p>
+                                    <p className="text-sm text-muted-foreground">Vắng</p>
                                     <p className="text-2xl font-bold text-red-600">
                                         {formatNumber(data.summary.absentCount)}
                                     </p>
@@ -382,7 +382,7 @@ export default function AttendanceReportPage() {
                         <Card>
                             <CardContent className="pt-6">
                                 <div className="text-center">
-                                    <p className="text-sm text-gray-500">Trễ</p>
+                                    <p className="text-sm text-muted-foreground">Trễ</p>
                                     <p className="text-2xl font-bold text-amber-600">
                                         {formatNumber(data.summary.lateCount)}
                                     </p>
@@ -393,7 +393,7 @@ export default function AttendanceReportPage() {
                         <Card>
                             <CardContent className="pt-6">
                                 <div className="text-center">
-                                    <p className="text-sm text-gray-500">Có phép</p>
+                                    <p className="text-sm text-muted-foreground">Có phép</p>
                                     <p className="text-2xl font-bold text-blue-600">
                                         {formatNumber(data.summary.excusedCount)}
                                     </p>
@@ -433,7 +433,7 @@ export default function AttendanceReportPage() {
                                         </BarChart>
                                     </ResponsiveContainer>
                                 ) : (
-                                    <div className="flex items-center justify-center h-[300px] text-gray-400">
+                                    <div className="flex items-center justify-center h-[300px] text-muted-foreground">
                                         <p>Chưa có dữ liệu điểm danh trong kỳ này</p>
                                     </div>
                                 )}
@@ -467,7 +467,7 @@ export default function AttendanceReportPage() {
                                         </PieChart>
                                     </ResponsiveContainer>
                                 ) : (
-                                    <div className="flex items-center justify-center h-[250px] text-gray-400">
+                                    <div className="flex items-center justify-center h-[250px] text-muted-foreground">
                                         <p>Chưa có dữ liệu</p>
                                     </div>
                                 )}
@@ -491,7 +491,7 @@ export default function AttendanceReportPage() {
                                 <div className="overflow-x-auto">
                                     <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                                         <thead>
-                                            <tr className="border-b text-left text-sm text-gray-600">
+                                            <tr className="border-b text-left text-sm text-muted-foreground">
                                                 <th className="pb-3 font-medium">Học viên</th>
                                                 <th className="pb-3 font-medium text-center">Tổng buổi</th>
                                                 <th className="pb-3 font-medium text-center">Có mặt</th>

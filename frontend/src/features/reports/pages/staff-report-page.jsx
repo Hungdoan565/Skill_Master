@@ -106,7 +106,7 @@ export default function StaffReportPage() {
             <div className="p-6 flex items-center justify-center min-h-[400px]">
                 <div className="text-center">
                     <RefreshCw className="h-8 w-8 animate-spin mx-auto text-blue-600" />
-                    <p className="mt-2 text-gray-500">Đang tải báo cáo...</p>
+                    <p className="mt-2 text-muted-foreground">Đang tải báo cáo...</p>
                 </div>
             </div>
         );
@@ -124,8 +124,8 @@ export default function StaffReportPage() {
                         </Button>
                     </Link>
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Báo cáo Nhân sự</h1>
-                        <p className="text-gray-500">
+                        <h1 className="text-2xl font-bold text-foreground">Báo cáo Nhân sự</h1>
+                        <p className="text-muted-foreground">
                             {data?.period?.startDate} - {data?.period?.endDate}
                         </p>
                     </div>
@@ -157,11 +157,11 @@ export default function StaffReportPage() {
                 <CardContent>
                     <div className="flex flex-wrap gap-4">
                         <div>
-                            <Label className="text-xs text-gray-500">Khoảng thời gian</Label>
+                            <Label className="text-xs text-muted-foreground">Khoảng thời gian</Label>
                             <select
                                 value={datePreset}
                                 onChange={(e) => setDatePreset(e.target.value)}
-                                className="mt-1 block w-40 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                                className="mt-1 block w-40 rounded-md border border-border px-3 py-2 text-sm"
                             >
                                 {DATE_PRESETS.map(p => (
                                     <option key={p.value} value={p.value}>{p.label}</option>
@@ -172,7 +172,7 @@ export default function StaffReportPage() {
                         {datePreset === 'custom' && (
                             <>
                                 <div>
-                                    <Label className="text-xs text-gray-500">Từ ngày</Label>
+                                    <Label className="text-xs text-muted-foreground">Từ ngày</Label>
                                     <Input
                                         type="date"
                                         value={customDates.start}
@@ -181,7 +181,7 @@ export default function StaffReportPage() {
                                     />
                                 </div>
                                 <div>
-                                    <Label className="text-xs text-gray-500">Đến ngày</Label>
+                                    <Label className="text-xs text-muted-foreground">Đến ngày</Label>
                                     <Input
                                         type="date"
                                         value={customDates.end}
@@ -214,11 +214,11 @@ export default function StaffReportPage() {
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-gray-500">Tổng nhân sự</p>
-                                        <p className="text-2xl font-bold text-gray-900">
+                                        <p className="text-sm text-muted-foreground">Tổng nhân sự</p>
+                                        <p className="text-2xl font-bold text-foreground">
                                             {formatNumber(data.summary.totalStaff)}
                                         </p>
-                                        <p className="text-sm text-gray-500 mt-1">
+                                        <p className="text-sm text-muted-foreground mt-1">
                                             {formatNumber(data.summary.teachers)} giáo viên
                                         </p>
                                     </div>
@@ -233,7 +233,7 @@ export default function StaffReportPage() {
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-gray-500">Tổng buổi dạy</p>
+                                        <p className="text-sm text-muted-foreground">Tổng buổi dạy</p>
                                         <p className="text-2xl font-bold text-green-600">
                                             {formatNumber(data.summary.totalSessions)}
                                         </p>
@@ -249,11 +249,11 @@ export default function StaffReportPage() {
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-gray-500">Tổng giờ dạy</p>
+                                        <p className="text-sm text-muted-foreground">Tổng giờ dạy</p>
                                         <p className="text-2xl font-bold text-purple-600">
                                             {formatNumber(data.summary.totalHours)}h
                                         </p>
-                                        <p className="text-sm text-gray-500 mt-1">
+                                        <p className="text-sm text-muted-foreground mt-1">
                                             TB: {data.summary.avgHoursPerTeacher}h/GV
                                         </p>
                                     </div>
@@ -268,7 +268,7 @@ export default function StaffReportPage() {
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-gray-500">Tổng lương</p>
+                                        <p className="text-sm text-muted-foreground">Tổng lương</p>
                                         <p className="text-2xl font-bold text-amber-600">
                                             {formatCurrency(data.summary.totalPayroll)}
                                         </p>
@@ -300,7 +300,7 @@ export default function StaffReportPage() {
                                     </BarChart>
                                 </ResponsiveContainer>
                             ) : (
-                                <div className="flex items-center justify-center h-[300px] text-gray-400">
+                                <div className="flex items-center justify-center h-[300px] text-muted-foreground">
                                     <p>Chưa có dữ liệu giảng viên</p>
                                 </div>
                             )}
@@ -316,7 +316,7 @@ export default function StaffReportPage() {
                             <div className="overflow-x-auto">
                                 <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
                                     <thead>
-                                        <tr className="border-b text-left text-sm text-gray-500">
+                                        <tr className="border-b text-left text-sm text-muted-foreground">
                                             <th className="pb-3 font-medium">Nhân viên</th>
                                             <th className="pb-3 font-medium">Email</th>
                                             <th className="pb-3 font-medium">Vai trò</th>
@@ -330,7 +330,7 @@ export default function StaffReportPage() {
                                             (data.staffList || []).map((staff) => (
                                                 <tr key={staff.id} className="text-sm">
                                                     <td className="py-3 font-medium">{staff.name}</td>
-                                                    <td className="py-3 text-gray-500">{staff.email}</td>
+                                                    <td className="py-3 text-muted-foreground">{staff.email}</td>
                                                     <td className="py-3">
                                                         <span className={`px-2 py-1 rounded text-xs ${staff.role === 'Teacher' ? 'bg-blue-100 text-blue-700' :
                                                             'bg-purple-100 text-purple-700'
@@ -346,7 +346,7 @@ export default function StaffReportPage() {
                                                 </tr>
                                             ))
                                         ) : (
-                                            <tr><td colSpan={6} className="py-8 text-center text-gray-400">Chưa có dữ liệu nhân sự</td></tr>
+                                            <tr><td colSpan={6} className="py-8 text-center text-muted-foreground">Chưa có dữ liệu nhân sự</td></tr>
                                         )}
                                     </tbody>
                                 </table>

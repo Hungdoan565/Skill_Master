@@ -14,13 +14,13 @@ export default function CrossCenterToggle({ value, onChange }) {
   if (!isSuperAdmin?.()) return null;
 
   return (
-    <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+    <div className="flex items-center gap-2 bg-muted dark:bg-gray-800 rounded-lg p-1">
       <button
         onClick={() => onChange(false)}
         className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
           !value
-            ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            ? 'bg-white dark:bg-gray-700 text-foreground dark:text-white shadow-sm'
+            : 'text-muted-foreground dark:text-muted-foreground hover:text-foreground dark:hover:text-gray-300'
         }`}
       >
         Đơn trung tâm
@@ -29,8 +29,8 @@ export default function CrossCenterToggle({ value, onChange }) {
         onClick={() => onChange(true)}
         className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
           value
-            ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
-            : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            ? 'bg-white dark:bg-gray-700 text-foreground dark:text-white shadow-sm'
+            : 'text-muted-foreground dark:text-muted-foreground hover:text-foreground dark:hover:text-gray-300'
         }`}
       >
         Toàn hệ thống

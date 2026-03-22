@@ -87,9 +87,9 @@ export function ClassFilter({
         switch (status) {
             case 'active': return 'bg-green-100 text-green-700';
             case 'upcoming': return 'bg-blue-100 text-blue-700';
-            case 'completed': return 'bg-gray-100 text-gray-700';
+            case 'completed': return 'bg-muted text-foreground';
             case 'cancelled': return 'bg-red-100 text-red-700';
-            default: return 'bg-gray-100 text-gray-700';
+            default: return 'bg-muted text-foreground';
         }
     };
 
@@ -105,7 +105,7 @@ export function ClassFilter({
 
     return (
         <div className={cn('relative', className)}>
-            <Label className="text-xs text-gray-500 mb-1 block">Lớp học</Label>
+            <Label className="text-xs text-muted-foreground mb-1 block">Lớp học</Label>
 
             {/* Trigger Button */}
             <button
@@ -114,7 +114,7 @@ export function ClassFilter({
                 disabled={disabled}
                 className={cn(
                     'flex items-center justify-between w-full min-w-[200px] px-3 py-2',
-                    'rounded-md border border-gray-300 bg-white text-sm',
+                    'rounded-md border border-border bg-card text-sm',
                     'hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500',
                     'transition-colors',
                     disabled && 'opacity-50 cursor-not-allowed',
@@ -122,7 +122,7 @@ export function ClassFilter({
                 )}
             >
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <GraduationCap className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                    <GraduationCap className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     {selectedClass ? (
                         <div className="flex items-center gap-2 min-w-0">
                             <span className="truncate font-medium">{selectedClass.name}</span>
@@ -133,7 +133,7 @@ export function ClassFilter({
                             )}
                         </div>
                     ) : (
-                        <span className="text-gray-500">{placeholder}</span>
+                        <span className="text-muted-foreground">{placeholder}</span>
                     )}
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
@@ -143,13 +143,13 @@ export function ClassFilter({
                             tabIndex={0}
                             onClick={handleClear}
                             onKeyDown={(e) => e.key === 'Enter' && handleClear(e)}
-                            className="p-1 hover:bg-gray-100 rounded cursor-pointer"
+                            className="p-1 hover:bg-muted rounded cursor-pointer"
                         >
-                            <X className="h-3 w-3 text-gray-400" />
+                            <X className="h-3 w-3 text-muted-foreground" />
                         </span>
                     )}
                     <ChevronDown className={cn(
-                        'h-4 w-4 text-gray-400 transition-transform',
+                        'h-4 w-4 text-muted-foreground transition-transform',
                         isOpen && 'rotate-180'
                     )} />
                 </div>
@@ -165,11 +165,11 @@ export function ClassFilter({
                     />
 
                     {/* Dropdown Panel */}
-                    <div className="absolute z-50 mt-1 w-80 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+                    <div className="absolute z-50 mt-1 w-80 bg-card rounded-lg shadow-lg border border-border overflow-hidden">
                         {/* Search & Course Filter */}
-                        <div className="p-3 border-b space-y-2 bg-gray-50">
+                        <div className="p-3 border-b space-y-2 bg-muted">
                             <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     placeholder="Tìm lớp học..."
                                     value={search}
@@ -200,18 +200,18 @@ export function ClassFilter({
                             <button
                                 onClick={() => handleSelect('')}
                                 className={cn(
-                                    'w-full px-3 py-2.5 text-left text-sm hover:bg-gray-50',
+                                    'w-full px-3 py-2.5 text-left text-sm hover:bg-muted',
                                     'flex items-center justify-between',
                                     !value && 'bg-blue-50'
                                 )}
                             >
-                                <span className="text-gray-600">Tất cả lớp học</span>
+                                <span className="text-muted-foreground">Tất cả lớp học</span>
                                 {!value && <Check className="h-4 w-4 text-blue-600" />}
                             </button>
 
                             {/* Class Items */}
                             {filteredClasses.length === 0 ? (
-                                <div className="px-3 py-8 text-center text-gray-500 text-sm">
+                                <div className="px-3 py-8 text-center text-muted-foreground text-sm">
                                     <GraduationCap className="h-8 w-8 mx-auto mb-2 opacity-30" />
                                     <p>Không tìm thấy lớp học</p>
                                 </div>
@@ -221,7 +221,7 @@ export function ClassFilter({
                                         key={cls.id}
                                         onClick={() => handleSelect(cls.id)}
                                         className={cn(
-                                            'w-full px-3 py-2.5 text-left hover:bg-gray-50',
+                                            'w-full px-3 py-2.5 text-left hover:bg-muted',
                                             'flex items-center justify-between gap-2',
                                             value === cls.id && 'bg-blue-50'
                                         )}
@@ -239,7 +239,7 @@ export function ClassFilter({
                                                 </span>
                                             </div>
                                             {showDetails && (
-                                                <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                                                <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                                                     <span>{cls.course_title || 'Chưa có khóa'}</span>
                                                     <span className="flex items-center gap-1">
                                                         <Users className="h-3 w-3" />
@@ -258,7 +258,7 @@ export function ClassFilter({
 
                         {/* Footer */}
                         {filteredClasses.length > 0 && (
-                            <div className="px-3 py-2 border-t bg-gray-50 text-xs text-gray-500">
+                            <div className="px-3 py-2 border-t bg-muted text-xs text-muted-foreground">
                                 {filteredClasses.length} lớp học
                             </div>
                         )}
