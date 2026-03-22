@@ -27,7 +27,7 @@ export function SyllabusBuilder({
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-zinc-900 uppercase tracking-wider">Cấu trúc chương trình</h3>
+                <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Cấu trúc chương trình</h3>
                 <Button
                     type="button"
                     variant="outline"
@@ -46,16 +46,16 @@ export function SyllabusBuilder({
                     return (
                         <div
                             key={mIndex}
-                            className="border border-zinc-200 rounded-xl bg-white shadow-sm overflow-hidden"
+                            className="border border-border rounded-xl bg-card shadow-sm overflow-hidden"
                         >
                             {/* Module Header */}
-                            <div className="flex items-center gap-3 p-4 bg-zinc-50/50 border-b border-zinc-200">
+                            <div className="flex items-center gap-3 p-4 bg-muted/50 border-b border-border">
                                 <div className="cursor-move opacity-40">
                                     <GripVertical className="w-4 h-4" />
                                 </div>
 
                                 <div className="flex-1 flex items-center gap-4">
-                                    <span className="text-xs font-mono font-bold text-zinc-400">0{mIndex + 1}</span>
+                                    <span className="text-xs font-mono font-bold text-muted-foreground">0{mIndex + 1}</span>
                                     <Input
                                         value={module.title}
                                         onChange={(e) => onUpdateModule(mIndex, 'title', e.target.value)}
@@ -68,14 +68,14 @@ export function SyllabusBuilder({
                                     <button
                                         type="button"
                                         onClick={() => toggleModule(mIndex)}
-                                        className="p-1.5 text-zinc-500 hover:bg-zinc-200 rounded-md transition-colors"
+                                        className="p-1.5 text-muted-foreground hover:bg-muted rounded-md transition-colors"
                                     >
                                         {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => onRemoveModule(mIndex)}
-                                        className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                                        className="p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
                                     >
                                         <Trash2 className="w-4 h-4" />
                                     </button>
@@ -84,11 +84,11 @@ export function SyllabusBuilder({
 
                             {/* Topics List (Collapsible) */}
                             {isExpanded && (
-                                <div className="p-4 space-y-3 bg-white">
+                                <div className="p-4 space-y-3 bg-card">
                                     {module.topics.map((topic, tIndex) => (
                                         <div key={tIndex} className="flex items-center gap-3 group">
                                             <div className="w-6 flex justify-center">
-                                                <FileText className="w-3.5 h-3.5 text-zinc-300" />
+                                                <FileText className="w-3.5 h-3.5 text-muted-foreground/50" />
                                             </div>
                                             <Input
                                                 value={topic}
@@ -99,7 +99,7 @@ export function SyllabusBuilder({
                                             <button
                                                 type="button"
                                                 onClick={() => onRemoveTopic(mIndex, tIndex)}
-                                                className="opacity-0 group-hover:opacity-100 p-1.5 text-zinc-400 hover:text-red-500 transition-all"
+                                                className="opacity-0 group-hover:opacity-100 p-1.5 text-muted-foreground hover:text-red-500 transition-all"
                                             >
                                                 <Trash2 className="w-3.5 h-3.5" />
                                             </button>
@@ -109,7 +109,7 @@ export function SyllabusBuilder({
                                     <button
                                         type="button"
                                         onClick={() => onAddTopic(mIndex)}
-                                        className="flex items-center gap-2 text-xs font-medium text-blue-600 hover:text-blue-700 w-fit pl-9 pt-1"
+                                        className="flex items-center gap-2 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 w-fit pl-9 pt-1"
                                     >
                                         <Plus className="w-3.5 h-3.5" />
                                         Thêm bài học
@@ -121,8 +121,8 @@ export function SyllabusBuilder({
                 })}
 
                 {syllabus.length === 0 && (
-                    <div className="p-12 text-center border-2 border-dashed border-zinc-200 rounded-xl bg-zinc-50/50">
-                        <p className="text-sm text-zinc-500">Chưa có nội dung chương trình học. Nhấn "Thêm Module" để bắt đầu.</p>
+                    <div className="p-12 text-center border-2 border-dashed border-border rounded-xl bg-muted/30">
+                        <p className="text-sm text-muted-foreground">Chưa có nội dung chương trình học. Nhấn "Thêm Module" để bắt đầu.</p>
                     </div>
                 )}
             </div>

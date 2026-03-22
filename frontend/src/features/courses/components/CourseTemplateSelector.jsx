@@ -24,7 +24,7 @@ export function CourseTemplateSelector({ onSelectTemplate, onSkip }) {
     return (
         <div className="space-y-4">
             {/* Header */}
-            <div className="flex items-center gap-2 text-amber-600 mb-2">
+            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 mb-2">
                 <Sparkles className="w-5 h-5" />
                 <span className="font-medium">Chọn mẫu để bắt đầu nhanh</span>
             </div>
@@ -38,8 +38,8 @@ export function CourseTemplateSelector({ onSelectTemplate, onSkip }) {
                             key={template.id}
                             onClick={() => handleSelect(template)}
                             className={`relative p-3 rounded-xl border-2 text-left transition-all hover:shadow-md ${selectedId === template.id
-                                ? 'border-amber-500 bg-amber-50 shadow-md'
-                                : 'border-slate-200 hover:border-slate-300 bg-white'
+                                ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20 shadow-md'
+                                : 'border-border hover:border-border bg-card'
                                 }`}
                         >
                             {selectedId === template.id && (
@@ -50,8 +50,8 @@ export function CourseTemplateSelector({ onSelectTemplate, onSkip }) {
                             <div className={`w-10 h-10 rounded-lg ${template.bgColor} flex items-center justify-center mb-2`}>
                                 <IconComponent className={`w-5 h-5 ${template.color}`} />
                             </div>
-                            <h4 className="font-medium text-sm text-slate-900 mb-0.5">{template.name}</h4>
-                            <p className="text-xs text-slate-500 line-clamp-2">{template.description}</p>
+                            <h4 className="font-medium text-sm text-foreground mb-0.5">{template.name}</h4>
+                            <p className="text-xs text-muted-foreground line-clamp-2">{template.description}</p>
                         </button>
                     );
                 })}
@@ -63,7 +63,7 @@ export function CourseTemplateSelector({ onSelectTemplate, onSkip }) {
                     variant="ghost"
                     size="sm"
                     onClick={onSkip}
-                    className="text-slate-500"
+                    className="text-muted-foreground"
                 >
                     Bỏ qua, tự nhập
                 </Button>

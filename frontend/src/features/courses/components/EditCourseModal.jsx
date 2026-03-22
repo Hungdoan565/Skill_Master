@@ -131,7 +131,7 @@ export function EditCourseModal({ isOpen, onClose, onSuccess, course, accessToke
             />
 
             {/* Modal */}
-            <div className="relative w-full max-w-4xl mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
+            <div className="relative w-full max-w-4xl mx-4 bg-card rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
                 {/* Header */}
                 <div className="bg-gradient-to-r from-blue-500 to-indigo-600 px-6 py-4">
                     <div className="flex items-center justify-between">
@@ -163,14 +163,14 @@ export function EditCourseModal({ isOpen, onClose, onSuccess, course, accessToke
                 <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
                     {/* Error message */}
                     {error && (
-                        <div className="mx-6 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
+                        <div className="mx-6 mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-2 text-red-700 dark:text-red-400">
                             <AlertCircle className="w-4 h-4 shrink-0" />
                             <span className="text-sm">{error}</span>
                         </div>
                     )}
 
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-                        <div className="px-6 pt-4 border-b">
+                        <div className="px-6 pt-4 border-b border-border">
                             <TabsList className="w-full justify-start">
                                 <TabsTrigger value="basic" className="flex items-center gap-2">
                                     <Info className="w-4 h-4" />
@@ -201,7 +201,7 @@ export function EditCourseModal({ isOpen, onClose, onSuccess, course, accessToke
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     {/* CỘT TRÁI - Thông tin định danh */}
                                     <div className="space-y-4">
-                                        <h3 className="font-medium text-zinc-900 flex items-center gap-2 pb-2 border-b">
+                                        <h3 className="font-medium text-foreground flex items-center gap-2 pb-2 border-b border-border">
                                             <BookOpen className="w-4 h-4 text-blue-500" />
                                             Thông tin định danh
                                         </h3>
@@ -219,7 +219,7 @@ export function EditCourseModal({ isOpen, onClose, onSuccess, course, accessToke
                                                 placeholder="VD: IELTS-FOUNDATION"
                                                 className="font-mono uppercase"
                                             />
-                                            <p className="text-xs text-zinc-500">Mã duy nhất, tự động chuyển UPPERCASE</p>
+                                            <p className="text-xs text-muted-foreground">Mã duy nhất, tự động chuyển UPPERCASE</p>
                                         </div>
 
                                         {/* Tên khóa học */}
@@ -246,7 +246,7 @@ export function EditCourseModal({ isOpen, onClose, onSuccess, course, accessToke
                                                 name="category"
                                                 value={formData.category}
                                                 onChange={handleChange}
-                                                className="w-full h-10 px-3 rounded-md border border-input bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
                                             >
                                                 {CATEGORIES.map(cat => (
                                                     <option key={cat.value} value={cat.value}>{cat.label}</option>
@@ -264,7 +264,7 @@ export function EditCourseModal({ isOpen, onClose, onSuccess, course, accessToke
                                                 name="level"
                                                 value={formData.level}
                                                 onChange={handleChange}
-                                                className="w-full h-10 px-3 rounded-md border border-input bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
                                             >
                                                 {LEVELS.map(lv => (
                                                     <option key={lv.value} value={lv.value}>{lv.label}</option>
@@ -278,7 +278,7 @@ export function EditCourseModal({ isOpen, onClose, onSuccess, course, accessToke
                                                 Học phí <span className="text-red-500">*</span>
                                             </Label>
                                             <div className="relative">
-                                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                                                 <Input
                                                     id="price"
                                                     name="price"
@@ -287,14 +287,14 @@ export function EditCourseModal({ isOpen, onClose, onSuccess, course, accessToke
                                                     placeholder="5.000.000"
                                                     className="pl-9 pr-12 font-mono text-right"
                                                 />
-                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-zinc-500">đ</span>
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">đ</span>
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* CỘT PHẢI - Chi tiết */}
                                     <div className="space-y-4">
-                                        <h3 className="font-medium text-zinc-900 flex items-center gap-2 pb-2 border-b">
+                                        <h3 className="font-medium text-foreground flex items-center gap-2 pb-2 border-b border-border">
                                             <Clock className="w-4 h-4 text-indigo-500" />
                                             Thông số đào tạo
                                         </h3>
@@ -314,7 +314,7 @@ export function EditCourseModal({ isOpen, onClose, onSuccess, course, accessToke
                                                     onChange={handleChange}
                                                     className="pr-12"
                                                 />
-                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-zinc-500">buổi</span>
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">buổi</span>
                                             </div>
                                         </div>
 
@@ -333,14 +333,14 @@ export function EditCourseModal({ isOpen, onClose, onSuccess, course, accessToke
                                                     onChange={handleChange}
                                                     className="pr-12"
                                                 />
-                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-zinc-500">tuần</span>
+                                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">tuần</span>
                                             </div>
                                         </div>
 
                                         {/* Ảnh bìa */}
                                         <div className="space-y-1.5">
                                             <Label className="text-sm font-medium">Ảnh bìa</Label>
-                                            <div className="border-2 border-dashed border-zinc-200 rounded-lg p-4 text-center hover:border-blue-300 transition-colors">
+                                            <div className="border-2 border-dashed border-border rounded-lg p-4 text-center hover:border-blue-300 transition-colors">
                                                 {imagePreview ? (
                                                     <div className="relative">
                                                         <img
@@ -365,12 +365,12 @@ export function EditCourseModal({ isOpen, onClose, onSuccess, course, accessToke
                                                             className="hidden"
                                                         />
                                                         <div className="flex flex-col items-center gap-2 py-4">
-                                                            <div className="p-3 bg-zinc-100 rounded-full">
-                                                                <ImageIcon className="w-6 h-6 text-zinc-400" />
+                                                            <div className="p-3 bg-muted rounded-full">
+                                                                <ImageIcon className="w-6 h-6 text-muted-foreground" />
                                                             </div>
                                                             <div>
-                                                                <p className="text-sm font-medium text-zinc-700">Chọn ảnh hoặc kéo thả</p>
-                                                                <p className="text-xs text-zinc-500">PNG, JPG tối đa 5MB</p>
+                                                                <p className="text-sm font-medium text-foreground">Chọn ảnh hoặc kéo thả</p>
+                                                                <p className="text-xs text-muted-foreground">PNG, JPG tối đa 5MB</p>
                                                             </div>
                                                         </div>
                                                     </label>
@@ -390,7 +390,7 @@ export function EditCourseModal({ isOpen, onClose, onSuccess, course, accessToke
                                                 onChange={handleChange}
                                                 placeholder="Mô tả về khóa học, đối tượng học viên phù hợp, mục tiêu đầu ra..."
                                                 rows={4}
-                                                className="w-full px-3 py-2 rounded-md border border-input bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                                                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                                             />
                                         </div>
 
@@ -405,7 +405,7 @@ export function EditCourseModal({ isOpen, onClose, onSuccess, course, accessToke
                                                         onClick={() => setFieldValue('status', status.value)}
                                                         className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${formData.status === status.value
                                                             ? status.color + ' ring-2 ring-offset-1 ring-blue-400'
-                                                            : 'bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300'
+                                                            : 'bg-card text-muted-foreground border-border hover:border-muted-foreground/50'
                                                             }`}
                                                     >
                                                         {status.label}
@@ -469,7 +469,7 @@ export function EditCourseModal({ isOpen, onClose, onSuccess, course, accessToke
                     </Tabs>
 
                     {/* Footer */}
-                    <div className="flex items-center justify-between gap-3 px-6 py-4 border-t bg-neutral-50">
+                    <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-border bg-muted/50">
                         <div className="flex items-center gap-2">
                             <Button
                                 type="button"

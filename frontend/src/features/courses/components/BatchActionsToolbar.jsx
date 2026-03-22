@@ -136,15 +136,15 @@ export function BatchActionsToolbar({
 
     return (
         <>
-            <div className="flex items-center gap-3 p-3 bg-indigo-50 border border-indigo-200 rounded-lg mb-4 animate-in slide-in-from-top-2 duration-200">
+            <div className="flex items-center gap-3 p-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg mb-4 animate-in slide-in-from-top-2 duration-200">
                 {/* Selection Count */}
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-100 rounded-lg">
-                    <span className="text-sm font-medium text-indigo-700">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900/40 rounded-lg">
+                    <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
                         Đã chọn: <strong>{count}</strong> khóa học
                     </span>
                 </div>
 
-                <div className="h-6 w-px bg-indigo-200" />
+                <div className="h-6 w-px bg-indigo-200 dark:bg-indigo-700" />
 
                 {/* Actions */}
                 <div className="flex items-center gap-2">
@@ -152,7 +152,7 @@ export function BatchActionsToolbar({
                     <Button
                         size="sm"
                         variant="outline"
-                        className="text-emerald-600 border-emerald-300 hover:bg-emerald-50"
+                        className="text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
                         onClick={() => handleBulkStatus('active')}
                         disabled={loading}
                     >
@@ -168,7 +168,7 @@ export function BatchActionsToolbar({
                     <Button
                         size="sm"
                         variant="outline"
-                        className="text-orange-600 border-orange-300 hover:bg-orange-50"
+                        className="text-orange-600 dark:text-orange-400 border-orange-300 dark:border-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20"
                         onClick={() => handleBulkStatus('inactive')}
                         disabled={loading}
                     >
@@ -195,7 +195,7 @@ export function BatchActionsToolbar({
                     <Button
                         size="sm"
                         variant="outline"
-                        className="text-red-600 border-red-300 hover:bg-red-50"
+                        className="text-red-600 dark:text-red-400 border-red-300 dark:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
                         onClick={() => handleConfirm('delete')}
                         disabled={loading}
                     >
@@ -229,18 +229,18 @@ export function BatchActionsToolbar({
                         className="absolute inset-0 bg-black/50"
                         onClick={() => setShowConfirm(false)}
                     />
-                    <div className="relative bg-white rounded-xl shadow-2xl p-6 max-w-md mx-4 animate-in zoom-in-95">
+                    <div className="relative bg-card rounded-xl shadow-2xl p-6 max-w-md mx-4 animate-in zoom-in-95">
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-red-100 rounded-full">
-                                <AlertTriangle className="w-6 h-6 text-red-600" />
+                            <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-full">
+                                <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
                             </div>
                             <div>
-                                <h3 className="font-semibold text-lg">Xác nhận xóa</h3>
-                                <p className="text-sm text-gray-500">Hành động này không thể hoàn tác</p>
+                                <h3 className="font-semibold text-lg text-foreground">Xác nhận xóa</h3>
+                                <p className="text-sm text-muted-foreground">Hành động này không thể hoàn tác</p>
                             </div>
                         </div>
 
-                        <p className="text-gray-600 mb-6">
+                        <p className="text-muted-foreground mb-6">
                             Bạn có chắc chắn muốn xóa <strong>{count}</strong> khóa học đã chọn?
                         </p>
 

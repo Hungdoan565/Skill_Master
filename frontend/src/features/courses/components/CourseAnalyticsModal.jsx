@@ -81,7 +81,7 @@ export function CourseAnalyticsModal({ isOpen, onClose, course, accessToken }) {
             />
 
             {/* Modal */}
-            <div className="relative w-full max-w-2xl mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="relative w-full max-w-2xl mx-4 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="bg-gradient-to-r from-indigo-500 to-purple-500 px-6 py-4">
                     <div className="flex items-center justify-between">
@@ -159,30 +159,30 @@ export function CourseAnalyticsModal({ isOpen, onClose, course, accessToken }) {
 
                             {/* Additional Info */}
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-slate-50 rounded-xl p-4">
-                                    <h4 className="text-sm font-medium text-slate-600 mb-3">Thông tin khóa học</h4>
+                                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4">
+                                    <h4 className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-3">Thông tin khóa học</h4>
                                     <div className="space-y-2 text-sm">
                                         <div className="flex justify-between">
-                                            <span className="text-slate-500">Mã khóa học</span>
-                                            <code className="font-mono bg-white px-2 py-0.5 rounded">{course.code}</code>
+                                            <span className="text-slate-500 dark:text-slate-400">Mã khóa học</span>
+                                            <code className="font-mono bg-white dark:bg-slate-800 px-2 py-0.5 rounded">{course.code}</code>
                                         </div>
                                         <div className="flex justify-between">
-                                            <span className="text-slate-500">Danh mục</span>
+                                            <span className="text-slate-500 dark:text-slate-400">Danh mục</span>
                                             <span className="font-medium">{course.category}</span>
                                         </div>
                                         <div className="flex justify-between">
-                                            <span className="text-slate-500">Trình độ</span>
+                                            <span className="text-slate-500 dark:text-slate-400">Trình độ</span>
                                             <span className="font-medium">{course.level || 'Tất cả'}</span>
                                         </div>
                                         <div className="flex justify-between">
-                                            <span className="text-slate-500">Học phí</span>
-                                            <span className="font-medium text-emerald-600">{formatPrice(course.price)}</span>
+                                            <span className="text-slate-500 dark:text-slate-400">Học phí</span>
+                                            <span className="font-medium text-emerald-600 dark:text-emerald-400">{formatPrice(course.price)}</span>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="bg-slate-50 rounded-xl p-4">
-                                    <h4 className="text-sm font-medium text-slate-600 mb-3">Xu hướng 3 tháng gần đây</h4>
+                                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4">
+                                    <h4 className="text-sm font-medium text-slate-600 dark:text-slate-300 mb-3">Xu hướng 3 tháng gần đây</h4>
                                     <div className="flex items-end justify-between h-24 gap-2">
                                         {stats.monthlyTrend?.map((item, i) => (
                                             <div key={i} className="flex-1 flex flex-col items-center gap-1">
@@ -190,7 +190,7 @@ export function CourseAnalyticsModal({ isOpen, onClose, course, accessToken }) {
                                                     className="w-full bg-indigo-500 rounded-t"
                                                     style={{ height: `${Math.max(20, item.students * 3)}px` }}
                                                 />
-                                                <span className="text-xs text-slate-500">{item.month}</span>
+                                                <span className="text-xs text-slate-500 dark:text-slate-400">{item.month}</span>
                                                 <span className="text-xs font-medium">{item.students}</span>
                                             </div>
                                         ))}
@@ -199,14 +199,14 @@ export function CourseAnalyticsModal({ isOpen, onClose, course, accessToken }) {
                             </div>
 
                             {/* Course Performance Summary */}
-                            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4">
+                            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/40 dark:to-purple-900/40 rounded-xl p-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-indigo-100 rounded-lg">
-                                        <Calendar className="w-5 h-5 text-indigo-600" />
+                                    <div className="p-2 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg">
+                                        <Calendar className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                                     </div>
                                     <div>
-                                        <h4 className="font-medium text-slate-900">Tóm tắt hiệu suất</h4>
-                                        <p className="text-sm text-slate-600">
+                                        <h4 className="font-medium text-slate-900 dark:text-slate-100">Tóm tắt hiệu suất</h4>
+                                        <p className="text-sm text-slate-600 dark:text-slate-300">
                                             Khóa học này có <strong>{stats.activeClasses}</strong> lớp đang hoạt động,
                                             trung bình <strong>{stats.avgClassSize}</strong> học viên/lớp.
                                             Tỉ lệ hoàn thành khóa học đạt <strong>{stats.completionRate}%</strong>.
@@ -219,7 +219,7 @@ export function CourseAnalyticsModal({ isOpen, onClose, course, accessToken }) {
                 </div>
 
                 {/* Footer */}
-                <div className="px-6 py-4 bg-slate-50 border-t flex justify-end">
+                <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900/50 border-t dark:border-slate-800 flex justify-end">
                     <Button variant="outline" onClick={onClose}>
                         Đóng
                     </Button>
@@ -232,21 +232,21 @@ export function CourseAnalyticsModal({ isOpen, onClose, course, accessToken }) {
 // Stat Card Component
 function StatCard({ icon: Icon, label, value, subValue, color = 'blue', isLarge }) {
     const colorClasses = {
-        blue: 'bg-blue-50 text-blue-600',
-        green: 'bg-green-50 text-green-600',
-        emerald: 'bg-emerald-50 text-emerald-600',
-        purple: 'bg-purple-50 text-purple-600',
+        blue: 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+        green: 'bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-400',
+        emerald: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400',
+        purple: 'bg-purple-50 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400',
     };
 
     return (
-        <div className="bg-white border rounded-xl p-4">
+        <div className="bg-white dark:bg-slate-800/50 border dark:border-slate-700 rounded-xl p-4">
             <div className={`inline-flex p-2 rounded-lg ${colorClasses[color]} mb-2`}>
                 <Icon className="w-4 h-4" />
             </div>
-            <p className="text-xs text-slate-500 mb-1">{label}</p>
-            <p className={`font-bold ${isLarge ? 'text-lg' : 'text-xl'} text-slate-900`}>{value}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">{label}</p>
+            <p className={`font-bold ${isLarge ? 'text-lg' : 'text-xl'} text-slate-900 dark:text-white`}>{value}</p>
             {subValue && (
-                <p className="text-xs text-slate-400 mt-0.5">{subValue}</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{subValue}</p>
             )}
         </div>
     );

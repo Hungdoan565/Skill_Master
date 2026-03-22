@@ -20,7 +20,7 @@ import { formatPrice, COURSE_STATUS } from '../utils';
 function StatusBadge({ status }) {
   const config = COURSE_STATUS.find(s => s.value === status) || COURSE_STATUS[0];
   return (
-    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${config.color}`}>
+    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium whitespace-nowrap ${config.color}`}>
       {config.label}
     </span>
   );
@@ -33,8 +33,8 @@ function StudentVisibilityBadge({ course }) {
   if (visibleNow) {
     return (
       <div className="space-y-1">
-        <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-          Visible now
+        <span className="inline-flex items-center rounded-full border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+          Đang hiển thị
         </span>
       </div>
     );
@@ -42,8 +42,8 @@ function StudentVisibilityBadge({ course }) {
 
   return (
     <div className="space-y-1 max-w-[220px]">
-      <span className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700">
-        Not visible
+      <span className="inline-flex items-center rounded-full border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/30 px-2.5 py-1 text-xs font-medium text-rose-700 dark:text-rose-300">
+        Không hiển thị
       </span>
       {reasonLabels.length > 0 ? (
         <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2" title={reasonLabels.join(', ')}>
@@ -97,7 +97,7 @@ export function CourseTable({
         ) : (
           // First time - no courses
           <>
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center mb-4">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-900/30 dark:to-orange-900/30 flex items-center justify-center mb-4">
               <BookOpen className="w-10 h-10 text-red-400" />
             </div>
             <h3 className="text-lg font-medium text-foreground mb-1">Chưa có khóa học nào</h3>
@@ -219,8 +219,8 @@ function CourseRow({
               className="w-10 h-10 rounded-lg object-cover"
             />
           ) : (
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-red-100 to-orange-100 flex items-center justify-center">
-              <BookOpen className="w-5 h-5 text-red-500" />
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-red-100 to-orange-100 dark:from-red-900/30 dark:to-orange-900/30 flex items-center justify-center">
+              <BookOpen className="w-5 h-5 text-red-500 dark:text-red-400" />
             </div>
           )}
           <div>
@@ -250,7 +250,7 @@ function CourseRow({
       </td>
 
       {/* Học phí */}
-      <td className="py-4 pr-4 text-right font-mono font-medium text-emerald-600 tabular-nums">
+      <td className="py-4 pr-4 text-right font-mono font-medium text-emerald-600 dark:text-emerald-400 tabular-nums">
         {formatPrice(course.price)}
       </td>
 
@@ -269,7 +269,7 @@ function CourseRow({
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+            className="h-8 w-8 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20"
             onClick={() => onEdit?.(course)}
             title="Chỉnh sửa"
           >

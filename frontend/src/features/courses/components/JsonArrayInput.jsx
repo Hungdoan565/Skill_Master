@@ -41,10 +41,10 @@ export function JsonArrayInput({
                     {items.map((item, index) => (
                         <div
                             key={index}
-                            className="group flex items-start gap-2 p-3 bg-white border border-neutral-200 rounded-lg hover:border-neutral-300 transition-colors"
+                            className="group flex items-start gap-2 p-3 bg-card border border-border rounded-lg hover:border-border transition-colors"
                         >
                             <div className="pt-2 cursor-move opacity-0 group-hover:opacity-40 transition-opacity">
-                                <GripVertical className="w-4 h-4 text-neutral-400" />
+                                <GripVertical className="w-4 h-4 text-muted-foreground" />
                             </div>
 
                             <div className="flex-1">
@@ -59,7 +59,7 @@ export function JsonArrayInput({
                             <button
                                 type="button"
                                 onClick={() => onRemove(index)}
-                                className="mt-1 p-1 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                                className="mt-1 p-1 text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
                                 aria-label={`Xóa ${label.toLowerCase()} ${index + 1}`}
                             >
                                 <X className="w-4 h-4" />
@@ -68,8 +68,8 @@ export function JsonArrayInput({
                     ))}
                 </div>
             ) : (
-                <div className="p-8 text-center border-2 border-dashed border-neutral-200 rounded-lg bg-neutral-50/50">
-                    <p className="text-sm text-neutral-500">{emptyMessage}</p>
+                <div className="p-8 text-center border-2 border-dashed border-border rounded-lg bg-muted/30">
+                    <p className="text-sm text-muted-foreground">{emptyMessage}</p>
                 </div>
             )}
 

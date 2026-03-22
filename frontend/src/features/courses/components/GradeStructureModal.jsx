@@ -78,22 +78,22 @@ export function GradeStructureModal({ isOpen, onClose, course, accessToken }) {
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       
       {/* Modal */}
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-zinc-200">
+        <div className="px-6 py-4 border-b border-zinc-200 dark:border-slate-800">
           <div className="flex items-center justify-between">
             <div>
-              <h2 id="grade-structure-modal-title" className="text-lg font-bold text-zinc-900">Cấu hình đánh giá</h2>
-              <p className="text-sm text-zinc-500 mt-0.5">
+              <h2 id="grade-structure-modal-title" className="text-lg font-bold text-zinc-900 dark:text-white">Cấu hình đánh giá</h2>
+              <p className="text-sm text-zinc-500 dark:text-slate-400 mt-0.5">
                 {course?.code} • {course?.title}
               </p>
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-zinc-100 rounded-full transition-colors"
+              className="p-2 hover:bg-zinc-100 dark:hover:bg-slate-800 rounded-full transition-colors"
               aria-label="Đóng modal"
             >
-              <X className="w-5 h-5 text-zinc-500" />
+              <X className="w-5 h-5 text-zinc-500 dark:text-slate-400" />
             </button>
           </div>
         </div>
@@ -149,7 +149,7 @@ export function GradeStructureModal({ isOpen, onClose, course, accessToken }) {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-zinc-50">
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-zinc-200 dark:border-slate-800 bg-zinc-50 dark:bg-slate-900/50">
           <Button
             type="button"
             variant="outline"
@@ -191,7 +191,7 @@ export function GradeStructureModal({ isOpen, onClose, course, accessToken }) {
 function TemplateSelector({ selectedTemplate, onSelect }) {
   return (
     <div className="mb-6">
-      <h3 className="text-sm font-semibold text-zinc-800 mb-3">
+      <h3 className="text-sm font-semibold text-zinc-800 dark:text-slate-200 mb-3">
         Chọn loại hình đánh giá
       </h3>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
@@ -204,15 +204,15 @@ function TemplateSelector({ selectedTemplate, onSelect }) {
               onClick={() => onSelect(template.id)}
               className={`p-3 rounded-xl border-2 transition-all text-left ${
                 selectedTemplate === template.id
-                  ? 'border-red-500 bg-red-50 ring-2 ring-red-200'
-                  : 'border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50'
+                  ? 'border-red-500 bg-red-50 dark:bg-red-500/10 ring-2 ring-red-200 dark:ring-red-500/30'
+                  : 'border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600 dark:hover:bg-slate-800/80'
               }`}
             >
               <div className={`w-8 h-8 rounded-lg ${template.bgColor} flex items-center justify-center mb-2`}>
                 <IconComponent className={`w-4 h-4 ${template.iconColor}`} />
               </div>
               <div className={`text-xs font-semibold ${
-                selectedTemplate === template.id ? 'text-red-700' : 'text-zinc-700'
+                selectedTemplate === template.id ? 'text-red-700 dark:text-red-400' : 'text-zinc-700 dark:text-slate-300'
               }`}>
                 {template.name}
               </div>
@@ -232,9 +232,9 @@ function TemplateSelector({ selectedTemplate, onSelect }) {
  */
 function ConfigSection({ config, showAdvanced, onUpdateConfig, onToggleAdvanced }) {
   return (
-    <div className="mb-6 p-4 bg-zinc-50 rounded-xl border border-zinc-200">
+    <div className="mb-6 p-4 bg-zinc-50 dark:bg-slate-800/50 rounded-xl border border-zinc-200 dark:border-slate-700">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-zinc-700">Thông số đánh giá</h3>
+        <h3 className="text-sm font-semibold text-zinc-700 dark:text-slate-200">Thông số đánh giá</h3>
         <button
           type="button"
           onClick={onToggleAdvanced}
@@ -247,7 +247,7 @@ function ConfigSection({ config, showAdvanced, onUpdateConfig, onToggleAdvanced 
       <div className={`grid gap-4 ${showAdvanced ? 'grid-cols-3' : 'grid-cols-2'}`}>
         {/* Thang điểm */}
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium text-zinc-600">Thang điểm tối đa</Label>
+          <Label className="text-xs font-medium text-zinc-600 dark:text-slate-300">Thang điểm tối đa</Label>
           <Input
             type="number"
             min="0"
@@ -260,7 +260,7 @@ function ConfigSection({ config, showAdvanced, onUpdateConfig, onToggleAdvanced 
 
         {/* Điểm đạt */}
         <div className="space-y-1.5">
-          <Label className="text-xs font-medium text-zinc-600">Điểm đạt (Pass)</Label>
+          <Label className="text-xs font-medium text-zinc-600 dark:text-slate-300">Điểm đạt (Pass)</Label>
           <Input
             type="number"
             min="0"
@@ -337,14 +337,14 @@ function GradeColumnsList({ structures, config, onUpdateColumn, onRemoveColumn, 
         {structures.map((structure, index) => (
           <div 
             key={index} 
-            className={`grid gap-3 items-center p-2.5 bg-white rounded-lg border border-zinc-200 hover:border-red-300 transition-all ${isWeighted ? 'grid-cols-12' : 'grid-cols-10'}`}
+            className={`grid gap-3 items-center p-2.5 bg-white dark:bg-slate-800/50 rounded-lg border border-zinc-200 dark:border-slate-700 hover:border-red-300 dark:hover:border-red-500/50 transition-all ${isWeighted ? 'grid-cols-12' : 'grid-cols-10'}`}
           >
             <div className={isWeighted ? 'col-span-5' : 'col-span-5'}>
               <Input
                 value={structure.name}
                 onChange={(e) => onUpdateColumn(index, 'name', e.target.value)}
                 placeholder="VD: Giữa kỳ..."
-                className="text-sm h-9"
+                className="text-sm h-9 bg-transparent dark:border-slate-600 dark:text-slate-100 dark:placeholder:text-slate-500"
               />
             </div>
             {isWeighted && (
@@ -356,9 +356,9 @@ function GradeColumnsList({ structures, config, onUpdateColumn, onRemoveColumn, 
                     max="100"
                     value={Math.round((structure.weight || 0) * 100)}
                     onChange={(e) => onUpdateColumn(index, 'weight', e.target.value)}
-                    className="text-sm text-center pr-7 h-9"
+                    className="text-sm text-center pr-7 h-9 bg-transparent dark:border-slate-600 dark:text-slate-100"
                   />
-                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-zinc-400">%</span>
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-zinc-400 dark:text-slate-500">%</span>
                 </div>
               </div>
             )}
@@ -368,14 +368,14 @@ function GradeColumnsList({ structures, config, onUpdateColumn, onRemoveColumn, 
                 min="0"
                 value={structure.max_score}
                 onChange={(e) => onUpdateColumn(index, 'max_score', e.target.value)}
-                className="text-sm text-center h-9"
+                className="text-sm text-center h-9 bg-transparent dark:border-slate-600 dark:text-slate-100"
               />
             </div>
             <div className="col-span-1 flex justify-center">
               <button
                 type="button"
                 onClick={() => onRemoveColumn(index)}
-                className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 dark:hover:text-red-400 rounded transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -384,7 +384,7 @@ function GradeColumnsList({ structures, config, onUpdateColumn, onRemoveColumn, 
         ))}
 
         {structures.length === 0 && (
-          <div className="text-center py-6 text-zinc-400 bg-zinc-50 rounded-lg border-2 border-dashed border-zinc-200">
+          <div className="text-center py-6 text-zinc-400 dark:text-slate-500 bg-zinc-50 dark:bg-slate-800/30 rounded-lg border-2 border-dashed border-zinc-200 dark:border-slate-700">
             <p className="text-sm">Chọn loại hình đánh giá ở trên để tự động điền</p>
           </div>
         )}
@@ -394,7 +394,7 @@ function GradeColumnsList({ structures, config, onUpdateColumn, onRemoveColumn, 
       <button
         type="button"
         onClick={onAddColumn}
-        className="w-full mt-3 py-2 border-2 border-dashed border-zinc-300 rounded-lg text-sm font-medium text-zinc-500 hover:border-red-400 hover:text-red-600 hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
+        className="w-full mt-3 py-2 border-2 border-dashed border-zinc-300 dark:border-slate-700 rounded-lg text-sm font-medium text-zinc-500 dark:text-slate-400 hover:border-red-400 dark:hover:border-red-500/50 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors flex items-center justify-center gap-2"
       >
         <Plus className="w-4 h-4" />
         Thêm cột điểm
@@ -414,16 +414,16 @@ function WeightSummary({ structures, config, totalWeightPercent, isWeightValid }
     return (
       <div className={`p-3 rounded-lg flex items-center justify-between ${
         isWeightValid 
-          ? 'bg-emerald-50 border border-emerald-200' 
-          : 'bg-red-50 border border-red-200'
+          ? 'bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800' 
+          : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
       }`}>
         <div className="flex items-center gap-3">
           <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm ${
-            isWeightValid ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+            isWeightValid ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400' : 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-400'
           }`}>
             {totalWeightPercent}%
           </div>
-          <span className={`text-sm font-medium ${isWeightValid ? 'text-emerald-700' : 'text-red-700'}`}>
+          <span className={`text-sm font-medium ${isWeightValid ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>
             {isWeightValid ? 'Tổng trọng số hợp lệ' : `Thiếu ${100 - totalWeightPercent}% nữa`}
           </span>
         </div>
@@ -440,16 +440,16 @@ function WeightSummary({ structures, config, totalWeightPercent, isWeightValid }
   const totalMaxScore = structures.reduce((sum, s) => sum + (parseFloat(s.max_score) || 0), 0);
   
   return (
-    <div className="p-3 rounded-lg bg-orange-50 border border-orange-200 flex items-center justify-between">
+    <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm bg-orange-100 text-orange-700">
+        <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-400">
           Σ
         </div>
         <div>
-          <span className="text-sm font-medium text-orange-700">
+          <span className="text-sm font-medium text-orange-700 dark:text-orange-400">
             Tổng điểm: {totalMaxScore}
           </span>
-          <p className="text-xs text-orange-600">
+          <p className="text-xs text-orange-600 dark:text-orange-300">
             {structures.map(s => s.name || '?').join(' + ')}
           </p>
         </div>

@@ -148,7 +148,7 @@ export function CourseFilters({
                         <Input
                             type="search"
                             placeholder="Tìm theo tên hoặc mã khóa học..."
-                            className="pl-10 bg-white"
+                            className="pl-10 bg-background"
                             value={searchTerm}
                             onChange={(e) => onSearchChange(e.target.value)}
                         />
@@ -211,7 +211,7 @@ export function CourseFilters({
                                 setSelectedPricePreset('0');
                                 onClearFilters?.();
                             }}
-                            className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                            className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
                         >
                             <X className="h-4 w-4 mr-1" />
                             Xóa bộ lọc
@@ -226,7 +226,7 @@ export function CourseFilters({
 
             {/* Advanced Filters Panel */}
             {showAdvanced && (
-                <div className="p-4 bg-slate-50 rounded-xl border animate-in slide-in-from-top-2 duration-200">
+                <div className="p-4 bg-muted/50 rounded-xl border border-border animate-in slide-in-from-top-2 duration-200">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {/* Category Filter */}
                         <div className="space-y-2">
@@ -284,7 +284,7 @@ export function CourseFilters({
                                         setSelectedPricePreset('0');
                                         onPriceRangeChange?.({ ...priceRange, min: e.target.value });
                                     }}
-                                    className="pl-10 bg-white"
+                                    className="pl-10 bg-background"
                                 />
                             </div>
                         </div>
@@ -302,7 +302,7 @@ export function CourseFilters({
                                         setSelectedPricePreset('0');
                                         onPriceRangeChange?.({ ...priceRange, max: e.target.value });
                                     }}
-                                    className="pl-10 bg-white"
+                                    className="pl-10 bg-background"
                                 />
                             </div>
                         </div>

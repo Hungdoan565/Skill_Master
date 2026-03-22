@@ -18,35 +18,35 @@ export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 export const CATEGORY_CONFIG = {
   english: {
     label: 'Tiếng Anh',
-    color: 'bg-blue-100 text-blue-700 border-blue-200'
+    color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
   },
   it: {
     label: 'Tin học',
-    color: 'bg-purple-100 text-purple-700 border-purple-200'
+    color: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800'
   },
   programming: {
     label: 'Lập trình',
-    color: 'bg-violet-100 text-violet-700 border-violet-200'
+    color: 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-800'
   },
   ielts: {
     label: 'IELTS',
-    color: 'bg-amber-100 text-amber-700 border-amber-200'
+    color: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
   },
   toeic: {
     label: 'TOEIC',
-    color: 'bg-emerald-100 text-emerald-700 border-emerald-200'
+    color: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
   },
   communication: {
     label: 'Giao tiếp',
-    color: 'bg-cyan-100 text-cyan-700 border-cyan-200'
+    color: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800'
   },
   office: {
     label: 'Tin học VP',
-    color: 'bg-orange-100 text-orange-700 border-orange-200'
+    color: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800'
   },
   default: {
     label: 'Khác',
-    color: 'bg-slate-100 text-slate-700 border-slate-200'
+    color: 'bg-slate-100 dark:bg-slate-900/30 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800'
   },
 };
 
@@ -70,9 +70,9 @@ export const LEVELS = [
 
 // Trạng thái khóa học
 export const COURSE_STATUS = [
-  { value: 'draft', label: 'Nháp', color: 'bg-zinc-100 text-zinc-600 border-zinc-300' },
-  { value: 'active', label: 'Đang tuyển sinh', color: 'bg-emerald-100 text-emerald-700 border-emerald-300' },
-  { value: 'inactive', label: 'Tạm ngưng', color: 'bg-orange-100 text-orange-700 border-orange-300' }
+  { value: 'draft', label: 'Nháp', color: 'bg-zinc-100 dark:bg-zinc-800/50 text-zinc-600 dark:text-zinc-300 border-zinc-300 dark:border-zinc-600' },
+  { value: 'active', label: 'Đang tuyển sinh', color: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700' },
+  { value: 'inactive', label: 'Tạm ngưng', color: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-700' }
 ];
 
 // Default form data cho tạo mới khóa học
@@ -190,6 +190,141 @@ export const DEFAULT_GRADE_CONFIG = {
 // COURSE TEMPLATES - Mẫu khóa học nhanh
 // ============================================================
 
+const TEMPLATE_STARTERS = {
+  ielts: {
+    syllabus: [
+      { title: 'Foundation & Assessment', topics: ['Đánh giá đầu vào', 'Thiết lập mục tiêu band điểm', 'Kế hoạch học cá nhân'] },
+      { title: 'Core Skills Intensive', topics: ['Chiến thuật Listening Reading', 'Viết Task 1 Task 2', 'Speaking theo tiêu chí chấm'] },
+      { title: 'Mock & Band Boost', topics: ['Thi thử full test', 'Phân tích lỗi cá nhân', 'Tối ưu tốc độ và độ chính xác'] }
+    ],
+    outcomes: [
+      'Nắm rõ tiêu chí chấm điểm của từng kỹ năng',
+      'Tăng điểm ổn định theo lộ trình học',
+      'Làm bài đúng chiến thuật và quản lý thời gian tốt',
+      'Tự tin chinh phục mục tiêu band đầu ra'
+    ],
+    features: [
+      'Giảng viên theo sát tiến độ từng học viên',
+      'Mock test định kỳ theo chuẩn đề thi',
+      'Sửa Writing và Speaking chi tiết theo rubric',
+      'Tài liệu học được cập nhật liên tục'
+    ],
+    faq: [
+      {
+        question: 'Khóa này phù hợp trình độ nào?',
+        answer: 'Phù hợp với học viên đã có nền tảng cơ bản và muốn tăng band theo lộ trình rõ ràng.'
+      },
+      {
+        question: 'Có kiểm tra đầu vào không?',
+        answer: 'Có. Trung tâm tổ chức test đầu vào để xếp lớp và xây lộ trình học phù hợp.'
+      },
+      {
+        question: 'Bao lâu thì thấy cải thiện?',
+        answer: 'Thông thường sau 3-4 tuần học đều, học viên bắt đầu thấy tiến bộ rõ ở kỹ năng yếu.'
+      }
+    ]
+  },
+  toeic: {
+    syllabus: [
+      { title: 'TOEIC Fundamentals', topics: ['Tổng quan đề thi', 'Từ vựng trọng điểm', 'Ngữ pháp cốt lõi'] },
+      { title: 'Part-by-Part Strategies', topics: ['Listening theo từng part', 'Reading tốc độ cao', 'Bẫy thường gặp và cách tránh'] },
+      { title: 'Score Optimization', topics: ['Luyện đề full test', 'Phân tích lỗi cá nhân', 'Kế hoạch bứt điểm mục tiêu'] }
+    ],
+    outcomes: [
+      'Làm chủ chiến thuật cho từng phần TOEIC',
+      'Tăng độ chính xác và tốc độ xử lý đề',
+      'Mở rộng vốn từ vựng thực dụng cho công việc',
+      'Tiến gần mục tiêu điểm TOEIC theo kế hoạch'
+    ],
+    features: [
+      'Lộ trình rõ ràng theo mốc điểm mục tiêu',
+      'Kho đề luyện tập bám sát format thật',
+      'Đánh giá định kỳ và tối ưu điểm yếu',
+      'Hỗ trợ tư vấn đăng ký thi chứng chỉ'
+    ],
+    faq: [
+      {
+        question: 'Khóa học có phù hợp người đi làm?',
+        answer: 'Có. Nội dung được thiết kế gọn, thực dụng và có lịch học linh hoạt cho người bận rộn.'
+      },
+      {
+        question: 'Nếu mất gốc tiếng Anh có học được không?',
+        answer: 'Được. Khóa có phần củng cố nền tảng trước khi tăng tốc theo dạng bài.'
+      },
+      {
+        question: 'Có hỗ trợ luyện đề trước kỳ thi không?',
+        answer: 'Có. Trung tâm bố trí các buổi mô phỏng đề thi và chữa lỗi chi tiết trước khi thi.'
+      }
+    ]
+  },
+  techOffice: {
+    syllabus: [
+      { title: 'Nền tảng công cụ', topics: ['Làm quen giao diện', 'Thao tác chuẩn', 'Tăng tốc workflow'] },
+      { title: 'Ứng dụng thực tế', topics: ['Bài tập theo tình huống', 'Tối ưu biểu mẫu và dữ liệu', 'Chuẩn hóa đầu ra công việc'] },
+      { title: 'Kiểm tra & hoàn thiện', topics: ['Mini project', 'Đánh giá theo tiêu chí', 'Lộ trình học nâng cao'] }
+    ],
+    outcomes: [
+      'Thành thạo kỹ năng ứng dụng vào công việc hằng ngày',
+      'Tối ưu thời gian xử lý tác vụ lặp lại',
+      'Tạo sản phẩm đúng chuẩn trình bày chuyên nghiệp',
+      'Sẵn sàng thi chứng chỉ hoặc nâng cấp kỹ năng tiếp theo'
+    ],
+    features: [
+      'Thực hành chiếm đa số thời lượng khóa học',
+      'Bài tập bám sát nhu cầu công việc thực tế',
+      'Hướng dẫn theo từng bước dễ áp dụng',
+      'Đánh giá tiến độ và tư vấn cải thiện cá nhân'
+    ],
+    faq: [
+      {
+        question: 'Tôi chưa giỏi máy tính có học được không?',
+        answer: 'Có. Lộ trình bắt đầu từ mức cơ bản và tăng dần theo năng lực của học viên.'
+      },
+      {
+        question: 'Khóa học có nhiều thực hành không?',
+        answer: 'Có. Chương trình ưu tiên thực hành trên bài toán gần với công việc thực tế.'
+      },
+      {
+        question: 'Học xong có thể áp dụng ngay không?',
+        answer: 'Có. Nội dung được thiết kế để áp dụng ngay vào báo cáo, biểu mẫu và xử lý dữ liệu hằng ngày.'
+      }
+    ]
+  },
+  communication: {
+    syllabus: [
+      { title: 'Foundation Speaking', topics: ['Chào hỏi và giới thiệu', 'Mẫu câu giao tiếp cơ bản', 'Phản xạ nghe nói'] },
+      { title: 'Workplace Communication', topics: ['Email và trao đổi công việc', 'Meeting và thuyết trình ngắn', 'Xử lý tình huống phổ biến'] },
+      { title: 'Confidence Builder', topics: ['Luyện phản xạ nâng cao', 'Sửa phát âm trọng điểm', 'Ứng dụng trong môi trường thật'] }
+    ],
+    outcomes: [
+      'Tự tin giao tiếp trong tình huống đời sống và công việc',
+      'Nâng cao phát âm và ngữ điệu dễ hiểu',
+      'Mở rộng vốn từ vựng giao tiếp thực dụng',
+      'Phản xạ tự nhiên hơn khi trao đổi tiếng Anh'
+    ],
+    features: [
+      'Môi trường luyện nói tương tác liên tục',
+      'Giáo viên sửa lỗi trực tiếp theo cá nhân',
+      'Tình huống luyện tập bám sát bối cảnh thật',
+      'Đánh giá định kỳ để thấy tiến bộ rõ ràng'
+    ],
+    faq: [
+      {
+        question: 'Khóa học có tập trung nói nhiều không?',
+        answer: 'Có. Trọng tâm là phản xạ nghe nói và giao tiếp thực tế trong từng buổi học.'
+      },
+      {
+        question: 'Phát âm chưa tốt có theo kịp không?',
+        answer: 'Có. Giáo viên sẽ sửa phát âm theo nhóm lỗi phổ biến và theo từng học viên.'
+      },
+      {
+        question: 'Có phù hợp người đi làm bận rộn không?',
+        answer: 'Có. Lịch học linh hoạt và nội dung thực dụng giúp bạn áp dụng ngay vào công việc.'
+      }
+    ]
+  }
+};
+
 export const COURSE_TEMPLATES = [
   {
     id: 'ielts-foundation',
@@ -280,7 +415,8 @@ export const COURSE_TEMPLATES = [
       total_sessions: 48,
       duration_weeks: 8,
       price: '12000000',
-      description: 'Khóa IELTS chuyên sâu cho người đã có nền tảng. Mục tiêu đạt band 6.5-7.0. Tập trung vào kỹ năng thi và strategies.'
+      description: 'Khóa IELTS chuyên sâu cho người đã có nền tảng. Mục tiêu đạt band 6.5-7.0. Tập trung vào kỹ năng thi và strategies.',
+      ...TEMPLATE_STARTERS.ielts
     }
   },
   {
@@ -298,7 +434,8 @@ export const COURSE_TEMPLATES = [
       total_sessions: 24,
       duration_weeks: 8,
       price: '6500000',
-      description: 'Khóa TOEIC dành cho người mới, mục tiêu 600+ điểm. Phù hợp sinh viên và người đi làm cần chứng chỉ TOEIC.'
+      description: 'Khóa TOEIC dành cho người mới, mục tiêu 600+ điểm. Phù hợp sinh viên và người đi làm cần chứng chỉ TOEIC.',
+      ...TEMPLATE_STARTERS.toeic
     }
   },
   {
@@ -316,7 +453,8 @@ export const COURSE_TEMPLATES = [
       total_sessions: 32,
       duration_weeks: 10,
       price: '8500000',
-      description: 'Khóa TOEIC nâng cao, mục tiêu 800+ điểm. Dành cho người đã có nền tảng tiếng Anh tốt.'
+      description: 'Khóa TOEIC nâng cao, mục tiêu 800+ điểm. Dành cho người đã có nền tảng tiếng Anh tốt.',
+      ...TEMPLATE_STARTERS.toeic
     }
   },
   {
@@ -334,7 +472,8 @@ export const COURSE_TEMPLATES = [
       total_sessions: 12,
       duration_weeks: 4,
       price: '2500000',
-      description: 'Khóa luyện thi chứng chỉ MOS Word Associate. Học 1 kèm 1 hoặc nhóm nhỏ. Cam kết đầu ra.'
+      description: 'Khóa luyện thi chứng chỉ MOS Word Associate. Học 1 kèm 1 hoặc nhóm nhỏ. Cam kết đầu ra.',
+      ...TEMPLATE_STARTERS.techOffice
     }
   },
   {
@@ -352,7 +491,8 @@ export const COURSE_TEMPLATES = [
       total_sessions: 12,
       duration_weeks: 4,
       price: '2500000',
-      description: 'Khóa luyện thi chứng chỉ MOS Excel Associate. Học thực hành 70%, lý thuyết 30%.'
+      description: 'Khóa luyện thi chứng chỉ MOS Excel Associate. Học thực hành 70%, lý thuyết 30%.',
+      ...TEMPLATE_STARTERS.techOffice
     }
   },
   {
@@ -370,7 +510,8 @@ export const COURSE_TEMPLATES = [
       total_sessions: 16,
       duration_weeks: 6,
       price: '3500000',
-      description: 'Khóa Excel chuyên sâu với Pivot Table, Power Query, Dashboard và VBA cơ bản. Dành cho người đã biết Excel.'
+      description: 'Khóa Excel chuyên sâu với Pivot Table, Power Query, Dashboard và VBA cơ bản. Dành cho người đã biết Excel.',
+      ...TEMPLATE_STARTERS.techOffice
     }
   },
   {
@@ -388,7 +529,8 @@ export const COURSE_TEMPLATES = [
       total_sessions: 24,
       duration_weeks: 8,
       price: '5500000',
-      description: 'Khóa tiếng Anh giao tiếp cơ bản dành cho người đi làm. Tập trung vào các tình huống thực tế.'
+      description: 'Khóa tiếng Anh giao tiếp cơ bản dành cho người đi làm. Tập trung vào các tình huống thực tế.',
+      ...TEMPLATE_STARTERS.communication
     }
   }
 ];
