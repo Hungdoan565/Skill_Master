@@ -3015,26 +3015,23 @@ app.get('/api/admin/staff', requireAuth, async (req, res, next) => {
         return res.json({ success: true, data: [], pagination: { total: 0, page: pageNum, limit: limitNum } });
       }
     } else {
-      // LÃ¡ÂºÂ¥y tÃ¡ÂºÂ¥t cÃ¡ÂºÂ£ staff (khÃƒÂ´ng phÃ¡ÂºÂ£i STUDENT vÃƒÂ  khÃƒÂ´ng phÃ¡ÂºÂ£i SUPER_ADMIN vÃƒÂ¬ SA khÃƒÂ´ng xuÃ¡ÂºÂ¥t hiÃ¡Â»â€¡n trong list nhÃƒÂ¢n viÃƒÂªn)
-      const { data: excludeRoles } = await supabase
+      // Lấy tất cả staff đúng scope của màn nhân sự (Teacher, Center Manager)
+      const { data: staffRoles } = await supabase
         .from('roles')
         .select('id')
-        .in('code', ['STUDENT']);
+        .in('code', ['TEACHER', 'CENTER_MANAGER']);
 
-      const excludeRoleIds = excludeRoles?.map(r => r.id) || [];
+      const staffRoleIds = staffRoles?.map(r => r.id) || [];
 
-      if (excludeRoleIds.length > 0) {
-        query = supabase
-          .from('users')
-          .select(selectFields, { count: 'exact' })
-          .not('role_id', 'in', `(${excludeRoleIds.join(',')})`)
-          .order('created_at', { ascending: false });
-      } else {
-        query = supabase
-          .from('users')
-          .select(selectFields, { count: 'exact' })
-          .order('created_at', { ascending: false });
+      if (staffRoleIds.length === 0) {
+        return res.json({ success: true, data: [], pagination: { total: 0, page: pageNum, limit: limitNum } });
       }
+
+      query = supabase
+        .from('users')
+        .select(selectFields, { count: 'exact' })
+        .in('role_id', staffRoleIds)
+        .order('created_at', { ascending: false });
     }
 
     // ====== CENTER FILTER ======
