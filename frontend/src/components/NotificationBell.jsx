@@ -84,6 +84,13 @@ export function NotificationBell({
   const resolveReferencePath = (item) => {
     const refType = item?.reference_type;
 
+    if (refType === 'payroll_dispute') {
+      if (roleCode === 'SUPER_ADMIN' || roleCode === 'CENTER_MANAGER') {
+        return '/admin/payroll-disputes';
+      }
+      return '/teacher/payroll';
+    }
+
     if (refType === 'payment') {
       if (roleCode === 'STUDENT') return '/student/tuition';
       return '/admin/invoices?tab=transactions';

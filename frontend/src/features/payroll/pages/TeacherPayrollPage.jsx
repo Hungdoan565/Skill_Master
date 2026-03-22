@@ -33,6 +33,31 @@ import { DisputeModal } from '../components/DisputeModal';
 import { usePayroll } from '../hooks/usePayroll';
 import { useAuth } from '@/contexts/auth-context';
 
+const ACTIVE_DISPUTE_STATUSES = ['pending', 'reviewing'];
+
+const DISPUTE_STATUS_LABELS = {
+    pending: 'Chờ xử lý',
+    reviewing: 'Đang xem xét',
+    resolved: 'Đã giải quyết',
+    rejected: 'Từ chối',
+};
+
+const DISPUTE_STATUS_COLORS = {
+    pending: 'bg-amber-100 text-amber-800 border-amber-200',
+    reviewing: 'bg-blue-100 text-blue-800 border-blue-200',
+    resolved: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    rejected: 'bg-red-100 text-red-800 border-red-200',
+};
+
+const DISPUTE_TYPE_LABELS = {
+    incorrect_hours: 'Sai số giờ dạy',
+    incorrect_rate: 'Sai mức lương',
+    missing_sessions: 'Thiếu buổi dạy',
+    incorrect_bonus: 'Sai thưởng',
+    incorrect_deduction: 'Sai khấu trừ',
+    other: 'Khác',
+};
+
 const getAuthHeaders = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) {
@@ -52,8 +77,10 @@ export function TeacherPayrollPage() {
     const [printModal, setPrintModal] = useState({ isOpen: false, payrollData: null });
     const [disputeModal, setDisputeModal] = useState({ isOpen: false, payroll: null });
     const [disputeSubmitting, setDisputeSubmitting] = useState(false);
+    const [payrollDisputes, setPayrollDisputes] = useState([]);
+    const [disputesLoading, setDisputesLoading] = useState(false);
 
-    const { submitDispute } = usePayroll();
+    const { submitDispute, fetchPayrollDisputes } = usePayroll();
     const { toast } = useToast();
     const { profile } = useAuth();
 
@@ -84,23 +111,51 @@ export function TeacherPayrollPage() {
         fetchPayrolls();
     }, [fetchPayrolls]);
 
+    const loadPayrollDisputes = useCallback(async (payrollId) => {
+        if (!payrollId) {
+            setPayrollDisputes([]);
+            return;
+        }
+
+        try {
+            setDisputesLoading(true);
+            const disputes = await fetchPayrollDisputes(payrollId);
+            setPayrollDisputes(disputes || []);
+        } catch (error) {
+            console.error('Error fetching payroll disputes:', error);
+            setPayrollDisputes([]);
+        } finally {
+            setDisputesLoading(false);
+        }
+    }, [fetchPayrollDisputes]);
+
     // Fetch payroll detail
     const handleViewDetail = async (payroll) => {
         try {
             setDetailLoading(true);
             setSelectedPayroll(payroll);
             const headers = await getAuthHeaders();
-            const response = await axios.get(
-                `${API_URL}/api/teacher/payroll/${payroll.id}`,
-                { headers }
-            );
-            if (response.data?.success) {
-                setSelectedPayroll(response.data.data);
+            const [detailResult, disputesResult] = await Promise.allSettled([
+                axios.get(`${API_URL}/api/teacher/payroll/${payroll.id}`, { headers }),
+                fetchPayrollDisputes(payroll.id),
+            ]);
+
+            if (detailResult.status === 'fulfilled' && detailResult.value.data?.success) {
+                setSelectedPayroll(detailResult.value.data.data);
+            }
+
+            if (disputesResult.status === 'fulfilled') {
+                setPayrollDisputes(disputesResult.value || []);
+            } else {
+                console.error('Error fetching payroll disputes:', disputesResult.reason);
+                setPayrollDisputes([]);
             }
         } catch (error) {
             console.error('Error fetching detail:', error);
+            setPayrollDisputes([]);
         } finally {
             setDetailLoading(false);
+            setDisputesLoading(false);
         }
     };
 
@@ -119,6 +174,13 @@ export function TeacherPayrollPage() {
 
     // Open dispute modal
     const handleOpenDispute = (payroll) => {
+        if (!canCreateDispute) {
+            toast.error(disputeActionMessage, {
+                title: 'Chưa thể khiếu nại'
+            });
+            return;
+        }
+
         setDisputeModal({ isOpen: true, payroll });
     };
 
@@ -128,6 +190,7 @@ export function TeacherPayrollPage() {
             setDisputeSubmitting(true);
             await submitDispute(payrollId, data);
             setDisputeModal({ isOpen: false, payroll: null });
+            await loadPayrollDisputes(payrollId);
             // Show success notification
             toast.success('Khiếu nại đã được gửi thành công!', {
                 title: 'Thành công'
@@ -160,6 +223,20 @@ export function TeacherPayrollPage() {
         }
         return sum;
     }, 0);
+
+    const activeDispute = payrollDisputes.find((dispute) => ACTIVE_DISPUTE_STATUSES.includes(dispute.status));
+    const hasClosedDispute = payrollDisputes.some((dispute) => !ACTIVE_DISPUTE_STATUSES.includes(dispute.status));
+    const canCreateDispute = Boolean(selectedPayroll) && ['approved', 'paid'].includes(selectedPayroll.status) && !activeDispute;
+
+    let disputeActionMessage = 'Bạn có thể gửi khiếu nại cho bảng lương này nếu phát hiện sai lệch.';
+
+    if (selectedPayroll && !['approved', 'paid'].includes(selectedPayroll.status)) {
+        disputeActionMessage = 'Bạn chỉ có thể khiếu nại khi bảng lương đã duyệt hoặc đã thanh toán.';
+    } else if (activeDispute) {
+        disputeActionMessage = 'Bạn đang có một khiếu nại đang được xử lý cho kỳ lương này. Hãy chờ manager phản hồi trước khi tạo khiếu nại mới.';
+    } else if (hasClosedDispute) {
+        disputeActionMessage = 'Khiếu nại trước đã được xử lý. Bạn vẫn có thể gửi khiếu nại mới cho cùng kỳ lương nếu phát hiện thêm sai lệch.';
+    }
 
     return (
         <div className="space-y-6">
@@ -420,6 +497,78 @@ export function TeacherPayrollPage() {
                                     </div>
                                 )}
 
+                                <div className="space-y-3 rounded-xl border border-border/70 bg-muted/20 p-4">
+                                    <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                                        <div>
+                                            <h4 className="font-medium">Lịch sử khiếu nại</h4>
+                                            <p className="text-sm text-muted-foreground">
+                                                Mỗi kỳ lương chỉ có thể có 1 khiếu nại đang xử lý. Khi khiếu nại cũ đã giải quyết hoặc bị từ chối, bạn có thể tạo khiếu nại mới.
+                                            </p>
+                                        </div>
+                                        {activeDispute ? (
+                                            <Badge className={`self-start shrink-0 whitespace-nowrap px-3 py-1 text-xs ${DISPUTE_STATUS_COLORS[activeDispute.status] || DISPUTE_STATUS_COLORS.pending}`}>
+                                                {DISPUTE_STATUS_LABELS[activeDispute.status] || activeDispute.status}
+                                            </Badge>
+                                        ) : hasClosedDispute ? (
+                                            <Badge className="self-start shrink-0 whitespace-nowrap bg-emerald-100 px-3 py-1 text-xs text-emerald-800 border-emerald-200">
+                                                Có thể khiếu nại lại
+                                            </Badge>
+                                        ) : (
+                                            <Badge variant="outline" className="self-start shrink-0 whitespace-nowrap px-3 py-1 text-xs">Chưa có khiếu nại</Badge>
+                                        )}
+                                    </div>
+
+                                    <div className="rounded-lg border border-dashed border-border/70 bg-background/80 p-3 text-sm text-muted-foreground">
+                                        {disputeActionMessage}
+                                    </div>
+
+                                    {disputesLoading ? (
+                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            Đang tải lịch sử khiếu nại...
+                                        </div>
+                                    ) : payrollDisputes.length > 0 ? (
+                                        <div className="space-y-3">
+                                            {payrollDisputes.map((dispute) => (
+                                                <div key={dispute.id} className="rounded-lg border border-border/70 bg-background p-3 space-y-2">
+                                                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                                                        <div>
+                                                            <p className="font-medium text-foreground">
+                                                                {DISPUTE_TYPE_LABELS[dispute.dispute_type] || DISPUTE_TYPE_LABELS.other}
+                                                            </p>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                Gửi lúc {formatDate(dispute.created_at)}
+                                                            </p>
+                                                        </div>
+                                                        <Badge className={`self-start shrink-0 whitespace-nowrap px-3 py-1 text-xs ${DISPUTE_STATUS_COLORS[dispute.status] || DISPUTE_STATUS_COLORS.pending}`}>
+                                                            {DISPUTE_STATUS_LABELS[dispute.status] || dispute.status}
+                                                        </Badge>
+                                                    </div>
+
+                                                    <p className="text-sm text-foreground whitespace-pre-wrap">{dispute.reason}</p>
+
+                                                    {dispute.admin_response && (
+                                                        <div className="rounded-md bg-muted p-3 text-sm">
+                                                            <p className="font-medium text-foreground">Phản hồi từ manager</p>
+                                                            <p className="mt-1 text-muted-foreground whitespace-pre-wrap">{dispute.admin_response}</p>
+                                                            {dispute.resolved_at && (
+                                                                <p className="mt-2 text-xs text-muted-foreground">
+                                                                    Cập nhật lúc {formatDate(dispute.resolved_at)}
+                                                                    {dispute.resolver?.full_name ? ` bởi ${dispute.resolver.full_name}` : ''}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">
+                                            Chưa có khiếu nại nào cho kỳ lương này.
+                                        </p>
+                                    )}
+                                </div>
+
                                 {/* Payment Proof */}
                                 {selectedPayroll.status === 'paid' && selectedPayroll.payment_proof_url && (
                                     <div className="space-y-2">
@@ -453,17 +602,15 @@ export function TeacherPayrollPage() {
                                     </Button>
                                 )}
 
-                                {/* Dispute Button - show for non-paid payrolls */}
-                                {['draft', 'pending', 'approved'].includes(selectedPayroll.status) && (
-                                    <Button
-                                        onClick={() => handleOpenDispute(selectedPayroll)}
-                                        className="w-full"
-                                        variant="outline"
-                                    >
-                                        <AlertTriangle className="mr-2 h-4 w-4 text-orange-500" />
-                                        Khiếu nại bảng lương
-                                    </Button>
-                                )}
+                                <Button
+                                    onClick={() => handleOpenDispute(selectedPayroll)}
+                                    className="w-full"
+                                    variant="outline"
+                                    disabled={!canCreateDispute}
+                                >
+                                    <AlertTriangle className="mr-2 h-4 w-4 text-orange-500" />
+                                    {hasClosedDispute ? 'Tạo khiếu nại mới' : 'Khiếu nại bảng lương'}
+                                </Button>
                             </div>
                         )}
                     </CardContent>

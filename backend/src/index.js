@@ -12715,10 +12715,14 @@ app.get('/api/admin/anomalies', requireAuth, requireRole(['SUPER_ADMIN']), async
 });
 
 // GET /api/admin/custom-alerts - List custom alert rules
-app.get('/api/admin/custom-alerts', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+app.get('/api/admin/custom-alerts', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res) => {
   try {
-    const supabase = supabaseAdmin;
-    const centerId = getEffectiveCenterId(req);
+    const supabase = req.supabase || supabaseAdmin;
+    const { effectiveCenterId: centerId, error: centerScopeError } = getEffectiveCenterId(req.user, req.query.centerId || null);
+
+    if (centerScopeError) {
+      return res.status(400).json({ success: false, message: centerScopeError });
+    }
 
     let query = supabase
       .from('custom_alert_rules')
@@ -12726,7 +12730,7 @@ app.get('/api/admin/custom-alerts', requireAuth, requireRole(['SUPER_ADMIN']), a
       .order('created_at', { ascending: false });
 
     if (centerId) {
-      query = query.eq('center_id', centerId);
+      query = query.or(`center_id.eq.${centerId},center_id.is.null`);
     }
 
     const { data, error } = await query;
@@ -12735,15 +12739,19 @@ app.get('/api/admin/custom-alerts', requireAuth, requireRole(['SUPER_ADMIN']), a
     res.json({ success: true, data: data || [] });
   } catch (error) {
     console.error('Error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, message: error.message, error: error.message });
   }
 });
 
 // POST /api/admin/custom-alerts - Create custom alert rule
-app.post('/api/admin/custom-alerts', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+app.post('/api/admin/custom-alerts', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res) => {
   try {
-    const supabase = supabaseAdmin;
-    const centerId = getEffectiveCenterId(req);
+    const supabase = req.supabase || supabaseAdmin;
+    const { effectiveCenterId: centerId, error: centerScopeError } = getEffectiveCenterId(req.user, req.body.center_id || null);
+
+    if (centerScopeError) {
+      return res.status(400).json({ success: false, message: centerScopeError });
+    }
     const {
       name,
       metric_type,
@@ -12780,15 +12788,19 @@ app.post('/api/admin/custom-alerts', requireAuth, requireRole(['SUPER_ADMIN']), 
     res.status(201).json({ success: true, data });
   } catch (error) {
     console.error('Error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, message: error.message, error: error.message });
   }
 });
 
 // PUT /api/admin/custom-alerts/:id - Update custom alert rule
-app.put('/api/admin/custom-alerts/:id', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+app.put('/api/admin/custom-alerts/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res) => {
   try {
-    const supabase = supabaseAdmin;
-    const centerId = getEffectiveCenterId(req);
+    const supabase = req.supabase || supabaseAdmin;
+    const { effectiveCenterId: centerId, error: centerScopeError } = getEffectiveCenterId(req.user);
+
+    if (centerScopeError) {
+      return res.status(400).json({ success: false, message: centerScopeError });
+    }
     const { id } = req.params;
     const {
       name,
@@ -12834,15 +12846,19 @@ app.put('/api/admin/custom-alerts/:id', requireAuth, requireRole(['SUPER_ADMIN']
     res.json({ success: true, data });
   } catch (error) {
     console.error('Error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, message: error.message, error: error.message });
   }
 });
 
 // DELETE /api/admin/custom-alerts/:id - Delete custom alert rule
-app.delete('/api/admin/custom-alerts/:id', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+app.delete('/api/admin/custom-alerts/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res) => {
   try {
-    const supabase = supabaseAdmin;
-    const centerId = getEffectiveCenterId(req);
+    const supabase = req.supabase || supabaseAdmin;
+    const { effectiveCenterId: centerId, error: centerScopeError } = getEffectiveCenterId(req.user);
+
+    if (centerScopeError) {
+      return res.status(400).json({ success: false, message: centerScopeError });
+    }
     const { id } = req.params;
 
     let query = supabase
@@ -12862,15 +12878,19 @@ app.delete('/api/admin/custom-alerts/:id', requireAuth, requireRole(['SUPER_ADMI
     res.json({ success: true, data });
   } catch (error) {
     console.error('Error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, message: error.message, error: error.message });
   }
 });
 
 // GET /api/admin/alert-history - List triggered alert history
-app.get('/api/admin/alert-history', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+app.get('/api/admin/alert-history', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res) => {
   try {
-    const supabase = supabaseAdmin;
-    const centerId = getEffectiveCenterId(req);
+    const supabase = req.supabase || supabaseAdmin;
+    const { effectiveCenterId: centerId, error: centerScopeError } = getEffectiveCenterId(req.user, req.query.centerId || null);
+
+    if (centerScopeError) {
+      return res.status(400).json({ success: false, message: centerScopeError });
+    }
 
     let query = supabase
       .from('alert_history')
@@ -12887,15 +12907,19 @@ app.get('/api/admin/alert-history', requireAuth, requireRole(['SUPER_ADMIN']), a
     res.json({ success: true, data: data || [] });
   } catch (error) {
     console.error('Error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, message: error.message, error: error.message });
   }
 });
 
 // PATCH /api/admin/alert-history/:id/acknowledge - Acknowledge alert
-app.patch('/api/admin/alert-history/:id/acknowledge', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+app.patch('/api/admin/alert-history/:id/acknowledge', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res) => {
   try {
     const supabase = supabaseAdmin;
-    const centerId = getEffectiveCenterId(req);
+    const { effectiveCenterId: centerId, error: centerScopeError } = getEffectiveCenterId(req.user);
+
+    if (centerScopeError) {
+      return res.status(400).json({ success: false, message: centerScopeError });
+    }
     const { id } = req.params;
 
     let query = supabase
@@ -12919,7 +12943,7 @@ app.patch('/api/admin/alert-history/:id/acknowledge', requireAuth, requireRole([
     res.json({ success: true, data });
   } catch (error) {
     console.error('Error:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ success: false, message: error.message, error: error.message });
   }
 });
 
@@ -17633,23 +17657,35 @@ app.post('/api/teacher/payroll/:id/dispute',
         });
       }
 
-      // Check if already has pending dispute
-      const { data: existingDispute } = await supabase
-        .from('payroll_disputes')
-        .select('id')
-        .eq('payroll_id', id)
-        .eq('status', 'pending')
-        .single();
-
-      if (existingDispute) {
+      if (!['approved', 'paid'].includes(payroll.status)) {
         return res.status(400).json({
           success: false,
-          message: 'Ã„ÂÃƒÂ£ cÃƒÂ³ khiÃ¡ÂºÂ¿u nÃ¡ÂºÂ¡i Ã„â€˜ang chÃ¡Â»Â xÃ¡Â»Â­ lÃƒÂ½ cho bÃ¡ÂºÂ£ng lÃ†Â°Ã†Â¡ng nÃƒÂ y'
+          message: 'Chi co the khieu nai bang luong da duyet hoac da thanh toan'
+        });
+      }
+
+      // Check if already has an active dispute
+      const { data: activeDisputes, error: activeDisputesError } = await supabase
+        .from('payroll_disputes')
+        .select('id, status')
+        .eq('payroll_id', id)
+        .eq('teacher_id', teacherId)
+        .in('status', ['pending', 'reviewing'])
+        .limit(1);
+
+      if (activeDisputesError) {
+        throw activeDisputesError;
+      }
+
+      if (activeDisputes?.length) {
+        return res.status(400).json({
+          success: false,
+          message: 'Bang luong nay dang co khieu nai chua xu ly. Ban co the gui khieu nai moi sau khi manager ket thuc xu ly.'
         });
       }
 
       // Create dispute
-      const { data: dispute, error } = await supabase
+      const { data: dispute, error: insertError } = await supabase
         .from('payroll_disputes')
         .insert({
           payroll_id: id,
@@ -17661,7 +17697,14 @@ app.post('/api/teacher/payroll/:id/dispute',
         .select()
         .single();
 
-      if (error) throw error;
+      if (insertError?.code === '23505') {
+        return res.status(400).json({
+          success: false,
+          message: 'Bang luong nay dang co khieu nai chua xu ly. Ban co the gui khieu nai moi sau khi manager ket thuc xu ly.'
+        });
+      }
+
+      if (insertError) throw insertError;
 
       console.log(`Ã°Å¸â€œÂ Dispute ${dispute.id} created for payroll ${id}`);
 
@@ -35210,7 +35253,7 @@ app.post('/api/chatbot/ticket-reply', requireAuth, async (req, res) => {
 app.get('/api/admin/custom-alerts', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const supabaseClient = req.supabase || supabase;
-    const centerId = req.query.centerId || getEffectiveCenterId(req);
+    const centerId = req.query.centerId || req.user.centerId;
     let query = supabaseClient.from('custom_alert_rules').select('*').order('created_at', { ascending: false });
     if (centerId) query = query.or(`center_id.eq.${centerId},center_id.is.null`);
     const { data, error } = await query;
@@ -35236,7 +35279,7 @@ app.post('/api/admin/custom-alerts', requireAuth, requireRole(['SUPER_ADMIN', 'C
       notification_channels: notification_channels || ['in_app'],
       is_active: is_active !== false,
       cooldown_minutes: cooldown_minutes || 60,
-      center_id: center_id || getEffectiveCenterId(req) || null,
+      center_id: center_id || req.user.centerId || null,
       created_by: req.user.id
     }).select().single();
     if (error) throw error;
@@ -35283,7 +35326,7 @@ app.delete('/api/admin/custom-alerts/:id', requireAuth, requireRole(['SUPER_ADMI
 app.get('/api/admin/alert-history', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     const supabaseClient = req.supabase || supabase;
-    const centerId = req.query.centerId || getEffectiveCenterId(req);
+    const centerId = req.query.centerId || req.user.centerId;
     let query = supabaseClient.from('alert_history').select('*, custom_alert_rules!rule_id ( name )').order('triggered_at', { ascending: false }).limit(100);
     if (centerId) query = query.or(`center_id.eq.${centerId},center_id.is.null`);
     const { data, error } = await query;

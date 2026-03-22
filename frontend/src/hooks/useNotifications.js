@@ -4,6 +4,44 @@ import { supabase } from '@/lib/supabaseClient';
 import { gooeyToast } from 'goey-toast';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const MOJIBAKE_PATTERN = /[ÃÂÄÆ]/;
+const NOTIFICATION_TEXT_REPLACEMENTS = new Map([
+  ['ÄÆ¡n nghá»‰ Ä‘Ã£ Ä‘Æ°á»£c duyá»‡t', 'Đơn nghỉ đã được duyệt'],
+  ['ÄÆ¡n xin nghá»‰ cá»§a báº¡n Ä‘Ã£ Ä‘Æ°á»£c quáº£n lÃ½ phÃª duyá»‡t.', 'Đơn xin nghỉ của bạn đã được quản lý phê duyệt.'],
+]);
+
+function normalizeNotificationText(value) {
+  if (!value || typeof value !== 'string' || !MOJIBAKE_PATTERN.test(value)) {
+    return value || '';
+  }
+
+  if (NOTIFICATION_TEXT_REPLACEMENTS.has(value)) {
+    return NOTIFICATION_TEXT_REPLACEMENTS.get(value);
+  }
+
+  try {
+    const bytes = Uint8Array.from([...value].map((char) => char.charCodeAt(0) & 0xff));
+    const decoded = new TextDecoder('utf-8').decode(bytes);
+
+    if (!decoded || decoded.includes('�')) {
+      return value;
+    }
+
+    return decoded;
+  } catch {
+    return value;
+  }
+}
+
+function normalizeNotification(item) {
+  if (!item) return item;
+
+  return {
+    ...item,
+    title: normalizeNotificationText(item.title),
+    message: normalizeNotificationText(item.message),
+  };
+}
 
 export function useNotifications() {
   const { session, user } = useAuth();
@@ -47,7 +85,7 @@ export function useNotifications() {
       }
 
       if (recentResponse.ok && recentJson?.success) {
-        setNotifications(recentJson.data?.notifications || []);
+        setNotifications((recentJson.data?.notifications || []).map(normalizeNotification));
       } else {
         setNotifications([]);
       }
@@ -141,7 +179,7 @@ export function useNotifications() {
           filter: `user_id=eq.${userId}`
         },
         (payload) => {
-          const next = payload.new;
+          const next = normalizeNotification(payload.new);
           if (!next) return;
 
           setNotifications((prev) => {
