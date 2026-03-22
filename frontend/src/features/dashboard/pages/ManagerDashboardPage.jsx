@@ -38,10 +38,12 @@ const getValue = (val) => {
   return val;
 };
 
-const getFormatted = (val) => {
-  if (val === null || val === undefined) return '0đ';
-  if (typeof val === 'object' && val.formatted !== undefined) return val.formatted;
-  return val;
+const getFormattedCurrency = (val) => {
+  const num = getValue(val);
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND'
+  }).format(num);
 };
 
 const getTrend = (val) => {
@@ -99,7 +101,7 @@ export default function ManagerDashboardPage() {
   const debt = stats?.debt;
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-background">
       <div className="max-w-[1600px] mx-auto p-6 lg:p-8 space-y-6">
 
         {/* ========== HEADER ========== */}
@@ -120,7 +122,7 @@ export default function ManagerDashboardPage() {
             />
 
             {/* Center badge (read-only) */}
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-orange-50 border border-orange-200 text-orange-700">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-700 dark:text-orange-300">
               <Building2 size={16} />
               <span className="text-sm font-medium">{centerName}</span>
             </div>
@@ -128,7 +130,7 @@ export default function ManagerDashboardPage() {
             <button
               onClick={() => refresh()}
               disabled={loading}
-              className="p-2.5 rounded-xl bg-white border border-border hover:bg-muted transition-colors disabled:opacity-50"
+              className="p-2.5 rounded-xl bg-card border border-border hover:bg-muted transition-colors disabled:opacity-50"
               title="Làm mới dữ liệu"
             >
               <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
@@ -136,7 +138,7 @@ export default function ManagerDashboardPage() {
 
             <button
               onClick={handleExport}
-              className="p-2.5 rounded-xl bg-white border border-border hover:bg-muted transition-colors"
+              className="p-2.5 rounded-xl bg-card border border-border hover:bg-muted transition-colors"
               title="Xuất báo cáo"
             >
               <Download size={18} />
@@ -151,7 +153,7 @@ export default function ManagerDashboardPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Doanh thu"
-            value={getFormatted(revenue)}
+            value={getFormattedCurrency(revenue)}
             rawValue={getValue(revenue)}
             trend={getTrend(revenue)}
             trendLabel="so với tháng trước"
@@ -182,7 +184,7 @@ export default function ManagerDashboardPage() {
           />
           <StatCard
             title="Công nợ"
-            value={getFormatted(debt)}
+            value={getFormattedCurrency(debt)}
             rawValue={getValue(debt)}
             trend={getTrend(debt)}
             trendLabel="so với tháng trước"
@@ -231,7 +233,7 @@ export default function ManagerDashboardPage() {
         </div>
 
         {/* ========== ROW 6: QUICK ACTIONS + ALERTS ========== */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 items-start">
           <QuickActionsCard />
           <div className="lg:col-span-2">
             <ActionableAlertsWidget alerts={alerts} loading={loading} />

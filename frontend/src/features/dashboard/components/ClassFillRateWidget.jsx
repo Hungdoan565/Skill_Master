@@ -3,7 +3,7 @@ import { BookOpen, Users } from 'lucide-react';
 export function ClassFillRateWidget({ classes = [], loading = false }) {
     if (loading) {
         return (
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-border animate-pulse">
+            <div className="bg-card rounded-2xl p-6 shadow-sm border border-border animate-pulse">
                 <div className="h-6 w-40 bg-muted rounded mb-6" />
                 <div className="space-y-4">
                     {[...Array(5)].map((_, i) => (
@@ -23,7 +23,7 @@ export function ClassFillRateWidget({ classes = [], loading = false }) {
 
     if (classes.length === 0) {
         return (
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-border h-full">
+            <div className="bg-card rounded-2xl p-6 shadow-sm border border-border h-full">
                 <div className="flex items-center gap-3 mb-4">
                     <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
                         <BookOpen size={22} className="text-white" />
@@ -48,7 +48,7 @@ export function ClassFillRateWidget({ classes = [], loading = false }) {
     };
 
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden h-full">
+        <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden h-full">
             {/* Header with gradient */}
             <div className="bg-gradient-to-r from-blue-500/10 via-indigo-500/5 to-transparent p-6 pb-4">
                 <div className="flex items-center justify-between">
@@ -72,7 +72,7 @@ export function ClassFillRateWidget({ classes = [], loading = false }) {
                     const percent = max > 0 ? Math.round((enrolled / max) * 100) : 0;
                     
                     return (
-                        <div key={cls.id || index} className="p-3 rounded-xl hover:bg-slate-50 transition-colors group">
+                        <div key={cls.id || index} className="p-3 rounded-xl hover:bg-muted transition-colors group">
                             <div className="flex items-center justify-between mb-1">
                                 <div className="flex items-center gap-2">
                                     <span className="font-semibold text-foreground truncate max-w-[150px]">{cls.name}</span>
@@ -91,7 +91,7 @@ export function ClassFillRateWidget({ classes = [], loading = false }) {
                             <p className="text-xs text-muted-foreground truncate mb-3">{cls.courseName || 'Khóa học'}</p>
                             
                             {/* Progress bar */}
-                            <div className="h-2 w-full bg-slate-50 rounded-full overflow-hidden">
+                            <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                                 <div 
                                     className={`h-full rounded-full transition-all duration-700 ease-out group-hover:opacity-80 ${getProgressColor(percent)}`}
                                     style={{ width: `${Math.min(100, Math.max(0, percent))}%` }}

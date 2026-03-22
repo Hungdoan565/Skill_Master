@@ -3,7 +3,7 @@ import { Target } from 'lucide-react';
 export default function CenterKPIWidget({ targets = [], loading = false }) {
   if (loading) {
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
+      <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
         <div className="bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-transparent p-4">
           <div className="flex items-center gap-3">
             <div className="h-11 w-11 rounded-xl bg-muted animate-pulse" />
@@ -27,7 +27,7 @@ export default function CenterKPIWidget({ targets = [], loading = false }) {
 
   if (!targets || targets.length === 0) {
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
+      <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
         <div className="bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-transparent p-4">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 shadow-lg shadow-indigo-500/25">
@@ -40,7 +40,7 @@ export default function CenterKPIWidget({ targets = [], loading = false }) {
           </div>
         </div>
         <div className="flex flex-col items-center justify-center p-8 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 mb-3">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 mb-3">
             <Target className="h-7 w-7 text-indigo-400" />
           </div>
           <p className="text-sm font-medium text-muted-foreground">Chưa có mục tiêu được thiết lập</p>
@@ -50,9 +50,9 @@ export default function CenterKPIWidget({ targets = [], loading = false }) {
   }
 
   const getProgressColor = (pct) => {
-    if (pct >= 80) return { bar: 'bg-emerald-500', text: 'text-emerald-600', bg: 'bg-emerald-50' };
-    if (pct >= 50) return { bar: 'bg-amber-500', text: 'text-amber-600', bg: 'bg-amber-50' };
-    return { bar: 'bg-red-500', text: 'text-red-600', bg: 'bg-red-50' };
+    if (pct >= 80) return { bar: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/30' };
+    if (pct >= 50) return { bar: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-900/30' };
+    return { bar: 'bg-red-500', text: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-900/30' };
   };
 
   const formatValue = (value, type) => {
@@ -67,7 +67,7 @@ export default function CenterKPIWidget({ targets = [], loading = false }) {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
+    <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
       <div className="bg-gradient-to-r from-indigo-500/10 via-purple-500/5 to-transparent p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 shadow-lg shadow-indigo-500/25">

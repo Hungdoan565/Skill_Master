@@ -3,7 +3,7 @@ import { Wallet } from 'lucide-react';
 export default function CollectionRateWidget({ data = {}, loading = false }) {
   if (loading) {
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
+      <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
         <div className="bg-gradient-to-r from-teal-500/10 via-cyan-500/5 to-transparent p-4">
           <div className="flex items-center gap-3">
             <div className="h-11 w-11 rounded-xl bg-muted animate-pulse" />
@@ -14,8 +14,8 @@ export default function CollectionRateWidget({ data = {}, loading = false }) {
           </div>
         </div>
         <div className="p-4 space-y-3">
-          <div className="h-24 bg-slate-50 rounded-xl animate-pulse" />
-          <div className="h-16 bg-slate-50 rounded-xl animate-pulse" />
+          <div className="h-24 bg-muted rounded-xl animate-pulse" />
+          <div className="h-16 bg-muted rounded-xl animate-pulse" />
         </div>
       </div>
     );
@@ -32,17 +32,17 @@ export default function CollectionRateWidget({ data = {}, loading = false }) {
   };
 
   const pct = Math.round(collection_percentage);
-  const rateColor = pct >= 80 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-red-600';
+  const rateColor = pct >= 80 ? 'text-emerald-600 dark:text-emerald-400' : pct >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400';
   const rateBg = pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-500';
 
   const buckets = [
-    { label: '1-15 ngày', amount: aging_buckets.bucket_1_15 || 0, color: 'bg-amber-100 text-amber-700' },
-    { label: '16-30 ngày', amount: aging_buckets.bucket_16_30 || 0, color: 'bg-orange-100 text-orange-700' },
-    { label: '30+ ngày', amount: aging_buckets.bucket_30_plus || 0, color: 'bg-red-100 text-red-700' },
+    { label: '1-15 ngày', amount: aging_buckets.bucket_1_15 || 0, color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+    { label: '16-30 ngày', amount: aging_buckets.bucket_16_30 || 0, color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' },
+    { label: '30+ ngày', amount: aging_buckets.bucket_30_plus || 0, color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' },
   ];
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-border overflow-hidden">
+    <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
       <div className="bg-gradient-to-r from-teal-500/10 via-cyan-500/5 to-transparent p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-cyan-500 shadow-lg shadow-teal-500/25">
@@ -81,7 +81,7 @@ export default function CollectionRateWidget({ data = {}, loading = false }) {
             {overdue_amount > 0 && (
               <div className="flex items-center justify-between text-xs">
                 <span className="text-red-500">Quá hạn</span>
-                <span className="font-medium text-red-600">{formatCurrency(overdue_amount)}</span>
+                <span className="font-medium text-red-600 dark:text-red-400">{formatCurrency(overdue_amount)}</span>
               </div>
             )}
           </div>
