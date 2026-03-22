@@ -80,7 +80,7 @@ export function EditStaffModal({
                         value={staff.email}
                         readOnly
                         disabled
-                        className="bg-slate-50"
+                        className="disabled:opacity-100"
                     />
                     <p className="text-xs text-muted-foreground">
                         Email không thể thay đổi
@@ -164,9 +164,8 @@ export function EditStaffModal({
                     <SimpleSelect
                         value={formData.center_id}
                         onChange={(value) => handleChange('center_id', value)}
-                        placeholder="Chọn trung tâm..."
+                        placeholder="-- Không gán --"
                         options={[
-                            { value: '', label: '-- Không gán --' },
                             ...centers.map(c => ({ value: c.id, label: c.name }))
                         ]}
                     />

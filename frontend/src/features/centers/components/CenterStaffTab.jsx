@@ -28,16 +28,17 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { getInitials } from '../utils';
+import { SimpleSelect } from '@/features/staff/components/SimpleSelect';
 
 const ROLE_CONFIG = {
-    SUPER_ADMIN: { label: 'Super Admin', color: 'bg-red-50 text-red-700 hover:bg-red-100 border-red-200', icon: Shield },
-    CENTER_MANAGER: { label: 'Quản lý', color: 'bg-purple-50 text-purple-700 hover:bg-purple-100 border-purple-200', icon: UserCheck },
-    TEACHER: { label: 'Giáo viên', color: 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200', icon: GraduationCap }
+    SUPER_ADMIN: { label: 'Super Admin', color: 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 border-red-200 dark:border-red-800', icon: Shield },
+    CENTER_MANAGER: { label: 'Quản lý', color: 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 border-purple-200 dark:border-purple-800', icon: UserCheck },
+    TEACHER: { label: 'Giáo viên', color: 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 border-blue-200 dark:border-blue-800', icon: GraduationCap }
 };
 
 const STATUS_CONFIG = {
-    active: { label: 'Hoạt động', color: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200' },
-    inactive: { label: 'Ngừng', color: 'bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200' }
+    active: { label: 'Hoạt động', color: 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border-emerald-200 dark:border-emerald-800' },
+    inactive: { label: 'Ngừng', color: 'bg-gray-50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-600' }
 };
 
 export function CenterStaffTab({ staff, loading = false, centerId }) {
@@ -76,7 +77,7 @@ export function CenterStaffTab({ staff, loading = false, centerId }) {
             sortable: true,
             render: (_, row) => (
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 flex items-center justify-center overflow-hidden flex-shrink-0">
                         {row.avatar_url ? (
                             <img
                                 src={row.avatar_url}
@@ -84,17 +85,17 @@ export function CenterStaffTab({ staff, loading = false, centerId }) {
                                 className="w-full h-full object-cover"
                             />
                         ) : (
-                            <span className="text-xs font-semibold text-indigo-700">
+                            <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
                                 {getInitials(row.full_name)}
                             </span>
                         )}
                     </div>
                     <div className="flex flex-col">
-                        <span className="font-medium text-gray-900 group-hover:text-indigo-600 transition-colors">
+                        <span className="font-medium text-foreground group-hover:text-indigo-600 transition-colors">
                             {row.full_name}
                         </span>
                         {row.email && (
-                            <span className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                            <span className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                                 <Mail className="h-3 w-3" />
                                 {row.email}
                             </span>
@@ -110,7 +111,7 @@ export function CenterStaffTab({ staff, loading = false, centerId }) {
                 const roleCode = row.role_code || row.roles?.code;
                 const config = ROLE_CONFIG[roleCode] || ROLE_CONFIG.TEACHER;
                 const Icon = config.icon;
-                
+
                 return (
                     <Badge variant="outline" className={`font-normal ${config.color}`}>
                         <Icon className="h-3 w-3 mr-1.5" />
@@ -124,11 +125,11 @@ export function CenterStaffTab({ staff, loading = false, centerId }) {
             label: 'Số điện thoại',
             render: (_, row) => {
                 const phone = row.phone;
-                if (!phone) return <span className="text-gray-400 text-sm italic">-</span>;
-                
+                if (!phone) return <span className="text-muted-foreground text-sm italic">-</span>;
+
                 return (
-                    <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                        <Phone className="h-3.5 w-3.5 text-gray-400" />
+                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <Phone className="h-3.5 w-3.5 text-muted-foreground" />
                         <span>{phone}</span>
                     </div>
                 );
@@ -140,7 +141,7 @@ export function CenterStaffTab({ staff, loading = false, centerId }) {
             render: (_, row) => {
                 const status = row.status;
                 const config = STATUS_CONFIG[status] || STATUS_CONFIG.active;
-                
+
                 return (
                     <Badge variant="outline" className={`font-normal ${config.color}`}>
                         {config.label}
@@ -159,11 +160,11 @@ export function CenterStaffTab({ staff, loading = false, centerId }) {
         return (
             <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                    <div className="h-10 w-64 bg-gray-100 rounded animate-pulse" />
-                    <div className="h-10 w-32 bg-gray-100 rounded animate-pulse" />
+                    <div className="h-10 w-64 bg-muted rounded animate-pulse" />
+                    <div className="h-10 w-32 bg-muted rounded animate-pulse" />
                 </div>
-                <Card className="border-gray-200 shadow-sm overflow-hidden">
-                    <div className="h-[400px] bg-gray-50/50 animate-pulse" />
+                <Card className="border-border shadow-sm overflow-hidden">
+                    <div className="h-[400px] bg-muted/30 animate-pulse" />
                 </Card>
             </div>
         );
@@ -175,31 +176,32 @@ export function CenterStaffTab({ staff, loading = false, centerId }) {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                     <div className="relative w-full sm:w-64">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="Tìm kiếm nhân sự..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-9 bg-white border-gray-200 focus-visible:ring-indigo-500 rounded-xl"
+                            className="pl-9 bg-background border-border focus-visible:ring-indigo-500 rounded-xl"
                         />
                     </div>
 
-                    <select
-                        value={filterRole}
-                        onChange={(e) => setFilterRole(e.target.value)}
-                        className="h-10 px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
-                    >
-                        <option value="">Tất cả vai trò</option>
-                        <option value="TEACHER">Giáo viên</option>
-                        <option value="CENTER_MANAGER">Quản lý</option>
-                        <option value="SUPER_ADMIN">Super Admin</option>
-                    </select>
+                    <div className="w-[180px]">
+                        <SimpleSelect
+                            value={filterRole}
+                            onChange={setFilterRole}
+                            placeholder="Tất cả vai trò"
+                            options={[
+                                { value: 'TEACHER', label: 'Giáo viên' },
+                                { value: 'CENTER_MANAGER', label: 'Quản lý' },
+                                { value: 'SUPER_ADMIN', label: 'Super Admin' }
+                            ]}
+                        />
+                    </div>
                 </div>
-
                 <Button
                     onClick={() => navigate(`/admin/staff?centerId=${centerId}`)}
                     variant="outline"
-                    className="gap-2 border-gray-200 bg-white hover:bg-gray-50 text-gray-700 rounded-xl w-full sm:w-auto"
+                    className="gap-2 border-border bg-card hover:bg-muted text-foreground rounded-xl w-full sm:w-auto"
                 >
                     <ExternalLink className="h-4 w-4" />
                     Quản lý toàn bộ
@@ -208,27 +210,27 @@ export function CenterStaffTab({ staff, loading = false, centerId }) {
 
             {/* Stats Pills */}
             <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-2 px-2 sm:mx-0 sm:px-0 scrollbar-hide">
-                <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-100 border-0 whitespace-nowrap">
+                <Badge variant="secondary" className="bg-muted text-foreground hover:bg-muted border-0 whitespace-nowrap">
                     Tổng: {stats.total}
                 </Badge>
-                <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border-0 whitespace-nowrap">
+                <Badge variant="secondary" className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border-0 whitespace-nowrap">
                     Hoạt động: {stats.active}
                 </Badge>
-                <Badge variant="secondary" className="bg-purple-50 text-purple-700 hover:bg-purple-50 border-0 whitespace-nowrap">
+                <Badge variant="secondary" className="bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/40 border-0 whitespace-nowrap">
                     <UserCheck className="h-3 w-3 mr-1" />
                     Quản lý: {stats.managers}
                 </Badge>
-                <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-50 border-0 whitespace-nowrap">
+                <Badge variant="secondary" className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 border-0 whitespace-nowrap">
                     <GraduationCap className="h-3 w-3 mr-1" />
                     Giáo viên: {stats.teachers}
                 </Badge>
             </div>
 
             {/* Data Table */}
-            <Card className="border-gray-200 shadow-sm overflow-hidden bg-white">
-                <DataTable 
-                    columns={columns} 
-                    data={filteredStaff} 
+            <Card className="border-border shadow-sm overflow-hidden bg-card">
+                <DataTable
+                    columns={columns}
+                    data={filteredStaff}
                     searchKey="full_name"
                     hideToolbar={true} // Hide our custom toolbar
                     onRowClick={(row) => navigate(`/admin/staff/${row.id}`)}

@@ -3,20 +3,29 @@
  * Select dropdown đơn giản
  */
 
-export function SimpleSelect({ value, onChange, options, placeholder }) {
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+export function SimpleSelect({ value, onChange, options, placeholder, triggerClassName = '', contentClassName = '' }) {
+  const mappedValue = (value === "" || value === null || value === undefined) ? "none" : value;
+  
+  const handleValueChange = (val) => {
+    onChange(val === "none" ? "" : val);
+  };
+
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
-    >
-      <option value="">{placeholder}</option>
-      {options.map((opt) => (
-        <option key={opt.value} value={opt.value}>
-          {opt.label}
-        </option>
-      ))}
-    </select>
+    <Select value={mappedValue} onValueChange={handleValueChange}>
+      <SelectTrigger className={`w-full ${triggerClassName}`}>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent className={contentClassName}>
+        <SelectItem value="none">{placeholder}</SelectItem>
+        {options.map((opt) => (
+          <SelectItem key={opt.value} value={opt.value}>
+            {opt.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
