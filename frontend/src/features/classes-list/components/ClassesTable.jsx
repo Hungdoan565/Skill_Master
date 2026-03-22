@@ -45,10 +45,10 @@ export function ClassesTable({
   // Loading state
   if (loading) {
     return (
-      <div className="rounded-lg border border-slate-200 overflow-hidden">
+      <div className="rounded-lg border border-border overflow-hidden">
         <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+          <thead className="bg-muted/50 border-b border-border">
+            <tr className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
               <th className="pb-3 pr-2 w-10"></th>
               <th className="pb-3 pr-4">Lớp học</th>
               <th className="pb-3 pr-4">Khóa học</th>
@@ -63,40 +63,40 @@ export function ClassesTable({
             {[...Array(5)].map((_, i) => (
               <tr key={i} className="border-b last:border-0 animate-pulse">
                 <td className="py-4 pr-2">
-                  <div className="h-4 w-4 bg-slate-200 rounded"></div>
+                  <div className="h-4 w-4 bg-muted rounded"></div>
                 </td>
                 <td className="py-4 pr-4">
                   <div className="space-y-2">
-                    <div className="h-4 bg-slate-200 rounded w-32"></div>
-                    <div className="h-3 bg-slate-100 rounded w-24"></div>
+                    <div className="h-4 bg-muted rounded w-32"></div>
+                    <div className="h-3 bg-muted/50 rounded w-24"></div>
                   </div>
                 </td>
                 <td className="py-4 pr-4">
-                  <div className="h-6 bg-slate-200 rounded-full w-24"></div>
+                  <div className="h-6 bg-muted rounded-full w-24"></div>
                 </td>
                 <td className="py-4 pr-4">
                   <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 bg-slate-200 rounded-full"></div>
-                    <div className="h-4 bg-slate-200 rounded w-20"></div>
+                    <div className="h-8 w-8 bg-muted rounded-full"></div>
+                    <div className="h-4 bg-muted rounded w-20"></div>
                   </div>
                 </td>
                 <td className="py-4 pr-4">
                   <div className="space-y-1">
-                    <div className="h-4 bg-slate-200 rounded w-28"></div>
-                    <div className="h-3 bg-slate-100 rounded w-32"></div>
+                    <div className="h-4 bg-muted rounded w-28"></div>
+                    <div className="h-3 bg-muted/50 rounded w-32"></div>
                   </div>
                 </td>
                 <td className="py-4 pr-4">
-                  <div className="h-4 bg-slate-200 rounded w-16"></div>
+                  <div className="h-4 bg-muted rounded w-16"></div>
                 </td>
                 <td className="py-4 pr-4">
-                  <div className="h-6 bg-slate-200 rounded-full w-20"></div>
+                  <div className="h-6 bg-muted rounded-full w-20"></div>
                 </td>
                 <td className="py-4">
                   <div className="flex items-center justify-end gap-1">
-                    <div className="h-8 w-8 bg-slate-200 rounded"></div>
-                    <div className="h-8 w-8 bg-slate-200 rounded"></div>
-                    <div className="h-8 w-8 bg-slate-200 rounded"></div>
+                    <div className="h-8 w-8 bg-muted rounded"></div>
+                    <div className="h-8 w-8 bg-muted rounded"></div>
+                    <div className="h-8 w-8 bg-muted rounded"></div>
                   </div>
                 </td>
               </tr>
@@ -112,7 +112,7 @@ export function ClassesTable({
     const hasFilters = searchTerm || statusFilter;
     return (
       <div className="flex flex-col items-center justify-center py-16 px-4">
-        <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${hasFilters ? 'bg-amber-50' : 'bg-indigo-50'
+        <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${hasFilters ? 'bg-amber-50 dark:bg-amber-900/20' : 'bg-indigo-50 dark:bg-indigo-900/20'
           }`}>
           {hasFilters ? (
             <svg className="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -122,10 +122,10 @@ export function ClassesTable({
             <BookOpen className="h-8 w-8 text-indigo-400" />
           )}
         </div>
-        <h3 className="text-lg font-semibold text-slate-900 mb-2">
+        <h3 className="text-lg font-semibold text-foreground mb-2">
           {hasFilters ? 'Không tìm thấy kết quả' : 'Chưa có lớp học nào'}
         </h3>
-        <p className="text-slate-500 text-center mb-6 max-w-md">
+        <p className="text-muted-foreground text-center mb-6 max-w-md">
           {hasFilters
             ? 'Không tìm thấy lớp học phù hợp với bộ lọc hiện tại. Hãy thử điều chỉnh tiêu chí tìm kiếm.'
             : 'Bắt đầu bằng cách tạo lớp học đầu tiên để quản lý học viên và lịch dạy.'}
@@ -157,7 +157,7 @@ export function ClassesTable({
                   if (el) el.indeterminate = isSomeSelected;
                 }}
                 onChange={onToggleSelectAll}
-                className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500 cursor-pointer transition-all"
+                className="h-4 w-4 rounded border-border text-orange-600 focus:ring-orange-500 cursor-pointer transition-all"
               />
             </th>
             <th className="pb-3 pr-4">Lớp học</th>
@@ -201,7 +201,7 @@ function ClassRow({ cls, isSelected, onToggleSelect, onNavigate, onEdit, onDelet
     : 0;
 
   return (
-    <tr className={`border-b last:border-0 transition-all duration-300 ${isSelected ? 'bg-orange-50/50 hover:bg-orange-100/50' : 'hover:bg-slate-50/80 hover:shadow-sm'
+    <tr className={`border-b last:border-0 transition-all duration-300 ${isSelected ? 'bg-orange-50/50 dark:bg-orange-900/10 hover:bg-orange-100/50 dark:hover:bg-orange-900/20' : 'hover:bg-muted/50 hover:shadow-sm'
       }`}>
       {/* Checkbox */}
       <td className="py-4 pr-2 w-10">
@@ -209,7 +209,7 @@ function ClassRow({ cls, isSelected, onToggleSelect, onNavigate, onEdit, onDelet
           type="checkbox"
           checked={isSelected}
           onChange={onToggleSelect}
-          className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500 cursor-pointer transition-all"
+          className="h-4 w-4 rounded border-border text-orange-600 focus:ring-orange-500 cursor-pointer transition-all"
         />
       </td>
 
@@ -217,7 +217,7 @@ function ClassRow({ cls, isSelected, onToggleSelect, onNavigate, onEdit, onDelet
       <td className="py-4 pr-4">
         <div className="cursor-pointer group" onClick={onNavigate}>
           <div className="flex items-center gap-2">
-            <p className="font-semibold text-slate-900 group-hover:text-orange-600 transition-colors">
+            <p className="font-semibold text-foreground group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
               {cls.name}
             </p>
             {/* Conflict Warning */}
@@ -245,7 +245,7 @@ function ClassRow({ cls, isSelected, onToggleSelect, onNavigate, onEdit, onDelet
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            <code className="bg-slate-100 px-1 rounded">{cls.code}</code>
+            <code className="bg-muted px-1 rounded">{cls.code}</code>
             {roomName && <span className="ml-2">• {roomName}</span>}
           </p>
         </div>
@@ -259,7 +259,7 @@ function ClassRow({ cls, isSelected, onToggleSelect, onNavigate, onEdit, onDelet
             {cls.courses.title}
           </span>
         ) : (
-          <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+          <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700">
             <AlertCircle className="h-3 w-3 mr-1" />
             Chưa có khóa học
           </span>
@@ -279,7 +279,7 @@ function ClassRow({ cls, isSelected, onToggleSelect, onNavigate, onEdit, onDelet
                     <TooltipTrigger>
                       <span className={`text-xs ${cls.teacher.active_classes_count >= 10 ? 'text-red-600' :
                         cls.teacher.active_classes_count >= 7 ? 'text-amber-600' :
-                          'text-slate-500'
+                          'text-muted-foreground'
                         }`}>
                         {cls.teacher.active_classes_count} lớp
                       </span>
@@ -300,8 +300,8 @@ function ClassRow({ cls, isSelected, onToggleSelect, onNavigate, onEdit, onDelet
       {/* Lịch học */}
       <td className="py-4 pr-4">
         <div className="space-y-1 text-sm">
-          <div className="flex items-center gap-1 text-slate-600">
-            <Clock className="h-3.5 w-3.5 text-slate-400" />
+          <div className="flex items-center gap-1 text-muted-foreground">
+            <Clock className="h-3.5 w-3.5 text-muted-foreground/60" />
             <span className={formatScheduleDisplay(cls.schedule) === '-' ? 'text-muted-foreground italic' : ''}>
               {formatScheduleDisplay(cls.schedule)}
             </span>
@@ -319,13 +319,13 @@ function ClassRow({ cls, isSelected, onToggleSelect, onNavigate, onEdit, onDelet
               <Tooltip>
                 <TooltipTrigger>
                   <div className="flex items-center gap-1">
-                    <div className="w-20 h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
+                    <div className="w-20 h-2 bg-muted rounded-full overflow-hidden border border-border/50">
                       <div
                         className="h-full bg-gradient-to-r from-orange-400 to-red-500 transition-all duration-500 ease-out shadow-[0_0_8px_rgba(249,115,22,0.4)]"
                         style={{ width: `${cls.sessions_progress.percentage}%` }}
                       />
                     </div>
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-muted-foreground">
                       {cls.sessions_progress.completed}/{cls.sessions_progress.total}
                     </span>
                   </div>
@@ -343,13 +343,13 @@ function ClassRow({ cls, isSelected, onToggleSelect, onNavigate, onEdit, onDelet
       <td className="py-4 pr-4">
         <div className="space-y-1">
           <div className="flex items-center gap-1.5">
-            <Users className="h-4 w-4 text-slate-400" />
+            <Users className="h-4 w-4 text-muted-foreground" />
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
                   <span className={`text-sm font-medium ${enrollmentPercentage >= 100 ? 'text-red-600' :
                     enrollmentPercentage >= 80 ? 'text-amber-600' :
-                      'text-slate-700'
+                      'text-foreground'
                     }`}>
                     {cls.enrolled_count || 0}/{cls.max_students || 0}
                   </span>
@@ -409,7 +409,7 @@ function ClassRow({ cls, isSelected, onToggleSelect, onNavigate, onEdit, onDelet
             size="icon"
             onClick={onNavigate}
             title="Xem chi tiết"
-            className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 transition-all duration-300"
+            className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-all duration-300"
           >
             <Eye className="h-4 w-4" />
           </Button>

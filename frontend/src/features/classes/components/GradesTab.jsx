@@ -75,19 +75,19 @@ function Header({ summary, hasPendingChanges, pendingCount, saving, onSave }) {
   return (
     <div className="flex items-center justify-between">
       <div>
-        <h3 className="text-lg font-semibold text-slate-900">Bảng điểm</h3>
-        <p className="text-sm text-slate-500">
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Bảng điểm</h3>
+        <p className="text-sm text-slate-500 dark:text-slate-400">
           {summary.graded_count}/{summary.total_students} học viên đã có điểm
         </p>
       </div>
       <div className="flex items-center gap-3">
         {hasPendingChanges && (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
             </span>
-            <span className="text-sm font-medium text-amber-700">
+            <span className="text-sm font-medium text-amber-700 dark:text-amber-400">
               {pendingCount} thay đổi chưa lưu
             </span>
           </div>
@@ -124,10 +124,10 @@ function LoadingState() {
 
 function NoStructureState() {
   return (
-    <div className="text-center py-12 bg-slate-50 rounded-lg border border-dashed border-slate-300">
-      <GraduationCap className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-      <p className="text-slate-600 font-medium">Chưa có cấu trúc điểm</p>
-      <p className="text-sm text-slate-400 mt-1">
+    <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/30 rounded-lg border border-dashed border-slate-300 dark:border-slate-700">
+      <GraduationCap className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+      <p className="text-slate-600 dark:text-slate-400 font-medium">Chưa có cấu trúc điểm</p>
+      <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">
         Khóa học này chưa được thiết lập cột điểm.<br />
         Vui lòng liên hệ Admin để cấu hình.
       </p>
@@ -137,10 +137,10 @@ function NoStructureState() {
 
 function NoStudentsState() {
   return (
-    <div className="text-center py-12 bg-slate-50 rounded-lg border border-dashed border-slate-300">
-      <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-      <p className="text-slate-600 font-medium">Chưa có học viên</p>
-      <p className="text-sm text-slate-400 mt-1">
+    <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/30 rounded-lg border border-dashed border-slate-300 dark:border-slate-700">
+      <Users className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+      <p className="text-slate-600 dark:text-slate-400 font-medium">Chưa có học viên</p>
+      <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">
         Lớp này chưa có học viên ghi danh.
       </p>
     </div>
@@ -204,26 +204,26 @@ function GradeTable({
   };
 
   return (
-    <div className="border border-slate-200 rounded-lg overflow-hidden">
+    <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
-          <thead className="bg-slate-50 border-b border-slate-200">
+          <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
             <tr>
-              <th className="px-3 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide w-12">#</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide min-w-[200px]">Học viên</th>
+              <th className="px-3 py-3 text-left text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide w-12">#</th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide min-w-[200px]">Học viên</th>
               {structures.map(structure => (
-                <th key={structure.id} className="px-3 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wide min-w-[100px]">
+                <th key={structure.id} className="px-3 py-3 text-center text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide min-w-[100px]">
                   <div>{structure.name}</div>
-                  <div className="text-[10px] font-normal text-slate-400 mt-0.5">
+                  <div className="text-[10px] font-normal text-slate-400 dark:text-slate-500 mt-0.5">
                     {Math.round(structure.weight * 100)}% • Max {structure.max_score}
                   </div>
                 </th>
               ))}
-              <th className="px-3 py-3 text-center text-xs font-semibold text-indigo-700 uppercase tracking-wide min-w-[90px] bg-indigo-50">Tổng kết</th>
-              <th className="px-3 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wide min-w-[80px]">Kết quả</th>
+              <th className="px-3 py-3 text-center text-xs font-semibold text-indigo-700 dark:text-indigo-400 uppercase tracking-wide min-w-[90px] bg-indigo-50 dark:bg-indigo-950/40">Tổng kết</th>
+              <th className="px-3 py-3 text-center text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide min-w-[80px]">Kết quả</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {students.map((student, index) => (
               <StudentRow
                 key={student.enrollment_id}
@@ -263,17 +263,17 @@ function StudentRow({
   const weightedAvg = calculateWeightedAverage(student.enrollment_id);
 
   return (
-    <tr className="hover:bg-slate-50 transition-colors">
+    <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
       {/* Index */}
-      <td className="px-3 py-3 text-sm text-slate-500">{index + 1}</td>
+      <td className="px-3 py-3 text-sm text-slate-500 dark:text-slate-400">{index + 1}</td>
 
       {/* Student Info */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
           <Avatar name={student.student_name} size="sm" url={student.avatar_url} />
           <div>
-            <p className="text-sm font-medium text-slate-900">{student.student_name}</p>
-            <p className="text-xs text-slate-500">{student.student_email}</p>
+            <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{student.student_name}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{student.student_email}</p>
           </div>
         </div>
       </td>
@@ -300,7 +300,7 @@ function StudentRow({
       ))}
 
       {/* Weighted Average */}
-      <td className="px-3 py-3 text-center bg-indigo-50">
+      <td className="px-3 py-3 text-center bg-indigo-50 dark:bg-indigo-950/40">
         <span className={`text-sm font-semibold ${weightedAvg !== null
           ? weightedAvg >= 8
             ? 'text-emerald-600'
@@ -317,12 +317,12 @@ function StudentRow({
       <td className="px-3 py-3 text-center">
         {weightedAvg !== null ? (
           weightedAvg >= GRADE_PASS_THRESHOLD ? (
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
               <CheckCircle2 className="w-3 h-3" />
               Đậu
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">
               <X className="w-3 h-3" />
               Trượt
             </span>
@@ -345,7 +345,7 @@ function GradeCell({ enrollmentId, structure, isEditing, isPending, currentScore
           max={structure.max_score}
           step="0.25"
           autoFocus
-          className="w-16 px-2 py-1 text-center text-sm border border-indigo-400 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-16 px-2 py-1 text-center text-sm border border-indigo-400 dark:border-indigo-600 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 dark:text-slate-100"
           defaultValue={currentScore}
           onKeyDown={(e) => {
             // Allow numeric input
@@ -400,9 +400,9 @@ function GradeCell({ enrollmentId, structure, isEditing, isPending, currentScore
         onClick={onEdit}
         className={`w-16 px-2 py-1.5 text-sm rounded transition-colors ${currentScore !== '' && currentScore !== null
           ? isPending
-            ? 'bg-amber-100 text-amber-700 font-medium'
-            : 'bg-slate-100 text-slate-700 font-medium'
-          : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+            ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-medium'
+            : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium'
+          : 'bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'
           }`}
       >
         {currentScore !== '' && currentScore !== null ? currentScore : '—'}
@@ -413,25 +413,25 @@ function GradeCell({ enrollmentId, structure, isEditing, isPending, currentScore
 
 function Legend() {
   return (
-    <div className="flex flex-wrap items-center gap-4 pt-2 text-sm text-slate-500">
+    <div className="flex flex-wrap items-center gap-4 pt-2 text-sm text-slate-500 dark:text-slate-400">
       <div className="flex items-center gap-1.5">
-        <div className="w-4 h-4 rounded bg-slate-100 border" />
+        <div className="w-4 h-4 rounded bg-slate-100 dark:bg-slate-700 border dark:border-slate-600" />
         <span>Đã lưu</span>
       </div>
       <div className="flex items-center gap-1.5">
-        <div className="w-4 h-4 rounded bg-amber-100 border border-amber-300" />
+        <div className="w-4 h-4 rounded bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700" />
         <span>Chưa lưu</span>
       </div>
-      <div className="border-l border-slate-300 h-4 mx-1" />
+      <div className="border-l border-slate-300 dark:border-slate-600 h-4 mx-1" />
       <div className="flex items-center gap-1.5">
-        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-700">Đậu</span>
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">Đậu</span>
         <span>≥ {GRADE_PASS_THRESHOLD}</span>
       </div>
       <div className="flex items-center gap-1.5">
-        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-red-100 text-red-700">Trượt</span>
+        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">Trượt</span>
         <span>&lt; {GRADE_PASS_THRESHOLD}</span>
       </div>
-      <span className="text-slate-400 ml-auto">
+      <span className="text-slate-400 dark:text-slate-500 ml-auto">
         💡 Click vào ô điểm để chỉnh sửa • Tab/Shift+Tab hoặc phím mũi tên để di chuyển
       </span>
     </div>

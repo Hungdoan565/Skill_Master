@@ -125,12 +125,12 @@ export function WeeklyCalendarView({ sessions, onSessionClick }) {
     };
 
     return (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
             {/* Header with navigation */}
-            <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
+            <div className="flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-indigo-600" />
-                    <span className="font-semibold text-slate-900">{formatWeekHeader()}</span>
+                    <Calendar className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">{formatWeekHeader()}</span>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -168,7 +168,7 @@ export function WeeklyCalendarView({ sessions, onSessionClick }) {
                 <table className="w-full min-w-[700px]">
                     {/* Header row with weekdays */}
                     <thead>
-                        <tr className="bg-slate-100">
+                        <tr className="bg-slate-100 dark:bg-slate-800/50">
                             {WEEKDAYS.map((day, index) => {
                                 const date = weekRange.dates[index];
                                 const isToday = date && date.toDateString() === new Date().toDateString();
@@ -177,19 +177,19 @@ export function WeeklyCalendarView({ sessions, onSessionClick }) {
                                     <th
                                         key={day.key}
                                         className={`
-                      px-2 py-3 text-center border-r border-slate-200 last:border-r-0
-                      ${isToday ? 'bg-indigo-100' : ''}
+                      px-2 py-3 text-center border-r border-slate-200 dark:border-slate-800 last:border-r-0
+                      ${isToday ? 'bg-indigo-100 dark:bg-indigo-900/40' : ''}
                     `}
                                     >
                                         <div className={`
                       text-sm font-semibold
-                      ${isToday ? 'text-indigo-700' : 'text-slate-700'}
+                      ${isToday ? 'text-indigo-700 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300'}
                     `}>
                                             {day.name}
                                         </div>
                                         <div className={`
                       text-xs mt-0.5
-                      ${isToday ? 'text-indigo-600 font-medium' : 'text-slate-500'}
+                      ${isToday ? 'text-indigo-600 dark:text-indigo-400 font-medium' : 'text-slate-500 dark:text-slate-400'}
                     `}>
                                             {date ? date.toLocaleDateString('vi-VN', {
                                                 day: '2-digit',
@@ -215,14 +215,14 @@ export function WeeklyCalendarView({ sessions, onSessionClick }) {
                                     <td
                                         key={day.key}
                                         className={`
-                      p-2 border-r border-slate-200 last:border-r-0 align-top
+                      p-2 border-r border-slate-200 dark:border-slate-800 last:border-r-0 align-top
                       min-h-[120px] h-[120px]
-                      ${isToday ? 'bg-indigo-50/50' : 'bg-white'}
+                      ${isToday ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : 'bg-white dark:bg-slate-900/30'}
                     `}
                                     >
                                         <div className="space-y-2">
                                             {daySessions.length === 0 ? (
-                                                <div className="text-center text-slate-300 text-xs py-4">
+                                                <div className="text-center text-slate-300 dark:text-slate-600 text-xs py-4">
                                                     —
                                                 </div>
                                             ) : (
@@ -244,23 +244,23 @@ export function WeeklyCalendarView({ sessions, onSessionClick }) {
             </div>
 
             {/* Legend */}
-            <div className="px-4 py-3 bg-slate-50 border-t border-slate-200">
+            <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800">
                 <div className="flex flex-wrap items-center gap-4 text-xs">
                     <div className="flex items-center gap-1.5">
                         <div className="w-3 h-3 rounded bg-indigo-500" />
-                        <span className="text-slate-600">Hôm nay</span>
+                        <span className="text-slate-600 dark:text-slate-300">Hôm nay</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 rounded bg-slate-300" />
-                        <span className="text-slate-600">Đã học</span>
+                        <div className="w-3 h-3 rounded bg-slate-300 dark:bg-slate-600" />
+                        <span className="text-slate-600 dark:text-slate-300">Đã học</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 rounded bg-blue-100 border border-blue-300" />
-                        <span className="text-slate-600">Sắp tới</span>
+                        <div className="w-3 h-3 rounded bg-blue-100 dark:bg-blue-900/40 border border-blue-300 dark:border-blue-700" />
+                        <span className="text-slate-600 dark:text-slate-300">Sắp tới</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                         <CheckCircle2 className="w-3 h-3 text-green-500" />
-                        <span className="text-slate-600">Đã điểm danh</span>
+                        <span className="text-slate-600 dark:text-slate-300">Đã điểm danh</span>
                     </div>
                 </div>
             </div>
@@ -276,10 +276,10 @@ function SessionCard({ session, onClick }) {
 
     // Determine card style
     const cardStyle = isToday
-        ? 'bg-indigo-500 text-white border-indigo-600'
+        ? 'bg-indigo-500 dark:bg-indigo-600 text-white border-indigo-600 dark:border-indigo-500'
         : isCompleted
-            ? 'bg-slate-200 text-slate-700 border-slate-300'
-            : 'bg-blue-50 text-blue-900 border-blue-200';
+            ? 'bg-slate-200 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700'
+            : 'bg-blue-50 dark:bg-blue-900/20 text-blue-900 dark:text-blue-300 border-blue-200 dark:border-blue-800/50';
 
     return (
         <div
@@ -294,7 +294,7 @@ function SessionCard({ session, onClick }) {
             <div className="flex items-center justify-between mb-1">
                 <span className={`
           text-xs font-bold px-1.5 py-0.5 rounded
-          ${isToday ? 'bg-white/20' : isCompleted ? 'bg-slate-300' : 'bg-blue-100'}
+          ${isToday ? 'bg-white/20' : isCompleted ? 'bg-slate-300 dark:bg-slate-700' : 'bg-blue-100 dark:bg-blue-800/50'}
         `}>
                     #{session.session_number}
                 </span>
@@ -307,7 +307,7 @@ function SessionCard({ session, onClick }) {
             {/* Time */}
             <div className={`
         flex items-center gap-1 text-xs mb-1
-        ${isToday ? 'text-white/90' : 'text-slate-600'}
+        ${isToday ? 'text-white/90' : 'text-slate-600 dark:text-slate-400'}
       `}>
                 <Clock className="w-3 h-3" />
                 <span>{session.start_time} - {session.end_time}</span>
@@ -317,7 +317,7 @@ function SessionCard({ session, onClick }) {
             {session.teacher && (
                 <div className={`
           flex items-center gap-1 text-xs truncate
-          ${isToday ? 'text-white/80' : 'text-slate-500'}
+          ${isToday ? 'text-white/80' : 'text-slate-500 dark:text-slate-400'}
         `}>
                     <User className="w-3 h-3 flex-shrink-0" />
                     <span className="truncate">{session.teacher.full_name}</span>
@@ -328,7 +328,7 @@ function SessionCard({ session, onClick }) {
             {hasAttendance && session.attendance_summary && (
                 <div className={`
           mt-1 pt-1 border-t text-xs
-          ${isToday ? 'border-white/20 text-white/80' : 'border-slate-300 text-slate-500'}
+          ${isToday ? 'border-white/20 text-white/80' : 'border-slate-300 dark:border-slate-700 text-slate-500 dark:text-slate-400'}
         `}>
                     <span className="text-green-600">{session.attendance_summary.present || 0}</span>
                     <span className="mx-0.5">/</span>

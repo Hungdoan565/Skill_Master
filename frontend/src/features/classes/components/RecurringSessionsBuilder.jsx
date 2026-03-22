@@ -209,27 +209,27 @@ export function RecurringSessionsBuilder({
             <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
             {/* Modal */}
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="relative bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col border dark:border-slate-800">
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-slate-200">
+                <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-indigo-100 rounded-lg">
-                            <Repeat className="w-5 h-5 text-indigo-600" />
+                        <div className="p-2 bg-indigo-100 rounded-lg dark:bg-indigo-900/40">
+                            <Repeat className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                         </div>
                         <div>
-                            <h2 className="text-lg font-semibold">Tạo nhiều buổi học</h2>
-                            <p className="text-sm text-slate-500">
+                            <h2 className="text-lg font-semibold dark:text-slate-100">Tạo nhiều buổi học</h2>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">
                                 {classInfo?.name} • {existingSessionsCount} buổi hiện tại
                             </p>
                         </div>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={onClose}>
+                    <Button variant="ghost" size="icon" onClick={onClose} className="dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800">
                         <X className="w-5 h-5" />
                     </Button>
                 </div>
 
                 {/* Steps Indicator */}
-                <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900">
                     <div className="flex items-center justify-between max-w-md mx-auto">
                         {STEPS.map((step, index) => (
                             <div key={step.id} className="flex items-center">
@@ -237,22 +237,22 @@ export function RecurringSessionsBuilder({
                                     <div className={`
                     w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium
                     ${currentStep > step.id
-                                            ? 'bg-green-500 text-white'
+                                            ? 'bg-green-500 text-white dark:bg-green-600'
                                             : currentStep === step.id
                                                 ? 'bg-indigo-600 text-white'
-                                                : 'bg-slate-200 text-slate-600'
+                                                : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
                                         }
                   `}>
                                         {currentStep > step.id ? <Check className="w-4 h-4" /> : step.id}
                                     </div>
                                     <div className="mt-1 text-center">
-                                        <p className={`text-xs font-medium ${currentStep >= step.id ? 'text-slate-900' : 'text-slate-500'}`}>
+                                        <p className={`text-xs font-medium ${currentStep >= step.id ? 'text-slate-900 dark:text-slate-200' : 'text-slate-500 dark:text-slate-500'}`}>
                                             {step.title}
                                         </p>
                                     </div>
                                 </div>
                                 {index < STEPS.length - 1 && (
-                                    <div className={`w-20 h-0.5 mx-2 ${currentStep > step.id ? 'bg-green-500' : 'bg-slate-200'}`} />
+                                    <div className={`w-20 h-0.5 mx-2 ${currentStep > step.id ? 'bg-green-500 dark:bg-green-600' : 'bg-slate-200 dark:bg-slate-800'}`} />
                                 )}
                             </div>
                         ))}
@@ -263,7 +263,8 @@ export function RecurringSessionsBuilder({
                 <div className="flex-1 overflow-y-auto p-6">
                     {/* Step 1: Choose Schedule */}
                     {currentStep === 1 && (
-                        <div className="space-y-6">
+                        <Card className="shadow-none border dark:border-slate-700 dark:bg-slate-800">
+            <CardContent className="p-4 space-y-4">
                             <div>
                                 <Label className="text-base font-medium">Chọn các ngày trong tuần</Label>
                                 <p className="text-sm text-slate-500 mt-1">Chọn những ngày sẽ có buổi học</p>
@@ -275,8 +276,8 @@ export function RecurringSessionsBuilder({
                                             className={`
                         p-3 rounded-lg border-2 text-center transition-all
                         ${pattern.daysOfWeek.includes(day.value)
-                                                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                                                    : 'border-slate-200 hover:border-slate-300 text-slate-600'
+                                                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:border-indigo-400 dark:text-indigo-300'
+                                                    : 'border-slate-200 hover:border-slate-300 text-slate-600 dark:border-slate-700 dark:hover:border-slate-600 dark:text-slate-300 dark:bg-slate-900'
                                                 }
                       `}
                                         >
@@ -298,8 +299,8 @@ export function RecurringSessionsBuilder({
                                             className={`
                         p-4 rounded-lg border-2 text-left transition-all
                         ${pattern.frequency === opt.value
-                                                    ? 'border-indigo-500 bg-indigo-50'
-                                                    : 'border-slate-200 hover:border-slate-300'
+                                                    ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 dark:border-indigo-400'
+                                                    : 'border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600 dark:bg-slate-900'
                                                 }
                       `}
                                         >
@@ -309,7 +310,8 @@ export function RecurringSessionsBuilder({
                                     ))}
                                 </div>
                             </div>
-                        </div>
+                        </CardContent>
+                    </Card>
                     )}
 
                     {/* Step 2: Settings */}
@@ -323,7 +325,7 @@ export function RecurringSessionsBuilder({
                                         type="date"
                                         value={pattern.startDate}
                                         onChange={(e) => updatePattern('startDate', e.target.value)}
-                                        className="mt-1"
+                                        className="mt-1 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
                                     />
                                 </div>
                                 <div>
@@ -332,7 +334,7 @@ export function RecurringSessionsBuilder({
                                         type="date"
                                         value={pattern.endDate}
                                         onChange={(e) => updatePattern('endDate', e.target.value)}
-                                        className="mt-1"
+                                        className="mt-1 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
                                     />
                                 </div>
                             </div>
@@ -344,7 +346,7 @@ export function RecurringSessionsBuilder({
                                     <TimeSelect
                                         value={pattern.startTime}
                                         onChange={(val) => updatePattern('startTime', val)}
-                                        className="mt-1 w-full"
+                                        className="mt-1 w-full dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
                                     />
                                 </div>
                                 <div>
@@ -352,7 +354,7 @@ export function RecurringSessionsBuilder({
                                     <TimeSelect
                                         value={pattern.endTime}
                                         onChange={(val) => updatePattern('endTime', val)}
-                                        className="mt-1 w-full"
+                                        className="mt-1 w-full dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
                                     />
                                 </div>
                             </div>
@@ -368,9 +370,9 @@ export function RecurringSessionsBuilder({
                                         type="date"
                                         value={excludeInput}
                                         onChange={(e) => setExcludeInput(e.target.value)}
-                                        className="flex-1"
+                                        className="flex-1 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
                                     />
-                                    <Button onClick={addExcludeDate} variant="outline">
+                                    <Button onClick={addExcludeDate} variant="outline" className="dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-600">
                                         Thêm
                                     </Button>
                                 </div>
@@ -379,7 +381,7 @@ export function RecurringSessionsBuilder({
                                         {pattern.excludeDates.map(date => (
                                             <span
                                                 key={date}
-                                                className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 rounded text-sm"
+                                                className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 rounded text-sm dark:bg-slate-700 dark:text-slate-100"
                                             >
                                                 {new Date(date).toLocaleDateString('vi-VN')}
                                                 <button
@@ -395,9 +397,9 @@ export function RecurringSessionsBuilder({
                             </div>
 
                             {/* Info */}
-                            <div className="flex items-start gap-2 p-4 bg-blue-50 rounded-lg">
+                            <div className="flex items-start gap-2 p-4 bg-blue-50 rounded-lg dark:bg-blue-900/20 dark:text-blue-200">
                                 <Info className="w-5 h-5 text-blue-600 mt-0.5" />
-                                <div className="text-sm text-blue-700">
+                                <div className="text-sm text-blue-700 dark:text-blue-200">
                                     <p className="font-medium">Lưu ý:</p>
                                     <ul className="list-disc list-inside mt-1 space-y-1">
                                         <li>Các ngày lễ Tết Nguyên Đán, 30/4, 1/5, 2/9 sẽ tự động được bỏ qua</li>
@@ -414,23 +416,23 @@ export function RecurringSessionsBuilder({
                         <div className="space-y-6">
                             {/* Stats Summary */}
                             <div className="grid grid-cols-3 gap-4">
-                                <div className="p-4 bg-indigo-50 rounded-lg text-center">
-                                    <div className="text-2xl font-bold text-indigo-600">{stats.total}</div>
-                                    <div className="text-sm text-slate-600">Tổng buổi học</div>
+                                <div className="p-4 bg-indigo-50 rounded-lg text-center dark:bg-indigo-900/20">
+                                    <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{stats.total}</div>
+                                    <div className="text-sm text-slate-600 dark:text-slate-400">Tổng buổi học</div>
                                 </div>
-                                <div className="p-4 bg-green-50 rounded-lg text-center">
-                                    <div className="text-2xl font-bold text-green-600">{stats.weekdays}</div>
-                                    <div className="text-sm text-slate-600">Ngày trong tuần</div>
+                                <div className="p-4 bg-green-50 rounded-lg text-center dark:bg-green-900/20">
+                                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.weekdays}</div>
+                                    <div className="text-sm text-slate-600 dark:text-slate-400">Ngày trong tuần</div>
                                 </div>
-                                <div className="p-4 bg-amber-50 rounded-lg text-center">
-                                    <div className="text-2xl font-bold text-amber-600">{stats.weekends}</div>
-                                    <div className="text-sm text-slate-600">Cuối tuần</div>
+                                <div className="p-4 bg-amber-50 rounded-lg text-center dark:bg-amber-900/20">
+                                    <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.weekends}</div>
+                                    <div className="text-sm text-slate-600 dark:text-slate-400">Cuối tuần</div>
                                 </div>
                             </div>
 
                             {/* Warning if too many */}
                             {previewSessions.length > 100 && (
-                                <div className="flex items-center gap-2 p-4 bg-red-50 rounded-lg text-red-700">
+                                <div className="flex items-center gap-2 p-4 bg-red-50 rounded-lg text-red-700 dark:bg-red-900/20 dark:text-red-200">
                                     <AlertTriangle className="w-5 h-5" />
                                     <span>Số buổi học vượt quá 100. Vui lòng điều chỉnh khoảng thời gian.</span>
                                 </div>
@@ -439,27 +441,27 @@ export function RecurringSessionsBuilder({
                             {/* Sessions List */}
                             <div>
                                 <h3 className="font-medium mb-3">Danh sách buổi học ({previewSessions.length})</h3>
-                                <div className="max-h-64 overflow-y-auto border border-slate-200 rounded-lg">
+                                <div className="max-h-64 overflow-y-auto border border-slate-200 rounded-lg dark:border-slate-700">
                                     <table className="w-full text-sm">
-                                        <thead className="bg-slate-50 sticky top-0">
+                                        <thead className="bg-slate-50 sticky top-0 dark:bg-slate-800">
                                             <tr>
-                                                <th className="text-left p-3 font-medium">Buổi</th>
-                                                <th className="text-left p-3 font-medium">Ngày</th>
-                                                <th className="text-left p-3 font-medium">Thứ</th>
-                                                <th className="text-left p-3 font-medium">Giờ học</th>
+                                                <th className="text-left p-3 font-medium text-slate-900 dark:text-slate-100">Buổi</th>
+                                                <th className="text-left p-3 font-medium text-slate-900 dark:text-slate-100">Ngày</th>
+                                                <th className="text-left p-3 font-medium text-slate-900 dark:text-slate-100">Thứ</th>
+                                                <th className="text-left p-3 font-medium text-slate-900 dark:text-slate-100">Giờ học</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-slate-100">
+                                        <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                                             {previewSessions.map((session, index) => (
-                                                <tr key={index} className="hover:bg-slate-50">
+                                                <tr key={index} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                                                     <td className="p-3">
-                                                        <span className="font-medium">#{session.session_number}</span>
+                                                        <span className="font-medium text-slate-900 dark:text-slate-100">#{session.session_number}</span>
                                                     </td>
-                                                    <td className="p-3">
+                                                    <td className="p-3 text-slate-600 dark:text-slate-400">
                                                         {new Date(session.session_date).toLocaleDateString('vi-VN')}
                                                     </td>
-                                                    <td className="p-3 text-slate-600">{session.day_name}</td>
-                                                    <td className="p-3">
+                                                    <td className="p-3 text-slate-600 dark:text-slate-400">{session.day_name}</td>
+                                                    <td className="p-3 text-slate-600 dark:text-slate-400">
                                                         <span className="inline-flex items-center gap-1">
                                                             <Clock className="w-3.5 h-3.5" />
                                                             {session.start_time} - {session.end_time}
@@ -476,18 +478,19 @@ export function RecurringSessionsBuilder({
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-between p-4 border-t border-slate-200 bg-slate-50">
+                <div className="flex items-center justify-between p-4 border-t border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
                     <Button
                         variant="outline"
                         onClick={() => setCurrentStep(prev => Math.max(1, prev - 1))}
                         disabled={currentStep === 1}
+                        className="dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-600"
                     >
                         <ChevronLeft className="w-4 h-4 mr-1" />
                         Quay lại
                     </Button>
 
                     <div className="flex items-center gap-2">
-                        <Button variant="outline" onClick={onClose}>
+                        <Button variant="outline" onClick={onClose} className="dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-600">
                             Hủy
                         </Button>
                         {currentStep < 3 ? (

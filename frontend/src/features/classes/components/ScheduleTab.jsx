@@ -136,11 +136,11 @@ function Header({ schedule, total, completed, viewMode, onViewModeChange, onCrea
   const progressPercent = total ? (completed / total * 100) : 0;
 
   return (
-    <div className="flex flex-col gap-4 pb-4 border-b border-slate-200">
+    <div className="flex flex-col gap-4 pb-4 border-b border-slate-200 dark:border-slate-700">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 className="text-lg font-semibold text-slate-900">Lịch trình & Điểm danh</h3>
-          <p className="text-sm text-slate-500">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Lịch trình & Điểm danh</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             {formatScheduleDisplay(schedule)} • Tổng {total} buổi
           </p>
         </div>
@@ -148,14 +148,14 @@ function Header({ schedule, total, completed, viewMode, onViewModeChange, onCrea
         {/* Actions Row */}
         <div className="flex items-center gap-3">
           {/* View Mode Toggle - 3 options: List, Week, Calendar */}
-          <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
             <button
               onClick={() => onViewModeChange('list')}
               className={`
                 px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5
                 ${viewMode === 'list'
-                  ? 'bg-white text-indigo-600 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                 }
               `}
               title="Xem dạng danh sách"
@@ -168,8 +168,8 @@ function Header({ schedule, total, completed, viewMode, onViewModeChange, onCrea
               className={`
                 px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5
                 ${viewMode === 'week'
-                  ? 'bg-white text-indigo-600 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                 }
               `}
               title="Xem theo tuần"
@@ -182,8 +182,8 @@ function Header({ schedule, total, completed, viewMode, onViewModeChange, onCrea
               className={`
                 px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5
                 ${viewMode === 'calendar'
-                  ? 'bg-white text-indigo-600 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                 }
               `}
               title="Xem dạng lịch tháng"
@@ -212,7 +212,7 @@ function Header({ schedule, total, completed, viewMode, onViewModeChange, onCrea
               size="sm"
               variant="outline"
               onClick={onExportAttendance}
-              className="whitespace-nowrap text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+              className="whitespace-nowrap text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
             >
               <Download className="w-4 h-4 mr-1" />
               Xuất Excel
@@ -223,7 +223,7 @@ function Header({ schedule, total, completed, viewMode, onViewModeChange, onCrea
       {/* Progress Bar */}
       <div className="flex items-center gap-3">
         <div className="flex-1">
-          <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+          <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
             <div
               className="h-full bg-indigo-500 rounded-full transition-all"
               style={{ width: `${progressPercent}%` }}
@@ -231,8 +231,8 @@ function Header({ schedule, total, completed, viewMode, onViewModeChange, onCrea
           </div>
         </div>
         <div className="text-right shrink-0">
-          <p className="text-sm font-medium text-slate-900">{completed}/{total} buổi</p>
-          <p className="text-xs text-slate-500">đã hoàn thành</p>
+          <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{completed}/{total} buổi</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">đã hoàn thành</p>
         </div>
       </div>
     </div>
@@ -251,9 +251,9 @@ function LoadingState() {
 function EmptyState({ onCreateSessions }) {
   return (
     <div className="text-center py-12">
-      <Calendar className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-      <p className="text-slate-500">Chưa có lịch trình nào</p>
-      <p className="text-sm text-slate-400 mt-1">
+      <Calendar className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+      <p className="text-slate-500 dark:text-slate-400">Chưa có lịch trình nào</p>
+      <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">
         Hãy cập nhật ngày bắt đầu/kết thúc và lịch học cho lớp
       </p>
       {onCreateSessions && (
@@ -298,16 +298,16 @@ function SessionItem({ session, onAttendanceClick }) {
   const canMarkAttendance = !isFutureSession && session.status !== 'cancelled';
 
   const containerClass = isToday
-    ? 'bg-indigo-50 border-indigo-200 ring-2 ring-indigo-500/20'
+    ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800 ring-2 ring-indigo-500/20'
     : isCompleted
-      ? 'bg-slate-50 border-slate-200'
-      : 'bg-white border-slate-200 hover:border-slate-300';
+      ? 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'
+      : 'bg-white dark:bg-slate-800/30 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600';
 
   const numberClass = isToday
     ? 'bg-indigo-500 text-white'
     : isCompleted
-      ? 'bg-slate-300 text-slate-600'
-      : 'bg-slate-100 text-slate-700';
+      ? 'bg-slate-300 dark:bg-slate-600 text-slate-600 dark:text-slate-300'
+      : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300';
 
   return (
     <div className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${containerClass}`}>
@@ -319,7 +319,7 @@ function SessionItem({ session, onAttendanceClick }) {
       {/* Session Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <p className={`font-semibold ${isToday ? 'text-indigo-900' : 'text-slate-900'}`}>
+          <p className={`font-semibold ${isToday ? 'text-indigo-900 dark:text-indigo-300' : 'text-slate-900 dark:text-slate-100'}`}>
             {session.day_name}, {(() => {
               // Parse date as local time to avoid timezone issues
               const [year, month, day] = session.date.split('-').map(Number);
@@ -335,7 +335,7 @@ function SessionItem({ session, onAttendanceClick }) {
             <Badge className="bg-indigo-500 text-white text-xs">Hôm nay</Badge>
           )}
         </div>
-        <div className="flex items-center gap-3 mt-1 text-sm text-slate-500">
+        <div className="flex items-center gap-3 mt-1 text-sm text-slate-500 dark:text-slate-400">
           <span className="flex items-center gap-1">
             <Clock className="w-3.5 h-3.5" />
             {session.start_time} - {session.end_time}
@@ -353,9 +353,9 @@ function SessionItem({ session, onAttendanceClick }) {
       <div className="flex items-center gap-3">
         {/* Attendance Summary */}
         {hasAttendance && session.attendance_summary && (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-100 rounded-lg">
-            <UserCheck className="w-4 h-4 text-emerald-600" />
-            <span className="text-sm font-medium text-emerald-700">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
+            <UserCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
               {session.attendance_summary.present + session.attendance_summary.late}/{session.total_students}
             </span>
           </div>
@@ -364,8 +364,8 @@ function SessionItem({ session, onAttendanceClick }) {
         {/* Status Badge or Action Button */}
         {isFutureSession && !isToday ? (
           <div className="flex items-center gap-2">
-            <Badge className="bg-blue-50 text-blue-600 border border-blue-200">Sắp tới</Badge>
-            <span className="text-xs text-slate-400" title="Chỉ điểm danh được buổi đã học">
+            <Badge className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800">Sắp tới</Badge>
+            <span className="text-xs text-slate-400 dark:text-slate-500" title="Chỉ điểm danh được buổi đã học">
               (Chưa thể điểm danh)
             </span>
           </div>
@@ -391,17 +391,17 @@ function SessionItem({ session, onAttendanceClick }) {
 
 function Legend() {
   return (
-    <div className="flex flex-wrap items-center gap-4 pt-4 border-t border-slate-200 text-sm text-slate-500">
+    <div className="flex flex-wrap items-center gap-4 pt-4 border-t border-slate-200 dark:border-slate-700 text-sm text-slate-500 dark:text-slate-400">
       <div className="flex items-center gap-1.5">
         <div className="w-3 h-3 rounded bg-indigo-500" />
         <span>Hôm nay</span>
       </div>
       <div className="flex items-center gap-1.5">
-        <div className="w-3 h-3 rounded bg-slate-300" />
+        <div className="w-3 h-3 rounded bg-slate-300 dark:bg-slate-600" />
         <span>Đã học</span>
       </div>
       <div className="flex items-center gap-1.5">
-        <div className="w-3 h-3 rounded bg-blue-100 border border-blue-300" />
+        <div className="w-3 h-3 rounded bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700" />
         <span>Sắp tới</span>
       </div>
       <div className="flex items-center gap-1.5">

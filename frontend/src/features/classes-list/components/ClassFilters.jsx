@@ -73,7 +73,7 @@ export function ClassFilters({
           variant="outline"
           size="sm"
           onClick={onOpenAdvancedFilters}
-          className="relative hover:border-orange-200 hover:bg-orange-50/50 transition-all duration-300"
+          className="relative hover:border-orange-200 dark:hover:border-orange-700 hover:bg-orange-50/50 dark:hover:bg-orange-900/20 transition-all duration-300"
         >
           <SlidersHorizontal className="h-4 w-4 mr-2" />
           Lọc nâng cao

@@ -384,7 +384,7 @@ export function ClassesPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
             Quản lý Lớp học
           </h1>
           <p className="text-muted-foreground flex items-center gap-2">
@@ -403,7 +403,7 @@ export function ClassesPage() {
           <Button
             variant="outline"
             onClick={() => setImportModalOpen(true)}
-            className="hover:bg-slate-50 transition-all duration-300"
+            className="hover:bg-muted transition-all duration-300"
           >
             <Upload className="mr-2 h-4 w-4" />
             Nhập dữ liệu

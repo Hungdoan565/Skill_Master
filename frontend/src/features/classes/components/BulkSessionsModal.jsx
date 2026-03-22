@@ -288,30 +288,30 @@ export function BulkSessionsModal({
             <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
             {/* Modal */}
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-slate-200">
+                <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
-                            <CalendarDays className="w-5 h-5 text-indigo-600" />
+                        <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-500/20 rounded-xl flex items-center justify-center">
+                            <CalendarDays className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-slate-900">Tạo nhiều buổi học</h2>
-                            <p className="text-sm text-slate-500">
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Tạo nhiều buổi học</h2>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">
                                 Lớp: {classData?.name} • {existingSessionsCount} buổi hiện có
                             </p>
                         </div>
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                        className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700/50 rounded-lg transition-colors"
                     >
-                        <X className="w-5 h-5 text-slate-500" />
+                        <X className="w-5 h-5 text-slate-500 dark:text-slate-400" />
                     </button>
                 </div>
 
                 {/* Steps indicator */}
-                <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
+                <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
                     <div className="flex items-center justify-between">
                         {STEPS.map((step, index) => (
                             <div key={step.id} className="flex items-center">
@@ -319,23 +319,23 @@ export function BulkSessionsModal({
                                     <div className={`
                     w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold
                     ${currentStep === step.id
-                                            ? 'bg-indigo-600 text-white'
+                                            ? 'bg-indigo-600 dark:bg-indigo-500 text-white'
                                             : currentStep > step.id
                                                 ? 'bg-green-500 text-white'
-                                                : 'bg-slate-200 text-slate-500'
+                                                : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
                                         }
                   `}>
                                         {currentStep > step.id ? <CheckCircle2 className="w-5 h-5" /> : step.id}
                                     </div>
                                     <div className="hidden sm:block">
-                                        <p className="text-sm font-medium text-slate-900">{step.title}</p>
-                                        <p className="text-xs text-slate-500">{step.description}</p>
+                                        <p className="text-sm font-medium text-slate-900 dark:text-slate-200">{step.title}</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">{step.description}</p>
                                     </div>
                                 </div>
                                 {index < STEPS.length - 1 && (
                                     <div className={`
                     w-12 h-0.5 mx-4
-                    ${currentStep > step.id ? 'bg-green-500' : 'bg-slate-200'}
+                    ${currentStep > step.id ? 'bg-green-500' : 'bg-slate-200 dark:bg-slate-700'}
                   `} />
                                 )}
                             </div>
@@ -347,7 +347,7 @@ export function BulkSessionsModal({
                 <div className="flex-1 overflow-y-auto p-6">
                     {/* Error message */}
                     {error && (
-                        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
+                        <div className="mb-4 p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg flex items-center gap-2 text-red-700 dark:text-red-400">
                             <AlertTriangle className="w-5 h-5 flex-shrink-0" />
                             <p className="text-sm">{error}</p>
                         </div>
@@ -395,10 +395,11 @@ export function BulkSessionsModal({
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-between p-6 border-t border-slate-200 bg-slate-50">
+                <div className="flex items-center justify-between p-6 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                     <Button
                         variant="outline"
                         onClick={() => currentStep > 1 ? goToStep(currentStep - 1) : onClose()}
+                        className="dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
                     >
                         <ChevronLeft className="w-4 h-4 mr-2" />
                         {currentStep > 1 ? 'Quay lại' : 'Hủy'}
@@ -421,7 +422,7 @@ export function BulkSessionsModal({
                             <Button
                                 onClick={createSessions}
                                 disabled={loading || conflicts.length > 0}
-                                className="bg-green-600 hover:bg-green-700"
+                                className="bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700"
                             >
                                 {loading ? (
                                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -456,7 +457,7 @@ function Step1Config({
         <div className="space-y-6">
             {/* Day Selection */}
             <div>
-                <Label className="text-sm font-medium text-slate-700 mb-3 block">
+                <Label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3 block">
                     Chọn các ngày trong tuần có học
                 </Label>
                 <div className="flex flex-wrap gap-2">
@@ -467,8 +468,8 @@ function Step1Config({
                             className={`
                 px-4 py-2 rounded-lg border-2 text-sm font-medium transition-all
                 ${selectedDays.includes(day.value)
-                                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                                    : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                                    ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-400'
+                                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600'
                                 }
               `}
                         >
@@ -481,7 +482,7 @@ function Step1Config({
             {/* Time Selection */}
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <Label className="text-sm font-medium text-slate-700 mb-2 block">
+                    <Label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block">
                         <Clock className="w-4 h-4 inline mr-1" />
                         Giờ bắt đầu
                     </Label>
@@ -492,7 +493,7 @@ function Step1Config({
                     />
                 </div>
                 <div>
-                    <Label className="text-sm font-medium text-slate-700 mb-2 block">
+                    <Label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block">
                         <Clock className="w-4 h-4 inline mr-1" />
                         Giờ kết thúc
                     </Label>
@@ -507,7 +508,7 @@ function Step1Config({
             {/* Date Range */}
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <Label className="text-sm font-medium text-slate-700 mb-2 block">
+                    <Label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block">
                         <Calendar className="w-4 h-4 inline mr-1" />
                         Ngày bắt đầu
                     </Label>
@@ -515,10 +516,11 @@ function Step1Config({
                         type="date"
                         value={dateRange.start}
                         onChange={(e) => onDateRangeChange({ ...dateRange, start: e.target.value })}
+                        className="dark:bg-slate-800 dark:border-slate-700"
                     />
                 </div>
                 <div>
-                    <Label className="text-sm font-medium text-slate-700 mb-2 block">
+                    <Label className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2 block">
                         <Calendar className="w-4 h-4 inline mr-1" />
                         Ngày kết thúc
                     </Label>
@@ -526,6 +528,7 @@ function Step1Config({
                         type="date"
                         value={dateRange.end}
                         onChange={(e) => onDateRangeChange({ ...dateRange, end: e.target.value })}
+                        className="dark:bg-slate-800 dark:border-slate-700"
                     />
                 </div>
             </div>
@@ -537,17 +540,17 @@ function Step1Config({
                     id="skipHolidays"
                     checked={skipHolidays}
                     onChange={(e) => onSkipHolidaysChange(e.target.checked)}
-                    className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                    className="w-4 h-4 text-indigo-600 dark:text-indigo-500 border-slate-300 dark:border-slate-600 dark:bg-slate-700 rounded focus:ring-indigo-500 dark:focus:ring-indigo-400"
                 />
-                <label htmlFor="skipHolidays" className="text-sm text-slate-700">
+                <label htmlFor="skipHolidays" className="text-sm text-slate-700 dark:text-slate-300">
                     Bỏ qua các ngày lễ Việt Nam (Tết, 30/4, 1/5, 2/9...)
                 </label>
             </div>
 
             {/* Preview count */}
             {previewCount > 0 && (
-                <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-100">
-                    <div className="flex items-center gap-2 text-indigo-700">
+                <div className="p-4 bg-indigo-50 dark:bg-indigo-500/10 rounded-lg border border-indigo-100 dark:border-indigo-500/20">
+                    <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-400">
                         <Info className="w-5 h-5" />
                         <span className="font-medium">
                             Dự kiến tạo {previewCount} buổi học
@@ -580,8 +583,8 @@ function Step2Preview({
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mb-4" />
-                <p className="text-slate-500">Đang kiểm tra xung đột...</p>
+                <Loader2 className="w-8 h-8 text-indigo-600 dark:text-indigo-400 animate-spin mb-4" />
+                <p className="text-slate-500 dark:text-slate-400">Đang kiểm tra xung đột...</p>
             </div>
         );
     }
@@ -589,13 +592,13 @@ function Step2Preview({
     return (
         <div className="space-y-4">
             {/* Summary */}
-            <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-lg">
+            <div className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
                 <div className="flex items-center gap-2">
-                    <span className="text-sm text-slate-600">Tổng:</span>
-                    <span className="font-semibold text-slate-900">{sessions.length} buổi</span>
+                    <span className="text-sm text-slate-600 dark:text-slate-400">Tổng:</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">{sessions.length} buổi</span>
                 </div>
                 {conflicts.length > 0 && (
-                    <div className="flex items-center gap-2 text-amber-600">
+                    <div className="flex items-center gap-2 text-amber-600 dark:text-amber-500">
                         <AlertTriangle className="w-4 h-4" />
                         <span className="text-sm font-medium">{conflicts.length} xung đột</span>
                     </div>
@@ -604,12 +607,12 @@ function Step2Preview({
 
             {/* Conflicts warning */}
             {conflicts.length > 0 && (
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="p-4 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-lg">
                     <div className="flex items-start gap-3">
-                        <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                        <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-500 flex-shrink-0 mt-0.5" />
                         <div>
-                            <p className="font-medium text-amber-800">Phát hiện xung đột lịch</p>
-                            <p className="text-sm text-amber-700 mt-1">
+                            <p className="font-medium text-amber-800 dark:text-amber-400">Phát hiện xung đột lịch</p>
+                            <p className="text-sm text-amber-700 dark:text-amber-500 mt-1">
                                 Có {conflicts.length} buổi học bị trùng với lớp khác hoặc lịch giáo viên.
                                 Vui lòng loại bỏ các ngày xung đột trước khi tiếp tục.
                             </p>
@@ -619,12 +622,12 @@ function Step2Preview({
             )}
 
             {/* Filter tabs */}
-            <div className="flex items-center gap-2 border-b border-slate-200">
+            <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-700">
                 <button
                     onClick={() => setFilter('all')}
                     className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${filter === 'all'
-                        ? 'border-indigo-600 text-indigo-600'
-                        : 'border-transparent text-slate-500 hover:text-slate-700'
+                        ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
+                        : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
                         }`}
                 >
                     Tất cả ({sessions.length})
@@ -633,8 +636,8 @@ function Step2Preview({
                     <button
                         onClick={() => setFilter('conflicts')}
                         className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${filter === 'conflicts'
-                            ? 'border-amber-600 text-amber-600'
-                            : 'border-transparent text-slate-500 hover:text-slate-700'
+                            ? 'border-amber-600 text-amber-600 dark:border-amber-500 dark:text-amber-500'
+                            : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
                             }`}
                     >
                         Xung đột ({conflicts.length})
@@ -643,18 +646,18 @@ function Step2Preview({
             </div>
 
             {/* Sessions list */}
-            <div className="max-h-[400px] overflow-y-auto border border-slate-200 rounded-lg">
+            <div className="max-h-[400px] overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-lg">
                 <table className="w-full text-sm">
-                    <thead className="bg-slate-50 sticky top-0">
+                    <thead className="bg-slate-50 dark:bg-slate-800/80 sticky top-0">
                         <tr>
-                            <th className="px-4 py-3 text-left font-medium text-slate-600">Buổi</th>
-                            <th className="px-4 py-3 text-left font-medium text-slate-600">Ngày</th>
-                            <th className="px-4 py-3 text-left font-medium text-slate-600">Thời gian</th>
-                            <th className="px-4 py-3 text-left font-medium text-slate-600">Trạng thái</th>
-                            <th className="px-4 py-3 text-center font-medium text-slate-600">Thao tác</th>
+                            <th className="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">Buổi</th>
+                            <th className="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">Ngày</th>
+                            <th className="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">Thời gian</th>
+                            <th className="px-4 py-3 text-left font-medium text-slate-600 dark:text-slate-300">Trạng thái</th>
+                            <th className="px-4 py-3 text-center font-medium text-slate-600 dark:text-slate-300">Thao tác</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-200">
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                         {filteredSessions.map((session, idx) => {
                             const hasConflict = conflicts.some(c => c.session_date === session.session_date);
                             const isExcluded = excludedDates.includes(session.session_date);
@@ -663,29 +666,29 @@ function Step2Preview({
                                 <tr
                                     key={idx}
                                     className={`
-                    ${hasConflict ? 'bg-amber-50' : ''}
-                    ${isExcluded ? 'bg-slate-100 opacity-50' : ''}
+                    ${hasConflict ? 'bg-amber-50 dark:bg-amber-500/10' : ''}
+                    ${isExcluded ? 'bg-slate-100 dark:bg-slate-800 opacity-50' : 'dark:bg-transparent'}
                   `}
                                 >
-                                    <td className="px-4 py-3 font-medium text-slate-900">
+                                    <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">
                                         #{session.session_number}
                                     </td>
-                                    <td className="px-4 py-3 text-slate-600">
+                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                                         {session.dayLabel} - {formatDate(session.session_date)}
                                     </td>
-                                    <td className="px-4 py-3 text-slate-600">
+                                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                                         {session.start_time} - {session.end_time}
                                     </td>
                                     <td className="px-4 py-3">
                                         {hasConflict ? (
-                                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
+                                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 rounded-full text-xs font-medium">
                                                 <AlertTriangle className="w-3 h-3" />
                                                 Xung đột
                                             </span>
                                         ) : isExcluded ? (
-                                            <span className="text-slate-400 text-xs">Đã loại bỏ</span>
+                                            <span className="text-slate-400 dark:text-slate-500 text-xs">Đã loại bỏ</span>
                                         ) : (
-                                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400 rounded-full text-xs font-medium">
                                                 <CheckCircle2 className="w-3 h-3" />
                                                 OK
                                             </span>
@@ -695,14 +698,14 @@ function Step2Preview({
                                         {!isExcluded ? (
                                             <button
                                                 onClick={() => onExcludeDate(session.session_date)}
-                                                className="text-xs text-red-600 hover:text-red-700 font-medium"
+                                                className="text-xs text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-medium"
                                             >
                                                 Loại bỏ
                                             </button>
                                         ) : (
                                             <button
                                                 onClick={() => onIncludeDate(session.session_date)}
-                                                className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+                                                className="text-xs text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium"
                                             >
                                                 Khôi phục
                                             </button>
@@ -728,32 +731,32 @@ function Step3Confirm({ sessionCount, conflictCount, dateRange, selectedDays, cl
     return (
         <div className="space-y-6">
             <div className="text-center py-8">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle2 className="w-8 h-8 text-green-600" />
+                <div className="w-16 h-16 bg-green-100 dark:bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400" />
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
                     Sẵn sàng tạo buổi học
                 </h3>
-                <p className="text-slate-500">
+                <p className="text-slate-500 dark:text-slate-400">
                     Xác nhận thông tin bên dưới trước khi tạo
                 </p>
             </div>
 
             {conflictCount > 0 && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <div className="flex items-center gap-2 text-red-700">
+                <div className="p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg">
+                    <div className="flex items-center gap-2 text-red-700 dark:text-red-400">
                         <AlertTriangle className="w-5 h-5" />
                         <span className="font-medium">
                             Còn {conflictCount} xung đột chưa được giải quyết
                         </span>
                     </div>
-                    <p className="text-sm text-red-600 mt-1">
+                    <p className="text-sm text-red-600 dark:text-red-500 mt-1">
                         Vui lòng quay lại bước trước và loại bỏ các buổi học bị xung đột
                     </p>
                 </div>
             )}
 
-            <div className="bg-slate-50 rounded-lg p-6 space-y-4">
+            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-6 space-y-4 border border-slate-100 dark:border-slate-700">
                 <SummaryRow label="Lớp học" value={classData?.name} />
                 <SummaryRow label="Số buổi" value={`${sessionCount} buổi`} highlight />
                 <SummaryRow label="Ngày học" value={dayLabels} />
@@ -768,8 +771,8 @@ function Step3Confirm({ sessionCount, conflictCount, dateRange, selectedDays, cl
 function SummaryRow({ label, value, highlight }) {
     return (
         <div className="flex items-center justify-between">
-            <span className="text-slate-600">{label}</span>
-            <span className={`font-medium ${highlight ? 'text-indigo-600 text-lg' : 'text-slate-900'}`}>
+            <span className="text-slate-600 dark:text-slate-400">{label}</span>
+            <span className={`font-medium ${highlight ? 'text-indigo-600 dark:text-indigo-400 text-lg' : 'text-slate-900 dark:text-slate-100'}`}>
                 {value}
             </span>
         </div>

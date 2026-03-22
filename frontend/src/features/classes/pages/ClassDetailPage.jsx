@@ -412,7 +412,7 @@ export function ClassDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center h-96 gap-4">
         <AlertCircle className="w-12 h-12 text-red-500" />
-        <p className="text-lg text-slate-600">Không tìm thấy lớp học</p>
+        <p className="text-lg text-muted-foreground">Không tìm thấy lớp học</p>
         <Button onClick={() => navigate('/admin/classes')}>
           <ArrowLeft className="w-4 h-4 mr-2" /> Quay lại
         </Button>
@@ -431,7 +431,7 @@ export function ClassDetailPage() {
           variant="outline"
           size="sm"
           onClick={() => setShowTransferModal(true)}
-          className="text-purple-600 border-purple-300 hover:bg-purple-50"
+          className="text-purple-600 dark:text-purple-400 border-purple-300 dark:border-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/20"
         >
           <Copy className="w-4 h-4 mr-2" />
           Chuyển học viên
@@ -440,7 +440,7 @@ export function ClassDetailPage() {
           variant="outline"
           size="sm"
           onClick={() => setShowReportModal(true)}
-          className="text-orange-600 border-orange-300 hover:bg-orange-50"
+          className="text-orange-600 dark:text-orange-400 border-orange-300 dark:border-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20"
         >
           <FileText className="w-4 h-4 mr-2" />
           Xuất báo cáo CSV
@@ -451,7 +451,7 @@ export function ClassDetailPage() {
           variant="outline"
           size="sm"
           onClick={() => navigate(`/admin/reports/attendance?classId=${id}`)}
-          className="text-green-600 border-green-300 hover:bg-green-50"
+          className="text-green-600 dark:text-green-400 border-green-300 dark:border-green-700 hover:bg-green-50 dark:hover:bg-green-900/20"
         >
           <BarChart3 className="w-4 h-4 mr-2" />
           Báo cáo chuyên cần
@@ -460,7 +460,7 @@ export function ClassDetailPage() {
           variant="outline"
           size="sm"
           onClick={() => navigate(`/admin/reports/grades?classId=${id}`)}
-          className="text-blue-600 border-blue-300 hover:bg-blue-50"
+          className="text-blue-600 dark:text-blue-400 border-blue-300 dark:border-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20"
         >
           <GraduationCap className="w-4 h-4 mr-2" />
           Báo cáo điểm số
@@ -477,9 +477,9 @@ export function ClassDetailPage() {
       </div>
 
       {/* Tabs Container */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+      <div className="bg-card rounded-xl shadow-sm border border-border">
         {/* Tab Navigation */}
-        <div className="flex items-center gap-2 p-4 border-b border-slate-200">
+        <div className="flex items-center gap-2 p-4 border-b border-border">
           <TabButton
             active={activeTab === 'students'}
             onClick={() => setActiveTab('students')}
@@ -721,10 +721,10 @@ export function ClassDetailPage() {
       {/* Keyboard Shortcuts Button */}
       <button
         onClick={() => setShowHelp(true)}
-        className="fixed bottom-4 right-4 p-3 bg-white border border-slate-200 rounded-full shadow-lg hover:bg-slate-50 transition-colors z-40"
+        className="fixed bottom-4 right-4 p-3 bg-card border border-border rounded-full shadow-lg hover:bg-muted transition-colors z-40"
         title="Phím tắt (nhấn ? để mở)"
       >
-        <Keyboard className="w-5 h-5 text-slate-600" />
+        <Keyboard className="w-5 h-5 text-muted-foreground" />
       </button>
     </div>
   );

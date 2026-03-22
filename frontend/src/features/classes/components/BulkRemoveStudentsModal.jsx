@@ -22,7 +22,7 @@ export function BulkRemoveStudentsModal({
         className="absolute inset-0 bg-black/50" 
         onClick={() => !deleting && onCancel()} 
       />
-      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
+      <div className="relative bg-white dark:bg-slate-900 rounded-xl shadow-xl w-full max-w-md mx-4 overflow-hidden dark:border dark:border-slate-800">
         {/* Header */}
         <div className="bg-linear-to-r from-red-500 to-red-600 px-6 py-4">
           <div className="flex items-center justify-between">
@@ -53,33 +53,33 @@ export function BulkRemoveStudentsModal({
         <div className="p-6">
           {/* Error Display */}
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-red-700">
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg flex items-start gap-2 text-red-700 dark:text-red-400">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span className="text-sm">{error}</span>
             </div>
           )}
 
-          <p className="text-slate-600">
+          <p className="text-slate-600 dark:text-slate-300">
             Bạn có chắc chắn muốn xóa{' '}
-            <strong className="text-red-600">{students.length} học viên</strong>{' '}
+            <strong className="text-red-600 dark:text-red-400">{students.length} học viên</strong>{' '}
             đã chọn khỏi lớp?
           </p>
 
           {/* Preview danh sách */}
-          <div className="mt-4 max-h-48 overflow-y-auto rounded-lg bg-slate-50 border border-slate-200 p-3">
-            <p className="text-xs font-medium text-slate-500 mb-2">
+          <div className="mt-4 max-h-48 overflow-y-auto rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3">
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">
               Danh sách học viên sẽ bị xóa:
             </p>
             <div className="space-y-2">
               {students.slice(0, 8).map((student) => (
                 <div key={student.student_id} className="flex items-center gap-2 text-sm">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0"></span>
-                  <span className="text-slate-700 font-medium">{student.full_name}</span>
-                  <span className="text-slate-400">({student.email})</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 dark:bg-red-500 shrink-0"></span>
+                  <span className="text-slate-700 dark:text-slate-200 font-medium">{student.full_name}</span>
+                  <span className="text-slate-400 dark:text-slate-500">({student.email})</span>
                 </div>
               ))}
               {students.length > 8 && (
-                <p className="text-xs text-slate-400 italic pt-1">
+                <p className="text-xs text-slate-400 dark:text-slate-500 italic pt-1">
                   ... và {students.length - 8} học viên khác
                 </p>
               )}
@@ -87,16 +87,16 @@ export function BulkRemoveStudentsModal({
           </div>
 
           {/* Warning */}
-          <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-            <p className="text-sm text-amber-700">
+          <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-lg flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
+            <p className="text-sm text-amber-700 dark:text-amber-300">
               <span className="font-medium">Lưu ý:</span> Hóa đơn và lịch sử điểm danh của các học viên này sẽ bị xóa theo.
             </p>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-slate-50 border-t flex justify-end gap-3">
+        <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t dark:border-slate-800 flex justify-end gap-3">
           <Button 
             variant="outline" 
             onClick={onCancel}

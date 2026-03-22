@@ -44,11 +44,11 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 // Document type configuration
 const DOC_TYPES = {
-    lesson: { label: 'Bài giảng', color: 'bg-blue-100 text-blue-700', icon: BookOpen },
-    exercise: { label: 'Bài tập', color: 'bg-green-100 text-green-700', icon: FileText },
-    material: { label: 'Tài liệu', color: 'bg-purple-100 text-purple-700', icon: File },
-    video: { label: 'Video', color: 'bg-pink-100 text-pink-700', icon: Video },
-    other: { label: 'Khác', color: 'bg-slate-100 text-slate-700', icon: FolderOpen }
+    lesson: { label: 'Bài giảng', color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400', icon: BookOpen },
+    exercise: { label: 'Bài tập', color: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400', icon: FileText },
+    material: { label: 'Tài liệu', color: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400', icon: File },
+    video: { label: 'Video', color: 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400', icon: Video },
+    other: { label: 'Khác', color: 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300', icon: FolderOpen }
 };
 
 // File icon mapping
@@ -214,8 +214,8 @@ export function ClassDocumentsTab({ classId, className, courseId, getHeaders }) 
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h3 className="text-lg font-semibold text-slate-900">Tài liệu lớp học</h3>
-                    <p className="text-sm text-slate-500">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Tài liệu lớp học</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
                         {documents.length} tài liệu • {className}
                     </p>
                 </div>
@@ -244,8 +244,8 @@ export function ClassDocumentsTab({ classId, className, courseId, getHeaders }) 
                     <button
                         onClick={() => setTypeFilter('all')}
                         className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${typeFilter === 'all'
-                            ? 'bg-indigo-100 text-indigo-700'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
                             }`}
                     >
                         Tất cả
@@ -256,7 +256,7 @@ export function ClassDocumentsTab({ classId, className, courseId, getHeaders }) 
                             onClick={() => setTypeFilter(key)}
                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${typeFilter === key
                                 ? config.color
-                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
                                 }`}
                         >
                             {config.label}
@@ -269,7 +269,7 @@ export function ClassDocumentsTab({ classId, className, courseId, getHeaders }) 
             {loading ? (
                 <div className="text-center py-12">
                     <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mx-auto mb-3" />
-                    <p className="text-slate-500">Đang tải tài liệu...</p>
+                    <p className="text-slate-500 dark:text-slate-400">Đang tải tài liệu...</p>
                 </div>
             ) : filteredDocuments.length === 0 ? (
                 <EmptyState
@@ -316,17 +316,17 @@ export function ClassDocumentsTab({ classId, className, courseId, getHeaders }) 
 // Empty state component
 function EmptyState({ searchTerm, onUpload }) {
     return (
-        <div className="text-center py-12 bg-slate-50 rounded-xl">
-            <FolderOpen className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+        <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/30 rounded-xl">
+            <FolderOpen className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
             {searchTerm ? (
                 <>
-                    <p className="text-slate-500">Không tìm thấy tài liệu phù hợp</p>
-                    <p className="text-sm text-slate-400 mt-1">Thử tìm với từ khóa khác</p>
+                    <p className="text-slate-500 dark:text-slate-400">Không tìm thấy tài liệu phù hợp</p>
+                    <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">Thử tìm với từ khóa khác</p>
                 </>
             ) : (
                 <>
-                    <p className="text-slate-500">Chưa có tài liệu nào</p>
-                    <p className="text-sm text-slate-400 mt-1">Thêm bài giảng, bài tập hoặc tài liệu cho lớp học</p>
+                    <p className="text-slate-500 dark:text-slate-400">Chưa có tài liệu nào</p>
+                    <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">Thêm bài giảng, bài tập hoặc tài liệu cho lớp học</p>
                     <Button onClick={onUpload} className="mt-4">
                         <Plus className="w-4 h-4 mr-2" />
                         Thêm tài liệu đầu tiên
@@ -363,7 +363,7 @@ function DocumentCard({ document, onDownload, onPreview, onDelete }) {
     const isYouTube = document.file_url?.includes('youtube.com') || document.file_url?.includes('youtu.be');
 
     return (
-        <div className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 hover:shadow-md transition-shadow">
             <div className="flex items-start gap-4">
                 {/* Icon */}
                 <div className={`p-3 rounded-xl ${typeConfig.color} relative flex-shrink-0`}>
@@ -379,9 +379,9 @@ function DocumentCard({ document, onDownload, onPreview, onDelete }) {
                 <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                            <h4 className="font-medium text-slate-900 truncate">{document.title}</h4>
+                            <h4 className="font-medium text-slate-900 dark:text-slate-100 truncate">{document.title}</h4>
                             {document.description && (
-                                <p className="text-sm text-slate-500 mt-0.5 line-clamp-2">{document.description}</p>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{document.description}</p>
                             )}
                         </div>
 
@@ -391,7 +391,7 @@ function DocumentCard({ document, onDownload, onPreview, onDelete }) {
                     </div>
 
                     {/* Meta */}
-                    <div className="flex items-center gap-3 mt-2 text-xs text-slate-400">
+                    <div className="flex items-center gap-3 mt-2 text-xs text-slate-400 dark:text-slate-500">
                         <span>{document.file_name || 'N/A'}</span>
                         <span>•</span>
                         <span>{formatFileSize(document.file_size)}</span>
@@ -416,7 +416,7 @@ function DocumentCard({ document, onDownload, onPreview, onDelete }) {
                             variant="ghost"
                             size="sm"
                             onClick={() => onPreview(document)}
-                            className="text-pink-600 hover:text-pink-700 hover:bg-pink-50"
+                            className="text-pink-600 hover:text-pink-700 hover:bg-pink-50 dark:hover:bg-pink-950/30"
                         >
                             <Play className="w-4 h-4" />
                         </Button>
@@ -426,7 +426,7 @@ function DocumentCard({ document, onDownload, onPreview, onDelete }) {
                         variant="ghost"
                         size="sm"
                         onClick={() => onDownload(document)}
-                        className="text-slate-600 hover:text-slate-900"
+                        className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
                     >
                         {isYouTube ? (
                             <ExternalLink className="w-4 h-4" />
@@ -448,25 +448,25 @@ function DocumentCard({ document, onDownload, onPreview, onDelete }) {
                         {menuOpen && (
                             <>
                                 <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                                <div className="absolute right-0 top-full mt-1 w-40 bg-white rounded-lg shadow-lg border z-20 py-1">
+                                <div className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-slate-800 rounded-lg shadow-lg border dark:border-slate-700 z-20 py-1">
                                     <button
                                         onClick={() => { onPreview(document); setMenuOpen(false); }}
-                                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
                                     >
                                         <Eye className="w-4 h-4" />
                                         Xem trước
                                     </button>
                                     <button
                                         onClick={() => { onDownload(document); setMenuOpen(false); }}
-                                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
                                     >
                                         <Download className="w-4 h-4" />
                                         Tải xuống
                                     </button>
-                                    <hr className="my-1" />
+                                    <hr className="my-1 dark:border-slate-700" />
                                     <button
                                         onClick={() => { onDelete(document); setMenuOpen(false); }}
-                                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
                                     >
                                         <Trash2 className="w-4 h-4" />
                                         Xóa
@@ -593,28 +593,28 @@ function UploadModal({ classId, courseId, getHeaders, onClose, onSuccess }) {
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b">
-                    <h3 className="text-lg font-semibold text-slate-900">Thêm tài liệu mới</h3>
+                <div className="flex items-center justify-between p-6 border-b dark:border-slate-700">
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Thêm tài liệu mới</h3>
                     <button
                         onClick={onClose}
-                        className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                        className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                     >
-                        <X className="w-5 h-5 text-slate-500" />
+                        <X className="w-5 h-5 text-slate-500 dark:text-slate-400" />
                     </button>
                 </div>
 
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="p-6 space-y-5">
                     {/* Upload mode toggle */}
-                    <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-lg">
+                    <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-slate-700 rounded-lg">
                         <button
                             type="button"
                             onClick={() => setUploadMode('file')}
                             className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-colors ${uploadMode === 'file'
-                                ? 'bg-white text-indigo-600 shadow-sm'
-                                : 'text-slate-600 hover:text-slate-900'
+                                ? 'bg-white dark:bg-slate-600 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                                 }`}
                         >
                             <Upload className="w-4 h-4" />
@@ -624,8 +624,8 @@ function UploadModal({ classId, courseId, getHeaders, onClose, onSuccess }) {
                             type="button"
                             onClick={() => setUploadMode('link')}
                             className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-colors ${uploadMode === 'link'
-                                ? 'bg-white text-indigo-600 shadow-sm'
-                                : 'text-slate-600 hover:text-slate-900'
+                                ? 'bg-white dark:bg-slate-600 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                                 }`}
                         >
                             <LinkIcon className="w-4 h-4" />
@@ -636,10 +636,10 @@ function UploadModal({ classId, courseId, getHeaders, onClose, onSuccess }) {
                     {/* File upload */}
                     {uploadMode === 'file' && (
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                 Chọn file
                             </label>
-                            <div className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-indigo-400 transition-colors">
+                            <div className="border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl p-6 text-center hover:border-indigo-400 dark:hover:border-indigo-500 transition-colors">
                                 <input
                                     type="file"
                                     onChange={handleFileChange}
@@ -652,17 +652,17 @@ function UploadModal({ classId, courseId, getHeaders, onClose, onSuccess }) {
                                         <div className="flex items-center justify-center gap-3">
                                             <Check className="w-8 h-8 text-green-500" />
                                             <div className="text-left">
-                                                <p className="font-medium text-slate-900">{file.name}</p>
-                                                <p className="text-sm text-slate-500">{formatFileSize(file.size)}</p>
+                                                <p className="font-medium text-slate-900 dark:text-slate-100">{file.name}</p>
+                                                <p className="text-sm text-slate-500 dark:text-slate-400">{formatFileSize(file.size)}</p>
                                             </div>
                                         </div>
                                     ) : (
                                         <>
-                                            <Upload className="w-10 h-10 text-slate-400 mx-auto mb-2" />
-                                            <p className="text-sm text-slate-600">
-                                                <span className="text-indigo-600 font-medium">Nhấn để chọn</span> hoặc kéo thả file
+                                            <Upload className="w-10 h-10 text-slate-400 dark:text-slate-500 mx-auto mb-2" />
+                                            <p className="text-sm text-slate-600 dark:text-slate-400">
+                                                <span className="text-indigo-600 dark:text-indigo-400 font-medium">Nhấn để chọn</span> hoặc kéo thả file
                                             </p>
-                                            <p className="text-xs text-slate-400 mt-1">
+                                            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
                                                 PDF, Word, Excel, PowerPoint, Video, Image (tối đa 50MB)
                                             </p>
                                         </>
@@ -675,7 +675,7 @@ function UploadModal({ classId, courseId, getHeaders, onClose, onSuccess }) {
                     {/* Link input */}
                     {uploadMode === 'link' && (
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                 Đường dẫn (URL)
                             </label>
                             <Input
@@ -684,7 +684,7 @@ function UploadModal({ classId, courseId, getHeaders, onClose, onSuccess }) {
                                 value={formData.linkUrl}
                                 onChange={(e) => setFormData(prev => ({ ...prev, linkUrl: e.target.value }))}
                             />
-                            <p className="text-xs text-slate-400 mt-1">
+                            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
                                 Hỗ trợ YouTube, Google Drive, Vimeo hoặc link trực tiếp đến file
                             </p>
                         </div>
@@ -692,7 +692,7 @@ function UploadModal({ classId, courseId, getHeaders, onClose, onSuccess }) {
 
                     {/* Title */}
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                             Tên tài liệu <span className="text-red-500">*</span>
                         </label>
                         <Input
@@ -704,13 +704,13 @@ function UploadModal({ classId, courseId, getHeaders, onClose, onSuccess }) {
 
                     {/* Description */}
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                             Mô tả
                         </label>
                         <textarea
                             rows={3}
                             placeholder="Mô tả ngắn về nội dung tài liệu..."
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none bg-white dark:bg-slate-700 dark:text-slate-200"
                             value={formData.description}
                             onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                         />
@@ -718,7 +718,7 @@ function UploadModal({ classId, courseId, getHeaders, onClose, onSuccess }) {
 
                     {/* Type */}
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                             Loại tài liệu
                         </label>
                         <div className="flex flex-wrap gap-2">
@@ -729,7 +729,7 @@ function UploadModal({ classId, courseId, getHeaders, onClose, onSuccess }) {
                                     onClick={() => setFormData(prev => ({ ...prev, type: key }))}
                                     className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${formData.type === key
                                         ? config.color
-                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                        : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600'
                                         }`}
                                 >
                                     <config.icon className="w-4 h-4" />
@@ -741,7 +741,7 @@ function UploadModal({ classId, courseId, getHeaders, onClose, onSuccess }) {
 
                     {/* Error */}
                     {error && (
-                        <div className="flex items-center gap-2 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+                        <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 rounded-lg text-sm">
                             <AlertCircle className="w-4 h-4 flex-shrink-0" />
                             {error}
                         </div>
@@ -840,12 +840,12 @@ function PreviewModal({ document, onClose }) {
 
     return (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b">
+                <div className="flex items-center justify-between p-4 border-b dark:border-slate-700">
                     <div>
-                        <h3 className="font-semibold text-slate-900">{document.title}</h3>
-                        <p className="text-sm text-slate-500">{document.file_name}</p>
+                        <h3 className="font-semibold text-slate-900 dark:text-slate-100">{document.title}</h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">{document.file_name}</p>
                     </div>
                     <div className="flex items-center gap-2">
                         <Button
@@ -871,15 +871,15 @@ function PreviewModal({ document, onClose }) {
                         </Button>
                         <button
                             onClick={onClose}
-                            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                         >
-                            <X className="w-5 h-5 text-slate-500" />
+                            <X className="w-5 h-5 text-slate-500 dark:text-slate-400" />
                         </button>
                     </div>
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-auto bg-slate-100 flex items-center justify-center">
+                <div className="flex-1 overflow-auto bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
                     {embedUrl ? (
                         // YouTube Video
                         <div className="w-full h-full flex items-center justify-center bg-black p-4">
@@ -937,11 +937,11 @@ function PreviewModal({ document, onClose }) {
                     ) : (
                         // Unsupported file type
                         <div className="text-center py-16">
-                            <div className="w-20 h-20 bg-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                                <File className="w-10 h-10 text-slate-400" />
+                            <div className="w-20 h-20 bg-slate-200 dark:bg-slate-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <File className="w-10 h-10 text-slate-400 dark:text-slate-500" />
                             </div>
-                            <h4 className="font-medium text-slate-700 mb-2">Không thể xem trước file này</h4>
-                            <p className="text-sm text-slate-500 mb-4">
+                            <h4 className="font-medium text-slate-700 dark:text-slate-300 mb-2">Không thể xem trước file này</h4>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
                                 Định dạng file: {document.file_name?.split('.').pop()?.toUpperCase() || 'Không xác định'}
                             </p>
                             <Button

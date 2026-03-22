@@ -31,17 +31,17 @@ export const DAY_NAMES = {
 
 // Class status configuration
 export const CLASS_STATUS_CONFIG = {
-  upcoming: { label: 'Sắp mở', color: 'bg-blue-100 text-blue-700' },
-  ongoing: { label: 'Đang học', color: 'bg-green-100 text-green-700' },
-  completed: { label: 'Hoàn thành', color: 'bg-slate-100 text-slate-700' },
-  cancelled: { label: 'Đã hủy', color: 'bg-red-100 text-red-700' }
+  upcoming: { label: 'Sắp mở', color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' },
+  ongoing: { label: 'Đang học', color: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' },
+  completed: { label: 'Hoàn thành', color: 'bg-slate-100 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300' },
+  cancelled: { label: 'Đã hủy', color: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' }
 };
 
 // Session status configuration
 export const SESSION_STATUS = {
   today: { label: 'Hôm nay', color: 'bg-indigo-500 text-white' },
-  completed: { label: 'Đã học', color: 'bg-slate-300 text-slate-600' },
-  upcoming: { label: 'Sắp tới', color: 'bg-blue-50 text-blue-600 border border-blue-200' }
+  completed: { label: 'Đã học', color: 'bg-slate-300 dark:bg-slate-700 text-slate-600 dark:text-slate-300' },
+  upcoming: { label: 'Sắp tới', color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-700' }
 };
 
 // Attendance status configuration

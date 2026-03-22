@@ -58,7 +58,7 @@ export function StudentsTab({
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-slate-900">Danh sách học viên</h3>
+        <h3 className="text-lg font-semibold text-foreground">Danh sách học viên</h3>
         <Button onClick={onAddClick}>
           <Plus className="w-4 h-4 mr-2" /> Thêm học viên
         </Button>
@@ -143,7 +143,7 @@ function FilterBar({
   onClearFilters
 }) {
   return (
-    <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 p-4 bg-slate-50/80 rounded-xl border border-slate-200">
+    <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 p-4 bg-muted/50 rounded-xl border border-border">
       {/* Search */}
       <div className="relative w-full lg:w-72">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -152,12 +152,12 @@ function FilterBar({
           value={searchValue}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Tìm tên, email, SĐT..."
-          className="pl-10 bg-white border-slate-200 focus:border-indigo-400"
+          className="pl-10 bg-background border-border focus:border-indigo-400"
         />
         {searchValue && (
           <button
             onClick={() => onSearchChange('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded-full transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full transition-colors"
           >
             <X className="w-3.5 h-3.5 text-slate-400" />
           </button>
@@ -171,7 +171,7 @@ function FilterBar({
           <select
             value={paymentStatus}
             onChange={(e) => onPaymentStatusChange(e.target.value)}
-            className="h-10 pl-3 pr-8 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 appearance-none cursor-pointer transition-all hover:border-slate-300"
+            className="h-10 pl-3 pr-8 rounded-lg border border-border bg-background text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 appearance-none cursor-pointer transition-all hover:border-muted-foreground/30"
           >
             <option value="all">Tất cả trạng thái</option>
             <option value="paid">● Đã đóng đủ</option>
@@ -184,15 +184,15 @@ function FilterBar({
           </div>
         </div>
 
-        <div className="hidden sm:block h-6 w-px bg-slate-200" />
+        <div className="hidden sm:block h-6 w-px bg-border" />
 
         {/* Page Size */}
         <div className="flex items-center gap-2">
-          <span className="text-sm text-slate-500 whitespace-nowrap">Hiển thị</span>
+          <span className="text-sm text-muted-foreground whitespace-nowrap">Hiển thị</span>
           <select
             value={limit}
             onChange={(e) => onLimitChange(e.target.value)}
-            className="h-9 px-2 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 cursor-pointer transition-all hover:border-slate-300"
+            className="h-9 px-2 rounded-lg border border-border bg-background text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 cursor-pointer transition-all hover:border-muted-foreground/30"
           >
             <option value={10}>10</option>
             <option value={20}>20</option>
@@ -204,10 +204,10 @@ function FilterBar({
         {/* Clear Filters */}
         {hasActiveFilters && (
           <>
-            <div className="hidden sm:block h-6 w-px bg-slate-200" />
+            <div className="hidden sm:block h-6 w-px bg-border" />
             <button
               onClick={onClearFilters}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
             >
               <X className="w-4 h-4" />
               <span className="hidden sm:inline">Xóa lọc</span>
@@ -222,27 +222,27 @@ function FilterBar({
 function FilterSummary({ search, paymentStatus, total }) {
   return (
     <div className="flex items-center gap-2 text-sm">
-      <span className="text-slate-500">Bộ lọc:</span>
+      <span className="text-muted-foreground">Bộ lọc:</span>
       {search && (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-medium">
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 text-xs font-medium">
           <Search className="w-3 h-3" />
           "{search}"
         </span>
       )}
       {paymentStatus === 'paid' && (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 text-xs font-medium">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
           Đã đóng đủ
         </span>
       )}
       {paymentStatus === 'unpaid' && (
-        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 text-red-700 text-xs font-medium">
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-xs font-medium">
           <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
           Còn nợ
         </span>
       )}
-      <span className="text-slate-300">|</span>
-      <span className="text-slate-600 font-medium">{total} kết quả</span>
+      <span className="text-border">|</span>
+      <span className="text-foreground font-medium">{total} kết quả</span>
     </div>
   );
 }
@@ -257,19 +257,19 @@ function LoadingState() {
 
 function EmptyState({ hasFilters, onClearFilters, onAddClick }) {
   return (
-    <div className="text-center py-12 bg-slate-50 rounded-xl">
-      <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+    <div className="text-center py-12 bg-muted/50 rounded-xl">
+      <Users className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" />
       {hasFilters ? (
         <>
-          <p className="text-slate-600 font-medium">Không tìm thấy học viên</p>
-          <p className="text-sm text-slate-400 mt-1">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
+          <p className="text-foreground font-medium">Không tìm thấy học viên</p>
+          <p className="text-sm text-muted-foreground mt-1">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
           <Button variant="outline" className="mt-4" onClick={onClearFilters}>
             <X className="w-4 h-4 mr-2" /> Xóa bộ lọc
           </Button>
         </>
       ) : (
         <>
-          <p className="text-slate-500">Chưa có học viên nào trong lớp</p>
+          <p className="text-muted-foreground">Chưa có học viên nào trong lớp</p>
           <Button className="mt-4" onClick={onAddClick}>
             <Plus className="w-4 h-4 mr-2" /> Thêm học viên đầu tiên
           </Button>
@@ -281,11 +281,11 @@ function EmptyState({ hasFilters, onClearFilters, onAddClick }) {
 
 function BulkActionBar({ selectedCount, onClearSelection, onBulkDelete }) {
   return (
-    <div className="flex items-center justify-between p-3 bg-indigo-50 border border-indigo-200 rounded-xl animate-in fade-in slide-in-from-top-2 duration-200">
+    <div className="flex items-center justify-between p-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-xl animate-in fade-in slide-in-from-top-2 duration-200">
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
-          <CheckSquare className="w-5 h-5 text-indigo-600" />
-          <span className="font-medium text-indigo-900">
+          <CheckSquare className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+          <span className="font-medium text-indigo-900 dark:text-indigo-200">
             Đã chọn {selectedCount} học viên
           </span>
         </div>
@@ -321,14 +321,14 @@ function StudentsTable({
   onDeleteClick
 }) {
   return (
-    <div className="overflow-x-auto border border-slate-200 rounded-xl">
+    <div className="overflow-x-auto border border-border rounded-xl">
       <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
-        <thead className="bg-slate-50">
-          <tr className="border-b border-slate-200">
+        <thead className="bg-muted/50">
+          <tr className="border-b border-border">
             <th className="w-12 py-3 px-4">
               <button
                 onClick={onToggleSelectAll}
-                className="flex items-center justify-center text-slate-500 hover:text-indigo-600 transition-colors"
+                className="flex items-center justify-center text-muted-foreground hover:text-indigo-600 transition-colors"
               >
                 {allSelected ? (
                   <CheckSquare className="w-5 h-5 text-indigo-600" />
@@ -339,15 +339,15 @@ function StudentsTable({
                 )}
               </button>
             </th>
-            <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Học viên</th>
+            <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Học viên</th>
             <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Liên hệ</th>
             <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Ngày vào lớp</th>
             <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Học phí</th>
             <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Trạng thái</th>
-            <th className="text-right py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Thao tác</th>
+            <th className="text-right py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Thao tác</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100 bg-white">
+        <tbody className="divide-y divide-border bg-card">
           {students.map((student) => (
             <StudentRow
               key={student.enrollment_id}
@@ -369,11 +369,11 @@ function StudentRow({ student, searchTerm, isSelected, onToggleSelect, onPayment
   const paymentStatus = getPaymentStatus(student);
 
   return (
-    <tr className={`hover:bg-slate-50 transition-colors ${isSelected ? 'bg-indigo-50/50' : ''}`}>
+    <tr className={`hover:bg-muted/50 transition-colors ${isSelected ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : ''}`}>
       <td className="py-3 px-4">
         <button
           onClick={onToggleSelect}
-          className="flex items-center justify-center text-slate-500 hover:text-indigo-600 transition-colors"
+          className="flex items-center justify-center text-muted-foreground hover:text-indigo-600 transition-colors"
         >
           {isSelected ? (
             <CheckSquare className="w-5 h-5 text-indigo-600" />
@@ -386,17 +386,17 @@ function StudentRow({ student, searchTerm, isSelected, onToggleSelect, onPayment
         <div className="flex items-center gap-3">
           <Avatar name={student.full_name} url={student.avatar_url} />
           <div>
-            <p className="font-medium text-slate-900">
+            <p className="font-medium text-foreground">
               <HighlightedText text={student.full_name} searchTerm={searchTerm} />
             </p>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               <HighlightedText text={student.email} searchTerm={searchTerm} />
             </p>
           </div>
         </div>
       </td>
       <td className="py-3 px-4">
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-muted-foreground">
           <HighlightedText text={student.phone || '-'} searchTerm={searchTerm} />
         </p>
       </td>
@@ -407,10 +407,10 @@ function StudentRow({ student, searchTerm, isSelected, onToggleSelect, onPayment
       </td>
       <td className="py-3 px-4">
         <div className="text-sm">
-          <p className="text-slate-900 font-medium">
+          <p className="text-foreground font-medium">
             {(student.amount_due || 0).toLocaleString()}đ
           </p>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-muted-foreground">
             Đã đóng: {(student.paid_amount || 0).toLocaleString()}đ
           </p>
         </div>
@@ -436,7 +436,7 @@ function StudentRow({ student, searchTerm, isSelected, onToggleSelect, onPayment
               variant="ghost"
               size="sm"
               onClick={() => onPaymentClick(student)}
-              className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+              className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
               title="Thu học phí"
             >
               <Banknote className="w-4 h-4" />
@@ -446,7 +446,7 @@ function StudentRow({ student, searchTerm, isSelected, onToggleSelect, onPayment
             variant="ghost"
             size="sm"
             onClick={() => onDeleteClick(student)}
-            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
           >
             <Trash2 className="w-4 h-4" />
           </Button>
@@ -460,16 +460,16 @@ function Pagination({ pagination, onPageChange }) {
   const { page, limit, total, totalPages, hasPrevPage, hasNextPage } = pagination;
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-200">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-border">
       {/* Summary */}
-      <div className="text-sm text-slate-500">
-        Đang xem <span className="font-medium text-slate-900">{((page - 1) * limit) + 1}</span>
+      <div className="text-sm text-muted-foreground">
+        Đang xem <span className="font-medium text-foreground">{((page - 1) * limit) + 1}</span>
         {' '}-{' '}
-        <span className="font-medium text-slate-900">
+        <span className="font-medium text-foreground">
           {Math.min(page * limit, total)}
         </span>
         {' '}trên tổng số{' '}
-        <span className="font-medium text-slate-900">{total}</span> học viên
+        <span className="font-medium text-foreground">{total}</span> học viên
       </div>
 
       {/* Navigation */}
@@ -501,10 +501,10 @@ function PageNumbers({ current, total, onPageChange }) {
 
   if (current > 3) {
     pages.push(
-      <button key={1} onClick={() => onPageChange(1)} className="w-8 h-8 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100">1</button>
+      <button key={1} onClick={() => onPageChange(1)} className="w-8 h-8 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted">1</button>
     );
     if (current > 4) {
-      pages.push(<span key="dots1" className="px-1 text-slate-400">...</span>);
+      pages.push(<span key="dots1" className="px-1 text-muted-foreground">...</span>);
     }
   }
 
@@ -513,7 +513,7 @@ function PageNumbers({ current, total, onPageChange }) {
       <button
         key={i}
         onClick={() => onPageChange(i)}
-        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${i === current ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${i === current ? 'bg-indigo-600 text-white' : 'text-muted-foreground hover:bg-muted'
           }`}
       >
         {i}
@@ -523,10 +523,10 @@ function PageNumbers({ current, total, onPageChange }) {
 
   if (current < total - 2) {
     if (current < total - 3) {
-      pages.push(<span key="dots2" className="px-1 text-slate-400">...</span>);
+      pages.push(<span key="dots2" className="px-1 text-muted-foreground">...</span>);
     }
     pages.push(
-      <button key={total} onClick={() => onPageChange(total)} className="w-8 h-8 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100">{total}</button>
+      <button key={total} onClick={() => onPageChange(total)} className="w-8 h-8 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted">{total}</button>
     );
   }
 
@@ -535,18 +535,18 @@ function PageNumbers({ current, total, onPageChange }) {
 
 function SummaryCards({ summary }) {
   return (
-    <div className="grid grid-cols-3 gap-4 pt-4 border-t border-slate-200">
-      <div className="p-4 bg-slate-50 rounded-lg">
-        <p className="text-sm text-slate-500">Tổng học viên trong lớp</p>
-        <p className="text-2xl font-bold text-slate-900">{summary.totalInClass}</p>
+    <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border">
+      <div className="p-4 bg-muted/50 rounded-lg">
+        <p className="text-sm text-muted-foreground">Tổng học viên trong lớp</p>
+        <p className="text-2xl font-bold text-foreground">{summary.totalInClass}</p>
       </div>
-      <div className="p-4 bg-green-50 rounded-lg">
-        <p className="text-sm text-green-600">Đã đóng đủ</p>
-        <p className="text-2xl font-bold text-green-700">{summary.paid}</p>
+      <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+        <p className="text-sm text-green-600 dark:text-green-400">Đã đóng đủ</p>
+        <p className="text-2xl font-bold text-green-700 dark:text-green-300">{summary.paid}</p>
       </div>
-      <div className="p-4 bg-red-50 rounded-lg">
-        <p className="text-sm text-red-600">Còn nợ</p>
-        <p className="text-2xl font-bold text-red-700">{summary.unpaid}</p>
+      <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
+        <p className="text-sm text-red-600 dark:text-red-400">Còn nợ</p>
+        <p className="text-2xl font-bold text-red-700 dark:text-red-300">{summary.unpaid}</p>
       </div>
     </div>
   );

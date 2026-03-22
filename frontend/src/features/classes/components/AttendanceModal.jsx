@@ -45,24 +45,24 @@ export function AttendanceModal({
       />
       
       {/* Modal */}
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-xl max-h-[85vh] overflow-hidden flex flex-col">
+      <div className="relative bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-xl max-h-[85vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-slate-200">
+        <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-700">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-slate-900">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                 Điểm danh buổi {session.session_number}
               </h3>
-              <p className="text-sm text-slate-500 mt-0.5">
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
                 {session.day_name}, {new Date(session.date).toLocaleDateString('vi-VN')} • {session.start_time} - {session.end_time}
               </p>
             </div>
             <button 
               onClick={onClose}
               disabled={saving}
-              className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
             >
-              <X className="w-5 h-5 text-slate-500" />
+              <X className="w-5 h-5 text-slate-500 dark:text-slate-400" />
             </button>
           </div>
           
@@ -71,7 +71,7 @@ export function AttendanceModal({
             <StatItem color="emerald" label="Có mặt" count={summary.present} />
             <StatItem color="amber" label="Trễ" count={summary.late} />
             <StatItem color="red" label="Vắng" count={summary.absent} />
-            <span className="ml-auto text-slate-400">
+            <span className="ml-auto text-slate-400 dark:text-slate-500">
               {summary.total} học viên
             </span>
           </div>
@@ -79,15 +79,15 @@ export function AttendanceModal({
 
         {/* Search - Show if > 10 students */}
         {attendanceList.length > 10 && (
-          <div className="px-5 py-2 border-b border-slate-100">
+          <div className="px-5 py-2 border-b border-slate-100 dark:border-slate-700/50">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
                 placeholder="Tìm học viên..."
-                className="w-full h-9 pl-9 pr-4 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-slate-50"
+                className="w-full h-9 pl-9 pr-4 rounded-lg border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-slate-50 dark:bg-slate-900/50 dark:text-slate-100"
               />
             </div>
           </div>
@@ -98,15 +98,15 @@ export function AttendanceModal({
           {loading ? (
             <div className="text-center py-12">
               <Loader2 className="w-6 h-6 text-indigo-600 animate-spin mx-auto mb-2" />
-              <p className="text-sm text-slate-500">Đang tải...</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Đang tải...</p>
             </div>
           ) : filteredList.length === 0 ? (
             <div className="text-center py-12">
-              <Users className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-              <p className="text-sm text-slate-500">Không tìm thấy học viên</p>
+              <Users className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+              <p className="text-sm text-slate-500 dark:text-slate-400">Không tìm thấy học viên</p>
             </div>
           ) : (
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
               {filteredList.map((student, index) => (
                 <StudentRow
                   key={student.enrollment_id}
@@ -121,7 +121,7 @@ export function AttendanceModal({
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-slate-200 flex items-center gap-3">
+        <div className="px-5 py-3 border-t border-slate-200 dark:border-slate-700 flex items-center gap-3">
           <Button
             variant="outline"
             className="flex-1"
@@ -167,24 +167,24 @@ function StatItem({ color, label, count }) {
   return (
     <div className="flex items-center gap-1.5">
       <span className={`w-2 h-2 rounded-full ${colorClasses[color]}`} />
-      <span className="text-slate-600">{label}:</span>
-      <span className={`font-semibold ${textClasses[color]}`}>{count}</span>
+      <span className="text-slate-600 dark:text-slate-300">{label}:</span>
+      <span className={`font-semibold ${textClasses[color]} dark:brightness-110`}>{count}</span>
     </div>
   );
 }
 
 function StudentRow({ student, index, onUpdateStatus, onUpdateNotes }) {
   return (
-    <div className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors">
+    <div className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
       {/* Index */}
-      <span className="w-5 text-center text-xs font-medium text-slate-400 flex-shrink-0">
+      <span className="w-5 text-center text-xs font-medium text-slate-400 dark:text-slate-500 flex-shrink-0">
         {index + 1}
       </span>
 
       {/* Avatar & Name */}
       <div className="flex items-center gap-2.5 flex-1 min-w-0">
         <Avatar name={student.full_name} url={student.avatar_url} size="sm" />
-        <span className="text-sm font-medium text-slate-900 truncate">
+        <span className="text-sm font-medium text-slate-900 dark:text-slate-100 truncate">
           {student.full_name}
         </span>
       </div>
@@ -221,7 +221,7 @@ function StudentRow({ student, index, onUpdateStatus, onUpdateNotes }) {
           value={student.notes || ''}
           onChange={(e) => onUpdateNotes(student.enrollment_id, e.target.value)}
           placeholder="Lý do..."
-          className="w-28 h-7 px-2 text-xs rounded border border-slate-200 focus:outline-none focus:ring-1 focus:ring-red-400 focus:border-red-400"
+          className="w-28 h-7 px-2 text-xs rounded border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-1 focus:ring-red-400 focus:border-red-400 bg-white dark:bg-slate-900 dark:text-slate-100"
         />
       )}
     </div>
@@ -236,9 +236,9 @@ function StatusButton({ active, onClick, color, icon: Icon, title }) {
   };
   
   const hoverColors = {
-    emerald: 'hover:bg-emerald-50 hover:text-emerald-600',
-    amber: 'hover:bg-amber-50 hover:text-amber-600',
-    red: 'hover:bg-red-50 hover:text-red-600'
+    emerald: 'hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-400',
+    amber: 'hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/30 dark:hover:text-amber-400',
+    red: 'hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400'
   };
 
   return (
@@ -247,7 +247,7 @@ function StatusButton({ active, onClick, color, icon: Icon, title }) {
       className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
         active
           ? activeColors[color]
-          : `bg-slate-100 text-slate-400 ${hoverColors[color]}`
+          : `bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 ${hoverColors[color]}`
       }`}
       title={title}
     >

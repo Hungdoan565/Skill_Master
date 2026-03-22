@@ -6,10 +6,10 @@ export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 // Status config cho lớp học
 export const STATUS_CONFIG = {
-  upcoming: { label: 'Sắp mở', color: 'bg-blue-100 text-blue-700 border-blue-200' },
-  ongoing: { label: 'Đang học', color: 'bg-green-100 text-green-700 border-green-200' },
-  completed: { label: 'Đã kết thúc', color: 'bg-slate-100 text-slate-700 border-slate-200' },
-  cancelled: { label: 'Đã hủy', color: 'bg-red-100 text-red-700 border-red-200' },
+  upcoming: { label: 'Sắp mở', color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700' },
+  ongoing: { label: 'Đang học', color: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-700' },
+  completed: { label: 'Đã kết thúc', color: 'bg-slate-100 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700' },
+  cancelled: { label: 'Đã hủy', color: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700' },
 };
 
 // Day names
@@ -27,12 +27,12 @@ export const DAYS_OF_WEEK = [
 
 // Category colors for courses
 export const CATEGORY_COLORS = {
-  english: 'bg-blue-100 text-blue-700',
-  ielts: 'bg-amber-100 text-amber-700',
-  toeic: 'bg-emerald-100 text-emerald-700',
-  it: 'bg-purple-100 text-purple-700',
-  programming: 'bg-violet-100 text-violet-700',
-  default: 'bg-slate-100 text-slate-700',
+  english: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
+  ielts: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300',
+  toeic: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300',
+  it: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300',
+  programming: 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300',
+  default: 'bg-muted text-muted-foreground',
 };
 
 // Default form values cho tạo lớp mới

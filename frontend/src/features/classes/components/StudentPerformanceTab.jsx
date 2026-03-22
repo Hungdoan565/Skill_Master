@@ -54,11 +54,11 @@ const FILTER_OPTIONS = [
 // KPI Card component
 function KPICard({ title, value, subValue, icon: Icon, color, trend }) {
     const colorClasses = {
-        indigo: 'bg-indigo-50 text-indigo-600',
-        green: 'bg-green-50 text-green-600',
-        amber: 'bg-amber-50 text-amber-600',
-        red: 'bg-red-50 text-red-600',
-        blue: 'bg-blue-50 text-blue-600'
+        indigo: 'bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400',
+        green: 'bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400',
+        amber: 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400',
+        red: 'bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400',
+        blue: 'bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400'
     };
 
     return (
@@ -66,10 +66,10 @@ function KPICard({ title, value, subValue, icon: Icon, color, trend }) {
             <CardContent className="p-4">
                 <div className="flex items-start justify-between">
                     <div>
-                        <p className="text-sm text-slate-500">{title}</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">{title}</p>
                         <p className="text-2xl font-bold mt-1">{value}</p>
                         {subValue && (
-                            <p className="text-xs text-slate-400 mt-1">{subValue}</p>
+                            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{subValue}</p>
                         )}
                     </div>
                     <div className={`p-3 rounded-lg ${colorClasses[color]}`}>
@@ -101,16 +101,16 @@ function DistributionChart({ data }) {
         <div className="space-y-3">
             {data.map((item, idx) => (
                 <div key={idx} className="flex items-center gap-3">
-                    <div className="w-20 text-sm text-slate-600">{item.label}</div>
-                    <div className="flex-1 h-6 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="w-20 text-sm text-slate-600 dark:text-slate-400">{item.label}</div>
+                    <div className="flex-1 h-6 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                         <div
                             className={`h-full rounded-full transition-all duration-500 ${item.color}`}
                             style={{ width: `${(item.count / maxValue) * 100}%` }}
                         />
                     </div>
                     <div className="w-16 text-right">
-                        <span className="font-semibold text-slate-900">{item.count}</span>
-                        <span className="text-xs text-slate-400 ml-1">({item.percent}%)</span>
+                        <span className="font-semibold text-slate-900 dark:text-slate-100">{item.count}</span>
+                        <span className="text-xs text-slate-400 dark:text-slate-500 ml-1">({item.percent}%)</span>
                     </div>
                 </div>
             ))}
@@ -125,7 +125,7 @@ function AtRiskCard({ students, onViewStudent }) {
             <div className="text-center py-6 text-slate-500">
                 <CheckCircle className="w-10 h-10 mx-auto mb-2 text-green-500" />
                 <p className="font-medium">Tất cả học viên đang học tốt!</p>
-                <p className="text-sm text-slate-400">Không có học viên nào cần hỗ trợ</p>
+                <p className="text-sm text-slate-400 dark:text-slate-500">Không có học viên nào cần hỗ trợ</p>
             </div>
         );
     }
@@ -135,21 +135,21 @@ function AtRiskCard({ students, onViewStudent }) {
             {students.map((student, idx) => (
                 <div
                     key={idx}
-                    className="flex items-center justify-between p-3 bg-red-50 border border-red-100 rounded-lg cursor-pointer hover:bg-red-100 transition-colors"
+                    className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900 rounded-lg cursor-pointer hover:bg-red-100 dark:hover:bg-red-950/40 transition-colors"
                     onClick={() => onViewStudent?.(student)}
                 >
                     <div className="flex items-center gap-3">
                         <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
                         <div>
-                            <p className="font-medium text-slate-900">{student.name}</p>
-                            <p className="text-xs text-red-600">{student.alertMessage}</p>
+                            <p className="font-medium text-slate-900 dark:text-slate-100">{student.name}</p>
+                            <p className="text-xs text-red-600 dark:text-red-400">{student.alertMessage}</p>
                         </div>
                     </div>
                     <div className="text-right">
-                        <p className="text-sm font-medium text-slate-700">
+                        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
                             {student.attendanceRate}% ĐD
                         </p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
                             Điểm: {student.averageGrade?.toFixed(1) || '—'}
                         </p>
                     </div>
@@ -311,8 +311,8 @@ export function StudentPerformanceTab({
         return (
             <div className="text-center py-16">
                 <BarChart3 className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-600 font-medium">Chưa có dữ liệu performance</p>
-                <p className="text-sm text-slate-400 mt-1">
+                <p className="text-slate-600 dark:text-slate-400 font-medium">Chưa có dữ liệu performance</p>
+                <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">
                     Cần có học viên trong lớp để xem phân tích
                 </p>
             </div>
@@ -324,8 +324,8 @@ export function StudentPerformanceTab({
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h3 className="text-lg font-semibold text-slate-900">Phân tích Performance</h3>
-                    <p className="text-sm text-slate-500">
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Phân tích Performance</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
                         Theo dõi tiến độ học tập của {summary.total} học viên
                     </p>
                 </div>
@@ -385,7 +385,7 @@ export function StudentPerformanceTab({
                 </Card>
 
                 {/* At-Risk Students */}
-                <Card className="border-red-100">
+                <Card className="border-red-100 dark:border-red-900">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-base flex items-center gap-2">
                             <AlertTriangle className="w-5 h-5 text-red-500" />
@@ -402,7 +402,7 @@ export function StudentPerformanceTab({
             </div>
 
             {/* Filter Bar */}
-            <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 p-4 bg-slate-50 rounded-xl">
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-800/30 rounded-xl">
                 {/* Search */}
                 <div className="relative w-full lg:w-72">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -411,7 +411,7 @@ export function StudentPerformanceTab({
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         placeholder="Tìm học viên..."
-                        className="pl-10 bg-white"
+                        className="pl-10 bg-white dark:bg-slate-800"
                     />
                     {searchTerm && (
                         <button
@@ -428,7 +428,7 @@ export function StudentPerformanceTab({
                     <select
                         value={filterBy}
                         onChange={(e) => setFilterBy(e.target.value)}
-                        className="h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm"
+                        className="h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-slate-200 text-sm"
                     >
                         {FILTER_OPTIONS.map(opt => (
                             <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -439,7 +439,7 @@ export function StudentPerformanceTab({
                     <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value)}
-                        className="h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm"
+                        className="h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-slate-200 text-sm"
                     >
                         {SORT_OPTIONS.map(opt => (
                             <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -447,16 +447,16 @@ export function StudentPerformanceTab({
                     </select>
 
                     {/* View Mode Toggle */}
-                    <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden">
+                    <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
                         <button
                             onClick={() => setViewMode('cards')}
-                            className={`p-2 ${viewMode === 'cards' ? 'bg-indigo-50 text-indigo-600' : 'bg-white text-slate-400'}`}
+                            className={`p-2 ${viewMode === 'cards' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-500'}`}
                         >
                             <BarChart3 className="w-5 h-5" />
                         </button>
                         <button
                             onClick={() => setViewMode('compact')}
-                            className={`p-2 ${viewMode === 'compact' ? 'bg-indigo-50 text-indigo-600' : 'bg-white text-slate-400'}`}
+                            className={`p-2 ${viewMode === 'compact' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-500'}`}
                         >
                             <Users className="w-5 h-5" />
                         </button>
@@ -465,7 +465,7 @@ export function StudentPerformanceTab({
             </div>
 
             {/* Results count */}
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
                 Hiển thị {filteredStudents.length} / {performanceData.length} học viên
             </p>
 
@@ -493,10 +493,10 @@ export function StudentPerformanceTab({
             </div>
 
             {filteredStudents.length === 0 && (
-                <div className="text-center py-12 bg-slate-50 rounded-xl">
+                <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/30 rounded-xl">
                     <Search className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                    <p className="text-slate-600 font-medium">Không tìm thấy học viên</p>
-                    <p className="text-sm text-slate-400 mt-1">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
+                    <p className="text-slate-600 dark:text-slate-400 font-medium">Không tìm thấy học viên</p>
+                    <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
                     <Button
                         variant="outline"
                         className="mt-4"

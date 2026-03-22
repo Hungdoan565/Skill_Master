@@ -38,7 +38,7 @@ function ConflictConfirmModal({ isOpen, onClose, onConfirm, messages }) {
       aria-labelledby="conflict-confirm-title"
     >
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative bg-white dark:bg-slate-800 rounded-xl shadow-2xl dark:shadow-black/40 w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="bg-gradient-to-r from-amber-500 to-amber-600 px-6 py-4">
           <div className="flex items-center justify-between">
@@ -61,26 +61,26 @@ function ConflictConfirmModal({ isOpen, onClose, onConfirm, messages }) {
 
         {/* Body */}
         <div className="p-6">
-          <p className="text-slate-600 mb-4">
+          <p className="text-slate-600 dark:text-slate-300 mb-4">
             Hệ thống phát hiện xung đột lịch học sau:
           </p>
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 max-h-40 overflow-y-auto">
-            <ul className="space-y-1 text-sm text-amber-800">
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 rounded-lg p-3 mb-4 max-h-40 overflow-y-auto">
+            <ul className="space-y-1 text-sm text-amber-800 dark:text-amber-300">
               {messages.map((msg, idx) => (
                 <li key={idx} className="flex items-start gap-2">
-                  <span className="text-amber-500 mt-0.5">•</span>
+                  <span className="text-amber-500 dark:text-amber-400 mt-0.5">•</span>
                   <span>{msg}</span>
                 </li>
               ))}
             </ul>
           </div>
-          <p className="text-slate-500 text-sm">
+          <p className="text-slate-500 dark:text-slate-400 text-sm">
             Bạn vẫn muốn tiếp tục tạo lớp học với xung đột này?
           </p>
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-slate-50 border-t flex justify-end gap-3">
+        <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
           <Button variant="outline" onClick={onClose}>
             Hủy bỏ
           </Button>
@@ -191,7 +191,7 @@ export function CreateClassModal({
         <form onSubmit={handleSubmit}>
           {/* Form Error */}
           {formError && (
-            <div className="mx-5 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-red-700">
+            <div className="mx-5 mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg flex items-start gap-2 text-red-700 dark:text-red-400">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span className="text-sm">{formError}</span>
             </div>
@@ -199,7 +199,7 @@ export function CreateClassModal({
 
           {/* Capacity Error */}
           {capacityError && (
-            <div className="mx-5 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-red-700">
+            <div className="mx-5 mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-lg flex items-start gap-2 text-red-700 dark:text-red-400">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
               <span className="text-sm">{capacityError}</span>
             </div>
@@ -207,7 +207,7 @@ export function CreateClassModal({
 
           <div className="flex flex-col lg:flex-row">
             {/* CỘT TRÁI - FORM */}
-            <div className="w-full lg:w-2/5 p-5 space-y-4 border-r">
+            <div className="w-full lg:w-2/5 p-5 space-y-4 border-r border-slate-200 dark:border-slate-700">
               {/* Mã lớp & Tên lớp */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
@@ -216,7 +216,7 @@ export function CreateClassModal({
                     placeholder="Tự động tạo khi chọn khóa học..."
                     value={formData.code}
                     readOnly
-                    className="h-9 text-sm bg-slate-50 text-slate-600 cursor-not-allowed"
+                    className="h-9 text-sm bg-slate-50 dark:bg-slate-700/50 text-slate-600 dark:text-slate-400 cursor-not-allowed"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -235,7 +235,7 @@ export function CreateClassModal({
                     <button
                       type="button"
                       onClick={onRegenerateName}
-                      className="h-9 w-9 flex items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                      className="h-9 w-9 flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-600 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
                       title="Tự động tạo tên lớp"
                     >
                       <RefreshCw className="h-4 w-4" />
@@ -275,7 +275,7 @@ export function CreateClassModal({
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium flex items-center gap-1">
                   Giáo viên <span className="text-red-500">*</span>
-                  {formData.teacher_id && <span className="text-slate-400">(Xem lịch bên phải)</span>}
+                  {formData.teacher_id && <span className="text-slate-400 dark:text-slate-500">(Xem lịch bên phải)</span>}
                 </Label>
                 <Select
                   value={formData.teacher_id}
@@ -320,7 +320,7 @@ export function CreateClassModal({
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium flex items-center gap-1">
                     Phòng học
-                    {selectedRoom && <span className="text-slate-400">({selectedRoom.capacity} chỗ)</span>}
+                    {selectedRoom && <span className="text-slate-400 dark:text-slate-500">({selectedRoom.capacity} chỗ)</span>}
                   </Label>
                   <Select
                     value={formData.room_id}
@@ -389,8 +389,8 @@ export function CreateClassModal({
                       className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all duration-300 ${selectedDays.includes(value)
                         ? 'bg-gradient-to-br from-red-500 to-orange-500 text-white border-transparent shadow-md shadow-orange-500/20 scale-105'
                         : validationErrors.schedule
-                          ? 'bg-white text-slate-600 border-red-300 hover:border-red-400'
-                          : 'bg-white text-slate-600 border-slate-200 hover:border-orange-300 hover:text-orange-600 hover:bg-orange-50/30'
+                          ? 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-red-300 dark:border-red-600 hover:border-red-400'
+                          : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:border-orange-300 dark:hover:border-orange-500 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50/30 dark:hover:bg-orange-900/20'
                         }`}
                     >
                       {label}
@@ -460,7 +460,7 @@ export function CreateClassModal({
                     </p>
                   )}
                   {selectedRoom && formData.max_students <= selectedRoom.capacity && (
-                    <p className="text-xs text-slate-500 mt-1">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                       Sức chứa phòng: <span className="font-medium">{selectedRoom.capacity} chỗ</span>
                     </p>
                   )}
@@ -478,12 +478,12 @@ export function CreateClassModal({
 
               {/* Lịch học đã chọn (Preview) */}
               {formData.schedule.length > 0 && (
-                <div className="p-3 bg-orange-50 rounded-lg border border-orange-100/50 backdrop-blur-sm shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-100/50 dark:border-orange-800/40 backdrop-blur-sm shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
                   <div className="flex items-start gap-2">
-                    <CalendarIcon className="h-4 w-4 text-orange-500 shrink-0 mt-0.5" />
-                    <div className="text-sm text-orange-900">
+                    <CalendarIcon className="h-4 w-4 text-orange-500 dark:text-orange-400 shrink-0 mt-0.5" />
+                    <div className="text-sm text-orange-900 dark:text-orange-300">
                       <p className="font-semibold">Lịch học đã chọn:</p>
-                      <p className="text-orange-700/80">
+                      <p className="text-orange-700/80 dark:text-orange-400/80">
                         {selectedDays.map(d => DAY_NAMES[d]).join(', ')} | {startTime} - {endTime}
                       </p>
                     </div>
@@ -493,33 +493,33 @@ export function CreateClassModal({
             </div>
 
             {/* CỘT PHẢI - SMART VALIDATION CARD */}
-            <div className="w-full lg:w-3/5 p-6 bg-slate-50 border-l flex flex-col">
-              <h3 className="text-lg font-semibold text-slate-800 mb-4">Kiểm tra tình trạng</h3>
+            <div className="w-full lg:w-3/5 p-6 bg-slate-50 dark:bg-slate-800/50 border-l border-slate-200 dark:border-slate-700 flex flex-col">
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">Kiểm tra tình trạng</h3>
 
               <ConflictCard status={conflictStatus} messages={conflictMessages} />
 
               {/* Thông tin tổng quan lớp học */}
               {formData.course_id && (
-                <div className="mt-4 bg-white rounded-lg border border-slate-200 p-4">
-                  <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                <div className="mt-4 bg-white dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600 p-4">
+                  <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
                     <CalendarIcon className="w-4 h-4 text-orange-500" />
                     Thông tin lớp học
                   </h4>
                   <div className="space-y-2 text-sm">
                     {/* Khóa học */}
                     {formData.course_id && (
-                      <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
-                        <span className="text-slate-500">Khóa học:</span>
-                        <span className="font-medium text-slate-800 text-right max-w-[60%] truncate">
+                      <div className="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-600/50">
+                        <span className="text-slate-500 dark:text-slate-400">Khóa học:</span>
+                        <span className="font-medium text-slate-800 dark:text-slate-200 text-right max-w-[60%] truncate">
                           {courses.find(c => c.id === formData.course_id)?.title || 'N/A'}
                         </span>
                       </div>
                     )}
 
                     {/* Giáo viên */}
-                    <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
-                      <span className="text-slate-500">Giáo viên:</span>
-                      <span className={`font-medium ${formData.teacher_id ? 'text-slate-800' : 'text-amber-600'}`}>
+                    <div className="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-600/50">
+                      <span className="text-slate-500 dark:text-slate-400">Giáo viên:</span>
+                      <span className={`font-medium ${formData.teacher_id ? 'text-slate-800 dark:text-slate-200' : 'text-amber-600 dark:text-amber-400'}`}>
                         {formData.teacher_id
                           ? teachers.find(t => t.id === formData.teacher_id)?.full_name || 'N/A'
                           : 'Chưa phân công'
@@ -528,9 +528,9 @@ export function CreateClassModal({
                     </div>
 
                     {/* Phòng học */}
-                    <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
-                      <span className="text-slate-500">Phòng học:</span>
-                      <span className={`font-medium ${selectedRoom ? 'text-slate-800' : 'text-amber-600'}`}>
+                    <div className="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-600/50">
+                      <span className="text-slate-500 dark:text-slate-400">Phòng học:</span>
+                      <span className={`font-medium ${selectedRoom ? 'text-slate-800 dark:text-slate-200' : 'text-amber-600 dark:text-amber-400'}`}>
                         {selectedRoom
                           ? `${selectedRoom.name} (${selectedRoom.capacity} chỗ)`
                           : 'Chưa chọn'
@@ -540,9 +540,9 @@ export function CreateClassModal({
 
                     {/* Thời gian */}
                     {formData.start_date && formData.end_date && (
-                      <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
-                        <span className="text-slate-500">Thời gian:</span>
-                        <span className="font-medium text-slate-800">
+                      <div className="flex items-center justify-between py-1.5 border-b border-slate-100 dark:border-slate-600/50">
+                        <span className="text-slate-500 dark:text-slate-400">Thời gian:</span>
+                        <span className="font-medium text-slate-800 dark:text-slate-200">
                           {new Date(formData.start_date).toLocaleDateString('vi-VN')} - {new Date(formData.end_date).toLocaleDateString('vi-VN')}
                         </span>
                       </div>
@@ -550,10 +550,10 @@ export function CreateClassModal({
 
                     {/* Sĩ số */}
                     <div className="flex items-center justify-between py-1.5">
-                      <span className="text-slate-500">Sĩ số tối đa:</span>
+                      <span className="text-slate-500 dark:text-slate-400">Sĩ số tối đa:</span>
                       <span className={`font-medium ${selectedRoom && formData.max_students > selectedRoom.capacity
-                        ? 'text-red-600'
-                        : 'text-slate-800'
+                        ? 'text-red-600 dark:text-red-400'
+                        : 'text-slate-800 dark:text-slate-200'
                         }`}>
                         {formData.max_students} học viên
                         {selectedRoom && formData.max_students > selectedRoom.capacity && (
@@ -567,21 +567,21 @@ export function CreateClassModal({
 
               {/* Lịch học preview khi chưa có conflict check */}
               {formData.schedule.length > 0 && (
-                <div className="mt-4 bg-orange-50/50 rounded-xl border border-orange-200/40 p-4 backdrop-blur-sm shadow-inner">
-                  <h4 className="text-sm font-semibold text-orange-700 mb-2 flex items-center gap-2">
+                <div className="mt-4 bg-orange-50/50 dark:bg-orange-900/15 rounded-xl border border-orange-200/40 dark:border-orange-800/30 p-4 backdrop-blur-sm shadow-inner">
+                  <h4 className="text-sm font-semibold text-orange-700 dark:text-orange-400 mb-2 flex items-center gap-2">
                     <CalendarIcon className="w-4 h-4" />
                     Lịch học chi tiết
                   </h4>
                   <div className="space-y-1.5">
                     {formData.schedule.map((s, idx) => (
                       <div key={idx} className="flex items-center justify-between text-sm">
-                        <span className="text-orange-900/70 font-medium">{DAY_NAMES[s.day]}</span>
-                        <span className="text-orange-600 font-semibold">{s.start} - {s.end}</span>
+                        <span className="text-orange-900/70 dark:text-orange-300/80 font-medium">{DAY_NAMES[s.day]}</span>
+                        <span className="text-orange-600 dark:text-orange-400 font-semibold">{s.start} - {s.end}</span>
                       </div>
                     ))}
                   </div>
                   {formData.start_date && formData.end_date && (
-                    <div className="mt-3 pt-3 border-t border-orange-200/50 text-xs text-orange-600/70 font-medium flex items-center gap-1">
+                    <div className="mt-3 pt-3 border-t border-orange-200/50 dark:border-orange-700/40 text-xs text-orange-600/70 dark:text-orange-400/70 font-medium flex items-center gap-1">
                       <span>📅</span>
                       <span>Từ {new Date(formData.start_date).toLocaleDateString('vi-VN')} đến {new Date(formData.end_date).toLocaleDateString('vi-VN')}</span>
                     </div>
@@ -591,8 +591,8 @@ export function CreateClassModal({
 
               {/* Thông tin bổ sung */}
               <div className="mt-auto pt-4">
-                <div className="text-xs text-slate-500 bg-white rounded-lg p-3 border border-slate-200">
-                  <p className="font-medium text-slate-700 mb-1">💡 Hướng dẫn</p>
+                <div className="text-xs text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-700/50 rounded-lg p-3 border border-slate-200 dark:border-slate-600">
+                  <p className="font-medium text-slate-700 dark:text-slate-300 mb-1">💡 Hướng dẫn</p>
                   <ul className="space-y-1">
                     <li>• Hệ thống tự động kiểm tra xung đột khi bạn điền đủ thông tin</li>
                     <li>• Xung đột xảy ra khi giáo viên hoặc phòng đã có lịch trùng</li>
@@ -604,7 +604,7 @@ export function CreateClassModal({
           </div>
 
           {/* Footer */}
-          <div className="flex justify-end gap-2 p-4 border-t bg-slate-50">
+          <div className="flex justify-end gap-2 p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
             <Button type="button" variant="outline" onClick={onClose}>
               Hủy
             </Button>

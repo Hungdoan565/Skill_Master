@@ -50,13 +50,13 @@ export function SimpleModal({ isOpen, onClose, title, children, size = 'md' }) {
       aria-labelledby={titleId}
     >
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-      <div className={`relative w-full ${sizeClass} transform rounded-xl bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[95vh] overflow-hidden flex flex-col`}>
+      <div className={`relative w-full ${sizeClass} transform rounded-xl bg-white dark:bg-slate-800 shadow-2xl dark:shadow-black/40 animate-in fade-in zoom-in-95 duration-200 max-h-[95vh] overflow-hidden flex flex-col`}>
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b bg-slate-50 shrink-0">
-          <h2 id={titleId} className="text-lg font-semibold text-slate-900">{title}</h2>
+        <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 shrink-0">
+          <h2 id={titleId} className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
           <button 
             onClick={onClose} 
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors"
+            className="rounded-lg p-1.5 text-slate-400 dark:text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
           >
             <X className="h-5 w-5" />
           </button>

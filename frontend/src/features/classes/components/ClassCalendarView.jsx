@@ -24,33 +24,33 @@ const MONTHS = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Th�
 // Status configuration
 const STATUS_CONFIG = {
     scheduled: {
-        bg: 'bg-blue-100 hover:bg-blue-200',
+        bg: 'bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/40 dark:hover:bg-blue-900/60',
         border: 'border-l-blue-500',
-        text: 'text-blue-700',
+        text: 'text-blue-700 dark:text-blue-300',
         dot: 'bg-blue-500'
     },
     upcoming: {
-        bg: 'bg-blue-100 hover:bg-blue-200',
+        bg: 'bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/40 dark:hover:bg-blue-900/60',
         border: 'border-l-blue-500',
-        text: 'text-blue-700',
+        text: 'text-blue-700 dark:text-blue-300',
         dot: 'bg-blue-500'
     },
     today: {
-        bg: 'bg-amber-100 hover:bg-amber-200',
+        bg: 'bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/40 dark:hover:bg-amber-900/60',
         border: 'border-l-amber-500',
-        text: 'text-amber-700',
+        text: 'text-amber-700 dark:text-amber-300',
         dot: 'bg-amber-500 animate-pulse'
     },
     completed: {
-        bg: 'bg-green-100 hover:bg-green-200',
+        bg: 'bg-green-100 hover:bg-green-200 dark:bg-green-900/40 dark:hover:bg-green-900/60',
         border: 'border-l-green-500',
-        text: 'text-green-700',
+        text: 'text-green-700 dark:text-green-300',
         dot: 'bg-green-500'
     },
     cancelled: {
-        bg: 'bg-slate-100 hover:bg-slate-200',
+        bg: 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700',
         border: 'border-l-slate-400',
-        text: 'text-slate-500 line-through',
+        text: 'text-slate-500 dark:text-slate-400 line-through',
         dot: 'bg-slate-400'
     }
 };
@@ -114,7 +114,7 @@ function SessionCard({ session, onClick }) {
                     <CheckCircle className="w-3 h-3 text-green-600 ml-auto shrink-0" />
                 )}
             </div>
-            <div className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1">
+            <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1">
                 <Clock className="w-2.5 h-2.5" />
                 {formatTime(session.start_time)}
             </div>
@@ -180,7 +180,7 @@ export function ClassCalendarView({
                     <Button variant="outline" size="sm" onClick={() => navigate(1)}>
                         <ChevronRight className="w-4 h-4" />
                     </Button>
-                    <h2 className="text-lg font-semibold text-slate-900 ml-2">
+                    <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 ml-2">
                         {MONTHS[month]} {year}
                     </h2>
                 </div>
@@ -189,21 +189,21 @@ export function ClassCalendarView({
                 <div className="flex items-center gap-4 text-sm">
                     <div className="flex items-center gap-1.5">
                         <CheckCircle className="w-4 h-4 text-green-600" />
-                        <span className="text-slate-600">{stats.completed}/{stats.total} hoàn thành</span>
+                        <span className="text-slate-600 dark:text-slate-300">{stats.completed}/{stats.total} hoàn thành</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                         <AlertTriangle className="w-4 h-4 text-amber-500" />
-                        <span className="text-slate-600">{stats.marked} đã điểm danh</span>
+                        <span className="text-slate-600 dark:text-slate-300">{stats.marked} đã điểm danh</span>
                     </div>
                 </div>
             </div>
 
             {/* Calendar Grid */}
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
                 {/* Header - Days of week */}
-                <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
+                <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
                     {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(day => (
-                        <div key={day} className="p-2 text-center text-xs font-medium text-slate-500 border-r border-slate-200 last:border-r-0">
+                        <div key={day} className="p-2 text-center text-xs font-medium text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-800 last:border-r-0">
                             {day}
                         </div>
                     ))}
@@ -220,15 +220,15 @@ export function ClassCalendarView({
                             <div
                                 key={i}
                                 className={`
-                  min-h-[100px] p-1.5 border-b border-r border-slate-100 
-                  ${!isCurrentMonth ? 'bg-slate-50/50' : ''}
-                  ${isToday ? 'bg-indigo-50/50' : ''}
+                  min-h-[100px] p-1.5 border-b border-r border-slate-100 dark:border-slate-800/50 
+                  ${!isCurrentMonth ? 'bg-slate-50/50 dark:bg-slate-800/30' : ''}
+                  ${isToday ? 'bg-indigo-50/50 dark:bg-indigo-900/20' : ''}
                 `}
                             >
                                 {/* Date number */}
                                 <div className={`
                   text-sm font-medium mb-1
-                  ${isToday ? 'text-indigo-600' : isCurrentMonth ? 'text-slate-900' : 'text-slate-400'}
+                  ${isToday ? 'text-indigo-600 dark:text-indigo-400' : isCurrentMonth ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500'}
                 `}>
                                     <span className={`
                     inline-flex items-center justify-center w-6 h-6 rounded-full
@@ -248,7 +248,7 @@ export function ClassCalendarView({
                                         />
                                     ))}
                                     {daySessions.length > 2 && (
-                                        <div className="text-[10px] text-slate-500 text-center">
+                                        <div className="text-[10px] text-slate-500 dark:text-slate-400 text-center">
                                             +{daySessions.length - 2} buổi khác
                                         </div>
                                     )}
@@ -260,8 +260,8 @@ export function ClassCalendarView({
             </div>
 
             {/* Legend */}
-            <div className="flex flex-wrap items-center gap-4 text-xs">
-                <span className="font-medium text-slate-600">Chú thích:</span>
+            <div className="flex flex-wrap items-center gap-4 text-xs mt-4">
+                <span className="font-medium text-slate-600 dark:text-slate-300">Chú thích:</span>
                 {[
                     { status: 'scheduled', label: 'Sắp tới' },
                     { status: 'today', label: 'Đang diễn ra' },
@@ -270,12 +270,12 @@ export function ClassCalendarView({
                 ].map(({ status, label }) => (
                     <div key={status} className="flex items-center gap-1.5">
                         <span className={`w-2 h-2 rounded-full ${STATUS_CONFIG[status].dot}`} />
-                        <span className="text-slate-600">{label}</span>
+                        <span className="text-slate-600 dark:text-slate-300">{label}</span>
                     </div>
                 ))}
                 <div className="flex items-center gap-1.5">
                     <CheckCircle className="w-3 h-3 text-green-600" />
-                    <span className="text-slate-600">Đã điểm danh</span>
+                    <span className="text-slate-600 dark:text-slate-300">Đã điểm danh</span>
                 </div>
             </div>
         </div>

@@ -53,7 +53,7 @@ const TrendIcon = ({ trend }) => {
 const ProgressBar = ({ value, max = 100, colorClass = 'bg-indigo-500' }) => {
     const percentage = Math.min(100, Math.max(0, (value / max) * 100));
     return (
-        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+        <div className="w-full h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
             <div
                 className={`h-full rounded-full transition-all duration-500 ${colorClass}`}
                 style={{ width: `${percentage}%` }}
@@ -65,9 +65,9 @@ const ProgressBar = ({ value, max = 100, colorClass = 'bg-indigo-500' }) => {
 // Alert badge component
 const AlertBadge = ({ type, message }) => {
     const config = {
-        danger: { bg: 'bg-red-50', text: 'text-red-700', icon: AlertTriangle },
-        warning: { bg: 'bg-amber-50', text: 'text-amber-700', icon: AlertTriangle },
-        success: { bg: 'bg-green-50', text: 'text-green-700', icon: CheckCircle },
+        danger: { bg: 'bg-red-50 dark:bg-red-950/30', text: 'text-red-700 dark:text-red-400', icon: AlertTriangle },
+        warning: { bg: 'bg-amber-50 dark:bg-amber-950/30', text: 'text-amber-700 dark:text-amber-400', icon: AlertTriangle },
+        success: { bg: 'bg-green-50 dark:bg-green-950/30', text: 'text-green-700 dark:text-green-400', icon: CheckCircle },
     };
     const { bg, text, icon: Icon } = config[type] || config.warning;
 
@@ -81,14 +81,14 @@ const AlertBadge = ({ type, message }) => {
 
 // Stat item component
 const StatItem = ({ icon: Icon, label, value, subValue, colorClass = 'text-slate-600' }) => (
-    <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-        <div className={`p-2 rounded-lg bg-white ${colorClass}`}>
+    <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+        <div className={`p-2 rounded-lg bg-white dark:bg-slate-700 ${colorClass}`}>
             <Icon className="w-4 h-4" />
         </div>
         <div className="flex-1 min-w-0">
-            <p className="text-xs text-slate-500">{label}</p>
-            <p className="font-semibold text-slate-900">{value}</p>
-            {subValue && <p className="text-xs text-slate-400">{subValue}</p>}
+            <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
+            <p className="font-semibold text-slate-900 dark:text-slate-100">{value}</p>
+            {subValue && <p className="text-xs text-slate-400 dark:text-slate-500">{subValue}</p>}
         </div>
     </div>
 );
@@ -168,12 +168,12 @@ export function StudentPerformanceCard({
 
     if (compact) {
         return (
-            <div className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-lg hover:border-slate-300 transition-colors">
+            <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-800/30 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
                 <div className="flex items-center gap-3">
                     <Avatar name={student.name} size="sm" url={student.avatarUrl} />
                     <div>
-                        <p className="font-medium text-sm text-slate-900">{student.name}</p>
-                        <p className="text-xs text-slate-500">#{rank}/{totalStudents}</p>
+                        <p className="font-medium text-sm text-slate-900 dark:text-slate-100">{student.name}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">#{rank}/{totalStudents}</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -181,7 +181,7 @@ export function StudentPerformanceCard({
                         <p className={`font-semibold ${getGradeColor(performance?.averageGrade || 0)}`}>
                             {performance?.averageGrade?.toFixed(1) || '—'}
                         </p>
-                        <p className="text-xs text-slate-400">{performance?.attendanceRate || 0}% ĐD</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500">{performance?.attendanceRate || 0}% ĐD</p>
                     </div>
                     {alerts.length > 0 && (
                         <div className="w-2 h-2 rounded-full bg-amber-500" title={alerts.map(a => a.message).join(', ')} />
@@ -192,25 +192,25 @@ export function StudentPerformanceCard({
     }
 
     return (
-        <div className={`bg-white border rounded-xl overflow-hidden transition-all ${performanceLevel.level === 'danger' ? 'border-red-200' :
-                performanceLevel.level === 'warning' ? 'border-amber-200' :
-                    'border-slate-200'
+        <div className={`bg-white dark:bg-slate-800/30 border rounded-xl overflow-hidden transition-all ${performanceLevel.level === 'danger' ? 'border-red-200 dark:border-red-900' :
+                performanceLevel.level === 'warning' ? 'border-amber-200 dark:border-amber-900' :
+                    'border-slate-200 dark:border-slate-700'
             }`}>
             {/* Header */}
-            <div className="p-4 border-b border-slate-100">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-700">
                 <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                         <Avatar name={student.name} size="md" url={student.avatarUrl} />
                         <div>
-                            <h4 className="font-semibold text-slate-900">{student.name}</h4>
-                            <p className="text-sm text-slate-500">{student.email}</p>
+                            <h4 className="font-semibold text-slate-900 dark:text-slate-100">{student.name}</h4>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">{student.email}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-${performanceLevel.color}-50 text-${performanceLevel.color}-700`}>
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-${performanceLevel.color}-50 text-${performanceLevel.color}-700 dark:bg-${performanceLevel.color}-900/30 dark:text-${performanceLevel.color}-400`}>
                             {performanceLevel.label}
                         </span>
-                        <span className="text-sm font-medium text-slate-500">
+                        <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
                             #{rank}/{totalStudents}
                         </span>
                     </div>
@@ -231,8 +231,8 @@ export function StudentPerformanceCard({
                 {/* Attendance */}
                 <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-500">Điểm danh</span>
-                        <span className="font-semibold text-slate-900">
+                        <span className="text-xs text-slate-500 dark:text-slate-400">Điểm danh</span>
+                        <span className="font-semibold text-slate-900 dark:text-slate-100">
                             {performance?.attendanceRate || 0}%
                         </span>
                     </div>
@@ -240,7 +240,7 @@ export function StudentPerformanceCard({
                         value={performance?.attendanceRate || 0}
                         colorClass={getAttendanceColor(performance?.attendanceRate || 0)}
                     />
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-slate-400 dark:text-slate-500">
                         {performance?.presentCount || 0}/{performance?.totalSessions || 0} buổi
                     </p>
                 </div>
@@ -248,7 +248,7 @@ export function StudentPerformanceCard({
                 {/* Average Grade */}
                 <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                        <span className="text-xs text-slate-500">Điểm TB</span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400">Điểm TB</span>
                         <span className={`font-semibold ${getGradeColor(performance?.averageGrade || 0)}`}>
                             {performance?.averageGrade?.toFixed(1) || '—'}
                         </span>
@@ -258,7 +258,7 @@ export function StudentPerformanceCard({
                         max={10}
                         colorClass={performance?.averageGrade >= 5 ? 'bg-blue-500' : 'bg-red-500'}
                     />
-                    <div className="flex items-center gap-1 text-xs text-slate-400">
+                    <div className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500">
                         <TrendIcon trend={performance?.trend} />
                         {performance?.trend === 'improving' ? 'Tiến bộ' :
                             performance?.trend === 'declining' ? 'Giảm' : 'Ổn định'}
@@ -267,39 +267,39 @@ export function StudentPerformanceCard({
 
                 {/* Completed Assignments */}
                 <div className="text-center p-2">
-                    <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-indigo-50 mb-1">
-                        <BookOpen className="w-5 h-5 text-indigo-600" />
+                    <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-950/40 mb-1">
+                        <BookOpen className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                     </div>
-                    <p className="font-semibold text-slate-900">{performance?.completedAssignments || 0}</p>
-                    <p className="text-xs text-slate-500">Bài đã nộp</p>
+                    <p className="font-semibold text-slate-900 dark:text-slate-100">{performance?.completedAssignments || 0}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Bài đã nộp</p>
                 </div>
 
                 {/* Last Activity */}
                 <div className="text-center p-2">
-                    <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-green-50 mb-1">
-                        <Clock className="w-5 h-5 text-green-600" />
+                    <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-green-50 dark:bg-green-950/30 mb-1">
+                        <Clock className="w-5 h-5 text-green-600 dark:text-green-400" />
                     </div>
-                    <p className="font-semibold text-slate-900">
+                    <p className="font-semibold text-slate-900 dark:text-slate-100">
                         {performance?.lastAttendance
                             ? new Date(performance.lastAttendance).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
                             : '—'
                         }
                     </p>
-                    <p className="text-xs text-slate-500">Lần ĐD cuối</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Lần ĐD cuối</p>
                 </div>
             </div>
 
             {/* Expandable Details */}
             {expanded && (
-                <div className="p-4 bg-slate-50 border-t border-slate-100 space-y-4">
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700 space-y-4">
                     {/* Grade Breakdown */}
                     {performance?.gradeBreakdown && performance.gradeBreakdown.length > 0 && (
                         <div>
-                            <h5 className="text-sm font-medium text-slate-700 mb-2">Chi tiết điểm</h5>
+                            <h5 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Chi tiết điểm</h5>
                             <div className="space-y-2">
                                 {performance.gradeBreakdown.map((item, idx) => (
                                     <div key={idx} className="flex items-center justify-between text-sm">
-                                        <span className="text-slate-600">{item.name}</span>
+                                        <span className="text-slate-600 dark:text-slate-400">{item.name}</span>
                                         <span className={`font-medium ${getGradeColor(item.score)}`}>
                                             {item.score?.toFixed(1) || '—'}/{item.maxScore}
                                         </span>
@@ -331,8 +331,8 @@ export function StudentPerformanceCard({
 
                     {/* Recent Activity */}
                     <div>
-                        <h5 className="text-sm font-medium text-slate-700 mb-2">Hoạt động gần đây</h5>
-                        <div className="space-y-2 text-sm text-slate-600">
+                        <h5 className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Hoạt động gần đây</h5>
+                        <div className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
                             {performance?.recentAttendance?.slice(0, 5).map((item, idx) => (
                                 <div key={idx} className="flex items-center justify-between">
                                     <span>{new Date(item.date).toLocaleDateString('vi-VN')}</span>
@@ -352,12 +352,12 @@ export function StudentPerformanceCard({
             )}
 
             {/* Footer */}
-            <div className="flex items-center justify-between p-3 bg-slate-50 border-t border-slate-100">
+            <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700">
                 <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => setExpanded(!expanded)}
-                    className="text-slate-600"
+                    className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
                 >
                     {expanded ? (
                         <>
