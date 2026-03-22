@@ -38,6 +38,14 @@ const STATUS_CONFIG = {
     locked: { label: 'Đã khóa', className: 'bg-muted text-muted-foreground border-border' }
 };
 
+const getSessionClassId = (session) => (
+    session?.class_id ||
+    session?.classId ||
+    session?.class?.id ||
+    session?.classes?.id ||
+    null
+);
+
 function StatusBadge({ status }) {
     const config = STATUS_CONFIG[status] || STATUS_CONFIG.upcoming;
     return (
@@ -84,7 +92,12 @@ function SessionCard({ session, onNavigate }) {
 
             <Button
                 size="sm"
-                className="w-full"
+                className={cn(
+                    'w-full',
+                    session.attendanceStatus === 'completed'
+                        ? 'dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800'
+                        : 'dark:bg-blue-500 dark:text-white dark:hover:bg-blue-400'
+                )}
                 variant={session.attendanceStatus === 'completed' ? 'outline' : 'default'}
                 onClick={() => onNavigate(session)}
             >
@@ -190,6 +203,11 @@ export function TeacherQuickAttendancePage() {
             const flatSessions = scheduleGroups.flatMap(group =>
                 (group.sessions || []).map(s => ({
                     ...s,
+                    class_id: getSessionClassId(s),
+                    class_name: s.class_name || s.classes?.name || s.class?.name || '',
+                    course_name: s.course_name || s.classes?.courses?.title || s.class?.course?.title || '',
+                    room_name: s.room_name || s.roomName || s.classes?.rooms?.name || s.class?.room?.name || '',
+                    student_count: s.student_count || s.classes?.current_students || s.class?.current_students || 0,
                     session_date: s.session_date || group.date
                 }))
             );
@@ -253,7 +271,14 @@ export function TeacherQuickAttendancePage() {
     }, [categorizedSessions, todayStr]);
 
     const handleNavigate = (session) => {
-        navigate(`/teacher/classes/${session.class_id}/attendance?session=${session.id}`);
+        const targetClassId = getSessionClassId(session);
+
+        if (!targetClassId) {
+            setError('Không tìm thấy lớp học cho buổi này. Vui lòng tải lại trang hoặc mở từ trang Lớp học.');
+            return;
+        }
+
+        navigate(`/teacher/classes/${targetClassId}/attendance?session=${session.id}`);
     };
 
     if (loading) {

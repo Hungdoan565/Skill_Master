@@ -17849,6 +17849,50 @@ app.patch('/api/admin/payroll-disputes/:id',
 
       console.log(`Ã°Å¸â€œÂ Dispute ${id} updated to status: ${status}`);
 
+      if (
+        ['reviewing', 'resolved', 'rejected'].includes(updated.status)
+        && existing.teacher_id
+        && existing.teacher?.center_id
+      ) {
+        let title = null;
+        let message = null;
+
+        if (updated.status === 'reviewing') {
+          title = 'Khiếu nại lương đang được xem xét';
+          message = 'Quản lý đang xem xét khiếu nại bảng lương của bạn.';
+        } else if (updated.status === 'resolved') {
+          title = 'Khiếu nại lương đã được giải quyết';
+          message = 'Khiếu nại bảng lương của bạn đã được quản lý giải quyết.';
+        } else if (updated.status === 'rejected') {
+          title = 'Khiếu nại lương đã bị từ chối';
+          message = 'Khiếu nại bảng lương của bạn đã bị quản lý từ chối.';
+        }
+
+        if (title && message) {
+          const adminResponseText = typeof updated.admin_response === 'string'
+            ? updated.admin_response.trim()
+            : '';
+
+          if (adminResponseText) {
+            message = `${message} Phản hồi: ${adminResponseText}`;
+          }
+
+          const notificationResult = await createNotification(supabaseAdmin, {
+            userId: existing.teacher_id,
+            centerId: existing.teacher.center_id,
+            type: `payroll_dispute_${updated.status}`,
+            title,
+            message,
+            referenceId: updated.id,
+            referenceType: 'payroll_dispute'
+          });
+
+          if (!notificationResult?.success && notificationResult?.reason !== 'insert_failed') {
+            console.warn('⚠️ Failed to create payroll dispute status notification:', notificationResult?.reason);
+          }
+        }
+      }
+
       res.json({
         success: true,
         data: updated,

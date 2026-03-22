@@ -20,7 +20,19 @@ const getAuthHeaders = async () => {
   };
 };
 
+const normalizeClassId = (classId) => {
+  if (classId === null || classId === undefined) return null;
+
+  const normalized = String(classId).trim();
+  if (!normalized || normalized.toLowerCase() === 'undefined' || normalized.toLowerCase() === 'null') {
+    return null;
+  }
+
+  return normalized;
+};
+
 export function useTeacherAttendance(classId) {
+  const normalizedClassId = normalizeClassId(classId);
   const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
   const [attendance, setAttendance] = useState([]);
@@ -44,7 +56,11 @@ export function useTeacherAttendance(classId) {
   }), [attendance, students]);
 
   const fetchSessions = useCallback(async () => {
-    if (!classId) return;
+    if (!normalizedClassId) {
+      setSessions([]);
+      setError('Không tìm thấy lớp học để tải điểm danh');
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -52,7 +68,7 @@ export function useTeacherAttendance(classId) {
     try {
       const headers = await getAuthHeaders();
       const response = await axios.get(
-        `${API_URL}/api/teacher/classes/${classId}`,
+        `${API_URL}/api/teacher/classes/${normalizedClassId}`,
         { headers }
       );
 
@@ -74,15 +90,18 @@ export function useTeacherAttendance(classId) {
     } finally {
       setLoading(false);
     }
-  }, [classId]);
+  }, [normalizedClassId]);
 
   const fetchStudents = useCallback(async () => {
-    if (!classId) return;
+    if (!normalizedClassId) {
+      setStudents([]);
+      return;
+    }
 
     try {
       const headers = await getAuthHeaders();
       const response = await axios.get(
-        `${API_URL}/api/teacher/classes/${classId}/students`,
+        `${API_URL}/api/teacher/classes/${normalizedClassId}/students`,
         { headers }
       );
 
@@ -92,7 +111,7 @@ export function useTeacherAttendance(classId) {
     } catch (err) {
       console.error('Error fetching students:', err);
     }
-  }, [classId]);
+  }, [normalizedClassId]);
 
   const fetchAttendance = useCallback(async (sessionId) => {
     if (!sessionId) return;
@@ -234,4 +253,3 @@ export function useTeacherAttendance(classId) {
     refetch,
   };
 }
-

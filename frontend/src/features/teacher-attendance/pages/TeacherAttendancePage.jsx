@@ -159,7 +159,7 @@ export function TeacherAttendancePage() {
                 title={`Điểm danh lớp ${className || '...'}`}
                 subtitle="Quản lý điểm danh học viên theo buổi học"
                 icon={ClipboardCheck}
-                iconColorClass="text-emerald-600 bg-emerald-500/10"
+                iconColorClass="text-emerald-600 dark:text-emerald-300 bg-emerald-500/10 dark:bg-emerald-400/15"
                 breadcrumbs={[
                     { label: 'Lớp học', href: '/teacher/classes' },
                     { label: className || 'Chi tiết lớp', href: `/teacher/classes/${id}` },
