@@ -62,14 +62,14 @@ export function GeneratePayrollModal({
         <div className="fixed inset-0 z-[300] flex items-center justify-center">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black/50"
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm dark:bg-black/80"
                 onClick={onClose}
             />
 
             {/* Modal */}
-            <div className="relative z-10 w-full max-w-lg rounded-lg bg-white shadow-xl mx-4">
+            <div className="relative z-10 mx-4 w-full max-w-lg rounded-lg border border-border bg-card text-foreground shadow-xl dark:bg-zinc-950 dark:border-zinc-800 dark:shadow-2xl">
                 {/* Header */}
-                <div className="flex items-center justify-between border-b px-6 py-4">
+                <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-card dark:bg-zinc-950">
                     <h2 className="text-lg font-semibold">Tạo bảng lương</h2>
                     <Button variant="ghost" size="icon" onClick={onClose}>
                         <X className="h-5 w-5" />
@@ -79,9 +79,9 @@ export function GeneratePayrollModal({
                 {/* Content */}
                 <form onSubmit={handleSubmit} className="p-6 space-y-6">
                     {/* Teacher Info */}
-                    <div className="p-4 rounded-lg bg-slate-50 space-y-3">
+                    <div className="p-4 rounded-lg bg-muted/50 dark:bg-muted/20 border border-border space-y-3">
                         <div className="flex items-center gap-3">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 font-bold text-lg">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-bold text-lg">
                                 {teacher.full_name?.charAt(0)?.toUpperCase() || 'T'}
                             </div>
                             <div>
@@ -91,11 +91,11 @@ export function GeneratePayrollModal({
                         </div>
                         <div className="flex items-center gap-4 text-sm">
                             <span className="flex items-center gap-1">
-                                <Clock className="h-4 w-4 text-slate-400" />
+                                <Clock className="h-4 w-4 text-muted-foreground" />
                                 {formatMonthYear(teacher.month, teacher.year)}
                             </span>
                             <span className="flex items-center gap-1">
-                                <FileText className="h-4 w-4 text-slate-400" />
+                                <FileText className="h-4 w-4 text-muted-foreground" />
                                 {teacher.total_sessions} buổi / {formatHours(teacher.total_hours)}
                             </span>
                         </div>
@@ -104,11 +104,11 @@ export function GeneratePayrollModal({
                     {/* Base Salary (readonly) */}
                     <div className="space-y-2">
                         <Label>Lương cơ bản</Label>
-                        <div className="p-3 rounded-lg bg-green-50 border border-green-200">
-                            <span className="text-lg font-semibold text-green-700">
+                        <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 dark:bg-emerald-500/15 p-3">
+                            <span className="text-lg font-semibold text-emerald-700 dark:text-emerald-300">
                                 {formatCurrency(teacher.base_salary || 0)}
                             </span>
-                            <p className="text-xs text-green-600 mt-1">
+                            <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
                                 {formatHours(teacher.total_hours)} × {formatCurrency(teacher.hourly_rate || 150000)}/giờ
                             </p>
                         </div>
@@ -149,22 +149,22 @@ export function GeneratePayrollModal({
                             placeholder="Ghi chú thêm về bảng lương..."
                             value={formData.notes}
                             onChange={(e) => handleChange('notes', e.target.value)}
-                            className="w-full rounded-md border border-input bg-white px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         />
                     </div>
 
                     {/* Net Salary Preview */}
-                    <div className="p-4 rounded-lg bg-indigo-50 border border-indigo-200">
+                    <div className="rounded-lg border border-indigo-500/20 bg-indigo-500/10 dark:bg-indigo-500/15 p-4">
                         <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-indigo-700">Thực nhận</span>
-                            <span className="text-xl font-bold text-indigo-700">
+                            <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">Thực nhận</span>
+                            <span className="text-xl font-bold text-indigo-700 dark:text-indigo-300">
                                 {formatCurrency(netSalary)}
                             </span>
                         </div>
                     </div>
 
                     {/* Buttons */}
-                    <div className="flex justify-end gap-2 pt-4 border-t">
+                    <div className="flex justify-end gap-2 border-t border-border pt-4">
                         <Button type="button" variant="outline" onClick={onClose}>
                             Hủy
                         </Button>

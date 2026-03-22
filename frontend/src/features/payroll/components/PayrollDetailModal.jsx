@@ -30,14 +30,14 @@ export function PayrollDetailModal({
         <div className="fixed inset-0 z-[300] flex items-center justify-center">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black/50"
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm dark:bg-black/80"
                 onClick={onClose}
             />
 
             {/* Modal */}
-            <div className="relative z-10 w-full max-w-4xl max-h-[90vh] overflow-auto rounded-lg bg-white shadow-xl mx-4">
+            <div className="relative z-10 w-full max-w-4xl max-h-[90vh] flex flex-col rounded-lg bg-card border border-border text-foreground shadow-xl dark:bg-zinc-950 dark:border-zinc-800 dark:shadow-2xl mx-4">
                 {/* Header */}
-                <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+                <div className="sticky top-0 z-20 bg-card dark:bg-zinc-950 border-b border-border dark:border-zinc-800 px-6 py-4 flex items-center justify-between shadow-sm">
                     <div>
                         <h2 className="text-xl font-semibold">Chi tiết Bảng lương</h2>
                         {detailData && (
@@ -60,20 +60,20 @@ export function PayrollDetailModal({
                 </div>
 
                 {/* Content */}
-                <div className="p-6">
+                <div className="p-6 overflow-y-auto">
                     {loading ? (
                         <div className="space-y-4">
-                            <div className="h-32 bg-slate-100 animate-pulse rounded-lg" />
-                            <div className="h-64 bg-slate-100 animate-pulse rounded-lg" />
+                            <div className="h-32 bg-muted animate-pulse rounded-lg" />
+                            <div className="h-64 bg-muted animate-pulse rounded-lg" />
                         </div>
                     ) : detailData ? (
                         <div className="space-y-6">
                             {/* Teacher Info & Summary */}
                             <div className="grid md:grid-cols-2 gap-6">
                                 {/* Teacher Card */}
-                                <div className="p-4 rounded-lg bg-slate-50 space-y-3">
+                                <div className="p-4 rounded-lg bg-muted dark:bg-muted/20 space-y-3">
                                     <div className="flex items-center gap-3">
-                                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 font-bold text-lg">
+                                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-bold text-lg">
                                             {detailData.teacher?.full_name?.charAt(0)?.toUpperCase() || 'T'}
                                         </div>
                                         <div>
@@ -83,7 +83,7 @@ export function PayrollDetailModal({
                                     </div>
                                     <div className="flex items-center gap-4 text-sm">
                                         <span className="flex items-center gap-1">
-                                            <DollarSign className="h-4 w-4 text-slate-400" />
+                                            <DollarSign className="h-4 w-4 text-muted-foreground" />
                                             {formatCurrency(detailData.teacher?.hourly_rate || 150000)}/giờ
                                         </span>
                                         {detailData.teacher?.phone && (
@@ -95,7 +95,7 @@ export function PayrollDetailModal({
                                 </div>
 
                                 {/* Summary Card */}
-                                <div className="p-4 rounded-lg border space-y-3">
+                                <div className="p-4 rounded-lg border border-border bg-muted/30 dark:bg-muted/10 space-y-3">
                                     <div className="flex items-center justify-between">
                                         <span className="text-sm text-muted-foreground">Trạng thái</span>
                                         <Badge variant={getPayrollStatusColor(detailData.status)}>
@@ -120,7 +120,7 @@ export function PayrollDetailModal({
                             </div>
 
                             {/* Salary Breakdown */}
-                            <div className="p-4 rounded-lg border">
+                            <div className="p-4 rounded-lg border border-border bg-card">
                                 <h3 className="font-semibold mb-4 flex items-center gap-2">
                                     <DollarSign className="h-5 w-5 text-green-600" />
                                     Chi tiết lương
@@ -156,15 +156,15 @@ export function PayrollDetailModal({
 
                             {/* Notes */}
                             {detailData.notes && (
-                                <div className="p-4 rounded-lg bg-yellow-50 border border-yellow-200">
-                                    <h4 className="font-medium text-sm text-yellow-800 mb-1">Ghi chú</h4>
-                                    <p className="text-sm text-yellow-700">{detailData.notes}</p>
+                                <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                                    <h4 className="font-medium text-sm text-yellow-800 dark:text-yellow-500 mb-1">Ghi chú</h4>
+                                    <p className="text-sm text-yellow-700 dark:text-yellow-400">{detailData.notes}</p>
                                 </div>
                             )}
 
                             {/* Sessions List */}
-                            <div className="border rounded-lg">
-                                <div className="p-4 border-b bg-slate-50">
+                            <div className="border border-border rounded-lg overflow-hidden">
+                                <div className="p-4 border-b border-border bg-muted dark:bg-muted/20">
                                     <h3 className="font-semibold flex items-center gap-2">
                                         <FileText className="h-5 w-5 text-indigo-600" />
                                         Danh sách buổi dạy ({detailData.sessions?.length || 0})
@@ -173,7 +173,7 @@ export function PayrollDetailModal({
                                 <div className="max-h-64 overflow-auto">
                                     {detailData.sessions && detailData.sessions.length > 0 ? (
                                         <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
-                                            <thead className="bg-slate-50 sticky top-0">
+                                            <thead className="bg-muted dark:bg-muted/20 sticky top-0 z-10">
                                                 <tr className="text-left text-sm text-muted-foreground">
                                                     <th className="px-4 py-2">Ngày</th>
                                                     <th className="px-4 py-2">Lớp</th>
@@ -185,7 +185,7 @@ export function PayrollDetailModal({
                                             </thead>
                                             <tbody>
                                                 {detailData.sessions.map((session) => (
-                                                    <tr key={session.id} className="border-t hover:bg-slate-50">
+                                                    <tr key={session.id} className="border-t hover:bg-muted/50">
                                                         <td className="px-4 py-2 text-sm">
                                                             {formatDate(session.session_date)}
                                                         </td>
@@ -238,7 +238,7 @@ export function PayrollDetailModal({
                 </div>
 
                 {/* Footer */}
-                <div className="sticky bottom-0 bg-white border-t px-6 py-4 flex justify-end">
+                    <div className="sticky bottom-0 z-20 bg-card dark:bg-zinc-950 border-t border-border dark:border-zinc-800 px-6 py-4 flex justify-end shadow-[0_-4px_6px_-1px_rgb(0,0,0,0.1)]">
                     <Button variant="outline" onClick={onClose}>
                         Đóng
                     </Button>
