@@ -55,3 +55,4 @@ backend/.env.local
 .kilocodemodes
 .gitnexus
 .worktrees/
+.tmp/
