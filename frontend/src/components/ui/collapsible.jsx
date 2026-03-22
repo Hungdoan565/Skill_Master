@@ -71,11 +71,11 @@ function CollapsibleSection({ title, icon: Icon, badge, defaultOpen = false, chi
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full p-6 flex items-center justify-between hover:bg-gray-50/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
+        className="w-full p-6 flex items-center justify-between hover:bg-gray-50/50 dark:hover:bg-slate-800/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
       >
         <div className="flex items-center gap-3">
           {Icon && <Icon className="w-5 h-5 text-indigo-600" />}
-          <h3 className="text-base font-semibold text-gray-900">{title}</h3>
+          <h3 className="text-base font-semibold text-gray-900 dark:text-slate-100">{title}</h3>
           {badge}
         </div>
         {isOpen ? (
@@ -85,7 +85,7 @@ function CollapsibleSection({ title, icon: Icon, badge, defaultOpen = false, chi
         )}
       </button>
       {isOpen && (
-        <div className="px-6 pb-6 border-t animate-in fade-in-0 slide-in-from-top-1">
+        <div className="px-6 pb-6 border-t dark:border-slate-800 animate-in fade-in-0 slide-in-from-top-1">
           <div className="pt-4">
             {children}
           </div>

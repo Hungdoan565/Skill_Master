@@ -12,6 +12,7 @@ import { useAuth } from '../../contexts/auth-context';
 import logoImage from '@/assets/logo.png';
 import { UniversalSearchOverlay } from '@/components/common/UniversalSearchOverlay';
 import { ConsultationModal, BookingModal, SmartImage } from '@/components/common';
+import { ThemeToggleSimple } from '@/components/ui/theme-toggle';
 
 // ============================================
 // USER DROPDOWN
@@ -82,10 +83,10 @@ const UserDropdown = () => {
   const getRoleColor = () => {
     switch (roleCode) {
       case 'SUPER_ADMIN':
-      case 'CENTER_MANAGER': return 'bg-red-100 text-red-700';
-      case 'TEACHER': return 'bg-blue-100 text-blue-700';
-      case 'STUDENT': return 'bg-green-100 text-green-700';
-      default: return 'bg-zinc-100 text-zinc-700';
+      case 'CENTER_MANAGER': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+      case 'TEACHER': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+      case 'STUDENT': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+      default: return 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300';
     }
   };
 
@@ -96,8 +97,8 @@ const UserDropdown = () => {
         className={`
           flex items-center gap-2.5 rounded-full pl-1 pr-3 py-1 
           transition-all duration-200 cursor-pointer
-          hover:bg-zinc-100 border border-transparent
-          ${isOpen ? 'bg-zinc-100 border-zinc-200' : ''}
+          hover:bg-muted border border-transparent
+          ${isOpen ? 'bg-muted border-border' : ''}
         `}
       >
         {avatarUrl ? (
@@ -105,28 +106,28 @@ const UserDropdown = () => {
             src={avatarUrl}
             alt={displayName}
             className="w-full h-full object-cover"
-            containerClassName="h-9 w-9 rounded-full ring-2 ring-white shadow-sm overflow-hidden"
+            containerClassName="h-9 w-9 rounded-full ring-2 ring-background shadow-sm overflow-hidden"
             aspectRatio="aspect-square"
           />
         ) : (
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-900 text-sm font-semibold text-white ring-2 ring-white shadow-sm">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-900 dark:bg-zinc-700 text-sm font-semibold text-white ring-2 ring-background shadow-sm">
             {getInitials(displayName)}
           </div>
         )}
-        <span className="text-sm font-medium text-zinc-700 hidden sm:block max-w-[120px] truncate">
+        <span className="text-sm font-medium text-foreground hidden sm:block max-w-[120px] truncate">
           {displayName}
         </span>
-        <ChevronDown className={`h-4 w-4 text-zinc-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       <div className={`
           absolute right-0 top-full mt-2 w-64 origin-top-right
-          rounded-2xl border border-zinc-200/80 bg-white py-2 
-          shadow-xl shadow-zinc-200/50
+          rounded-2xl border border-zinc-200/80 dark:border-zinc-700 bg-white dark:bg-zinc-800 py-2 
+          shadow-xl shadow-zinc-200/50 dark:shadow-black/30
           transition-all duration-200 ease-out z-50
           ${isOpen ? 'opacity-100 scale-100 translate-y-0 visible' : 'opacity-0 scale-95 -translate-y-2 invisible pointer-events-none'}
         `}>
-        <div className="px-4 py-3 border-b border-zinc-100">
+        <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-700">
           <div className="flex items-center gap-3">
             {avatarUrl ? (
               <SmartImage
@@ -137,13 +138,13 @@ const UserDropdown = () => {
                 aspectRatio="aspect-square"
               />
             ) : (
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-zinc-900 text-sm font-semibold text-white">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-zinc-900 dark:bg-zinc-700 text-sm font-semibold text-white">
                 {getInitials(displayName)}
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-zinc-900 truncate">{displayName}</p>
-              <p className="text-xs text-zinc-500 truncate">{user?.email}</p>
+              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">{displayName}</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{user?.email}</p>
             </div>
           </div>
           {roleCode && (
@@ -154,18 +155,18 @@ const UserDropdown = () => {
         </div>
 
         <div className="py-1">
-          <button onClick={() => { setIsOpen(false); navigate(getRedirectPath()); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors">
+          <button onClick={() => { setIsOpen(false); navigate(getRedirectPath()); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors">
             <LayoutDashboard className="h-4 w-4 text-zinc-400" /> <span>Vào Dashboard</span>
           </button>
-          <button onClick={() => { setIsOpen(false); navigate(getProfilePath()); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors">
+          <button onClick={() => { setIsOpen(false); navigate(getProfilePath()); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors">
             <User className="h-4 w-4 text-zinc-400" /> <span>Hồ sơ cá nhân</span>
           </button>
-          <button onClick={() => { setIsOpen(false); navigate('/admin/settings'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors">
+          <button onClick={() => { setIsOpen(false); navigate('/admin/settings'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors">
             <Settings className="h-4 w-4 text-zinc-400" /> <span>Cài đặt</span>
           </button>
-          <div className="my-1 mx-3 border-t border-zinc-100" />
-          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
-            <LogOut className="h-4 w-4 text-red-500" /> <span>Đăng xuất</span>
+          <div className="my-1 mx-3 border-t border-zinc-100 dark:border-zinc-700" />
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+            <LogOut className="h-4 w-4 text-red-500 dark:text-red-400" /> <span>Đăng xuất</span>
           </button>
         </div>
       </div>
@@ -191,17 +192,19 @@ const NavDropdown = ({ label, children, isOpen, onToggle, onClose, className }) 
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={onToggle}
-        className={`flex items-center gap-1.5 text-sm font-medium transition-colors duration-200 group ${className || 'text-zinc-500 hover:text-zinc-900'}`}
+        className={`flex items-center gap-1.5 text-sm font-medium transition-colors duration-200 group ${className || 'text-muted-foreground hover:text-foreground'}`}
       >
         {label}
         <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       <div className={`
-          absolute top-full left-0 mt-4 min-w-[280px] origin-top-left
-          bg-white rounded-2xl border border-stone-200/80 shadow-xl shadow-stone-200/50
-          transition-all duration-200 ease-out z-50
-          ${isOpen ? 'opacity-100 scale-100 translate-y-0 visible' : 'opacity-0 scale-95 -translate-y-2 invisible pointer-events-none'}
+          absolute top-full left-0 mt-2 min-w-[280px] origin-top-left
+          bg-white/95 dark:bg-zinc-800/95 backdrop-blur-xl rounded-xl
+          border-t-4 border-t-red-600 border-x border-b border-stone-200/50 dark:border-zinc-700/50
+          shadow-2xl shadow-zinc-900/10 dark:shadow-black/30
+          transition-all duration-300 z-50 overflow-hidden
+          ${isOpen ? 'opacity-100 scale-100 translate-y-0 visible' : 'opacity-0 scale-95 -translate-y-4 invisible pointer-events-none'}
         `}>
         {children}
       </div>
@@ -211,20 +214,20 @@ const NavDropdown = ({ label, children, isOpen, onToggle, onClose, className }) 
 
 const DropdownSection = ({ title, children }) => (
   <div className="py-2">
-    {title && <p className="px-4 py-2 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">{title}</p>}
+    {title && <p className="px-4 py-2 text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{title}</p>}
     <div className="px-2">{children}</div>
   </div>
 );
 
 const DropdownItem = ({ icon: Icon, title, description, href = '#', onClick }) => {
   const content = (
-    <div className="flex items-start gap-3 p-3 rounded-xl hover:bg-stone-50 transition-colors cursor-pointer group">
-      <div className="flex-shrink-0 w-10 h-10 bg-stone-100 rounded-xl flex items-center justify-center group-hover:bg-red-50 group-hover:text-red-600 transition-colors">
-        <Icon className="w-5 h-5 text-zinc-500 group-hover:text-red-600 transition-colors" />
+    <div className="flex items-start gap-3 p-3 rounded-xl hover:bg-stone-50 dark:hover:bg-zinc-700 transition-colors cursor-pointer group">
+      <div className="flex-shrink-0 w-10 h-10 bg-stone-100 dark:bg-zinc-700 rounded-xl flex items-center justify-center group-hover:bg-red-50 dark:group-hover:bg-red-900/30 group-hover:text-red-600 transition-colors">
+        <Icon className="w-5 h-5 text-zinc-500 dark:text-zinc-400 group-hover:text-red-600 transition-colors" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-zinc-900 group-hover:text-red-600 transition-colors">{title}</p>
-        {description && <p className="text-xs text-zinc-500 mt-0.5 line-clamp-2">{description}</p>}
+        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 group-hover:text-red-600 transition-colors">{title}</p>
+        {description && <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 line-clamp-2">{description}</p>}
       </div>
     </div>
   );
@@ -232,7 +235,7 @@ const DropdownItem = ({ icon: Icon, title, description, href = '#', onClick }) =
 };
 
 const MobileNavItem = ({ label, href, onClick }) => (
-  <Link to={href} onClick={onClick} className="block px-4 py-3 text-sm font-medium text-zinc-700 hover:bg-stone-50">
+  <Link to={href} onClick={onClick} className="block px-4 py-3 text-sm font-medium text-foreground hover:bg-muted">
     {label}
   </Link>
 );
@@ -268,10 +271,10 @@ const PublicHeader = ({ transparent = false }) => {
 
   const headerClasses = `fixed top-0 left-0 right-0 z-50 transition-all duration-500 border-b ${isTransparent
     ? 'bg-transparent border-transparent text-white'
-    : 'bg-white/90 backdrop-blur-xl border-stone-200/50 text-zinc-900 shadow-sm'
+    : 'bg-card/90 dark:bg-card/95 backdrop-blur-xl border-border text-foreground shadow-sm dark:shadow-none'
     }`;
 
-  const navLinkClasses = `text-sm font-medium transition-colors duration-200 ${isTransparent ? 'text-white/80 hover:text-white' : 'text-zinc-600 hover:text-zinc-900'
+  const navLinkClasses = `text-sm font-medium transition-colors duration-200 ${isTransparent ? 'text-white/80 hover:text-white' : 'text-muted-foreground hover:text-foreground'
     }`;
 
   return (
@@ -283,7 +286,7 @@ const PublicHeader = ({ transparent = false }) => {
               <SmartImage
                 src={logoImage}
                 alt="Skill Master"
-                className={`w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 ${isTransparent ? 'brightness-0 invert opacity-90' : ''}`}
+                className={`w-full h-full object-contain group-hover:scale-105 transition-all duration-300 ${isTransparent ? 'brightness-0 invert opacity-90' : 'dark:brightness-0 dark:invert'}`}
                 containerClassName="h-24 w-auto bg-transparent"
                 aspectRatio="aspect-auto"
                 priority={true}
@@ -307,10 +310,10 @@ const PublicHeader = ({ transparent = false }) => {
                       <DropdownItem icon={BarChart3} title="Phân tích dữ liệu" description="Power BI, SQL cơ bản" href="/courses" />
                     </DropdownSection>
                   </div>
-                  <Link to="/courses" onClick={closeDropdown} className="block mt-2 mx-2 p-4 bg-gradient-to-r from-red-50 to-orange-50 rounded-xl border border-red-100 hover:border-red-200 transition-colors">
+                  <Link to="/courses" onClick={closeDropdown} className="block mt-2 mx-2 p-4 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 rounded-xl border border-red-100 dark:border-red-800/30 hover:border-red-200 dark:hover:border-red-700/40 transition-colors">
                     <div className="flex items-center justify-between">
-                      <div><p className="text-sm font-semibold text-zinc-900">Xem tất cả khóa học</p><p className="text-xs text-zinc-500 mt-0.5">20+ khóa học đa dạng trình độ</p></div>
-                      <ArrowRight className="w-5 h-5 text-red-600" />
+                      <div><p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Xem tất cả khóa học</p><p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">20+ khóa học đa dạng trình độ</p></div>
+                      <ArrowRight className="w-5 h-5 text-red-600 dark:text-red-400" />
                     </div>
                   </Link>
                 </div>
@@ -323,7 +326,7 @@ const PublicHeader = ({ transparent = false }) => {
                     <DropdownItem icon={Building2} title="Thăng tiến công việc" description="TOEIC 700+ & Excel Expert" href="/roadmap#cong-viec" />
                     <DropdownItem icon={BookOpen} title="Học sinh - Sinh viên" description="Nền tảng vững, điểm cao" href="/roadmap#hoc-sinh" />
                   </DropdownSection>
-                  <div className="border-t border-stone-100 my-1" />
+                  <div className="border-t border-stone-200 dark:border-zinc-700 my-1" />
                   <DropdownSection title="Theo trình độ">
                     <DropdownItem icon={Zap} title="Người mới bắt đầu" description="Từ zero đến hero" href="/roadmap#beginner" />
                     <DropdownItem icon={Target} title="Trình độ trung cấp" description="Bứt phá giới hạn" href="/roadmap#intermediate" />
@@ -339,7 +342,7 @@ const PublicHeader = ({ transparent = false }) => {
                     <DropdownItem icon={GraduationCap} title="Đội ngũ giảng viên" description="100% có chứng chỉ quốc tế" href="/about#team" />
                     <DropdownItem icon={School} title="Cơ sở vật chất" description="Phòng học hiện đại, tiện nghi" href="/about#facilities" />
                   </DropdownSection>
-                  <div className="border-t border-stone-100 my-1" />
+                  <div className="border-t border-stone-200 dark:border-zinc-700 my-1" />
                   <DropdownSection title="Thành tựu">
                     <DropdownItem icon={Star} title="Học viên tiêu biểu" description="Câu chuyện thành công" href="/about#success" />
                     <DropdownItem icon={Award} title="Chứng nhận & Giải thưởng" description="Đối tác Cambridge, ETS" href="/about#achievements" />
@@ -354,7 +357,7 @@ const PublicHeader = ({ transparent = false }) => {
                     <DropdownItem icon={Video} title="Video bài giảng" description="Kho video 500+ bài học" href="/resources#videos" />
                     <DropdownItem icon={BookMarked} title="Tài liệu miễn phí" description="Đề thi, flashcard, ebook" href="/resources#materials" />
                   </DropdownSection>
-                  <div className="border-t border-stone-100 my-1" />
+                  <div className="border-t border-stone-200 dark:border-zinc-700 my-1" />
                   <DropdownSection title="Kiểm tra">
                     <DropdownItem icon={Target} title="Test trình độ" description="Đánh giá năng lực miễn phí" href="/assessment" />
                     <DropdownItem icon={HelpCircle} title="Tư vấn lộ trình" description="Chuyên gia tư vấn 1-1 miễn phí" onClick={() => { closeDropdown(); setShowConsultationModal(true); }} />
@@ -370,10 +373,10 @@ const PublicHeader = ({ transparent = false }) => {
                     <DropdownItem icon={Mail} title="Email" description="info@skillmaster.edu.vn" href="mailto:info@skillmaster.edu.vn" />
                     <DropdownItem icon={Calendar} title="Đặt lịch học thử" description="Trải nghiệm miễn phí 1 buổi" onClick={() => { closeDropdown(); setShowBookingModal(true); }} />
                   </DropdownSection>
-                  <div className="mx-2 mt-2 p-3 bg-stone-50 rounded-xl">
+                  <div className="mx-2 mt-2 p-3 bg-stone-100 dark:bg-zinc-700/50 rounded-xl">
                     <div className="flex items-start gap-2">
-                      <MapPin className="w-4 h-4 text-zinc-400 mt-0.5 flex-shrink-0" />
-                      <p className="text-xs text-zinc-500">Tầng 5, Tòa nhà ABC, 123 Nguyễn Văn Linh, Quận 7, TP.HCM</p>
+                      <MapPin className="w-4 h-4 text-zinc-500 dark:text-zinc-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">Tầng 5, Tòa nhà ABC, 123 Nguyễn Văn Linh, Quận 7, TP.HCM</p>
                     </div>
                   </div>
                 </div>
@@ -383,28 +386,31 @@ const PublicHeader = ({ transparent = false }) => {
             <div className="flex items-center gap-4">
               {/* Search Button */}
               <button
-                className={`p-2 rounded-full transition-all duration-200 ${isTransparent ? 'text-white/80 hover:text-white hover:bg-white/10' : 'text-zinc-500 hover:text-zinc-900 hover:bg-stone-100'}`}
+                className={`p-2 rounded-full transition-all duration-200 ${isTransparent ? 'text-white/80 hover:text-white hover:bg-white/10' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
                 aria-label="Tìm kiếm"
                 onClick={() => setSearchOpen(true)}
               >
                 <Search className="w-5 h-5" />
               </button>
 
+              {/* Theme Toggle */}
+              <ThemeToggleSimple className={`hidden lg:flex ${isTransparent ? 'border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white' : ''}`} />
+
               {isAuthenticated ? (
                 <UserDropdown />
               ) : (
                 <>
-                  <Link to="/login" className={`hidden sm:block text-sm font-medium transition-colors duration-200 ${isTransparent ? 'text-white/80 hover:text-white' : 'text-zinc-600 hover:text-zinc-900'}`}>
+                  <Link to="/login" className={`hidden sm:block text-sm font-medium transition-colors duration-200 ${isTransparent ? 'text-white/80 hover:text-white' : 'text-muted-foreground hover:text-foreground'}`}>
                     Đăng nhập
                   </Link>
-                  <Link to="/register" className={`group relative px-5 py-2.5 text-sm font-medium rounded-full overflow-hidden transition-all duration-300 hover:bg-zinc-800 active:scale-95 ${isTransparent ? 'bg-white text-zinc-900 hover:bg-zinc-100' : 'bg-zinc-900 text-stone-50'}`}>
+                  <Link to="/register" className={`group relative px-5 py-2.5 text-sm font-medium rounded-full overflow-hidden transition-all duration-300 hover:bg-zinc-800 active:scale-95 ${isTransparent ? 'bg-white text-zinc-900 hover:bg-zinc-100' : 'bg-zinc-900 dark:bg-zinc-100 text-stone-50 dark:text-zinc-900'}`}>
                     <span className="relative z-10 flex items-center gap-2">
                       Đăng ký học thử <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                     </span>
                   </Link>
                 </>
               )}
-              <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className={`lg:hidden p-2 ${isTransparent ? 'text-white' : 'text-zinc-600 hover:text-zinc-900'}`}>
+              <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className={`lg:hidden p-2 ${isTransparent ? 'text-white' : 'text-muted-foreground hover:text-foreground'}`}>
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   {mobileMenuOpen ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /> : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />}
                 </svg>
@@ -413,7 +419,7 @@ const PublicHeader = ({ transparent = false }) => {
           </nav>
 
           {mobileMenuOpen && (
-            <div className="lg:hidden border-t border-stone-200 bg-white/95 backdrop-blur-xl">
+            <div className="lg:hidden border-t border-border bg-card/95 backdrop-blur-xl">
               <div className="py-4 space-y-2">
                 <MobileNavItem label="Khóa học" href="/courses" onClick={() => setMobileMenuOpen(false)} />
                 <MobileNavItem label="Lộ trình" href="/roadmap" onClick={() => setMobileMenuOpen(false)} />
@@ -422,8 +428,8 @@ const PublicHeader = ({ transparent = false }) => {
                 <MobileNavItem label="Liên hệ" href="/contact" onClick={() => setMobileMenuOpen(false)} />
                 {!isAuthenticated && (
                   <div className="pt-4 px-4 space-y-2">
-                    <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="block w-full py-3 text-center text-sm font-medium text-zinc-700 border border-stone-200 rounded-full hover:bg-stone-50">Đăng nhập</Link>
-                    <Link to="/register" onClick={() => setMobileMenuOpen(false)} className="block w-full py-3 text-center text-sm font-medium text-white bg-zinc-900 rounded-full hover:bg-zinc-800">Đăng ký học thử</Link>
+                    <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="block w-full py-3 text-center text-sm font-medium text-foreground border border-border rounded-full hover:bg-muted">Đăng nhập</Link>
+                    <Link to="/register" onClick={() => setMobileMenuOpen(false)} className="block w-full py-3 text-center text-sm font-medium text-white bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 rounded-full hover:bg-zinc-800 dark:hover:bg-zinc-200">Đăng ký học thử</Link>
                   </div>
                 )}
               </div>

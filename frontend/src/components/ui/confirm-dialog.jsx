@@ -32,35 +32,35 @@ import { Button } from '@/components/ui/button';
 const VARIANTS = {
     danger: {
         icon: AlertTriangle,
-        iconBg: 'bg-red-100',
-        iconColor: 'text-red-600',
+        iconBg: 'bg-red-100 dark:bg-red-950/40',
+        iconColor: 'text-red-600 dark:text-red-300',
         confirmBg: 'bg-red-600 hover:bg-red-700',
         confirmText: 'text-white',
-        borderColor: 'border-red-200'
+        borderColor: 'border-red-200 dark:border-red-900/60'
     },
     warning: {
         icon: AlertCircle,
-        iconBg: 'bg-amber-100',
-        iconColor: 'text-amber-600',
+        iconBg: 'bg-amber-100 dark:bg-amber-950/40',
+        iconColor: 'text-amber-600 dark:text-amber-300',
         confirmBg: 'bg-amber-600 hover:bg-amber-700',
         confirmText: 'text-white',
-        borderColor: 'border-amber-200'
+        borderColor: 'border-amber-200 dark:border-amber-900/60'
     },
     info: {
         icon: Info,
-        iconBg: 'bg-blue-100',
-        iconColor: 'text-blue-600',
+        iconBg: 'bg-blue-100 dark:bg-blue-950/40',
+        iconColor: 'text-blue-600 dark:text-blue-300',
         confirmBg: 'bg-blue-600 hover:bg-blue-700',
         confirmText: 'text-white',
-        borderColor: 'border-blue-200'
+        borderColor: 'border-blue-200 dark:border-blue-900/60'
     },
     success: {
         icon: CheckCircle,
-        iconBg: 'bg-green-100',
-        iconColor: 'text-green-600',
+        iconBg: 'bg-green-100 dark:bg-green-950/40',
+        iconColor: 'text-green-600 dark:text-green-300',
         confirmBg: 'bg-green-600 hover:bg-green-700',
         confirmText: 'text-white',
-        borderColor: 'border-green-200'
+        borderColor: 'border-green-200 dark:border-green-900/60'
     }
 };
 
@@ -122,12 +122,12 @@ export function ConfirmDialog({
             />
 
             {/* Dialog */}
-            <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md animate-in zoom-in-95 fade-in duration-200">
+            <div className="relative bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-md animate-in zoom-in-95 fade-in duration-200 border border-slate-200 dark:border-slate-700">
                 {/* Close button */}
                 <button
                     onClick={onClose}
                     disabled={loading}
-                    className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
+                    className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors disabled:opacity-50"
                 >
                     <X className="w-4 h-4" />
                 </button>
@@ -140,10 +140,10 @@ export function ConfirmDialog({
                             <IconComponent className={`w-6 h-6 ${variantConfig.iconColor}`} />
                         </div>
                         <div className="flex-1 min-w-0">
-                            <h3 className="text-lg font-semibold text-slate-900">
+                            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                                 {title}
                             </h3>
-                            <p className="mt-2 text-sm text-slate-600 leading-relaxed">
+                            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
                                 {message}
                             </p>
 
@@ -158,7 +158,7 @@ export function ConfirmDialog({
                 </div>
 
                 {/* Actions */}
-                <div className={`flex gap-3 px-6 py-4 bg-slate-50 rounded-b-xl border-t ${variantConfig.borderColor}`}>
+                <div className={`flex gap-3 px-6 py-4 bg-slate-50 dark:bg-slate-800 rounded-b-xl border-t ${variantConfig.borderColor}`}>
                     {showCancel && (
                         <Button
                             variant="outline"

@@ -204,8 +204,8 @@ function Pagination({
             className={cn(
               'p-1.5 rounded-lg transition-colors',
               currentPage === 1
-                ? 'text-zinc-300 cursor-not-allowed'
-                : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700'
+                ? 'text-muted-foreground/50 cursor-not-allowed'
+                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
             )}
             aria-label="Previous page"
           >
@@ -249,8 +249,8 @@ function Pagination({
             className={cn(
               'p-1.5 rounded-lg transition-colors',
               currentPage === totalPages
-                ? 'text-zinc-300 cursor-not-allowed'
-                : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700'
+                ? 'text-muted-foreground/50 cursor-not-allowed'
+                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
             )}
             aria-label="Next page"
           >
@@ -262,8 +262,8 @@ function Pagination({
             className={cn(
               'p-1.5 rounded-lg transition-colors',
               currentPage === totalPages
-                ? 'text-zinc-300 cursor-not-allowed'
-                : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700'
+                ? 'text-muted-foreground/50 cursor-not-allowed'
+                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
             )}
             aria-label="Last page"
           >

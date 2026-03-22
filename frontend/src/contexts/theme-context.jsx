@@ -41,24 +41,26 @@ export function ThemeProvider({ children, defaultTheme = 'system' }) {
 
   const isDark = resolvedTheme === 'dark';
 
-  // Apply theme to document
+  // Apply theme to document using View Transition API for smooth switch
   useEffect(() => {
-    console.log('[ThemeContext] Applying theme:', { theme, resolvedTheme, isDark });
     const root = document.documentElement;
-    
-    // Remove existing theme classes
-    root.classList.remove('light', 'dark');
-    
-    // Add new theme class
-    root.classList.add(resolvedTheme);
-    
-    console.log('[ThemeContext] Document classes:', root.classList.toString());
-    
-    // Update meta theme-color for mobile browsers
-    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-    if (metaThemeColor) {
-      // Use proper dark color (not pure black) - matches --background
-      metaThemeColor.setAttribute('content', isDark ? '#121826' : '#F8F9FA');
+
+    const applyTheme = () => {
+      root.classList.remove('light', 'dark');
+      root.classList.add(resolvedTheme);
+
+      // Update meta theme-color for mobile browsers
+      const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+      if (metaThemeColor) {
+        metaThemeColor.setAttribute('content', isDark ? '#0a0f1a' : '#F8F9FA');
+      }
+    };
+
+    // Use View Transition API if available — smooth crossfade without per-element transitions
+    if (document.startViewTransition) {
+      document.startViewTransition(applyTheme);
+    } else {
+      applyTheme();
     }
   }, [resolvedTheme, isDark]);
 

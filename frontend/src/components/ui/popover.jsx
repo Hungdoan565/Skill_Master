@@ -69,7 +69,7 @@ const PopoverContent = React.forwardRef(({ className, align = 'center', children
           else if (ref) ref.current = node;
         }}
         className={cn(
-          'absolute mt-2 w-full rounded-md border bg-white shadow-lg outline-none',
+          'absolute mt-2 w-full rounded-md border bg-popover text-popover-foreground shadow-lg outline-none',
           align === 'start' && 'left-0',
           align === 'center' && 'left-1/2 -translate-x-1/2',
           align === 'end' && 'right-0',

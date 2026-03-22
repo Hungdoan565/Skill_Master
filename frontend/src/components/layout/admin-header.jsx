@@ -3,6 +3,7 @@ import { Bell, Search, LogOut, ChevronDown, User, Settings, LayoutDashboard, Com
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/auth-context';
 import { CenterSwitcher } from '@/components/common/CenterSwitcher';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 // User Dropdown - Ported EXACTLY from Landing Page (header.jsx)
 // With Z-Index adjustment for Admin Layout
@@ -71,10 +72,10 @@ const UserDropdown = () => {
   const getRoleColor = () => {
     switch (roleCode) {
       case 'SUPER_ADMIN':
-      case 'CENTER_MANAGER': return 'bg-red-100 text-red-700';
-      case 'TEACHER': return 'bg-blue-100 text-blue-700';
-      case 'STUDENT': return 'bg-green-100 text-green-700';
-      default: return 'bg-zinc-100 text-zinc-700';
+      case 'CENTER_MANAGER': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+      case 'TEACHER': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+      case 'STUDENT': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+      default: return 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300';
     }
   };
 
@@ -85,38 +86,38 @@ const UserDropdown = () => {
         className={`
           flex items-center gap-2.5 rounded-full pl-1 pr-3 py-1 
           transition-all duration-200 cursor-pointer
-          hover:bg-zinc-100 border border-transparent
-          ${isOpen ? 'bg-zinc-100 border-zinc-200' : ''}
+          hover:bg-muted border border-transparent
+          ${isOpen ? 'bg-muted border-border' : ''}
         `}
         aria-expanded={isOpen}
         aria-label="User menu"
       >
         {avatarUrl ? (
-          <img src={avatarUrl} alt={displayName} className="h-9 w-9 rounded-full object-cover ring-2 ring-white shadow-sm" />
+          <img src={avatarUrl} alt={displayName} className="h-9 w-9 rounded-full object-cover ring-2 ring-background shadow-sm" />
         ) : (
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-900 text-sm font-semibold text-white ring-2 ring-white shadow-sm">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-900 dark:bg-zinc-700 text-sm font-semibold text-white ring-2 ring-background shadow-sm">
             {getInitials(displayName)}
           </div>
         )}
-        <span className="text-sm font-medium text-zinc-700 hidden sm:block max-w-[120px] truncate">
+        <span className="text-sm font-medium text-foreground hidden sm:block max-w-[120px] truncate">
           {displayName}
         </span>
-        <ChevronDown className={`h-4 w-4 text-zinc-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      <div className={`absolute right-0 top-full mt-2 w-64 origin-top-right rounded-2xl border border-zinc-200/80 bg-white py-2 shadow-xl shadow-zinc-200/50 transition-all duration-200 ease-out z-[101] ${isOpen ? 'opacity-100 scale-100 translate-y-0 visible' : 'opacity-0 scale-95 -translate-y-2 invisible pointer-events-none'}`}>
-        <div className="px-4 py-3 border-b border-zinc-100">
+      <div className={`absolute right-0 top-full mt-2 w-64 origin-top-right rounded-2xl border border-zinc-200/80 dark:border-zinc-700 bg-white dark:bg-zinc-800 py-2 shadow-xl shadow-zinc-200/50 dark:shadow-black/30 transition-all duration-200 ease-out z-[101] ${isOpen ? 'opacity-100 scale-100 translate-y-0 visible' : 'opacity-0 scale-95 -translate-y-2 invisible pointer-events-none'}`}>
+        <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-700">
           <div className="flex items-center gap-3">
             {avatarUrl ? (
               <img src={avatarUrl} alt={displayName} className="h-11 w-11 rounded-full object-cover" />
             ) : (
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-zinc-900 text-sm font-semibold text-white">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-zinc-900 dark:bg-zinc-700 text-sm font-semibold text-white">
                 {getInitials(displayName)}
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-zinc-900 truncate">{displayName}</p>
-              <p className="text-xs text-zinc-500 truncate">{user?.email}</p>
+              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">{displayName}</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{user?.email}</p>
             </div>
           </div>
           {roleCode && (
@@ -127,23 +128,23 @@ const UserDropdown = () => {
         </div>
 
         <div className="py-1">
-          <button onClick={handleHome} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors">
+          <button onClick={handleHome} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors">
             <LayoutDashboard className="h-4 w-4 text-zinc-400" />
             <span>Trang chủ</span>
           </button>
-          <button onClick={() => { setIsOpen(false); navigate(getProfilePath()); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors">
+          <button onClick={() => { setIsOpen(false); navigate(getProfilePath()); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors">
             <User className="h-4 w-4 text-zinc-400" />
             <span>Hồ sơ cá nhân</span>
           </button>
           {roleCode === 'SUPER_ADMIN' && (
-            <button onClick={() => { setIsOpen(false); navigate('/admin/settings'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition-colors">
+            <button onClick={() => { setIsOpen(false); navigate('/admin/settings'); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors">
               <Settings className="h-4 w-4 text-zinc-400" />
               <span>Cài đặt</span>
             </button>
           )}
-          <div className="my-1 mx-3 border-t border-zinc-100" />
-          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
-            <LogOut className="h-4 w-4 text-red-500" />
+          <div className="my-1 mx-3 border-t border-zinc-100 dark:border-zinc-700" />
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+            <LogOut className="h-4 w-4 text-red-500 dark:text-red-400" />
             <span>Đăng xuất</span>
           </button>
         </div>
@@ -163,7 +164,7 @@ export function AdminHeader({ notificationBell, showCenterSwitcher = false }) {
         <input
           type="search"
           placeholder="Tìm kiếm học viên, khóa học..."
-          className="w-full h-10 pl-10 pr-4 rounded-xl border border-input bg-slate-50 
+          className="w-full h-10 pl-10 pr-4 rounded-xl border border-input bg-muted 
                      text-sm text-foreground placeholder:text-muted-foreground
                      focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30
                      transition-all duration-200"
@@ -182,6 +183,9 @@ export function AdminHeader({ notificationBell, showCenterSwitcher = false }) {
       {showCenterSwitcher ? <CenterSwitcher /> : <div aria-hidden="true" className="w-[240px]" />}
       {/* Right section */}
       <div className="flex items-center gap-3">
+        {/* Theme Toggle */}
+        <ThemeToggle />
+
         {/* Notifications */}
         {notificationBell}
 

@@ -64,9 +64,11 @@ export function TimeSelect({
             value={normalizedValue}
             onChange={(e) => onChange?.(e.target.value)}
             disabled={disabled}
-            className={`px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white
+            className={`px-2.5 py-1.5 border border-slate-300 rounded-lg text-sm bg-white text-slate-900
                 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
-                disabled:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-400
+                disabled:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-400
+                dark:bg-slate-900 dark:border-slate-700 dark:text-slate-100 
+                dark:disabled:bg-slate-800 dark:disabled:text-slate-500
                 appearance-none cursor-pointer
                 ${className}`}
             style={{
@@ -77,11 +79,11 @@ export function TimeSelect({
                 paddingRight: '1.75rem',
             }}
         >
-            <option value="" disabled>
+            <option value="" disabled className="dark:bg-slate-900">
                 {placeholder}
             </option>
             {options.map((slot) => (
-                <option key={slot} value={slot}>
+                <option key={slot} value={slot} className="dark:bg-slate-900">
                     {slot}
                 </option>
             ))}

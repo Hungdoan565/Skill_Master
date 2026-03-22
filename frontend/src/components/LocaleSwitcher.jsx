@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function LocaleSwitcher({ className = '' }) {
   const { i18n } = useTranslation();
@@ -9,19 +10,21 @@ export default function LocaleSwitcher({ className = '' }) {
     return language.startsWith('en') ? 'en' : 'vi';
   }, [i18n.language, i18n.resolvedLanguage]);
 
-  const handleLanguageChange = (event) => {
-    i18n.changeLanguage(event.target.value);
+  const handleLanguageChange = (value) => {
+    i18n.changeLanguage(value);
   };
 
   return (
-    <select
-      value={currentLanguage}
-      onChange={handleLanguageChange}
-      className={`block w-full md:w-48 pl-3 pr-10 py-2 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${className}`.trim()}
-      aria-label="Language selector"
-    >
-      <option value="vi">🇻🇳 Tiếng Việt</option>
-      <option value="en">🇬🇧 English</option>
-    </select>
+    <div className={className}>
+      <Select value={currentLanguage} onValueChange={handleLanguageChange}>
+        <SelectTrigger className="w-full md:w-48" aria-label="Language selector">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="vi">🇻🇳 Tiếng Việt</SelectItem>
+          <SelectItem value="en">🇬🇧 English</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
   );
 }

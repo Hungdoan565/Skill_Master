@@ -210,7 +210,7 @@ export function LoginPage() {
 
       {/* Right Panel - Login Form */}
       <div className="relative flex w-full flex-col items-center justify-center bg-slate-50 px-6 py-12 lg:w-1/2">
-        <Card className="w-full max-w-md border-0 bg-white shadow-xl">
+        <Card className="w-full max-w-md border-0 bg-card shadow-xl">
           <CardHeader className="space-y-1 pb-2">
             {/* Mobile logo */}
             <div className="mb-6 flex justify-center lg:hidden">
@@ -253,7 +253,7 @@ export function LoginPage() {
                     autoComplete="email"
                     disabled={isLoading}
                     className={`
-                      flex h-12 w-full rounded-lg border-2 bg-white pl-11 pr-4 text-slate-900
+                      flex h-12 w-full rounded-lg border-2 bg-card pl-11 pr-4 text-slate-900
                       placeholder:text-slate-400 
                       transition-all duration-200
                       focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20
@@ -284,7 +284,7 @@ export function LoginPage() {
                     autoComplete="current-password"
                     disabled={isLoading}
                     className={`
-                      flex h-12 w-full rounded-lg border-2 bg-white pl-11 pr-12 text-slate-900
+                      flex h-12 w-full rounded-lg border-2 bg-card pl-11 pr-12 text-slate-900
                       placeholder:text-slate-400 
                       transition-all duration-200
                       focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20
@@ -349,7 +349,7 @@ export function LoginPage() {
                 <span className="w-full border-t border-slate-200" />
               </div>
               <div className="relative flex justify-center text-xs">
-                <span className="bg-white px-3 text-slate-400">Hoặc tiếp tục với</span>
+                <span className="bg-card px-3 text-slate-400">Hoặc tiếp tục với</span>
               </div>
             </div>
 
@@ -359,7 +359,7 @@ export function LoginPage() {
                 type="button"
                 variant="outline"
                 size="lg"
-                className="h-12 border-2 border-slate-200 bg-white font-medium text-slate-700 transition-all duration-200 hover:border-slate-300 hover:bg-slate-50"
+                className="h-12 border-2 border-slate-200 bg-card font-medium text-slate-700 transition-all duration-200 hover:border-slate-300 hover:bg-slate-50"
                 disabled={isLoading}
                 onClick={() => {/* TODO: Google OAuth */}}
               >
@@ -387,7 +387,7 @@ export function LoginPage() {
                 type="button"
                 variant="outline"
                 size="lg"
-                className="h-12 border-2 border-slate-200 bg-white font-medium text-slate-700 transition-all duration-200 hover:border-slate-300 hover:bg-slate-50"
+                className="h-12 border-2 border-slate-200 bg-card font-medium text-slate-700 transition-all duration-200 hover:border-slate-300 hover:bg-slate-50"
                 disabled={isLoading}
                 onClick={() => {/* TODO: GitHub OAuth */}}
               >

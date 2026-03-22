@@ -2,6 +2,7 @@
  * Theme Toggle Component
  * 
  * Button to switch between light/dark/system theme
+ * with animated Sun/Moon icon morph
  */
 
 import { Sun, Moon, Monitor } from 'lucide-react';
@@ -22,50 +23,51 @@ export function ThemeToggle({ className }) {
       <DropdownMenuTrigger asChild>
         <button
           className={cn(
-            'flex h-9 w-9 items-center justify-center rounded-xl',
+            'relative flex h-9 w-9 items-center justify-center rounded-xl',
             'border border-border bg-card text-muted-foreground',
             'hover:bg-accent hover:text-accent-foreground',
-            'transition-colors duration-200',
+            'transition-colors duration-200 overflow-hidden',
             className
           )}
           aria-label="Toggle theme"
         >
-          {isDark ? (
-            <Moon className="h-4 w-4" />
-          ) : (
-            <Sun className="h-4 w-4" />
-          )}
+          {/* Animated icon container */}
+          <div className="relative h-4 w-4">
+            <Sun className={cn(
+              'absolute inset-0 h-4 w-4 transition-all duration-500',
+              isDark
+                ? 'rotate-90 scale-0 opacity-0'
+                : 'rotate-0 scale-100 opacity-100'
+            )} />
+            <Moon className={cn(
+              'absolute inset-0 h-4 w-4 transition-all duration-500',
+              isDark
+                ? 'rotate-0 scale-100 opacity-100'
+                : '-rotate-90 scale-0 opacity-0'
+            )} />
+          </div>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-[140px]">
-        <DropdownMenuItem onClick={() => {
-          console.log('[ThemeToggle] Clicked: light');
-          setTheme('light');
-        }} className="gap-2">
+        <DropdownMenuItem onClick={() => setTheme('light')} className="gap-2">
           <Sun className="h-4 w-4" />
           <span>Sáng</span>
           {theme === 'light' && (
-            <span className="ml-auto text-red-500">✓</span>
+            <span className="ml-auto text-primary">✓</span>
           )}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => {
-          console.log('[ThemeToggle] Clicked: dark');
-          setTheme('dark');
-        }} className="gap-2">
+        <DropdownMenuItem onClick={() => setTheme('dark')} className="gap-2">
           <Moon className="h-4 w-4" />
           <span>Tối</span>
           {theme === 'dark' && (
-            <span className="ml-auto text-red-500">✓</span>
+            <span className="ml-auto text-primary">✓</span>
           )}
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => {
-          console.log('[ThemeToggle] Clicked: system');
-          setTheme('system');
-        }} className="gap-2">
+        <DropdownMenuItem onClick={() => setTheme('system')} className="gap-2">
           <Monitor className="h-4 w-4" />
           <span>Hệ thống</span>
           {theme === 'system' && (
-            <span className="ml-auto text-red-500">✓</span>
+            <span className="ml-auto text-primary">✓</span>
           )}
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -73,7 +75,7 @@ export function ThemeToggle({ className }) {
   );
 }
 
-// Simple toggle button (no dropdown)
+// Simple toggle button (no dropdown) — with animated icons
 export function ThemeToggleSimple({ className }) {
   const { toggleTheme, isDark } = useTheme();
 
@@ -81,19 +83,28 @@ export function ThemeToggleSimple({ className }) {
     <button
       onClick={toggleTheme}
       className={cn(
-        'flex h-9 w-9 items-center justify-center rounded-xl',
+        'relative flex h-9 w-9 items-center justify-center rounded-xl',
         'border border-border bg-card text-muted-foreground',
         'hover:bg-accent hover:text-accent-foreground',
-        'transition-colors duration-200',
+        'transition-colors duration-200 overflow-hidden',
         className
       )}
       aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
     >
-      {isDark ? (
-        <Sun className="h-4 w-4" />
-      ) : (
-        <Moon className="h-4 w-4" />
-      )}
+      <div className="relative h-4 w-4">
+        <Sun className={cn(
+          'absolute inset-0 h-4 w-4 transition-all duration-500',
+          isDark
+            ? 'rotate-90 scale-0 opacity-0'
+            : 'rotate-0 scale-100 opacity-100'
+        )} />
+        <Moon className={cn(
+          'absolute inset-0 h-4 w-4 transition-all duration-500',
+          isDark
+            ? 'rotate-0 scale-100 opacity-100'
+            : '-rotate-90 scale-0 opacity-0'
+        )} />
+      </div>
     </button>
   );
 }

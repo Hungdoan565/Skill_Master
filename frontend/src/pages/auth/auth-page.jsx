@@ -47,7 +47,7 @@ const SocialButton = ({ provider, icon, label, disabled, onClick }) => (
     onClick={onClick}
     disabled={disabled}
     className="group relative flex items-center justify-center gap-2 py-2.5
-             border border-neutral-200 text-sm overflow-hidden
+             border border-border text-sm overflow-hidden
              transition-all duration-300 ease-out
              hover:border-neutral-900 hover:bg-neutral-900
              disabled:opacity-50 disabled:cursor-not-allowed"
@@ -206,8 +206,8 @@ const PasswordRequirements = ({ password, isFocused }) => {
   if (!isFocused && password.length === 0) return null;
 
   return (
-    <div className="mt-3 p-3 border border-neutral-200 bg-neutral-50/50">
-      <p className="text-[11px] font-medium text-neutral-500 uppercase tracking-wider mb-2">
+    <div className="mt-3 p-3 border border-border bg-muted/50">
+      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">
         Yêu cầu mật khẩu
       </p>
       <div className="grid grid-cols-1 gap-1.5">
@@ -263,7 +263,7 @@ const InputField = forwardRef(({
         htmlFor={id} 
         className={`
           block text-[13px] font-medium mb-2 transition-colors duration-200
-          ${isFocused ? 'text-neutral-900' : error ? 'text-neutral-500' : 'text-neutral-500'}
+          ${isFocused ? 'text-foreground' : error ? 'text-muted-foreground' : 'text-muted-foreground'}
         `}
       >
         {label}
@@ -277,7 +277,7 @@ const InputField = forwardRef(({
             <Icon 
               className={`
                 h-[18px] w-[18px] mr-3 transition-colors duration-200
-                ${isFocused ? 'text-neutral-900' : 'text-neutral-300'}
+                ${isFocused ? 'text-foreground' : 'text-neutral-300'}
               `} 
               strokeWidth={1.5} 
             />
@@ -293,7 +293,7 @@ const InputField = forwardRef(({
             onFocus={handleFocus}
             onBlur={handleBlur}
             className={`
-              flex-1 py-2.5 bg-transparent text-neutral-900 text-[15px]
+              flex-1 py-2.5 bg-transparent text-foreground text-[15px]
               placeholder:text-neutral-300
               focus:outline-none focus:ring-0 border-none
               disabled:cursor-not-allowed disabled:opacity-50
@@ -333,7 +333,7 @@ const InputField = forwardRef(({
       
       {/* Error */}
       {error && (
-        <p className="mt-2 text-[12px] text-neutral-500">{error}</p>
+        <p className="mt-2 text-[12px] text-muted-foreground">{error}</p>
       )}
     </div>
   );
@@ -448,7 +448,7 @@ const LoginForm = ({ onSwitchToRegister, isAnimating }) => {
       
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-[32px] font-bold text-neutral-900 tracking-tight leading-none">
+        <h1 className="text-[32px] font-bold text-foreground tracking-tight leading-none">
           Đăng nhập
         </h1>
         <p className="mt-2 text-neutral-400 text-sm">
@@ -494,7 +494,7 @@ const LoginForm = ({ onSwitchToRegister, isAnimating }) => {
           <div className="mt-2 text-right">
             <button
               type="button"
-              className="text-xs text-neutral-400 hover:text-neutral-900 transition-colors"
+              className="text-xs text-neutral-400 hover:text-foreground transition-colors"
             >
               Quên mật khẩu?
             </button>
@@ -550,12 +550,12 @@ const LoginForm = ({ onSwitchToRegister, isAnimating }) => {
       </div>
 
       {/* Switch */}
-      <p className="mt-6 text-center text-sm text-neutral-500">
+      <p className="mt-6 text-center text-sm text-muted-foreground">
         Chưa có tài khoản?{' '}
         <button
           type="button"
           onClick={onSwitchToRegister}
-          className="text-neutral-900 font-medium hover:text-[#FF4D00] transition-colors"
+          className="text-foreground font-medium hover:text-[#FF4D00] transition-colors"
         >
           Đăng ký ngay
         </button>
@@ -694,7 +694,7 @@ const RegisterForm = ({ onSwitchToLogin, isAnimating }) => {
       
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-[32px] font-bold text-neutral-900 tracking-tight leading-none">
+        <h1 className="text-[32px] font-bold text-foreground tracking-tight leading-none">
           Tạo tài khoản
         </h1>
         <p className="mt-2 text-neutral-400 text-sm">
@@ -827,18 +827,18 @@ const RegisterForm = ({ onSwitchToLogin, isAnimating }) => {
       {/* Terms */}
       <p className="text-xs text-neutral-400 text-center mt-6">
         Bằng việc đăng ký, bạn đồng ý với{' '}
-        <Link to="/terms" className="text-neutral-600 hover:text-neutral-900">Điều khoản</Link>
+        <Link to="/terms" className="text-muted-foreground hover:text-foreground">Điều khoản</Link>
         {' '}và{' '}
-        <Link to="/policy" className="text-neutral-600 hover:text-neutral-900">Chính sách bảo mật</Link>
+        <Link to="/policy" className="text-muted-foreground hover:text-foreground">Chính sách bảo mật</Link>
       </p>
 
       {/* Switch */}
-      <p className="mt-4 text-center text-sm text-neutral-500">
+      <p className="mt-4 text-center text-sm text-muted-foreground">
         Đã có tài khoản?{' '}
         <button
           type="button"
           onClick={onSwitchToLogin}
-          className="text-neutral-900 font-medium hover:text-[#FF4D00] transition-colors"
+          className="text-foreground font-medium hover:text-[#FF4D00] transition-colors"
         >
           Đăng nhập
         </button>
@@ -983,7 +983,7 @@ export function AuthPage() {
 
 
   return (
-    <div className="min-h-screen flex bg-white">
+    <div className="min-h-screen flex bg-card">
       {/* Left Panel */}
       <LeftPanel isLogin={isLogin} />
 
@@ -1009,7 +1009,7 @@ export function AuthPage() {
               </div>
               <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-[#FF4D00] rounded-full" />
             </div>
-            <span className="font-semibold text-neutral-900">Skill Master</span>
+            <span className="font-semibold text-foreground">Skill Master</span>
           </Link>
         </div>
 
@@ -1035,9 +1035,9 @@ export function AuthPage() {
           <Link
             to="/"
             className="group inline-flex items-center gap-2 text-sm text-neutral-400 
-                     hover:text-neutral-900 transition-colors"
+                     hover:text-foreground transition-colors"
           >
-            <div className="flex items-center justify-center w-7 h-7 border border-neutral-200 
+            <div className="flex items-center justify-center w-7 h-7 border border-border 
                           group-hover:border-neutral-900 group-hover:bg-neutral-900 
                           transition-all">
               <ArrowLeft className="h-3.5 w-3.5 group-hover:text-white transition-colors" />

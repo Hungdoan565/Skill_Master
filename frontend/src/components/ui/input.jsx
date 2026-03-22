@@ -7,17 +7,17 @@ const Input = React.forwardRef(({ className, type, ...props }, ref) => {
       type={type}
       className={cn(
         // Base styles - tăng chiều cao h-11 (44px) cho dễ bấm
-        "flex h-11 w-full rounded-md border-2 border-slate-200 bg-white px-4 py-2 text-base",
+        "flex h-11 w-full rounded-md border-2 border-input bg-background px-4 py-2 text-base text-foreground",
         // Placeholder đậm hơn để dễ đọc (accessibility)
-        "placeholder:text-slate-400",
+        "placeholder:text-muted-foreground",
         // Transition mượt mà cho tất cả interactions
         "transition-all duration-200 ease-in-out",
-        // Focus state - viền indigo + ring rõ ràng
-        "focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20",
+        // Focus state - viền primary + ring rõ ràng
+        "focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20",
         // Hover state nhẹ
-        "hover:border-slate-300",
+        "hover:border-muted-foreground/30",
         // Disabled state
-        "disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-slate-50",
+        "disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-muted",
         // File input
         "file:border-0 file:bg-transparent file:text-sm file:font-medium",
         className
