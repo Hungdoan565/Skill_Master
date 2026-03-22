@@ -21,6 +21,8 @@ export const SmartImage = ({
     priority = false, // if true, sets loading="eager"
     fallbackSrc = null, // optional custom fallback image URL
     containerClassName,
+    onLoad,
+    onError,
     ...props
 }) => {
     const [isLoading, setIsLoading] = useState(!priority);
@@ -33,13 +35,15 @@ export const SmartImage = ({
         if (!priority) setIsLoading(true);
     }, [src, priority]);
 
-    const handleLoad = () => {
+    const handleLoad = (event) => {
         setIsLoading(false);
+        onLoad?.(event);
     };
 
-    const handleError = () => {
+    const handleError = (event) => {
         setIsLoading(false);
         setIsError(true);
+        onError?.(event);
     };
 
     return (

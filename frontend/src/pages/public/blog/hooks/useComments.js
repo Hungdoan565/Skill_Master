@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/auth-context';
+import { normalizeAvatarUrl } from '@/lib/avatar-url';
+
+const DEFAULT_AVATAR = 'https://randomuser.me/api/portraits/lego/1.jpg';
+
+const resolveCommentAvatar = (avatarUrl) => normalizeAvatarUrl(avatarUrl) || DEFAULT_AVATAR;
 
 /**
  * Hook for managing blog comments with Supabase
@@ -88,7 +93,7 @@ export const useComments = (postSlug, options = {}) => {
                     id: comment.id,
                     author: {
                         name: comment.users?.full_name || 'Người dùng',
-                        avatar: comment.users?.avatar_url || 'https://randomuser.me/api/portraits/lego/1.jpg',
+                        avatar: resolveCommentAvatar(comment.users?.avatar_url),
                         badge
                     },
                     content: comment.content,
@@ -182,7 +187,7 @@ export const useComments = (postSlug, options = {}) => {
                 id: data.id,
                 author: {
                     name: data.users?.full_name || profile?.full_name || 'Bạn',
-                    avatar: data.users?.avatar_url || profile?.avatar_url || 'https://randomuser.me/api/portraits/lego/1.jpg',
+                    avatar: resolveCommentAvatar(data.users?.avatar_url || profile?.avatar_url),
                     badge
                 },
                 content: data.content,
@@ -383,7 +388,7 @@ export const useComments = (postSlug, options = {}) => {
         currentUser: {
             id: user?.id,
             name: profile?.full_name || 'Khách',
-            avatar: profile?.avatar_url || 'https://randomuser.me/api/portraits/lego/1.jpg'
+            avatar: resolveCommentAvatar(profile?.avatar_url)
         }
     };
 };

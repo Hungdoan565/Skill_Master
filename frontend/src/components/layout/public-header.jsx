@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/auth-context';
 import logoImage from '@/assets/logo.png';
+import { normalizeAvatarUrl } from '@/lib/avatar-url';
 import { UniversalSearchOverlay } from '@/components/common/UniversalSearchOverlay';
 import { ConsultationModal, BookingModal, SmartImage } from '@/components/common';
 import { ThemeToggleSimple } from '@/components/ui/theme-toggle';
@@ -21,10 +22,12 @@ const UserDropdown = () => {
   const { user, profile, signOut, getRedirectPath } = useAuth();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const dropdownRef = useRef(null);
 
   const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
-  const avatarUrl = profile?.avatar_url || user?.user_metadata?.avatar_url || null;
+  const avatarUrl = normalizeAvatarUrl(profile?.avatar_url || user?.user_metadata?.avatar_url || null);
+  const shouldShowAvatar = Boolean(avatarUrl) && !avatarLoadFailed;
   const roleCode = profile?.roles?.code;
 
   useEffect(() => {
@@ -43,9 +46,17 @@ const UserDropdown = () => {
     return () => document.removeEventListener('keydown', handleEscape);
   }, []);
 
+  useEffect(() => {
+    setAvatarLoadFailed(false);
+  }, [avatarUrl]);
+
   const getInitials = (name) => {
     if (!name) return '?';
-    const parts = name.trim().split(' ');
+    const normalizedName = name.trim();
+    if (!normalizedName) return '?';
+
+    const parts = normalizedName.split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '?';
     if (parts.length === 1) return parts[0][0].toUpperCase();
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   };
@@ -101,13 +112,14 @@ const UserDropdown = () => {
           ${isOpen ? 'bg-muted border-border' : ''}
         `}
       >
-        {avatarUrl ? (
+        {shouldShowAvatar ? (
           <SmartImage
             src={avatarUrl}
             alt={displayName}
             className="w-full h-full object-cover"
             containerClassName="h-9 w-9 rounded-full ring-2 ring-background shadow-sm overflow-hidden"
             aspectRatio="aspect-square"
+            onError={() => setAvatarLoadFailed(true)}
           />
         ) : (
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-900 dark:bg-zinc-700 text-sm font-semibold text-white ring-2 ring-background shadow-sm">
@@ -129,13 +141,14 @@ const UserDropdown = () => {
         `}>
         <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-700">
           <div className="flex items-center gap-3">
-            {avatarUrl ? (
+            {shouldShowAvatar ? (
               <SmartImage
                 src={avatarUrl}
                 alt={displayName}
                 className="w-full h-full object-cover"
                 containerClassName="h-11 w-11 rounded-full overflow-hidden"
                 aspectRatio="aspect-square"
+                onError={() => setAvatarLoadFailed(true)}
               />
             ) : (
               <div className="flex h-11 w-11 items-center justify-center rounded-full bg-zinc-900 dark:bg-zinc-700 text-sm font-semibold text-white">

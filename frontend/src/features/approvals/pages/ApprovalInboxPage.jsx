@@ -414,13 +414,13 @@ export default function ApprovalInboxPage() {
         </div>
       </div>
 
-      <div className="flex overflow-x-auto border-b hide-scrollbar">
+      <div className="flex overflow-x-auto border-b-2 border-border bg-card/80 backdrop-blur-sm rounded-t-xl px-2">
         <button
           onClick={() => setActiveTab('all')}
           className={`flex-none whitespace-nowrap px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
             activeTab === 'all' 
               ? 'border-primary text-primary' 
-              : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+              : 'border-border/60 text-muted-foreground hover:text-foreground hover:border-border'
           }`}
         >
           <div className="flex items-center space-x-2">
@@ -441,7 +441,7 @@ export default function ApprovalInboxPage() {
               className={`flex-none whitespace-nowrap px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === key 
                   ? 'border-primary text-primary' 
-                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                  : 'border-border/60 text-muted-foreground hover:text-foreground hover:border-border'
               }`}
             >
               <div className="flex items-center space-x-2">
@@ -485,7 +485,7 @@ export default function ApprovalInboxPage() {
               const date = new Date(item.created_at || item.createdAt || Date.now());
 
               return (
-                <div key={`${item._type}-${item.id}`} className="flex flex-col sm:flex-row sm:items-center justify-between bg-card rounded-xl border border-border p-4 hover:bg-muted/50 transition-colors gap-4">
+                <div key={`${item._type}-${item.id}`} className="flex flex-col sm:flex-row sm:items-center justify-between rounded-xl border-2 border-border/80 bg-card/95 p-4 shadow-sm backdrop-blur-sm transition-[background-color,border-color,box-shadow] hover:border-border hover:bg-muted/55 gap-4">
                   <div className="flex items-start space-x-4">
                     <div className={`mt-1 flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${colors.bg} ${colors.text}`}>
                       <Icon className="w-5 h-5" />
