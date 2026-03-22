@@ -57,7 +57,7 @@ export function CenterDetailModal({
 
             {/* Modal */}
             <div className="flex min-h-full items-center justify-center p-4">
-                <div className="relative bg-card rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden">
+                <div className="relative bg-white dark:bg-zinc-900 rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden">
                     {/* Header với gradient */}
                     <div className={`h-32 ${gradient} relative`}>
                         <button
@@ -73,10 +73,10 @@ export function CenterDetailModal({
                                 <img
                                     src={center.logo_url}
                                     alt={center.name}
-                                    className="w-20 h-20 rounded-xl border-4 border-card shadow-lg object-cover bg-card"
+                                    className="w-20 h-20 rounded-xl border-4 border-white dark:border-zinc-900 shadow-lg object-cover bg-white dark:bg-zinc-900"
                                 />
                             ) : (
-                                <div className="w-20 h-20 rounded-xl border-4 border-card shadow-lg bg-card flex items-center justify-center">
+                                <div className="w-20 h-20 rounded-xl border-4 border-white dark:border-zinc-900 shadow-lg bg-white dark:bg-zinc-900 flex items-center justify-center">
                                     <span className="text-2xl font-bold text-muted-foreground">
                                         {getInitials(center.name)}
                                     </span>
@@ -128,28 +128,28 @@ export function CenterDetailModal({
 
                         {/* Stats cards */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                            <Card className="p-4 text-center">
+                            <Card className="p-4 text-center bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800">
                                 <Building2 className="h-6 w-6 text-blue-500 mx-auto mb-2" />
                                 <p className="text-2xl font-bold text-foreground">
                                     {loadingStats ? '-' : (stats?.rooms?.total || center.rooms_count || 0)}
                                 </p>
                                 <p className="text-sm text-muted-foreground">Phòng học</p>
                             </Card>
-                            <Card className="p-4 text-center">
+                            <Card className="p-4 text-center bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800">
                                 <BookOpen className="h-6 w-6 text-green-500 mx-auto mb-2" />
                                 <p className="text-2xl font-bold text-foreground">
                                     {loadingStats ? '-' : (stats?.classes?.total || center.classes_count || 0)}
                                 </p>
                                 <p className="text-sm text-muted-foreground">Lớp học</p>
                             </Card>
-                            <Card className="p-4 text-center">
+                            <Card className="p-4 text-center bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800">
                                 <Users className="h-6 w-6 text-purple-500 mx-auto mb-2" />
                                 <p className="text-2xl font-bold text-foreground">
                                     {loadingStats ? '-' : (stats?.teachers?.total || center.teachers_count || 0)}
                                 </p>
                                 <p className="text-sm text-muted-foreground">Giáo viên</p>
                             </Card>
-                            <Card className="p-4 text-center">
+                            <Card className="p-4 text-center bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800">
                                 <GraduationCap className="h-6 w-6 text-amber-500 mx-auto mb-2" />
                                 <p className="text-2xl font-bold text-foreground">
                                     {loadingStats ? '-' : (stats?.students?.total || center.students_count || 0)}
@@ -198,7 +198,7 @@ export function CenterDetailModal({
                                     Quản lý trung tâm
                                 </h3>
                                 {center.manager ? (
-                                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+                                    <div className="flex items-center gap-3 p-3 bg-gray-100 dark:bg-zinc-800 rounded-lg">
                                         <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center overflow-hidden">
                                             {center.manager.avatar_url ? (
                                                 <img
@@ -220,7 +220,7 @@ export function CenterDetailModal({
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="p-4 bg-muted/50 rounded-lg text-center">
+                                    <div className="p-4 bg-gray-100 dark:bg-zinc-800 rounded-lg text-center">
                                         <User className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
                                         <p className="text-muted-foreground text-sm">Chưa có quản lý</p>
                                         {canManage && (
@@ -267,7 +267,7 @@ export function CenterDetailModal({
                         )}
 
                         {/* Timestamps */}
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground pt-4 border-t border-border">
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground pt-4 border-t border-gray-200 dark:border-zinc-800">
                             <span className="flex items-center gap-1">
                                 <Calendar className="h-3 w-3" />
                                 Tạo: {formatDate(center.created_at)}

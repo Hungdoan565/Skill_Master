@@ -63,13 +63,13 @@ export function CenterRevenueTab({
             <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     {[1, 2, 3, 4].map(i => (
-                        <Card key={i} className="p-4 animate-pulse border-border shadow-sm">
+                        <Card key={i} className="p-4 animate-pulse border-gray-200 dark:border-zinc-800 shadow-sm">
                             <div className="h-4 w-20 bg-muted rounded mb-2" />
                             <div className="h-8 w-32 bg-muted rounded" />
                         </Card>
                     ))}
                 </div>
-                <Card className="p-6 animate-pulse border-border shadow-sm">
+                <Card className="p-6 animate-pulse border-gray-200 dark:border-zinc-800 shadow-sm">
                     <div className="h-6 w-40 bg-muted rounded mb-4" />
                     <div className="h-64 bg-muted/30 rounded" />
                 </Card>
@@ -113,7 +113,7 @@ export function CenterRevenueTab({
             </div>
 
             {/* Revenue Chart */}
-            <Card className="p-6 border-border shadow-sm bg-card">
+            <Card className="p-6 border-gray-200 dark:border-zinc-800 shadow-sm bg-white dark:bg-zinc-900">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                     <div>
                         <h3 className="text-lg font-semibold text-foreground">Doanh thu theo tháng</h3>
@@ -122,7 +122,7 @@ export function CenterRevenueTab({
                     <Button
                         onClick={() => navigate(`/admin/invoices?centerId=${centerId}`)}
                         variant="outline"
-                        className="gap-2 border-border text-foreground hover:bg-muted"
+                        className="gap-2 border-gray-200 dark:border-zinc-800 text-foreground hover:bg-muted"
                     >
                         <ExternalLink className="h-4 w-4" />
                         Xem tất cả hóa đơn
@@ -130,7 +130,7 @@ export function CenterRevenueTab({
                 </div>
 
                 {revenueData.length === 0 ? (
-                    <div className="h-64 flex items-center justify-center text-muted-foreground bg-muted/30 rounded-lg border border-dashed border-border">
+                    <div className="h-64 flex items-center justify-center text-muted-foreground bg-muted/30 rounded-lg border border-dashed border-gray-200 dark:border-zinc-800">
                         <div className="text-center">
                             <Calendar className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
                             <p className="text-sm">Chưa có dữ liệu doanh thu</p>
@@ -180,19 +180,19 @@ export function CenterRevenueTab({
             {/* Summary stats */}
             {summary && (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <Card className="p-5 border-border shadow-sm bg-card">
+                    <Card className="p-5 border-gray-200 dark:border-zinc-800 shadow-sm bg-white dark:bg-zinc-900">
                         <p className="text-sm font-medium text-muted-foreground mb-2">Tổng doanh thu (12 tháng)</p>
                         <p className="text-2xl font-bold text-foreground tracking-tight">
                             {formatCurrency(summary.totalRevenue)}
                         </p>
                     </Card>
-                    <Card className="p-5 border-border shadow-sm bg-card">
+                    <Card className="p-5 border-gray-200 dark:border-zinc-800 shadow-sm bg-white dark:bg-zinc-900">
                         <p className="text-sm font-medium text-muted-foreground mb-2">Trung bình doanh thu / tháng</p>
                         <p className="text-2xl font-bold text-foreground tracking-tight">
                             {formatCurrency(summary.avgRevenue)}
                         </p>
                     </Card>
-                    <Card className="p-5 border-border shadow-sm bg-card">
+                    <Card className="p-5 border-gray-200 dark:border-zinc-800 shadow-sm bg-white dark:bg-zinc-900">
                         <p className="text-sm font-medium text-muted-foreground mb-2">Tăng trưởng (so với tháng trước)</p>
                         <div className="flex items-center gap-2.5">
                             <p className={`text-2xl font-bold tracking-tight ${summary.trendUp ? 'text-emerald-600' : 'text-red-600'}`}>
@@ -224,7 +224,7 @@ function StatCard({ title, value, icon: Icon, color, trend, trendUp, subText }) 
     const colors = colorMap[color] || colorMap.emerald;
 
     return (
-        <Card className="p-5 border-border shadow-sm bg-card hover:border-muted-foreground/30 transition-colors group">
+        <Card className="p-5 border-gray-200 dark:border-zinc-800 shadow-sm bg-white dark:bg-zinc-900 hover:border-muted-foreground/30 transition-colors group">
             <div className="flex items-start justify-between mb-4">
                 <div className={`p-2.5 rounded-xl ${colors.iconBg} group-hover:scale-110 transition-transform duration-200`}>
                     <Icon className={`h-5 w-5 ${colors.iconText}`} />
@@ -256,7 +256,7 @@ function CustomTooltip({ active, payload, label }) {
     if (!active || !payload || !payload.length) return null;
 
     return (
-        <div className="bg-card px-4 py-3 shadow-md rounded-xl border border-border min-w-[150px]">
+        <div className="bg-white dark:bg-zinc-900 px-4 py-3 shadow-md rounded-xl border border-gray-200 dark:border-zinc-800 min-w-[150px]">
             <p className="text-sm font-medium text-muted-foreground mb-1">{label}</p>
             <p className="text-lg font-bold text-foreground">
                 {formatCurrency(payload[0].value)}

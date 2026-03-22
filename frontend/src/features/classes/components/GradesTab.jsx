@@ -124,7 +124,7 @@ function LoadingState() {
 
 function NoStructureState() {
   return (
-    <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/30 rounded-lg border border-dashed border-slate-300 dark:border-slate-700">
+    <div className="text-center py-12 bg-white dark:bg-zinc-900 shadow-md rounded-lg border border-dashed border-slate-300 dark:border-zinc-800">
       <GraduationCap className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
       <p className="text-slate-600 dark:text-slate-400 font-medium">Chưa có cấu trúc điểm</p>
       <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">
@@ -137,7 +137,7 @@ function NoStructureState() {
 
 function NoStudentsState() {
   return (
-    <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/30 rounded-lg border border-dashed border-slate-300 dark:border-slate-700">
+    <div className="text-center py-12 bg-white dark:bg-zinc-900 shadow-md rounded-lg border border-dashed border-slate-300 dark:border-zinc-800">
       <Users className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
       <p className="text-slate-600 dark:text-slate-400 font-medium">Chưa có học viên</p>
       <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">
@@ -204,10 +204,10 @@ function GradeTable({
   };
 
   return (
-    <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+    <div className="bg-white dark:bg-zinc-900 shadow-md border border-slate-200 dark:border-zinc-800 rounded-lg overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
-          <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+          <thead className="bg-slate-50 dark:bg-zinc-800/50 border-b border-slate-200 dark:border-zinc-800">
             <tr>
               <th className="px-3 py-3 text-left text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide w-12">#</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide min-w-[200px]">Học viên</th>
@@ -223,7 +223,7 @@ function GradeTable({
               <th className="px-3 py-3 text-center text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide min-w-[80px]">Kết quả</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/50">
             {students.map((student, index) => (
               <StudentRow
                 key={student.enrollment_id}
@@ -263,7 +263,7 @@ function StudentRow({
   const weightedAvg = calculateWeightedAverage(student.enrollment_id);
 
   return (
-    <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+    <tr className="hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors">
       {/* Index */}
       <td className="px-3 py-3 text-sm text-slate-500 dark:text-slate-400">{index + 1}</td>
 
@@ -345,7 +345,7 @@ function GradeCell({ enrollmentId, structure, isEditing, isPending, currentScore
           max={structure.max_score}
           step="0.25"
           autoFocus
-          className="w-16 px-2 py-1 text-center text-sm border border-indigo-400 dark:border-indigo-600 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-slate-800 dark:text-slate-100"
+          className="w-16 px-2 py-1 text-center text-sm border border-indigo-400 dark:border-indigo-600 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-zinc-900 dark:text-slate-100"
           defaultValue={currentScore}
           onKeyDown={(e) => {
             // Allow numeric input
@@ -402,8 +402,8 @@ function GradeCell({ enrollmentId, structure, isEditing, isPending, currentScore
           ? isPending
             ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 font-medium'
             : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium'
-          : 'bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700'
-          }`}
+          : 'bg-slate-50 dark:bg-zinc-800 text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-700'
+        }`}
       >
         {currentScore !== '' && currentScore !== null ? currentScore : '—'}
       </button>

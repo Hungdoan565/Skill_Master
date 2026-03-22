@@ -168,7 +168,7 @@ export function StudentPerformanceCard({
 
     if (compact) {
         return (
-            <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-800/30 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
+            <div className="flex items-center justify-between p-3 bg-white dark:bg-zinc-900 shadow-sm border border-slate-200 dark:border-zinc-800 rounded-lg hover:border-slate-300 dark:hover:border-zinc-700 transition-colors">
                 <div className="flex items-center gap-3">
                     <Avatar name={student.name} size="sm" url={student.avatarUrl} />
                     <div>
@@ -192,12 +192,12 @@ export function StudentPerformanceCard({
     }
 
     return (
-        <div className={`bg-white dark:bg-slate-800/30 border rounded-xl overflow-hidden transition-all ${performanceLevel.level === 'danger' ? 'border-red-200 dark:border-red-900' :
-                performanceLevel.level === 'warning' ? 'border-amber-200 dark:border-amber-900' :
-                    'border-slate-200 dark:border-slate-700'
+        <div className={`bg-white dark:bg-zinc-900 shadow-sm border rounded-xl overflow-hidden transition-all ${performanceLevel.level === 'danger' ? 'border-red-200 dark:border-red-900/50' :
+                performanceLevel.level === 'warning' ? 'border-amber-200 dark:border-amber-900/50' :
+                    'border-slate-200 dark:border-zinc-800'
             }`}>
             {/* Header */}
-            <div className="p-4 border-b border-slate-100 dark:border-slate-700">
+            <div className="p-4 border-b border-slate-100 dark:border-zinc-800/50">
                 <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                         <Avatar name={student.name} size="md" url={student.avatarUrl} />
@@ -291,7 +291,7 @@ export function StudentPerformanceCard({
 
             {/* Expandable Details */}
             {expanded && (
-                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700 space-y-4">
+                <div className="p-4 bg-slate-50 dark:bg-zinc-800/50 border-t border-slate-100 dark:border-zinc-800/50 space-y-4">
                     {/* Grade Breakdown */}
                     {performance?.gradeBreakdown && performance.gradeBreakdown.length > 0 && (
                         <div>
@@ -352,7 +352,7 @@ export function StudentPerformanceCard({
             )}
 
             {/* Footer */}
-            <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-700">
+            <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-zinc-800/50 border-t border-slate-100 dark:border-zinc-800/50">
                 <Button
                     variant="ghost"
                     size="sm"

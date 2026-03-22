@@ -32,13 +32,18 @@ export function getCertificateColumns({ onView, onPrint, onCopyLink, onRevoke })
       label: 'Mã chứng chỉ',
       sortable: true,
       width: '160px',
-      render: (value) => (
-        <div className="flex items-center group">
-          <code className="text-xs font-mono font-medium bg-muted text-foreground px-2 py-1 rounded-md border border-border/50 group-hover:border-primary/30 transition-colors cursor-default">
-            {value || '—'}
-          </code>
-        </div>
-      ),
+      render: (value) => {
+        if (!value) return <span className="text-muted-foreground">—</span>;
+        // Defensive: guard against object accidentally passed as value
+        const code = typeof value === 'object' ? value.code : value;
+        return (
+          <div className="flex items-center group">
+            <code className="text-xs font-mono font-medium bg-muted text-foreground px-2 py-1 rounded-md border border-border/50 group-hover:border-primary/30 transition-colors cursor-default">
+              {code}
+            </code>
+          </div>
+        );
+      },
     },
     {
       key: 'student_name',

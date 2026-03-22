@@ -148,14 +148,14 @@ function Header({ schedule, total, completed, viewMode, onViewModeChange, onCrea
         {/* Actions Row */}
         <div className="flex items-center gap-3">
           {/* View Mode Toggle - 3 options: List, Week, Calendar */}
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-800 rounded-lg p-1 border border-slate-200 dark:border-zinc-700">
             <button
               onClick={() => onViewModeChange('list')}
               className={`
                 px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5
                 ${viewMode === 'list'
-                  ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  ? 'bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200 dark:border-zinc-800'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-zinc-800/50'
                 }
               `}
               title="Xem dạng danh sách"
@@ -168,8 +168,8 @@ function Header({ schedule, total, completed, viewMode, onViewModeChange, onCrea
               className={`
                 px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5
                 ${viewMode === 'week'
-                  ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  ? 'bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200 dark:border-zinc-800'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-zinc-800/50'
                 }
               `}
               title="Xem theo tuần"
@@ -182,8 +182,8 @@ function Header({ schedule, total, completed, viewMode, onViewModeChange, onCrea
               className={`
                 px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5
                 ${viewMode === 'calendar'
-                  ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  ? 'bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-sm border border-slate-200 dark:border-zinc-800'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-zinc-800/50'
                 }
               `}
               title="Xem dạng lịch tháng"
@@ -298,10 +298,10 @@ function SessionItem({ session, onAttendanceClick }) {
   const canMarkAttendance = !isFutureSession && session.status !== 'cancelled';
 
   const containerClass = isToday
-    ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800 ring-2 ring-indigo-500/20'
+    ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800 ring-2 ring-indigo-500/20 shadow-md'
     : isCompleted
-      ? 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'
-      : 'bg-white dark:bg-slate-800/30 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600';
+      ? 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shadow-md opacity-80'
+      : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shadow-md hover:border-slate-300 dark:hover:border-zinc-700';
 
   const numberClass = isToday
     ? 'bg-indigo-500 text-white'

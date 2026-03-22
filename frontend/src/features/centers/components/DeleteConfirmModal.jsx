@@ -25,9 +25,9 @@ export function DeleteConfirmModal({
 
             {/* Modal */}
             <div className="flex min-h-full items-center justify-center p-4">
-                <div className="relative bg-card rounded-xl shadow-xl w-full max-w-md">
+                <div className="relative bg-white dark:bg-zinc-900 rounded-xl shadow-xl w-full max-w-md">
                     {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-zinc-800">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
                                 <AlertTriangle className="h-5 w-5 text-red-600" />
@@ -60,7 +60,7 @@ export function DeleteConfirmModal({
                     </div>
 
                     {/* Footer */}
-                    <div className="px-6 py-4 border-t border-border bg-muted/50 flex items-center justify-end gap-3 rounded-b-xl">
+                    <div className="px-6 py-4 border-t border-gray-200 dark:border-zinc-800 bg-gray-100 dark:bg-zinc-800 flex items-center justify-end gap-3 rounded-b-xl">
                         <Button
                             variant="outline"
                             onClick={onClose}

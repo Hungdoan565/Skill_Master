@@ -32,7 +32,7 @@ export function CenterHeader({
     const gradient = getGradient(center.name);
 
     return (
-        <div className="bg-card rounded-xl shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05),_0_1px_4px_-1px_rgba(0,0,0,0.02)] border border-border overflow-hidden">
+        <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05),_0_1px_4px_-1px_rgba(0,0,0,0.02)] border border-gray-200 dark:border-zinc-800 overflow-hidden">
             {/* Very compact banner */}
             <div className={`h-12 ${gradient} relative flex items-center justify-between px-4`}>
                 <button
@@ -74,10 +74,10 @@ export function CenterHeader({
                             <img
                                 src={center.logo_url}
                                 alt={center.name}
-                                className="w-16 h-16 rounded-xl border border-border shadow-sm object-cover bg-card"
+                                className="w-16 h-16 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm object-cover bg-white dark:bg-zinc-900"
                             />
                         ) : (
-                            <div className="w-16 h-16 rounded-xl border border-border shadow-sm bg-card flex items-center justify-center">
+                            <div className="w-16 h-16 rounded-xl border border-gray-200 dark:border-zinc-800 shadow-sm bg-white dark:bg-zinc-900 flex items-center justify-center">
                                 <span className="text-xl font-bold text-muted-foreground tracking-tight">
                                     {getInitials(center.name)}
                                 </span>
@@ -95,7 +95,7 @@ export function CenterHeader({
                                 {statusConfig.label}
                             </Badge>
                             {center.code && (
-                                <Badge variant="outline" className="text-muted-foreground border-border shadow-none font-medium">
+                                <Badge variant="outline" className="text-muted-foreground border-gray-200 dark:border-zinc-800 shadow-none font-medium">
                                     #{center.code}
                                 </Badge>
                             )}
@@ -106,7 +106,7 @@ export function CenterHeader({
                         )}
 
                         {/* Contact info compact pills row */}
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground mt-3 pt-3 border-t border-border">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground mt-3 pt-3 border-t border-gray-200 dark:border-zinc-800">
                             {center.address && (
                                 <div className="flex items-center gap-1.5">
                                     <MapPin className="h-3.5 w-3.5 text-muted-foreground" />

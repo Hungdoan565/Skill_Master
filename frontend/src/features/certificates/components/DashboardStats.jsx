@@ -19,7 +19,7 @@ function StatCard({ title, value, icon: Icon, description, trend, variant = 'def
   const iconStyles = variants[variant] || variants.default;
 
   return (
-    <Card className="relative overflow-hidden group hover:shadow-md transition-all duration-300 border-border/50 bg-card">
+    <Card className="relative overflow-hidden group hover:shadow-md transition-all duration-300 border-border bg-card shadow-sm">
       <div className="p-6">
         <div className="flex justify-between items-start mb-4">
           <div className="space-y-2">
@@ -55,7 +55,7 @@ export default function DashboardStats({ onViewPending }) {
       <div className="space-y-6 animate-in fade-in duration-300">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map(i => (
-            <Card key={i} className="p-6 border-border/50">
+            <Card key={i} className="p-6 border-border shadow-sm">
               <div className="flex justify-between items-start mb-4">
                 <div className="space-y-2 w-full">
                   <div className="h-4 w-24 bg-muted animate-pulse rounded" />
@@ -68,8 +68,8 @@ export default function DashboardStats({ onViewPending }) {
           ))}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="h-[400px] bg-muted animate-pulse border-border/50" />
-          <Card className="h-[400px] bg-muted animate-pulse border-border/50" />
+          <Card className="h-[400px] bg-muted animate-pulse border-border shadow-sm" />
+          <Card className="h-[400px] bg-muted animate-pulse border-border shadow-sm" />
         </div>
       </div>
     );
@@ -113,8 +113,8 @@ export default function DashboardStats({ onViewPending }) {
 
       {/* Pending Approvals Banner */}
       {stats.pendingApprovalCount > 0 && (
-        <div className="group relative overflow-hidden rounded-xl bg-amber-500/10 border border-amber-500/20 p-4 sm:p-5 transition-all hover:bg-amber-500/15">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl -mr-10 -mt-10" />
+        <div className="group relative overflow-hidden rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 shadow-sm p-4 sm:p-5 transition-all hover:bg-amber-100 dark:hover:bg-amber-500/15">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl -mr-10 -mt-10 opacity-50" />
           <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3.5">
               <div className="p-2 bg-amber-500/20 rounded-lg text-amber-600 dark:text-amber-500 animate-pulse">
@@ -143,8 +143,8 @@ export default function DashboardStats({ onViewPending }) {
       {/* Two columns: Recent + Top */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Certificates */}
-        <Card className="flex flex-col border-border/50 shadow-sm overflow-hidden bg-card">
-          <div className="p-5 border-b border-border/50 flex items-center justify-between bg-muted">
+        <Card className="flex flex-col border-border shadow-sm overflow-hidden bg-card">
+          <div className="p-5 border-b border-border flex items-center justify-between bg-muted/50">
             <div className="flex items-center gap-2">
               <Activity className="h-5 w-5 text-primary" />
               <h3 className="font-semibold tracking-tight text-foreground">Hoạt động cấp phát gần đây</h3>
@@ -153,7 +153,7 @@ export default function DashboardStats({ onViewPending }) {
           
           <div className="p-0 flex-1 overflow-auto">
             {stats.recentCertificates?.length > 0 ? (
-              <div className="divide-y divide-border/50">
+              <div className="divide-y divide-border">
                 {stats.recentCertificates.map((cert, i) => {
                   const displayStatus = getCertificateDisplayStatus(cert);
                   const statusInfo = STATUS_CONFIG[displayStatus];
@@ -202,8 +202,8 @@ export default function DashboardStats({ onViewPending }) {
         </Card>
 
         {/* Top Certificate Types */}
-        <Card className="flex flex-col border-border/50 shadow-sm overflow-hidden bg-card">
-          <div className="p-5 border-b border-border/50 flex items-center justify-between bg-muted">
+        <Card className="flex flex-col border-border shadow-sm overflow-hidden bg-card">
+          <div className="p-5 border-b border-border flex items-center justify-between bg-muted/50">
             <div className="flex items-center gap-2">
               <Award className="h-5 w-5 text-primary" />
               <h3 className="font-semibold tracking-tight text-foreground">Loại chứng chỉ phổ biến</h3>
@@ -227,7 +227,7 @@ export default function DashboardStats({ onViewPending }) {
                     ? "bg-slate-500/15 text-slate-600 border-slate-500/30 dark:text-slate-300"
                     : isTop3 
                     ? "bg-amber-600/15 text-amber-700 border-amber-600/30 dark:text-amber-500"
-                    : "bg-muted text-muted-foreground border-border/50";
+                    : "bg-muted text-muted-foreground border-border";
                   
                   return (
                     <div key={type.id || i} className="group relative">
@@ -254,7 +254,7 @@ export default function DashboardStats({ onViewPending }) {
                             </div>
                           </div>
                         </div>
-                        <Badge variant="outline" className="font-mono bg-card text-foreground font-bold border-border/50 shadow-sm shrink-0 ml-4">
+                        <Badge variant="outline" className="font-mono bg-card text-foreground font-bold border-border shadow-sm shrink-0 ml-4">
                           {type.count}
                         </Badge>
                       </div>

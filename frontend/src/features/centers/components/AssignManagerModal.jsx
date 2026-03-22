@@ -116,9 +116,9 @@ export function AssignManagerModal({
 
             {/* Modal */}
             <div className="flex min-h-full items-center justify-center p-4">
-                <div className="relative bg-card rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden">
+                <div className="relative bg-white dark:bg-zinc-900 rounded-xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden">
                     {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-zinc-800">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
                                 <UserPlus className="h-5 w-5 text-purple-600" />
@@ -141,14 +141,14 @@ export function AssignManagerModal({
                     </div>
 
                     {/* Search */}
-                    <div className="px-6 py-4 border-b border-border">
+                    <div className="px-6 py-4 border-b border-gray-200 dark:border-zinc-800">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder="Tìm theo tên, email, SĐT..."
-                                className="pl-10"
+                                className="pl-10 bg-gray-50 dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus-visible:ring-2 focus-visible:ring-indigo-500"
                             />
                         </div>
                     </div>
@@ -168,11 +168,11 @@ export function AssignManagerModal({
                                 </p>
                             </div>
                         ) : (
-                            <div className="divide-y divide-border">
+                            <div className="divide-y divide-gray-200 dark:divide-zinc-800">
                                 {/* Option: Không gán ai */}
                                 <button
                                     onClick={() => setSelectedUserId(null)}
-                                    className={`w-full px-6 py-4 flex items-center gap-4 hover:bg-muted transition-colors ${selectedUserId === null ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''
+                                    className={`w-full px-6 py-4 flex items-center gap-4 hover:bg-muted transition-colors ${selectedUserId === null ? 'bg-indigo-50 dark:bg-indigo-900/40' : ''
                                         }`}
                                 >
                                     <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
@@ -192,7 +192,7 @@ export function AssignManagerModal({
                                     <button
                                         key={person.id}
                                         onClick={() => setSelectedUserId(person.id)}
-                                        className={`w-full px-6 py-4 flex items-center gap-4 hover:bg-muted transition-colors ${selectedUserId === person.id ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''
+                                        className={`w-full px-6 py-4 flex items-center gap-4 hover:bg-muted transition-colors ${selectedUserId === person.id ? 'bg-indigo-50 dark:bg-indigo-900/40' : ''
                                             }`}
                                     >
                                         <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center overflow-hidden">
@@ -256,7 +256,7 @@ export function AssignManagerModal({
                     </div>
 
                     {/* Footer */}
-                    <div className="px-6 py-4 border-t border-border bg-muted/50 flex items-center justify-end gap-3">
+                    <div className="px-6 py-4 border-t border-gray-200 dark:border-zinc-800 bg-gray-100 dark:bg-zinc-800 flex items-center justify-end gap-3">
                         <Button
                             variant="outline"
                             onClick={onClose}

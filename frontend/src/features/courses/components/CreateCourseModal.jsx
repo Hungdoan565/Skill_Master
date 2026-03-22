@@ -46,7 +46,7 @@ const Step2BasicInfo = ({ formData, handleChange, setFieldValue, imagePreview, c
                         value={formData.code}
                         onChange={handleChange}
                         placeholder="VD: IELTS-FOUNDATION"
-                        className="font-mono uppercase h-11 bg-muted/50 border-border focus:border-red-400 focus:ring-red-400/20"
+                        className="font-mono uppercase h-11 bg-background border-border focus:border-red-400 focus:ring-red-400/20"
                     />
                     <p className="text-[13px] text-muted-foreground">Mã duy nhất, tự động chuyển UPPERCASE</p>
                 </div>
@@ -61,7 +61,7 @@ const Step2BasicInfo = ({ formData, handleChange, setFieldValue, imagePreview, c
                         value={formData.title}
                         onChange={handleChange}
                         placeholder="VD: IELTS Foundation - Cơ bản"
-                        className="h-11 bg-muted/50 border-border focus:border-red-400 focus:ring-red-400/20"
+                        className="h-11 bg-background border-border focus:border-red-400 focus:ring-red-400/20"
                     />
                 </div>
 
@@ -70,7 +70,7 @@ const Step2BasicInfo = ({ formData, handleChange, setFieldValue, imagePreview, c
                         Danh mục <span className="text-red-500">*</span>
                     </Label>
                     <Select value={formData.category} onValueChange={(value) => setFieldValue('category', value)}>
-                        <SelectTrigger className="w-full h-11 bg-muted/50 border-border focus:ring-red-400/20">
+                        <SelectTrigger className="w-full h-11 bg-background border-border focus:ring-red-400/20">
                             <SelectValue placeholder="Chọn danh mục" />
                         </SelectTrigger>
                         <SelectContent>
@@ -86,7 +86,7 @@ const Step2BasicInfo = ({ formData, handleChange, setFieldValue, imagePreview, c
                         Trình độ
                     </Label>
                     <Select value={formData.level} onValueChange={(value) => setFieldValue('level', value)}>
-                        <SelectTrigger className="w-full h-11 bg-muted/50 border-border focus:ring-red-400/20">
+                        <SelectTrigger className="w-full h-11 bg-background border-border focus:ring-red-400/20">
                             <SelectValue placeholder="Chọn trình độ" />
                         </SelectTrigger>
                         <SelectContent>
@@ -109,7 +109,7 @@ const Step2BasicInfo = ({ formData, handleChange, setFieldValue, imagePreview, c
                             value={formData.price}
                             onChange={handleChange}
                             placeholder="5.000.000"
-                            className="pl-9 pr-12 font-mono text-right h-11 bg-muted/50 border-border focus:border-red-400 focus:ring-red-400/20"
+                            className="pl-9 pr-12 font-mono text-right h-11 bg-background border-border focus:border-red-400 focus:ring-red-400/20"
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">VNĐ</span>
                     </div>
@@ -136,7 +136,7 @@ const Step2BasicInfo = ({ formData, handleChange, setFieldValue, imagePreview, c
                                 min="1"
                                 value={formData.total_sessions}
                                 onChange={handleChange}
-                                className="pr-14 h-11 bg-muted/50 border-border focus:border-orange-400 focus:ring-orange-400/20"
+                                className="pr-14 h-11 bg-background border-border focus:border-orange-400 focus:ring-orange-400/20"
                             />
                             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">buổi</span>
                         </div>
@@ -154,7 +154,7 @@ const Step2BasicInfo = ({ formData, handleChange, setFieldValue, imagePreview, c
                                 min="1"
                                 value={formData.duration_weeks}
                                 onChange={handleChange}
-                                className="pr-14 h-11 bg-muted/50 border-border focus:border-orange-400 focus:ring-orange-400/20"
+                                className="pr-14 h-11 bg-background border-border focus:border-orange-400 focus:ring-orange-400/20"
                             />
                             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">tuần</span>
                         </div>
@@ -163,7 +163,7 @@ const Step2BasicInfo = ({ formData, handleChange, setFieldValue, imagePreview, c
 
                 <div className="space-y-2">
                     <Label className="text-sm font-semibold text-foreground/80">Ảnh bìa</Label>
-                    <div className="border-2 border-dashed border-border bg-muted/50 rounded-xl p-4 text-center hover:border-orange-300 dark:hover:border-orange-700 hover:bg-orange-50/50 dark:hover:bg-orange-900/10 transition-colors">
+                    <div className="border-2 border-dashed border-border bg-muted rounded-xl p-4 text-center hover:border-orange-300 dark:hover:border-orange-700 hover:bg-orange-50/50 dark:hover:bg-orange-900/10 transition-colors">
                         {imagePreview ? (
                             <div className="relative group">
                                 <img src={imagePreview} alt="Preview" className="w-full h-40 object-cover rounded-lg shadow-sm" />
@@ -205,7 +205,7 @@ const Step2BasicInfo = ({ formData, handleChange, setFieldValue, imagePreview, c
                         onChange={handleChange}
                         placeholder="Mô tả về khóa học, đối tượng học viên phù hợp..."
                         rows={4}
-                        className="w-full px-4 py-3 rounded-xl border border-border bg-muted/50 text-sm text-foreground focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 resize-none"
+                        className="w-full px-4 py-3 rounded-xl border border-border bg-background text-sm text-foreground focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-400/20 resize-none"
                     />
                 </div>
 
@@ -284,7 +284,7 @@ const Step5FaqReview = ({ formData, addFaq, updateFaq, removeFaq }) => (
                 Kiểm tra thông tin
             </h3>
             
-            <div className="bg-muted/50 rounded-xl border border-border overflow-hidden shadow-inner">
+            <div className="bg-muted rounded-xl border border-border overflow-hidden shadow-inner">
                 {formData.cover_image ? (
                     <img src={formData.cover_image} alt="Cover" className="w-full h-32 md:h-40 object-cover" />
                 ) : (
@@ -346,7 +346,7 @@ const Step5FaqReview = ({ formData, addFaq, updateFaq, removeFaq }) => (
                 <HelpCircle className="w-5 h-5 text-purple-500" />
                 Câu hỏi thường gặp (FAQ)
             </h3>
-            <div className="bg-muted/50 rounded-xl shadow-inner border border-border p-4 md:p-6">
+            <div className="bg-muted rounded-xl shadow-inner border border-border p-4 md:p-6">
                 <FaqBuilder faq={formData.faq} onAdd={addFaq} onUpdate={updateFaq} onRemove={removeFaq} />
             </div>
         </div>
@@ -495,10 +495,10 @@ export function CreateCourseModal({ isOpen, onClose, onSuccess, accessToken, ini
     return (
         <div className="fixed inset-0 z-[300] flex items-center justify-center" role="dialog" aria-modal="true">
             {/* Backdrop */}
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
+            <div className="absolute inset-0 z-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={onClose} />
 
             {/* Modal */}
-            <div className="relative w-full max-w-5xl mx-4 bg-background rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col">
+            <div className="relative z-10 isolate flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-200 dark:border-slate-800 dark:bg-slate-900 mx-4">
                 
                 {/* Header */}
                 <div className="bg-gradient-to-r from-red-500 to-orange-500 px-6 py-4 shrink-0">
@@ -523,7 +523,7 @@ export function CreateCourseModal({ isOpen, onClose, onSuccess, accessToken, ini
                 </div>
 
                 {/* Progress Stepper */}
-                <div className="flex items-center justify-center w-full px-6 md:px-12 lg:px-16 py-6 pb-10 border-b border-border bg-card shadow-sm z-10 shrink-0">
+                <div className="flex items-center justify-center w-full px-6 md:px-12 lg:px-16 py-6 pb-10 border-b border-zinc-200 bg-white shadow-sm z-10 shrink-0 dark:border-slate-800 dark:bg-slate-900">
                     {activeSteps.map((step, index) => {
                         const isCompleted = currentStep > step.id;
                         const isActive = currentStep === step.id;
@@ -559,7 +559,7 @@ export function CreateCourseModal({ isOpen, onClose, onSuccess, accessToken, ini
 
                 {/* Body Content */}
                 <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden min-h-0">
-                    <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-8 custom-scrollbar">
+                    <div className="flex-1 overflow-y-auto bg-white p-4 pb-8 custom-scrollbar md:p-6 dark:bg-slate-900">
                         {error && (
                             <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl flex items-start gap-3 text-red-700 dark:text-red-300 shadow-sm animate-in slide-in-from-top-2">
                                 <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
@@ -569,7 +569,7 @@ export function CreateCourseModal({ isOpen, onClose, onSuccess, accessToken, ini
 
                         <div className="animate-in fade-in slide-in-from-right-4 duration-300">
                             {currentStep === 1 && !initialData && (
-                                <div className="bg-card rounded-2xl shadow-sm border border-border p-6 md:p-8">
+                                <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm md:p-8 dark:border-slate-800 dark:bg-slate-900">
                                     <CourseTemplateSelector
                                         onSelectTemplate={handleSelectTemplate}
                                         onSkip={handleSkip}
@@ -589,7 +589,7 @@ export function CreateCourseModal({ isOpen, onClose, onSuccess, accessToken, ini
                             )}
 
                             {currentStep === 3 && (
-                                <div className="bg-card rounded-2xl shadow-sm border border-border p-6 md:p-8">
+                                <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm md:p-8 dark:border-slate-800 dark:bg-slate-900">
                                     <SyllabusBuilder
                                         syllabus={formData.syllabus}
                                         onAddModule={addSyllabusModule}
@@ -626,7 +626,7 @@ export function CreateCourseModal({ isOpen, onClose, onSuccess, accessToken, ini
                     </div>
 
                     {/* Footer Toolbar & Navigation */}
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-border bg-card shadow-[0_-4px_10px_rgba(0,0,0,0.02)] shrink-0">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-zinc-200 bg-white px-6 py-4 shadow-[0_-4px_10px_rgba(0,0,0,0.02)] shrink-0 dark:border-slate-800 dark:bg-slate-900">
                         {/* Left tools */}
                         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                             <Button type="button" variant="outline" size="sm" onClick={handleExport} className="text-xs font-medium bg-muted hover:bg-muted/80 border-border text-foreground">

@@ -402,7 +402,7 @@ export function StudentPerformanceTab({
             </div>
 
             {/* Filter Bar */}
-            <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 p-4 bg-slate-50 dark:bg-slate-800/30 rounded-xl">
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 p-4 bg-white dark:bg-zinc-900 shadow-md border border-slate-200 dark:border-zinc-800 rounded-xl">
                 {/* Search */}
                 <div className="relative w-full lg:w-72">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -411,7 +411,7 @@ export function StudentPerformanceTab({
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         placeholder="Tìm học viên..."
-                        className="pl-10 bg-white dark:bg-slate-800"
+                        className="pl-10 bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700"
                     />
                     {searchTerm && (
                         <button
@@ -428,7 +428,7 @@ export function StudentPerformanceTab({
                     <select
                         value={filterBy}
                         onChange={(e) => setFilterBy(e.target.value)}
-                        className="h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-slate-200 text-sm"
+                        className="h-10 px-3 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 dark:text-slate-200 text-sm"
                     >
                         {FILTER_OPTIONS.map(opt => (
                             <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -439,7 +439,7 @@ export function StudentPerformanceTab({
                     <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value)}
-                        className="h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-slate-200 text-sm"
+                        className="h-10 px-3 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 dark:text-slate-200 text-sm"
                     >
                         {SORT_OPTIONS.map(opt => (
                             <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -447,16 +447,16 @@ export function StudentPerformanceTab({
                     </select>
 
                     {/* View Mode Toggle */}
-                    <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                    <div className="flex items-center border border-slate-200 dark:border-zinc-700 rounded-lg overflow-hidden">
                         <button
                             onClick={() => setViewMode('cards')}
-                            className={`p-2 ${viewMode === 'cards' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-500'}`}
+                            className={`p-2 ${viewMode === 'cards' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'bg-white dark:bg-zinc-800 text-slate-400 dark:text-slate-500'}`}
                         >
                             <BarChart3 className="w-5 h-5" />
                         </button>
                         <button
                             onClick={() => setViewMode('compact')}
-                            className={`p-2 ${viewMode === 'compact' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-500'}`}
+                            className={`p-2 ${viewMode === 'compact' ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'bg-white dark:bg-zinc-800 text-slate-400 dark:text-slate-500'}`}
                         >
                             <Users className="w-5 h-5" />
                         </button>
@@ -493,7 +493,7 @@ export function StudentPerformanceTab({
             </div>
 
             {filteredStudents.length === 0 && (
-                <div className="text-center py-12 bg-slate-50 dark:bg-slate-800/30 rounded-xl">
+                <div className="text-center py-12 bg-white dark:bg-zinc-900 shadow-md border border-slate-200 dark:border-zinc-800 rounded-xl">
                     <Search className="w-12 h-12 text-slate-300 mx-auto mb-3" />
                     <p className="text-slate-600 dark:text-slate-400 font-medium">Không tìm thấy học viên</p>
                     <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>

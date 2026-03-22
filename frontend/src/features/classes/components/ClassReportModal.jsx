@@ -205,9 +205,9 @@ export function ClassReportModal({
             />
 
             {/* Modal */}
-            <div className="relative w-full max-w-4xl max-h-[90vh] mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+            <div className="relative w-full max-w-4xl max-h-[90vh] mx-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-gradient-to-r from-cyan-500 to-blue-500 flex-shrink-0">
+                <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-zinc-800 bg-gradient-to-r from-cyan-500 to-blue-500 flex-shrink-0">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-white/20 rounded-lg">
                             <BarChart3 className="w-5 h-5 text-white" />
@@ -234,7 +234,7 @@ export function ClassReportModal({
                     {!reportData ? (
                         /* Report Type Selection */
                         <div className="space-y-4">
-                            <h3 className="font-medium text-slate-900">Chọn loại báo cáo</h3>
+                            <h3 className="font-medium text-slate-900 dark:text-slate-100">Chọn loại báo cáo</h3>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {REPORT_TYPES.map(report => {
@@ -248,22 +248,22 @@ export function ClassReportModal({
                                             className={`
                         flex items-start gap-4 p-4 rounded-xl border-2 transition-all text-left
                         ${isSelected
-                                                    ? 'border-cyan-500 bg-cyan-50'
-                                                    : 'border-slate-200 hover:border-slate-300'
+                                                    ? 'border-cyan-500 bg-cyan-50 dark:bg-cyan-950/20'
+                                                    : 'border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700'
                                                 }
-                      `}
+                                                }`}
                                         >
                                             <div className={`
                         p-3 rounded-xl
-                        ${isSelected ? 'bg-cyan-500' : 'bg-slate-100'}
+                        ${isSelected ? 'bg-cyan-500' : 'bg-slate-100 dark:bg-zinc-800'}
                       `}>
                                                 <Icon className={`w-6 h-6 ${isSelected ? 'text-white' : 'text-slate-500'}`} />
                                             </div>
                                             <div>
-                                                <h4 className={`font-semibold ${isSelected ? 'text-cyan-900' : 'text-slate-900'}`}>
+                                                <h4 className={`font-semibold ${isSelected ? 'text-cyan-900 dark:text-cyan-400' : 'text-slate-900 dark:text-slate-100'}`}>
                                                     {report.name}
                                                 </h4>
-                                                <p className="text-sm text-slate-500 mt-0.5">
+                                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
                                                     {report.description}
                                                 </p>
                                             </div>
@@ -276,7 +276,7 @@ export function ClassReportModal({
                             </div>
 
                             {error && (
-                                <div className="p-4 bg-red-50 rounded-xl border border-red-200">
+                                <div className="p-4 bg-red-50 dark:bg-red-950/30 rounded-xl border border-red-200 dark:border-red-900/50">
                                     <div className="flex items-center gap-2 text-red-600">
                                         <AlertCircle className="w-5 h-5" />
                                         <span>{error}</span>
@@ -288,7 +288,7 @@ export function ClassReportModal({
                         /* Report Results */
                         <div className="space-y-6">
                             <div className="flex items-center justify-between">
-                                <h3 className="font-semibold text-slate-900">
+                                <h3 className="font-semibold text-slate-900 dark:text-slate-100">
                                     {REPORT_TYPES.find(r => r.id === selectedReport)?.name}
                                 </h3>
                                 <Button
@@ -334,7 +334,7 @@ export function ClassReportModal({
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-end gap-3 p-4 border-t border-slate-200 bg-slate-50 flex-shrink-0">
+                <div className="flex items-center justify-end gap-3 p-4 border-t border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/50 flex-shrink-0">
                     <Button variant="outline" onClick={handleClose}>
                         Đóng
                     </Button>
@@ -530,9 +530,9 @@ function AttendanceReportView({ data }) {
 
             {/* Student Table */}
             {data.studentStats?.length > 0 && (
-                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <div className="border border-slate-200 dark:border-zinc-800 rounded-xl overflow-hidden bg-white dark:bg-zinc-900 shadow-sm">
                     <table className="w-full text-sm">
-                        <thead className="bg-slate-50">
+                        <thead className="bg-slate-50 dark:bg-zinc-800/50">
                             <tr>
                                 <th className="text-left p-3 font-medium text-slate-700">Học viên</th>
                                 <th className="text-center p-3 font-medium text-slate-700">Có mặt</th>
@@ -543,7 +543,7 @@ function AttendanceReportView({ data }) {
                         </thead>
                         <tbody>
                             {data.studentStats.map((student, idx) => (
-                                <tr key={student.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                                <tr key={student.id} className={idx % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-slate-50 dark:bg-zinc-800/50'}>
                                     <td className="p-3 font-medium text-slate-900">{student.name}</td>
                                     <td className="p-3 text-center text-emerald-600">{student.present}</td>
                                     <td className="p-3 text-center text-amber-600">{student.late}</td>
@@ -599,12 +599,12 @@ function ProgressReportView({ data }) {
             </div>
 
             {/* Progress Bar */}
-            <div className="p-4 bg-slate-50 rounded-xl">
+            <div className="p-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm rounded-xl">
                 <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-slate-700">Tiến độ khóa học</span>
-                    <span className="text-sm text-slate-500">{data.progressPercent}%</span>
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Tiến độ khóa học</span>
+                    <span className="text-sm text-slate-500 dark:text-slate-400">{data.progressPercent}%</span>
                 </div>
-                <div className="w-full h-4 bg-slate-200 rounded-full overflow-hidden">
+                <div className="w-full h-4 bg-slate-200 dark:bg-zinc-800 rounded-full overflow-hidden">
                     <div
                         className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all"
                         style={{ width: `${data.progressPercent}%` }}
@@ -614,14 +614,14 @@ function ProgressReportView({ data }) {
 
             {/* Dates */}
             <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-white rounded-xl border border-slate-200">
-                    <span className="text-xs text-slate-500">Ngày bắt đầu</span>
-                    <p className="font-medium text-slate-900 mt-1">
+                <div className="p-4 bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Ngày bắt đầu</span>
+                    <p className="font-medium text-slate-900 dark:text-slate-100 mt-1">
                         {data.startDate ? new Date(data.startDate).toLocaleDateString('vi-VN') : 'Chưa có'}
                     </p>
                 </div>
-                <div className="p-4 bg-white rounded-xl border border-slate-200">
-                    <span className="text-xs text-slate-500">Dự kiến kết thúc</span>
+                <div className="p-4 bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm">
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Dự kiến kết thúc</span>
                     <p className="font-medium text-slate-900 mt-1">
                         {data.estimatedEndDate ? new Date(data.estimatedEndDate).toLocaleDateString('vi-VN') : 'Chưa có'}
                     </p>
@@ -662,8 +662,8 @@ function GradesReportView({ data }) {
             </div>
 
             {/* Grade Distribution */}
-            <div className="p-4 bg-slate-50 rounded-xl">
-                <h4 className="font-medium text-slate-900 mb-3">Phân loại học lực</h4>
+            <div className="p-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm rounded-xl">
+                <h4 className="font-medium text-slate-900 dark:text-slate-100 mb-3">Phân loại học lực</h4>
                 <div className="grid grid-cols-4 gap-4">
                     <div className="text-center">
                         <div className="text-2xl font-bold text-emerald-600">{data.excellentCount}</div>
@@ -686,9 +686,9 @@ function GradesReportView({ data }) {
 
             {/* Student Rankings */}
             {data.students?.length > 0 && (
-                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <div className="border border-slate-200 dark:border-zinc-800 rounded-xl overflow-hidden bg-white dark:bg-zinc-900 shadow-sm">
                     <table className="w-full text-sm">
-                        <thead className="bg-slate-50">
+                        <thead className="bg-slate-50 dark:bg-zinc-800/50">
                             <tr>
                                 <th className="text-left p-3 font-medium text-slate-700">Hạng</th>
                                 <th className="text-left p-3 font-medium text-slate-700">Học viên</th>
@@ -698,7 +698,7 @@ function GradesReportView({ data }) {
                         </thead>
                         <tbody>
                             {data.students.slice(0, 10).map((student, idx) => (
-                                <tr key={student.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                                <tr key={student.id} className={idx % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-slate-50 dark:bg-zinc-800/50'}>
                                     <td className="p-3 font-medium text-slate-500">#{idx + 1}</td>
                                     <td className="p-3 font-medium text-slate-900">{student.name}</td>
                                     <td className="p-3 text-center font-semibold text-slate-900">{student.average}</td>
@@ -755,33 +755,32 @@ function PaymentReportView({ data }) {
 
             {/* Financial Summary */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200">
-                    <span className="text-xs text-emerald-600">Đã thu</span>
+                <div className="p-4 bg-emerald-50 dark:bg-emerald-950/20 rounded-xl border border-emerald-200 dark:border-emerald-800/50 shadow-sm">
+                    <span className="text-xs text-emerald-600 dark:text-emerald-400">Đã thu</span>
                     <p className="text-xl font-bold text-emerald-700 mt-1">
                         {data.totalCollected?.toLocaleString()} đ
                     </p>
                 </div>
-                <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
-                    <span className="text-xs text-blue-600">Dự kiến thu</span>
+                <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-xl border border-blue-200 dark:border-blue-800/50 shadow-sm">
+                    <span className="text-xs text-blue-600 dark:text-blue-400">Dự kiến thu</span>
                     <p className="text-xl font-bold text-blue-700 mt-1">
                         {data.totalExpected?.toLocaleString()} đ
                     </p>
                 </div>
-                <div className="p-4 bg-red-50 rounded-xl border border-red-200">
-                    <span className="text-xs text-red-600">Công nợ</span>
+                <div className="p-4 bg-red-50 dark:bg-red-950/20 rounded-xl border border-red-200 dark:border-red-800/50 shadow-sm">
+                    <span className="text-xs text-red-600 dark:text-red-400">Công nợ</span>
                     <p className="text-xl font-bold text-red-700 mt-1">
                         {data.totalDebt?.toLocaleString()} đ
                     </p>
                 </div>
             </div>
 
-            {/* Collection Progress */}
-            <div className="p-4 bg-slate-50 rounded-xl">
+            <div className="p-4 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-sm rounded-xl">
                 <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-slate-700">Tiến độ thu học phí</span>
-                    <span className="text-sm text-slate-500">{data.collectionRate}%</span>
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Tiến độ thu học phí</span>
+                    <span className="text-sm text-slate-500 dark:text-slate-400">{data.collectionRate}%</span>
                 </div>
-                <div className="w-full h-4 bg-slate-200 rounded-full overflow-hidden">
+                <div className="w-full h-4 bg-slate-200 dark:bg-zinc-800 rounded-full overflow-hidden">
                     <div
                         className="h-full bg-gradient-to-r from-emerald-500 to-green-500 rounded-full transition-all"
                         style={{ width: `${data.collectionRate}%` }}
@@ -803,7 +802,7 @@ function StatCard({ label, value, icon: Icon, color }) {
     };
 
     return (
-        <div className="p-4 bg-white rounded-xl border border-slate-200">
+        <div className="p-4 bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 shadow-sm">
             <div className={`w-10 h-10 rounded-lg ${colorClasses[color]} flex items-center justify-center mb-3`}>
                 <Icon className="w-5 h-5" />
             </div>

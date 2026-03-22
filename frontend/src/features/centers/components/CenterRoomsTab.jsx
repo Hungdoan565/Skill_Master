@@ -135,7 +135,7 @@ export function CenterRoomsTab({ rooms, loading = false, centerId }) {
                             return (
                                 <div 
                                     key={i} 
-                                    className="p-1.5 bg-muted border border-border rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-help"
+                                    className="p-1.5 bg-muted border border-gray-200 dark:border-zinc-800 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-help"
                                     title={config?.label || eq}
                                 >
                                     <Icon className="h-3.5 w-3.5" />
@@ -143,7 +143,7 @@ export function CenterRoomsTab({ rooms, loading = false, centerId }) {
                             );
                         })}
                         {equipment.length > 3 && (
-                            <div className="px-1.5 py-1 bg-muted border border-border rounded text-xs font-medium text-muted-foreground flex items-center">
+                            <div className="px-1.5 py-1 bg-muted border border-gray-200 dark:border-zinc-800 rounded text-xs font-medium text-muted-foreground flex items-center">
                                 +{equipment.length - 3}
                             </div>
                         )}
@@ -181,7 +181,7 @@ export function CenterRoomsTab({ rooms, loading = false, centerId }) {
                     <div className="h-10 w-64 bg-muted rounded animate-pulse" />
                     <div className="h-10 w-32 bg-muted rounded animate-pulse" />
                 </div>
-                <Card className="border-border shadow-sm overflow-hidden">
+                <Card className="border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden">
                     <div className="h-[400px] bg-muted/30 animate-pulse" />
                 </Card>
             </div>
@@ -199,14 +199,14 @@ export function CenterRoomsTab({ rooms, loading = false, centerId }) {
                             placeholder="Tìm kiếm phòng học..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-9 bg-background border-border focus-visible:ring-indigo-500 rounded-xl"
+                            className="pl-9 bg-gray-50 dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus-visible:ring-indigo-500 rounded-xl"
                         />
                     </div>
 
                     <select
                         value={filterStatus}
                         onChange={(e) => setFilterStatus(e.target.value)}
-                        className="h-10 px-3 py-2 bg-background border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-foreground"
+                        className="h-10 px-3 py-2 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-foreground"
                     >
                         <option value="">Tất cả trạng thái</option>
                         <option value="active">Hoạt động</option>
@@ -217,7 +217,7 @@ export function CenterRoomsTab({ rooms, loading = false, centerId }) {
                     <select
                         value={filterType}
                         onChange={(e) => setFilterType(e.target.value)}
-                        className="h-10 px-3 py-2 bg-background border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-foreground"
+                        className="h-10 px-3 py-2 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-foreground"
                     >
                         <option value="">Tất cả loại phòng</option>
                         <option value="standard">Tiêu chuẩn</option>
@@ -229,7 +229,7 @@ export function CenterRoomsTab({ rooms, loading = false, centerId }) {
                 <Button
                     onClick={() => navigate('/admin/rooms')}
                     variant="outline"
-                    className="gap-2 border-border bg-card hover:bg-muted text-foreground rounded-xl w-full sm:w-auto"
+                    className="gap-2 border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-muted text-foreground rounded-xl w-full sm:w-auto"
                 >
                     <ExternalLink className="h-4 w-4" />
                     Quản lý toàn bộ
@@ -258,7 +258,7 @@ export function CenterRoomsTab({ rooms, loading = false, centerId }) {
             </div>
 
             {/* Data Table */}
-            <Card className="border-border shadow-sm overflow-hidden bg-card">
+            <Card className="border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden bg-white dark:bg-zinc-900">
                 <DataTable 
                     columns={columns} 
                     data={filteredRooms} 

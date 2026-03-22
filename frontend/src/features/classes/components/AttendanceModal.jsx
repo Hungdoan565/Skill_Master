@@ -45,9 +45,9 @@ export function AttendanceModal({
       />
       
       {/* Modal */}
-      <div className="relative bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-xl max-h-[85vh] overflow-hidden flex flex-col">
+      <div className="relative bg-white dark:bg-zinc-900 rounded-xl shadow-2xl border border-slate-200 dark:border-zinc-800 w-full max-w-xl max-h-[85vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-700">
+        <div className="px-5 py-4 border-b border-slate-200 dark:border-zinc-800">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
@@ -121,7 +121,7 @@ export function AttendanceModal({
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-slate-200 dark:border-slate-700 flex items-center gap-3">
+        <div className="px-5 py-3 border-t border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/50 flex items-center gap-3">
           <Button
             variant="outline"
             className="flex-1"
@@ -221,7 +221,7 @@ function StudentRow({ student, index, onUpdateStatus, onUpdateNotes }) {
           value={student.notes || ''}
           onChange={(e) => onUpdateNotes(student.enrollment_id, e.target.value)}
           placeholder="Lý do..."
-          className="w-28 h-7 px-2 text-xs rounded border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-1 focus:ring-red-400 focus:border-red-400 bg-white dark:bg-slate-900 dark:text-slate-100"
+          className="w-28 h-7 px-2 text-xs rounded border border-slate-200 dark:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-red-400 focus:border-red-400 bg-white dark:bg-zinc-900 dark:text-slate-100"
         />
       )}
     </div>

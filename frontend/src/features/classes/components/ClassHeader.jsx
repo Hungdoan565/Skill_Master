@@ -26,7 +26,7 @@ export function ClassHeader({ classData }) {
   const statusConfig = CLASS_STATUS_CONFIG[classData.status] || CLASS_STATUS_CONFIG.upcoming;
 
   return (
-    <div className="bg-card rounded-xl shadow-sm border border-border p-6">
+    <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-md border border-slate-200 dark:border-zinc-800 p-6">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
         <button 

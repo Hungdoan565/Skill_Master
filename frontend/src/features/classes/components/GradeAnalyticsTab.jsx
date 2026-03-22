@@ -69,7 +69,7 @@ function KPICard({ title, value, subValue, icon: Icon, color, trend }) {
     };
 
     return (
-        <Card>
+        <Card className="bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shadow-md">
             <CardContent className="p-4">
                 <div className="flex items-start justify-between">
                     <div>
@@ -122,9 +122,9 @@ function DistributionBar({ data }) {
 // Top Performer Card
 function TopPerformerCard({ student, rank, totalStudents }) {
     const rankColors = {
-        1: 'bg-amber-100 text-amber-700 border-amber-300',
-        2: 'bg-slate-100 text-slate-700 border-slate-300',
-        3: 'bg-orange-100 text-orange-700 border-orange-300'
+        1: 'bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-900/50',
+        2: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700',
+        3: 'bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400 border-orange-300 dark:border-orange-900/50'
     };
 
     const medals = {
@@ -134,7 +134,7 @@ function TopPerformerCard({ student, rank, totalStudents }) {
     };
 
     return (
-        <div className={`flex items-center justify-between p-3 rounded-lg border ${rankColors[rank] || 'bg-white border-slate-200'}`}>
+        <div className={`flex items-center justify-between p-3 rounded-lg border shadow-sm ${rankColors[rank] || 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800'}`}>
             <div className="flex items-center gap-3">
                 <span className="text-2xl">{medals[rank] || `#${rank}`}</span>
                 <div>
@@ -154,9 +154,9 @@ function TopPerformerCard({ student, rank, totalStudents }) {
 const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
         return (
-            <div className="bg-white px-3 py-2 rounded-lg shadow-lg border border-slate-200">
-                <p className="text-sm font-medium text-slate-900">{label}</p>
-                <p className="text-sm text-indigo-600">
+            <div className="bg-white dark:bg-zinc-900 px-3 py-2 rounded-lg shadow-lg border border-slate-200 dark:border-zinc-800">
+                <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{label}</p>
+                <p className="text-sm text-indigo-600 dark:text-indigo-400">
                     {payload[0].value} học viên
                 </p>
             </div>
@@ -425,7 +425,7 @@ export function GradeAnalyticsTab({
             {/* Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Grade Distribution Chart */}
-                <Card>
+                <Card className="bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shadow-md">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-base flex items-center gap-2">
                             <BarChart3 className="w-5 h-5 text-indigo-600" />
@@ -452,7 +452,7 @@ export function GradeAnalyticsTab({
                 </Card>
 
                 {/* Performance Level Pie Chart */}
-                <Card>
+                <Card className="bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shadow-md">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-base flex items-center gap-2">
                             <PieChart className="w-5 h-5 text-indigo-600" />
@@ -491,7 +491,7 @@ export function GradeAnalyticsTab({
                 </Card>
 
                 {/* Component Comparison */}
-                <Card>
+                <Card className="bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shadow-md">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-base flex items-center gap-2">
                             <GraduationCap className="w-5 h-5 text-indigo-600" />
@@ -530,7 +530,7 @@ export function GradeAnalyticsTab({
                 </Card>
 
                 {/* Distribution Summary */}
-                <Card>
+                <Card className="bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shadow-md">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-base flex items-center gap-2">
                             <Users className="w-5 h-5 text-indigo-600" />
@@ -546,7 +546,7 @@ export function GradeAnalyticsTab({
             {/* Top Performers & At-Risk */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Top Performers */}
-                <Card>
+                <Card className="bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shadow-md">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-base flex items-center gap-2">
                             <Medal className="w-5 h-5 text-amber-500" />
@@ -575,7 +575,7 @@ export function GradeAnalyticsTab({
                 </Card>
 
                 {/* At-Risk Students */}
-                <Card>
+                <Card className="bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shadow-md">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-base flex items-center gap-2">
                             <AlertTriangle className="w-5 h-5 text-red-500" />
@@ -588,7 +588,7 @@ export function GradeAnalyticsTab({
                                 {analytics.atRiskStudents.map((student) => (
                                     <div
                                         key={student.enrollmentId}
-                                        className="flex items-center justify-between p-3 bg-red-50 border border-red-100 rounded-lg"
+                                        className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/50 rounded-lg shadow-sm"
                                     >
                                         <div>
                                             <p className="font-medium text-slate-900">{student.name}</p>
@@ -615,7 +615,7 @@ export function GradeAnalyticsTab({
             </div>
 
             {/* Summary Stats */}
-            <Card className="bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-100">
+            <Card className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20 border-indigo-100 dark:border-indigo-900/50 shadow-md">
                 <CardContent className="p-6">
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
                         <div>

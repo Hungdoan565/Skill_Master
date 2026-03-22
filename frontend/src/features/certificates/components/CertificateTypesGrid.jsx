@@ -11,7 +11,7 @@ function CategoryGroup({ category, types }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between pb-2 border-b border-border/50">
+      <div className="flex items-center justify-between pb-2 border-b border-border">
         <div className="flex items-center gap-2.5">
           <div className="p-1.5 rounded-lg border shadow-sm" style={{ backgroundColor: `${catConfig.color}15`, borderColor: `${catConfig.color}30` }}>
             <Icon className="h-4 w-4" style={{ color: catConfig.color }} />
@@ -34,7 +34,7 @@ function CategoryGroup({ category, types }) {
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {types.map((type) => (
-          <Card key={type.id} className="group relative overflow-hidden bg-card border-border/50 hover:border-primary/30 hover:shadow-md transition-all duration-300 flex flex-col cursor-default">
+          <Card key={type.id} className="group relative overflow-hidden bg-card border-border shadow-sm hover:border-primary/50 hover:shadow-md transition-all duration-300 flex flex-col cursor-default">
             {/* Left accent border */}
             <div className="absolute left-0 top-0 w-1 h-full opacity-70 transition-all duration-300 group-hover:opacity-100 group-hover:w-1.5" style={{ backgroundColor: catConfig.color }} />
             
@@ -82,7 +82,7 @@ function TypeSection({ title, description, types, loading, icon: HeaderIcon }) {
   const sortedCategories = categoryOrder.filter((cat) => grouped[cat]?.length > 0);
 
   return (
-    <div className="space-y-6 bg-card rounded-xl border border-border/50 shadow-sm p-6 relative overflow-hidden">
+    <div className="space-y-6 bg-card rounded-xl border border-border shadow-sm p-6 relative overflow-hidden">
       <div className="relative z-10 flex items-start gap-4 mb-2">
         <div className="p-3 bg-primary/10 text-primary rounded-xl border border-primary/20 shadow-sm shrink-0">
           <HeaderIcon className="h-6 w-6" />
@@ -119,7 +119,7 @@ export default function CertificateTypesGrid({ types, loading }) {
     return (
       <div className="space-y-6 animate-in fade-in duration-300">
         {[1, 2].map((i) => (
-          <div key={i} className="bg-card rounded-xl border border-border/50 p-6 space-y-6">
+          <div key={i} className="bg-card rounded-xl border border-border shadow-sm p-6 space-y-6">
             <div className="flex items-start gap-4">
               <div className="h-12 w-12 bg-muted rounded-xl animate-pulse shrink-0" />
               <div className="space-y-2 w-full">

@@ -126,12 +126,12 @@ export function EditCourseModal({ isOpen, onClose, onSuccess, course, accessToke
         >
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                className="absolute inset-0 z-0 bg-black/50 backdrop-blur-sm"
                 onClick={onClose}
             />
 
             {/* Modal */}
-            <div className="relative w-full max-w-4xl mx-4 bg-card rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
+            <div className="relative z-10 isolate flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-200 dark:border-slate-800 dark:bg-slate-900 mx-4">
                 {/* Header */}
                 <div className="bg-gradient-to-r from-blue-500 to-indigo-600 px-6 py-4">
                     <div className="flex items-center justify-between">
@@ -170,7 +170,7 @@ export function EditCourseModal({ isOpen, onClose, onSuccess, course, accessToke
                     )}
 
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-                        <div className="px-6 pt-4 border-b border-border">
+                        <div className="border-b border-zinc-200 bg-white px-6 pt-4 dark:border-slate-800 dark:bg-slate-900">
                             <TabsList className="w-full justify-start">
                                 <TabsTrigger value="basic" className="flex items-center gap-2">
                                     <Info className="w-4 h-4" />
@@ -195,7 +195,7 @@ export function EditCourseModal({ isOpen, onClose, onSuccess, course, accessToke
                             </TabsList>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto">
+                        <div className="flex-1 overflow-y-auto bg-white dark:bg-slate-900">
                             {/* TAB 1: Basic Info */}
                             <TabsContent value="basic" className="p-6 m-0">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -469,7 +469,7 @@ export function EditCourseModal({ isOpen, onClose, onSuccess, course, accessToke
                     </Tabs>
 
                     {/* Footer */}
-                    <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-border bg-muted/50">
+                    <div className="flex items-center justify-between gap-3 border-t border-zinc-200 bg-white px-6 py-4 dark:border-slate-800 dark:bg-slate-900">
                         <div className="flex items-center gap-2">
                             <Button
                                 type="button"

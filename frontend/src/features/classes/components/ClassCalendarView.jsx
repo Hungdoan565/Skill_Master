@@ -199,11 +199,11 @@ export function ClassCalendarView({
             </div>
 
             {/* Calendar Grid */}
-            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-md border border-slate-200 dark:border-zinc-800 overflow-hidden">
                 {/* Header - Days of week */}
-                <div className="grid grid-cols-7 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+                <div className="grid grid-cols-7 border-b border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/50">
                     {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(day => (
-                        <div key={day} className="p-2 text-center text-xs font-medium text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-800 last:border-r-0">
+                        <div key={day} className="p-2 text-center text-xs font-medium text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-zinc-800 last:border-r-0">
                             {day}
                         </div>
                     ))}
@@ -220,9 +220,9 @@ export function ClassCalendarView({
                             <div
                                 key={i}
                                 className={`
-                  min-h-[100px] p-1.5 border-b border-r border-slate-100 dark:border-slate-800/50 
-                  ${!isCurrentMonth ? 'bg-slate-50/50 dark:bg-slate-800/30' : ''}
-                  ${isToday ? 'bg-indigo-50/50 dark:bg-indigo-900/20' : ''}
+                  min-h-[100px] p-1.5 border-b border-r border-slate-100 dark:border-zinc-800 
+                  ${!isCurrentMonth ? 'bg-slate-50/50 dark:bg-zinc-900/50' : 'bg-white dark:bg-zinc-900'}
+                  ${isToday ? 'bg-indigo-50/50 dark:bg-indigo-950/40' : ''}
                 `}
                             >
                                 {/* Date number */}

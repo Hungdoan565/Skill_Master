@@ -74,7 +74,7 @@ export function CenterCard({
 
     return (
         <div
-            className={`relative group bg-card rounded-xl border border-border overflow-hidden transition-all duration-300 hover:shadow-[0_8px_30px_-12px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_8px_30px_-12px_rgba(0,0,0,0.4)] hover:border-border cursor-pointer ${isDeleted ? 'opacity-60 grayscale-[30%]' : ''}`}
+            className={`relative group bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-800 overflow-hidden transition-all duration-300 hover:shadow-[0_8px_30px_-12px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_8px_30px_-12px_rgba(0,0,0,0.4)] hover:border-gray-200 dark:border-zinc-800 cursor-pointer ${isDeleted ? 'opacity-60 grayscale-[30%]' : ''}`}
             onClick={handleCardClick}
         >
             {/* Compact Header Banner */}
@@ -88,10 +88,10 @@ export function CenterCard({
                         <img
                             src={center.logo_url}
                             alt={center.name}
-                            className="w-12 h-12 rounded-lg border-[3px] border-card shadow-sm object-cover bg-card"
+                            className="w-12 h-12 rounded-lg border-[3px] border-white dark:border-zinc-900 shadow-sm object-cover bg-white dark:bg-zinc-900"
                         />
                     ) : (
-                        <div className="w-12 h-12 rounded-lg border-[3px] border-card shadow-sm bg-card flex items-center justify-center">
+                        <div className="w-12 h-12 rounded-lg border-[3px] border-white dark:border-zinc-900 shadow-sm bg-white dark:bg-zinc-900 flex items-center justify-center">
                             <span className="text-sm font-bold text-muted-foreground">
                                 {getInitials(center.name)}
                             </span>
@@ -122,7 +122,7 @@ export function CenterCard({
                             </Button>
 
                             {showMenu && (
-                                <div className="absolute right-0 mt-1 w-44 bg-popover rounded-lg shadow-lg dark:shadow-black/30 border border-border z-50 py-1">
+                                <div className="absolute right-0 mt-1 w-44 bg-popover rounded-lg shadow-lg dark:shadow-black/30 border border-gray-200 dark:border-zinc-800 z-50 py-1">
                                     {onViewDetails && (
                                         <button
                                             onClick={() => { onViewDetails(center); setShowMenu(false); }}
@@ -224,7 +224,7 @@ export function CenterCard({
 
                 {/* Stats Pills Row */}
                 {(center.rooms_count !== undefined || center.teachers_count !== undefined || center.students_count !== undefined) && (
-                    <div className="mt-3.5 pt-3.5 border-t border-border flex items-center gap-2">
+                    <div className="mt-3.5 pt-3.5 border-t border-gray-200 dark:border-zinc-800 flex items-center gap-2">
                         <div className="flex items-center gap-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2.5 py-1 rounded-md text-xs font-medium">
                             <Building2 className="h-3 w-3" />
                             {center.rooms_count || 0}
@@ -242,7 +242,7 @@ export function CenterCard({
 
                 {/* Manager info */}
                 {center.manager && (
-                    <div className="mt-3 pt-3 border-t border-border">
+                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-zinc-800">
                         <div className="flex items-center gap-2.5">
                             <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
                                 {center.manager.avatar_url ? (

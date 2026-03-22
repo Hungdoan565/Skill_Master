@@ -50,10 +50,10 @@ export default function ChatHeader({ onToggleDrawer }) {
         </button>
         <button
           onClick={close}
-          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground dark:text-white transition-colors hover:bg-muted hover:text-foreground"
           aria-label="Đóng"
         >
-          <X className="h-4 w-4" />
+            <X className="h-4 w-4 dark:text-white" />
         </button>
       </div>
     </div>

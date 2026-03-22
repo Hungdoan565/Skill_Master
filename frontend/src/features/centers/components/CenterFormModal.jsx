@@ -73,9 +73,9 @@ export function CenterFormModal({
 
             {/* Modal */}
             <div className="flex min-h-full items-center justify-center p-4">
-                <div className="relative bg-card rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+                <div className="relative bg-white dark:bg-zinc-900 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
                     {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-zinc-800">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
                                 <Building2 className="h-5 w-5 text-indigo-600" />
@@ -117,7 +117,7 @@ export function CenterFormModal({
                                             value={formData.name}
                                             onChange={(e) => updateField('name', e.target.value)}
                                             placeholder="VD: Trung tâm Anh ngữ ABC"
-                                            className={errors.name ? 'border-red-500' : ''}
+                                            className={errors.name ? 'w-full bg-gray-50 dark:bg-zinc-950 border-red-500 focus-visible:ring-2 focus-visible:ring-indigo-500' : 'w-full bg-gray-50 dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus-visible:ring-2 focus-visible:ring-indigo-500'}
                                         />
                                         {errors.name && (
                                             <p className="text-sm text-red-500 mt-1">{errors.name}</p>
@@ -132,7 +132,7 @@ export function CenterFormModal({
                                             value={formData.code}
                                             onChange={(e) => updateField('code', e.target.value.toUpperCase())}
                                             placeholder="VD: HN-01"
-                                            className={errors.code ? 'border-red-500' : ''}
+                                            className={errors.code ? 'w-full bg-gray-50 dark:bg-zinc-950 border-red-500 focus-visible:ring-2 focus-visible:ring-indigo-500' : 'w-full bg-gray-50 dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus-visible:ring-2 focus-visible:ring-indigo-500'}
                                         />
                                         {errors.code && (
                                             <p className="text-sm text-red-500 mt-1">{errors.code}</p>
@@ -146,7 +146,7 @@ export function CenterFormModal({
                                             id="status"
                                             value={formData.status}
                                             onChange={(e) => updateField('status', e.target.value)}
-                                            className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                            className="w-full px-3 py-2 border border-gray-200 dark:border-zinc-800 rounded-lg bg-gray-50 dark:bg-zinc-950 text-foreground focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         >
                                             {STATUS_OPTIONS.map(opt => (
                                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -173,7 +173,7 @@ export function CenterFormModal({
                                             value={formData.address}
                                             onChange={(e) => updateField('address', e.target.value)}
                                             placeholder="VD: 123 Nguyễn Văn Cừ, Quận 5, TP.HCM"
-                                            className={errors.address ? 'border-red-500' : ''}
+                                            className={errors.address ? 'w-full bg-gray-50 dark:bg-zinc-950 border-red-500 focus-visible:ring-2 focus-visible:ring-indigo-500' : 'w-full bg-gray-50 dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus-visible:ring-2 focus-visible:ring-indigo-500'}
                                         />
                                         {errors.address && (
                                             <p className="text-sm text-red-500 mt-1">{errors.address}</p>
@@ -190,7 +190,7 @@ export function CenterFormModal({
                                             value={formData.hotline}
                                             onChange={(e) => updateField('hotline', e.target.value)}
                                             placeholder="VD: 0901234567"
-                                            className={errors.hotline ? 'border-red-500' : ''}
+                                            className={errors.hotline ? 'w-full bg-gray-50 dark:bg-zinc-950 border-red-500 focus-visible:ring-2 focus-visible:ring-indigo-500' : 'w-full bg-gray-50 dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus-visible:ring-2 focus-visible:ring-indigo-500'}
                                         />
                                         {errors.hotline && (
                                             <p className="text-sm text-red-500 mt-1">{errors.hotline}</p>
@@ -208,7 +208,7 @@ export function CenterFormModal({
                                             value={formData.email}
                                             onChange={(e) => updateField('email', e.target.value)}
                                             placeholder="VD: contact@abc.edu.vn"
-                                            className={errors.email ? 'border-red-500' : ''}
+                                            className={errors.email ? 'w-full bg-gray-50 dark:bg-zinc-950 border-red-500 focus-visible:ring-2 focus-visible:ring-indigo-500' : 'w-full bg-gray-50 dark:bg-zinc-950 border-gray-200 dark:border-zinc-800 focus-visible:ring-2 focus-visible:ring-indigo-500'}
                                         />
                                         {errors.email && (
                                             <p className="text-sm text-red-500 mt-1">{errors.email}</p>
@@ -240,7 +240,7 @@ export function CenterFormModal({
                                     onChange={(e) => updateField('description', e.target.value)}
                                     placeholder="Mô tả ngắn về trung tâm..."
                                     rows={3}
-                                    className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
+                                    className="w-full px-3 py-2 border border-gray-200 dark:border-zinc-800 rounded-lg bg-gray-50 dark:bg-zinc-950 text-foreground focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
                                 />
                             </div>
 
@@ -256,7 +256,7 @@ export function CenterFormModal({
                                         return (
                                             <div
                                                 key={key}
-                                                className={`flex items-center gap-4 p-3 rounded-lg ${hours.closed ? 'bg-muted/50' : 'bg-background border border-border'}`}
+                                                className={`flex items-center gap-4 p-3 rounded-lg ${hours.closed ? 'bg-gray-100 dark:bg-zinc-800' : 'bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800'}`}
                                             >
                                                 <div className="w-24">
                                                     <span className="font-medium text-foreground">{label}</span>
@@ -266,7 +266,7 @@ export function CenterFormModal({
                                                         type="checkbox"
                                                         checked={hours.closed}
                                                         onChange={() => toggleDayOff(key)}
-                                                        className="w-4 h-4 rounded border-border text-indigo-600 focus:ring-indigo-500"
+                                                        className="w-4 h-4 rounded border-gray-200 dark:border-zinc-800 text-indigo-600 focus:ring-indigo-500"
                                                     />
                                                     <span className="text-sm text-muted-foreground">Nghỉ</span>
                                                 </label>
@@ -293,7 +293,7 @@ export function CenterFormModal({
                         </div>
 
                         {/* Footer */}
-                        <div className="px-6 py-4 border-t border-border bg-muted/50 flex items-center justify-end gap-3">
+                        <div className="px-6 py-4 border-t border-gray-200 dark:border-zinc-800 bg-gray-100 dark:bg-zinc-800 flex items-center justify-end gap-3">
                             <Button
                                 type="button"
                                 variant="outline"

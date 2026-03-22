@@ -29,7 +29,7 @@ export function CenterQuickStats({
         return (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 {[1, 2, 3, 4, 5, 6].map(i => (
-                    <Card key={i} className="p-3 shadow-sm border-border h-[104px]">
+                    <Card key={i} className="p-3 shadow-sm border-gray-200 dark:border-zinc-800 h-[104px]">
                         <div className="animate-pulse flex flex-col h-full justify-between">
                             <div className="flex justify-between items-start">
                                 <div className="h-8 w-8 bg-muted rounded-lg" />
@@ -53,7 +53,7 @@ export function CenterQuickStats({
             sub: 'Thông tin chung',
             icon: LayoutDashboard,
             color: 'text-gray-700 dark:text-gray-300',
-            bgColor: 'bg-gray-100/80 dark:bg-gray-800/50',
+            bgColor: 'bg-gray-100 dark:bg-gray-800',
             highlightRing: 'ring-gray-900',
             tabKey: 'overview',
             externalUrl: null
@@ -64,7 +64,7 @@ export function CenterQuickStats({
             sub: `${stats?.classes?.ongoing ?? stats?.classes?.active ?? 0} đang học`,
             icon: BookOpen,
             color: 'text-indigo-600',
-            bgColor: 'bg-indigo-50 dark:bg-indigo-900/30',
+            bgColor: 'bg-indigo-50 dark:bg-indigo-900',
             highlightRing: 'ring-indigo-600',
             tabKey: 'classes',
             externalUrl: `/admin/classes?centerId=${centerId}`
@@ -75,7 +75,7 @@ export function CenterQuickStats({
             sub: `${stats?.rooms?.active ?? 0} hoạt động`,
             icon: Building2,
             color: 'text-blue-600',
-            bgColor: 'bg-blue-50 dark:bg-blue-900/30',
+            bgColor: 'bg-blue-50 dark:bg-blue-900',
             highlightRing: 'ring-blue-600',
             tabKey: 'rooms',
             externalUrl: `/admin/rooms?center=${centerId}`
@@ -86,7 +86,7 @@ export function CenterQuickStats({
             sub: `Tổng số: ${stats?.staff?.total ?? 0}`,
             icon: Users,
             color: 'text-amber-600',
-            bgColor: 'bg-amber-50 dark:bg-amber-900/30',
+            bgColor: 'bg-amber-50 dark:bg-amber-900',
             highlightRing: 'ring-amber-500',
             tabKey: 'staff',
             externalUrl: `/admin/staff?centerId=${centerId}`
@@ -97,7 +97,7 @@ export function CenterQuickStats({
             sub: 'Đang theo học',
             icon: GraduationCap,
             color: 'text-fuchsia-600',
-            bgColor: 'bg-fuchsia-50 dark:bg-fuchsia-900/30',
+            bgColor: 'bg-fuchsia-50 dark:bg-fuchsia-900',
             highlightRing: 'ring-fuchsia-500',
             tabKey: 'students',
             externalUrl: `/admin/students?centerId=${centerId}`
@@ -108,7 +108,7 @@ export function CenterQuickStats({
             sub: 'Tháng này',
             icon: DollarSign,
             color: 'text-emerald-600',
-            bgColor: 'bg-emerald-50 dark:bg-emerald-900/30',
+            bgColor: 'bg-emerald-50 dark:bg-emerald-900',
             highlightRing: 'ring-emerald-500',
             tabKey: 'revenue',
             externalUrl: `/admin/invoices?centerId=${centerId}`
@@ -139,10 +139,10 @@ export function CenterQuickStats({
                         key={index}
                         className={cn(
                             "relative overflow-hidden transition-all duration-200 cursor-pointer group shadow-sm border",
-                            "hover:shadow-md hover:border-border",
+                            "hover:shadow-md hover:border-gray-200 dark:border-zinc-800",
                             isActive 
-                                ? `ring-1 ring-offset-0 ${card.highlightRing} border-transparent bg-card shadow-md` 
-                                : "border-border bg-card"
+                                ? `ring-1 ring-offset-0 ${card.highlightRing} border-transparent bg-white dark:bg-zinc-900 shadow-md` 
+                                : "border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900"
                         )}
                         onClick={() => handleCardClick(card)}
                     >

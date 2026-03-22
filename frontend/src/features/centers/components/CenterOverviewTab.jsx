@@ -28,7 +28,7 @@ export function CenterOverviewTab({ center, stats, manager, loading = false }) {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-6">
                     {[1, 2].map(i => (
-                        <Card key={i} className="p-6 animate-pulse border-border shadow-sm">
+                        <Card key={i} className="p-6 animate-pulse border-gray-200 dark:border-zinc-800 shadow-sm">
                             <div className="h-5 w-32 bg-muted rounded mb-4" />
                             <div className="space-y-3">
                                 <div className="h-16 bg-muted rounded w-full" />
@@ -37,7 +37,7 @@ export function CenterOverviewTab({ center, stats, manager, loading = false }) {
                     ))}
                 </div>
                 <div className="space-y-6">
-                    <Card className="p-6 animate-pulse border-border shadow-sm">
+                    <Card className="p-6 animate-pulse border-gray-200 dark:border-zinc-800 shadow-sm">
                         <div className="h-5 w-32 bg-muted rounded mb-4" />
                         <div className="flex items-center gap-3">
                             <div className="w-12 h-12 rounded-full bg-muted" />
@@ -61,7 +61,7 @@ export function CenterOverviewTab({ center, stats, manager, loading = false }) {
             <div className="lg:col-span-2 space-y-6">
                 {/* Working hours */}
                 {center?.working_hours && (
-                    <Card className="p-5 sm:p-6 shadow-sm border-border">
+                    <Card className="p-5 sm:p-6 shadow-sm border-gray-200 dark:border-zinc-800">
                         <div className="flex items-center gap-2 mb-5">
                             <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 rounded-lg">
                                 <Clock className="h-4 w-4" />
@@ -79,10 +79,10 @@ export function CenterOverviewTab({ center, stats, manager, loading = false }) {
                                         key={key}
                                         className={`p-3 rounded-xl text-center transition-all border
                                             ${isClosed
-                                                ? 'bg-muted/50 border-border text-muted-foreground opacity-60'
+                                                ? 'bg-gray-100 dark:bg-zinc-800 border-gray-200 dark:border-zinc-800 text-muted-foreground'
                                                 : isToday
-                                                    ? 'bg-indigo-50/50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-700 ring-1 ring-indigo-500 shadow-sm'
-                                                    : 'bg-card border-border hover:border-border'
+                                                    ? 'bg-indigo-50 dark:bg-indigo-900 border-indigo-200 dark:border-indigo-700 ring-1 ring-indigo-500 shadow-sm'
+                                                    : 'bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-800 hover:border-gray-200 dark:border-zinc-800'
                                             }
                                         `}
                                     >
@@ -102,7 +102,7 @@ export function CenterOverviewTab({ center, stats, manager, loading = false }) {
                 {/* Revenue summary highlights - Mini version instead of full cards */}
                 {stats?.revenue && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Card className="p-5 sm:p-6 shadow-sm border-border bg-gradient-to-br from-emerald-50 dark:from-emerald-900/20 to-white dark:to-card">
+                        <Card className="p-5 sm:p-6 shadow-sm border-gray-200 dark:border-zinc-800 bg-gradient-to-br from-emerald-50 dark:from-emerald-900/20 to-white dark:to-zinc-900">
                             <div className="flex justify-between items-start mb-4">
                                 <div>
                                     <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300 mb-1">Doanh thu tháng này</p>
@@ -122,7 +122,7 @@ export function CenterOverviewTab({ center, stats, manager, loading = false }) {
                             </div>
                         </Card>
 
-                        <Card className="p-5 sm:p-6 shadow-sm border-border">
+                        <Card className="p-5 sm:p-6 shadow-sm border-gray-200 dark:border-zinc-800">
                             <div className="flex justify-between items-start mb-4">
                                 <div>
                                     <p className="text-sm font-medium text-muted-foreground mb-1">Tỷ lệ đăng ký</p>
@@ -153,7 +153,7 @@ export function CenterOverviewTab({ center, stats, manager, loading = false }) {
             {/* Sidebar */}
             <div className="space-y-6">
                 {/* Manager card */}
-                <Card className="p-5 shadow-sm border-border">
+                <Card className="p-5 shadow-sm border-gray-200 dark:border-zinc-800">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                             <Users className="h-4 w-4 text-muted-foreground" />
@@ -187,7 +187,7 @@ export function CenterOverviewTab({ center, stats, manager, loading = false }) {
                                 </div>
                             </div>
 
-                            <div className="space-y-2 mt-4 pt-4 border-t border-border">
+                            <div className="space-y-2 mt-4 pt-4 border-t border-gray-200 dark:border-zinc-800">
                                 {activeManager.email && (
                                     <a href={`mailto:${activeManager.email}`} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-indigo-600 transition-colors">
                                         <Mail className="h-4 w-4 text-muted-foreground" />
@@ -203,7 +203,7 @@ export function CenterOverviewTab({ center, stats, manager, loading = false }) {
                             </div>
                         </div>
                     ) : (
-                        <div className="text-center py-6 px-4 border border-dashed border-border rounded-xl bg-muted/30">
+                        <div className="text-center py-6 px-4 border border-dashed border-gray-200 dark:border-zinc-800 rounded-xl bg-gray-50 dark:bg-zinc-800">
                             <div className="w-10 h-10 rounded-full bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center mx-auto mb-3">
                                 <AlertCircle className="h-5 w-5 text-amber-500" />
                             </div>
@@ -216,7 +216,7 @@ export function CenterOverviewTab({ center, stats, manager, loading = false }) {
                 </Card>
 
                 {/* Quick info */}
-                <Card className="p-5 shadow-sm border-border">
+                <Card className="p-5 shadow-sm border-gray-200 dark:border-zinc-800">
                     <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
                         <Building2 className="h-4 w-4 text-muted-foreground" />
                         Thông tin hệ thống
