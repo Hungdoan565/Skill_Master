@@ -31,6 +31,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/toast';
+import { useAuth } from '@/contexts/auth-context';
 import { formatCurrency, formatMonthYear, API_URL } from '../utils';
 
 const getAuthHeaders = async () => {
@@ -124,6 +125,9 @@ export function DisputeManagementPage() {
     const [responseData, setResponseData] = useState({ status: 'resolved', admin_response: '' });
     const [submitting, setSubmitting] = useState(false);
     const { toast } = useToast();
+    const { session } = useAuth();
+    const realtimeUserId = session?.user?.id;
+    const realtimeToken = session?.access_token;
 
     // Status filter options với icons
     const statusOptions = [
@@ -161,6 +165,44 @@ export function DisputeManagementPage() {
     useEffect(() => {
         fetchDisputes();
     }, [fetchDisputes]);
+
+    useEffect(() => {
+        if (!selectedDispute) return;
+
+        const latestDispute = disputes.find((dispute) => dispute.id === selectedDispute.id);
+
+        if (latestDispute && latestDispute !== selectedDispute) {
+            setSelectedDispute(latestDispute);
+        }
+    }, [disputes, selectedDispute]);
+
+    useEffect(() => {
+        if (!realtimeUserId || !realtimeToken) return undefined;
+
+        supabase.realtime.setAuth(realtimeToken);
+
+        const channel = supabase
+            .channel(`manager-payroll-dispute-notifications:${realtimeUserId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'notifications',
+                    filter: `user_id=eq.${realtimeUserId}`
+                },
+                (payload) => {
+                    if (payload.new?.reference_type !== 'payroll_dispute') return;
+
+                    void fetchDisputes();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [realtimeUserId, realtimeToken, fetchDisputes]);
 
     // Handle response submit
     const handleSubmitResponse = async () => {

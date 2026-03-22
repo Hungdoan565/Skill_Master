@@ -82,7 +82,9 @@ export function TeacherPayrollPage() {
 
     const { submitDispute, fetchPayrollDisputes } = usePayroll();
     const { toast } = useToast();
-    const { profile } = useAuth();
+    const { profile, session } = useAuth();
+    const realtimeUserId = session?.user?.id || profile?.id;
+    const realtimeToken = session?.access_token;
 
     // Fetch payroll list
     const fetchPayrolls = useCallback(async () => {
@@ -128,6 +130,38 @@ export function TeacherPayrollPage() {
             setDisputesLoading(false);
         }
     }, [fetchPayrollDisputes]);
+
+    useEffect(() => {
+        if (!realtimeUserId || !realtimeToken) return undefined;
+
+        supabase.realtime.setAuth(realtimeToken);
+
+        const channel = supabase
+            .channel(`teacher-payroll-dispute-notifications:${realtimeUserId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'notifications',
+                    filter: `user_id=eq.${realtimeUserId}`
+                },
+                (payload) => {
+                    if (payload.new?.reference_type !== 'payroll_dispute') return;
+
+                    void fetchPayrolls();
+
+                    if (selectedPayroll?.id) {
+                        void loadPayrollDisputes(selectedPayroll.id);
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [realtimeUserId, realtimeToken, fetchPayrolls, loadPayrollDisputes, selectedPayroll?.id]);
 
     // Fetch payroll detail
     const handleViewDetail = async (payroll) => {

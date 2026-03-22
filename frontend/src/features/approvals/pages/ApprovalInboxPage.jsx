@@ -4,6 +4,7 @@ import {
   ClipboardCheck, UserPlus, Award, CreditCard, Wallet, 
   AlertTriangle, CalendarOff, Check, X, Loader2, Inbox, Clock 
 } from 'lucide-react';
+import { supabase } from '@/lib/supabaseClient';
 import { useAuth } from '@/contexts/auth-context';
 import { useCenterContext } from '@/contexts/center-context';
 import { gooeyToast } from 'goey-toast';
@@ -316,6 +317,41 @@ export default function ApprovalInboxPage() {
     const intervalId = setInterval(fetchCounts, 30000);
     return () => clearInterval(intervalId);
   }, [fetchCounts, fetchItems]);
+
+  useEffect(() => {
+    const realtimeUserId = session?.user?.id;
+    const realtimeToken = session?.access_token;
+
+    if (!realtimeUserId || !realtimeToken) return undefined;
+
+    supabase.realtime.setAuth(realtimeToken);
+
+    const channel = supabase
+      .channel(`approval-inbox-payroll-disputes:${realtimeUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${realtimeUserId}`
+        },
+        (payload) => {
+          if (payload.new?.reference_type !== 'payroll_dispute') return;
+
+          void fetchCounts();
+
+          if (activeTab === 'all' || activeTab === 'disputes') {
+            void fetchItems();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [session?.access_token, session?.user?.id, activeTab, fetchCounts, fetchItems]);
 
   const handleApprove = async (type, itemId) => {
     try {

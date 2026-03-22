@@ -108,32 +108,32 @@ test('active payroll disputes are protected by a DB guard and friendly conflict 
 test('payroll dispute realtime updates are wired for teacher and manager screens', () => {
   assert.match(
     teacherPayrollPageSource,
-    /supabase\.channel\(/,
+    /supabase[\s\S]*\.channel\(/,
   );
 
   assert.match(
     teacherPayrollPageSource,
-    /reference_type === 'payroll_dispute'/,
+    /reference_type[\s\S]*'payroll_dispute'/,
   );
 
   assert.match(
     disputeManagementPageSource,
-    /supabase\.channel\(/,
+    /supabase[\s\S]*\.channel\(/,
   );
 
   assert.match(
     disputeManagementPageSource,
-    /reference_type === 'payroll_dispute'/,
+    /reference_type[\s\S]*'payroll_dispute'/,
   );
 
   assert.match(
     approvalInboxPageSource,
-    /supabase\.channel\(/,
+    /supabase[\s\S]*\.channel\(/,
   );
 
   assert.match(
     approvalInboxPageSource,
-    /reference_type === 'payroll_dispute'/,
+    /reference_type[\s\S]*'payroll_dispute'/,
   );
 });
 
