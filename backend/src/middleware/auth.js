@@ -1,8 +1,43 @@
 import { supabase } from '../lib/db.js';
 
+// ============================================================
+// AUTH CACHE - Tránh gọi Supabase lặp lại cho cùng token
+// ============================================================
+const AUTH_CACHE = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 phút
+const CACHE_MAX_SIZE = 200;
+
+function getCachedAuth(token) {
+  const key = token.substring(token.length - 32); // dùng 32 ký tự cuối làm key
+  const entry = AUTH_CACHE.get(key);
+  if (entry && Date.now() - entry.ts < CACHE_TTL) {
+    return entry.userData;
+  }
+  if (entry) AUTH_CACHE.delete(key); // expired
+  return null;
+}
+
+function setCachedAuth(token, userData) {
+  const key = token.substring(token.length - 32);
+  // Evict oldest entries if cache is too large
+  if (AUTH_CACHE.size >= CACHE_MAX_SIZE) {
+    const firstKey = AUTH_CACHE.keys().next().value;
+    AUTH_CACHE.delete(firstKey);
+  }
+  AUTH_CACHE.set(key, { userData, ts: Date.now() });
+}
+
+// Export for logout/token revocation
+export function invalidateAuthCache(token) {
+  if (token) {
+    const key = token.substring(token.length - 32);
+    AUTH_CACHE.delete(key);
+  }
+}
+
 /**
  * Middleware xác thực - kiểm tra JWT token từ Supabase Auth
- * Sử dụng cho các API cần đăng nhập mới được gọi
+ * Có cache in-memory để tránh gọi Supabase nhiều lần cho cùng token
  */
 export const requireAuth = async (req, res, next) => {
   try {
@@ -20,37 +55,33 @@ export const requireAuth = async (req, res, next) => {
 
     // Validate token format BEFORE sending to Supabase
     if (!token || token === 'null' || token === 'undefined' || token.length < 20) {
-      console.error('❌ Invalid token format:', {
-        hasToken: !!token,
-        tokenValue: token,
-        tokenLength: token?.length
-      });
+      console.error('❌ Invalid token format');
       return res.status(401).json({
         success: false,
         message: 'Token không hợp lệ. Vui lòng đăng nhập lại.'
       });
     }
 
-    console.log('🔐 Verifying token:', token.substring(0, 20) + '...');
+    // 2. Check cache trước
+    const cached = getCachedAuth(token);
+    if (cached) {
+      req.user = cached;
+      next();
+      return;
+    }
 
-    // 2. Verify token với Supabase - hỏi xem token này có hợp lệ không
+    // 3. Verify token với Supabase
     const { data: { user }, error } = await supabase.auth.getUser(token);
 
-    if (error) {
-      console.error('❌ Auth error:', error);
-    }
-    if (!user) {
-      console.error('❌ No user found');
-    }
-
     if (error || !user) {
+      if (error) console.error('❌ Auth error:', error.message);
       return res.status(401).json({
         success: false,
         message: 'Token không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.'
       });
     }
 
-    // 3. Lấy thêm profile từ bảng users (role, center_id)
+    // 4. Lấy thêm profile từ bảng users (role, center_id)
     const { data: profile, error: profileError } = await supabase
       .from('users')
       .select(`
@@ -72,17 +103,21 @@ export const requireAuth = async (req, res, next) => {
       console.warn('⚠️ Cannot fetch user profile:', profileError.message);
     }
 
-    // 4. Gán thông tin user vào request để các handler sau dùng được
-    req.user = {
+    // 5. Gán thông tin user vào request
+    const userData = {
       ...user,
       profile: profile || null,
       roleCode: profile?.roles?.code || null,
       centerId: profile?.center_id || null,
-      center_id: profile?.center_id || null // Add snake_case for consistency
+      center_id: profile?.center_id || null
     };
 
-    // Log để debug (có thể bỏ sau)
-    console.log(`✅ Authenticated: ${user.email} | Role: ${req.user.roleCode} | Center: ${req.user.centerId}`);
+    req.user = userData;
+
+    // 6. Cache kết quả
+    setCachedAuth(token, userData);
+
+    console.log(`✅ Auth: ${user.email} | ${req.user.roleCode}`);
 
     next();
   } catch (err) {

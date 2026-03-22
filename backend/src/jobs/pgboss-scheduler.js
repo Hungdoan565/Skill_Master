@@ -4,7 +4,7 @@
  *
  * pg-boss uses PostgreSQL for job queuing - perfect since we already have Supabase
  */
-import PgBoss from 'pg-boss';
+import { PgBoss } from 'pg-boss';
 import dotenv from 'dotenv';
 
 dotenv.config();

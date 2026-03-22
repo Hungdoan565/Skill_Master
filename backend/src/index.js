@@ -5789,10 +5789,29 @@ app.post('/api/admin/classes', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
       .single();
 
     if (existing) {
-      return res.status(400).json({
-        success: false,
-        message: 'MÃƒÂ£ lÃ¡Â»â€ºp Ã„â€˜ÃƒÂ£ tÃ¡Â»â€œn tÃ¡ÂºÂ¡i, vui lÃƒÂ²ng thÃ¡Â»Â­ lÃ¡ÂºÂ¡i'
-      });
+      // Auto-increment: tách prefix và tìm số tiếp theo
+      const lastDash = code.lastIndexOf('-');
+      const prefix = lastDash > 0 ? code.substring(0, lastDash) : code;
+
+      const { data: similarClasses } = await supabase
+        .from('classes')
+        .select('code')
+        .like('code', `${prefix}-%`);
+
+      let maxNum = 0;
+      if (similarClasses && similarClasses.length > 0) {
+        for (const cls of similarClasses) {
+          const clsLastDash = cls.code.lastIndexOf('-');
+          const numStr = cls.code.substring(clsLastDash + 1);
+          const num = parseInt(numStr, 10);
+          if (!isNaN(num) && num > maxNum) maxNum = num;
+        }
+      }
+
+      code = `${prefix}-${String(maxNum + 1).padStart(2, '0')}`;
+      // Also update name to match new code
+      name = code;
+      console.log(`Auto-incremented class code to: ${code}`);
     }
 
     const { data, error } = await supabase
@@ -12479,33 +12498,39 @@ app.get('/api/admin/revenue-trend', requireAuth, requireRole(['SUPER_ADMIN']), a
     const months = parseInt(req.query.months) || 6;
     const { data: centers } = await supabase.from('centers').select('id, name').eq('status', 'active');
 
-    const result = [];
+    // Build month ranges first
+    const monthRanges = [];
     for (let i = months - 1; i >= 0; i--) {
       const now = new Date();
       const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59);
-      const monthLabel = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`;
+      monthRanges.push({
+        label: `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`,
+        start: monthStart.toISOString(),
+        end: monthEnd.toISOString(),
+      });
+    }
 
-      const centersData = [];
-      for (const center of (centers || [])) {
+    // Run ALL queries in parallel (months × centers)
+    const result = await Promise.all(monthRanges.map(async (range) => {
+      const centersData = await Promise.all((centers || []).map(async (center) => {
         const { data: payments } = await supabase
           .from('payments')
           .select('amount, invoices!inner(classes!inner(center_id))')
           .eq('verification_status', 'verified')
           .eq('invoices.classes.center_id', center.id)
-          .gte('payment_date', monthStart.toISOString())
-          .lte('payment_date', monthEnd.toISOString());
+          .gte('payment_date', range.start)
+          .lte('payment_date', range.end);
         const revenue = (payments || []).reduce((s, p) => s + (p.amount || 0), 0);
-        centersData.push({
+        return {
           center_id: center.id,
           center_name: center.name,
           metric_id: STRATEGIC_METRIC_IDS.REVENUE_TOTAL,
           revenue,
-        });
-      }
-
-      result.push({ month: monthLabel, centers: centersData });
-    }
+        };
+      }));
+      return { month: range.label, centers: centersData };
+    }));
 
     const firstMonth = result[0]?.month ? `${result[0].month}-01T00:00:00.000Z` : null;
     const lastMonth = result[result.length - 1]?.month ? `${result[result.length - 1].month}-31T23:59:59.999Z` : null;
@@ -12531,7 +12556,6 @@ app.get('/api/admin/anomalies', requireAuth, requireRole(['SUPER_ADMIN']), async
     const prevEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString();
 
     const { data: centers } = await supabase.from('centers').select('id, name').eq('status', 'active');
-    const anomalies = [];
     const defaultDueAt = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString();
 
     const buildAnomaly = ({ center, type, message, severity, sourceMetricId, breachedValue, threshold }) => ({
@@ -12553,26 +12577,56 @@ app.get('/api/admin/anomalies', requireAuth, requireRole(['SUPER_ADMIN']), async
       created_at: new Date().toISOString(),
     });
 
-    for (const center of (centers || [])) {
+    // Process all centers in parallel
+    const centerAnomalies = await Promise.all((centers || []).map(async (center) => {
+      const results = [];
+
+      // Run all checks for this center in parallel
+      const [
+        { data: curPay },
+        { data: prevPay },
+        { data: attData },
+        { data: invData },
+        { count: curEnr },
+        { count: prevEnr },
+      ] = await Promise.all([
+        supabase.from('payments')
+          .select('amount, invoices!inner(classes!inner(center_id))')
+          .eq('verification_status', 'verified')
+          .eq('invoices.classes.center_id', center.id)
+          .gte('payment_date', curStart).lte('payment_date', curEnd),
+        supabase.from('payments')
+          .select('amount, invoices!inner(classes!inner(center_id))')
+          .eq('verification_status', 'verified')
+          .eq('invoices.classes.center_id', center.id)
+          .gte('payment_date', prevStart).lte('payment_date', prevEnd),
+        supabase.from('attendance')
+          .select('status, enrollments!inner(classes!inner(center_id))')
+          .eq('enrollments.classes.center_id', center.id)
+          .gte('session_date', curStart).lte('session_date', curEnd),
+        supabase.from('invoices')
+          .select('final_amount, paid_amount, classes!inner(center_id)')
+          .eq('classes.center_id', center.id)
+          .gte('created_at', curStart).lte('created_at', curEnd),
+        supabase.from('enrollments')
+          .select('id, classes!inner(center_id)', { count: 'exact', head: true })
+          .eq('classes.center_id', center.id)
+          .gte('created_at', curStart).lte('created_at', curEnd),
+        supabase.from('enrollments')
+          .select('id, classes!inner(center_id)', { count: 'exact', head: true })
+          .eq('classes.center_id', center.id)
+          .gte('created_at', prevStart).lte('created_at', prevEnd),
+      ]);
+
       // Revenue check
-      const { data: curPay } = await supabase.from('payments')
-        .select('amount, invoices!inner(classes!inner(center_id))')
-        .eq('verification_status', 'verified')
-        .eq('invoices.classes.center_id', center.id)
-        .gte('payment_date', curStart).lte('payment_date', curEnd);
-      const { data: prevPay } = await supabase.from('payments')
-        .select('amount, invoices!inner(classes!inner(center_id))')
-        .eq('verification_status', 'verified')
-        .eq('invoices.classes.center_id', center.id)
-        .gte('payment_date', prevStart).lte('payment_date', prevEnd);
       const curRev = (curPay || []).reduce((s, p) => s + (p.amount || 0), 0);
       const prevRev = (prevPay || []).reduce((s, p) => s + (p.amount || 0), 0);
       if (prevRev > 0 && ((prevRev - curRev) / prevRev) > 0.15) {
         const dropPct = Math.round(((prevRev - curRev) / prevRev) * 100);
-        anomalies.push(buildAnomaly({
+        results.push(buildAnomaly({
           center,
           type: 'revenue_drop',
-          message: `Doanh thu giÃ¡ÂºÂ£m ${dropPct}% so vÃ¡Â»â€ºi thÃƒÂ¡ng trÃ†Â°Ã¡Â»â€ºc`,
+          message: `Doanh thu giảm ${dropPct}% so với tháng trước`,
           severity: 'warning',
           sourceMetricId: STRATEGIC_METRIC_IDS.REVENUE_GROWTH_MOM,
           breachedValue: -dropPct,
@@ -12581,19 +12635,15 @@ app.get('/api/admin/anomalies', requireAuth, requireRole(['SUPER_ADMIN']), async
       }
 
       // Attendance check
-      const { data: attData } = await supabase.from('attendance')
-        .select('status, enrollments!inner(classes!inner(center_id))')
-        .eq('enrollments.classes.center_id', center.id)
-        .gte('session_date', curStart).lte('session_date', curEnd);
       const totalAtt = (attData || []).length;
       const presentAtt = (attData || []).filter(a => a.status === 'present' || a.status === 'late').length;
       const attRate = totalAtt > 0 ? (presentAtt / totalAtt) * 100 : 100;
       if (attRate < 70) {
         const roundedRate = Math.round(attRate);
-        anomalies.push(buildAnomaly({
+        results.push(buildAnomaly({
           center,
           type: 'low_attendance',
-          message: `TÃ¡Â»Â· lÃ¡Â»â€¡ chuyÃƒÂªn cÃ¡ÂºÂ§n chÃ¡Â»â€° ${roundedRate}%`,
+          message: `Tỷ lệ chuyên cần chỉ ${roundedRate}%`,
           severity: 'critical',
           sourceMetricId: STRATEGIC_METRIC_IDS.ATTENDANCE_RATE,
           breachedValue: roundedRate,
@@ -12602,19 +12652,15 @@ app.get('/api/admin/anomalies', requireAuth, requireRole(['SUPER_ADMIN']), async
       }
 
       // Collection rate check
-      const { data: invData } = await supabase.from('invoices')
-        .select('final_amount, paid_amount, classes!inner(center_id)')
-        .eq('classes.center_id', center.id)
-        .gte('created_at', curStart).lte('created_at', curEnd);
       const totalInv = (invData || []).reduce((s, i) => s + (i.final_amount || 0), 0);
       const totalPaid = (invData || []).reduce((s, i) => s + (i.paid_amount || 0), 0);
       const collRate = totalInv > 0 ? (totalPaid / totalInv) * 100 : 100;
       if (collRate < 75) {
         const roundedRate = Math.round(collRate);
-        anomalies.push(buildAnomaly({
+        results.push(buildAnomaly({
           center,
           type: 'low_collection',
-          message: `TÃ¡Â»Â· lÃ¡Â»â€¡ thu chÃ¡Â»â€° ${roundedRate}%`,
+          message: `Tỷ lệ thu chỉ ${roundedRate}%`,
           severity: 'warning',
           sourceMetricId: STRATEGIC_METRIC_IDS.COLLECTION_RATE,
           breachedValue: roundedRate,
@@ -12623,27 +12669,23 @@ app.get('/api/admin/anomalies', requireAuth, requireRole(['SUPER_ADMIN']), async
       }
 
       // Enrollment drop check
-      const { count: curEnr } = await supabase.from('enrollments')
-        .select('id, classes!inner(center_id)', { count: 'exact', head: true })
-        .eq('classes.center_id', center.id)
-        .gte('created_at', curStart).lte('created_at', curEnd);
-      const { count: prevEnr } = await supabase.from('enrollments')
-        .select('id, classes!inner(center_id)', { count: 'exact', head: true })
-        .eq('classes.center_id', center.id)
-        .gte('created_at', prevStart).lte('created_at', prevEnd);
       if ((prevEnr || 0) > 0 && (((prevEnr || 0) - (curEnr || 0)) / (prevEnr || 1)) > 0.20) {
         const dropPct = Math.round((((prevEnr || 0) - (curEnr || 0)) / (prevEnr || 1)) * 100);
-        anomalies.push(buildAnomaly({
+        results.push(buildAnomaly({
           center,
           type: 'enrollment_drop',
-          message: `Ghi danh giÃ¡ÂºÂ£m ${dropPct}% so vÃ¡Â»â€ºi thÃƒÂ¡ng trÃ†Â°Ã¡Â»â€ºc`,
+          message: `Ghi danh giảm ${dropPct}% so với tháng trước`,
           severity: 'warning',
           sourceMetricId: STRATEGIC_METRIC_IDS.ENROLLMENT_GROWTH_MOM,
           breachedValue: -dropPct,
           threshold: '-20%',
         }));
       }
-    }
+
+      return results;
+    }));
+
+    const anomalies = centerAnomalies.flat();
 
     const anomaliesWithSla = anomalies.map((anomaly) => {
       const dueAt = anomaly.due_at ? new Date(anomaly.due_at).getTime() : null;
@@ -12675,7 +12717,7 @@ app.get('/api/admin/anomalies', requireAuth, requireRole(['SUPER_ADMIN']), async
 // GET /api/admin/custom-alerts - List custom alert rules
 app.get('/api/admin/custom-alerts', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
   try {
-    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const supabase = supabaseAdmin;
     const centerId = getEffectiveCenterId(req);
 
     let query = supabase
@@ -12700,7 +12742,7 @@ app.get('/api/admin/custom-alerts', requireAuth, requireRole(['SUPER_ADMIN']), a
 // POST /api/admin/custom-alerts - Create custom alert rule
 app.post('/api/admin/custom-alerts', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
   try {
-    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const supabase = supabaseAdmin;
     const centerId = getEffectiveCenterId(req);
     const {
       name,
@@ -12745,7 +12787,7 @@ app.post('/api/admin/custom-alerts', requireAuth, requireRole(['SUPER_ADMIN']), 
 // PUT /api/admin/custom-alerts/:id - Update custom alert rule
 app.put('/api/admin/custom-alerts/:id', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
   try {
-    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const supabase = supabaseAdmin;
     const centerId = getEffectiveCenterId(req);
     const { id } = req.params;
     const {
@@ -12799,7 +12841,7 @@ app.put('/api/admin/custom-alerts/:id', requireAuth, requireRole(['SUPER_ADMIN']
 // DELETE /api/admin/custom-alerts/:id - Delete custom alert rule
 app.delete('/api/admin/custom-alerts/:id', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
   try {
-    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const supabase = supabaseAdmin;
     const centerId = getEffectiveCenterId(req);
     const { id } = req.params;
 
@@ -12827,7 +12869,7 @@ app.delete('/api/admin/custom-alerts/:id', requireAuth, requireRole(['SUPER_ADMI
 // GET /api/admin/alert-history - List triggered alert history
 app.get('/api/admin/alert-history', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
   try {
-    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const supabase = supabaseAdmin;
     const centerId = getEffectiveCenterId(req);
 
     let query = supabase
@@ -12852,7 +12894,7 @@ app.get('/api/admin/alert-history', requireAuth, requireRole(['SUPER_ADMIN']), a
 // PATCH /api/admin/alert-history/:id/acknowledge - Acknowledge alert
 app.patch('/api/admin/alert-history/:id/acknowledge', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
   try {
-    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const supabase = supabaseAdmin;
     const centerId = getEffectiveCenterId(req);
     const { id } = req.params;
 
@@ -13306,14 +13348,17 @@ app.post('/api/admin/users/:id/reset-password', requireAuth, requireRole(['SUPER
 app.get('/api/admin/users/by-class', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
   try {
     const { data: centers } = await supabase.from('centers').select('id, name').eq('status', 'active').order('name');
-    const result = [];
 
-    for (const center of centers || []) {
-      const { data: classes } = await supabase.from('classes').select('id, name').eq('center_id', center.id).eq('status', 'active').order('name');
-      const centerNode = { id: center.id, name: center.name, classes: [], unassigned: [] };
+    // Process all centers in parallel
+    const result = await Promise.all((centers || []).map(async (center) => {
+      const [{ data: classes }, { data: allStudents }] = await Promise.all([
+        supabase.from('classes').select('id, name').eq('center_id', center.id).eq('status', 'active').order('name'),
+        supabase.from('users').select('id, full_name, email, avatar_url, status').eq('center_id', center.id).eq('role_id', 'e5a36360-8376-4aa4-b740-c7fab967a480'),
+      ]);
       const enrolledIds = new Set();
 
-      for (const cls of classes || []) {
+      // Process all classes in parallel
+      const classResults = await Promise.all((classes || []).map(async (cls) => {
         const { data: enrollments } = await supabase.from('enrollments').select('student_id').eq('class_id', cls.id).eq('status', 'active');
         const studentIds = (enrollments || []).map(e => e.student_id).filter(Boolean);
         let students = [];
@@ -13322,14 +13367,16 @@ app.get('/api/admin/users/by-class', requireAuth, requireRole(['SUPER_ADMIN']), 
           students = profiles || [];
           studentIds.forEach(id => enrolledIds.add(id));
         }
-        centerNode.classes.push({ id: cls.id, name: cls.name, students });
-      }
+        return { id: cls.id, name: cls.name, students };
+      }));
 
-      // Students in this center not enrolled in any active class
-      const { data: allStudents } = await supabase.from('users').select('id, full_name, email, avatar_url, status').eq('center_id', center.id).eq('role_id', 'e5a36360-8376-4aa4-b740-c7fab967a480');
-      centerNode.unassigned = (allStudents || []).filter(s => !enrolledIds.has(s.id));
-      result.push(centerNode);
-    }
+      return {
+        id: center.id,
+        name: center.name,
+        classes: classResults,
+        unassigned: (allStudents || []).filter(s => !enrolledIds.has(s.id)),
+      };
+    }));
 
     res.json({ success: true, data: result });
   } catch (error) {
@@ -13409,30 +13456,35 @@ app.get('/api/admin/reports/revenue', requireAuth, requireRole(['SUPER_ADMIN']),
     const end = endDate || now.toISOString();
 
     const { data: centers } = await supabase.from('centers').select('id, name').eq('status', 'active');
-    const months = [];
+    const centerList = centers || [];
+
+    // Build month ranges
+    const monthRanges = [];
     const startD = new Date(start);
     const endD = new Date(end);
-
     for (let d = new Date(startD.getFullYear(), startD.getMonth(), 1); d <= endD; d.setMonth(d.getMonth() + 1)) {
-      const monthStart = new Date(d.getFullYear(), d.getMonth(), 1);
-      const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
-      const monthLabel = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`;
+      monthRanges.push({
+        label: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+        start: new Date(d.getFullYear(), d.getMonth(), 1).toISOString(),
+        end: new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59).toISOString(),
+      });
+    }
 
-      const centersData = [];
-      let monthTotal = 0;
-      for (const center of (centers || [])) {
+    // Run ALL queries in parallel (months × centers)
+    const months = await Promise.all(monthRanges.map(async (range) => {
+      const centersData = await Promise.all(centerList.map(async (center) => {
         const { data: payments } = await supabase.from('payments')
           .select('amount, invoices!inner(classes!inner(center_id))')
           .eq('verification_status', 'verified')
           .eq('invoices.classes.center_id', center.id)
-          .gte('payment_date', monthStart.toISOString())
-          .lte('payment_date', monthEnd.toISOString());
+          .gte('payment_date', range.start)
+          .lte('payment_date', range.end);
         const revenue = (payments || []).reduce((s, p) => s + (p.amount || 0), 0);
-        centersData.push({ center_id: center.id, center_name: center.name, revenue });
-        monthTotal += revenue;
-      }
-      months.push({ month: monthLabel, centers: centersData, total: monthTotal });
-    }
+        return { center_id: center.id, center_name: center.name, revenue };
+      }));
+      const monthTotal = centersData.reduce((s, c) => s + c.revenue, 0);
+      return { month: range.label, centers: centersData, total: monthTotal };
+    }));
 
     res.json({ success: true, data: months });
   } catch (error) {
@@ -13450,26 +13502,29 @@ app.get('/api/admin/reports/enrollment', requireAuth, requireRole(['SUPER_ADMIN'
     const end = endDate || now.toISOString();
 
     const { data: centers } = await supabase.from('centers').select('id, name').eq('status', 'active');
-    const months = [];
+    const monthRanges = [];
     const startD = new Date(start);
     const endD = new Date(end);
-
     for (let d = new Date(startD.getFullYear(), startD.getMonth(), 1); d <= endD; d.setMonth(d.getMonth() + 1)) {
-      const monthStart = new Date(d.getFullYear(), d.getMonth(), 1);
-      const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
-      const monthLabel = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`;
+      monthRanges.push({
+        label: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+        start: new Date(d.getFullYear(), d.getMonth(), 1).toISOString(),
+        end: new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59).toISOString(),
+      });
+    }
 
-      const centersData = [];
-      for (const center of (centers || [])) {
+    // Run ALL queries in parallel (months × centers)
+    const months = await Promise.all(monthRanges.map(async (range) => {
+      const centersData = await Promise.all((centers || []).map(async (center) => {
         const { count } = await supabase.from('enrollments')
           .select('id, classes!inner(center_id)', { count: 'exact', head: true })
           .eq('classes.center_id', center.id)
-          .gte('created_at', monthStart.toISOString())
-          .lte('created_at', monthEnd.toISOString());
-        centersData.push({ center_id: center.id, center_name: center.name, enrollments: count || 0 });
-      }
-      months.push({ month: monthLabel, centers: centersData });
-    }
+          .gte('created_at', range.start)
+          .lte('created_at', range.end);
+        return { center_id: center.id, center_name: center.name, enrollments: count || 0 };
+      }));
+      return { month: range.label, centers: centersData };
+    }));
 
     res.json({ success: true, data: months });
   } catch (error) {
@@ -13487,29 +13542,32 @@ app.get('/api/admin/reports/attendance', requireAuth, requireRole(['SUPER_ADMIN'
     const end = endDate || now.toISOString();
 
     const { data: centers } = await supabase.from('centers').select('id, name').eq('status', 'active');
-    const months = [];
+    const monthRanges = [];
     const startD = new Date(start);
     const endD = new Date(end);
-
     for (let d = new Date(startD.getFullYear(), startD.getMonth(), 1); d <= endD; d.setMonth(d.getMonth() + 1)) {
-      const monthStart = new Date(d.getFullYear(), d.getMonth(), 1);
-      const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
-      const monthLabel = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`;
+      monthRanges.push({
+        label: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+        start: new Date(d.getFullYear(), d.getMonth(), 1).toISOString(),
+        end: new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59).toISOString(),
+      });
+    }
 
-      const centersData = [];
-      for (const center of (centers || [])) {
+    // Run ALL queries in parallel (months × centers)
+    const months = await Promise.all(monthRanges.map(async (range) => {
+      const centersData = await Promise.all((centers || []).map(async (center) => {
         const { data: attData } = await supabase.from('attendance')
           .select('status, enrollments!inner(classes!inner(center_id))')
           .eq('enrollments.classes.center_id', center.id)
-          .gte('session_date', monthStart.toISOString())
-          .lte('session_date', monthEnd.toISOString());
+          .gte('session_date', range.start)
+          .lte('session_date', range.end);
         const total = (attData || []).length;
         const present = (attData || []).filter(a => a.status === 'present' || a.status === 'late').length;
         const rate = total > 0 ? Math.round((present / total) * 100) : 0;
-        centersData.push({ center_id: center.id, center_name: center.name, attendance_rate: rate, total_records: total });
-      }
-      months.push({ month: monthLabel, centers: centersData });
-    }
+        return { center_id: center.id, center_name: center.name, attendance_rate: rate, total_records: total };
+      }));
+      return { month: range.label, centers: centersData };
+    }));
 
     res.json({ success: true, data: months });
   } catch (error) {
@@ -13522,36 +13580,36 @@ app.get('/api/admin/reports/attendance', requireAuth, requireRole(['SUPER_ADMIN'
 app.get('/api/admin/reports/staff', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res, next) => {
   try {
     const { data: centers } = await supabase.from('centers').select('id, name').eq('status', 'active');
-    const result = [];
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const monthEnd = now.toISOString();
 
-    for (const center of (centers || [])) {
-      const { count: staffCount } = await supabase.from('users').select('id', { count: 'exact', head: true }).eq('center_id', center.id).in('role_id', ['7d0897c4-4e72-480e-97b4-86770b0b9542', 'd16c524b-8ea5-4baa-b6b0-057ce3ab1fbb']);
-      const { count: teacherCount } = await supabase.from('users').select('id', { count: 'exact', head: true }).eq('center_id', center.id).eq('role_id', '7d0897c4-4e72-480e-97b4-86770b0b9542');
+    // Process all centers in parallel, with all queries per center also parallel
+    const result = await Promise.all((centers || []).map(async (center) => {
+      const [
+        { count: staffCount },
+        { count: teacherCount },
+        { data: payrollData },
+        { data: perfData },
+      ] = await Promise.all([
+        supabase.from('users').select('id', { count: 'exact', head: true }).eq('center_id', center.id).in('role_id', ['7d0897c4-4e72-480e-97b4-86770b0b9542', 'd16c524b-8ea5-4baa-b6b0-057ce3ab1fbb']),
+        supabase.from('users').select('id', { count: 'exact', head: true }).eq('center_id', center.id).eq('role_id', '7d0897c4-4e72-480e-97b4-86770b0b9542'),
+        supabase.from('payroll').select('net_salary, teacher_id, users!inner(center_id)').eq('users.center_id', center.id).gte('created_at', monthStart).lte('created_at', monthEnd),
+        supabase.from('v_teacher_performance').select('total_hours_taught').eq('center_name', center.name),
+      ]);
 
-      // Get payroll cost for current month
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const monthEnd = now.toISOString();
-      const { data: payrollData } = await supabase.from('payroll')
-        .select('net_salary, teacher_id, users!inner(center_id)')
-        .eq('users.center_id', center.id)
-        .gte('created_at', monthStart)
-        .lte('created_at', monthEnd);
       const payrollCost = (payrollData || []).reduce((s, p) => s + (p.net_salary || 0), 0);
-
-      // class_sessions table does not exist Ã¢â‚¬â€ use v_teacher_performance view or skip
-      const { data: perfData } = await supabase.from('v_teacher_performance').select('total_hours_taught').eq('center_name', center.name);
       const totalHours = Math.round((perfData || []).reduce((s, t) => s + (t.total_hours_taught || 0), 0));
 
-      result.push({
+      return {
         center_id: center.id,
         center_name: center.name,
         staff_count: staffCount || 0,
         teacher_count: teacherCount || 0,
         payroll_cost: payrollCost,
         teaching_hours: totalHours,
-      });
-    }
+      };
+    }));
 
     res.json({ success: true, data: result });
   } catch (error) {
@@ -19126,7 +19184,7 @@ app.get('/api/teacher/sessions/:id/attendance', requireAuth, async (req, res, ne
       status: a.status,
       check_in_time: a.check_in_time,
       notes: a.notes,
-      student_name: a.enrollment?.student?.full_name || 'Há»c viÃªn',
+      student_name: a.enrollment?.student?.full_name || 'Học viên',
       student_email: a.enrollment?.student?.email || '',
       student_avatar: a.enrollment?.student?.avatar_url || null,
       student: a.enrollment?.student || null
@@ -25273,7 +25331,7 @@ app.post('/api/admin/enrollments/batch', requireAuth, requireRole(['SUPER_ADMIN'
         invoices_created: invoiceResults.length,
         invoice_errors: invoiceErrors.length > 0 ? invoiceErrors : undefined
       },
-      message: `Ã„ÂÃƒÂ£ ghi danh ${allEnrolled.length} hÃ¡Â»Âc viÃƒÂªn vÃƒÂ  tÃ¡ÂºÂ¡o ${invoiceResults.length} hÃƒÂ³a Ã„â€˜Ã†Â¡n draft`
+      message: `Đã ghi danh ${allEnrolled.length} học viên và tạo ${invoiceResults.length} hóa đơn nháp`
     });
   } catch (error) {
     console.error('Error batch enrollment:', error);
@@ -26914,6 +26972,69 @@ app.get('/api/admin/classes/:classId/report', requireAuth, requireRole(['SUPER_A
 // ============================================================
 
 /**
+ * GET /api/notifications/sent
+ * Lấy lịch sử thông báo đã gửi bởi admin/manager hiện tại
+ * Query params: limit, offset
+ */
+app.get('/api/notifications/sent', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { effectiveCenterId } = getEffectiveCenterId(req.user);
+    const { limit = 50, offset = 0 } = req.query;
+    const limitNum = Math.min(parseInt(limit) || 50, 100);
+    const offsetNum = parseInt(offset) || 0;
+
+    // Query notifications sent by this admin (sent_by field)
+    // Also include center-scoped notifications as fallback for legacy data without sent_by
+    let query = supabase
+      .from('notifications')
+      .select('id, type, title, message, reference_id, reference_type, read_at, created_at, user_id, sent_by', { count: 'exact' });
+
+    // Primary filter: notifications sent by this user
+    query = query.eq('sent_by', userId);
+
+    // Also scope by center for safety
+    if (effectiveCenterId) {
+      query = query.eq('center_id', effectiveCenterId);
+    }
+
+    query = query
+      .order('created_at', { ascending: false })
+      .range(offsetNum, offsetNum + limitNum - 1);
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    // Enrich with recipient info
+    const userIds = [...new Set((data || []).map(n => n.user_id).filter(Boolean))];
+    let recipientsMap = {};
+    if (userIds.length > 0) {
+      const { data: recipients } = await supabase
+        .from('users')
+        .select('id, full_name, email')
+        .in('id', userIds);
+      recipientsMap = Object.fromEntries((recipients || []).map(r => [r.id, r]));
+    }
+
+    const enrichedData = (data || []).map(n => ({
+      ...n,
+      recipient: recipientsMap[n.user_id] || { full_name: 'Unknown', email: '' }
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        notifications: enrichedData,
+        total: count || 0
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching sent notifications:', error);
+    next(error);
+  }
+});
+
+/**
  * GET /api/notifications/students
  * LÃ¡ÂºÂ¥y danh sÃƒÂ¡ch hÃ¡Â»Âc viÃƒÂªn theo bÃ¡Â»â„¢ lÃ¡Â»Âc Ã„â€˜Ã¡Â»Æ’ gÃ¡Â»Â­i thÃƒÂ´ng bÃƒÂ¡o
  * Query params:
@@ -27119,11 +27240,11 @@ app.post('/api/notifications/send-bulk', requireAuth, requireRole(['SUPER_ADMIN'
     const { student_ids: enrollment_ids, template_id, template_fields, notification_type } = req.body;
 
     if (!enrollment_ids || enrollment_ids.length === 0) {
-      return res.status(400).json({ success: false, message: 'Vui lÃƒÂ²ng chÃ¡Â»Ân ÃƒÂ­t nhÃ¡ÂºÂ¥t mÃ¡Â»â„¢t hÃ¡Â»Âc viÃƒÂªn' });
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn ít nhất một học viên' });
     }
 
     if (!template_id) {
-      return res.status(400).json({ success: false, message: 'Vui lÃƒÂ²ng chÃ¡Â»Ân mÃ¡ÂºÂ«u thÃƒÂ´ng bÃƒÂ¡o' });
+      return res.status(400).json({ success: false, message: 'Vui lòng chọn mẫu thông báo' });
     }
 
     // Get enrollments by IDs
@@ -27142,7 +27263,7 @@ app.post('/api/notifications/send-bulk', requireAuth, requireRole(['SUPER_ADMIN'
     if (error) throw error;
 
     if (!enrollments || enrollments.length === 0) {
-      return res.status(404).json({ success: false, message: 'KhÃƒÂ´ng tÃƒÂ¬m thÃ¡ÂºÂ¥y hÃ¡Â»Âc viÃƒÂªn' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy học viên' });
     }
 
     // Get related data separately
@@ -27190,10 +27311,10 @@ app.post('/api/notifications/send-bulk', requireAuth, requireRole(['SUPER_ADMIN'
 
     // Template name map for readable titles
     const TEMPLATE_NAMES = {
-      payment_reminder: 'NhÃ¡ÂºÂ¯c nhÃ¡Â»Å¸ hÃ¡Â»Âc phÃƒÂ­',
-      class_reminder: 'NhÃ¡ÂºÂ¯c nhÃ¡Â»Å¸ buÃ¡Â»â€¢i hÃ¡Â»Âc',
-      general_announcement: 'ThÃƒÂ´ng bÃƒÂ¡o chung',
-      course_completion: 'ChÃƒÂºc mÃ¡Â»Â«ng hoÃƒÂ n thÃƒÂ nh khÃƒÂ³a hÃ¡Â»Âc'
+      payment_reminder: 'Nhắc nhở học phí',
+      class_reminder: 'Nhắc nhở buổi học',
+      general_announcement: 'Thông báo chung',
+      course_completion: 'Chúc mừng hoàn thành khóa học'
     };
 
     // Process each enrollment
@@ -27213,17 +27334,17 @@ app.post('/api/notifications/send-bulk', requireAuth, requireRole(['SUPER_ADMIN'
         const fmtCurrency = (v) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v);
 
         // Build readable notification message
-        const templateTitle = TEMPLATE_NAMES[template_id] || 'ThÃƒÂ´ng bÃƒÂ¡o';
+        const templateTitle = TEMPLATE_NAMES[template_id] || 'Thông báo';
         const readableTitle = `${templateTitle} - ${courseInfo.title || classInfo.name || ''}`;
         const readableMessage = [
-          `KÃƒÂ­nh gÃ¡Â»Â­i ${studentInfo.full_name || 'HÃ¡Â»Âc viÃƒÂªn'},`,
+          `Kính gửi ${studentInfo.full_name || 'Học viên'},`,
           '',
-          courseInfo.title ? `KhÃƒÂ³a hÃ¡Â»Âc: ${courseInfo.title}` : null,
-          classInfo.name ? `LÃ¡Â»â€ºp: ${classInfo.name}` : null,
-          template_id === 'payment_reminder' ? `HÃ¡Â»Âc phÃƒÂ­: ${fmtCurrency(totalFee)} | Ã„ÂÃƒÂ£ thanh toÃƒÂ¡n: ${fmtCurrency(paidAmount)} | CÃƒÂ²n lÃ¡ÂºÂ¡i: ${fmtCurrency(remainingAmount)}` : null,
-          teacherInfo.full_name ? `GiÃƒÂ¡o viÃƒÂªn: ${teacherInfo.full_name}` : null,
+          courseInfo.title ? `Khóa học: ${courseInfo.title}` : null,
+          classInfo.name ? `Lớp: ${classInfo.name}` : null,
+          template_id === 'payment_reminder' ? `Học phí: ${fmtCurrency(totalFee)} | Đã thanh toán: ${fmtCurrency(paidAmount)} | Còn lại: ${fmtCurrency(remainingAmount)}` : null,
+          teacherInfo.full_name ? `Giáo viên: ${teacherInfo.full_name}` : null,
           '',
-          `TrÃƒÂ¢n trÃ¡Â»Âng, ${centerInfo.name || 'Trung tÃƒÂ¢m'}`
+          `Trân trọng, ${centerInfo.name || 'Trung tâm'}`
         ].filter(Boolean).join('\n');
 
         // Save notification record
@@ -27237,11 +27358,12 @@ app.post('/api/notifications/send-bulk', requireAuth, requireRole(['SUPER_ADMIN'
             type: notification_type || 'system',
             reference_type: 'enrollment',
             reference_id: enrollment.id,
+            sent_by: req.user.id,
             created_at: new Date().toISOString()
           });
 
         if (insertErr) {
-          console.error(`Ã¢ÂÅ’ Notification insert failed for ${studentInfo.email}:`, insertErr.message);
+          console.error(`❌ Notification insert failed for ${studentInfo.email}:`, insertErr.message);
           failed++;
         } else {
           sent++;
@@ -27254,7 +27376,7 @@ app.post('/api/notifications/send-bulk', requireAuth, requireRole(['SUPER_ADMIN'
 
     res.json({
       success: true,
-      message: `Ã„ÂÃƒÂ£ gÃ¡Â»Â­i ${sent} thÃƒÂ´ng bÃƒÂ¡o thÃƒÂ nh cÃƒÂ´ng${failed > 0 ? `, ${failed} thÃ¡ÂºÂ¥t bÃ¡ÂºÂ¡i` : ''}`,
+      message: `Đã gửi ${sent} thông báo thành công${failed > 0 ? `, ${failed} thất bại` : ''}`,
       sent,
       failed
     });
@@ -32967,7 +33089,7 @@ app.get('/api/teacher/classes/:classId/students/:studentId/progress', requireAut
       .single();
 
     if (!student) {
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y há»c viÃªn' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy học viên' });
     }
 
     // Get completed class sessions
