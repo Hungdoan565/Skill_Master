@@ -17869,6 +17869,7 @@ app.patch('/api/admin/payroll-disputes/:id',
         }
 
         if (title && message) {
+          const notificationType = `payroll_dispute_${updated.status}`;
           const adminResponseText = typeof updated.admin_response === 'string'
             ? updated.admin_response.trim()
             : '';
@@ -17877,18 +17878,34 @@ app.patch('/api/admin/payroll-disputes/:id',
             message = `${message} Phản hồi: ${adminResponseText}`;
           }
 
-          const notificationResult = await createNotification(supabaseAdmin, {
-            userId: existing.teacher_id,
-            centerId: existing.teacher.center_id,
-            type: `payroll_dispute_${updated.status}`,
-            title,
-            message,
-            referenceId: updated.id,
-            referenceType: 'payroll_dispute'
-          });
+          const { data: existingNotification, error: existingNotificationError } = await supabaseAdmin
+            .from('notifications')
+            .select('id')
+            .eq('user_id', existing.teacher_id)
+            .eq('reference_id', updated.id)
+            .eq('reference_type', 'payroll_dispute')
+            .eq('type', notificationType)
+            .limit(1)
+            .maybeSingle();
 
-          if (!notificationResult?.success && notificationResult?.reason !== 'insert_failed') {
-            console.warn('⚠️ Failed to create payroll dispute status notification:', notificationResult?.reason);
+          if (existingNotificationError && existingNotificationError.code !== 'PGRST116') {
+            console.warn('⚠️ Failed checking existing payroll dispute notifications:', existingNotificationError.message);
+          }
+
+          if (!existingNotification) {
+            const notificationResult = await createNotification(supabaseAdmin, {
+              userId: existing.teacher_id,
+              centerId: existing.teacher.center_id,
+              type: notificationType,
+              title,
+              message,
+              referenceId: updated.id,
+              referenceType: 'payroll_dispute'
+            });
+
+            if (!notificationResult?.success && notificationResult?.reason !== 'insert_failed') {
+              console.warn('⚠️ Failed to create payroll dispute status notification:', notificationResult?.reason);
+            }
           }
         }
       }
