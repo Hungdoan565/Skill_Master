@@ -23,14 +23,14 @@ const teacherQuotes = {
 };
 
 const accentColors = [
-    { bg: 'from-red-600 to-rose-500', badge: 'bg-red-50 text-red-700', glow: 'rgba(239,68,68,0.15)', glass: 'rgba(239,68,68,0.25)' },
-    { bg: 'from-blue-600 to-indigo-500', badge: 'bg-blue-50 text-blue-700', glow: 'rgba(59,130,246,0.15)', glass: 'rgba(59,130,246,0.25)' },
-    { bg: 'from-emerald-600 to-teal-500', badge: 'bg-emerald-50 text-emerald-700', glow: 'rgba(16,185,129,0.15)', glass: 'rgba(16,185,129,0.25)' },
-    { bg: 'from-amber-600 to-orange-500', badge: 'bg-amber-50 text-amber-700', glow: 'rgba(245,158,11,0.15)', glass: 'rgba(245,158,11,0.25)' },
-    { bg: 'from-purple-600 to-violet-500', badge: 'bg-purple-50 text-purple-700', glow: 'rgba(139,92,246,0.15)', glass: 'rgba(139,92,246,0.25)' },
-    { bg: 'from-cyan-600 to-sky-500', badge: 'bg-cyan-50 text-cyan-700', glow: 'rgba(6,182,212,0.15)', glass: 'rgba(6,182,212,0.25)' },
-    { bg: 'from-pink-600 to-rose-500', badge: 'bg-pink-50 text-pink-700', glow: 'rgba(236,72,153,0.15)', glass: 'rgba(236,72,153,0.25)' },
-    { bg: 'from-indigo-600 to-blue-500', badge: 'bg-indigo-50 text-indigo-700', glow: 'rgba(99,102,241,0.15)', glass: 'rgba(99,102,241,0.25)' },
+    { bg: 'from-red-600 to-rose-500', badge: 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400', glow: 'rgba(239,68,68,0.15)', glass: 'rgba(239,68,68,0.25)' },
+    { bg: 'from-blue-600 to-indigo-500', badge: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', glow: 'rgba(59,130,246,0.15)', glass: 'rgba(59,130,246,0.25)' },
+    { bg: 'from-emerald-600 to-teal-500', badge: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400', glow: 'rgba(16,185,129,0.15)', glass: 'rgba(16,185,129,0.25)' },
+    { bg: 'from-amber-600 to-orange-500', badge: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', glow: 'rgba(245,158,11,0.15)', glass: 'rgba(245,158,11,0.25)' },
+    { bg: 'from-purple-600 to-violet-500', badge: 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400', glow: 'rgba(139,92,246,0.15)', glass: 'rgba(139,92,246,0.25)' },
+    { bg: 'from-cyan-600 to-sky-500', badge: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400', glow: 'rgba(6,182,212,0.15)', glass: 'rgba(6,182,212,0.25)' },
+    { bg: 'from-pink-600 to-rose-500', badge: 'bg-pink-50 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400', glow: 'rgba(236,72,153,0.15)', glass: 'rgba(236,72,153,0.25)' },
+    { bg: 'from-indigo-600 to-blue-500', badge: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400', glow: 'rgba(99,102,241,0.15)', glass: 'rgba(99,102,241,0.25)' },
 ];
 
 // ─── Spotlight Card (mouse-tracking glow + 3D tilt) ─────────────────
@@ -204,7 +204,7 @@ const CinematicProfileModal = ({ teacher, teacherIndex, isOpen, onClose, onNext,
                                 {teacher.specialty.split(' & ').map((s, i) => (
                                     <span key={i} className="px-4 py-2 rounded-xl text-sm font-medium
                                         bg-muted border border-border text-foreground/90
-                                        hover:bg-muted transition-colors">
+                                        hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
                                         {s.trim()}
                                     </span>
                                 ))}
@@ -225,7 +225,7 @@ const CinematicProfileModal = ({ teacher, teacherIndex, isOpen, onClose, onNext,
                             <div className="space-y-3">
                                 {(teacher.certifications || []).map((cert, i) => (
                                     <div key={i} className="flex gap-4 p-4 rounded-2xl
-                                        bg-muted border border-border/50 hover:bg-muted 
+                                        bg-muted border border-border/50 hover:bg-zinc-200 dark:hover:bg-zinc-700 
                                         transition-colors group">
                                         {/* Cert logo tile */}
                                         <div
@@ -319,7 +319,7 @@ const CinematicProfileModal = ({ teacher, teacherIndex, isOpen, onClose, onNext,
                 <div className="flex justify-center gap-1.5 mt-6">
                     {teachers.map((_, i) => (
                         <div key={i} className={`h-1.5 rounded-full transition-all duration-300
-                            ${i === teacherIndex ? 'w-6 bg-card' : 'w-1.5 bg-white/30'}`} />
+                            ${i === teacherIndex ? 'w-6 bg-white' : 'w-1.5 bg-white/30'}`} />
                     ))}
                 </div>
             </div>
@@ -407,7 +407,7 @@ export const TeacherCarousel = () => {
                 {/* Header */}
                 <div className={`text-center max-w-2xl mx-auto transform transition-all duration-700
                     ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-                    <span className="inline-block px-4 py-1.5 bg-zinc-900 text-white text-xs font-medium 
+                    <span className="inline-block px-4 py-1.5 bg-foreground text-background text-xs font-medium 
                         rounded-full uppercase tracking-wider mb-6">
                         Đội ngũ giảng viên
                     </span>
@@ -516,7 +516,7 @@ export const TeacherCarousel = () => {
                         {Array.from({ length: totalBatches }).map((_, index) => (
                             <button key={index} onClick={() => setCurrentBatch(index)}
                                 className={`h-3 rounded-full transition-all duration-300
-                                    ${currentBatch === index ? 'bg-red-600 w-8' : 'bg-stone-300 hover:bg-stone-400 w-3'}`}
+                                    ${currentBatch === index ? 'bg-red-600 w-8' : 'bg-stone-300 dark:bg-zinc-700 hover:bg-stone-400 dark:hover:bg-zinc-600 w-3'}`}
                                 aria-label={`Nhóm ${index + 1}`} />
                         ))}
                     </div>

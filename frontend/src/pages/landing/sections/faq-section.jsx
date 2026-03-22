@@ -21,7 +21,7 @@ export const FAQSection = () => {
                 {/* Section Header */}
                 <div className={`text-center max-w-2xl mx-auto transform transition-all duration-700
                       ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-                    <span className="inline-block px-4 py-1.5 bg-zinc-900 text-white text-xs font-medium 
+                    <span className="inline-block px-4 py-1.5 bg-foreground text-background text-xs font-medium 
                         rounded-full uppercase tracking-wider mb-6">
                         Câu hỏi thường gặp
                     </span>

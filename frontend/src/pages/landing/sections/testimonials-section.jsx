@@ -43,7 +43,7 @@ const CompactCard = ({ t }) => (
 const FeaturedCard = ({ t }) => (
     <div className="relative bg-card rounded-3xl border border-border shadow-xl p-8 md:p-10 flex flex-col gap-6">
         {/* Decorative huge quote mark */}
-        <div className="absolute -top-5 -left-2 text-[120px] font-serif text-stone-100 leading-none select-none"
+        <div className="absolute -top-5 -left-2 text-[120px] font-serif text-stone-100 dark:text-zinc-800/50 leading-none select-none"
             aria-hidden="true">"</div>
 
         {/* Stars */}
@@ -118,9 +118,9 @@ const MarqueeRow = ({ items, reverse = false }) => {
         <div className="relative overflow-hidden">
             {/* Edge fade overlays */}
             <div className="absolute left-0 top-0 bottom-0 w-20 z-10
-                bg-gradient-to-r from-stone-50 to-transparent pointer-events-none" />
+                bg-gradient-to-r from-muted to-transparent pointer-events-none" />
             <div className="absolute right-0 top-0 bottom-0 w-20 z-10
-                bg-gradient-to-l from-stone-50 to-transparent pointer-events-none" />
+                bg-gradient-to-l from-muted to-transparent pointer-events-none" />
 
             <div
                 className="flex py-2"
@@ -173,7 +173,7 @@ export const TestimonialsSection = () => {
                 {/* Header */}
                 <div className={`text-center max-w-2xl mx-auto mb-16 transform transition-all duration-700
                     ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-                    <span className="inline-block px-4 py-1.5 bg-zinc-900 text-white text-xs font-medium
+                    <span className="inline-block px-4 py-1.5 bg-foreground text-background text-xs font-medium
                         rounded-full uppercase tracking-wider mb-6">
                         Học viên nói gì
                     </span>

@@ -25,7 +25,7 @@ export const CoursesSection = () => {
                     {/* Section Header */}
                     <div className={`max-w-2xl transform transition-all duration-700
                         ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-                        <span className="inline-block px-4 py-1.5 bg-zinc-900 text-white text-xs font-medium 
+                        <span className="inline-block px-4 py-1.5 bg-foreground text-background text-xs font-medium 
                           rounded-full uppercase tracking-wider mb-6">
                             Chương trình đào tạo
                         </span>
@@ -99,7 +99,7 @@ export const CoursesSection = () => {
                                     aria-hidden="true" />
 
                                 {/* Quick View Label on Hover */}
-                                <div className="absolute top-8 right-8 px-3 py-1.5 bg-zinc-900 text-white text-xs font-semibold rounded-lg
+                                <div className="absolute top-8 right-8 px-3 py-1.5 bg-foreground text-background text-xs font-semibold rounded-lg
                              opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 shadow-lg">
                                     Xem nhanh
                                 </div>

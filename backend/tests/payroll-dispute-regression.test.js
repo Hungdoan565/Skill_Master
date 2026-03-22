@@ -23,6 +23,36 @@ const teacherPayrollPageSource = fs.readFileSync(
   'utf8',
 );
 
+const disputeManagementPageSource = fs.readFileSync(
+  path.resolve(
+    import.meta.dirname,
+    '..',
+    '..',
+    'frontend',
+    'src',
+    'features',
+    'payroll',
+    'pages',
+    'DisputeManagementPage.jsx',
+  ),
+  'utf8',
+);
+
+const approvalInboxPageSource = fs.readFileSync(
+  path.resolve(
+    import.meta.dirname,
+    '..',
+    '..',
+    'frontend',
+    'src',
+    'features',
+    'approvals',
+    'pages',
+    'ApprovalInboxPage.jsx',
+  ),
+  'utf8',
+);
+
 const databaseDir = path.resolve(import.meta.dirname, '..', '..', 'database');
 const databaseFiles = fs.readdirSync(databaseDir);
 
@@ -72,5 +102,60 @@ test('active payroll disputes are protected by a DB guard and friendly conflict 
   assert.match(
     backendSource,
     /insertError\??\.code === '23505'/,
+  );
+});
+
+test('payroll dispute realtime updates are wired for teacher and manager screens', () => {
+  assert.match(
+    teacherPayrollPageSource,
+    /supabase\.channel\(/,
+  );
+
+  assert.match(
+    teacherPayrollPageSource,
+    /reference_type === 'payroll_dispute'/,
+  );
+
+  assert.match(
+    disputeManagementPageSource,
+    /supabase\.channel\(/,
+  );
+
+  assert.match(
+    disputeManagementPageSource,
+    /reference_type === 'payroll_dispute'/,
+  );
+
+  assert.match(
+    approvalInboxPageSource,
+    /supabase\.channel\(/,
+  );
+
+  assert.match(
+    approvalInboxPageSource,
+    /reference_type === 'payroll_dispute'/,
+  );
+});
+
+test('payroll dispute notifications cover teacher status updates and realtime publication', () => {
+  const realtimeMigrationFile = databaseFiles.find((file) => file.includes('payroll_dispute_realtime_updates'));
+
+  assert.ok(realtimeMigrationFile, 'expected a payroll dispute realtime update migration');
+
+  const migrationSource = fs.readFileSync(path.resolve(databaseDir, realtimeMigrationFile), 'utf8');
+
+  assert.match(
+    migrationSource,
+    /ALTER PUBLICATION supabase_realtime ADD TABLE payroll_disputes/,
+  );
+
+  assert.match(
+    migrationSource,
+    /CREATE TRIGGER trigger_notify_teacher_on_payroll_dispute_status/,
+  );
+
+  assert.match(
+    backendSource,
+    /app\.patch\('\/api\/admin\/payroll-disputes\/:id'[\s\S]*createNotification\(/,
   );
 });
