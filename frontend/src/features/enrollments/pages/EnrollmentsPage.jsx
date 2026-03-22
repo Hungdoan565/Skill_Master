@@ -40,14 +40,14 @@ import { TableSkeleton, StatsCardSkeleton } from '../components/TableSkeleton';
 
 // Stats Card
 const StatsCard = ({ icon: Icon, label, value, color }) => (
-    <div className="bg-white rounded-lg border p-4">
+    <div className="bg-white dark:bg-gray-800/60 rounded-lg border dark:border-gray-700 p-4">
         <div className="flex items-center gap-3">
             <div className={`p-2 rounded-lg ${color}`}>
                 <Icon className="h-5 w-5 text-white" />
             </div>
             <div>
-                <p className="text-sm text-slate-500">{label}</p>
-                <p className="text-2xl font-bold text-slate-900">{value}</p>
+                <p className="text-sm text-slate-500 dark:text-gray-400">{label}</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-gray-100">{value}</p>
             </div>
         </div>
     </div>
@@ -73,7 +73,7 @@ const EnrollmentRow = ({ enrollment, onView, onDelete, onViewInvoice, selected, 
     const remaining = calculateRemaining(tuition, discount, paid);
 
     return (
-        <tr className={`hover:bg-slate-50 transition-colors ${selected ? 'bg-indigo-50/50' : ''}`}>
+        <tr className={`hover:bg-slate-50 dark:hover:bg-gray-800/50 transition-colors ${selected ? 'bg-indigo-50/50 dark:bg-indigo-900/20' : ''}`}>
             <td className="px-4 py-3 w-[50px]">
                 <input
                     type="checkbox"
@@ -84,24 +84,24 @@ const EnrollmentRow = ({ enrollment, onView, onDelete, onViewInvoice, selected, 
             </td>
             <td className="px-4 py-3">
                 <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-semibold text-indigo-600">
+                    <div className="h-9 w-9 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-sm font-semibold text-indigo-600 dark:text-indigo-400">
                         {getInitials(enrollment.student?.full_name)}
                     </div>
                     <div>
-                        <p className="font-medium text-slate-900">{enrollment.student?.full_name || 'N/A'}</p>
-                        <p className="text-sm text-slate-500">{enrollment.student?.email || 'N/A'}</p>
+                        <p className="font-medium text-slate-900 dark:text-gray-100">{enrollment.student?.full_name || 'N/A'}</p>
+                        <p className="text-sm text-slate-500 dark:text-gray-400">{enrollment.student?.email || 'N/A'}</p>
                     </div>
                 </div>
             </td>
             <td className="px-4 py-3">
-                <p className="font-medium text-slate-900">{enrollment.class?.name || 'N/A'}</p>
-                <p className="text-sm text-slate-500">{enrollment.class?.courses?.title || 'N/A'}</p>
+                <p className="font-medium text-slate-900 dark:text-gray-100">{enrollment.class?.name || 'N/A'}</p>
+                <p className="text-sm text-slate-500 dark:text-gray-400">{enrollment.class?.courses?.title || 'N/A'}</p>
             </td>
             <td className="px-4 py-3">
-                <p className="text-sm text-slate-700">{enrollment.class?.teacher?.full_name || 'Chưa có'}</p>
+                <p className="text-sm text-slate-700 dark:text-gray-300">{enrollment.class?.teacher?.full_name || 'Chưa có'}</p>
             </td>
             <td className="px-4 py-3 text-right">
-                <p className="font-medium text-slate-900">{formatCurrency(tuition)}</p>
+                <p className="font-medium text-slate-900 dark:text-gray-100">{formatCurrency(tuition)}</p>
                 {discount > 0 && <p className="text-xs text-green-600">-{formatCurrency(discount)}</p>}
             </td>
             <td className="px-4 py-3 text-right">
@@ -139,10 +139,10 @@ const EnrollmentRow = ({ enrollment, onView, onDelete, onViewInvoice, selected, 
                                 className="fixed inset-0 z-10"
                                 onClick={() => setMenuOpen(false)}
                             />
-                            <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border z-20" role="menu" aria-label="Hành động ghi danh">
+                            <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border dark:border-gray-700 z-20" role="menu" aria-label="Hành động ghi danh">
                                 <button
                                     onClick={() => { onView(enrollment); setMenuOpen(false); }}
-                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700"
                                     role="menuitem"
                                     aria-label="Xem chi tiết học viên"
                                 >
@@ -151,7 +151,7 @@ const EnrollmentRow = ({ enrollment, onView, onDelete, onViewInvoice, selected, 
                                 </button>
                                 <button
                                     onClick={() => { navigate(`/admin/invoices?student_id=${enrollment.student_id}`); setMenuOpen(false); }}
-                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700"
                                     role="menuitem"
                                     aria-label="Xem hóa đơn của học viên"
                                 >
@@ -180,17 +180,17 @@ const EnrollmentRow = ({ enrollment, onView, onDelete, onViewInvoice, selected, 
                                         navigate(`/admin/invoices?${params.toString()}`);
                                         setMenuOpen(false);
                                     }}
-                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700"
                                     role="menuitem"
                                     aria-label="Thu học phí"
                                 >
                                     <DollarSign className="h-4 w-4" />
                                     Thu học phí
                                 </button>
-                                <div className="border-t my-1"></div>
+                                <div className="border-t dark:border-gray-700 my-1"></div>
                                 <button
                                     onClick={() => { onDelete(enrollment); setMenuOpen(false); }}
-                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
                                     role="menuitem"
                                     aria-label="Hủy ghi danh"
                                 >
@@ -365,8 +365,8 @@ export function EnrollmentsPage() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Quản lý Ghi danh</h1>
-                    <p className="text-slate-500">Danh sách học viên đã đăng ký vào các lớp học</p>
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-gray-100">Quản lý Ghi danh</h1>
+                    <p className="text-slate-500 dark:text-gray-400">Danh sách học viên đã đăng ký vào các lớp học</p>
                 </div>
                 <Button onClick={() => navigate('/admin/enrollments/new')}>
                     <UserPlus className="h-4 w-4 mr-2" />
@@ -375,14 +375,14 @@ export function EnrollmentsPage() {
             </div>
 
             {/* Tab Navigation */}
-            <div className="flex gap-1 mb-6 border-b">
+            <div className="flex gap-1 mb-6 border-b dark:border-gray-700">
                 <button
                     onClick={() => setActiveTab('enrollments')}
                     className={cn(
                         'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors',
                         activeTab === 'enrollments'
-                            ? 'border-indigo-600 text-indigo-700'
-                            : 'border-transparent text-slate-500 hover:text-slate-700'
+                            ? 'border-indigo-600 text-indigo-700 dark:text-indigo-400'
+                            : 'border-transparent text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200'
                     )}
                 >
                     Danh sách đăng ký
@@ -392,8 +392,8 @@ export function EnrollmentsPage() {
                     className={cn(
                         'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-2',
                         activeTab === 'requests'
-                            ? 'border-indigo-600 text-indigo-700'
-                            : 'border-transparent text-slate-500 hover:text-slate-700'
+                            ? 'border-indigo-600 text-indigo-700 dark:text-indigo-400'
+                            : 'border-transparent text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200'
                     )}
                 >
                     Yêu cầu đăng ký
@@ -435,7 +435,7 @@ export function EnrollmentsPage() {
                         <select
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value)}
-                            className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="px-3 py-2 border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-slate-900 dark:text-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         >
                             <option value="">Tất cả trạng thái</option>
                             {STATUS_OPTIONS.map(opt => (
@@ -448,7 +448,7 @@ export function EnrollmentsPage() {
                             <select
                                 value={selectedCenter}
                                 onChange={(e) => setSelectedCenter(e.target.value)}
-                                className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                className="px-3 py-2 border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-slate-900 dark:text-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             >
                                 <option value="">Tất cả trung tâm</option>
                                 {centers.map(center => (
@@ -461,7 +461,7 @@ export function EnrollmentsPage() {
                         <select
                             value={paymentStatusFilter}
                             onChange={(e) => setPaymentStatusFilter(e.target.value)}
-                            className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[150px]"
+                            className="px-3 py-2 border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-slate-900 dark:text-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[150px]"
                         >
                             <option value="">Tất cả thanh toán</option>
                             <option value="paid">Đã đóng</option>
@@ -484,9 +484,9 @@ export function EnrollmentsPage() {
 
             {/* Bulk Action Bar */}
             {selectedIds.length > 0 && (
-                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+                <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-3 flex items-center justify-between animate-in fade-in slide-in-from-top-2">
                     <div className="flex items-center gap-2">
-                        <span className="text-indigo-700 font-medium flex items-center gap-2">
+                        <span className="text-indigo-700 dark:text-indigo-300 font-medium flex items-center gap-2">
                             <CheckCircle className="h-4 w-4" />
                             Đã chọn {selectedIds.length} ghi danh
                         </span>
@@ -528,7 +528,7 @@ export function EnrollmentsPage() {
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
-                                <thead className="bg-slate-50 border-b">
+                                <thead className="bg-slate-50 dark:bg-gray-800/60 border-b dark:border-gray-700">
                                     <tr>
                                         <th className="px-4 py-3 w-[50px]">
                                             <input
@@ -538,33 +538,33 @@ export function EnrollmentsPage() {
                                                 className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                             />
                                         </th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-gray-400 uppercase tracking-wider">
                                             Học viên
                                         </th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-gray-400 uppercase tracking-wider">
                                             Lớp học
                                         </th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-gray-400 uppercase tracking-wider">
                                             Giáo viên
                                         </th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-gray-400 uppercase tracking-wider">
                                             Học phí
                                         </th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-gray-400 uppercase tracking-wider">
                                             Đã đóng
                                         </th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 dark:text-gray-400 uppercase tracking-wider">
                                             Còn nợ
                                         </th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-gray-400 uppercase tracking-wider">
                                             Trạng thái
                                         </th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-gray-400 uppercase tracking-wider">
                                             Thao tác
                                         </th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100">
+                                <tbody className="divide-y divide-slate-100 dark:divide-gray-700">
                                     {filteredEnrollments.map(enrollment => (
                                         <EnrollmentRow
                                             key={enrollment.id}
@@ -582,8 +582,8 @@ export function EnrollmentsPage() {
 
                     {/* Pagination */}
                     {!loading && filteredEnrollments.length > 0 && pagination.totalPages > 1 && (
-                        <div className="flex items-center justify-between px-4 py-3 border-t">
-                            <div className="text-sm text-slate-500">
+                        <div className="flex items-center justify-between px-4 py-3 border-t dark:border-gray-700">
+                            <div className="text-sm text-slate-500 dark:text-gray-400">
                                 Hiển thị {((pagination.page - 1) * pagination.limit) + 1}-{Math.min(pagination.page * pagination.limit, pagination.total)} trong tổng số {pagination.total} ghi danh
                             </div>
                             <div className="flex gap-2">
@@ -596,7 +596,7 @@ export function EnrollmentsPage() {
                                     Trước
                                 </Button>
                                 <div className="flex items-center gap-2 px-3">
-                                    <span className="text-sm text-slate-600">
+                                    <span className="text-sm text-slate-600 dark:text-gray-400">
                                         Trang {pagination.page} / {pagination.totalPages}
                                     </span>
                                 </div>
@@ -617,9 +617,9 @@ export function EnrollmentsPage() {
             {/* Delete Modal */}
             {deleteModal.isOpen && (
                 <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50">
-                    <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-                        <h3 className="text-lg font-semibold text-slate-900">Xác nhận hủy ghi danh</h3>
-                        <p className="text-slate-500 mt-2">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-gray-100">Xác nhận hủy ghi danh</h3>
+                        <p className="text-slate-500 dark:text-gray-400 mt-2">
                             Bạn có chắc muốn hủy ghi danh của{' '}
                             <strong>{deleteModal.enrollment?.student?.full_name}</strong> khỏi lớp{' '}
                             <strong>{deleteModal.enrollment?.class?.name}</strong>?
@@ -642,9 +642,9 @@ export function EnrollmentsPage() {
             {/* Bulk Delete Modal */}
             {bulkDeleteModal && (
                 <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50">
-                    <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 animate-in fade-in zoom-in-95">
-                        <h3 className="text-lg font-semibold text-slate-900">Xác nhận hủy hàng loạt</h3>
-                        <p className="text-slate-500 mt-2">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 animate-in fade-in zoom-in-95">
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-gray-100">Xác nhận hủy hàng loạt</h3>
+                        <p className="text-slate-500 dark:text-gray-400 mt-2">
                             Bạn có chắc chắn muốn hủy <strong>{selectedIds.length}</strong> ghi danh đã chọn không?
                         </p>
                         <div className="flex justify-end gap-3 mt-6">

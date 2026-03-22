@@ -55,7 +55,7 @@ function IconSelect({ value, onChange, options, placeholder, icon: Icon }) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 h-9 px-3 rounded-lg border border-border bg-white hover:bg-slate-50 transition-colors text-sm min-w-[160px] justify-between"
+        className="flex items-center gap-2 h-9 px-3 rounded-lg border border-border bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors text-sm min-w-[160px] justify-between"
       >
         <div className="flex items-center gap-2">
           {selectedOption?.icon ? (
@@ -69,7 +69,7 @@ function IconSelect({ value, onChange, options, placeholder, icon: Icon }) {
       </button>
       
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-full bg-white rounded-lg border shadow-lg z-50 py-1">
+        <div className="absolute top-full left-0 mt-1 w-full bg-white dark:bg-zinc-800 rounded-lg border border-border dark:border-zinc-700 shadow-lg z-50 py-1">
           {options.map((option) => (
             <button
               key={option.value}
@@ -78,8 +78,8 @@ function IconSelect({ value, onChange, options, placeholder, icon: Icon }) {
                 onChange(option.value);
                 setIsOpen(false);
               }}
-              className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2 transition-colors ${
-                value === option.value ? 'bg-slate-50 font-medium' : ''
+              className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-zinc-700 flex items-center gap-2 transition-colors ${
+                value === option.value ? 'bg-slate-50 dark:bg-zinc-700 font-medium' : ''
               }`}
             >
               {option.icon && <option.icon className={`h-4 w-4 ${option.iconColor || 'text-muted-foreground'}`} />}
@@ -145,7 +145,7 @@ export function InvoiceFilters({
               onChange={(e) => onFilterChange('search', e.target.value)}
               className="
                 w-full h-9 pl-9 pr-3 rounded-lg
-                bg-white border border-border text-sm text-foreground
+                bg-white dark:bg-zinc-800 border border-border text-sm text-foreground
                 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
                 placeholder:text-muted-foreground
               "
@@ -190,7 +190,7 @@ export function InvoiceFilters({
             flex items-center gap-1.5 transition-colors
             ${filters.overdueOnly
               ? 'bg-red-100 dark:bg-red-900/30 border-red-300 dark:border-red-800 text-red-700 dark:text-red-300'
-              : 'bg-slate-50 border-border text-muted-foreground hover:bg-muted'
+              : 'bg-slate-50 dark:bg-zinc-800 border-border text-muted-foreground hover:bg-muted'
             }
           `}
         >
@@ -207,7 +207,7 @@ export function InvoiceFilters({
             onChange={(e) => onFilterChange('dateStart', e.target.value)}
             className="
               h-9 px-2 rounded-lg text-sm
-              bg-slate-50 border border-border text-foreground
+              bg-slate-50 dark:bg-zinc-800 border border-border text-foreground
               focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
             "
           />
@@ -218,7 +218,7 @@ export function InvoiceFilters({
             onChange={(e) => onFilterChange('dateEnd', e.target.value)}
             className="
               h-9 px-2 rounded-lg text-sm
-              bg-slate-50 border border-border text-foreground
+              bg-slate-50 dark:bg-zinc-800 border border-border text-foreground
               focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent
             "
           />

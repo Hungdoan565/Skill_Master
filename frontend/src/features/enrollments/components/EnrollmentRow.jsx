@@ -29,7 +29,7 @@ export function EnrollmentRow({ enrollment, onView, onDelete, onViewInvoice, sel
     const remaining = calculateRemaining(tuition, discount, paid);
 
     return (
-        <tr className={`hover:bg-slate-50 transition-colors ${selected ? 'bg-indigo-50/50' : ''}`}>
+        <tr className={`hover:bg-slate-50 dark:hover:bg-gray-800/50 transition-colors ${selected ? 'bg-indigo-50/50 dark:bg-indigo-900/20' : ''}`}>
             <td className="px-4 py-3 w-[50px]">
                 <input
                     type="checkbox"
@@ -40,7 +40,7 @@ export function EnrollmentRow({ enrollment, onView, onDelete, onViewInvoice, sel
             </td>
             <td className="px-4 py-3">
                 <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-semibold text-indigo-600">
+                    <div className="h-9 w-9 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-sm font-semibold text-indigo-600 dark:text-indigo-400">
                         {getInitials(enrollment.student?.full_name)}
                     </div>
                     <div>
@@ -107,7 +107,7 @@ export function EnrollmentRow({ enrollment, onView, onDelete, onViewInvoice, sel
                                 </button>
                                 <button
                                     onClick={() => { navigate(`/admin/invoices?student_id=${enrollment.student_id}`); setMenuOpen(false); }}
-                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted"
                                     role="menuitem"
                                     aria-label="Xem hóa đơn của học viên"
                                 >
@@ -135,17 +135,17 @@ export function EnrollmentRow({ enrollment, onView, onDelete, onViewInvoice, sel
                                         navigate(`/admin/invoices?${params.toString()}`);
                                         setMenuOpen(false);
                                     }}
-                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted"
                                     role="menuitem"
                                     aria-label="Thu học phí"
                                 >
                                     <DollarSign className="h-4 w-4" />
                                     Thu học phí
                                 </button>
-                                <div className="border-t my-1"></div>
+                                <div className="border-t dark:border-gray-700 my-1"></div>
                                 <button
                                     onClick={() => { onDelete(enrollment); setMenuOpen(false); }}
-                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
                                     role="menuitem"
                                     aria-label="Hủy ghi danh"
                                 >

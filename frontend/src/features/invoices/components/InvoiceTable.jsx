@@ -49,7 +49,7 @@ export function InvoiceTable({
   // ============================================
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-48 bg-white">
+      <div className="flex items-center justify-center h-48 bg-white dark:bg-zinc-900">
         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -60,7 +60,7 @@ export function InvoiceTable({
   // ============================================
   if (!invoices || invoices.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-48 bg-white">
+      <div className="flex flex-col items-center justify-center h-48 bg-white dark:bg-zinc-900">
         <Receipt className="w-10 h-10 mb-2 text-muted-foreground/40" />
         <p className="text-sm font-medium text-muted-foreground">Không có hóa đơn nào</p>
         <p className="text-xs text-muted-foreground/70 mt-1">
@@ -79,7 +79,7 @@ export function InvoiceTable({
       <div className="overflow-x-auto max-h-[calc(100vh-320px)]">
         <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
           {/* Sticky Header */}
-          <thead className="sticky top-0 z-10 bg-slate-50">
+          <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-zinc-800">
             <tr className="border-b border-border">
               {/* Checkbox column */}
               {onToggleSelect && (
@@ -195,7 +195,7 @@ function InvoiceTableRow({ invoice, onViewDetail, onPayment, onEdit, onCancel, o
 
   return (
     <tr className={cn(
-      'hover:bg-slate-50 transition-colors',
+      'hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors',
       isOverdue && 'bg-red-50/50 dark:bg-red-950/20',
       isSelected && 'bg-primary/5 dark:bg-primary/10'
     )}>
@@ -385,7 +385,7 @@ function ActionsDropdown({ invoice, canEdit, canCancel, canRefund, onEdit, onCan
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-1 w-36 bg-popover border border-border rounded-lg shadow-lg py-1 z-50">
+        <div className="absolute right-0 top-full mt-1 w-36 bg-white dark:bg-zinc-800 border border-border dark:border-zinc-700 rounded-lg shadow-lg py-1 z-50">
           {canEdit && (
             <button
               onClick={() => {

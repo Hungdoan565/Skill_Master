@@ -158,7 +158,7 @@ export function InvoiceDetailModal({
         </div>
 
         {/* Footer */}
-        <div className="flex-shrink-0 px-4 py-3 bg-slate-50 border-t border-border flex gap-2">
+        <div className="flex-shrink-0 px-4 py-3 bg-slate-50 dark:bg-zinc-900 border-t border-border flex gap-2">
           <Button variant="outline" className="flex-1" onClick={() => setShowPrintModal(true)}>
             <Printer className="w-4 h-4 mr-2" />
             In hóa đơn
@@ -195,14 +195,14 @@ export function InvoiceDetailModal({
 function InfoCard({ icon: Icon, label, variant, name, details }) {
   const variants = {
     blue: {
-      bg: 'bg-blue-50',
-      iconBg: 'text-blue-600',
-      labelColor: 'text-blue-600'
+      bg: 'bg-blue-50 dark:bg-blue-900/30',
+      iconBg: 'text-blue-600 dark:text-blue-400',
+      labelColor: 'text-blue-600 dark:text-blue-400'
     },
     purple: {
-      bg: 'bg-purple-50',
-      iconBg: 'text-purple-600',
-      labelColor: 'text-purple-600'
+      bg: 'bg-purple-50 dark:bg-purple-900/30',
+      iconBg: 'text-purple-600 dark:text-purple-400',
+      labelColor: 'text-purple-600 dark:text-purple-400'
     }
   };
 
@@ -214,9 +214,9 @@ function InfoCard({ icon: Icon, label, variant, name, details }) {
         <Icon className={`w-4 h-4 ${style.iconBg}`} />
         <span className={`text-xs font-medium ${style.labelColor}`}>{label}</span>
       </div>
-      <p className="font-semibold text-zinc-900">{name || 'N/A'}</p>
+      <p className="font-semibold text-zinc-900 dark:text-zinc-100">{name || 'N/A'}</p>
       {details?.filter(Boolean).map((detail, i) => (
-        <p key={i} className="text-xs text-zinc-500">{detail}</p>
+        <p key={i} className="text-xs text-zinc-500 dark:text-zinc-400">{detail}</p>
       ))}
     </div>
   );
@@ -226,16 +226,16 @@ function PaymentHistoryItem({ payment }) {
   const methodLabel = payment.payment_method === 'cash' ? 'Tiền mặt' : 'Chuyển khoản';
 
   return (
-    <div className="flex items-center justify-between p-3 bg-zinc-50 rounded-lg">
+    <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
       <div>
-        <p className="text-sm font-medium text-zinc-900">
+        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
           +{(payment.amount || 0).toLocaleString()}đ
         </p>
-        <p className="text-xs text-zinc-500">
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
           {formatDate(payment.payment_date)} • {methodLabel}
         </p>
       </div>
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">
         Thu bởi: {payment.receiver?.full_name || 'N/A'}
       </p>
     </div>

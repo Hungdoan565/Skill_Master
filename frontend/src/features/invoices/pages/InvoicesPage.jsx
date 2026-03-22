@@ -355,7 +355,7 @@ export function InvoicesPage() {
   // RENDER - Clean JSX
   // ============================================
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-zinc-950">
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
         {/* Header */}
@@ -403,7 +403,7 @@ export function InvoicesPage() {
 
         {/* Tab Content */}
         {activeTab === 'invoices' ? (
-          <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
+          <div className="bg-white dark:bg-zinc-900 rounded-xl border border-border shadow-sm overflow-hidden">
             {/* Slim KPI Stats Bar */}
             <SlimStatBar
               statistics={statistics}

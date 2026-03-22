@@ -77,7 +77,7 @@ export function SlimStatBar({
     ];
 
     return (
-        <div className="flex items-center gap-1 px-4 py-3 bg-white border-b border-border overflow-x-auto">
+        <div className="flex items-center gap-1 px-4 py-3 bg-white dark:bg-zinc-800 border-b border-border overflow-x-auto">
             {stats.map((stat, index) => (
                 <StatItem key={stat.id} stat={stat} isFirst={index === 0} />
             ))}

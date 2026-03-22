@@ -46,7 +46,7 @@ function IconSelect({ value, onChange, options, placeholder, icon: Icon }) {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 h-9 px-3 rounded-lg border border-border bg-white hover:bg-slate-50 transition-colors text-sm min-w-[140px] justify-between"
+        className="flex items-center gap-2 h-9 px-3 rounded-lg border border-border bg-background hover:bg-muted transition-colors text-sm min-w-[140px] justify-between"
       >
         <div className="flex items-center gap-2">
           {selectedOption?.icon ? (
@@ -56,11 +56,11 @@ function IconSelect({ value, onChange, options, placeholder, icon: Icon }) {
           ) : null}
           <span>{selectedOption?.label || placeholder}</span>
         </div>
-        <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
       
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-full bg-white rounded-lg border shadow-lg z-50 py-1">
+        <div className="absolute top-full left-0 mt-1 w-full bg-popover rounded-lg border border-border shadow-lg z-50 py-1">
           {options.map((option) => (
             <button
               key={option.value}
@@ -69,11 +69,11 @@ function IconSelect({ value, onChange, options, placeholder, icon: Icon }) {
                 onChange(option.value);
                 setIsOpen(false);
               }}
-              className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2 transition-colors ${
-                value === option.value ? 'bg-slate-50 font-medium' : ''
+              className={`w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center gap-2 transition-colors ${
+                value === option.value ? 'bg-muted font-medium' : ''
               }`}
             >
-              {option.icon && <option.icon className={`h-4 w-4 ${option.iconColor || 'text-slate-500'}`} />}
+              {option.icon && <option.icon className={`h-4 w-4 ${option.iconColor || 'text-muted-foreground'}`} />}
               <span>{option.label}</span>
             </button>
           ))}
@@ -94,25 +94,25 @@ const OVERDUE_FILTER_OPTIONS = [
 
 // Severity color mapping based on days overdue
 const SEVERITY_CONFIG = {
-  low: { range: '1-7 ngày', color: 'bg-amber-100 text-amber-700 border-amber-200', bgRow: 'bg-amber-50/50' },
-  medium: { range: '8-14 ngày', color: 'bg-orange-100 text-orange-700 border-orange-200', bgRow: 'bg-orange-50/50' },
-  high: { range: '15-30 ngày', color: 'bg-red-100 text-red-700 border-red-200', bgRow: 'bg-red-50/50' },
-  critical: { range: '30+ ngày', color: 'bg-red-200 text-red-800 border-red-300', bgRow: 'bg-red-100/50' }
+  low: { range: '1-7 ngày', color: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-700', bgRow: 'bg-amber-50/50 dark:bg-amber-900/10' },
+  medium: { range: '8-14 ngày', color: 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-700', bgRow: 'bg-orange-50/50 dark:bg-orange-900/10' },
+  high: { range: '15-30 ngày', color: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700', bgRow: 'bg-red-50/50 dark:bg-red-900/10' },
+  critical: { range: '30+ ngày', color: 'bg-red-200 dark:bg-red-900/60 text-red-800 dark:text-red-200 border-red-300 dark:border-red-600', bgRow: 'bg-red-100/50 dark:bg-red-900/20' }
 };
 
 const PRIORITY_CONFIG = {
-  low: { label: 'Thấp', color: 'bg-slate-100 text-slate-600' },
-  normal: { label: 'Bình thường', color: 'bg-blue-100 text-blue-600' },
-  high: { label: 'Cao', color: 'bg-orange-100 text-orange-600' },
-  urgent: { label: 'Khẩn cấp', color: 'bg-red-100 text-red-600' }
+  low: { label: 'Thấp', color: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300' },
+  normal: { label: 'Bình thường', color: 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300' },
+  high: { label: 'Cao', color: 'bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-300' },
+  urgent: { label: 'Khẩn cấp', color: 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-300' }
 };
 
 const CALL_STATUS_CONFIG = {
-  pending: { label: 'Chờ gọi', color: 'bg-slate-100 text-slate-600' },
-  called: { label: 'Đã gọi', color: 'bg-blue-100 text-blue-600' },
-  promised: { label: 'Hẹn thanh toán', color: 'bg-amber-100 text-amber-600' },
-  paid: { label: 'Đã thanh toán', color: 'bg-emerald-100 text-emerald-600' },
-  escalated: { label: 'Đã chuyển cấp', color: 'bg-purple-100 text-purple-600' }
+  pending: { label: 'Chờ gọi', color: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300' },
+  called: { label: 'Đã gọi', color: 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300' },
+  promised: { label: 'Hẹn thanh toán', color: 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-300' },
+  paid: { label: 'Đã thanh toán', color: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-300' },
+  escalated: { label: 'Đã chuyển cấp', color: 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300' }
 };
 
 export function OverdueDashboard() {
@@ -411,11 +411,11 @@ export function OverdueDashboard() {
 // ============================================
 function StatCard({ title, value, icon: Icon, color = 'blue' }) {
   const colorClasses = {
-    red: 'bg-red-50 text-red-600 border-red-100',
-    orange: 'bg-orange-50 text-orange-600 border-orange-100',
-    amber: 'bg-amber-50 text-amber-600 border-amber-100',
-    blue: 'bg-blue-50 text-blue-600 border-blue-100',
-    emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100'
+    red: 'bg-red-50 dark:bg-red-900/30 text-red-600 border-red-100 dark:border-red-800',
+    orange: 'bg-orange-50 dark:bg-orange-900/30 text-orange-600 border-orange-100 dark:border-orange-800',
+    amber: 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 border-amber-100 dark:border-amber-800',
+    blue: 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 border-blue-100 dark:border-blue-800',
+    emerald: 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 border-emerald-100 dark:border-emerald-800'
   };
 
   const iconBg = {
@@ -457,7 +457,7 @@ function OverdueTable({
 }) {
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-48 bg-white rounded-lg border">
+      <div className="flex items-center justify-center h-48 bg-card rounded-lg border border-border">
         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -465,7 +465,7 @@ function OverdueTable({
 
   if (!invoices || invoices.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-48 bg-white rounded-lg border">
+      <div className="flex flex-col items-center justify-center h-48 bg-card rounded-lg border border-border">
         <CheckCircle className="w-10 h-10 mb-2 text-emerald-500" />
         <p className="text-sm font-medium text-foreground">Không có hóa đơn quá hạn</p>
         <p className="text-xs text-muted-foreground mt-1">Tất cả hóa đơn đã được thanh toán đúng hạn</p>
@@ -474,7 +474,7 @@ function OverdueTable({
   }
 
   return (
-    <div className="bg-white rounded-lg border overflow-hidden">
+    <div className="bg-card rounded-lg border border-border overflow-hidden">
       {/* Filters */}
       <div className="px-4 py-3 border-b bg-muted/30 flex items-center gap-4 flex-wrap">
         <div className="flex items-center gap-2">
@@ -496,7 +496,7 @@ function OverdueTable({
       {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
-          <thead className="bg-slate-50">
+          <thead className="bg-muted/50">
             <tr className="border-b">
               <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">
                 Học viên
@@ -536,7 +536,7 @@ function OverdueTable({
               const severityConfig = SEVERITY_CONFIG[severity];
 
               return (
-                <tr key={invoice.id} className={`hover:bg-slate-50 ${severityConfig.bgRow}`}>
+                <tr key={invoice.id} className={`hover:bg-muted/50 ${severityConfig.bgRow}`}>
                   <td className="px-4 py-3">
                     <p className="font-medium text-foreground">{invoice.student?.full_name || 'N/A'}</p>
                   </td>
@@ -582,7 +582,7 @@ function OverdueTable({
                       {invoice.student?.phone && (
                         <a
                           href={`tel:${invoice.student.phone}`}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
                           title="Gọi điện"
                         >
                           <Phone className="w-4 h-4" />
@@ -599,7 +599,7 @@ function OverdueTable({
                       )}
                       <button
                         onClick={() => onAddToCallList(invoice)}
-                        className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+                        className="p-1.5 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded transition-colors"
                         title="Thêm vào danh sách gọi"
                       >
                         <Plus className="w-4 h-4" />
@@ -626,7 +626,7 @@ function OverdueTable({
 function CallListTable({ items, onUpdateItem, editingNote, setEditingNote, noteText, setNoteText }) {
   if (!items || items.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-48 bg-white rounded-lg border">
+      <div className="flex flex-col items-center justify-center h-48 bg-card rounded-lg border border-border">
         <Phone className="w-10 h-10 mb-2 text-muted-foreground/40" />
         <p className="text-sm font-medium text-foreground">Danh sách gọi trống</p>
         <p className="text-xs text-muted-foreground mt-1">Thêm hóa đơn quá hạn vào danh sách để theo dõi</p>
@@ -635,10 +635,10 @@ function CallListTable({ items, onUpdateItem, editingNote, setEditingNote, noteT
   }
 
   return (
-    <div className="bg-white rounded-lg border overflow-hidden">
+    <div className="bg-card rounded-lg border border-border overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
-          <thead className="bg-slate-50">
+          <thead className="bg-muted/50">
             <tr className="border-b">
               <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">
                 Học viên
@@ -672,7 +672,7 @@ function CallListTable({ items, onUpdateItem, editingNote, setEditingNote, noteT
               const statusConfig = CALL_STATUS_CONFIG[item.status] || CALL_STATUS_CONFIG.pending;
 
               return (
-                <tr key={item.id} className="hover:bg-slate-50">
+                <tr key={item.id} className="hover:bg-muted/50">
                   <td className="px-4 py-3">
                     <p className="font-medium text-foreground">{item.student?.full_name || 'N/A'}</p>
                   </td>
@@ -713,13 +713,13 @@ function CallListTable({ items, onUpdateItem, editingNote, setEditingNote, noteT
                           type="text"
                           value={noteText}
                           onChange={(e) => setNoteText(e.target.value)}
-                          className="flex-1 text-sm border rounded px-2 py-1 bg-white"
+                          className="flex-1 text-sm border border-border rounded px-2 py-1 bg-background text-foreground"
                           placeholder="Nhập ghi chú..."
                           autoFocus
                         />
                         <button
                           onClick={() => onUpdateItem(item.id, { notes: noteText })}
-                          className="p-1 text-emerald-600 hover:bg-emerald-50 rounded"
+                          className="p-1 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded"
                         >
                           <CheckCircle className="w-4 h-4" />
                         </button>
@@ -761,7 +761,7 @@ function CallListActions({ item, onUpdateItem }) {
       {item.status !== 'called' && item.status !== 'promised' && item.status !== 'paid' && (
         <button
           onClick={() => onUpdateItem(item.id, { status: 'called', last_call_at: new Date().toISOString() })}
-          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+          className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded transition-colors"
           title="Đánh dấu đã gọi"
         >
           <PhoneCall className="w-4 h-4" />
@@ -770,7 +770,7 @@ function CallListActions({ item, onUpdateItem }) {
       {item.status !== 'promised' && item.status !== 'paid' && (
         <button
           onClick={() => onUpdateItem(item.id, { status: 'promised' })}
-          className="p-1.5 text-amber-600 hover:bg-amber-50 rounded transition-colors"
+          className="p-1.5 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded transition-colors"
           title="Hẹn thanh toán"
         >
           <Calendar className="w-4 h-4" />
@@ -779,7 +779,7 @@ function CallListActions({ item, onUpdateItem }) {
       {item.status !== 'paid' && (
         <button
           onClick={() => onUpdateItem(item.id, { status: 'paid' })}
-          className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded transition-colors"
+          className="p-1.5 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded transition-colors"
           title="Đã thanh toán"
         >
           <CreditCard className="w-4 h-4" />
@@ -788,7 +788,7 @@ function CallListActions({ item, onUpdateItem }) {
       {item.status !== 'escalated' && item.status !== 'paid' && (
         <button
           onClick={() => onUpdateItem(item.id, { status: 'escalated' })}
-          className="p-1.5 text-purple-600 hover:bg-purple-50 rounded transition-colors"
+          className="p-1.5 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded transition-colors"
           title="Chuyển cấp"
         >
           <ArrowUpCircle className="w-4 h-4" />

@@ -232,19 +232,19 @@ export default function EnrollmentRequestsTab({ onPendingCountChange }) {
               <CardContent className="p-6">
                 <div className="flex justify-between">
                   <div className="space-y-3 flex-1">
-                    <div className="h-4 bg-slate-200 rounded w-1/4"></div>
-                    <div className="h-4 bg-slate-200 rounded w-1/2"></div>
-                    <div className="h-4 bg-slate-200 rounded w-1/3"></div>
+                    <div className="h-4 bg-slate-200 dark:bg-gray-700 rounded w-1/4"></div>
+                    <div className="h-4 bg-slate-200 dark:bg-gray-700 rounded w-1/2"></div>
+                    <div className="h-4 bg-slate-200 dark:bg-gray-700 rounded w-1/3"></div>
                   </div>
-                  <div className="w-24 h-8 bg-slate-200 rounded"></div>
+                  <div className="w-24 h-8 bg-slate-200 dark:bg-gray-700 rounded"></div>
                 </div>
               </CardContent>
             </Card>
           ))
         ) : requests.length === 0 ? (
-          <div className="text-center py-12 border rounded-lg bg-white">
-            <ClipboardList className="h-12 w-12 mx-auto text-slate-300 mb-4" />
-            <p className="text-slate-500 font-medium">Không có yêu cầu đăng ký nào</p>
+          <div className="text-center py-12 border dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800/60">
+            <ClipboardList className="h-12 w-12 mx-auto text-slate-300 dark:text-gray-600 mb-4" />
+            <p className="text-slate-500 dark:text-gray-400 font-medium">Không có yêu cầu đăng ký nào</p>
           </div>
         ) : (
           requests.map(req => (
@@ -252,27 +252,27 @@ export default function EnrollmentRequestsTab({ onPendingCountChange }) {
               <CardContent className="p-6 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
                 <div className="space-y-2 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-lg text-slate-900">{req.student?.full_name || 'Học viên ẩn danh'}</span>
+                    <span className="font-semibold text-lg text-slate-900 dark:text-gray-100">{req.student?.full_name || 'Học viên ẩn danh'}</span>
                     <Badge variant="outline" className={cn('border', statusConfig[req.status]?.className)}>
                       {statusConfig[req.status]?.label || req.status}
                     </Badge>
                   </div>
-                  <div className="text-sm text-slate-600 grid grid-cols-1 md:grid-cols-2 gap-y-1 gap-x-4">
+                  <div className="text-sm text-slate-600 dark:text-gray-400 grid grid-cols-1 md:grid-cols-2 gap-y-1 gap-x-4">
                     <div><span className="font-medium">Lớp:</span> {req.class?.name || 'N/A'}</div>
                     <div><span className="font-medium">Khóa:</span> {req.class?.courses?.title || 'N/A'}</div>
-                    <div className="flex items-center gap-1 text-slate-500">
+                    <div className="flex items-center gap-1 text-slate-500 dark:text-gray-500">
                       <Clock className="h-3 w-3" />
                       {formatDateStr(req.created_at)}
                     </div>
                   </div>
                   {req.parent_note && (
-                    <div className="mt-2 text-sm bg-slate-50 p-2 rounded text-slate-700">
-                      <span className="font-medium text-slate-900">Ghi chú: </span>
+                    <div className="mt-2 text-sm bg-slate-50 dark:bg-gray-800 p-2 rounded text-slate-700 dark:text-gray-300">
+                      <span className="font-medium text-slate-900 dark:text-gray-100">Ghi chú: </span>
                       {req.parent_note}
                     </div>
                   )}
                   {req.admin_note && req.status === 'rejected' && (
-                    <div className="mt-2 text-sm bg-red-50 border border-red-100 p-2 rounded text-red-700">
+                    <div className="mt-2 text-sm bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 p-2 rounded text-red-700 dark:text-red-400">
                       <span className="font-medium">Lý do từ chối: </span>
                       {req.admin_note}
                     </div>
@@ -348,7 +348,7 @@ export default function EnrollmentRequestsTab({ onPendingCountChange }) {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t pt-4">
+        <div className="flex items-center justify-between border-t dark:border-gray-700 pt-4">
           <Button
             variant="outline"
             size="sm"
@@ -358,7 +358,7 @@ export default function EnrollmentRequestsTab({ onPendingCountChange }) {
             <ChevronLeft className="h-4 w-4 mr-1" />
             Trước
           </Button>
-          <div className="text-sm text-slate-500">
+          <div className="text-sm text-slate-500 dark:text-gray-400">
             Trang {page} / {totalPages}
           </div>
           <Button

@@ -47,21 +47,21 @@ const StudentSelectItem = ({ student, selected, onToggle }) => {
             className={`
         p-4 border rounded-lg cursor-pointer transition-all
         ${selected
-                    ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/20'
-                    : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                    ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/20 dark:border-indigo-400 dark:bg-indigo-900/20 dark:ring-indigo-400/20'
+                    : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:hover:border-slate-600 dark:hover:bg-slate-800'
                 }
       `}
         >
             <div className="flex items-center gap-3">
                 <div className={`
           h-10 w-10 rounded-full flex items-center justify-center text-sm font-semibold
-          ${selected ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}
+          ${selected ? 'bg-indigo-600 text-white dark:bg-indigo-500' : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}
         `}>
                     {selected ? <CheckCircle className="h-5 w-5" /> : getInitials(student.full_name)}
                 </div>
                 <div className="flex-1 min-w-0">
-                    <p className="font-medium text-slate-900 truncate">{student.full_name}</p>
-                    <p className="text-sm text-slate-500 truncate">{student.email}</p>
+                    <p className="font-medium text-slate-900 dark:text-slate-100 truncate">{student.full_name}</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{student.email}</p>
                 </div>
             </div>
         </div>
@@ -79,21 +79,21 @@ const ClassSelectItem = ({ classItem, selected, onClick }) => {
             className={`
         p-4 border rounded-lg transition-all
         ${isFull
-                    ? 'border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed'
+                    ? 'border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed dark:border-slate-700 dark:bg-slate-800/50'
                     : selected
-                        ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/20 cursor-pointer'
-                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50 cursor-pointer'
+                        ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/20 cursor-pointer dark:border-indigo-400 dark:bg-indigo-900/20 dark:ring-indigo-400/20'
+                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50 cursor-pointer dark:border-slate-700 dark:hover:border-slate-600 dark:hover:bg-slate-800'
                 }
       `}
         >
             <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                        <p className="font-medium text-slate-900">{classItem.name}</p>
-                        {selected && <CheckCircle className="h-4 w-4 text-indigo-600" />}
+                        <p className="font-medium text-slate-900 dark:text-slate-100">{classItem.name}</p>
+                        {selected && <CheckCircle className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />}
                     </div>
-                    <p className="text-sm text-slate-500 mt-1">{classItem.courses?.title || 'N/A'}</p>
-                    <div className="flex items-center gap-4 mt-2 text-xs text-slate-400">
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{classItem.courses?.title || 'N/A'}</p>
+                    <div className="flex items-center gap-4 mt-2 text-xs text-slate-400 dark:text-slate-500">
                         <span>GV: {classItem.teacher?.full_name || classItem.teachers?.full_name || classItem.users?.full_name || 'Chưa phân công'}</span>
                         <span>•</span>
                         <span>{formatDate(classItem.start_date)} - {formatDate(classItem.end_date)}</span>
@@ -103,7 +103,7 @@ const ClassSelectItem = ({ classItem, selected, onClick }) => {
                     <Badge variant={isFull ? 'destructive' : availableSpots <= 5 ? 'warning' : 'success'}>
                         {isFull ? 'Đã đầy' : `Còn ${availableSpots} chỗ`}
                     </Badge>
-                    <p className="text-sm font-medium text-slate-900 mt-2">
+                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100 mt-2">
                         {formatCurrency(classItem.courses?.tuition_fee)}
                     </p>
                 </div>
@@ -286,8 +286,8 @@ export function NewEnrollmentPage() {
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900">Ghi danh học viên</h1>
-                        <p className="text-slate-500">Đăng ký học viên vào lớp học</p>
+                        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Ghi danh học viên</h1>
+                        <p className="text-slate-500 dark:text-slate-400">Đăng ký học viên vào lớp học</p>
                     </div>
                 </div>
             </div>
@@ -315,8 +315,8 @@ export function NewEnrollmentPage() {
                 <Card>
                     <CardContent className="pt-4">
                         <div className="flex items-center gap-4">
-                            <Building2 className="h-5 w-5 text-slate-400" />
-                            <label className="text-sm font-medium text-slate-700">Trung tâm:</label>
+                            <Building2 className="h-5 w-5 text-slate-400 dark:text-slate-500" />
+                            <label className="text-sm font-medium text-slate-700 dark:text-slate-200">Trung tâm:</label>
                             <select
                                 value={selectedCenter}
                                 onChange={(e) => {
@@ -324,7 +324,7 @@ export function NewEnrollmentPage() {
                                     setSelectedStudents([]);
                                     setSelectedClass('');
                                 }}
-                                className="flex-1 max-w-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                className="flex-1 max-w-xs px-3 py-2 border border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             >
                                 {centers.map(center => (
                                     <option key={center.id} value={center.id}>{center.name}</option>
@@ -378,7 +378,7 @@ export function NewEnrollmentPage() {
                                 <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
                             </div>
                         ) : filteredStudents.length === 0 ? (
-                            <div className="text-center py-12 text-slate-500">
+                            <div className="text-center py-12 text-slate-500 dark:text-slate-400">
                                 <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
                                 <p>Không tìm thấy học viên</p>
                             </div>
@@ -421,7 +421,7 @@ export function NewEnrollmentPage() {
                                 <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
                             </div>
                         ) : filteredClasses.length === 0 ? (
-                            <div className="text-center py-12 text-slate-500">
+                            <div className="text-center py-12 text-slate-500 dark:text-slate-400">
                                 <BookOpen className="h-12 w-12 mx-auto mb-3 opacity-50" />
                                 <p>Không tìm thấy lớp học</p>
                             </div>
@@ -447,9 +447,9 @@ export function NewEnrollmentPage() {
                     <div className="flex items-center justify-between flex-wrap gap-4">
                         {/* 🔥 NEW: Info notice about draft invoice */}
                         <div className="flex items-center gap-3 text-sm">
-                            <AlertCircle className="h-5 w-5 text-blue-500 flex-shrink-0" />
-                            <p className="text-slate-600">
-                                Hóa đơn sẽ được tạo ở trạng thái <span className="font-semibold text-blue-600">Draft</span> để xác nhận sau
+                            <AlertCircle className="h-5 w-5 text-blue-500 dark:text-blue-400 flex-shrink-0" />
+                            <p className="text-slate-600 dark:text-slate-300">
+                                Hóa đơn sẽ được tạo ở trạng thái <span className="font-semibold text-blue-600 dark:text-blue-400">Draft</span> để xác nhận sau
                             </p>
                         </div>
 
@@ -457,8 +457,8 @@ export function NewEnrollmentPage() {
                         <div className="flex items-center gap-4">
                             {selectedClassInfo && selectedStudents.length > 0 && (
                                 <div className="text-right">
-                                    <p className="text-sm text-slate-500">Ước tính học phí:</p>
-                                    <p className="text-lg font-bold text-slate-900">
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">Ước tính học phí:</p>
+                                    <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
                                         {formatCurrency((selectedClassInfo.courses?.tuition_fee || 0) * selectedStudents.length)}
                                     </p>
                                 </div>

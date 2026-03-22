@@ -185,14 +185,14 @@ export function TransactionsTab({
                     active={filters?.status === 'rejected'}
                     onClick={() => onFilterChange?.('status', filters?.status === 'rejected' ? 'all' : 'rejected')}
                 />
-                <div className="bg-white rounded-xl p-4 border shadow-sm">
+                <div className="bg-white dark:bg-zinc-900 rounded-xl p-4 border shadow-sm">
                     <p className="text-xs text-muted-foreground">Tổng GD</p>
                     <p className="text-2xl font-bold">{pagination?.total || 0}</p>
                 </div>
             </div>
 
             {/* Search & Filter Bar */}
-            <div className="bg-white rounded-xl border p-4 shadow-sm">
+            <div className="bg-white dark:bg-zinc-900 rounded-xl border p-4 shadow-sm">
                 <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
                     {/* Search Input */}
                     <div className="relative flex-1">
@@ -269,7 +269,7 @@ export function TransactionsTab({
                         <Filter className="w-3.5 h-3.5 text-muted-foreground" />
                         <span className="text-muted-foreground">Đang lọc:</span>
                         {filters?.search && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs">
                                 "{filters.search}"
                                 <button onClick={handleClearSearch}>
                                     <X className="w-3 h-3" />
@@ -289,7 +289,7 @@ export function TransactionsTab({
             </div>
 
             {/* Table — Grouped or Flat */}
-            <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+            <div className="bg-white dark:bg-zinc-900 rounded-xl border shadow-sm overflow-hidden">
                 {loading ? (
                     <div className="flex items-center justify-center h-48">
                         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -306,7 +306,7 @@ export function TransactionsTab({
                         {groupedByStudent.map(group => (
                             <div key={group.name}>
                                 {/* Student Group Header */}
-                                <div className="bg-amber-50/60 px-4 py-2.5 flex items-center justify-between border-b">
+                                <div className="bg-amber-50/60 dark:bg-amber-900/20 px-4 py-2.5 flex items-center justify-between border-b">
                                     <div className="flex items-center gap-2">
                                         <User className="w-4 h-4 text-amber-600" />
                                         <span className="font-semibold text-sm">{group.name}</span>
@@ -314,7 +314,7 @@ export function TransactionsTab({
                                             {group.items.length} GD
                                         </span>
                                     </div>
-                                    <span className="text-sm font-semibold text-amber-700">
+                                    <span className="text-sm font-semibold text-amber-700 dark:text-amber-400">
                                         {formatCurrency(group.total)}
                                     </span>
                                 </div>
@@ -341,7 +341,7 @@ export function TransactionsTab({
                     /* FLAT VIEW — Default table */
                     <div className="overflow-x-auto">
                         <table className="w-full min-w-full whitespace-nowrap md:whitespace-normal">
-                            <thead className="bg-slate-50">
+                            <thead className="bg-slate-50 dark:bg-zinc-800">
                                 <tr className="text-left text-xs font-medium text-muted-foreground">
                                     <th className="p-3 w-10">
                                         <input
@@ -458,9 +458,9 @@ function PaymentDetailModal({ tx, onClose, onVerify, onReject, rejectReason, set
     const [showRejectForm, setShowRejectForm] = useState(false);
 
     const statusConfig = {
-        pending: { color: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50', label: 'Chờ xử lý', icon: Clock },
-        verified: { color: 'bg-emerald-500', text: 'text-emerald-700', bg: 'bg-emerald-50', label: 'Đã xác nhận', icon: CheckCircle2 },
-        rejected: { color: 'bg-red-500', text: 'text-red-700', bg: 'bg-red-50', label: 'Từ chối', icon: XCircle }
+        pending: { color: 'bg-amber-500', text: 'text-amber-700 dark:text-amber-300', bg: 'bg-amber-50 dark:bg-amber-900/30', label: 'Chờ xử lý', icon: Clock },
+        verified: { color: 'bg-emerald-500', text: 'text-emerald-700 dark:text-emerald-300', bg: 'bg-emerald-50 dark:bg-emerald-900/30', label: 'Đã xác nhận', icon: CheckCircle2 },
+        rejected: { color: 'bg-red-500', text: 'text-red-700 dark:text-red-300', bg: 'bg-red-50 dark:bg-red-900/30', label: 'Từ chối', icon: XCircle }
     };
     const status = statusConfig[tx.verification_status] || statusConfig.verified;
     const StatusIcon = status.icon;
@@ -468,7 +468,7 @@ function PaymentDetailModal({ tx, onClose, onVerify, onReject, rejectReason, set
     return (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60" onClick={onClose}>
             <div
-                className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200"
+                className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Status Banner */}
@@ -499,9 +499,9 @@ function PaymentDetailModal({ tx, onClose, onVerify, onReject, rejectReason, set
                     </div>
 
                     {/* Amount */}
-                    <div className="rounded-xl bg-slate-50 p-4 border">
+                    <div className="rounded-xl bg-slate-50 dark:bg-zinc-800 p-4 border">
                         <p className="text-sm text-muted-foreground mb-1">Số tiền thanh toán</p>
-                        <p className="text-2xl font-bold text-emerald-600">{formatCurrency(tx.amount)}</p>
+                        <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(tx.amount)}</p>
                         {tx.invoice && (
                             <div className="flex items-center justify-between mt-2 text-sm text-muted-foreground">
                                 <span>Tổng hóa đơn: {formatCurrency(tx.invoice.final_amount)}</span>
@@ -517,7 +517,7 @@ function PaymentDetailModal({ tx, onClose, onVerify, onReject, rejectReason, set
                                 <MessageSquare className="w-4 h-4 text-muted-foreground" />
                                 <p className="text-sm font-medium">Nội dung chuyển khoản</p>
                             </div>
-                            <p className="text-sm bg-slate-50 rounded-lg p-3 border whitespace-pre-wrap">{tx.notes}</p>
+                            <p className="text-sm bg-slate-50 dark:bg-zinc-800 rounded-lg p-3 border whitespace-pre-wrap">{tx.notes}</p>
                         </div>
                     )}
 
@@ -544,9 +544,9 @@ function PaymentDetailModal({ tx, onClose, onVerify, onReject, rejectReason, set
 
                     {/* Rejection reason if rejected */}
                     {isRejected && tx.rejection_reason && (
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                            <p className="text-sm font-medium text-red-700">Lý do từ chối:</p>
-                            <p className="text-sm text-red-600 mt-1">{tx.rejection_reason}</p>
+                        <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                            <p className="text-sm font-medium text-red-700 dark:text-red-300">Lý do từ chối:</p>
+                            <p className="text-sm text-red-600 dark:text-red-400 mt-1">{tx.rejection_reason}</p>
                         </div>
                     )}
 
@@ -617,9 +617,9 @@ function PaymentDetailModal({ tx, onClose, onVerify, onReject, rejectReason, set
 
                     {/* Verified info */}
                     {isVerified && (
-                        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-center gap-2">
-                            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                            <p className="text-sm text-emerald-700 font-medium">
+                        <div className="bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3 flex items-center gap-2">
+                            <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                            <p className="text-sm text-emerald-700 dark:text-emerald-300 font-medium">
                                 Thanh toán đã được xác nhận
                                 {tx.verified_at && ` lúc ${new Date(tx.verified_at).toLocaleString('vi-VN')}`}
                             </p>
@@ -649,9 +649,9 @@ function InfoRow({ icon: Icon, label, value }) {
 
 function SummaryCard({ label, value, amount, color, icon: Icon, active, onClick }) {
     const colorClasses = {
-        amber: 'bg-amber-50 text-amber-600 border-amber-200',
-        emerald: 'bg-emerald-50 text-emerald-600 border-emerald-200',
-        red: 'bg-red-50 text-red-600 border-red-200'
+        amber: 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800',
+        emerald: 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
+        red: 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800'
     };
 
     return (
@@ -659,7 +659,7 @@ function SummaryCard({ label, value, amount, color, icon: Icon, active, onClick 
             onClick={onClick}
             className={`rounded-xl p-4 border text-left transition-all ${
                 active ? 'ring-2 ring-primary ring-offset-1 shadow-md' : 'hover:shadow-sm'
-            } ${colorClasses[color] || 'bg-white'}`}
+            } ${colorClasses[color] || 'bg-white dark:bg-zinc-900'}`}
         >
             <div className="flex items-center gap-2 mb-1">
                 <Icon className="w-4 h-4" />
@@ -679,15 +679,15 @@ function TransactionRow({ transaction, isSelected, onToggle, onPreviewImage, onV
     const isCash = tx.payment_method === 'cash';
 
     const statusConfig = {
-        pending: { icon: Clock, color: 'text-amber-600 bg-amber-50', label: 'Chờ xử lý' },
-        verified: { icon: CheckCircle2, color: 'text-emerald-600 bg-emerald-50', label: 'Đã khớp' },
-        rejected: { icon: XCircle, color: 'text-red-600 bg-red-50', label: 'Từ chối' }
+        pending: { icon: Clock, color: 'text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-900/30', label: 'Chờ xử lý' },
+        verified: { icon: CheckCircle2, color: 'text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-900/30', label: 'Đã khớp' },
+        rejected: { icon: XCircle, color: 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-900/30', label: 'Từ chối' }
     };
     const status = statusConfig[tx.verification_status] || statusConfig.verified;
     const StatusIcon = status.icon;
 
     return (
-        <tr className={`hover:bg-slate-50 ${isPending ? 'bg-amber-50/20' : ''}`}>
+        <tr className={`hover:bg-slate-50 dark:hover:bg-zinc-800/50 ${isPending ? 'bg-amber-50/20 dark:bg-amber-900/10' : ''}`}>
             <td className="p-3 w-10">
                 <input
                     type="checkbox"

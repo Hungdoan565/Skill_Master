@@ -153,17 +153,17 @@ function PaymentRow({
     const statusConfig = {
         pending: {
             icon: Clock,
-            color: 'text-amber-600 bg-amber-50 border-amber-200',
+            color: 'text-amber-600 bg-amber-50 border-amber-200 dark:text-amber-400 dark:bg-amber-900/30 dark:border-amber-800',
             label: 'Chờ xác nhận'
         },
         verified: {
             icon: CheckCircle2,
-            color: 'text-emerald-600 bg-emerald-50 border-emerald-200',
+            color: 'text-emerald-600 bg-emerald-50 border-emerald-200 dark:text-emerald-400 dark:bg-emerald-900/30 dark:border-emerald-800',
             label: 'Đã xác nhận'
         },
         rejected: {
             icon: XCircle,
-            color: 'text-red-600 bg-red-50 border-red-200',
+            color: 'text-red-600 bg-red-50 border-red-200 dark:text-red-400 dark:bg-red-900/30 dark:border-red-800',
             label: 'Đã từ chối'
         }
     };
@@ -175,7 +175,7 @@ function PaymentRow({
         <div className={`p-3 rounded-lg border ${status.color}`}>
             <div className="flex items-start gap-3">
                 {/* Index & Icon */}
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-white flex items-center justify-center text-xs font-bold text-muted-foreground border">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-white dark:bg-zinc-800 flex items-center justify-center text-xs font-bold text-muted-foreground border">
                     #{index}
                 </div>
 
@@ -296,7 +296,7 @@ function PaymentRow({
                                     <Button
                                         size="sm"
                                         variant="outline"
-                                        className="text-red-600 border-red-200 hover:bg-red-50"
+                                        className="text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-900/20"
                                         onClick={onRejectClick}
                                         disabled={isLoading}
                                     >
