@@ -43,7 +43,7 @@ export function StaffTable({
           {staff.map((member) => (
             <tr
               key={member.id}
-              className={`border-b last:border-0 hover:bg-slate-50 transition-colors ${member.status === 'inactive' || member.status === 'suspended' ? 'opacity-60' : ''
+              className={`border-b last:border-0 hover:bg-muted/50 transition-colors ${member.status === 'inactive' || member.status === 'suspended' ? 'opacity-60' : ''
                 }`}
             >
               {/* Avatar + Name + Center */}
@@ -54,7 +54,7 @@ export function StaffTable({
                     avatarUrl={member.avatar_url}
                   />
                   <div>
-                    <p className="font-medium text-slate-900">
+                    <p className="font-medium text-foreground">
                       {member.full_name}
                     </p>
                     {member.centers?.name && (
@@ -70,7 +70,7 @@ export function StaffTable({
               {/* Contact */}
               <td className="py-4 pr-4">
                 <div className="space-y-0.5">
-                  <p className="text-sm text-slate-600">{member.email}</p>
+                  <p className="text-sm text-muted-foreground">{member.email}</p>
                   {member.phone && (
                     <p className="text-xs text-muted-foreground">{member.phone}</p>
                   )}
@@ -85,7 +85,7 @@ export function StaffTable({
               {/* Hourly Rate (for teachers) */}
               <td className="py-4 pr-4">
                 {member.roles?.code === 'TEACHER' ? (
-                  <div className="flex items-center gap-1 text-sm text-emerald-700">
+                  <div className="flex items-center gap-1 text-sm text-emerald-700 dark:text-emerald-400">
                     <DollarSign className="h-3.5 w-3.5" />
                     {formatCurrency(member.hourly_rate || 150000)}
                   </div>
@@ -97,13 +97,13 @@ export function StaffTable({
               {/* Status */}
               <td className="py-4 pr-4">
                 <Badge variant={
-                  member.status === 'active' ? 'success' 
-                  : member.status === 'suspended' ? 'destructive' 
-                  : 'secondary'
+                  member.status === 'active' ? 'success'
+                    : member.status === 'suspended' ? 'destructive'
+                      : 'secondary'
                 }>
-                  {member.status === 'active' ? 'Hoạt động' 
-                   : member.status === 'suspended' ? 'Đã khóa' 
-                   : 'Ngừng'}
+                  {member.status === 'active' ? 'Hoạt động'
+                    : member.status === 'suspended' ? 'Đã khóa'
+                      : 'Ngừng'}
                 </Badge>
               </td>
 
@@ -117,7 +117,7 @@ export function StaffTable({
                     title="Xem chi tiết"
                     onClick={() => onViewDetail?.(member)}
                   >
-                    <Eye className="h-4 w-4 text-slate-500" />
+                    <Eye className="h-4 w-4 text-muted-foreground" />
                   </Button>
 
                   {/* Edit */}

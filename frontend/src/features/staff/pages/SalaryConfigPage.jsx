@@ -43,19 +43,19 @@ const formatCurrency = (value) => {
 const PAY_SCHEME_CONFIG = {
   HOURLY_ONLY: {
     label: 'Lương theo giờ',
-    color: 'bg-blue-100 text-blue-800',
+    color: 'bg-blue-500/10 text-blue-700 dark:text-blue-300',
     icon: Clock,
     description: 'Part-time, sinh viên',
   },
   FIXED_ONLY: {
     label: 'Lương cố định',
-    color: 'bg-green-100 text-green-800',
+    color: 'bg-green-500/10 text-green-700 dark:text-green-300',
     icon: Briefcase,
     description: 'Nhân viên cố định',
   },
   FIXED_PLUS_HOURLY: {
     label: 'Cố định + Giờ',
-    color: 'bg-purple-100 text-purple-800',
+    color: 'bg-purple-500/10 text-purple-700 dark:text-purple-300',
     icon: DollarSign,
     description: 'Full-time + dạy thêm',
   },
@@ -201,7 +201,7 @@ export function SalaryConfigPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Tổng giáo viên</span>
-              <Users className="h-4 w-4 text-slate-500" />
+              <Users className="h-4 w-4 text-muted-foreground" />
             </div>
             <p className="text-2xl font-bold">{stats?.total || 0}</p>
           </CardContent>
@@ -277,7 +277,7 @@ export function SalaryConfigPage() {
         <CardContent>
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : configs.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
@@ -305,7 +305,7 @@ export function SalaryConfigPage() {
                       <tr key={config.id} className="border-b last:border-0">
                         <td className="py-4">
                           <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-medium">
+                            <div className="h-10 w-10 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-700 dark:text-orange-300 font-medium">
                               {config.teacher?.full_name?.[0] || '?'}
                             </div>
                             <div>
@@ -403,7 +403,7 @@ function EditConfigModal({ config, onClose, onSave, submitting }) {
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-md rounded-lg bg-white shadow-xl mx-4">
+      <div className="relative z-10 w-full max-w-md rounded-lg bg-card border border-border shadow-xl mx-4">
         <div className="p-6">
           <h3 className="text-lg font-semibold mb-4">
             Chỉnh sửa cấu hình lương - {config?.teacher?.full_name}
@@ -416,7 +416,7 @@ function EditConfigModal({ config, onClose, onSave, submitting }) {
               <select
                 value={formData.pay_scheme}
                 onChange={(e) => setFormData((prev) => ({ ...prev, pay_scheme: e.target.value }))}
-                className="w-full rounded-md border px-3 py-2 text-sm"
+                className="w-full rounded-md border border-border bg-card text-foreground px-3 py-2 text-sm"
               >
                 {PAY_SCHEME_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -475,7 +475,7 @@ function EditConfigModal({ config, onClose, onSave, submitting }) {
                 onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
                 placeholder="Ghi chú về cấu hình lương..."
                 rows={2}
-                className="w-full rounded-md border px-3 py-2 text-sm resize-none"
+                className="w-full rounded-md border border-border bg-card text-foreground px-3 py-2 text-sm resize-none"
               />
             </div>
 
@@ -507,7 +507,7 @@ function HistoryModal({ history, onClose }) {
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-lg rounded-lg bg-white shadow-xl mx-4 max-h-[80vh] overflow-y-auto">
+      <div className="relative z-10 w-full max-w-lg rounded-lg bg-card border border-border shadow-xl mx-4 max-h-[80vh] overflow-y-auto">
         <div className="p-6">
           <h3 className="text-lg font-semibold mb-4">Lịch sử cấu hình lương</h3>
 
@@ -521,12 +521,12 @@ function HistoryModal({ history, onClose }) {
                 return (
                   <div
                     key={item.id}
-                    className={`p-4 rounded-lg border ${isActive ? 'border-green-300 bg-green-50' : 'bg-slate-50'}`}
+                    className={`p-4 rounded-lg border ${isActive ? 'border-green-500/30 bg-green-500/10' : 'bg-muted'}`}
                   >
                     <div className="flex items-center justify-between mb-2">
                       <Badge className={scheme?.color}>{scheme?.label}</Badge>
                       {isActive && (
-                        <Badge className="bg-green-100 text-green-800">Đang hiệu lực</Badge>
+                        <Badge className="bg-green-500/10 text-green-700 dark:text-green-300">Đang hiệu lực</Badge>
                       )}
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-sm">

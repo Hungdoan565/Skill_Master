@@ -30,16 +30,16 @@ export function StaffDetailModal({
         <div className="fixed inset-0 z-[300] flex items-center justify-center">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm dark:bg-black/80"
                 onClick={onClose}
             />
 
             {/* Modal */}
-            <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4">
+            <div className="relative m-4 max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-border bg-card text-foreground shadow-xl">
                 {/* Close button */}
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 p-2 rounded-full hover:bg-slate-100 transition-colors z-10"
+                    className="absolute top-4 right-4 z-10 rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                     <X className="h-5 w-5" />
                 </button>
@@ -74,34 +74,34 @@ export function StaffDetailModal({
                         <div className="p-6 space-y-6">
                             {/* Contact Info */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50">
-                                    <Mail className="h-5 w-5 text-slate-400" />
+                                <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 p-3">
+                                    <Mail className="h-5 w-5 text-muted-foreground" />
                                     <div>
-                                        <p className="text-xs text-slate-500">Email</p>
+                                        <p className="text-xs text-muted-foreground">Email</p>
                                         <p className="font-medium">{staff.email}</p>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50">
-                                    <Phone className="h-5 w-5 text-slate-400" />
+                                <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 p-3">
+                                    <Phone className="h-5 w-5 text-muted-foreground" />
                                     <div>
-                                        <p className="text-xs text-slate-500">Số điện thoại</p>
+                                        <p className="text-xs text-muted-foreground">Số điện thoại</p>
                                         <p className="font-medium">{staff.phone || 'Chưa cập nhật'}</p>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50">
-                                    <Building2 className="h-5 w-5 text-slate-400" />
+                                <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 p-3">
+                                    <Building2 className="h-5 w-5 text-muted-foreground" />
                                     <div>
-                                        <p className="text-xs text-slate-500">Trung tâm</p>
+                                        <p className="text-xs text-muted-foreground">Trung tâm</p>
                                         <p className="font-medium">{staff.centers?.name || 'Chưa gán'}</p>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50">
-                                    <Calendar className="h-5 w-5 text-slate-400" />
+                                <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 p-3">
+                                    <Calendar className="h-5 w-5 text-muted-foreground" />
                                     <div>
-                                        <p className="text-xs text-slate-500">Ngày tham gia</p>
+                                        <p className="text-xs text-muted-foreground">Ngày tham gia</p>
                                         <p className="font-medium">{formatDate(staff.created_at)}</p>
                                     </div>
                                 </div>
@@ -109,11 +109,11 @@ export function StaffDetailModal({
 
                             {/* Hourly Rate (cho Teacher) */}
                             {staff.roles?.code === 'TEACHER' && (
-                                <div className="flex items-center gap-3 p-4 rounded-lg bg-emerald-50 border border-emerald-200">
+                                <div className="flex items-center gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-4">
                                     <DollarSign className="h-6 w-6 text-emerald-600" />
                                     <div>
-                                        <p className="text-sm text-emerald-700">Mức lương theo giờ</p>
-                                        <p className="text-xl font-bold text-emerald-800">
+                                        <p className="text-sm text-emerald-700 dark:text-emerald-300">Mức lương theo giờ</p>
+                                        <p className="text-xl font-bold text-emerald-800 dark:text-emerald-200">
                                             {formatCurrency(staff.hourly_rate)} VNĐ/giờ
                                         </p>
                                     </div>
@@ -123,7 +123,7 @@ export function StaffDetailModal({
                             {/* Teaching Stats (cho Teacher) */}
                             {staff.teachingStats && (
                                 <div className="space-y-4">
-                                    <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+                                    <h3 className="flex items-center gap-2 font-semibold text-foreground">
                                         <TrendingUp className="h-5 w-5 text-indigo-600" />
                                         Thống kê giảng dạy
                                     </h3>
@@ -157,9 +157,9 @@ export function StaffDetailModal({
 
                                     {/* Estimated earnings this month */}
                                     {staff.teachingStats.totalEarningsThisMonth > 0 && (
-                                        <div className="p-4 rounded-lg bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200">
-                                            <p className="text-sm text-emerald-700">Ước tính thu nhập tháng này</p>
-                                            <p className="text-2xl font-bold text-emerald-800">
+                                        <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-4">
+                                            <p className="text-sm text-emerald-700 dark:text-emerald-300">Ước tính thu nhập tháng này</p>
+                                            <p className="text-2xl font-bold text-emerald-800 dark:text-emerald-200">
                                                 {formatCurrency(staff.teachingStats.totalEarningsThisMonth)} VNĐ
                                             </p>
                                         </div>
@@ -169,14 +169,14 @@ export function StaffDetailModal({
                         </div>
 
                         {/* Footer */}
-                        <div className="px-6 py-4 bg-slate-50 border-t flex justify-end">
+                        <div className="flex justify-end border-t border-border bg-muted/20 px-6 py-4">
                             <Button variant="outline" onClick={onClose}>
                                 Đóng
                             </Button>
                         </div>
                     </>
                 ) : (
-                    <div className="p-8 text-center text-slate-500">
+                    <div className="p-8 text-center text-muted-foreground">
                         Không tìm thấy thông tin nhân viên
                     </div>
                 )}
@@ -188,10 +188,10 @@ export function StaffDetailModal({
 // Sub-component: StatBox
 function StatBox({ icon: Icon, label, value, color = 'blue' }) {
     const colors = {
-        blue: 'bg-blue-50 text-blue-700 border-blue-200',
-        purple: 'bg-purple-50 text-purple-700 border-purple-200',
-        emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-        amber: 'bg-amber-50 text-amber-700 border-amber-200',
+        blue: 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-500/20',
+        purple: 'bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-500/20',
+        emerald: 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/20',
+        amber: 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-500/20',
     };
 
     return (

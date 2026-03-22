@@ -43,20 +43,20 @@ export function DeleteStaffModal({
             >
                 <div className="space-y-4">
                     {/* Warning */}
-                    <div className="flex items-start gap-3 rounded-lg bg-amber-50 border border-amber-200 p-4">
+                    <div className="flex items-start gap-3 rounded-lg border border-amber-500/20 bg-amber-500/10 p-4">
                         <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
                         <div>
-                            <p className="font-medium text-amber-800">
+                            <p className="font-medium text-amber-800 dark:text-amber-200">
                                 Bạn đang xóa nhân viên
                             </p>
-                            <p className="text-sm text-amber-700 mt-1">
+                            <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">
                                 <strong>{staff.full_name}</strong> ({staff.email})
                             </p>
                         </div>
                     </div>
 
                     {/* Info */}
-                    <div className="space-y-2 text-sm text-slate-600">
+                    <div className="space-y-2 text-sm text-muted-foreground">
                         <p>Bạn có thể:</p>
                         <ul className="list-disc list-inside space-y-1 ml-2">
                             <li>
@@ -69,7 +69,7 @@ export function DeleteStaffModal({
                     </div>
 
                     {/* Buttons */}
-                    <div className="flex flex-col gap-2 pt-4 border-t">
+                    <div className="flex flex-col gap-2 border-t border-border pt-4">
                         <Button
                             variant="outline"
                             className="w-full justify-center"
@@ -77,7 +77,7 @@ export function DeleteStaffModal({
                             disabled={deleting}
                         >
                             {deleting ? (
-                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-600 border-t-transparent mr-2" />
+                                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-foreground/50 border-t-transparent" />
                             ) : (
                                 <UserX className="mr-2 h-4 w-4" />
                             )}

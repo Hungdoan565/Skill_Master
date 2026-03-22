@@ -103,7 +103,7 @@ export default function LaborContractsPage() {
         </p>
       </div>
 
-      <div className="rounded-lg border bg-white p-4 md:max-w-md">
+      <div className="rounded-lg border border-border bg-card p-4 md:max-w-md">
         <div className="grid gap-2">
           <Label htmlFor="contracts-center-id">Center ID</Label>
           <Input
@@ -115,7 +115,7 @@ export default function LaborContractsPage() {
         </div>
       </div>
 
-      <form className="rounded-lg border bg-white p-4 md:p-5" onSubmit={handleCreate}>
+      <form className="rounded-lg border border-border bg-card p-4 md:p-5" onSubmit={handleCreate}>
         <h2 className="mb-4 text-lg font-semibold">Tạo hợp đồng</h2>
         <div className="grid gap-3 md:grid-cols-3">
           <div className="grid gap-2">
@@ -176,7 +176,7 @@ export default function LaborContractsPage() {
         <Button type="submit" className="mt-4" disabled={!canLoad}>Tạo hợp đồng</Button>
       </form>
 
-      <div className="rounded-lg border bg-white p-4 md:p-5">
+      <div className="rounded-lg border border-border bg-card p-4 md:p-5">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Danh sách hợp đồng</h2>
           <Button variant="outline" onClick={loadContracts} disabled={loading || !canLoad}>
@@ -202,7 +202,7 @@ export default function LaborContractsPage() {
                       {contract.effective_from} - {contract.effective_to || 'Open'}
                     </p>
                   </div>
-                  <span className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-700">{contract.status}</span>
+                  <span className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground">{contract.status}</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {STATUS_OPTIONS.filter((status) => status !== contract.status).map((status) => (

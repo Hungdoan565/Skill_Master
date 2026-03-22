@@ -46,22 +46,22 @@ export function CreateStaffModal({
       {successMessage ? (
         // Success State
         <div className="space-y-4">
-          <div className="rounded-lg bg-green-50 border border-green-200 p-4">
-            <p className="text-sm text-green-800">
+          <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-4">
+            <p className="text-sm text-emerald-800 dark:text-emerald-200">
               Đã tạo tài khoản cho <strong>{successMessage.email}</strong>
             </p>
           </div>
-          
+
           <div className="space-y-2">
             <Label>Mật khẩu mặc định</Label>
             <div className="flex items-center gap-2">
-              <Input 
-                value={successMessage.password} 
-                readOnly 
-                className="font-mono bg-slate-50"
+              <Input
+                value={successMessage.password}
+                readOnly
+                className="font-mono bg-muted/40"
               />
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="icon"
                 onClick={onCopyPassword}
                 title="Copy"
@@ -77,7 +77,7 @@ export function CreateStaffModal({
               Gửi mật khẩu này cho nhân viên và yêu cầu đổi sau khi đăng nhập lần đầu.
             </p>
           </div>
-          
+
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="outline" onClick={onClose}>
               Đóng
@@ -103,7 +103,7 @@ export function CreateStaffModal({
               required
             />
           </div>
-          
+
           {/* Email */}
           <div className="space-y-2">
             <Label htmlFor="email">
@@ -121,7 +121,7 @@ export function CreateStaffModal({
               Email này sẽ được dùng làm tài khoản đăng nhập
             </p>
           </div>
-          
+
           {/* Vai trò */}
           <div className="space-y-2">
             <Label htmlFor="role">
@@ -134,7 +134,7 @@ export function CreateStaffModal({
               options={ROLE_OPTIONS}
             />
           </div>
-          
+
           {/* Số điện thoại */}
           <div className="space-y-2">
             <Label htmlFor="phone">Số điện thoại</Label>
@@ -149,7 +149,7 @@ export function CreateStaffModal({
 
           {/* Salary Configuration - Only for Teachers */}
           {isTeacher && (
-            <div className="border-t pt-4 mt-4">
+            <div className="mt-4 border-t border-border pt-4">
               <div className="flex items-center gap-2 mb-4">
                 <DollarSign className="h-5 w-5 text-orange-600" />
                 <h3 className="font-semibold text-base">Cấu hình lương</h3>
@@ -193,11 +193,10 @@ export function CreateStaffModal({
                         key={rate.value}
                         type="button"
                         onClick={() => onFieldChange('hourly_rate', rate.value)}
-                        className={`px-2 py-1 text-xs rounded border transition-colors ${
-                          formData.hourly_rate === rate.value
-                            ? 'bg-orange-100 border-orange-300 text-orange-700'
-                            : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
-                        }`}
+                        className={`px-2 py-1 text-xs rounded border transition-colors ${formData.hourly_rate === rate.value
+                            ? 'bg-orange-100 dark:bg-orange-500/10 border-orange-300 dark:border-orange-500/30 text-orange-700 dark:text-orange-300'
+                            : 'bg-muted/40 border-border hover:bg-muted/70 text-foreground'
+                          }`}
                       >
                         {rate.label}
                       </button>
@@ -231,9 +230,9 @@ export function CreateStaffModal({
               )}
             </div>
           )}
-          
+
           {/* Buttons */}
-          <div className="flex justify-end gap-2 pt-4 border-t">
+          <div className="flex justify-end gap-2 border-t border-border pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
               Hủy
             </Button>

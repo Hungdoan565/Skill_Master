@@ -8,17 +8,17 @@ export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 export const ROLE_CONFIG = {
   CENTER_MANAGER: { 
     label: 'Quản lý', 
-    color: 'bg-orange-100 text-orange-700 border-orange-200',
+    color: 'bg-orange-500/10 text-orange-700 dark:text-orange-300 border-orange-500/20',
     dotColor: 'bg-orange-500'
   },
   TEACHER: { 
     label: 'Giáo viên', 
-    color: 'bg-blue-100 text-blue-700 border-blue-200',
+    color: 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20',
     dotColor: 'bg-blue-500'
   },
   SUPER_ADMIN: { 
     label: 'Super Admin', 
-    color: 'bg-red-100 text-red-700 border-red-200',
+    color: 'bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20',
     dotColor: 'bg-red-500'
   },
 };
