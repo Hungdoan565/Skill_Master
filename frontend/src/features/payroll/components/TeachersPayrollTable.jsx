@@ -18,7 +18,7 @@ export function TeachersPayrollTable({
         return (
             <div className="space-y-4">
                 {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-20 bg-slate-100 animate-pulse rounded-lg" />
+                    <div key={i} className="h-20 bg-muted animate-pulse rounded-lg" />
                 ))}
             </div>
         );
@@ -26,7 +26,7 @@ export function TeachersPayrollTable({
 
     if (teachers.length === 0) {
         return (
-            <div className="flex h-40 flex-col items-center justify-center gap-2 text-slate-400">
+            <div className="flex h-40 flex-col items-center justify-center gap-2 text-muted-foreground">
                 <User className="h-10 w-10" />
                 <p>Không có giáo viên nào</p>
             </div>
@@ -50,16 +50,16 @@ export function TeachersPayrollTable({
                     {teachers.map((teacher) => (
                         <tr
                             key={teacher.id}
-                            className="border-b last:border-0 hover:bg-slate-50 transition-colors"
+                            className="border-b last:border-0 hover:bg-muted/50 transition-colors"
                         >
                             {/* Teacher Info */}
                             <td className="py-4 pr-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 font-medium">
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-medium">
                                         {teacher.full_name?.charAt(0)?.toUpperCase() || 'T'}
                                     </div>
                                     <div>
-                                        <p className="font-medium text-slate-900">
+                                        <p className="font-medium text-foreground">
                                             {teacher.full_name || 'Chưa cập nhật'}
                                         </p>
                                         <p className="text-xs text-muted-foreground">
@@ -72,7 +72,7 @@ export function TeachersPayrollTable({
                             {/* Sessions */}
                             <td className="py-4 pr-4 text-center">
                                 <span className="inline-flex items-center gap-1">
-                                    <FileText className="h-4 w-4 text-slate-400" />
+                                    <FileText className="h-4 w-4 text-muted-foreground" />
                                     {teacher.total_sessions || 0}
                                 </span>
                             </td>
@@ -80,7 +80,7 @@ export function TeachersPayrollTable({
                             {/* Hours */}
                             <td className="py-4 pr-4 text-center">
                                 <span className="inline-flex items-center gap-1">
-                                    <Clock className="h-4 w-4 text-slate-400" />
+                                    <Clock className="h-4 w-4 text-muted-foreground" />
                                     {formatHours(teacher.total_hours || 0)}
                                 </span>
                             </td>
@@ -125,7 +125,7 @@ export function TeachersPayrollTable({
                                         Tạo bảng lương
                                     </Button>
                                 ) : (
-                                    <span className="text-sm text-slate-400">--</span>
+                                    <span className="text-sm text-muted-foreground">--</span>
                                 )}
                             </td>
                         </tr>

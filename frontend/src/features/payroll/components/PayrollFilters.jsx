@@ -29,19 +29,19 @@ function IconSelect({ value, onChange, options, placeholder, icon: Icon }) {
         <div ref={containerRef} className="relative">
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 h-10 px-3 rounded-md border border-input bg-white hover:bg-slate-50 transition-colors text-sm min-w-[140px] justify-between"
+                className="flex items-center gap-2 h-10 px-3 rounded-md border border-input bg-card dark:bg-zinc-950 dark:border-zinc-800 hover:bg-muted/50 transition-colors text-sm min-w-[140px] justify-between"
             >
                 <div className="flex items-center gap-2">
-                    {Icon && <Icon className="h-4 w-4 text-slate-500" />}
+                    {Icon && <Icon className="h-4 w-4 text-slate-500 dark:text-slate-400" />}
                     <span className={selectedOption?.color || ''}>
                         {selectedOption?.label || placeholder}
                     </span>
                 </div>
-                <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>
             
             {isOpen && (
-                <div className="absolute top-full left-0 mt-1 w-full bg-white rounded-md border shadow-lg z-50 py-1">
+                <div className="absolute top-full left-0 mt-1 w-full bg-card dark:bg-zinc-950 rounded-md border dark:border-zinc-800 shadow-lg z-50 py-1">
                     {options.map((option) => (
                         <button
                             key={option.value}
@@ -49,8 +49,8 @@ function IconSelect({ value, onChange, options, placeholder, icon: Icon }) {
                                 onChange(option.value);
                                 setIsOpen(false);
                             }}
-                            className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2 transition-colors ${
-                                value === option.value ? 'bg-slate-50 font-medium' : ''
+                            className={`w-full text-left px-3 py-2 text-sm hover:bg-muted/50 flex items-center gap-2 transition-colors ${
+                                value === option.value ? 'bg-muted/50 dark:bg-muted/30 font-medium' : ''
                             }`}
                         >
                             {option.icon && <option.icon className={`h-4 w-4 ${option.iconColor || 'text-slate-500'}`} />}
@@ -78,7 +78,7 @@ export function PayrollFilters({
 
     // Status options với Lucide icons thay vì emoji
     const statusOptions = [
-        { value: '', label: 'Tất cả trạng thái', icon: Filter, iconColor: 'text-slate-400' },
+        { value: '', label: 'Tất cả trạng thái', icon: Filter, iconColor: 'text-muted-foreground' },
         { value: 'draft', label: 'Nháp', icon: FileText, iconColor: 'text-slate-500' },
         { value: 'pending', label: 'Chờ duyệt', icon: Clock, iconColor: 'text-orange-500' },
         { value: 'approved', label: 'Đã duyệt', icon: CheckCircle, iconColor: 'text-green-500' },
@@ -89,7 +89,7 @@ export function PayrollFilters({
         <div className="flex flex-wrap items-center gap-4">
             {/* Search */}
             <div className="relative flex-1 min-w-[200px]">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                     placeholder="Tìm theo tên giáo viên..."
                     value={searchTerm}

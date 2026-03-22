@@ -89,12 +89,12 @@ export function BulkGeneratePayrollModal({
     return (
         <div className="fixed inset-0 z-[300] flex items-center justify-center">
             {/* Backdrop */}
-            <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm dark:bg-black/80" onClick={onClose} />
 
             {/* Modal */}
-            <div className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-auto rounded-lg bg-white shadow-xl mx-4">
+            <div className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-auto rounded-lg border border-border bg-card text-foreground shadow-xl dark:bg-zinc-950 dark:border-zinc-800 dark:shadow-2xl mx-4">
                 {/* Header */}
-                <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+                <div className="sticky top-0 z-20 bg-card dark:bg-zinc-950 border-b border-border px-6 py-4 flex items-center justify-between shadow-sm">
                     <div>
                         <h2 className="text-xl font-semibold flex items-center gap-2">
                             <Users className="h-5 w-5 text-indigo-600" />
@@ -114,22 +114,22 @@ export function BulkGeneratePayrollModal({
                     {result ? (
                         // Hiển thị kết quả
                         <div className="space-y-4">
-                            <div className="p-4 rounded-lg bg-green-50 border border-green-200">
-                                <h3 className="font-semibold text-green-800 flex items-center gap-2">
+                            <div className="p-4 rounded-lg bg-green-500/10 dark:bg-green-500/15 border border-green-500/20 dark:border-green-500/30">
+                                <h3 className="font-semibold text-green-800 dark:text-green-300 flex items-center gap-2">
                                     <CheckCircle className="h-5 w-5" />
                                     Hoàn thành!
                                 </h3>
-                                <p className="text-sm text-green-700 mt-1">
+                                <p className="text-sm text-green-700 dark:text-green-400 mt-1">
                                     Đã tạo thành công {result.success?.length || 0} bảng lương
                                 </p>
                             </div>
 
                             {result.success?.length > 0 && (
                                 <div>
-                                    <h4 className="font-medium mb-2 text-green-700">✓ Thành công:</h4>
+                                    <h4 className="font-medium mb-2 text-green-700 dark:text-green-400">✓ Thành công:</h4>
                                     <ul className="text-sm space-y-1 max-h-32 overflow-auto">
                                         {result.success.map((item, idx) => (
-                                            <li key={idx} className="text-green-600">
+                                            <li key={idx} className="text-green-600 dark:text-green-400">
                                                 • {item.teacher_name}
                                             </li>
                                         ))}
@@ -139,10 +139,10 @@ export function BulkGeneratePayrollModal({
 
                             {result.failed?.length > 0 && (
                                 <div>
-                                    <h4 className="font-medium mb-2 text-red-700">✗ Thất bại:</h4>
+                                    <h4 className="font-medium mb-2 text-red-700 dark:text-red-400">✗ Thất bại:</h4>
                                     <ul className="text-sm space-y-1 max-h-32 overflow-auto">
                                         {result.failed.map((item, idx) => (
-                                            <li key={idx} className="text-red-600">
+                                            <li key={idx} className="text-red-600 dark:text-red-400">
                                                 • {item.teacher_name || item.teacher_id}: {item.reason}
                                             </li>
                                         ))}
@@ -159,16 +159,16 @@ export function BulkGeneratePayrollModal({
                         <>
                             {/* Thông báo */}
                             {hasAlreadyPayroll.length > 0 && (
-                                <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-200 text-sm">
-                                    <span className="text-yellow-700">
+                                <div className="p-3 rounded-lg bg-yellow-500/10 dark:bg-yellow-500/15 border border-yellow-500/20 dark:border-yellow-500/30 text-sm">
+                                    <span className="text-yellow-700 dark:text-yellow-300">
                                         ⚠️ {hasAlreadyPayroll.length} giáo viên đã có bảng lương tháng này
                                     </span>
                                 </div>
                             )}
 
                             {noSessions.length > 0 && (
-                                <div className="p-3 rounded-lg bg-slate-50 border text-sm">
-                                    <span className="text-slate-600">
+                                <div className="p-3 rounded-lg bg-muted border border-border dark:bg-muted/20 text-sm">
+                                    <span className="text-slate-600 dark:text-slate-300">
                                         ℹ️ {noSessions.length} giáo viên không có buổi dạy tháng này
                                     </span>
                                 </div>
@@ -189,7 +189,7 @@ export function BulkGeneratePayrollModal({
                                 </div>
 
                                 {eligibleTeachers.length === 0 ? (
-                                    <div className="p-8 text-center text-slate-400 border rounded-lg">
+                                    <div className="p-8 text-center text-muted-foreground border rounded-lg">
                                         <AlertCircle className="h-10 w-10 mx-auto mb-2" />
                                         <p>Không có giáo viên nào đủ điều kiện</p>
                                     </div>
@@ -198,7 +198,7 @@ export function BulkGeneratePayrollModal({
                                         {eligibleTeachers.map((teacher) => (
                                             <label
                                                 key={teacher.id}
-                                                className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 cursor-pointer border-b last:border-0"
+                                                className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 cursor-pointer border-b last:border-0"
                                             >
                                                 <input
                                                     type="checkbox"
@@ -254,7 +254,7 @@ export function BulkGeneratePayrollModal({
                                     id="bulk-notes"
                                     value={notes}
                                     onChange={(e) => setNotes(e.target.value)}
-                                    className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+                                    className="mt-1 w-full rounded-md border border-input bg-background text-foreground px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
                                     rows={2}
                                     placeholder="Ghi chú chung cho tất cả bảng lương..."
                                 />
@@ -262,10 +262,10 @@ export function BulkGeneratePayrollModal({
 
                             {/* Summary */}
                             {selectedTeachers.length > 0 && (
-                                <div className="p-4 rounded-lg bg-indigo-50 border border-indigo-200">
+                                <div className="p-4 rounded-lg bg-indigo-50 dark:bg-indigo-500/15 border border-indigo-200 dark:border-indigo-500/30">
                                     <div className="flex justify-between items-center">
-                                        <span className="text-indigo-700">Tổng lương dự kiến:</span>
-                                        <span className="text-xl font-bold text-indigo-600">
+                                        <span className="text-indigo-700 dark:text-indigo-300">Tổng lương dự kiến:</span>
+                                        <span className="text-xl font-bold text-indigo-600 dark:text-indigo-300">
                                             {formatCurrency(totalEstimated)}
                                         </span>
                                     </div>

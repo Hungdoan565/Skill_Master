@@ -31,21 +31,21 @@ function IconSelect({ value, onChange, options, placeholder, icon: Icon }) {
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 w-full h-10 px-3 rounded-md border border-input bg-white hover:bg-slate-50 transition-colors text-sm justify-between"
+                className="flex items-center gap-2 w-full h-10 px-3 rounded-md border border-input bg-card hover:bg-muted/50 transition-colors text-sm justify-between"
             >
                 <div className="flex items-center gap-2">
                     {selectedOption?.icon ? (
                         <selectedOption.icon className={`h-4 w-4 ${selectedOption.iconColor}`} />
                     ) : Icon ? (
-                        <Icon className="h-4 w-4 text-slate-500" />
+                <Icon className="h-4 w-4 text-slate-500 dark:text-slate-400" />
                     ) : null}
                     <span>{selectedOption?.label || placeholder}</span>
                 </div>
-                <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>
             
             {isOpen && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-md border shadow-lg z-50 py-1">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-card dark:bg-zinc-950 rounded-md border dark:border-zinc-800 shadow-lg z-50 py-1">
                     {options.map((option) => (
                         <button
                             key={option.value}
@@ -54,8 +54,8 @@ function IconSelect({ value, onChange, options, placeholder, icon: Icon }) {
                                 onChange(option.value);
                                 setIsOpen(false);
                             }}
-                            className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2 transition-colors ${
-                                value === option.value ? 'bg-slate-50 font-medium' : ''
+                            className={`w-full text-left px-3 py-2 text-sm hover:bg-muted/50 flex items-center gap-2 transition-colors ${
+                                value === option.value ? 'bg-muted/50 dark:bg-muted/30 font-medium' : ''
                             }`}
                         >
                             {option.icon && <option.icon className={`h-4 w-4 ${option.iconColor || 'text-slate-500'}`} />}
@@ -140,14 +140,14 @@ export function DisputeModal({
         <div className="fixed inset-0 z-[300] flex items-center justify-center">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black/50"
+                className="absolute inset-0 bg-black/50 backdrop-blur-sm dark:bg-black/80"
                 onClick={handleClose}
             />
 
             {/* Modal */}
-            <div className="relative z-10 w-full max-w-lg rounded-lg bg-white shadow-xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="relative z-10 w-full max-w-lg rounded-lg border border-border bg-card text-foreground shadow-xl dark:bg-zinc-950 dark:border-zinc-800 dark:shadow-2xl mx-4 max-h-[90vh] overflow-y-auto">
                 {/* Header */}
-                <div className="flex items-center justify-between border-b px-6 py-4 sticky top-0 bg-white">
+                <div className="sticky top-0 z-20 flex items-center justify-between border-b border-border px-6 py-4 bg-card dark:bg-zinc-950 shadow-sm">
                     <h2 className="text-lg font-semibold flex items-center gap-2">
                         <AlertTriangle className="h-5 w-5 text-orange-600" />
                         Khiếu nại bảng lương
@@ -160,23 +160,23 @@ export function DisputeModal({
                 {/* Content */}
                 <form onSubmit={handleSubmit} className="p-6 space-y-6">
                     {/* Payroll Info */}
-                    <div className="p-4 rounded-lg bg-orange-50 border border-orange-200 space-y-2">
+                    <div className="p-4 rounded-lg bg-orange-500/10 dark:bg-orange-500/15 border border-orange-500/20 dark:border-orange-500/30 space-y-2">
                         <div className="flex items-center justify-between">
-                            <span className="text-orange-800 font-medium">
+                            <span className="text-orange-800 dark:text-orange-300 font-medium">
                                 {formatMonthYear(payroll.period_month, payroll.period_year)}
                             </span>
-                            <span className="text-orange-700 text-sm">
+                            <span className="text-orange-700 dark:text-orange-400 text-sm">
                                 {payroll.total_sessions} buổi
                             </span>
                         </div>
-                        <div className="text-2xl font-bold text-orange-700">
+                        <div className="text-2xl font-bold text-orange-700 dark:text-orange-300">
                             {formatCurrency(payroll.net_salary)}
                         </div>
                     </div>
 
                     {/* Notice */}
-                    <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-200">
-                        <p className="text-sm text-yellow-800">
+                    <div className="p-3 rounded-lg bg-yellow-500/10 dark:bg-yellow-500/15 border border-yellow-500/20 dark:border-yellow-500/30">
+                        <p className="text-sm text-yellow-800 dark:text-yellow-300">
                             <strong>Lưu ý:</strong> Sau khi gửi khiếu nại, quản lý sẽ xem xét và phản hồi. 
                             Bạn sẽ nhận được thông báo khi có kết quả.
                         </p>
@@ -207,7 +207,7 @@ export function DisputeModal({
                             value={formData.reason}
                             onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
                             rows={4}
-                            className="w-full px-3 py-2 rounded-md border border-input bg-white text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                            className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
                         />
                         <p className="text-xs text-muted-foreground">
                             Tối thiểu 20 ký tự. Hiện tại: {formData.reason.length} ký tự
@@ -216,7 +216,7 @@ export function DisputeModal({
 
                     {/* Error */}
                     {error && (
-                        <p className="text-sm text-red-600 p-3 rounded-lg bg-red-50">
+                        <p className="text-sm text-red-600 p-3 rounded-lg bg-red-500/10">
                             {error}
                         </p>
                     )}
