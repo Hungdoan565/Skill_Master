@@ -6,10 +6,26 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/auth-context';
 import { authFetch } from '@/features/core-gaps/utils/authFetch';
 
+function normalizeApiError(message, fallback) {
+  if (!message || message === 'Internal server error') return fallback;
+  return message;
+}
+
+const STATUS_LABELS = {
+  draft: 'Nháp',
+  published: 'Đang mở',
+  closed: 'Đã đóng',
+  archived: 'Lưu trữ',
+  submitted: 'Đã nộp',
+  resubmitted: 'Nộp lại',
+  graded: 'Đã chấm',
+};
+
 export default function AssignmentsWorkspacePage() {
   const { profile } = useAuth();
-  const role = profile?.role_code || profile?.roleCode || '';
-  const defaultCenterId = profile?.center_id || profile?.centerId || '';
+  const role = profile?.roles?.code || profile?.role_code || profile?.roleCode || '';
+  const defaultCenterId = profile?.centerId || profile?.center_id || '';
+  const centerDisplayValue = profile?.centers?.code || profile?.centers?.name || defaultCenterId || 'Trung tâm hiện tại';
 
   const [centerId, setCenterId] = useState(defaultCenterId);
   const [assignments, setAssignments] = useState([]);
@@ -28,21 +44,24 @@ export default function AssignmentsWorkspacePage() {
   const isStudent = role === 'STUDENT';
   const isCreator = ['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER'].includes(role);
 
-  const canLoad = useMemo(() => Boolean(centerId), [centerId]);
+  const canLoad = useMemo(() => (isStudent ? true : Boolean(centerId)), [centerId, isStudent]);
+
+  const getStatusLabel = useCallback((status) => STATUS_LABELS[status] || status || 'Không xác định', []);
 
   const loadAssignments = useCallback(async () => {
     if (!canLoad) return;
     setLoading(true);
     setError('');
     try {
-      const payload = await authFetch(`/api/assignments?centerId=${encodeURIComponent(centerId)}`);
+      const scopeParam = isStudent ? '' : `?centerId=${encodeURIComponent(centerId)}`;
+      const payload = await authFetch(`/api/assignments${scopeParam}`);
       setAssignments(payload.data || []);
     } catch (err) {
-      setError(err.message || 'Không thể tải assignments');
+      setError(normalizeApiError(err.message, 'Không thể tải danh sách bài tập'));
     } finally {
       setLoading(false);
     }
-  }, [canLoad, centerId]);
+  }, [canLoad, centerId, isStudent]);
 
   useEffect(() => {
     loadAssignments();
@@ -68,7 +87,7 @@ export default function AssignmentsWorkspacePage() {
       setCreateForm({ class_id: '', title: '', instructions: '', due_at: '' });
       await loadAssignments();
     } catch (err) {
-      setError(err.message || 'Không thể tạo assignment');
+      setError(normalizeApiError(err.message, 'Không thể tạo bài tập'));
     }
   };
 
@@ -78,21 +97,20 @@ export default function AssignmentsWorkspacePage() {
       await authFetch(`/api/assignments/${assignmentId}/submit`, {
         method: 'POST',
         body: JSON.stringify({
-          centerId,
           content: { text: contentText }
         })
       });
 
       await loadAssignments();
     } catch (err) {
-      setError(err.message || 'Không thể nộp assignment');
+      setError(normalizeApiError(err.message, 'Không thể nộp bài tập'));
     }
   };
 
   const handleGrade = async (assignmentId) => {
     const gradePayload = gradeForm[assignmentId] || {};
     if (!gradePayload.student_user_id || gradePayload.grade === undefined || gradePayload.grade === '') {
-      setError('Cần nhập student_user_id và grade để chấm');
+      setError('Cần nhập mã học viên và điểm số để chấm');
       return;
     }
 
@@ -109,37 +127,45 @@ export default function AssignmentsWorkspacePage() {
 
       await loadAssignments();
     } catch (err) {
-      setError(err.message || 'Không thể chấm assignment');
+      setError(normalizeApiError(err.message, 'Không thể chấm bài tập'));
     }
   };
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Structured Assignments</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{isStudent ? 'Bài tập' : 'Quản lý bài tập'}</h1>
         <p className="text-sm text-muted-foreground">
-          Tạo assignment, nộp bài, và theo dõi trạng thái chấm điểm trong cùng một workspace.
+          {isStudent
+            ? 'Nộp bài tập, theo dõi trạng thái chấm điểm và xem kết quả ngay trong cổng học viên.'
+            : 'Tạo bài tập, thu bài và theo dõi trạng thái chấm điểm trong cùng một workspace.'}
         </p>
       </div>
 
       <div className="rounded-lg border bg-white p-4 md:p-5">
         <div className="grid gap-2 md:max-w-md">
-          <Label htmlFor="assignment-center-id">Center ID</Label>
+          <Label htmlFor="assignment-center-id">Trung tâm</Label>
           <Input
             id="assignment-center-id"
-            value={centerId}
+            value={centerDisplayValue}
             onChange={(event) => setCenterId(event.target.value)}
             placeholder="Nhập center id"
+            disabled={isStudent}
           />
+          <p className="text-xs text-muted-foreground">
+            {isStudent
+              ? 'Danh sách bài tập được tự động lọc theo trung tâm và tài khoản học viên hiện tại.'
+              : 'Quản trị viên có thể đổi phạm vi trung tâm khi cần.'}
+          </p>
         </div>
       </div>
 
       {isCreator ? (
         <form className="rounded-lg border bg-white p-4 md:p-5" onSubmit={handleCreate}>
-          <h2 className="mb-4 text-lg font-semibold">Tạo assignment mới</h2>
+          <h2 className="mb-4 text-lg font-semibold">Tạo bài tập mới</h2>
           <div className="grid gap-3 md:grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor="assignment-class-id">Class ID</Label>
+              <Label htmlFor="assignment-class-id">Mã lớp</Label>
               <Input
                 id="assignment-class-id"
                 value={createForm.class_id}
@@ -175,7 +201,7 @@ export default function AssignmentsWorkspacePage() {
               />
             </div>
             <div className="flex items-end">
-              <Button type="submit" disabled={!canLoad}>Tạo và publish</Button>
+              <Button type="submit" disabled={!canLoad}>Tạo và mở nộp bài</Button>
             </div>
           </div>
         </form>
@@ -183,7 +209,7 @@ export default function AssignmentsWorkspacePage() {
 
       <div className="rounded-lg border bg-white p-4 md:p-5">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Danh sách assignment</h2>
+          <h2 className="text-lg font-semibold">Danh sách bài tập</h2>
           <Button variant="outline" onClick={loadAssignments} disabled={loading || !canLoad}>
             {loading ? 'Đang tải...' : 'Làm mới'}
           </Button>
@@ -192,7 +218,7 @@ export default function AssignmentsWorkspacePage() {
         {error ? <p className="mb-3 text-sm text-red-600">{error}</p> : null}
 
         {!assignments.length ? (
-          <p className="text-sm text-muted-foreground">Chưa có assignment nào.</p>
+          <p className="text-sm text-muted-foreground">Chưa có bài tập nào.</p>
         ) : (
           <div className="space-y-4">
             {assignments.map((item) => (
@@ -200,9 +226,9 @@ export default function AssignmentsWorkspacePage() {
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <div>
                     <p className="font-medium">{item.title}</p>
-                    <p className="text-xs text-muted-foreground">Class: {item.class_id}</p>
+                    <p className="text-xs text-muted-foreground">Lớp: {item.class_id}</p>
                   </div>
-                  <span className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-700">{item.status}</span>
+                  <span className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-700">{getStatusLabel(item.status)}</span>
                 </div>
                 <p className="text-sm text-slate-700">{item.instructions || 'Không có mô tả'}</p>
 
@@ -219,7 +245,7 @@ export default function AssignmentsWorkspacePage() {
                     </Button>
                     {item.my_submission ? (
                       <p className="text-xs text-muted-foreground">
-                        Trạng thái: {item.my_submission.status} • Điểm: {item.my_submission.grade ?? 'Chưa chấm'}
+                        Trạng thái: {getStatusLabel(item.my_submission.status)} • Điểm: {item.my_submission.grade ?? 'Chưa chấm'}
                       </p>
                     ) : null}
                   </div>
@@ -238,7 +264,7 @@ export default function AssignmentsWorkspacePage() {
                             student_user_id: event.target.value
                           }
                         }))}
-                        placeholder="student_user_id"
+                        placeholder="Mã học viên"
                       />
                       <Input
                         type="number"
@@ -250,7 +276,7 @@ export default function AssignmentsWorkspacePage() {
                             grade: event.target.value
                           }
                         }))}
-                        placeholder="grade"
+                        placeholder="Điểm số"
                       />
                       <Button variant="outline" size="sm" onClick={() => handleGrade(item.id)}>
                         Chấm điểm

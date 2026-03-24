@@ -116,6 +116,8 @@ const BaoMatPage = lazy(() => import('@/pages/public/policies').then(m => ({ def
 const FaqPage = lazy(() => import('@/pages/public/policies').then(m => ({ default: m.FaqPage })));
 const TeacherSettingsPage = lazy(() => import('@/features/teacher-profile/pages/TeacherSettingsPage'));
 const StudentProgressPage = lazy(() => import('@/features/teacher-classes/pages/StudentProgressPage'));
+const TeacherStudentProgressHubPage = lazy(() => import('@/features/teacher-classes/pages/TeacherStudentProgressHubPage'));
+const TeacherGradebookHubPage = lazy(() => import('@/features/teacher-gradebook/pages/TeacherGradebookHubPage'));
 const AssessmentManagementPage = lazy(() => import('@/features/assessment/pages/AssessmentManagementPage'));
 const StudentAssessmentPage = lazy(() => import('@/features/assessment/pages/StudentAssessmentPage'));
 const AssignmentsWorkspacePage = lazy(() => import('@/features/assignments/pages/AssignmentsWorkspacePage'));
@@ -529,6 +531,8 @@ function App() {
               <Route path="dashboard" element={<TeacherDashboardPage />} />
               <Route path="schedule" element={<TeacherSchedulePage />} />
               <Route path="classes" element={<TeacherClassesPage />} />
+              <Route path="gradebook" element={<Suspense fallback={<PageLoader />}><TeacherGradebookHubPage /></Suspense>} />
+              <Route path="student-progress" element={<Suspense fallback={<PageLoader />}><TeacherStudentProgressHubPage /></Suspense>} />
               <Route path="classes/:id" element={<TeacherClassDetailPage />} />
               <Route path="classes/:id/attendance" element={<TeacherAttendancePage />} />
               <Route path="classes/:id/gradebook" element={<TeacherGradebookPage />} />

@@ -5,12 +5,14 @@ import {
   BookOpen,
   Award,
   ClipboardCheck,
+  FileQuestion,
   CreditCard,
   QrCode,
   FileText,
   Home,
   User,
   HelpCircle,
+  NotebookPen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -33,6 +35,8 @@ const menuGroups = [
       { label: 'Lịch học', icon: CalendarDays, path: '/student/schedule' },
       { label: 'Bảng điểm', icon: Award, path: '/student/grades' },
       { label: 'Điểm danh', icon: ClipboardCheck, path: '/student/attendance' },
+      { label: 'Bài kiểm tra', icon: FileQuestion, path: '/student/assessment' },
+      { label: 'Bài tập', icon: NotebookPen, path: '/student/assignments' },
     ],
   },
   {
@@ -96,7 +100,7 @@ export function StudentSidebar() {
             )}
             <div className="space-y-1">
               {group.items.map((item) => {
-                const isActive = location.pathname === item.path || 
+                const isActive = location.pathname === item.path ||
                   (item.path === '/student' && location.pathname === '/student/dashboard');
 
                 return (

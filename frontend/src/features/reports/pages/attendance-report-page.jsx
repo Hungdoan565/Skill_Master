@@ -52,9 +52,10 @@ import {
     formatPercent,
     DATE_PRESETS,
     getDateRangeFromPreset,
-    ATTENDANCE_STATUS_LABELS,
     API_URL,
-    exportReportToExcel
+    exportReportToExcel,
+    normalizeChartData,
+    normalizeAttendanceStatusLabel
 } from '../utils';
 
 export default function AttendanceReportPage() {
@@ -145,7 +146,10 @@ export default function AttendanceReportPage() {
             classId: selectedClassId || undefined
         });
         if (result) {
-            setData(result);
+            setData({
+                ...result,
+                byStatus: normalizeChartData(result.byStatus, normalizeAttendanceStatusLabel)
+            });
         }
     }, [datePreset, customDates, isSystemWide, selectedCourseId, selectedClassId, fetchAttendanceReport]);
 

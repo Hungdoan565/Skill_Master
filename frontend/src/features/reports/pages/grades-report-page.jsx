@@ -42,7 +42,15 @@ import { useReports } from '../hooks/useReports';
 import { useAuth } from '@/contexts/auth-context';
 import { SaveReportModal, ClassFilter, ReportPDFExport } from '../components';
 import CrossCenterToggle from '../components/CrossCenterToggle';
-import { formatNumber, formatPercent, CHART_COLORS, API_URL, exportReportToExcel } from '../utils';
+import {
+    formatNumber,
+    formatPercent,
+    CHART_COLORS,
+    API_URL,
+    exportReportToExcel,
+    normalizeChartData,
+    normalizePassRateLabel
+} from '../utils';
 
 export default function GradesReportPage() {
     const { fetchGradesReport, saveReport, loading, error } = useReports();
@@ -105,7 +113,10 @@ export default function GradesReportPage() {
             system_wide: isSystemWide
         });
         if (result) {
-            setData(result);
+            setData({
+                ...result,
+                passRateChart: normalizeChartData(result.passRateChart, normalizePassRateLabel)
+            });
         }
     }, [selectedCourseId, selectedClassId, isSystemWide, fetchGradesReport]);
 

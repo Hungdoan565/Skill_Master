@@ -106,6 +106,7 @@ const managerMenuGroups = [
     title: 'QUẢN LÝ ĐÀO TẠO',
     items: [
       { label: 'Khóa học', icon: BookOpen, path: '/admin/courses' },
+      { label: 'Quản lý bài kiểm tra', icon: ClipboardCheck, path: '/admin/assessment' },
       { label: 'Lớp học', icon: GraduationCap, path: '/admin/classes' },
       { label: 'Lịch dạy', icon: CalendarCheck, path: '/admin/schedule' },
       { label: 'Phòng học', icon: DoorOpen, path: '/admin/rooms' },
@@ -127,6 +128,8 @@ const managerMenuGroups = [
     title: 'NỘI BỘ',
     items: [
       { label: 'Nhân sự', icon: UserCog, path: '/admin/staff' },
+      { label: 'Hợp đồng lao động', icon: ScrollText, path: '/admin/labor-contracts' },
+      { label: 'Cấu hình lương', icon: Settings, path: '/admin/salary-config' },
       { label: 'Đơn nghỉ phép', icon: Calendar, path: '/admin/leave-requests' },
       { label: 'Bảng lương', icon: Wallet, path: '/admin/payroll' },
       { label: 'Khiếu nại lương', icon: AlertTriangle, path: '/admin/payroll-disputes' },

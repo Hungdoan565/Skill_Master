@@ -193,6 +193,18 @@ function parseFlagEnabled(value) {
   return false;
 }
 
+function normalizeAssessmentCategory(value, title = '', slug = '') {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'placement') return 'general';
+  if (['ielts', 'toeic', 'office', 'general'].includes(normalized)) return normalized;
+
+  const haystack = `${title} ${slug}`.toLowerCase();
+  if (haystack.includes('ielts')) return 'ielts';
+  if (haystack.includes('toeic')) return 'toeic';
+  if (haystack.includes('office') || haystack.includes('tin hoc') || haystack.includes('tin học')) return 'office';
+  return 'general';
+}
+
 async function resolveEffectiveCenterIdForRequest(req, requestedCenterId = null) {
   const { effectiveCenterId, error } = getEffectiveCenterId(req.user, requestedCenterId || null);
   if (error) {
@@ -213,9 +225,23 @@ async function isCoreGapFeatureEnabled(flagKey, req, requestedCenterId = null) {
     incrementCoreGapMetric('exposures', `${flagKey}:missing_center`);
     return {
       enabled: false,
-      error: 'Vui lÃ²ng truyá»n centerId há»£p lá»‡ Ä‘á»ƒ sá»­ dá»¥ng module nÃ y'
+      error: 'Vui lòng truyền centerId hợp lệ để sử dụng module này'
     };
   }
+
+  if (
+    flagKey === CORE_GAP_FLAGS.LABOR_CONTRACTS ||
+    flagKey === CORE_GAP_FLAGS.ONLINE_ASSESSMENT ||
+    flagKey === CORE_GAP_FLAGS.STRUCTURED_ASSIGNMENTS
+  ) {
+    incrementCoreGapMetric('exposures', `${flagKey}:enabled:default`);
+    return {
+      enabled: true,
+      centerId,
+      source: 'default'
+    };
+  }
+
   const hasCenter = Boolean(centerId);
 
   if (hasCenter) {
@@ -248,6 +274,32 @@ async function isCoreGapFeatureEnabled(flagKey, req, requestedCenterId = null) {
     centerId,
     source: 'global'
   };
+}
+
+let assessmentSchemaCapabilities = null;
+
+async function getAssessmentSchemaCapabilities() {
+  if (assessmentSchemaCapabilities) {
+    return assessmentSchemaCapabilities;
+  }
+
+  const [testsCenterCheck, questionsCenterCheck, attemptsCenterCheck, testsAuditCheck, questionsAuditCheck] = await Promise.all([
+    supabaseAdmin.from('assessment_tests').select('center_id').limit(1),
+    supabaseAdmin.from('assessment_questions').select('center_id').limit(1),
+    supabaseAdmin.from('assessment_attempts').select('center_id').limit(1),
+    supabaseAdmin.from('assessment_tests').select('created_by, updated_by').limit(1),
+    supabaseAdmin.from('assessment_questions').select('created_by, updated_by').limit(1),
+  ]);
+
+  assessmentSchemaCapabilities = {
+    testsHaveCenterId: !testsCenterCheck.error,
+    questionsHaveCenterId: !questionsCenterCheck.error,
+    attemptsHaveCenterId: !attemptsCenterCheck.error,
+    testsHaveAuditUsers: !testsAuditCheck.error,
+    questionsHaveAuditUsers: !questionsAuditCheck.error,
+  };
+
+  return assessmentSchemaCapabilities;
 }
 
 async function logCoreGapAudit(req, {
@@ -1382,6 +1434,8 @@ app.get('/api/assessment/tests', requireAuth, async (req, res, next) => {
   try {
     incrementCoreGapMetric('requests', 'assessment_tests_list');
     const { centerId, activeOnly } = req.query;
+    const supabaseClient = supabaseAdmin;
+    const schemaCapabilities = await getAssessmentSchemaCapabilities();
 
     const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.ONLINE_ASSESSMENT, req, centerId);
     if (flag.error) {
@@ -1391,11 +1445,30 @@ app.get('/api/assessment/tests', requireAuth, async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng assessment chÆ°a Ä‘Æ°á»£c báº­t cho trung tÃ¢m nÃ y' });
     }
 
-    let query = supabase
+    const assessmentSelectFields = [
+      'id',
+      'title',
+      'slug',
+      'category',
+      'duration_minutes',
+      'total_questions',
+      'attempts_allowed',
+      'cooldown_hours',
+      'is_active',
+      'created_at'
+    ];
+    if (schemaCapabilities.testsHaveCenterId) {
+      assessmentSelectFields.splice(1, 0, 'center_id');
+    }
+
+    let query = supabaseClient
       .from('assessment_tests')
-      .select('id, center_id, title, slug, category, duration_minutes, total_questions, attempts_allowed, cooldown_hours, is_active, created_at')
-      .eq('center_id', flag.centerId)
+      .select(assessmentSelectFields.join(', '))
       .order('created_at', { ascending: false });
+
+    if (schemaCapabilities.testsHaveCenterId) {
+      query = query.eq('center_id', flag.centerId);
+    }
 
     const forceActive = String(activeOnly).toLowerCase() === 'true' || req.user.roleCode === 'STUDENT';
     if (forceActive) {
@@ -1416,6 +1489,8 @@ app.get('/api/assessment/tests', requireAuth, async (req, res, next) => {
 app.post('/api/assessment/tests', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
     incrementCoreGapMetric('requests', 'assessment_tests_create');
+    const supabaseClient = supabaseAdmin;
+    const schemaCapabilities = await getAssessmentSchemaCapabilities();
     const {
       centerId,
       title,
@@ -1440,19 +1515,24 @@ app.post('/api/assessment/tests', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
     }
 
     const payload = {
-      center_id: flag.centerId,
       title: String(title).trim(),
       slug: String(slug).trim().toLowerCase(),
-      category,
+      category: normalizeAssessmentCategory(category, title, slug),
       duration_minutes,
       attempts_allowed,
       cooldown_hours,
       is_active,
-      created_by: req.user.id,
-      updated_by: req.user.id
     };
 
-    const { data, error } = await supabase
+    if (schemaCapabilities.testsHaveCenterId) {
+      payload.center_id = flag.centerId;
+    }
+    if (schemaCapabilities.testsHaveAuditUsers) {
+      payload.created_by = req.user.id;
+      payload.updated_by = req.user.id;
+    }
+
+    const { data, error } = await supabaseClient
       .from('assessment_tests')
       .insert(payload)
       .select('*')
@@ -1479,6 +1559,8 @@ app.post('/api/assessment/tests', requireAuth, requireRole(['SUPER_ADMIN', 'CENT
 app.put('/api/assessment/tests/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
     incrementCoreGapMetric('requests', 'assessment_tests_update');
+    const supabaseClient = supabaseAdmin;
+    const schemaCapabilities = await getAssessmentSchemaCapabilities();
     const { id } = req.params;
     const { centerId, ...updates } = req.body || {};
 
@@ -1490,12 +1572,15 @@ app.put('/api/assessment/tests/:id', requireAuth, requireRole(['SUPER_ADMIN', 'C
       return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng assessment chÆ°a Ä‘Æ°á»£c báº­t' });
     }
 
-    const { data: oldTest, error: oldError } = await supabase
+    const { data: oldTest, error: oldError } = await supabaseClient
       .from('assessment_tests')
       .select('*')
       .eq('id', id)
-      .eq('center_id', flag.centerId)
       .single();
+
+    if (oldTest && schemaCapabilities.testsHaveCenterId && oldTest.center_id !== flag.centerId) {
+      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y bÃ i assessment' });
+    }
 
     if (oldError || !oldTest) {
       return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y bÃ i assessment' });
@@ -1503,17 +1588,31 @@ app.put('/api/assessment/tests/:id', requireAuth, requireRole(['SUPER_ADMIN', 'C
 
     const payload = {
       ...updates,
-      updated_by: req.user.id,
       updated_at: new Date().toISOString()
     };
 
-    const { data, error } = await supabase
+    if (Object.prototype.hasOwnProperty.call(payload, 'category') || Object.prototype.hasOwnProperty.call(payload, 'title') || Object.prototype.hasOwnProperty.call(payload, 'slug')) {
+      payload.category = normalizeAssessmentCategory(
+        payload.category ?? oldTest.category,
+        payload.title ?? oldTest.title,
+        payload.slug ?? oldTest.slug,
+      );
+    }
+
+    if (schemaCapabilities.testsHaveAuditUsers) {
+      payload.updated_by = req.user.id;
+    }
+
+    let updateQuery = supabaseClient
       .from('assessment_tests')
       .update(payload)
-      .eq('id', id)
-      .eq('center_id', flag.centerId)
-      .select('*')
-      .single();
+      .eq('id', id);
+
+    if (schemaCapabilities.testsHaveCenterId) {
+      updateQuery = updateQuery.eq('center_id', flag.centerId);
+    }
+
+    const { data, error } = await updateQuery.select('*').single();
 
     if (error) throw error;
 
@@ -1537,6 +1636,8 @@ app.put('/api/assessment/tests/:id', requireAuth, requireRole(['SUPER_ADMIN', 'C
 app.post('/api/assessment/tests/:id/publish', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
     incrementCoreGapMetric('requests', 'assessment_tests_publish');
+    const supabaseClient = supabaseAdmin;
+    const schemaCapabilities = await getAssessmentSchemaCapabilities();
     const { id } = req.params;
     const { centerId, publish = true } = req.body || {};
 
@@ -1548,17 +1649,25 @@ app.post('/api/assessment/tests/:id/publish', requireAuth, requireRole(['SUPER_A
       return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng assessment chÆ°a Ä‘Æ°á»£c báº­t' });
     }
 
-    const { data, error } = await supabase
+    const publishPayload = {
+      is_active: Boolean(publish),
+      updated_at: new Date().toISOString()
+    };
+
+    if (schemaCapabilities.testsHaveAuditUsers) {
+      publishPayload.updated_by = req.user.id;
+    }
+
+    let publishQuery = supabaseClient
       .from('assessment_tests')
-      .update({
-        is_active: Boolean(publish),
-        updated_by: req.user.id,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .eq('center_id', flag.centerId)
-      .select('*')
-      .single();
+      .update(publishPayload)
+      .eq('id', id);
+
+    if (schemaCapabilities.testsHaveCenterId) {
+      publishQuery = publishQuery.eq('center_id', flag.centerId);
+    }
+
+    const { data, error } = await publishQuery.select('*').single();
 
     if (error || !data) {
       return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y bÃ i assessment' });
@@ -1584,6 +1693,8 @@ app.post('/api/assessment/tests/:id/publish', requireAuth, requireRole(['SUPER_A
 app.post('/api/assessment/tests/:id/questions', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER', 'TEACHER']), async (req, res, next) => {
   try {
     incrementCoreGapMetric('requests', 'assessment_questions_create');
+    const supabaseClient = supabaseAdmin;
+    const schemaCapabilities = await getAssessmentSchemaCapabilities();
     const { id } = req.params;
     const {
       centerId,
@@ -1610,34 +1721,40 @@ app.post('/api/assessment/tests/:id/questions', requireAuth, requireRole(['SUPER
       return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng assessment chÆ°a Ä‘Æ°á»£c báº­t' });
     }
 
-    const { data: test, error: testError } = await supabase
+    const { data: test, error: testError } = await supabaseClient
       .from('assessment_tests')
       .select('id, center_id')
       .eq('id', id)
-      .eq('center_id', flag.centerId)
       .single();
 
-    if (testError || !test) {
+    if (testError || !test || (schemaCapabilities.testsHaveCenterId && test.center_id !== flag.centerId)) {
       return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y test assessment' });
     }
 
-    const { data, error } = await supabase
+    const questionPayload = {
+      test_id: id,
+      question_text,
+      question_type,
+      options,
+      correct_answer,
+      points,
+      difficulty,
+      skill_area,
+      order_index,
+      explanation,
+    };
+
+    if (schemaCapabilities.questionsHaveCenterId) {
+      questionPayload.center_id = flag.centerId;
+    }
+    if (schemaCapabilities.questionsHaveAuditUsers) {
+      questionPayload.created_by = req.user.id;
+      questionPayload.updated_by = req.user.id;
+    }
+
+    const { data, error } = await supabaseClient
       .from('assessment_questions')
-      .insert({
-        test_id: id,
-        center_id: flag.centerId,
-        question_text,
-        question_type,
-        options,
-        correct_answer,
-        points,
-        difficulty,
-        skill_area,
-        order_index,
-        explanation,
-        created_by: req.user.id,
-        updated_by: req.user.id
-      })
+      .insert(questionPayload)
       .select('*')
       .single();
 
@@ -1656,6 +1773,8 @@ app.post('/api/assessment/tests/:id/start', requireAuth, requireRole(['STUDENT']
     incrementCoreGapMetric('requests', 'assessment_attempt_start');
     const { id } = req.params;
     const { centerId } = req.body || {};
+    const supabaseClient = supabaseAdmin;
+    const schemaCapabilities = await getAssessmentSchemaCapabilities();
 
     const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.ONLINE_ASSESSMENT, req, centerId);
     if (flag.error) {
@@ -1665,12 +1784,20 @@ app.post('/api/assessment/tests/:id/start', requireAuth, requireRole(['STUDENT']
       return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng assessment chÆ°a Ä‘Æ°á»£c báº­t' });
     }
 
-    const { data: test, error: testError } = await supabase
+    const testSelectFields = schemaCapabilities.testsHaveCenterId
+      ? 'id, slug, center_id, is_active'
+      : 'id, slug, is_active';
+
+    let testQuery = supabaseClient
       .from('assessment_tests')
-      .select('id, slug, center_id, is_active')
-      .eq('id', id)
-      .eq('center_id', flag.centerId)
-      .single();
+      .select(testSelectFields)
+      .eq('id', id);
+
+    if (schemaCapabilities.testsHaveCenterId) {
+      testQuery = testQuery.eq('center_id', flag.centerId);
+    }
+
+    const { data: test, error: testError } = await testQuery.single();
 
     if (testError || !test) {
       return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y bÃ i assessment' });
@@ -1720,6 +1847,8 @@ app.get('/api/assessment/attempts/:attemptId', requireAuth, async (req, res, nex
     incrementCoreGapMetric('requests', 'assessment_attempt_progress');
     const { attemptId } = req.params;
     const { centerId } = req.query;
+    const supabaseClient = supabaseAdmin;
+    const schemaCapabilities = await getAssessmentSchemaCapabilities();
 
     const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.ONLINE_ASSESSMENT, req, centerId);
     if (flag.error) {
@@ -1729,12 +1858,20 @@ app.get('/api/assessment/attempts/:attemptId', requireAuth, async (req, res, nex
       return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng assessment chÆ°a Ä‘Æ°á»£c báº­t' });
     }
 
-    const { data, error } = await supabase
+    const attemptSelectFields = schemaCapabilities.attemptsHaveCenterId
+      ? 'id, test_id, user_id, center_id, status, started_at, expires_at, questions_order, answers, time_spent_seconds, tab_switches'
+      : 'id, test_id, user_id, status, started_at, expires_at, questions_order, answers, time_spent_seconds, tab_switches';
+
+    let attemptQuery = supabaseClient
       .from('assessment_attempts')
-      .select('id, test_id, user_id, center_id, status, started_at, expires_at, questions_order, answers, time_spent_seconds, tab_switches')
-      .eq('id', attemptId)
-      .eq('center_id', flag.centerId)
-      .single();
+      .select(attemptSelectFields)
+      .eq('id', attemptId);
+
+    if (schemaCapabilities.attemptsHaveCenterId) {
+      attemptQuery = attemptQuery.eq('center_id', flag.centerId);
+    }
+
+    const { data, error } = await attemptQuery.single();
 
     if (error || !data) {
       return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lÆ°á»£t lÃ m bÃ i' });
@@ -1763,6 +1900,8 @@ app.post('/api/assessment/attempts/:attemptId/submit', requireAuth, requireRole(
       tab_switches = 0,
       centerId
     } = req.body || {};
+    const supabaseClient = supabaseAdmin;
+    const schemaCapabilities = await getAssessmentSchemaCapabilities();
 
     const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.ONLINE_ASSESSMENT, req, centerId);
     if (flag.error) {
@@ -1772,12 +1911,20 @@ app.post('/api/assessment/attempts/:attemptId/submit', requireAuth, requireRole(
       return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng assessment chÆ°a Ä‘Æ°á»£c báº­t' });
     }
 
-    const { data: attempt, error: attemptError } = await supabase
+    const submitAttemptSelectFields = schemaCapabilities.attemptsHaveCenterId
+      ? 'id, user_id, center_id, status'
+      : 'id, user_id, status';
+
+    let submitAttemptQuery = supabaseClient
       .from('assessment_attempts')
-      .select('id, user_id, center_id, status')
-      .eq('id', attemptId)
-      .eq('center_id', flag.centerId)
-      .single();
+      .select(submitAttemptSelectFields)
+      .eq('id', attemptId);
+
+    if (schemaCapabilities.attemptsHaveCenterId) {
+      submitAttemptQuery = submitAttemptQuery.eq('center_id', flag.centerId);
+    }
+
+    const { data: attempt, error: attemptError } = await submitAttemptQuery.single();
 
     if (attemptError || !attempt) {
       return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y lÆ°á»£t lÃ m bÃ i' });
@@ -1788,12 +1935,16 @@ app.post('/api/assessment/attempts/:attemptId/submit', requireAuth, requireRole(
     }
 
     if (attempt.status === 'completed') {
-      const { data: existingResult } = await supabase
+      let existingResultQuery = supabaseClient
         .from('assessment_attempts')
         .select('id, score, max_score, percentage, result_level, result_level_name, result_level_description, result_recommended_courses, completed_at, status')
-        .eq('id', attemptId)
-        .eq('center_id', flag.centerId)
-        .single();
+        .eq('id', attemptId);
+
+      if (schemaCapabilities.attemptsHaveCenterId) {
+        existingResultQuery = existingResultQuery.eq('center_id', flag.centerId);
+      }
+
+      const { data: existingResult } = await existingResultQuery.single();
 
       return res.json({
         success: true,
@@ -1978,6 +2129,7 @@ app.get('/api/assignments', requireAuth, async (req, res, next) => {
   try {
     incrementCoreGapMetric('requests', 'assignment_list');
     const { centerId, class_id, status } = req.query;
+    const supabaseClient = supabaseAdmin;
 
     const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.STRUCTURED_ASSIGNMENTS, req, centerId);
     if (flag.error) {
@@ -1987,7 +2139,7 @@ app.get('/api/assignments', requireAuth, async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng assignments chÆ°a Ä‘Æ°á»£c báº­t' });
     }
 
-    let query = supabase
+    let query = supabaseClient
       .from('assignments')
       .select('*')
       .eq('center_id', flag.centerId)
@@ -2011,7 +2163,7 @@ app.get('/api/assignments', requireAuth, async (req, res, next) => {
     // Student: merge own submission status
     if (req.user.roleCode === 'STUDENT' && assignments?.length) {
       const assignmentIds = assignments.map((a) => a.id);
-      const { data: submissions } = await supabase
+      const { data: submissions } = await supabaseClient
         .from('assignment_submissions')
         .select('assignment_id, status, submitted_at, grade, graded_at')
         .in('assignment_id', assignmentIds)
@@ -2039,6 +2191,7 @@ app.post('/api/assignments/:id/submit', requireAuth, requireRole(['STUDENT']), a
     incrementCoreGapMetric('requests', 'assignment_submit');
     const { id } = req.params;
     const { centerId, content = {} } = req.body || {};
+    const supabaseClient = supabaseAdmin;
 
     const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.STRUCTURED_ASSIGNMENTS, req, centerId);
     if (flag.error) {
@@ -2048,7 +2201,7 @@ app.post('/api/assignments/:id/submit', requireAuth, requireRole(['STUDENT']), a
       return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng assignments chÆ°a Ä‘Æ°á»£c báº­t' });
     }
 
-    const { data: assignment, error: assignmentError } = await supabase
+    const { data: assignment, error: assignmentError } = await supabaseClient
       .from('assignments')
       .select('id, center_id, status')
       .eq('id', id)
@@ -2063,7 +2216,7 @@ app.post('/api/assignments/:id/submit', requireAuth, requireRole(['STUDENT']), a
       return res.status(400).json({ success: false, message: 'Assignment chÆ°a má»Ÿ ná»™p bÃ i' });
     }
 
-    const { data: existing } = await supabase
+    const { data: existing } = await supabaseClient
       .from('assignment_submissions')
       .select('id, status')
       .eq('assignment_id', id)
@@ -2073,7 +2226,7 @@ app.post('/api/assignments/:id/submit', requireAuth, requireRole(['STUDENT']), a
     const nowIso = new Date().toISOString();
     const nextStatus = existing?.id ? 'resubmitted' : 'submitted';
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('assignment_submissions')
       .upsert({
         assignment_id: id,
@@ -2406,6 +2559,7 @@ app.get('/api/admin/hr/contracts', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
 app.post('/api/admin/hr/contracts', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res, next) => {
   try {
     incrementCoreGapMetric('requests', 'contract_create');
+    const supabaseClient = supabaseAdmin;
     const {
       centerId,
       staff_user_id,
@@ -2420,7 +2574,7 @@ app.post('/api/admin/hr/contracts', requireAuth, requireRole(['SUPER_ADMIN', 'CE
     } = req.body || {};
 
     if (!staff_user_id || !contract_code || !effective_from) {
-      return res.status(400).json({ success: false, message: 'Thiáº¿u thÃ´ng tin há»£p Ä‘á»“ng báº¯t buá»™c' });
+      return res.status(400).json({ success: false, message: 'Thiếu thông tin hợp đồng bắt buộc' });
     }
 
     const flag = await isCoreGapFeatureEnabled(CORE_GAP_FLAGS.LABOR_CONTRACTS, req, centerId);
@@ -2431,7 +2585,25 @@ app.post('/api/admin/hr/contracts', requireAuth, requireRole(['SUPER_ADMIN', 'CE
       return res.status(403).json({ success: false, message: 'TÃ­nh nÄƒng há»£p Ä‘á»“ng lao Ä‘á»™ng chÆ°a Ä‘Æ°á»£c báº­t' });
     }
 
-    const { data, error } = await supabase
+    const { data: staffMember, error: staffError } = await supabaseClient
+      .from('users')
+      .select('id, center_id, roles(code)')
+      .eq('id', staff_user_id)
+      .single();
+
+    if (staffError || !staffMember) {
+      return res.status(400).json({ success: false, message: 'Nhân sự được chọn không tồn tại hoặc không còn hoạt động' });
+    }
+
+    if (staffMember.center_id !== flag.centerId) {
+      return res.status(400).json({ success: false, message: 'Nhân sự được chọn không thuộc trung tâm hiện tại' });
+    }
+
+    if (!['TEACHER', 'CENTER_MANAGER'].includes(staffMember.roles?.code || '')) {
+      return res.status(400).json({ success: false, message: 'Chỉ có thể tạo hợp đồng cho nhân sự thuộc nhóm giáo viên hoặc quản lý trung tâm' });
+    }
+
+    const { data, error } = await supabaseClient
       .from('hr_contracts')
       .insert({
         center_id: flag.centerId,
@@ -2453,7 +2625,7 @@ app.post('/api/admin/hr/contracts', requireAuth, requireRole(['SUPER_ADMIN', 'CE
 
     if (error) throw error;
 
-    await supabase.from('hr_contract_events').insert({
+    await supabaseClient.from('hr_contract_events').insert({
       contract_id: data.id,
       center_id: flag.centerId,
       event_type: 'create',
@@ -2570,7 +2742,7 @@ app.post('/api/admin/hr/contracts/:id/transition', requireAuth, requireRole(['SU
       .single();
 
     if (contractError || !contract) {
-      return res.status(404).json({ success: false, message: 'KhÃ´ng tÃ¬m tháº¥y há»£p Ä‘á»“ng' });
+      return res.status(404).json({ success: false, message: 'Không tìm thấy hợp đồng' });
     }
 
     const currentStatus = contract.status;
@@ -22124,10 +22296,10 @@ app.get('/api/reports/attendance', requireAuth, requireRole(['SUPER_ADMIN', 'CEN
 
     // By status
     const byStatus = [
-      { name: 'CÃƒÂ³ mÃ¡ÂºÂ·t', value: presentCount, color: '#22c55e' },
-      { name: 'VÃ¡ÂºÂ¯ng', value: absentCount, color: '#ef4444' },
-      { name: 'TrÃ¡Â»â€¦', value: lateCount, color: '#f59e0b' },
-      { name: 'CÃƒÂ³ phÃƒÂ©p', value: excusedCount, color: '#3b82f6' }
+      { name: 'Có mặt', value: presentCount, color: '#22c55e' },
+      { name: 'Vắng', value: absentCount, color: '#ef4444' },
+      { name: 'Trễ', value: lateCount, color: '#f59e0b' },
+      { name: 'Có phép', value: excusedCount, color: '#3b82f6' }
     ];
 
     // By date
@@ -22364,8 +22536,8 @@ app.get('/api/reports/grades', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_
         topStudents,
         lowScoreStudents,
         passRateChart: [
-          { name: 'Ã„ÂÃ¡ÂºÂ¡t', value: passedStudents, color: '#22c55e' },
-          { name: 'KhÃƒÂ´ng Ã„â€˜Ã¡ÂºÂ¡t', value: failedStudents, color: '#ef4444' }
+          { name: 'Đạt', value: passedStudents, color: '#22c55e' },
+          { name: 'Không đạt', value: failedStudents, color: '#ef4444' }
         ]
       }
     });
@@ -35463,258 +35635,258 @@ const gracefulShutdown = async (signal) => {
   console.log(`\n${signal} received. Starting graceful shutdown...`);
 
   // ═══════════════════════════════════════════════════════
-// LEAVE REQUESTS ROUTES
-// Teacher: GET list, POST create, PATCH update, DELETE cancel
-// Admin: GET list with filter, PATCH approve/reject
-// ═══════════════════════════════════════════════════════
+  // LEAVE REQUESTS ROUTES
+  // Teacher: GET list, POST create, PATCH update, DELETE cancel
+  // Admin: GET list with filter, PATCH approve/reject
+  // ═══════════════════════════════════════════════════════
 
-// ── TEACHER ──────────────────────────────────────────────
-app.get('/api/teacher/leave-requests', requireAuth, requireRole(['TEACHER']), async (req, res) => {
-  try {
-    const { status } = req.query;
+  // ── TEACHER ──────────────────────────────────────────────
+  app.get('/api/teacher/leave-requests', requireAuth, requireRole(['TEACHER']), async (req, res) => {
+    try {
+      const { status } = req.query;
 
-    const teacherProfile = await getTeacherProfile(req.user.id);
-    if (!teacherProfile?.center_id) {
-      return res.status(400).json({ success: false, message: 'Bạn chưa được gán vào trung tâm nào.' });
+      const teacherProfile = await getTeacherProfile(req.user.id);
+      if (!teacherProfile?.center_id) {
+        return res.status(400).json({ success: false, message: 'Bạn chưa được gán vào trung tâm nào.' });
+      }
+
+      let query = supabaseAdmin
+        .from('leave_requests')
+        .select('*, teacher:users!leave_requests_staff_id_fkey(full_name, email, phone)')
+        .eq('center_id', teacherProfile.center_id)
+        .order('created_at', { ascending: false });
+
+      if (status && ['pending', 'approved', 'rejected'].includes(status)) {
+        query = query.eq('status', status);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return res.json({ success: true, data: data || [] });
+    } catch (error) {
+      console.error('Error fetching teacher leave requests:', error);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.post('/api/teacher/leave-requests', requireAuth, requireRole(['TEACHER']), async (req, res) => {
+    try {
+      const { leave_type, start_date, end_date, reason } = req.body;
+
+      if (!leave_type || !start_date || !end_date) {
+        return res.status(400).json({ success: false, message: 'Loại nghỉ, ngày bắt đầu và ngày kết thúc là bắt buộc.' });
+      }
+
+      const teacherProfile = await getTeacherProfile(req.user.id);
+      if (!teacherProfile?.center_id) {
+        return res.status(400).json({ success: false, message: 'Bạn chưa được gán vào trung tâm nào.' });
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from('leave_requests')
+        .insert({
+          staff_id: req.user.id,
+          center_id: teacherProfile.center_id,
+          leave_type,
+          start_date,
+          end_date,
+          reason: reason || '',
+          status: 'pending',
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return res.status(201).json({ success: true, data });
+    } catch (error) {
+      console.error('Error creating leave request:', error);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.patch('/api/teacher/leave-requests/:id', requireAuth, requireRole(['TEACHER']), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { leave_type, start_date, end_date, reason } = req.body;
+
+      const { data: existing } = await supabaseAdmin
+        .from('leave_requests')
+        .select('id, status, staff_id')
+        .eq('id', id)
+        .single();
+
+      if (!existing) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy đơn xin nghỉ.' });
+      }
+      if (existing.staff_id !== req.user.id) {
+        return res.status(403).json({ success: false, message: 'Bạn không có quyền sửa đơn này.' });
+      }
+      if (existing.status !== 'pending') {
+        return res.status(400).json({ success: false, message: 'Chỉ có thể sửa đơn đang chờ duyệt.' });
+      }
+
+      const updates = {};
+      if (leave_type) updates.leave_type = leave_type;
+      if (start_date) updates.start_date = start_date;
+      if (end_date) updates.end_date = end_date;
+      if (reason !== undefined) updates.reason = reason;
+
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ success: false, message: 'Không có dữ liệu cần cập nhật.' });
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from('leave_requests')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return res.json({ success: true, data });
+    } catch (error) {
+      console.error('Error updating leave request:', error);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.delete('/api/teacher/leave-requests/:id', requireAuth, requireRole(['TEACHER']), async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const { data: existing } = await supabaseAdmin
+        .from('leave_requests')
+        .select('id, status, staff_id')
+        .eq('id', id)
+        .single();
+
+      if (!existing) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy đơn xin nghỉ.' });
+      }
+      if (existing.staff_id !== req.user.id) {
+        return res.status(403).json({ success: false, message: 'Bạn không có quyền xóa đơn này.' });
+      }
+      if (existing.status !== 'pending') {
+        return res.status(400).json({ success: false, message: 'Chỉ có thể xóa đơn đang chờ duyệt.' });
+      }
+
+      const { error } = await supabaseAdmin
+        .from('leave_requests')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return res.json({ success: true, message: 'Đã xóa đơn xin nghỉ.' });
+    } catch (error) {
+      console.error('Error deleting leave request:', error);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  // ── ADMIN / MANAGER ──────────────────────────────────────
+  app.get('/api/admin/leave-requests', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res) => {
+    try {
+      const { status } = req.query;
+      const { effectiveCenterId: centerId } = getEffectiveCenterId(req.user, null);
+
+      let query = supabaseAdmin
+        .from('leave_requests')
+        .select('*, teacher:users!leave_requests_staff_id_fkey(full_name, email, phone)')
+        .order('created_at', { ascending: false });
+
+      if (centerId) {
+        query = query.eq('center_id', centerId);
+      }
+      if (status && ['pending', 'approved', 'rejected'].includes(status)) {
+        query = query.eq('status', status);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return res.json({ success: true, data: data || [] });
+    } catch (error) {
+      console.error('Error fetching leave requests:', error);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  app.patch('/api/admin/leave-requests/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status, reviewer_notes } = req.body;
+
+      if (!['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ success: false, message: 'Trạng thái không hợp lệ.' });
+      }
+
+      const { data: existing, error: fetchError } = await supabaseAdmin
+        .from('leave_requests')
+        .select('*, teacher:users!leave_requests_staff_id_fkey(full_name, center_id)')
+        .eq('id', id)
+        .single();
+
+      if (fetchError || !existing) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy đơn xin nghỉ.' });
+      }
+      if (existing.status !== 'pending') {
+        return res.status(400).json({ success: false, message: 'Đơn này đã được xử lý trước đó.' });
+      }
+
+      const { data: updated, error: updateError } = await supabaseAdmin
+        .from('leave_requests')
+        .update({
+          status,
+          reviewer_notes: reviewer_notes || '',
+          reviewed_by: req.user.id,
+          reviewed_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+
+      // Send realtime notification to the teacher
+      const { effectiveCenterId: centerId } = getEffectiveCenterId(req.user, null);
+      const notificationResult = await createNotification(supabaseAdmin, {
+        userId: existing.staff_id,
+        centerId: existing.center_id || centerId || null,
+        type: `leave_request_${status}`,
+        title: status === 'approved' ? 'Đơn xin nghỉ đã được duyệt' : 'Đơn xin nghỉ đã bị từ chối',
+        message: status === 'approved'
+          ? `Đơn xin nghỉ của bạn từ ngày ${existing.start_date} đến ${existing.end_date} đã được duyệt.`
+          : `Đơn xin nghỉ của bạn từ ngày ${existing.start_date} đến ${existing.end_date} đã bị từ chối.${reviewer_notes ? ' Lý do: ' + reviewer_notes : ''}`
+        ,
+        referenceId: existing.id,
+        referenceType: 'leave_request',
+      });
+
+      if (!notificationResult?.success && notificationResult?.reason !== 'insert_failed') {
+        console.warn('Leave request notification failed:', notificationResult?.reason);
+      }
+
+      return res.json({ success: true, data: updated });
+    } catch (error) {
+      console.error('Error updating leave request:', error);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+
+  server.close(async () => {
+    console.log('HTTP server closed');
+
+    try {
+      const { stopJobScheduler } = await import('./jobs/index.js');
+      await stopJobScheduler();
+    } catch (err) {
+      console.warn('Error stopping job scheduler:', err.message);
     }
 
-    let query = supabaseAdmin
-      .from('leave_requests')
-      .select('*, teacher:users!leave_requests_staff_id_fkey(full_name, email, phone)')
-      .eq('center_id', teacherProfile.center_id)
-      .order('created_at', { ascending: false });
-
-    if (status && ['pending', 'approved', 'rejected'].includes(status)) {
-      query = query.eq('status', status);
+    if (shutdownTimeout) {
+      clearTimeout(shutdownTimeout);
     }
-
-    const { data, error } = await query;
-    if (error) throw error;
-    return res.json({ success: true, data: data || [] });
-  } catch (error) {
-    console.error('Error fetching teacher leave requests:', error);
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-app.post('/api/teacher/leave-requests', requireAuth, requireRole(['TEACHER']), async (req, res) => {
-  try {
-    const { leave_type, start_date, end_date, reason } = req.body;
-
-    if (!leave_type || !start_date || !end_date) {
-      return res.status(400).json({ success: false, message: 'Loại nghỉ, ngày bắt đầu và ngày kết thúc là bắt buộc.' });
-    }
-
-    const teacherProfile = await getTeacherProfile(req.user.id);
-    if (!teacherProfile?.center_id) {
-      return res.status(400).json({ success: false, message: 'Bạn chưa được gán vào trung tâm nào.' });
-    }
-
-    const { data, error } = await supabaseAdmin
-      .from('leave_requests')
-      .insert({
-        staff_id: req.user.id,
-        center_id: teacherProfile.center_id,
-        leave_type,
-        start_date,
-        end_date,
-        reason: reason || '',
-        status: 'pending',
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return res.status(201).json({ success: true, data });
-  } catch (error) {
-    console.error('Error creating leave request:', error);
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-app.patch('/api/teacher/leave-requests/:id', requireAuth, requireRole(['TEACHER']), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { leave_type, start_date, end_date, reason } = req.body;
-
-    const { data: existing } = await supabaseAdmin
-      .from('leave_requests')
-      .select('id, status, staff_id')
-      .eq('id', id)
-      .single();
-
-    if (!existing) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn xin nghỉ.' });
-    }
-    if (existing.staff_id !== req.user.id) {
-      return res.status(403).json({ success: false, message: 'Bạn không có quyền sửa đơn này.' });
-    }
-    if (existing.status !== 'pending') {
-      return res.status(400).json({ success: false, message: 'Chỉ có thể sửa đơn đang chờ duyệt.' });
-    }
-
-    const updates = {};
-    if (leave_type) updates.leave_type = leave_type;
-    if (start_date) updates.start_date = start_date;
-    if (end_date) updates.end_date = end_date;
-    if (reason !== undefined) updates.reason = reason;
-
-    if (Object.keys(updates).length === 0) {
-      return res.status(400).json({ success: false, message: 'Không có dữ liệu cần cập nhật.' });
-    }
-
-    const { data, error } = await supabaseAdmin
-      .from('leave_requests')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return res.json({ success: true, data });
-  } catch (error) {
-    console.error('Error updating leave request:', error);
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-app.delete('/api/teacher/leave-requests/:id', requireAuth, requireRole(['TEACHER']), async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const { data: existing } = await supabaseAdmin
-      .from('leave_requests')
-      .select('id, status, staff_id')
-      .eq('id', id)
-      .single();
-
-    if (!existing) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn xin nghỉ.' });
-    }
-    if (existing.staff_id !== req.user.id) {
-      return res.status(403).json({ success: false, message: 'Bạn không có quyền xóa đơn này.' });
-    }
-    if (existing.status !== 'pending') {
-      return res.status(400).json({ success: false, message: 'Chỉ có thể xóa đơn đang chờ duyệt.' });
-    }
-
-    const { error } = await supabaseAdmin
-      .from('leave_requests')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
-    return res.json({ success: true, message: 'Đã xóa đơn xin nghỉ.' });
-  } catch (error) {
-    console.error('Error deleting leave request:', error);
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// ── ADMIN / MANAGER ──────────────────────────────────────
-app.get('/api/admin/leave-requests', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res) => {
-  try {
-    const { status } = req.query;
-    const { effectiveCenterId: centerId } = getEffectiveCenterId(req.user, null);
-
-    let query = supabaseAdmin
-      .from('leave_requests')
-      .select('*, teacher:users!leave_requests_staff_id_fkey(full_name, email, phone)')
-      .order('created_at', { ascending: false });
-
-    if (centerId) {
-      query = query.eq('center_id', centerId);
-    }
-    if (status && ['pending', 'approved', 'rejected'].includes(status)) {
-      query = query.eq('status', status);
-    }
-
-    const { data, error } = await query;
-    if (error) throw error;
-    return res.json({ success: true, data: data || [] });
-  } catch (error) {
-    console.error('Error fetching leave requests:', error);
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-app.patch('/api/admin/leave-requests/:id', requireAuth, requireRole(['SUPER_ADMIN', 'CENTER_MANAGER']), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status, reviewer_notes } = req.body;
-
-    if (!['approved', 'rejected'].includes(status)) {
-      return res.status(400).json({ success: false, message: 'Trạng thái không hợp lệ.' });
-    }
-
-    const { data: existing, error: fetchError } = await supabaseAdmin
-      .from('leave_requests')
-      .select('*, teacher:users!leave_requests_staff_id_fkey(full_name, center_id)')
-      .eq('id', id)
-      .single();
-
-    if (fetchError || !existing) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy đơn xin nghỉ.' });
-    }
-    if (existing.status !== 'pending') {
-      return res.status(400).json({ success: false, message: 'Đơn này đã được xử lý trước đó.' });
-    }
-
-    const { data: updated, error: updateError } = await supabaseAdmin
-      .from('leave_requests')
-      .update({
-        status,
-        reviewer_notes: reviewer_notes || '',
-        reviewed_by: req.user.id,
-        reviewed_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (updateError) throw updateError;
-
-    // Send realtime notification to the teacher
-    const { effectiveCenterId: centerId } = getEffectiveCenterId(req.user, null);
-    const notificationResult = await createNotification(supabaseAdmin, {
-      userId: existing.staff_id,
-      centerId: existing.center_id || centerId || null,
-      type: `leave_request_${status}`,
-      title: status === 'approved' ? 'Đơn xin nghỉ đã được duyệt' : 'Đơn xin nghỉ đã bị từ chối',
-      message: status === 'approved'
-        ? `Đơn xin nghỉ của bạn từ ngày ${existing.start_date} đến ${existing.end_date} đã được duyệt.`
-        : `Đơn xin nghỉ của bạn từ ngày ${existing.start_date} đến ${existing.end_date} đã bị từ chối.${reviewer_notes ? ' Lý do: ' + reviewer_notes : ''}`
-      ,
-      referenceId: existing.id,
-      referenceType: 'leave_request',
-    });
-
-    if (!notificationResult?.success && notificationResult?.reason !== 'insert_failed') {
-      console.warn('Leave request notification failed:', notificationResult?.reason);
-    }
-
-    return res.json({ success: true, data: updated });
-  } catch (error) {
-    console.error('Error updating leave request:', error);
-    return res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-
-server.close(async () => {
-  console.log('HTTP server closed');
-
-  try {
-    const { stopJobScheduler } = await import('./jobs/index.js');
-    await stopJobScheduler();
-  } catch (err) {
-    console.warn('Error stopping job scheduler:', err.message);
-  }
-
-  if (shutdownTimeout) {
-    clearTimeout(shutdownTimeout);
-  }
-  process.exit(0);
+    process.exit(0);
   });
 
   // Force exit after 10 seconds if graceful shutdown fails

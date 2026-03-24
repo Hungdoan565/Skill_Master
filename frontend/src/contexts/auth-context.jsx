@@ -40,7 +40,8 @@ export function AuthProvider({ children }) {
           ),
           centers!users_center_id_fkey (
             id,
-            name
+            name,
+            code
           )
         `)
         .eq('id', userId)
@@ -119,7 +120,8 @@ export function AuthProvider({ children }) {
                 ),
                 centers!users_center_id_fkey (
                   id,
-                  name
+                  name,
+                  code
                 )
               `)
               .eq('id', currentSession.user.id)
@@ -202,7 +204,8 @@ export function AuthProvider({ children }) {
                 ),
                 centers!users_center_id_fkey (
                   id,
-                  name
+                  name,
+                  code
                 )
               `)
               .eq('id', currentSession.user.id)
@@ -254,8 +257,8 @@ export function AuthProvider({ children }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${result.data.session.access_token}` },
           body: JSON.stringify({ action: 'LOGIN' })
-        }).catch(() => {});
-      } catch {}
+        }).catch(() => { });
+      } catch { }
     } else if (result.error) {
       // Log failed login attempt (unauthenticated endpoint)
       try {
@@ -263,8 +266,8 @@ export function AuthProvider({ children }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'LOGIN_FAILED', email })
-        }).catch(() => {});
-      } catch {}
+        }).catch(() => { });
+      } catch { }
     }
     return result;
   };
@@ -278,8 +281,8 @@ export function AuthProvider({ children }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
           body: JSON.stringify({ action: 'LOGOUT' })
-        }).catch(() => {}); // Fire-and-forget
-      } catch {} // Silent fail
+        }).catch(() => { }); // Fire-and-forget
+      } catch { } // Silent fail
     }
     // Clear ALL auth state immediately to prevent "Chưa hoàn tất cấu hình" flash
     setProfile(null);

@@ -73,6 +73,21 @@ const studentProgressPageSource = fs.readFileSync(
     'utf8'
 );
 
+const teacherSidebarSource = fs.readFileSync(
+    path.resolve(import.meta.dirname, '..', '..', 'frontend', 'src', 'components', 'layout', 'teacher-sidebar.jsx'),
+    'utf8'
+);
+
+const teacherGradebookHubPageSource = fs.readFileSync(
+    path.resolve(import.meta.dirname, '..', '..', 'frontend', 'src', 'features', 'teacher-gradebook', 'pages', 'TeacherGradebookHubPage.jsx'),
+    'utf8'
+);
+
+const teacherStudentProgressHubPageSource = fs.readFileSync(
+    path.resolve(import.meta.dirname, '..', '..', 'frontend', 'src', 'features', 'teacher-classes', 'pages', 'TeacherStudentProgressHubPage.jsx'),
+    'utf8'
+);
+
 test('teacher leave backend supports schema-compatible teacher column lookup', () => {
     assert.match(backendSource, /LEAVE_TEACHER_COLUMN_CANDIDATES\s*=\s*\['staff_id',\s*'teacher_id'\]/);
     assert.match(backendSource, /runLeaveQueryWithTeacherColumn/);
@@ -187,6 +202,25 @@ test('student progress surfaces hardened attendance denominator and safe local d
     assert.match(studentProgressPageSource, /attendance\.attendance_marked_sessions/);
     assert.match(studentProgressPageSource, /formatDateOnlyLocal/);
     assert.match(studentProgressPageSource, /formatDateTimeLocal/);
+});
+
+test('student progress page does not contain stray top-level identifier before the module comment', () => {
+    assert.doesNotMatch(studentProgressPageSource, /^hoa\//);
+    assert.match(studentProgressPageSource, /^\/\*\*/);
+});
+
+test('teacher sidebar exposes gradebook and student progress navigation hubs', () => {
+    assert.match(teacherSidebarSource, /label: 'Bảng điểm'/);
+    assert.match(teacherSidebarSource, /path: '\/teacher\/gradebook'/);
+    assert.match(teacherSidebarSource, /label: 'Tiến trình học viên'/);
+    assert.match(teacherSidebarSource, /path: '\/teacher\/student-progress'/);
+});
+
+test('teacher hub pages guide navigation into class-scoped gradebook and progress flows', () => {
+    assert.match(teacherGradebookHubPageSource, /\/teacher\/classes\/\$\{cls\.id\}\/gradebook/);
+    assert.match(teacherGradebookHubPageSource, /Chọn lớp để mở sổ điểm/);
+    assert.match(teacherStudentProgressHubPageSource, /\/teacher\/classes\/\$\{selectedClassId\}\/students\/\$\{student\.student_id \|\| student\.id\}/);
+    assert.match(teacherStudentProgressHubPageSource, /Chọn lớp và học viên để xem tiến trình/);
 });
 
 test('teacher alerts and quick actions use center-manager escalation semantics', () => {

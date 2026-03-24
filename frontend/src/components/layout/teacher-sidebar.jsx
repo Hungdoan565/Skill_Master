@@ -4,6 +4,7 @@ import {
   CalendarDays,
   BookOpen,
   ClipboardCheck,
+  FileSpreadsheet,
   GraduationCap,
   DollarSign,
   Clock,
@@ -11,6 +12,7 @@ import {
   FileText,
   User,
   Settings,
+  TrendingUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -32,6 +34,18 @@ const menuGroups = [
       { label: 'Lịch dạy', icon: CalendarDays, path: '/teacher/schedule' },
       { label: 'Lớp học', icon: BookOpen, path: '/teacher/classes' },
       { label: 'Điểm danh', icon: ClipboardCheck, path: '/teacher/attendance' },
+      {
+        label: 'Bảng điểm',
+        icon: FileSpreadsheet,
+        path: '/teacher/gradebook',
+        isActive: (pathname) => pathname === '/teacher/gradebook' || pathname.includes('/gradebook')
+      },
+      {
+        label: 'Tiến trình học viên',
+        icon: TrendingUp,
+        path: '/teacher/student-progress',
+        isActive: (pathname) => pathname === '/teacher/student-progress' || /\/teacher\/classes\/[^/]+\/students\/[^/]+/.test(pathname)
+      },
     ],
   },
   {
@@ -98,7 +112,9 @@ export function TeacherSidebar() {
             )}
             <div className="space-y-1">
               {group.items.map((item) => {
-                const isActive = location.pathname === item.path ||
+                const isActive = item.isActive
+                  ? item.isActive(location.pathname)
+                  : location.pathname === item.path ||
                   (item.path === '/teacher' && location.pathname === '/teacher/dashboard');
 
                 return (
